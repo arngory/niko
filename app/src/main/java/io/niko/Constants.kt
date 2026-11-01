@@ -179,6 +179,7 @@ object Key {
     const val YGGDRASIL_PEERS = "yggdrasilPeers"
     const val YGGDRASIL_PRIVATE_KEY = "yggdrasilPrivateKey"
     const val YGGDRASIL_ALLOW_INBOUND = "yggdrasilAllowInbound"
+    const val YGGDRASIL_PEERS_VIA_PROXY = "yggdrasilPeersViaProxy"
     const val YGGDRASIL_ADDRESS = "yggdrasilAddress"
 }
 

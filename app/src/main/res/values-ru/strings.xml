@@ -530,6 +530,8 @@
     <string name="yggdrasil_summary">Доступ к mesh-сети Yggdrasil (200::/7) во время подключения; профиль с сервером на адресе Yggdrasil идёт через неё. Приложения достают её в режиме VPN с включённым IPv6 или через локальный прокси.</string>
     <string name="yggdrasil_peers">Пиры</string>
     <string name="yggdrasil_peers_help">По одному в строке: tls://host:port, tcp://, quic://, ws://, wss://. Публичные пиры: github.com/yggdrasil-network/public-peers</string>
+    <string name="yggdrasil_peers_via_proxy">Пиры через прокси</string>
+    <string name="yggdrasil_peers_via_proxy_summary">Подключаться к пирам через выбранный профиль, провайдер видит только прокси. Выключено — напрямую. Профиль с сервером на адресе Yggdrasil всегда подключается к пирам напрямую.</string>
     <string name="yggdrasil_allow_inbound">Разрешить входящие подключения</string>
     <string name="yggdrasil_allow_inbound_summary">Другие узлы смогут подключаться к сервисам этого устройства (они приходят на 127.0.0.1). Выключено — отклоняются.</string>
     <string name="yggdrasil_address">Адрес этого устройства</string>

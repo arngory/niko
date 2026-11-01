@@ -252,6 +252,11 @@
             app:useSimpleSummaryProvider="true" />
         <SwitchPreference
             app:dependency="yggdrasilEnabled"
+            app:key="yggdrasilPeersViaProxy"
+            app:summary="@string/yggdrasil_peers_via_proxy_summary"
+            app:title="@string/yggdrasil_peers_via_proxy" />
+        <SwitchPreference
+            app:dependency="yggdrasilEnabled"
             app:key="yggdrasilAllowInbound"
             app:summary="@string/yggdrasil_allow_inbound_summary"
             app:title="@string/yggdrasil_allow_inbound" />

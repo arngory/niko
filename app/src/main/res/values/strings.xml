@@ -618,6 +618,8 @@
     <string name="yggdrasil_summary">Reach the Yggdrasil mesh (200::/7) while connected; a profile whose server is a Yggdrasil address goes through it. Apps reach it in VPN mode with IPv6 on, or through the local proxy.</string>
     <string name="yggdrasil_peers">Peers</string>
     <string name="yggdrasil_peers_help">One per line: tls://host:port, tcp://, quic://, ws://, wss://. Public peers: github.com/yggdrasil-network/public-peers</string>
+    <string name="yggdrasil_peers_via_proxy">Peers through the proxy</string>
+    <string name="yggdrasil_peers_via_proxy_summary">Connect to the peers through the selected profile, so the network sees only the proxy. Off: directly. A profile whose server is a Yggdrasil address always peers directly.</string>
     <string name="yggdrasil_allow_inbound">Allow incoming connections</string>
     <string name="yggdrasil_allow_inbound_summary">Other nodes may connect to services on this device (they arrive at 127.0.0.1). Off: refused.</string>
     <string name="yggdrasil_address">Address of this device</string>

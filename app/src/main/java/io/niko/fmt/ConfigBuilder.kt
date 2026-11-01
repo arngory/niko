@@ -23,6 +23,7 @@ import io.niko.fmt.v2ray.StandardV2RayBean
 import io.niko.fmt.v2ray.buildSingBoxOutboundStandardV2RayBean
 import io.niko.fmt.wireguard.WireGuardBean
 import io.niko.fmt.wireguard.buildSingBoxEndpointWireguardBean
+import io.niko.ktx.Logs
 import io.niko.ktx.isIpAddress
 import io.niko.ktx.mkPort
 import io.niko.utils.PackageCache
@@ -280,18 +281,21 @@ fun buildConfig(
 
         // Yggdrasil (experimental): the mesh endpoint, 200::/7 through it ahead of user rules
         val yggdrasil = DataStore.yggdrasilEnabled
-        var yggdrasilAdded = false
+        var yggdrasilEndpoint: Outbound? = null
+        // the proxy reaches its server through the mesh: then the mesh cannot reach its peers
+        // through the proxy
+        var proxyThroughYggdrasil = false
         fun addYggdrasilEndpoint(privateKey: String) {
-            if (yggdrasilAdded) return
-            yggdrasilAdded = true
-            endpoints.add(Outbound().apply {
+            if (yggdrasilEndpoint != null) return
+            yggdrasilEndpoint = Outbound().apply {
                 type = "yggdrasil"
                 tag = TAG_YGGDRASIL
                 _hack_config_map["private_key"] = privateKey
                 _hack_config_map["peers"] = DataStore.yggdrasilPeers.lines().map { it.trim() }
                     .filter { it.isNotEmpty() && !it.startsWith("#") }
                 _hack_config_map["node_info_privacy"] = true
-            })
+            }
+            endpoints.add(yggdrasilEndpoint!!)
         }
         // other nodes reach this device only when allowed, and then only its own services; it
         // goes first, above the DNS hijack, or every node would get a resolver
@@ -543,6 +547,7 @@ fun buildConfig(
                     if (forTest) addYggdrasilEndpoint(Libcore.yggdrasilGenerateKey())
                     currentOutbound._hack_config_map.remove("domain_resolver")
                     currentOutbound._hack_config_map["detour"] = TAG_YGGDRASIL
+                    if (buildingProxy) proxyThroughYggdrasil = true
                 }
 
                 // DNS tunnel (experimental): the entry hop reaches its server through the core's
@@ -672,6 +677,14 @@ fun buildConfig(
             route.final_ = buildChain(0, proxy)
         }
         buildingProxy = false
+        // Yggdrasil peers through the proxy, unless the proxy itself needs the mesh
+        if (yggdrasil && !forTest && DataStore.yggdrasilPeersViaProxy) {
+            if (proxyThroughYggdrasil) {
+                Logs.w("Yggdrasil: the profile goes through the mesh, peers are dialled directly")
+            } else {
+                yggdrasilEndpoint?._hack_config_map?.set("detour", TAG_PROXY)
+            }
+        }
         // build outbounds from route item
         extraProxies.forEach { (key, p) ->
             tagMap[key] = buildChain(key, p)
