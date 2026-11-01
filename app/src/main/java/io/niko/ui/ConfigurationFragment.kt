@@ -1,5 +1,7 @@
 package io.niko.ui
 
+import io.niko.raycontrol.Rcdev1
+import io.niko.raycontrol.RayNodes
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.graphics.Color
@@ -395,6 +397,15 @@ class ConfigurationFragment @JvmOverloads constructor(
                     snackbar(getString(R.string.clipboard_empty)).show()
                 } else runOnDefaultDispatcher {
                     try {
+                        if (Rcdev1.matches(text)) {
+                            val node = RayNodes.import(Rcdev1.parse(text))
+                            // the package carries the device key: do not leave it in the clipboard
+                            SagerNet.clearClipboard()
+                            onMainDispatcher {
+                                snackbar(getString(R.string.raycontrol_node_imported, node.host, node.services.size)).show()
+                            }
+                            return@runOnDefaultDispatcher
+                        }
                         val proxies = RawUpdater.parseRaw(text)
                         if (proxies.isNullOrEmpty()) onMainDispatcher {
                             snackbar(getString(R.string.no_proxies_found_in_clipboard)).show()

@@ -266,6 +266,13 @@
             app:title="@string/yggdrasil_address" />
     </PreferenceCategory>
 
+    <PreferenceCategory app:title="@string/raycontrol">
+        <Preference
+            app:icon="@drawable/ic_baseline_vpn_key_24"
+            app:key="raycontrolNodesView"
+            app:title="@string/raycontrol_nodes" />
+    </PreferenceCategory>
+
     <PreferenceCategory app:title="@string/cag_misc">
         <io.niko.ui.UrlTestPreference
             app:defaultValue="http://cp.cloudflare.com/"

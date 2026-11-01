@@ -532,6 +532,13 @@
     <string name="yggdrasil_summary">Доступ к mesh-сети Yggdrasil (200::/7) во время подключения; профиль с сервером на адресе Yggdrasil идёт через неё. Приложения достают её в режиме VPN с включённым IPv6 или через локальный прокси.</string>
     <string name="yggdrasil_peers">Пиры</string>
     <string name="yggdrasil_peers_help">По одному в строке: tls://host:port, tcp://, quic://, ws://, wss://. Публичные пиры: github.com/yggdrasil-network/public-peers</string>
+    <string name="raycontrol">Ноды raycontrol</string>
+    <string name="raycontrol_nodes">Импортированные ноды</string>
+    <string name="raycontrol_nodes_empty">Нет. Вставьте регистрацию rcdev1: из буфера обмена или отсканируйте её QR-код (+ на главном экране); профили с адресом ноды будут сначала отправлять SPA v2.</string>
+    <string name="raycontrol_node_line">%1$s, устройство %2$s, сервисов: %3$d</string>
+    <string name="raycontrol_node_imported">Нода raycontrol %1$s добавлена (сервисов: %2$d). Профили с этим сервером сначала отправляют SPA v2.</string>
+    <string name="raycontrol_node_remove">Удалить ноду</string>
+    <string name="raycontrol_node_remove_confirm">Удалить ноду %1$s и ключ устройства? Чтобы пользоваться ею снова, импортируйте новую регистрацию.</string>
     <string name="yggdrasil_peers_via_proxy">Пиры через прокси</string>
     <string name="yggdrasil_peers_via_proxy_summary">Подключаться к пирам через выбранный профиль, провайдер видит только прокси. Выключено — напрямую. Профиль с сервером на адресе Yggdrasil всегда подключается к пирам напрямую.</string>
     <string name="yggdrasil_allow_inbound">Разрешить входящие подключения</string>

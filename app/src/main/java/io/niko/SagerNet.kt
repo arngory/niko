@@ -159,6 +159,15 @@ class SagerNet : Application(),
                 ?.getItemAt(0)?.text?.toString() ?: ""
         }
 
+        fun clearClipboard() {
+            try {
+                if (Build.VERSION.SDK_INT >= 28) clipboard.clearPrimaryClip()
+                else clipboard.setPrimaryClip(ClipData.newPlainText(null, ""))
+            } catch (e: RuntimeException) {
+                Logs.w(e)
+            }
+        }
+
         fun trySetPrimaryClip(clip: String) = try {
             clipboard.setPrimaryClip(ClipData.newPlainText(null, clip))
             true

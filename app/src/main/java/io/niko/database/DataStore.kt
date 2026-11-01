@@ -198,7 +198,7 @@ object DataStore : OnPreferenceDataStoreChangeListener {
 
     /** Secrets of this installation: not exported, not restored from another device's backup. */
     val installSecretKeys =
-        setOf("localProxyPassword", "clashApiSecret", "shortcutToken", "subscriptionHwid", Key.YGGDRASIL_PRIVATE_KEY)
+        setOf("localProxyPassword", "clashApiSecret", "shortcutToken", "subscriptionHwid", Key.YGGDRASIL_PRIVATE_KEY, Key.RAYCONTROL_NODES)
 
     /** Settings whose values must not appear in logs or crash reports. */
     fun isSensitiveKey(key: String) = key in installSecretKeys || key in secretValueKeys ||

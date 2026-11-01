@@ -16,6 +16,7 @@ import io.niko.SagerNet
 import io.niko.database.DataStore
 import io.niko.database.preference.EditTextPreferenceModifiers
 import io.niko.ktx.*
+import io.niko.raycontrol.RayNodes
 import io.niko.utils.Theme
 import io.niko.ui.*
 import libcore.Libcore
@@ -207,6 +208,39 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         findPreference<Preference>(Key.YGGDRASIL_PEERS)!!.onPreferenceChangeListener = reloadListener
         findPreference<Preference>(Key.YGGDRASIL_ALLOW_INBOUND)!!.onPreferenceChangeListener = reloadListener
         findPreference<Preference>(Key.YGGDRASIL_PEERS_VIA_PROXY)!!.onPreferenceChangeListener = reloadListener
+
+        // raycontrol nodes: imported from rcdev1 (clipboard or QR), removable here
+        val raycontrolNodes = findPreference<Preference>("raycontrolNodesView")!!
+        fun showRaycontrolNodes() {
+            val nodes = RayNodes.list()
+            raycontrolNodes.summary = if (nodes.isEmpty()) {
+                getString(R.string.raycontrol_nodes_empty)
+            } else {
+                nodes.joinToString("\n") { getString(R.string.raycontrol_node_line, it.host, it.deviceId, it.services.size) }
+            }
+        }
+        showRaycontrolNodes()
+        raycontrolNodes.setOnPreferenceClickListener {
+            val nodes = RayNodes.list()
+            if (nodes.isEmpty()) return@setOnPreferenceClickListener true
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.raycontrol_node_remove)
+                .setItems(nodes.map { it.host + " · " + it.services.joinToString { s -> s.name } }.toTypedArray()) { _, which ->
+                    val node = nodes[which]
+                    MaterialAlertDialogBuilder(requireContext())
+                        .setMessage(getString(R.string.raycontrol_node_remove_confirm, node.host))
+                        .setPositiveButton(R.string.yes) { _, _ ->
+                            RayNodes.remove(node.spa.nodeId)
+                            showRaycontrolNodes()
+                            needReload()
+                        }
+                        .setNegativeButton(android.R.string.cancel, null)
+                        .show()
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+            true
+        }
     }
 
     override fun onResume() {

@@ -620,6 +620,13 @@
     <string name="yggdrasil_summary">Reach the Yggdrasil mesh (200::/7) while connected; a profile whose server is a Yggdrasil address goes through it. Apps reach it in VPN mode with IPv6 on, or through the local proxy.</string>
     <string name="yggdrasil_peers">Peers</string>
     <string name="yggdrasil_peers_help">One per line: tls://host:port, tcp://, quic://, ws://, wss://. Public peers: github.com/yggdrasil-network/public-peers</string>
+    <string name="raycontrol">raycontrol nodes</string>
+    <string name="raycontrol_nodes">Imported nodes</string>
+    <string name="raycontrol_nodes_empty">None. Paste an rcdev1: registration from the clipboard or scan its QR code (+ on the main screen); profiles whose server is the node\'s address then send SPA v2 first.</string>
+    <string name="raycontrol_node_line">%1$s, device %2$s, %3$d services</string>
+    <string name="raycontrol_node_imported">raycontrol node %1$s added (%2$d services). Profiles with this server send SPA v2 first.</string>
+    <string name="raycontrol_node_remove">Remove a node</string>
+    <string name="raycontrol_node_remove_confirm">Remove node %1$s and its device key? To use it again, import a new registration.</string>
     <string name="yggdrasil_peers_via_proxy">Peers through the proxy</string>
     <string name="yggdrasil_peers_via_proxy_summary">Connect to the peers through the selected profile, so the network sees only the proxy. Off: directly. A profile whose server is a Yggdrasil address always peers directly.</string>
     <string name="yggdrasil_allow_inbound">Allow incoming connections</string>

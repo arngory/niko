@@ -24,6 +24,7 @@ import io.niko.fmt.v2ray.buildSingBoxOutboundStandardV2RayBean
 import io.niko.fmt.wireguard.WireGuardBean
 import io.niko.fmt.wireguard.buildSingBoxEndpointWireguardBean
 import io.niko.ktx.Logs
+import io.niko.raycontrol.RayNodes
 import io.niko.ktx.isIpAddress
 import io.niko.ktx.mkPort
 import io.niko.utils.PackageCache
@@ -514,10 +515,13 @@ fun buildConfig(
                 }
                 if (tlsTweaks.isNotEmpty()) currentOutbound._hack_config_map["tls"] = tlsTweaks
 
-                // port knocking: a libcore "knock" outbound dials the server for this hop
+                // port knocking: a libcore "knock" outbound dials the server for this hop. A raycontrol node
+                // (imported rcdev1) gets SPA v2 instead of the profile's own sequence; a DNS tunnel never
+                // reaches the node's address, so it gets none
                 var knockTag: String? = null
                 pastDetourHolder = null
-                if (bean.hasPortKnocking()) {
+                val rayNode = if (DnsTunnel.of(bean).enabled) null else RayNodes.forHost(bean.serverAddress)
+                if (rayNode != null || bean.hasPortKnocking()) {
                     if (proxyEntity.needExternal() && index != profileList.lastIndex) {
                         throw Exception("Port knocking (${bean.displayName()}): plugin profiles support it only as the first hop of a chain")
                     }
@@ -526,7 +530,7 @@ fun buildConfig(
                         type = "knock"
                         tag = knockTag
                     }
-                    knockOutbound._hack_config_map.putAll(bean.buildKnockOutboundOptions())
+                    knockOutbound._hack_config_map.putAll(rayNode?.let { RayNodes.prepareKnock(it) } ?: bean.buildKnockOutboundOptions())
                     currentOutbound._hack_config_map.remove("domain_resolver")?.let {
                         knockOutbound._hack_config_map["domain_resolver"] = it
                     }

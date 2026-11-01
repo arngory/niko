@@ -41,16 +41,18 @@ const (
 // SPAv2Options are the node parameters and the device key from the
 // registration package (spa-v2.md §1, §8).
 type SPAv2Options struct {
-	NodeID    string   `json:"node_id"`
-	EpochLen  uint32   `json:"epoch_len_s"`
-	SlotLen   uint32   `json:"slot_len_s"`
-	PortKey   string   `json:"port_key"`
-	PortBase  uint16   `json:"port_base"`
-	PortRange uint16   `json:"port_range"`
-	LenMin    int      `json:"len_min"`
-	LenMax    int      `json:"len_max"`
-	DeviceKey string   `json:"device_key"`
-	Scope     []uint16 `json:"scope,omitempty"`
+	NodeID    string `json:"node_id"`
+	EpochLen  uint32 `json:"epoch_len_s"`
+	SlotLen   uint32 `json:"slot_len_s"`
+	PortKey   string `json:"port_key"`
+	PortBase  uint16 `json:"port_base"`
+	PortRange uint16 `json:"port_range"`
+	LenMin    int    `json:"len_min"`
+	LenMax    int    `json:"len_max"`
+	DeviceKey string `json:"device_key,omitempty"`
+	// DeviceKeyRef names a key set with SetDeviceKey, so the key stays out of the config
+	DeviceKeyRef string   `json:"device_key_ref,omitempty"`
+	Scope        []uint16 `json:"scope,omitempty"`
 	// TTL is the access time asked for, seconds; 0 = the server default (10 min)
 	TTL uint16 `json:"ttl_s,omitempty"`
 }
@@ -78,7 +80,26 @@ func decodeHexInto(dst []byte, s, name string) error {
 	return nil
 }
 
+// deviceKeys holds device keys by reference (SetDeviceKey), hex.
+var deviceKeys sync.Map
+
+// SetDeviceKey stores the device key for spa_v2.device_key_ref; an empty key removes it.
+func SetDeviceKey(ref, keyHex string) {
+	if keyHex == "" {
+		deviceKeys.Delete(ref)
+		return
+	}
+	deviceKeys.Store(ref, keyHex)
+}
+
 func parseSPAv2(o SPAv2Options) (*spa2Params, error) {
+	if o.DeviceKey == "" && o.DeviceKeyRef != "" {
+		key, loaded := deviceKeys.Load(o.DeviceKeyRef)
+		if !loaded {
+			return nil, E.New("spa_v2: no device key for ", o.DeviceKeyRef)
+		}
+		o.DeviceKey = key.(string)
+	}
 	p := &spa2Params{
 		epochLen:  uint64(o.EpochLen),
 		slotLen:   uint64(o.SlotLen),

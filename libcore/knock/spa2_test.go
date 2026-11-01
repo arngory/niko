@@ -265,6 +265,16 @@ func TestSPA2Options(t *testing.T) {
 			t.Fatalf("case %d accepted", i)
 		}
 	}
+	byRef := good
+	byRef.DeviceKey, byRef.DeviceKeyRef = "", "node-a"
+	if _, err := parseSPAv2(byRef); err == nil {
+		t.Fatal("unknown key reference accepted")
+	}
+	SetDeviceKey("node-a", good.DeviceKey)
+	if p, err := parseSPAv2(byRef); err != nil || p.deviceKey[0] != 0x11 {
+		t.Fatal("key reference: ", err)
+	}
+	SetDeviceKey("node-a", "")
 	if _, err := New(context.Background(), nil, nil, "x", Options{SPAv2: &good, Sequence: []Step{{Port: 1}}}); err == nil {
 		t.Fatal("spa_v2 with a sequence accepted")
 	}

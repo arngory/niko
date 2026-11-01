@@ -181,6 +181,7 @@ object Key {
     const val YGGDRASIL_ALLOW_INBOUND = "yggdrasilAllowInbound"
     const val YGGDRASIL_PEERS_VIA_PROXY = "yggdrasilPeersViaProxy"
     const val YGGDRASIL_ADDRESS = "yggdrasilAddress"
+    const val RAYCONTROL_NODES = "raycontrolNodes"
 }
 
 object TunImplementation {
