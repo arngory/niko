@@ -1,0 +1,122 @@
+# Конфиги niko-server (схема 1, черновик)
+
+Черновик для согласования с raycontrol, замораживается на R1. После заморозки любое несовместимое изменение
+поднимает `schema`. niko-server отказывается запускаться с незнакомой `schema` (`check` пишет почему).
+JSON Schema появится в `arngory/sing-box`, `cmd/niko-server/schema/` вместе с кодом.
+
+Общие правила:
+- формат — JSON;
+- секреты только путями к файлам (`*_file`), обычно `/run/credentials/<юнит>/<имя>` из `LoadCredential=`;
+- длительности — строки Go (`"60s"`, `"10m"`);
+- `SIGHUP` перечитывает файлы пользователей и ключей (`users_file`, `*_key_file`); остальные поля — только при перезапуске.
+
+## Фронт
+
+```json
+{
+  "schema": 1,
+  "role": "front",
+  "log": {"level": "warn"},
+  "tcp": {
+    "listen": ["0.0.0.0:443", "[::]:443"],
+    "sniff_timeout": "5s",
+    "routes": [
+      {"sni": ["k3f.example.com"], "backend": "xray-reality"},
+      {"sni": ["p8w.example.com"], "backend": "naive"},
+      {"sni": ["q2m.example.com"], "backend": "yggdrasil"},
+      {"alpn": ["acme-tls/1"], "backend": "acme"}
+    ],
+    "default": "xray-reality"
+  },
+  "udp": {
+    "listen": ["0.0.0.0:443", "[::]:443"],
+    "idle": "60s",
+    "routes": [
+      {"sni": ["h7d.example.com"], "backend": "hy2-masq"},
+      {"sni": ["p8w.example.com"], "backend": "naive-quic"},
+      {"salamander_password_file": "/run/credentials/niko-front/salamander", "backend": "hy2-obfs"}
+    ]
+  },
+  "dns": {
+    "listen": ["0.0.0.0:53", "[::]:53"],
+    "zones": [
+      {"zone": "t5x.example.com", "backend": "dnstt"},
+      {"zone": "v9c.example.com", "backend": "masterdns"}
+    ]
+  },
+  "backends": {
+    "xray-reality": {"socket": "/run/niko/xray-reality.sock", "mode": "proxy-v2"},
+    "naive":        {"socket": "/run/niko/naive.seq",        "mode": "fd"},
+    "yggdrasil":    {"socket": "/run/niko/yggdrasil.seq",    "mode": "fd"},
+    "acme":         {"socket": "/run/niko/acme.seq",         "mode": "fd"},
+    "hy2-masq":     {"socket": "/run/niko/hy2-masq.dgram",   "mode": "dgram"},
+    "hy2-obfs":     {"socket": "/run/niko/hy2-obfs.dgram",   "mode": "dgram"},
+    "naive-quic":   {"socket": "/run/niko/naive.dgram",      "mode": "dgram"},
+    "dnstt":        {"socket": "/run/niko/dnstt.dgram",      "mode": "dgram"},
+    "masterdns":    {"socket": "/run/niko/masterdns.dgram",  "mode": "dgram"}
+  }
+}
+```
+
+- `mode`: `fd` — передача сокета (`SCM_RIGHTS`), `proxy-v2` — поток с заголовком PROXY v2 (Xray), `dgram` — датаграммы
+  с заголовком адреса. Формат — [`IPC.md`](IPC.md).
+- Маршрут без бэкенда в `backends` — ошибка `check`. Бэкенд `acme` существует только в окне выпуска сертификата.
+  Если его сокет недоступен, соединения с ALPN `acme-tls/1` закрываются.
+
+## Бэкенд
+
+```json
+{
+  "schema": 1,
+  "role": "backend",
+  "kind": "hy2-masq",
+  "log": {"level": "warn"},
+  "socket": "/run/niko/hy2-masq.dgram",
+  "front_uid": 9100,
+  "users_file": "/run/credentials/niko-hy2-masq/users.json",
+  "tls": {
+    "certificate_file": "/run/credentials/niko-hy2-masq/cert.pem",
+    "key_file": "/run/credentials/niko-hy2-masq/key.pem",
+    "curves": ["X25519MLKEM768"]
+  },
+  "options": {"masquerade": {"type": "proxy", "url": "https://www.example.org/", "rewrite_host": true}},
+  "inner": "/run/niko/inner.seq"
+}
+```
+
+- `front_uid` — единственный UID, которому бэкенд отвечает (`SO_PEERCRED` / `SCM_CREDENTIALS`).
+- `tls.curves` по умолчанию `["X25519MLKEM768"]`. Другие значения `check` отвергает для `hy2-*`, `naive`, `doh`,
+  `yggdrasil`.
+- `inner` — сокет бэкенда `inner` (Xray). Обязателен для `dnstt`, `masterdns`, `yggdrasil`.
+
+`options` по видам:
+
+| `kind` | `options` |
+|---|---|
+| `hy2-masq` | `masquerade` (как в sing-box hysteria2), `up_mbps`/`down_mbps` (необязательно) |
+| `hy2-obfs` | `obfs_password_file` (тот же пароль salamander, что у фронта) |
+| `naive` | `site` — сокет бэкенда `site` для запросов без авторизации |
+| `doh` | `path_token_file`, `upstream` (DNS-серверы sing-box) |
+| `dnstt` | `zone`, `private_key_file` |
+| `masterdns` | `zones`, `encryption_method` (0–5, по умолчанию 2), `encryption_key_file` |
+| `yggdrasil` | `private_key_file`, `allowed_public_keys_file`, `public_peers` (bool, по умолчанию `false`), `exit_ports` |
+| `site` | `root` (каталог сгенерированного сайта), `tls` как выше (сертификат `<r>` для self-steal) |
+
+## Файл пользователей (`users_file`)
+
+Один формат для всех видов. Неизвестные поля игнорируются. Пользователь без учётных данных для этого `kind`
+пропускается.
+
+```json
+{
+  "users": [
+    {"name": "u-17", "enabled": true,
+     "hy2": {"password": "…"},
+     "naive": {"username": "…", "password": "…"},
+     "yggdrasil": {"public_key": "<64 hex>"}}
+  ]
+}
+```
+
+Пары «текущие + следующие» для ротации: raycontrol кладёт в файл обе записи, например с именами
+`u-17` и `u-17@next`. Бэкенд принимает обе до следующего `SIGHUP`.

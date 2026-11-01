@@ -67,6 +67,8 @@ type Options struct {
 	// Silence re-knocks once when a connection gets no reply this long after
 	// sending. Zero disables it.
 	Silence badoption.Duration `json:"silence,omitempty"`
+	// SPAv2 replaces the sequence with raycontrol SPA v2 (spa2.go).
+	SPAv2 *SPAv2Options `json:"spa_v2,omitempty"`
 }
 
 func Register(registry *outbound.Registry) {
@@ -88,6 +90,10 @@ type target struct {
 	lastKnock  time.Time
 	generation uint64
 	inflight   chan struct{}
+	// SPA v2: the access is renewed while the host is in use
+	lastUse time.Time
+	active  int
+	renew   *time.Timer
 }
 
 var (
@@ -103,6 +109,7 @@ type Outbound struct {
 	hasDetour      bool
 	domainResolver *option.DomainResolveOptions
 	steps          []step
+	spa2           *spa2Params
 	interval       time.Duration
 	ttl            time.Duration
 	silence        time.Duration
@@ -115,7 +122,19 @@ type Outbound struct {
 }
 
 func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options Options) (adapter.Outbound, error) {
-	steps, err := parseSequence(options.Sequence)
+	var (
+		steps []step
+		spa2  *spa2Params
+		err   error
+	)
+	if options.SPAv2 != nil {
+		if len(options.Sequence) > 0 {
+			return nil, E.New("knock: spa_v2 and sequence are exclusive")
+		}
+		spa2, err = parseSPAv2(*options.SPAv2)
+	} else {
+		steps, err = parseSequence(options.Sequence)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -126,6 +145,10 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, t
 	ttl := time.Duration(options.TTL)
 	if ttl <= 0 {
 		ttl = defaultTTL
+	}
+	if spa2 != nil {
+		// the server's window; renewals (spa2.go) keep it open while in use
+		ttl = spa2.access() * 9 / 10
 	}
 	silence := time.Duration(options.Silence)
 	if silence < 0 {
@@ -145,6 +168,7 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, t
 		hasDetour:      options.Detour != "",
 		domainResolver: options.DomainResolver,
 		steps:          steps,
+		spa2:           spa2,
 		interval:       interval,
 		ttl:            ttl,
 		silence:        silence,
@@ -210,6 +234,13 @@ func (o *Outbound) DialContext(ctx context.Context, network string, destination 
 		return nil, err
 	}
 	conn, err := o.dialer.DialContext(ctx, network, destination)
+	if err != nil && knocked && o.spa2 != nil {
+		// the slot (and port) may have changed right at the boundary: one more packet
+		o.logger.DebugContext(ctx, "dial after SPA failed, sending it once more: ", err)
+		if o.sendSequence(ctx, destination) == nil {
+			conn, err = o.dialer.DialContext(ctx, network, destination)
+		}
+	}
 	if err != nil && !knocked {
 		// the cached knock may be stale (window closed, server restarted): knock and retry once
 		o.logger.DebugContext(ctx, "dial after cached knock failed, knocking again: ", err)
@@ -222,6 +253,9 @@ func (o *Outbound) DialContext(ctx context.Context, network string, destination 
 		// the port may need a moment more, knock again on the next attempt
 		o.forget(destination)
 		return nil, err
+	}
+	if o.spa2 != nil {
+		conn = o.trackConn(conn, destination)
 	}
 	if N.NetworkName(network) == N.NetworkUDP {
 		// e.g. WireGuard with one peer dials its UDP socket
@@ -250,6 +284,9 @@ func (o *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 	if err != nil {
 		return nil, err
 	}
+	if o.spa2 != nil {
+		packetConn = o.trackPacketConn(packetConn, destination)
+	}
 	if o.silence <= 0 {
 		return packetConn, nil
 	}
@@ -261,6 +298,10 @@ func (o *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 // It must not block: sing-box calls it from ResetNetwork.
 func (o *Outbound) InterfaceUpdated(ctx context.Context) {
 	o.generation.Add(1)
+	if o.spa2 != nil {
+		// SPA v2: hosts in use get a packet from the new address at once
+		go o.renewInUse()
+	}
 }
 
 func knockable(destination M.Socksaddr) bool {
@@ -340,6 +381,9 @@ func (o *Outbound) knock(ctx context.Context, destination M.Socksaddr, force boo
 				// a network change during the knock leaves it stale
 				t.lastKnock = time.Now()
 				t.generation = generation
+				if o.spa2 != nil {
+					o.scheduleRenewal(t, destination)
+				}
 			}
 			t.access.Unlock()
 			close(done)
@@ -360,6 +404,9 @@ func (o *Outbound) knock(ctx context.Context, destination M.Socksaddr, force boo
 // sendSequence knocks the steps strictly in order: a step starts only after
 // the previous one is over and at least `interval` after it started.
 func (o *Outbound) sendSequence(ctx context.Context, destination M.Socksaddr) error {
+	if o.spa2 != nil {
+		return o.sendSPA2(ctx, destination)
+	}
 	o.logger.InfoContext(ctx, "knocking ", destination.AddrString(), " (", len(o.steps), " steps)")
 	for i, s := range o.steps {
 		started := time.Now()
