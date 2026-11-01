@@ -35,7 +35,8 @@ jobs:
       - name: Public peers
         run: |
           git clone --depth 1 https://github.com/yggdrasil-network/public-peers /tmp/peers
-          grep -rhoE '(tls|tcp|quic|ws|wss)://[^` <>)]+' /tmp/peers --include='*.md' | sort -u > /tmp/peers.txt
+          grep -rhoE '(tls|tcp|quic|ws|wss)://[^` <>)]+' /tmp/peers --include='*.md' --exclude=README.md \
+            | grep -E '^[a-z]+://[^/]+:[0-9]+(/|\?|$)' | sort -u > /tmp/peers.txt
           wc -l < /tmp/peers.txt
           cut -d: -f1 /tmp/peers.txt | sort | uniq -c
 
