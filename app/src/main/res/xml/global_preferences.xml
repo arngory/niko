@@ -256,6 +256,12 @@
             app:summary="@string/yggdrasil_peers_via_proxy_summary"
             app:title="@string/yggdrasil_peers_via_proxy" />
         <SwitchPreference
+            app:defaultValue="true"
+            app:dependency="yggdrasilEnabled"
+            app:key="yggdrasilTlsChrome"
+            app:summary="@string/yggdrasil_tls_chrome_summary"
+            app:title="@string/yggdrasil_tls_chrome" />
+        <SwitchPreference
             app:dependency="yggdrasilEnabled"
             app:key="yggdrasilAllowInbound"
             app:summary="@string/yggdrasil_allow_inbound_summary"

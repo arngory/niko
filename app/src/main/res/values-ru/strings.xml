@@ -541,6 +541,8 @@
     <string name="raycontrol_node_remove_confirm">Удалить ноду %1$s и сохранённый ключ устройства? Активное подключение перезапустится без неё. Чтобы пользоваться нодой снова, импортируйте новую регистрацию.</string>
     <string name="yggdrasil_peers_via_proxy">Пиры через прокси</string>
     <string name="yggdrasil_peers_via_proxy_summary">Подключаться к пирам через выбранный профиль, провайдер видит только прокси. Выключено — напрямую. Профиль с сервером на адресе Yggdrasil всегда подключается к пирам напрямую.</string>
+    <string name="yggdrasil_tls_chrome">TLS-линки как у браузера</string>
+    <string name="yggdrasil_tls_chrome_summary">Пиры tls:// получают ClientHello Chrome, а не узнаваемый ClientHello Go. Выключите, если пир перестал подключаться.</string>
     <string name="yggdrasil_allow_inbound">Разрешить входящие подключения</string>
     <string name="yggdrasil_allow_inbound_summary">Другие узлы смогут подключаться к сервисам этого устройства (они приходят на 127.0.0.1). Выключено — отклоняются.</string>
     <string name="yggdrasil_address">Адрес этого устройства</string>
@@ -565,7 +567,7 @@
     <string name="udp_prelude_ttl">TTL фейков (0 — по умолчанию)</string>
     <string name="udp_reorder_initial">Отправлять второй QUIC Initial первым</string>
     <string name="udp_prelude_sni_invalid">Имя сервера, например allowed.example.ru</string>
-    <string name="udp_desync_summary">Hysteria2 и TUIC. DPI, который судит о потоке по первым пакетам, видит фейки или ClientHello без имени сервера: постквантовый ClientHello занимает два Initial-пакета, и второй уходит первым. Нода raycontrol фейки отбрасывает; для другого сервера задайте TTL, который кончится раньше него (меньше хопов, чем до сервера).</string>
+    <string name="udp_desync_summary">Hysteria2 и TUIC. DPI, который судит о потоке по первым пакетам, видит фейки или ClientHello без имени сервера: постквантовый ClientHello занимает два Initial-пакета, и второй уходит первым. Нода raycontrol фейки отбрасывает; для другого сервера задайте TTL, который кончится раньше него (меньше хопов, чем до сервера). При obfs у Hysteria2 перестановка ничего не даёт (Initial там не виден).</string>
     <string name="port_knocking">Port knocking</string>
     <string name="port_knocking_sequence">Последовательность, например 7000, 8000/udp, 9000</string>
     <string name="port_knocking_interval">Пауза между стуками, мс</string>

@@ -629,6 +629,8 @@
     <string name="raycontrol_node_remove_confirm">Remove node %1$s and its stored device key? A running connection restarts without it. To use the node again, import a new registration.</string>
     <string name="yggdrasil_peers_via_proxy">Peers through the proxy</string>
     <string name="yggdrasil_peers_via_proxy_summary">Connect to the peers through the selected profile, so the network sees only the proxy. Off: directly. A profile whose server is a Yggdrasil address always peers directly.</string>
+    <string name="yggdrasil_tls_chrome">Browser-like TLS links</string>
+    <string name="yggdrasil_tls_chrome_summary">tls:// peers get a Chrome ClientHello, not the recognisable one of Go. Turn off if a peer stops connecting.</string>
     <string name="yggdrasil_allow_inbound">Allow incoming connections</string>
     <string name="yggdrasil_allow_inbound_summary">Other nodes may connect to services on this device (they arrive at 127.0.0.1). Off: refused.</string>
     <string name="yggdrasil_address">Address of this device</string>
@@ -653,7 +655,7 @@
     <string name="udp_prelude_ttl">TTL of the fakes (0: default)</string>
     <string name="udp_reorder_initial">Send the second QUIC Initial first</string>
     <string name="udp_prelude_sni_invalid">A server name, like allowed.example.ru</string>
-    <string name="udp_desync_summary">Hysteria2 and TUIC. A box that judges the flow by its first packets sees the fakes, or a ClientHello without the server name: a post-quantum ClientHello takes two Initial packets, and the second one goes first. A raycontrol node drops the fakes; for another server give them a TTL that ends before it (fewer hops than the server).</string>
+    <string name="udp_desync_summary">Hysteria2 and TUIC. A box that judges the flow by its first packets sees the fakes, or a ClientHello without the server name: a post-quantum ClientHello takes two Initial packets, and the second one goes first. A raycontrol node drops the fakes; for another server give them a TTL that ends before it (fewer hops than the server). Reordering does nothing under Hysteria2 obfs (no visible Initial there).</string>
     <string name="port_knocking">Port knocking</string>
     <string name="port_knocking_sequence">Knock sequence, e.g. 7000, 8000/udp, 9000</string>
     <string name="port_knocking_interval">Delay between knocks, ms</string>

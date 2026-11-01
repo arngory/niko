@@ -303,6 +303,8 @@ fun buildConfig(
                 _hack_config_map["peers"] = DataStore.yggdrasilPeers.lines().map { it.trim() }
                     .filter { it.isNotEmpty() && !it.startsWith("#") }
                 _hack_config_map["node_info_privacy"] = true
+                // a Chrome ClientHello on tls:// links unless turned off (core default: chrome)
+                if (!DataStore.yggdrasilTlsChrome) _hack_config_map["tls_fingerprint"] = "go"
             }
             endpoints.add(yggdrasilEndpoint!!)
         }
@@ -555,7 +557,10 @@ fun buildConfig(
                         (bean.udpPrelude ?: 0).coerceIn(0, 8).takeIf { it > 0 }?.let { put("prelude", it) }
                         bean.udpPreludeSni?.takeIf { it.isNotBlank() }?.let { put("prelude_sni", it.trim()) }
                         (bean.udpPreludeTtl ?: 0).coerceIn(0, 255).takeIf { it > 0 }?.let { put("prelude_ttl", it) }
-                        if (bean.udpReorderInitial == true) put("reorder_initial", true)
+                        // under Hysteria2 obfs the core never sees a QUIC Initial: reordering is moot
+                        if (bean.udpReorderInitial == true && !(bean is HysteriaBean && bean.obfuscation.isNotBlank())) {
+                            put("reorder_initial", true)
+                        }
                     }
                 }
 

@@ -98,6 +98,7 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var yggdrasilPeers by configurationStore.string(Key.YGGDRASIL_PEERS)
     var yggdrasilAllowInbound by configurationStore.boolean(Key.YGGDRASIL_ALLOW_INBOUND)
     var yggdrasilPeersViaProxy by configurationStore.boolean(Key.YGGDRASIL_PEERS_VIA_PROXY)
+    var yggdrasilTlsChrome by configurationStore.boolean(Key.YGGDRASIL_TLS_CHROME) { true }
 
     // the node identity of this install, made on first use and not part of backups
     val yggdrasilPrivateKey: String

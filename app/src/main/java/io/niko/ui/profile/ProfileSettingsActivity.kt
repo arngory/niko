@@ -278,17 +278,17 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
                 binding.dnsTunnelDomain.error = tunnelError
                 return@setOnClickListener
             }
+            val preludeSni = binding.udpPreludeSni.text.toString().trim()
+            if (preludeSni.isNotEmpty() && !Regex("^[A-Za-z0-9.-]+$").matches(preludeSni)) {
+                binding.udpPreludeSni.error = getString(R.string.udp_prelude_sni_invalid)
+                return@setOnClickListener
+            }
             DataStore.serverDnsTunnel = if (tunnel.enabled) tunnel.engine else ""
             DataStore.serverDnsTunnelResolver = tunnel.resolver
             DataStore.serverDnsTunnelDomain = tunnel.domain
             DataStore.serverDnsTunnelKey = tunnel.key
             DataStore.serverDnsTunnelMethod = tunnel.method.coerceIn(0, 5)
             DataStore.serverDnsTunnelFixedUpstream = tunnel.fixedUpstream
-            val preludeSni = binding.udpPreludeSni.text.toString().trim()
-            if (preludeSni.isNotEmpty() && !Regex("^[A-Za-z0-9.-]+$").matches(preludeSni)) {
-                binding.udpPreludeSni.error = getString(R.string.udp_prelude_sni_invalid)
-                return@setOnClickListener
-            }
             DataStore.serverUdpPrelude = binding.udpPrelude.text.toString().toIntOrNull()?.coerceIn(0, 8) ?: 0
             DataStore.serverUdpPreludeSni = preludeSni
             DataStore.serverUdpPreludeTtl = binding.udpPreludeTtl.text.toString().toIntOrNull()?.coerceIn(0, 255) ?: 0

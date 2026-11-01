@@ -208,6 +208,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         findPreference<Preference>(Key.YGGDRASIL_PEERS)!!.onPreferenceChangeListener = reloadListener
         findPreference<Preference>(Key.YGGDRASIL_ALLOW_INBOUND)!!.onPreferenceChangeListener = reloadListener
         findPreference<Preference>(Key.YGGDRASIL_PEERS_VIA_PROXY)!!.onPreferenceChangeListener = reloadListener
+        findPreference<Preference>(Key.YGGDRASIL_TLS_CHROME)!!.onPreferenceChangeListener = reloadListener
 
         // raycontrol nodes: imported from rcdev1 (clipboard or QR), removable here
         val raycontrolNodes = findPreference<Preference>("raycontrolNodesView")!!
