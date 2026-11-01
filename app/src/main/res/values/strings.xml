@@ -626,7 +626,7 @@
     <string name="raycontrol_node_line">%1$s, device %2$s, %3$d services</string>
     <string name="raycontrol_node_imported">raycontrol node %1$s added (%2$d services). Profiles with this server send SPA v2 first.</string>
     <string name="raycontrol_node_remove">Remove a node</string>
-    <string name="raycontrol_node_remove_confirm">Remove node %1$s and its stored device key? The connection restarts without it. To use the node again, import a new registration.</string>
+    <string name="raycontrol_node_remove_confirm">Remove node %1$s and its stored device key? A running connection restarts without it. To use the node again, import a new registration.</string>
     <string name="yggdrasil_peers_via_proxy">Peers through the proxy</string>
     <string name="yggdrasil_peers_via_proxy_summary">Connect to the peers through the selected profile, so the network sees only the proxy. Off: directly. A profile whose server is a Yggdrasil address always peers directly.</string>
     <string name="yggdrasil_allow_inbound">Allow incoming connections</string>

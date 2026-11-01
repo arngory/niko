@@ -500,9 +500,10 @@ fun buildConfig(
                 // per-profile TLS tweaks, merged into the outbound's tls object
                 val tlsTweaks = mutableMapOf<String, Any>()
                 val outboundType = (currentOutbound as? Outbound)?.type
-                // raycontrol nodes take post-quantum key exchange only: no fallback to classical groups. Go TLS
-                // (Hysteria2, TUIC, plain TLS) offers X25519MLKEM768 alone; REALITY requires the hybrid share
-                // (uTLS chrome carries it); naive (Chromium) offers it by default
+                // raycontrol nodes take post-quantum key exchange only: no fallback to classical groups. TLS offers
+                // X25519MLKEM768 alone (Go TLS: Hysteria2, TUIC; uTLS keeps its fingerprint but drops the other
+                // groups, and fails when it has no such share); REALITY requires the hybrid share; naive
+                // (Chromium) offers it by default
                 if (rayNode != null && !proxyEntity.needExternal()) {
                     val tls = currentOutbound.asMap()["tls"] as? Map<*, *>
                     if (tls?.get("enabled") == true) {

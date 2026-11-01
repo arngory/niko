@@ -232,7 +232,8 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                         .setPositiveButton(R.string.yes) { _, _ ->
                             RayNodes.remove(node.spa.nodeId)
                             showRaycontrolNodes()
-                            needReload()
+                            // the running core still holds the key and knocks: restart it now, not on "Apply"
+                            if (DataStore.serviceState.started) SagerNet.reloadService()
                         }
                         .setNegativeButton(android.R.string.cancel, null)
                         .show()
