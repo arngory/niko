@@ -101,6 +101,7 @@ jobs:
           check "REALITY + Vision + ML-DSA-65 check" 11080 204
           check "REALITY + Vision, no ML-DSA-65 check" 11081 204
           check "REALITY, wrong ML-DSA-65 key (must fail)" 11082 000
+          grep -q "ML-DSA-65 signature does not match" /tmp/client.log || { echo "no ML-DSA-65 error in the log"; fail=1; }
           check "VLESS encryption mlkem768x25519plus" 11083 204
           exit $fail
 
