@@ -226,7 +226,7 @@ packet  = 22222222222222222222222222222222 000000006955b900
 |---|---|---|
 | `arngory/sing-box` | ядро клиента и niko-server | есть |
 | `arngory/xray-core` | REALITY-сервер, эталон для тестов | есть |
-| `arngory/dnstt` | серверная библиотека (п. 3.3) | создать: зеркало `https://www.bamsoftware.com/git/dnstt.git` |
+| `arngory/dnstt` | серверная библиотека (п. 3.3) | есть: полное зеркало апстрима (ветки `master` = v1.20260501.0, `any-domain`, `utls`, все теги); работу вести от `master` (тег v1.20260501.0, с ним совместим клиент) |
 | `arngory/MasterDnsVPN` | сервер с внешним PacketConn | сделать форк masterking32/MasterDnsVPN |
 | `arngory/yggdrasil-go` | патч `LinkDialer` (сейчас он вендорен в `sing-box/third_party`) | желательно: перенести патч в форк и вендорить из него |
 | `arngory/naiveproxy` | клиент naive для тестов и плагин Android из своего релиза | желательно: форк klzgrad/naiveproxy |
