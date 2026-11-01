@@ -24,7 +24,8 @@ jobs:
           . buildScript/lib/core/get_source_env.sh
           git clone --filter=blob:none "$REPOSITORY_SING_BOX" core
           git -C core checkout -q "$COMMIT_SING_BOX"
-          git clone --depth 1 https://github.com/arngory/xray-core xray
+          git clone --filter=blob:none "$REPOSITORY_XRAY" xray
+          git -C xray checkout -q "$COMMIT_XRAY"
           git -C xray log --oneline -1
 
       - uses: actions/setup-go@v5
