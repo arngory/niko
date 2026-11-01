@@ -1,0 +1,80 @@
+name: Yggdrasil probe
+
+# Live check of the core's Yggdrasil endpoint: peers with the public peers and
+# opens services inside the network. Runs when this file changes or by hand.
+on:
+  push:
+    paths: [".github/workflows/ygg-probe.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch core
+        run: |
+          . buildScript/lib/core/get_source_env.sh
+          git clone --filter=blob:none "$REPOSITORY_SING_BOX" core
+          git -C core checkout -q "$COMMIT_SING_BOX"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: core/go.mod
+          cache: false
+
+      - name: Build core
+        working-directory: core
+        run: go build -o /tmp/sing-box -ldflags=-checklinkname=0 -tags=with_yggdrasil,with_gvisor,badlinkname,tfogo_checklinkname0 ./cmd/sing-box
+
+      - name: Public peers
+        run: |
+          git clone --depth 1 https://github.com/yggdrasil-network/public-peers /tmp/peers
+          grep -rhoE '(tls|tcp|quic|ws|wss)://[^` <>)]+' /tmp/peers --include='*.md' | sort -u > /tmp/peers.txt
+          wc -l < /tmp/peers.txt
+          cut -d: -f1 /tmp/peers.txt | sort | uniq -c
+
+      - name: Run node
+        run: |
+          jq -n --rawfile peers /tmp/peers.txt --arg key "$(openssl rand -hex 32)" '{
+            log: {level: "info", timestamp: true},
+            inbounds: [{type: "mixed", listen: "127.0.0.1", listen_port: 14080}],
+            endpoints: [{type: "yggdrasil", tag: "ygg", private_key: $key, node_info_privacy: true,
+              peers: ($peers | split("\n") | map(select(length > 0)))}],
+            outbounds: [{type: "direct", tag: "direct"}],
+            route: {rules: [{ip_cidr: ["200::/7"], outbound: "ygg"}], final: "direct"}
+          }' > /tmp/node.json
+          /tmp/sing-box check -c /tmp/node.json
+          nohup /tmp/sing-box run -c /tmp/node.json > /tmp/node.log 2>&1 &
+          sleep 45
+          echo "connected peers: $(grep -c 'Connected outbound' /tmp/node.log)"
+          grep -oE 'Connected outbound: [^,]+' /tmp/node.log | sed 's/.*@//' | sort -u > /tmp/up.txt
+          cut -d: -f1 /tmp/up.txt | sort | uniq -c
+          cat /tmp/up.txt
+          echo "address:"
+          grep -m1 'Yggdrasil address' /tmp/node.log || true
+
+      - name: Services inside the network
+        run: |
+          probe() {
+            out=$(curl -sS -m 30 -o /tmp/body -w '%{http_code} %{time_total}s' -x socks5h://127.0.0.1:14080 "$2" 2>&1)
+            title=$(grep -oiE '<title>[^<]*' /tmp/body 2>/dev/null | head -1 | cut -c8-80)
+            echo "$1 | $2 | $out | $title"
+          }
+          probe "IP checker" 'http://[200:56bd:a9e9:c1fa:8f99:1d3c:3c84:6507]/'
+          head -c 300 /tmp/body; echo
+          probe "Project homepage" 'http://[300:8101:e046:d91e::5]/'
+          probe "Web directory" 'http://[21e:a51c:885b:7db0:166e:927:98cd:d186]/'
+          probe "Search" 'http://[200:b48d:469e:c7c7:3e13:c41d:ba4d:d2b8]/'
+          probe "Map" 'http://[227:bc24:9a82:e290:7f4a:f992:2ef6:5b34]/'
+
+      - name: Node log
+        if: always()
+        run: |
+          grep -E 'Connected|ERROR|WARN' /tmp/node.log | cut -c1-200 | head -150 || true
+          pkill -x sing-box || true
