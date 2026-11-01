@@ -20,6 +20,7 @@ JSON Schema появится в `arngory/sing-box`, `cmd/niko-server/schema/` в
   "tcp": {
     "listen": ["0.0.0.0:443", "[::]:443"],
     "sniff_timeout": "5s",
+    "acme_listen": ["0.0.0.0:9443", "[::]:9443"],
     "routes": [
       {"sni": ["k3f.example.com"], "backend": "xray-reality"},
       {"sni": ["p8w.example.com"], "backend": "naive"},
@@ -45,23 +46,26 @@ JSON Schema появится в `arngory/sing-box`, `cmd/niko-server/schema/` в
     ]
   },
   "backends": {
-    "xray-reality": {"socket": "/run/niko/xray-reality.sock", "mode": "proxy-v2"},
-    "naive":        {"socket": "/run/niko/naive.seq",        "mode": "fd"},
-    "yggdrasil":    {"socket": "/run/niko/yggdrasil.seq",    "mode": "fd"},
-    "acme":         {"socket": "/run/niko/acme.seq",         "mode": "fd"},
-    "hy2-masq":     {"socket": "/run/niko/hy2-masq.dgram",   "mode": "dgram"},
-    "hy2-obfs":     {"socket": "/run/niko/hy2-obfs.dgram",   "mode": "dgram"},
-    "naive-quic":   {"socket": "/run/niko/naive.dgram",      "mode": "dgram"},
-    "dnstt":        {"socket": "/run/niko/dnstt.dgram",      "mode": "dgram"},
-    "masterdns":    {"socket": "/run/niko/masterdns.dgram",  "mode": "dgram"}
+    "xray-reality": {"socket": "/run/niko/xray-reality/reality.sock", "mode": "proxy-v2", "uid": 9110},
+    "naive":        {"socket": "/run/niko/naive/fd.sock",          "mode": "fd",       "uid": 9111},
+    "yggdrasil":    {"socket": "/run/niko/yggdrasil/fd.sock",      "mode": "fd",       "uid": 9112},
+    "acme":         {"socket": "/run/niko/acme/fd.sock",           "mode": "fd",       "uid": 9113},
+    "hy2-masq":     {"socket": "/run/niko/hy2-masq/packet.sock",   "mode": "packet",   "uid": 9114},
+    "hy2-obfs":     {"socket": "/run/niko/hy2-obfs/packet.sock",   "mode": "packet",   "uid": 9115},
+    "naive-quic":   {"socket": "/run/niko/naive/packet.sock",      "mode": "packet",   "uid": 9111},
+    "dnstt":        {"socket": "/run/niko/dnstt/packet.sock",      "mode": "packet",   "uid": 9116},
+    "masterdns":    {"socket": "/run/niko/masterdns/packet.sock",  "mode": "packet",   "uid": 9117}
   }
 }
 ```
 
-- `mode`: `fd` — передача сокета (`SCM_RIGHTS`), `proxy-v2` — поток с заголовком PROXY v2 (Xray), `dgram` — датаграммы
-  с заголовком адреса. Формат — [`IPC.md`](IPC.md).
-- Маршрут без бэкенда в `backends` — ошибка `check`. Бэкенд `acme` существует только в окне выпуска сертификата.
-  Если его сокет недоступен, соединения с ALPN `acme-tls/1` закрываются.
+- `mode`: `fd` — передача сокета (`SCM_RIGHTS`), `proxy-v2` — поток с заголовком PROXY v2 (Xray), `packet` — датаграммы
+  с заголовком адреса. Формат и права — [`IPC.md`](IPC.md). `uid` — ожидаемый `SO_PEERCRED` бэкенда.
+- Маршрут без бэкенда в `backends` — ошибка `check`.
+- `acme_listen` — порт окна ACME. В окне выпуска сертификата nftables перенаправляет на него TCP 443 от адресов
+  без SPA. На этом порту фронт пропускает только ClientHello с ALPN `acme-tls/1` (в бэкенд `acme`). Остальное
+  закрывает без ответа, маршруты по SNI здесь не действуют. Вне окна на порт ничего не попадает: снаружи он закрыт.
+  Если сокет `acme` недоступен, соединения тоже закрываются.
 
 ## Бэкенд
 
@@ -71,7 +75,7 @@ JSON Schema появится в `arngory/sing-box`, `cmd/niko-server/schema/` в
   "role": "backend",
   "kind": "hy2-masq",
   "log": {"level": "warn"},
-  "socket": "/run/niko/hy2-masq.dgram",
+  "socket": "/run/niko/hy2-masq/packet.sock",
   "front_uid": 9100,
   "users_file": "/run/credentials/niko-hy2-masq/users.json",
   "tls": {
@@ -80,14 +84,14 @@ JSON Schema появится в `arngory/sing-box`, `cmd/niko-server/schema/` в
     "curves": ["X25519MLKEM768"]
   },
   "options": {"masquerade": {"type": "proxy", "url": "https://www.example.org/", "rewrite_host": true}},
-  "inner": "/run/niko/inner.seq"
+  "inner": "/run/niko/inner/vless.sock"
 }
 ```
 
-- `front_uid` — единственный UID, которому бэкенд отвечает (`SO_PEERCRED` / `SCM_CREDENTIALS`).
+- `front_uid` — единственный UID, которому бэкенд отвечает (`SO_PEERCRED`).
 - `tls.curves` по умолчанию `["X25519MLKEM768"]`. Другие значения `check` отвергает для `hy2-*`, `naive`, `doh`,
   `yggdrasil`.
-- `inner` — сокет бэкенда `inner` (Xray). Обязателен для `dnstt`, `masterdns`, `yggdrasil`.
+- `inner` — потоковый unix-сокет `inner` (Xray, VLESS с `decryption`). Обязателен для `dnstt`, `masterdns`, `yggdrasil`.
 
 `options` по видам:
 

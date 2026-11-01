@@ -50,7 +50,7 @@ niko-server — data plane и «наше ядро»: обслуживает пр
 | Порт | Кому | Что |
 |---|---|---|
 | UDP 53 | всем | dnstt и MasterDnsVPN в своих делегированных зонах, остальное — `REFUSED` |
-| TCP 443 | всем, только на время выпуска сертификата | ACME (TLS-ALPN-01) |
+| TCP 443 | всем, только на время выпуска сертификата | только ACME (TLS-ALPN-01): nftables перенаправляет адреса без SPA на отдельный порт фронта, там проходит лишь ALPN `acme-tls/1` (§3.1) |
 | TCP 443, UDP 443 | после SPA v2 | всё остальное (§2) |
 | UDP, порт слота SPA | всем | `rayspa`, порт ротируется по слотам |
 
@@ -64,7 +64,7 @@ TCP 80 и TCP/UDP 853 не открываются. Port-knocking не испол
 TCP 443 ──► front/tcpmux ─┬─ SNI <r>.example.com ──► unix + PROXY v2 ──► Xray REALITY
                           ├─ SNI <n>.example.com ──► SCM_RIGHTS ──► backend naive / doh
                           ├─ SNI <y>.example.com ──► SCM_RIGHTS ──► backend yggdrasil (tls-линк)
-                          ├─ ALPN acme-tls/1     ──► ACME (только в окне выпуска)
+                          ├─ (адрес без SPA, окно ACME) ──► acme_listen: только ALPN acme-tls/1 ──► ACME
                           └─ остальное           ──► как <r> (REALITY уведёт в приманку site)
 UDP 443 ──► front/udpmux ─┬─ QUIC, SNI <h>.example.com ──► backend hy2-masq
                           ├─ QUIC, SNI <n>.example.com ──► backend naive (QUIC) / doh (HTTP/3)
@@ -78,9 +78,10 @@ UDP 53  ──► front/dnsmux ─┬─ *.<t>.example.com ──► backend dns
 Связь фронта с бэкендами — unix-сокеты, формат — в [`IPC.md`](IPC.md):
 - **TCP:** фронт передаёт принятый сокет бэкенду через `SCM_RIGHTS` вместе с метаданными (адрес клиента, уже
   прочитанные байты, маршрут). Xray получает поток через свой unix-сокет с заголовком PROXY v2.
-- **UDP:** фронт пересылает датаграммы в `SOCK_DGRAM`-сокет бэкенда с заголовком «адрес клиента»; бэкенд видит
-  виртуальный `net.PacketConn`. Ответы идут обратно через фронт.
-- Сокет бэкенда доступен только UID фронта; бэкенд проверяет `SO_PEERCRED`.
+- **UDP:** фронт пересылает датаграммы бэкенду по соединению `SOCK_SEQPACKET` с заголовком «адрес клиента»; бэкенд
+  видит виртуальный `net.PacketConn`. Ответы идут обратно по тому же соединению через фронт.
+- Сокет каждого процесса лежит в его каталоге `/run/niko/<имя>/`. Доступ есть только у тех, кто входит в его группу.
+  Обе стороны сверяют `SO_PEERCRED`. Правила — в [`IPC.md`](IPC.md).
 
 ### 2.1. Почему REALITY отдаётся Xray
 
@@ -108,6 +109,11 @@ UDP 53  ──► front/dnsmux ─┬─ *.<t>.example.com ──► backend dns
 - Читает первый TLS-рекорд (до 16 КБ, таймаут 5 с), достаёт SNI и ALPN (`common/sniff`).
 - Таблица маршрутов SNI → бэкенд — из конфига фронта. Без SNI и с неизвестным SNI — маршрут `default` (REALITY).
 - Не TLS: закрыть соединение без ответа.
+- **Окно ACME (TLS-ALPN-01).** nftables не видит ALPN, поэтому открывать 443 целиком нельзя: сканер, следящий за
+  журналами CT, в это время дошёл бы до naive, Yggdrasil и REALITY без SPA. На время окна `rayspa` добавляет правило
+  `tcp dport 443` от адресов вне allow-наборов → `redirect to :<acme_listen>`. На этом порту фронт пропускает только
+  ClientHello с ALPN `acme-tls/1` (в бэкенд `acme`), остальное закрывает без ответа. Адреса с SPA идут на обычный
+  443, как всегда. Если у DNS-провайдера есть API, предпочтителен DNS-01: окно не нужно вовсе.
 - Неавторизованных адресов до фронта не пропускает nftables. Приманка остаётся для тех, кто прошёл SPA:
   за одним адресом CGNAT может быть и проверяющий, поэтому сервисы должны выдерживать активное зондирование сами.
 
@@ -182,11 +188,11 @@ Niko SPA v1 (`libcore/knock/spa.go`, шаг `ПОРТ/spa:КЛЮЧ`) остаё�
 ### 3.6. REALITY в Xray
 
 ```json
-{"inbounds":[{"listen":"/run/niko/xray-reality.sock,0660","protocol":"vless",
+{"inbounds":[{"listen":"/run/niko/xray-reality/reality.sock,0660","protocol":"vless",
   "settings":{"clients":[{"id":"<uuid>","flow":"xtls-rprx-vision"}],"decryption":"none"},
   "streamSettings":{"network":"raw","security":"reality",
     "sockopt":{"acceptProxyProtocol":true},
-    "realitySettings":{"target":"/run/niko/site.sock","xver":0,"serverNames":["<r>.example.com"],
+    "realitySettings":{"target":"/run/niko/site/tls.sock","xver":0,"serverNames":["<r>.example.com"],
       "privateKey":"<xray x25519>","shortIds":["<8 hex>"],
       "mldsa65Seed":"<xray mldsa65: Seed>"}}}],
  "outbounds":[{"protocol":"freedom"}]}
