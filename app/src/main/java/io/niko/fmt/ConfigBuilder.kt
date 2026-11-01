@@ -501,12 +501,19 @@ fun buildConfig(
                 val tlsTweaks = mutableMapOf<String, Any>()
                 val outboundType = (currentOutbound as? Outbound)?.type
                 // raycontrol nodes take post-quantum key exchange only: no fallback to classical groups. TLS offers
-                // X25519MLKEM768 alone (Go TLS: Hysteria2, TUIC; uTLS keeps its fingerprint but drops the other
-                // groups, and fails when it has no such share); REALITY requires the hybrid share; naive
+                // X25519MLKEM768 alone (Go TLS: Hysteria2, TUIC, XHTTP over HTTP/3; uTLS takes the Chrome fingerprint
+                // and drops its other groups); REALITY requires the hybrid share; naive
                 // (Chromium) offers it by default
                 if (rayNode != null && !proxyEntity.needExternal()) {
                     val tls = currentOutbound.asMap()["tls"] as? Map<*, *>
                     if (tls?.get("enabled") == true) {
+                        // only the Chrome fingerprint of our uTLS carries an X25519MLKEM768 share: any other
+                        // (firefox, safari, random, ...) would fail every handshake to the node
+                        val utls = tls["utls"] as? Map<*, *>
+                        if (utls?.get("enabled") == true && utls["fingerprint"] != "chrome") {
+                            Logs.w("raycontrol node ${rayNode.host}: uTLS fingerprint ${utls["fingerprint"]} replaced by chrome (post-quantum key share)")
+                            tlsTweaks["utls"] = mapOf("fingerprint" to "chrome")
+                        }
                         if ((tls["reality"] as? Map<*, *>)?.get("enabled") == true) {
                             tlsTweaks["reality"] = mapOf("key_share" to "hybrid")
                         } else {
