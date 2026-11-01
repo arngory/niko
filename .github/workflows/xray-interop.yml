@@ -7,6 +7,7 @@ on:
     paths:
       - ".github/workflows/xray-interop.yml"
       - "buildScript/lib/core/get_source_env.sh"
+      - ".github/xray-interop.env"
   workflow_dispatch:
 
 permissions:
@@ -22,6 +23,7 @@ jobs:
       - name: Fetch sources
         run: |
           . buildScript/lib/core/get_source_env.sh
+          . .github/xray-interop.env
           git clone --filter=blob:none "$REPOSITORY_SING_BOX" core
           git -C core checkout -q "$COMMIT_SING_BOX"
           git clone --filter=blob:none "$REPOSITORY_XRAY" xray
