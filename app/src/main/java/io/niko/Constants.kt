@@ -114,6 +114,10 @@ object Key {
     const val SERVER_DNS_TUNNEL_DOMAIN = "serverDnsTunnelDomain"
     const val SERVER_DNS_TUNNEL_KEY = "serverDnsTunnelKey"
     const val SERVER_DNS_TUNNEL_METHOD = "serverDnsTunnelMethod"
+    const val SERVER_UDP_PRELUDE = "serverUdpPrelude"
+    const val SERVER_UDP_PRELUDE_SNI = "serverUdpPreludeSni"
+    const val SERVER_UDP_PRELUDE_TTL = "serverUdpPreludeTtl"
+    const val SERVER_UDP_REORDER_INITIAL = "serverUdpReorderInitial"
     const val SERVER_DNS_TUNNEL_FIXED_UPSTREAM = "serverDnsTunnelFixedUpstream"
 
     const val SERVER_SECURITY_CATEGORY = "serverSecurityCategory"

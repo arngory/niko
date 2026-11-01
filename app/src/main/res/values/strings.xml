@@ -647,6 +647,13 @@
     <string name="tls_fragment_summary">Splits the TLS ClientHello of this server so simple DPI cannot match the SNI. Try TLS records first. Only applies to TCP-based TLS (VMess, VLESS, Trojan, HTTP, AnyTLS, ShadowTLS).</string>
     <string name="tls_fragment_bypass">TLS fragmentation for direct rules</string>
     <string name="tls_fragment_bypass_summary">Split the TLS ClientHello of connections routed directly by bypass rules</string>
+    <string name="udp_desync">UDP (QUIC): DPI bypass</string>
+    <string name="udp_prelude">Fake packets before the first one (0–8)</string>
+    <string name="udp_prelude_sni">Fakes as QUIC with this server name (empty: random bytes)</string>
+    <string name="udp_prelude_ttl">TTL of the fakes (0: default)</string>
+    <string name="udp_reorder_initial">Send the second QUIC Initial first</string>
+    <string name="udp_prelude_sni_invalid">A server name, like allowed.example.ru</string>
+    <string name="udp_desync_summary">Hysteria2 and TUIC. A box that judges the flow by its first packets sees the fakes, or a ClientHello without the server name: a post-quantum ClientHello takes two Initial packets, and the second one goes first. A raycontrol node drops the fakes; for another server give them a TTL that ends before it (fewer hops than the server).</string>
     <string name="port_knocking">Port knocking</string>
     <string name="port_knocking_sequence">Knock sequence, e.g. 7000, 8000/udp, 9000</string>
     <string name="port_knocking_interval">Delay between knocks, ms</string>

@@ -184,6 +184,10 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
         DataStore.serverDnsTunnelKey = dnsTunnelKey
         DataStore.serverDnsTunnelMethod = dnsTunnelMethod
         DataStore.serverDnsTunnelFixedUpstream = dnsTunnelFixedUpstream
+        DataStore.serverUdpPrelude = udpPrelude
+        DataStore.serverUdpPreludeSni = udpPreludeSni
+        DataStore.serverUdpPreludeTtl = udpPreludeTtl
+        DataStore.serverUdpReorderInitial = udpReorderInitial
     }
 
     private fun AbstractBean.saveConnectionTweaks() {
@@ -199,6 +203,10 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
         dnsTunnelKey = DataStore.serverDnsTunnelKey
         dnsTunnelMethod = DataStore.serverDnsTunnelMethod
         dnsTunnelFixedUpstream = DataStore.serverDnsTunnelFixedUpstream
+        udpPrelude = DataStore.serverUdpPrelude
+        udpPreludeSni = DataStore.serverUdpPreludeSni
+        udpPreludeTtl = DataStore.serverUdpPreludeTtl
+        udpReorderInitial = DataStore.serverUdpReorderInitial
     }
 
     fun showConnectionTweaksDialog() {
@@ -220,6 +228,10 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
         binding.dnsTunnelKey.setText(DataStore.serverDnsTunnelKey)
         binding.dnsTunnelMethod.setText(DataStore.serverDnsTunnelMethod.toString())
         binding.dnsTunnelFixedUpstream.isChecked = DataStore.serverDnsTunnelFixedUpstream
+        binding.udpPrelude.setText(DataStore.serverUdpPrelude.toString())
+        binding.udpPreludeSni.setText(DataStore.serverUdpPreludeSni)
+        binding.udpPreludeTtl.setText(DataStore.serverUdpPreludeTtl.toString())
+        binding.udpReorderInitial.isChecked = DataStore.serverUdpReorderInitial
         // the MasterDnsVPN settings only show with that engine
         fun showEngine(masterDnsVpn: Boolean) {
             binding.dnsTunnelMethodLayout.isVisible = masterDnsVpn
@@ -272,6 +284,15 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
             DataStore.serverDnsTunnelKey = tunnel.key
             DataStore.serverDnsTunnelMethod = tunnel.method.coerceIn(0, 5)
             DataStore.serverDnsTunnelFixedUpstream = tunnel.fixedUpstream
+            val preludeSni = binding.udpPreludeSni.text.toString().trim()
+            if (preludeSni.isNotEmpty() && !Regex("^[A-Za-z0-9.-]+$").matches(preludeSni)) {
+                binding.udpPreludeSni.error = getString(R.string.udp_prelude_sni_invalid)
+                return@setOnClickListener
+            }
+            DataStore.serverUdpPrelude = binding.udpPrelude.text.toString().toIntOrNull()?.coerceIn(0, 8) ?: 0
+            DataStore.serverUdpPreludeSni = preludeSni
+            DataStore.serverUdpPreludeTtl = binding.udpPreludeTtl.text.toString().toIntOrNull()?.coerceIn(0, 255) ?: 0
+            DataStore.serverUdpReorderInitial = binding.udpReorderInitial.isChecked
             DataStore.serverCertPins = pins.trim()
             DataStore.serverTlsFragment = when (binding.tlsFragment.checkedRadioButtonId) {
                 R.id.tls_fragment_record -> 1

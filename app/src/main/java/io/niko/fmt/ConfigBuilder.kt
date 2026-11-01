@@ -61,6 +61,9 @@ private val YGGDRASIL_PREFIX = "200::/7"
 const val LOCALHOST = "127.0.0.1"
 
 private val TLS_FRAGMENT_TYPES = setOf("vmess", "vless", "trojan", "http", "anytls", "shadowtls")
+
+// QUIC clients whose UDP the core can shape (common/udpdesync)
+private val UDP_DESYNC_TYPES = setOf("hysteria2", "tuic")
 private val TLS_PIN_TYPES = TLS_FRAGMENT_TYPES + setOf("hysteria", "hysteria2", "tuic")
 
 /**
@@ -543,6 +546,18 @@ fun buildConfig(
                     tlsTweaks["certificate"] = emptyList<String>()
                 }
                 if (tlsTweaks.isNotEmpty()) currentOutbound._hack_config_map["tls"] = tlsTweaks
+
+                // UDP desync of QUIC clients (core common/udpdesync)
+                if (!proxyEntity.needExternal() && outboundType in UDP_DESYNC_TYPES &&
+                    ((bean.udpPrelude ?: 0) > 0 || bean.udpReorderInitial == true)
+                ) {
+                    currentOutbound._hack_config_map["udp_desync"] = buildMap {
+                        (bean.udpPrelude ?: 0).coerceIn(0, 8).takeIf { it > 0 }?.let { put("prelude", it) }
+                        bean.udpPreludeSni?.takeIf { it.isNotBlank() }?.let { put("prelude_sni", it.trim()) }
+                        (bean.udpPreludeTtl ?: 0).coerceIn(0, 255).takeIf { it > 0 }?.let { put("prelude_ttl", it) }
+                        if (bean.udpReorderInitial == true) put("reorder_initial", true)
+                    }
+                }
 
                 // port knocking: a libcore "knock" outbound dials the server for this hop. A raycontrol node
                 // gets SPA v2 instead of the profile's own sequence

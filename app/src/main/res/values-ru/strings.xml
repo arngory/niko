@@ -559,6 +559,13 @@
     <string name="tls_fragment_summary">Разбивает TLS ClientHello к этому серверу, чтобы простой DPI не распознал SNI. Сначала попробуйте TLS-записи. Работает только для TLS поверх TCP (VMess, VLESS, Trojan, HTTP, AnyTLS, ShadowTLS).</string>
     <string name="tls_fragment_bypass">Фрагментация TLS для прямых правил</string>
     <string name="tls_fragment_bypass_summary">Разбивать TLS ClientHello соединений, которые правила обхода отправляют напрямую</string>
+    <string name="udp_desync">UDP (QUIC): обход DPI</string>
+    <string name="udp_prelude">Фейковые пакеты перед первым (0–8)</string>
+    <string name="udp_prelude_sni">Фейки как QUIC с этим именем сервера (пусто — случайные байты)</string>
+    <string name="udp_prelude_ttl">TTL фейков (0 — по умолчанию)</string>
+    <string name="udp_reorder_initial">Отправлять второй QUIC Initial первым</string>
+    <string name="udp_prelude_sni_invalid">Имя сервера, например allowed.example.ru</string>
+    <string name="udp_desync_summary">Hysteria2 и TUIC. DPI, который судит о потоке по первым пакетам, видит фейки или ClientHello без имени сервера: постквантовый ClientHello занимает два Initial-пакета, и второй уходит первым. Нода raycontrol фейки отбрасывает; для другого сервера задайте TTL, который кончится раньше него (меньше хопов, чем до сервера).</string>
     <string name="port_knocking">Port knocking</string>
     <string name="port_knocking_sequence">Последовательность, например 7000, 8000/udp, 9000</string>
     <string name="port_knocking_interval">Пауза между стуками, мс</string>

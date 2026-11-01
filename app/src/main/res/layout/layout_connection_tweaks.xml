@@ -173,6 +173,62 @@
             style="?android:attr/textAppearanceMedium"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:text="@string/udp_desync" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/udp_prelude">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/udp_prelude"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/udp_prelude_sni">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/udp_prelude_sni"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textUri|textNoSuggestions" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/udp_prelude_ttl">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/udp_prelude_ttl"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.checkbox.MaterialCheckBox
+            android:id="@+id/udp_reorder_initial"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/udp_reorder_initial" />
+
+        <TextView
+            style="?android:attr/textAppearanceSmall"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:text="@string/udp_desync_summary"
+            android:textColor="?android:attr/textColorSecondary" />
+
+        <TextView
+            style="?android:attr/textAppearanceMedium"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:text="@string/port_knocking" />
 
         <com.google.android.material.textfield.TextInputLayout

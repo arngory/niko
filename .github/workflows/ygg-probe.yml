@@ -4,7 +4,7 @@ name: Yggdrasil probe
 # opens services inside the network. Runs when this file changes or by hand.
 on:
   push:
-    paths: [".github/workflows/ygg-probe.yml"]
+    paths: [".github/workflows/ygg-probe.yml", "buildScript/lib/core/get_source_env.sh"]
   workflow_dispatch:
 
 permissions:

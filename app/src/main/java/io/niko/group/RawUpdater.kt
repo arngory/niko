@@ -207,6 +207,16 @@ object RawUpdater : GroupUpdater() {
                 bean.knockSilence = existsBean.knockSilence
                 bean.tlsFragment = existsBean.tlsFragment
                 bean.certPins = existsBean.certPins
+                bean.dnsTunnel = existsBean.dnsTunnel
+                bean.dnsTunnelResolver = existsBean.dnsTunnelResolver
+                bean.dnsTunnelDomain = existsBean.dnsTunnelDomain
+                bean.dnsTunnelKey = existsBean.dnsTunnelKey
+                bean.dnsTunnelMethod = existsBean.dnsTunnelMethod
+                bean.dnsTunnelFixedUpstream = existsBean.dnsTunnelFixedUpstream
+                bean.udpPrelude = existsBean.udpPrelude
+                bean.udpPreludeSni = existsBean.udpPreludeSni
+                bean.udpPreludeTtl = existsBean.udpPreludeTtl
+                bean.udpReorderInitial = existsBean.udpReorderInitial
                 when {
                     existsBean != bean -> {
                         changed++

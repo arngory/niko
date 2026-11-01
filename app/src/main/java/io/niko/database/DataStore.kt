@@ -303,6 +303,10 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var serverDnsTunnelDomain by profileCacheStore.string(Key.SERVER_DNS_TUNNEL_DOMAIN)
     var serverDnsTunnelKey by profileCacheStore.string(Key.SERVER_DNS_TUNNEL_KEY)
     var serverDnsTunnelMethod by profileCacheStore.stringToInt(Key.SERVER_DNS_TUNNEL_METHOD) { 2 }
+    var serverUdpPrelude by profileCacheStore.stringToInt(Key.SERVER_UDP_PRELUDE) { 0 }
+    var serverUdpPreludeSni by profileCacheStore.string(Key.SERVER_UDP_PRELUDE_SNI)
+    var serverUdpPreludeTtl by profileCacheStore.stringToInt(Key.SERVER_UDP_PRELUDE_TTL) { 0 }
+    var serverUdpReorderInitial by profileCacheStore.boolean(Key.SERVER_UDP_REORDER_INITIAL)
     var serverDnsTunnelFixedUpstream by profileCacheStore.boolean(Key.SERVER_DNS_TUNNEL_FIXED_UPSTREAM)
 
     var groupName by profileCacheStore.string(Key.GROUP_NAME)

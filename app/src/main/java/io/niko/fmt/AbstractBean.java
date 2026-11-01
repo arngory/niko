@@ -40,6 +40,11 @@ public abstract class AbstractBean extends Serializable {
     public String dnsTunnelKey; // dnstt: the server's public key; masterdnsvpn: the shared key
     public Integer dnsTunnelMethod; // masterdnsvpn DATA_ENCRYPTION_METHOD, 0-5
     public Boolean dnsTunnelFixedUpstream; // masterdnsvpn server in TCP mode instead of SOCKS5
+    // extraVersion 6: UDP desync of QUIC clients (Hysteria2, TUIC), core common/udpdesync
+    public Integer udpPrelude; // fake datagrams before the first real one, 0-8
+    public String udpPreludeSni; // the fakes are QUIC Initials naming this server; empty = random bytes
+    public Integer udpPreludeTtl; // IP TTL of the fakes, 0 = default
+    public Boolean udpReorderInitial; // the second QUIC Initial goes first
 
     //
     public transient String finalAddress;
@@ -102,6 +107,10 @@ public abstract class AbstractBean extends Serializable {
         if (dnsTunnelKey == null) dnsTunnelKey = "";
         if (dnsTunnelMethod == null) dnsTunnelMethod = 2;
         if (dnsTunnelFixedUpstream == null) dnsTunnelFixedUpstream = false;
+        if (udpPrelude == null) udpPrelude = 0;
+        if (udpPreludeSni == null) udpPreludeSni = "";
+        if (udpPreludeTtl == null) udpPreludeTtl = 0;
+        if (udpReorderInitial == null) udpReorderInitial = false;
     }
 
 
@@ -111,7 +120,7 @@ public abstract class AbstractBean extends Serializable {
     public void serializeToBuffer(@NonNull ByteBufferOutput output) {
         serialize(output);
 
-        output.writeInt(5);
+        output.writeInt(6);
         if (!serializeWithoutName) {
             output.writeString(name);
         }
@@ -129,6 +138,10 @@ public abstract class AbstractBean extends Serializable {
         output.writeString(dnsTunnelKey != null ? dnsTunnelKey : "");
         output.writeInt(dnsTunnelMethod != null ? dnsTunnelMethod : 2);
         output.writeBoolean(dnsTunnelFixedUpstream != null && dnsTunnelFixedUpstream);
+        output.writeInt(udpPrelude != null ? udpPrelude : 0);
+        output.writeString(udpPreludeSni != null ? udpPreludeSni : "");
+        output.writeInt(udpPreludeTtl != null ? udpPreludeTtl : 0);
+        output.writeBoolean(udpReorderInitial != null && udpReorderInitial);
     }
 
     @Override
@@ -159,6 +172,12 @@ public abstract class AbstractBean extends Serializable {
             dnsTunnelKey = input.readString();
             dnsTunnelMethod = input.readInt();
             dnsTunnelFixedUpstream = input.readBoolean();
+        }
+        if (extraVersion >= 6) {
+            udpPrelude = input.readInt();
+            udpPreludeSni = input.readString();
+            udpPreludeTtl = input.readInt();
+            udpReorderInitial = input.readBoolean();
         }
     }
 
