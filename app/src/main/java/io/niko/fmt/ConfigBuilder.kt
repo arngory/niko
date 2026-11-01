@@ -494,9 +494,25 @@ fun buildConfig(
                     _hack_custom_config = bean.customOutboundJson
                 }
 
+                // a raycontrol node (imported rcdev1) this hop dials; a DNS tunnel never reaches its address
+                val rayNode = if (DnsTunnel.of(bean).enabled) null else RayNodes.forHost(bean.serverAddress)
+
                 // per-profile TLS tweaks, merged into the outbound's tls object
                 val tlsTweaks = mutableMapOf<String, Any>()
                 val outboundType = (currentOutbound as? Outbound)?.type
+                // raycontrol nodes take post-quantum key exchange only: no fallback to classical groups. Go TLS
+                // (Hysteria2, TUIC, plain TLS) offers X25519MLKEM768 alone; REALITY requires the hybrid share
+                // (uTLS chrome carries it); naive (Chromium) offers it by default
+                if (rayNode != null && !proxyEntity.needExternal()) {
+                    val tls = currentOutbound.asMap()["tls"] as? Map<*, *>
+                    if (tls?.get("enabled") == true) {
+                        if ((tls["reality"] as? Map<*, *>)?.get("enabled") == true) {
+                            tlsTweaks["reality"] = mapOf("key_share" to "hybrid")
+                        } else {
+                            tlsTweaks["curve_preferences"] = listOf("X25519MLKEM768")
+                        }
+                    }
+                }
                 // fragmentation is only meaningful for TCP-based TLS outbounds
                 if (!proxyEntity.needExternal() && (bean.tlsFragment ?: 0) > 0 &&
                     outboundType in TLS_FRAGMENT_TYPES
@@ -521,11 +537,9 @@ fun buildConfig(
                 if (tlsTweaks.isNotEmpty()) currentOutbound._hack_config_map["tls"] = tlsTweaks
 
                 // port knocking: a libcore "knock" outbound dials the server for this hop. A raycontrol node
-                // (imported rcdev1) gets SPA v2 instead of the profile's own sequence; a DNS tunnel never
-                // reaches the node's address, so it gets none
+                // gets SPA v2 instead of the profile's own sequence
                 var knockTag: String? = null
                 pastDetourHolder = null
-                val rayNode = if (DnsTunnel.of(bean).enabled) null else RayNodes.forHost(bean.serverAddress)
                 if (rayNode != null || bean.hasPortKnocking()) {
                     if (proxyEntity.needExternal() && index != profileList.lastIndex) {
                         throw Exception("Port knocking (${bean.displayName()}): plugin profiles support it only as the first hop of a chain")
