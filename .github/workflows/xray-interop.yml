@@ -1,0 +1,112 @@
+name: Xray interop
+
+# The core's VLESS client against an Xray server built from arngory/xray-core:
+# REALITY + Vision with and without the ML-DSA-65 check, and VLESS encryption.
+on:
+  push:
+    paths:
+      - ".github/workflows/xray-interop.yml"
+      - "buildScript/lib/core/get_source_env.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  interop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch sources
+        run: |
+          . buildScript/lib/core/get_source_env.sh
+          git clone --filter=blob:none "$REPOSITORY_SING_BOX" core
+          git -C core checkout -q "$COMMIT_SING_BOX"
+          git clone --depth 1 https://github.com/arngory/xray-core xray
+          git -C xray log --oneline -1
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: xray/go.mod
+          cache: false
+      - name: Build Xray
+        working-directory: xray
+        run: CGO_ENABLED=0 go build -o /tmp/xray -trimpath ./main && /tmp/xray version | head -1
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: core/go.mod
+          cache: false
+      - name: Build core
+        working-directory: core
+        run: go build -o /tmp/sing-box -ldflags=-checklinkname=0 -tags=with_utls,with_quic,badlinkname,tfogo_checklinkname0 ./cmd/sing-box
+
+      - name: Keys and configs
+        run: |
+          x=$(/tmp/xray x25519)
+          priv=$(echo "$x" | awk -F': ' '/^PrivateKey/{print $2}')
+          pbk=$(echo "$x" | awk -F': ' '/^Password/{print $2}')
+          m=$(/tmp/xray mldsa65)
+          seed=$(echo "$m" | awk -F': ' '/^Seed/{print $2}')
+          verify=$(echo "$m" | awk -F': ' '/^Verify/{print $2}')
+          wrong=$(/tmp/xray mldsa65 | awk -F': ' '/^Verify/{print $2}')
+          v=$(/tmp/xray vlessenc | sed -n '/ML-KEM-768/,$p')
+          dec=$(echo "$v" | awk -F'"' '/"decryption"/{print $4}')
+          enc=$(echo "$v" | awk -F'"' '/"encryption"/{print $4}')
+          uuid=$(cat /proc/sys/kernel/random/uuid)
+          for k in priv pbk seed verify wrong dec enc; do [ -n "${!k}" ] || { echo "no $k"; exit 1; }; done
+          echo "verify key: ${#verify} chars, encryption: ${enc%%.*}"
+          jq -n --arg uuid "$uuid" --arg priv "$priv" --arg seed "$seed" --arg dec "$dec" '{
+            log: {loglevel: "warning"},
+            inbounds: [
+              {listen: "127.0.0.1", port: 18443, protocol: "vless",
+               settings: {clients: [{id: $uuid, flow: "xtls-rprx-vision"}], decryption: "none"},
+               streamSettings: {network: "raw", security: "reality",
+                 realitySettings: {target: "www.microsoft.com:443", serverNames: ["www.microsoft.com"],
+                   privateKey: $priv, shortIds: ["a1b2c3d4"], mldsa65Seed: $seed}}},
+              {listen: "127.0.0.1", port: 18444, protocol: "vless",
+               settings: {clients: [{id: $uuid}], decryption: $dec}}],
+            outbounds: [{protocol: "freedom"}]}' > /tmp/xray.json
+          reality() { jq -n --arg tag "$1" --arg uuid "$uuid" --arg pbk "$pbk" --arg pqv "$2" '{
+            type: "vless", tag: $tag, server: "127.0.0.1", server_port: 18443, uuid: $uuid, flow: "xtls-rprx-vision",
+            tls: {enabled: true, server_name: "www.microsoft.com", utls: {enabled: true, fingerprint: "chrome"},
+              reality: ({enabled: true, public_key: $pbk, short_id: "a1b2c3d4"} + (if $pqv == "" then {} else {mldsa65_verify: $pqv} end))}}'; }
+          jq -n --argjson ok "$(reality r-ok "$verify")" --argjson plain "$(reality r-plain "")" \
+                --argjson bad "$(reality r-bad "$wrong")" --arg uuid "$uuid" --arg enc "$enc" '{
+            log: {level: "warn"},
+            inbounds: [
+              {type: "mixed", tag: "in-ok", listen: "127.0.0.1", listen_port: 11080},
+              {type: "mixed", tag: "in-plain", listen: "127.0.0.1", listen_port: 11081},
+              {type: "mixed", tag: "in-bad", listen: "127.0.0.1", listen_port: 11082},
+              {type: "mixed", tag: "in-enc", listen: "127.0.0.1", listen_port: 11083}],
+            outbounds: [$ok, $plain, $bad,
+              {type: "vless", tag: "enc", server: "127.0.0.1", server_port: 18444, uuid: $uuid, encryption: $enc},
+              {type: "direct", tag: "direct"}],
+            route: {rules: [
+              {inbound: ["in-ok"], outbound: "r-ok"}, {inbound: ["in-plain"], outbound: "r-plain"},
+              {inbound: ["in-bad"], outbound: "r-bad"}, {inbound: ["in-enc"], outbound: "enc"}]}}' > /tmp/client.json
+          /tmp/xray run -test -c /tmp/xray.json
+          /tmp/sing-box check -c /tmp/client.json
+
+      - name: Interop
+        run: |
+          nohup /tmp/xray run -c /tmp/xray.json > /tmp/xray.log 2>&1 &
+          nohup /tmp/sing-box run -c /tmp/client.json > /tmp/client.log 2>&1 &
+          sleep 3
+          probe() { curl -s -m 20 -o /dev/null -w '%{http_code}' -x "socks5h://127.0.0.1:$1" https://www.gstatic.com/generate_204 || true; }
+          fail=0
+          check() { got=$(probe "$2"); echo "$1: $got (want $3)"; [ "$got" = "$3" ] || fail=1; }
+          check "REALITY + Vision + ML-DSA-65 check" 11080 204
+          check "REALITY + Vision, no ML-DSA-65 check" 11081 204
+          check "REALITY, wrong ML-DSA-65 key (must fail)" 11082 000
+          check "VLESS encryption mlkem768x25519plus" 11083 204
+          exit $fail
+
+      - name: Logs
+        if: always()
+        run: |
+          echo "--- xray"; tail -n 30 /tmp/xray.log || true
+          echo "--- client"; grep -vE '^\s*$' /tmp/client.log | tail -n 30 || true
+          pkill -x xray || true; pkill -x sing-box || true

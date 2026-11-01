@@ -537,16 +537,18 @@ fun buildConfig(
                     outbounds.add(knockOutbound)
                 }
 
-                // an entry hop whose server is a Yggdrasil address dials through the mesh
-                if (yggdrasil && index == profileList.lastIndex && knockTag == null &&
+                // an entry hop whose server is a Yggdrasil address dials through the mesh; with
+                // port knocking the knocks go through it too
+                if (yggdrasil && index == profileList.lastIndex &&
                     !DnsTunnel.of(bean).enabled && !proxyEntity.needExternal() &&
                     bean.serverAddress.isYggdrasilAddress()
                 ) {
                     // a latency test runs next to the main node: a node of its own, with a
                     // one-time key, so two nodes never claim one address
                     if (forTest) addYggdrasilEndpoint(Libcore.yggdrasilGenerateKey())
-                    currentOutbound._hack_config_map.remove("domain_resolver")
-                    currentOutbound._hack_config_map["detour"] = TAG_YGGDRASIL
+                    val dialing = pastDetourHolder ?: currentOutbound
+                    dialing._hack_config_map.remove("domain_resolver")
+                    dialing._hack_config_map["detour"] = TAG_YGGDRASIL
                     if (buildingProxy) proxyThroughYggdrasil = true
                 }
 

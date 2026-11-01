@@ -2,7 +2,8 @@
 //
 // The outbound is used as the `detour` of a proxy outbound. Before dialing the
 // proxy server it sends a sequence of TCP SYNs / UDP datagrams to the same host,
-// so a knockd-style firewall opens the real port for this client.
+// so a knockd-style firewall opens the real port for this client. A "spa" step
+// sends one authenticated, non-replayable datagram instead (spa.go).
 //
 // A knock is repeated when the session breaks: after a default network change
 // (new client address), when a dial fails on a cached knock, and once per
@@ -76,6 +77,8 @@ type step struct {
 	port    uint16
 	udp     bool
 	payload []byte
+	// a Niko SPA v1 key: the datagram is built for each knock (spa.go)
+	spaKey []byte
 }
 
 // target is the knock state of one server address. The lock only guards the
@@ -167,6 +170,15 @@ func parseSequence(sequence []Step) ([]step, error) {
 		case "", N.NetworkTCP:
 		case N.NetworkUDP:
 			parsed.udp = true
+		case "spa":
+			parsed.udp = true
+			key, err := hex.DecodeString(s.Payload)
+			if err != nil || len(key) != spaKeySize {
+				return nil, E.New("knock: step ", i+1, ": spa needs a 32-byte hex key")
+			}
+			parsed.spaKey = key
+			steps = append(steps, parsed)
+			continue
 		default:
 			return nil, E.New("knock: step ", i+1, ": unknown network: ", s.Network)
 		}
@@ -377,7 +389,9 @@ func (o *Outbound) send(ctx context.Context, destination M.Socksaddr, s step) {
 			addr = destination.UDPAddr()
 		}
 		payload := s.payload
-		if len(payload) == 0 {
+		if s.spaKey != nil {
+			payload = spaPacket(s.spaKey)
+		} else if len(payload) == 0 {
 			payload = defaultUDPPayload
 		}
 		_, err = packetConn.WriteTo(payload, addr)

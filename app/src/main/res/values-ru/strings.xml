@@ -153,6 +153,8 @@
 <string name="amneziawg_params">Параметры AmneziaWG</string>
 <string name="amneziawg_help">Строки секции [Interface] из .conf AmneziaWG: Jc, Jmin, Jmax, S1–S4, H1–H4, I1–I5 и ключи AWG 3, по одной «Ключ = значение» на строку. Пусто — обычный WireGuard. Если задан S4, ставьте MTU 1280 или меньше.</string>
 <string name="reality_key_share">Обмен ключами REALITY</string>
+<string name="reality_mldsa65">Ключ ML-DSA-65 для REALITY</string>
+<string name="reality_mldsa65_summary">Постквантовая проверка сервера: его ключ mldsa65Verify (pqv в ссылке). Пусто — выключено. На сервере нужен mldsa65Seed.</string>
 <string name="reality_key_share_auto">Авто: для Chrome гибридный, после неудачной проверки переключается</string>
 <string name="reality_key_share_hybrid">Только гибридный (X25519MLKEM768, Xray 26.9.8+)</string>
 <string name="reality_key_share_classical">Классический (меньше ClientHello, Xray до 26.9.8)</string>
@@ -554,7 +556,7 @@
     <string name="port_knocking_sequence">Последовательность, например 7000, 8000/udp, 9000</string>
     <string name="port_knocking_interval">Пауза между стуками, мс</string>
     <string name="port_knocking_ttl">Стучать повторно через, секунд</string>
-    <string name="port_knocking_summary">Перед подключением по очереди отправляет TCP SYN или UDP-пакеты на эти порты сервера. UDP-шаг может нести hex-данные: 1234/udp:68656c6c6f. Стучит заново при смене сети и при неудачном подключении. Если UDP-сессия (WireGuard, Hysteria2, TUIC) после отправки данных не получает ответа дольше заданного времени, стучит ещё раз и пишет в лог, ожил ли сервер. Пустая последовательность — выключено.</string>
+    <string name="port_knocking_summary">Перед подключением по очереди отправляет TCP SYN или UDP-пакеты на эти порты сервера. UDP-шаг может нести hex-данные: 1234/udp:68656c6c6f. SPA: 62201/spa:КЛЮЧ отправляет один подписанный пакет, который нельзя повторить (КЛЮЧ — 64 hex-символа, как на сервере). Стучит заново при смене сети и при неудачном подключении. Если UDP-сессия (WireGuard, Hysteria2, TUIC) после отправки данных не получает ответа дольше заданного времени, стучит ещё раз и пишет в лог, ожил ли сервер. Пустая последовательность — выключено.</string>
     <string name="port_knocking_invalid">Неверная последовательность: %s</string>
     <string name="local_proxy_username">Имя пользователя локального прокси</string>
     <string name="local_proxy_password">Пароль локального прокси</string>

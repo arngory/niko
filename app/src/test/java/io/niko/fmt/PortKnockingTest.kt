@@ -18,11 +18,13 @@ class PortKnockingTest {
             ), steps
         )
         assertTrue(parseKnockSequence("  ").isEmpty())
+        val key = "AB".repeat(32)
+        assertEquals(listOf(KnockStep(62201, true, key.lowercase(), spa = true)), parseKnockSequence("62201/spa:$key"))
     }
 
     @Test
     fun rejectsInvalidSteps() {
-        for (sequence in listOf("0", "70000", "abc", "1/icmp", "1:00", "1/udp:0", "1/udp:zz")) {
+        for (sequence in listOf("0", "70000", "abc", "1/icmp", "1:00", "1/udp:0", "1/udp:zz", "1/spa", "1/spa:abcd", "1/spa:" + "z".repeat(64))) {
             try {
                 parseKnockSequence(sequence)
                 throw AssertionError("accepted: $sequence")

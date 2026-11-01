@@ -1,13 +1,14 @@
 package io.niko.fmt
 
-data class KnockStep(val port: Int, val udp: Boolean, val payloadHex: String)
+data class KnockStep(val port: Int, val udp: Boolean, val payloadHex: String, val spa: Boolean = false)
 
 private const val MAX_KNOCK_STEPS = 32
 private const val MAX_KNOCK_PAYLOAD = 1024
 
 /**
- * Parses a knock sequence like "7000, 8000/udp, 9000/tcp, 1234/udp:68656c6c6f".
+ * Parses a knock sequence like "7000, 8000/udp, 9000/tcp, 1234/udp:68656c6c6f, 62201/spa:<key>".
  * Steps are separated by commas, spaces or new lines; a hex payload is only allowed for UDP.
+ * A spa step sends one Niko SPA v1 datagram, its payload is the 32-byte hex key.
  */
 fun parseKnockSequence(sequence: String): List<KnockStep> {
     val items = sequence.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotEmpty() }
@@ -17,7 +18,14 @@ fun parseKnockSequence(sequence: String): List<KnockStep> {
         val target = item.substringBefore(':')
         val port = target.substringBefore('/').toIntOrNull()
         require(port != null && port in 1..65535) { "invalid port: $item" }
-        val udp = when (target.substringAfter('/', "tcp").lowercase()) {
+        val network = target.substringAfter('/', "tcp").lowercase()
+        if (network == "spa") {
+            require(payloadHex.length == 64 && payloadHex.all { it.isDigit() || it.lowercaseChar() in 'a'..'f' }) {
+                "spa needs a 64 hex digit key: $port/spa"
+            }
+            return@map KnockStep(port, true, payloadHex.lowercase(), spa = true)
+        }
+        val udp = when (network) {
             "tcp" -> false
             "udp" -> true
             else -> throw IllegalArgumentException("unknown network: $item")
@@ -46,7 +54,7 @@ fun AbstractBean.buildKnockOutboundOptions(): Map<String, Any> {
         "sequence" to steps.map {
             buildMap {
                 put("port", it.port)
-                put("network", if (it.udp) "udp" else "tcp")
+                put("network", if (it.spa) "spa" else if (it.udp) "udp" else "tcp")
                 if (it.payloadHex.isNotEmpty()) put("payload", it.payloadHex)
             }
         },

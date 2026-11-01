@@ -43,6 +43,8 @@ public abstract class StandardV2RayBean extends AbstractBean {
     public String realityKeyShare;
     // version 7: VLESS post-quantum encryption spec ("mlkem768x25519plus..."), "" = none
     public String vlessEncryption;
+    // version 8: the server's ML-DSA-65 public key for REALITY (Xray mldsa65Verify), "" = off
+    public String realityMldsa65Verify;
 
 
     // --------------------------------------- //
@@ -110,6 +112,7 @@ public abstract class StandardV2RayBean extends AbstractBean {
         if (realityShortId == null) realityShortId = "";
         if (realityKeyShare == null) realityKeyShare = "";
         if (vlessEncryption == null) vlessEncryption = "";
+        if (realityMldsa65Verify == null) realityMldsa65Verify = "";
 
         if (enableECH == null) enableECH = false;
         if (JavaUtil.isNullOrBlank(echConfig)) echConfig = "";
@@ -125,7 +128,7 @@ public abstract class StandardV2RayBean extends AbstractBean {
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(7);
+        output.writeInt(8);
         super.serialize(output);
         output.writeString(uuid);
         output.writeString(encryption);
@@ -188,6 +191,7 @@ public abstract class StandardV2RayBean extends AbstractBean {
 
         output.writeString(realityKeyShare == null ? "" : realityKeyShare);
         output.writeString(vlessEncryption == null ? "" : vlessEncryption);
+        output.writeString(realityMldsa65Verify == null ? "" : realityMldsa65Verify);
     }
 
     @Override
@@ -294,6 +298,9 @@ public abstract class StandardV2RayBean extends AbstractBean {
         }
         if (version >= 7) {
             vlessEncryption = input.readString();
+        }
+        if (version >= 8) {
+            realityMldsa65Verify = input.readString();
         }
     }
 

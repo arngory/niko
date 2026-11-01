@@ -540,6 +540,8 @@
     <string name="amneziawg_params">AmneziaWG parameters</string>
     <string name="amneziawg_help">Lines of an AmneziaWG .conf [Interface]: Jc, Jmin, Jmax, S1–S4, H1–H4, I1–I5 and the AWG 3 keys, one \"Key = value\" per line. Empty is plain WireGuard. With S4 set, use MTU 1280 or lower.</string>
     <string name="reality_key_share">REALITY key exchange</string>
+    <string name="reality_mldsa65">REALITY ML-DSA-65 key</string>
+    <string name="reality_mldsa65_summary">Post-quantum check of the server: its mldsa65Verify key (pqv in the link). Empty: off. Needs mldsa65Seed on the server.</string>
     <string name="reality_key_share_auto">Auto: hybrid for Chrome, switches after a failed verification</string>
     <string name="reality_key_share_hybrid">Hybrid only (X25519MLKEM768, Xray 26.9.8+)</string>
     <string name="reality_key_share_classical">Classical (smaller ClientHello, Xray before 26.9.8)</string>
@@ -642,7 +644,7 @@
     <string name="port_knocking_sequence">Knock sequence, e.g. 7000, 8000/udp, 9000</string>
     <string name="port_knocking_interval">Delay between knocks, ms</string>
     <string name="port_knocking_ttl">Knock again after, seconds</string>
-    <string name="port_knocking_summary">Before connecting, sends TCP SYNs or UDP datagrams to these ports of the server, in order. UDP steps may carry a hex payload: 1234/udp:68656c6c6f. Knocks again after a network change and when a connection fails. If a UDP session (WireGuard, Hysteria2, TUIC) gets no reply for the silence timeout after sending, knocks once more and logs whether the server answers again. Leave the sequence empty to disable.</string>
+    <string name="port_knocking_summary">Before connecting, sends TCP SYNs or UDP datagrams to these ports of the server, in order. UDP steps may carry a hex payload: 1234/udp:68656c6c6f. SPA: 62201/spa:KEY sends one signed datagram that cannot be replayed (KEY = 64 hex digits, as on the server). Knocks again after a network change and when a connection fails. If a UDP session (WireGuard, Hysteria2, TUIC) gets no reply for the silence timeout after sending, knocks once more and logs whether the server answers again. Leave the sequence empty to disable.</string>
     <string name="port_knocking_invalid">Invalid knock sequence: %s</string>
     <string name="local_proxy_username">Local proxy user name</string>
     <string name="local_proxy_password">Local proxy password</string>

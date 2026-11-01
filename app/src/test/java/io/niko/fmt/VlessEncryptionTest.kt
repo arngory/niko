@@ -32,4 +32,16 @@ class VlessEncryptionTest {
         assertEquals("", plain.vlessEncryption)
         assertTrue(!buildSingBoxOutboundStandardV2RayBean(plain).asMap().containsKey("encryption"))
     }
+
+    @Test
+    fun realityMldsa65Link() {
+        val pqv = "A".repeat(2603)
+        val bean = vless()
+        bean.parseDuckSoft("https://uuid@example.com:443?type=tcp&security=reality&pbk=key&sid=ab&pqv=$pqv".toHttpUrl())
+        assertEquals(pqv, bean.realityMldsa65Verify)
+        bean.name = ""
+        assertTrue(bean.toUriVMessVLESSTrojan(false).contains("pqv=$pqv"))
+        val copy = KryoConverters.deserialize(vless(), KryoConverters.serialize(bean))
+        assertEquals(pqv, copy.realityMldsa65Verify)
+    }
 }

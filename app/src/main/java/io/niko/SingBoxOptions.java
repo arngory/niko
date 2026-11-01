@@ -2169,6 +2169,9 @@ public class SingBoxOptions {
         // core fork (from sing-box-lx): "", "hybrid" or "classical"
         public String key_share;
 
+        // core fork: the server's ML-DSA-65 public key, base64 (Xray mldsa65Verify)
+        public String mldsa65_verify;
+
     }
 
     public static class InboundACMEOptions extends SingBoxOption {

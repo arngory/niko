@@ -192,6 +192,10 @@ fun StandardV2RayBean.parseDuckSoft(url: HttpUrl) {
             url.queryParameter("sid")?.let {
                 realityShortId = it
             }
+            // Xray share links: pqv = mldsa65Verify
+            url.queryParameter("pqv")?.let {
+                realityMldsa65Verify = it
+            }
         }
     }
 
@@ -573,6 +577,9 @@ fun StandardV2RayBean.toUriVMessVLESSTrojan(isTrojan: Boolean): String {
                     builder.setQueryParameter("security", "reality")
                     builder.addQueryParameter("pbk", realityPubKey)
                     builder.addQueryParameter("sid", realityShortId)
+                    if (!realityMldsa65Verify.isNullOrBlank()) {
+                        builder.addQueryParameter("pqv", realityMldsa65Verify)
+                    }
                 }
             }
         }
@@ -687,6 +694,7 @@ fun buildSingBoxOutboundTLS(bean: StandardV2RayBean): OutboundTLSOptions? {
                 public_key = bean.realityPubKey
                 short_id = bean.realityShortId
                 if (!bean.realityKeyShare.isNullOrBlank()) key_share = bean.realityKeyShare
+                if (!bean.realityMldsa65Verify.isNullOrBlank()) mldsa65_verify = bean.realityMldsa65Verify.trim()
             }
             if (fp.isNullOrBlank()) fp = "chrome"
         }
