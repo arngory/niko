@@ -25,6 +25,7 @@ import io.niko.fmt.wireguard.WireGuardBean
 import io.niko.fmt.wireguard.buildSingBoxEndpointWireguardBean
 import io.niko.ktx.Logs
 import io.niko.raycontrol.RayNodes
+import io.niko.raycontrol.knockOptions
 import io.niko.ktx.isIpAddress
 import io.niko.ktx.mkPort
 import io.niko.utils.PackageCache
@@ -95,6 +96,10 @@ class ConfigBuildResult(
 fun buildConfig(
     proxy: ProxyEntity, forTest: Boolean = false, forExport: Boolean = false
 ): ConfigBuildResult {
+
+    // raycontrol: a removed node's device key leaves this process's core with the next build (running outbounds
+    // copied their keys when they started; keys of current nodes stay for builds running in parallel)
+    if (!forExport) Libcore.spaRetainDeviceKeys(RayNodes.list().joinToString("\n") { it.keyRef })
 
     if (proxy.type == TYPE_CONFIG) {
         val bean = proxy.requireBean() as ConfigBean
@@ -530,7 +535,11 @@ fun buildConfig(
                         type = "knock"
                         tag = knockTag
                     }
-                    knockOutbound._hack_config_map.putAll(rayNode?.let { RayNodes.prepareKnock(it) } ?: bean.buildKnockOutboundOptions())
+                    // an export carries only the key reference: the key never leaves the app
+                    knockOutbound._hack_config_map.putAll(
+                        rayNode?.let { if (forExport) it.knockOptions() else RayNodes.prepareKnock(it) }
+                            ?: bean.buildKnockOutboundOptions()
+                    )
                     currentOutbound._hack_config_map.remove("domain_resolver")?.let {
                         knockOutbound._hack_config_map["domain_resolver"] = it
                     }

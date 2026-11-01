@@ -107,11 +107,10 @@ object RayNodes {
         return node
     }
 
+    /** Removes the stored node; the service's core drops its key on the reload that follows (buildConfig). */
     @Synchronized
     fun remove(nodeId: String) {
-        val nodes = list()
-        nodes.filter { it.spa.nodeId == nodeId }.forEach { Libcore.spaSetDeviceKey(it.keyRef, "") }
-        save(nodes.filter { it.spa.nodeId != nodeId })
+        save(list().filter { it.spa.nodeId != nodeId })
     }
 
     fun forHost(address: String?): RayNode? = if (address.isNullOrBlank()) null else list().firstOrNull { it.matchesHost(address) }

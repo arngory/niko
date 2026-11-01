@@ -274,6 +274,14 @@ func TestSPA2Options(t *testing.T) {
 	if p, err := parseSPAv2(byRef); err != nil || p.deviceKey[0] != 0x11 {
 		t.Fatal("key reference: ", err)
 	}
+	SetDeviceKey("node-b", good.DeviceKey)
+	RetainDeviceKeys([]string{"node-a"})
+	if _, err := parseSPAv2(byRef); err != nil {
+		t.Fatal("retained key dropped: ", err)
+	}
+	if _, loaded := deviceKeys.Load("node-b"); loaded {
+		t.Fatal("stale key kept")
+	}
 	SetDeviceKey("node-a", "")
 	if _, err := New(context.Background(), nil, nil, "x", Options{SPAv2: &good, Sequence: []Step{{Port: 1}}}); err == nil {
 		t.Fatal("spa_v2 with a sequence accepted")

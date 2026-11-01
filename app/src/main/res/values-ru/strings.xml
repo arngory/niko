@@ -538,7 +538,7 @@
     <string name="raycontrol_node_line">%1$s, устройство %2$s, сервисов: %3$d</string>
     <string name="raycontrol_node_imported">Нода raycontrol %1$s добавлена (сервисов: %2$d). Профили с этим сервером сначала отправляют SPA v2.</string>
     <string name="raycontrol_node_remove">Удалить ноду</string>
-    <string name="raycontrol_node_remove_confirm">Удалить ноду %1$s и ключ устройства? Чтобы пользоваться ею снова, импортируйте новую регистрацию.</string>
+    <string name="raycontrol_node_remove_confirm">Удалить ноду %1$s и сохранённый ключ устройства? Подключение перезапустится без неё. Чтобы пользоваться нодой снова, импортируйте новую регистрацию.</string>
     <string name="yggdrasil_peers_via_proxy">Пиры через прокси</string>
     <string name="yggdrasil_peers_via_proxy_summary">Подключаться к пирам через выбранный профиль, провайдер видит только прокси. Выключено — напрямую. Профиль с сервером на адресе Yggdrasil всегда подключается к пирам напрямую.</string>
     <string name="yggdrasil_allow_inbound">Разрешить входящие подключения</string>

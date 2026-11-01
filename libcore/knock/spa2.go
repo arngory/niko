@@ -92,6 +92,22 @@ func SetDeviceKey(ref, keyHex string) {
 	deviceKeys.Store(ref, keyHex)
 }
 
+// RetainDeviceKeys forgets every stored device key whose reference is not in
+// refs. Outbounds already created keep their own copy, and keys still in refs
+// stay, so this is safe while boxes are being built and run.
+func RetainDeviceKeys(refs []string) {
+	keep := make(map[string]bool, len(refs))
+	for _, ref := range refs {
+		keep[ref] = true
+	}
+	deviceKeys.Range(func(ref, _ any) bool {
+		if !keep[ref.(string)] {
+			deviceKeys.Delete(ref)
+		}
+		return true
+	})
+}
+
 func parseSPAv2(o SPAv2Options) (*spa2Params, error) {
 	if o.DeviceKey == "" && o.DeviceKeyRef != "" {
 		key, loaded := deviceKeys.Load(o.DeviceKeyRef)
