@@ -227,9 +227,9 @@ packet  = 22222222222222222222222222222222 000000006955b900
 | `arngory/sing-box` | ядро клиента и niko-server | есть |
 | `arngory/xray-core` | REALITY-сервер, эталон для тестов | есть |
 | `arngory/dnstt` | серверная библиотека (п. 3.3) | есть: полное зеркало апстрима (ветки `master` = v1.20260501.0, `any-domain`, `utls`, все теги); работу вести от `master` (тег v1.20260501.0, с ним совместим клиент) |
-| `arngory/MasterDnsVPN` | сервер с внешним PacketConn | сделать форк masterking32/MasterDnsVPN |
-| `arngory/yggdrasil-go` | патч `LinkDialer` (сейчас он вендорен в `sing-box/third_party`) | желательно: перенести патч в форк и вендорить из него |
-| `arngory/naiveproxy` | клиент naive для тестов и плагин Android из своего релиза | желательно: форк klzgrad/naiveproxy |
+| `arngory/MasterDnsVPN` | сервер с внешним PacketConn | есть, ветка `main` (сервер в `cmd/server`, `internal/`); клиент в ядре вендорен из той же кодовой базы |
+| `arngory/yggdrasil-go` | патч `LinkDialer` (сейчас он вендорен в `sing-box/third_party`) | есть, ветки `master`/`develop` = 0.5.15 (в ядре вендорена 0.5.14); перенести патч `LinkDialer` на 0.5.15 и вендорить из форка |
+| `arngory/naiveproxy` | клиент naive для тестов и плагин Android из своего релиза | есть, `master`, Chromium 154.0.8037.49; в `apk/` — сборка плагина Android (свой ключ подписи вместо `apk/release.keystore`) |
 | apernet/hysteria | официальный клиент для тестов совместимости | форк не нужен, собирать тег в CI |
 
 Сторонние модули, уже вендоренные в `sing-box/third_party`: `sing-quic`, `wireguard-go` (AmneziaWG), `masterdnsvpn` (клиент), `yggdrasil-go`. После появления форков `replace` переключаются на них.
