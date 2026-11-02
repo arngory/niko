@@ -262,6 +262,8 @@ class BaseService {
             this as Service
 
             data.changeState(State.Stopping)
+            // a stop for good: a later start is the user's or the system's, not the watchdog's
+            if (!restart) RayWatchdog.stop(final = true)
 
             runOnMainDispatcher {
                 // Stop connecting first: cancel the core start (it runs on an IO thread and may wait

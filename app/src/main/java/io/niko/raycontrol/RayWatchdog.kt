@@ -52,9 +52,9 @@ object RayWatchdog {
     @Volatile
     private var online: Boolean? = null
 
-    // the next start of the core is the watchdog's own restart: keep the backoff
+    // a start of the core before this time (ms) is the watchdog's own restart: it keeps the backoff
     @Volatile
-    private var selfRestart = false
+    private var ownRestartUntil = 0L
 
     @Volatile
     private var failures = 0
@@ -73,16 +73,18 @@ object RayWatchdog {
         stale = false
         failures = 0
         // a start by the user or the system (perhaps on another network) fetches without waiting
-        if (!selfRestart) {
+        if (System.currentTimeMillis() >= ownRestartUntil) {
             recoverAt = 0
             backoff = FIRST_BACKOFF
         }
-        selfRestart = false
+        ownRestartUntil = 0
         job = scope.launch { loop(probe) }
     }
 
+    /** The core stops; [final]: the service stops for good, so no start that follows is the watchdog's. */
     @Synchronized
-    fun stop() {
+    fun stop(final: Boolean = false) {
+        if (final) ownRestartUntil = 0
         job?.cancel()
         job = null
         // the listener stops with the service: what it reported may be stale at the next start
@@ -97,8 +99,12 @@ object RayWatchdog {
         online = null
     }
 
-    private fun restart() {
-        selfRestart = true
+    /**
+     * Restarts the core as the watchdog's own restart. The mark lasts 30 s: a reload that restarts nothing (a
+     * selector switch, a busy service) or a restart that fails does not make a later start look like ours.
+     */
+    fun restart() {
+        ownRestartUntil = System.currentTimeMillis() + 30_000L
         SagerNet.reloadService()
     }
 
@@ -186,23 +192,14 @@ object RayWatchdog {
     private suspend fun recover(node: RayNode, key: String) {
         val nodeId = node.spa.nodeId
         Logs.i("raycontrol ${node.host}: the profile does not work, fetching the subscription")
-        // a restart by refresh() below is ours too
-        selfRestart = true
-        var restarted = false
         try {
-            // restarts the core itself when the running row changed
-            restarted = RaySubscription.refresh(nodeId).runningChanged
+            // restarts the core itself (as ours) when the running row changed
+            RaySubscription.refresh(nodeId, reload = RaySubscription.Reload.WATCHDOG)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Logs.w("raycontrol ${node.host}: subscription: ${e.message}")
-            if (RaySubscription.useAlternative(nodeId, key)) {
-                restart()
-                restarted = true
-            }
-        } finally {
-            // no restart followed (or the watchdog was stopped): the next start is not ours
-            if (!restarted) selfRestart = false
+            if (RaySubscription.useAlternative(nodeId, key)) restart()
         }
     }
 }

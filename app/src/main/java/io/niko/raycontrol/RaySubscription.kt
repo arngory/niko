@@ -54,6 +54,18 @@ data class RaySubscriptionResult(
  */
 object RaySubscription {
 
+    /** What to do when the row the core runs with changed. */
+    enum class Reload {
+        /** restart the core at once: the user asked */
+        NOW,
+
+        /** keep running connections; [RayWatchdog] restarts once the old credential fails (a rotation) */
+        LATER,
+
+        /** the watchdog fetched because the profile fails: restart at once, as the watchdog's own restart */
+        WATCHDOG,
+    }
+
     /** the core's error when the port stayed closed (raysub.ErrNoAnswer) */
     private const val NO_ANSWER = "the node did not answer"
 
@@ -75,14 +87,14 @@ object RaySubscription {
      * Fetches and stores the subscription; a failure plans a retry, a refusal stops the schedule. [reschedule] is
      * false only in the scheduled worker, which plans the next run itself.
      *
-     * When the row the core runs with changed: [reloadNow] restarts the core at once (the user asked, or the
-     * connection already fails); otherwise ([RefreshTask], a rotation) the running connections stay and
-     * [RayWatchdog] restarts the core only once the old credential stops working (niko-r4-note.md §1).
+     * When the row the core runs with changed, [reload] says how the core restarts: at once ([Reload.NOW],
+     * [Reload.WATCHDOG]), or ([Reload.LATER]: [RefreshTask], a rotation) only once the old credential stops working,
+     * so the running connections stay (niko-r4-note.md §1).
      */
-    suspend fun refresh(nodeId: String, reschedule: Boolean = true, reloadNow: Boolean = true): RaySubscriptionResult =
+    suspend fun refresh(nodeId: String, reschedule: Boolean = true, reload: Reload = Reload.NOW): RaySubscriptionResult =
         locks.getOrPut(nodeId) { Mutex() }.withLock {
             try {
-                refreshLocked(nodeId, reloadNow)
+                refreshLocked(nodeId, reload)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -94,7 +106,7 @@ object RaySubscription {
             }
         }
 
-    private suspend fun refreshLocked(nodeId: String, reloadNow: Boolean): RaySubscriptionResult {
+    private suspend fun refreshLocked(nodeId: String, reload: Reload): RaySubscriptionResult {
         val node = RayNodes.get(nodeId) ?: throw Exception("raycontrol node $nodeId was removed")
         val info = node.subscription ?: throw Exception("raycontrol node ${node.host}: its registration has no subscription")
         val request = JsonObject().apply {
@@ -144,7 +156,14 @@ object RaySubscription {
             if (stored.groupCreated) GroupManager.iterator { groupAdd(stored.group) }
             GroupManager.postReload(stored.group.id)
             // a running row that is gone cannot wait: the core runs a profile that no longer exists
-            if (stored.runningGone) SagerNet.reloadService() else if (stored.runningChanged) runningChanged(reloadNow)
+            when {
+                !stored.runningChanged && !stored.runningGone -> {}
+                // the watchdog's own restart: it keeps its backoff
+                reload == Reload.WATCHDOG -> RayWatchdog.restart()
+                // a running row that is gone cannot wait: the core runs a profile that no longer exists
+                reload == Reload.NOW || stored.runningGone -> SagerNet.reloadService()
+                else -> RayWatchdog.markStale()
+            }
         }
         return RaySubscriptionResult(
             profiles = beans.size,
@@ -244,14 +263,6 @@ object RaySubscription {
         // the rest are stale rows of the node: keys nothing matches, so store() deletes them
         rows.filter { it.id !in used }.forEach { ids["stale:${it.id}"] = it.id }
         return ids
-    }
-
-    /**
-     * The core runs with a row that got other credentials. A broadcast reload works from `:bg` too, where the
-     * service state is not known; without a running service nobody receives it.
-     */
-    private fun runningChanged(reloadNow: Boolean) {
-        if (reloadNow) SagerNet.reloadService() else RayWatchdog.markStale()
     }
 
     /**
@@ -397,7 +408,7 @@ object RaySubscription {
             for (node in RayNodes.list()) {
                 if (node.subscription == null || node.refreshAt <= 0 || node.refreshAt > now) continue
                 try {
-                    refresh(node.spa.nodeId, reschedule = false, reloadNow = false)
+                    refresh(node.spa.nodeId, reschedule = false, reload = Reload.LATER)
                 } catch (e: Exception) {
                     // refresh() planned the retry; a rotation due now still happens from the stored `next`
                     Logs.w("raycontrol subscription ${node.host}: ${e.message}")
