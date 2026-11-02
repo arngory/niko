@@ -96,10 +96,47 @@ data class RayRegistration(
 object Rcdev1 {
     const val PREFIX = "rcdev1:"
 
-    fun matches(text: String) = text.trim().startsWith(PREFIX)
+    private val TOKEN = Regex("""(?<![A-Za-z0-9_-])rcdev1:[A-Za-z0-9_-]+""")
+    private val CONTINUATION = Regex("""^[A-Za-z0-9_-]+$""")
+
+    /** A package anywhere in the text, e.g. the whole output of `rayctl device add` (raycontrol niko-r4-note.md §4). */
+    fun matches(text: String) = TOKEN.containsMatchIn(text)
+
+    /**
+     * The package in [text]: the token that starts with `rcdev1:`. A terminal may have wrapped it, so the lines right
+     * after it that are base64url only are tried as its continuation, shortest first.
+     */
+    fun candidates(text: String): List<String> {
+        val match = TOKEN.find(text) ?: return listOf(text.trim())
+        val out = mutableListOf(match.value)
+        val rest = text.substring(match.range.last + 1)
+        if (rest.startsWith("\n") || rest.startsWith("\r\n")) {
+            var joined = match.value
+            for (line in rest.lines().drop(1).take(64)) {
+                val part = line.trim()
+                if (!CONTINUATION.matches(part)) break
+                joined += part
+                out += joined
+            }
+        }
+        return out
+    }
 
     /** Throws IllegalArgumentException with a readable reason. */
     fun parse(text: String): RayRegistration {
+        val tries = candidates(text)
+        var first: IllegalArgumentException? = null
+        for (token in tries) {
+            try {
+                return parseToken(token)
+            } catch (e: IllegalArgumentException) {
+                if (first == null) first = e
+            }
+        }
+        throw first!!
+    }
+
+    private fun parseToken(text: String): RayRegistration {
         val body = text.trim().removePrefix(PREFIX).trim()
         require(body.isNotEmpty() && body.all { it.isLetterOrDigit() || it == '-' || it == '_' }) {
             "rcdev1: not base64url"

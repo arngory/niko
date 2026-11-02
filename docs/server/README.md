@@ -48,11 +48,16 @@
 `tag` = `niko-server-vX.Y.Z`; он сверяет, что тег стоит на выпускаемом коммите, и вызывает `niko-server.yml`. Новый
 коммит ядра для клиента — `COMMIT_SING_BOX` в `buildScript/lib/core/get_source_env.sh`.
 
+Просьбы raycontrol к niko-server после R4 — [`docs/handoff/niko-r4-note.md`](https://github.com/arngory/raycontrol/blob/claude/clever-feynman-w0e2v1/docs/handoff/niko-r4-note.md)
+§6: tcpmux с маршрутом по SNI (перекрытие ключей REALITY), бэкенд `site` «только TLS и пустой ответ», датаграммы фронта
+в пределах MTU (периметр отбрасывает фрагменты). Ответ клиента на ту же заметку — [`RAYCONTROL.md`](RAYCONTROL.md) §9.
+
 ## Открытые вопросы к raycontrol
 
 - **`services[].port_key`** (и `port_base`/`port_range`) в пакете регистрации — ключ расписания UDP-порта сервиса
   (RAYCONTROL.md §8, п. §3.5). Без него клиент не может следовать ротации портов; клиентская часть небольшая и
   делается сразу после появления поля.
+- Пакет для QR без ключей ноды (`node_keys_sha256` + `GET /sub/v1/keys`) — предложение в RAYCONTROL.md §9.
 - Заморозка формата подписки вместе с эндпоинтом (niko-r1-reply.md §1): клиент уже реализует текущий текст
   `subscription-v1.md`, включая поле `time`.
 

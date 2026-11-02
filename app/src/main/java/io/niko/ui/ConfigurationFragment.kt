@@ -353,6 +353,8 @@ class ConfigurationFragment @JvmOverloads constructor(
                             requireContext().contentResolver.openInputStream(file)!!.use {
                                 it.bufferedReader().readText()
                             }
+                        // `rayctl device add -o phone.bundle`: a raycontrol device package
+                        if (importRaycontrol(fileText)) return@runOnDefaultDispatcher
                         RawUpdater.parseRaw(fileText, fileName ?: "")
                             ?.let { pl -> proxies.addAll(pl) }
                     }
@@ -369,6 +371,23 @@ class ConfigurationFragment @JvmOverloads constructor(
                 }
             }
         }
+
+    /**
+     * A raycontrol device package anywhere in [text] (also the whole output of `rayctl device add`): imports the
+     * node and fetches its subscription. Returns false when the text holds none.
+     */
+    private suspend fun importRaycontrol(text: String): Boolean {
+        if (!Rcdev1.matches(text)) return false
+        val node = RayNodes.import(Rcdev1.parse(text))
+        val imported = app.getString(R.string.raycontrol_node_imported, node.host, node.services.size)
+        onMainDispatcher { if (isAdded) snackbar(imported).show() }
+        if (node.subscription != null) {
+            // the fetch takes seconds: the fragment may be gone by then
+            val message = RaySubscription.refreshForUser(app, node)
+            onMainDispatcher { if (isAdded) snackbar(message).show() }
+        }
+        return true
+    }
 
     suspend fun import(proxies: List<AbstractBean>) {
         val targetId = DataStore.selectedGroupForImport()
@@ -399,16 +418,9 @@ class ConfigurationFragment @JvmOverloads constructor(
                 } else runOnDefaultDispatcher {
                     try {
                         if (Rcdev1.matches(text)) {
-                            val node = RayNodes.import(Rcdev1.parse(text))
                             // the package carries the device key: do not leave it in the clipboard
                             SagerNet.clearClipboard()
-                            val imported = app.getString(R.string.raycontrol_node_imported, node.host, node.services.size)
-                            onMainDispatcher { if (isAdded) snackbar(imported).show() }
-                            if (node.subscription != null) {
-                                // the fetch takes seconds: the fragment may be gone by then
-                                val message = RaySubscription.refreshForUser(app, node)
-                                onMainDispatcher { if (isAdded) snackbar(message).show() }
-                            }
+                            importRaycontrol(text)
                             return@runOnDefaultDispatcher
                         }
                         val proxies = RawUpdater.parseRaw(text)

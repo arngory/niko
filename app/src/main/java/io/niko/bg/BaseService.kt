@@ -18,6 +18,7 @@ import io.niko.database.DataStore
 import io.niko.database.SagerDatabase
 import io.niko.ktx.*
 import io.niko.plugin.PluginManager
+import io.niko.raycontrol.RayWatchdog
 import io.niko.utils.DefaultNetworkListener
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
@@ -219,6 +220,18 @@ class BaseService {
             withContext(Dispatchers.IO) { proxy.launch() }
         }
 
+        /** the connection test through the running profile, for [RayWatchdog] */
+        suspend fun probeRunning(): Boolean {
+            val box = data.proxy?.takeIf { it.isInitialized() }?.box ?: return false
+            return try {
+                withContext(Dispatchers.IO) { Libcore.urlTest(box, DataStore.connectionTestURL, 5000) }
+                true
+            } catch (e: Exception) {
+                Logs.d("raycontrol watchdog: ${e.readableMessage}")
+                false
+            }
+        }
+
         fun startRunner() {
             this as Context
             if (Build.VERSION.SDK_INT >= 26) startForegroundService(Intent(this, javaClass))
@@ -226,6 +239,7 @@ class BaseService {
         }
 
         fun killProcesses() {
+            RayWatchdog.stop()
             data.proxy?.close()
             wakeLock?.apply {
                 release()
@@ -297,6 +311,8 @@ class BaseService {
                         if (DataStore.networkChangeResetConnections) {
                             Libcore.resetAllConnections(true)
                         }
+                        // a raycontrol node may be reachable differently here (SPA carrier, port)
+                        RayWatchdog.poke(15_000L)
                     }
                 }
             }
@@ -380,6 +396,7 @@ class BaseService {
                     startProcesses()
                     if (data.state != State.Connecting) return@runOnMainDispatcher
                     data.changeState(State.Connected)
+                    RayWatchdog.start { probeRunning() }
 
                     lateInit()
                 } catch (_: CancellationException) { // if the job was cancelled, it is canceller's responsibility to call stopRunner

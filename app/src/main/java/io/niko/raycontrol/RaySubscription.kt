@@ -34,7 +34,14 @@ import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
 /** What a subscription update did. */
-data class RaySubscriptionResult(val profiles: Int, val skipped: Int, val clockSkew: Long, val spaOverTcp: Boolean) {
+data class RaySubscriptionResult(
+    val profiles: Int,
+    val skipped: Int,
+    val clockSkew: Long,
+    val spaOverTcp: Boolean,
+    // the row the core runs with got other credentials
+    val runningChanged: Boolean = false,
+) {
     /** spa-v2.md §7: SPA v2 needs the clocks within 30 s */
     val clockWrong get() = abs(clockSkew) > 30
 }
@@ -67,11 +74,15 @@ object RaySubscription {
     /**
      * Fetches and stores the subscription; a failure plans a retry, a refusal stops the schedule. [reschedule] is
      * false only in the scheduled worker, which plans the next run itself.
+     *
+     * When the row the core runs with changed: [reloadNow] restarts the core at once (the user asked, or the
+     * connection already fails); otherwise ([RefreshTask], a rotation) the running connections stay and
+     * [RayWatchdog] restarts the core only once the old credential stops working (niko-r4-note.md §1).
      */
-    suspend fun refresh(nodeId: String, reschedule: Boolean = true): RaySubscriptionResult =
+    suspend fun refresh(nodeId: String, reschedule: Boolean = true, reloadNow: Boolean = true): RaySubscriptionResult =
         locks.getOrPut(nodeId) { Mutex() }.withLock {
             try {
-                refreshLocked(nodeId)
+                refreshLocked(nodeId, reloadNow)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -83,7 +94,7 @@ object RaySubscription {
             }
         }
 
-    private suspend fun refreshLocked(nodeId: String): RaySubscriptionResult {
+    private suspend fun refreshLocked(nodeId: String, reloadNow: Boolean): RaySubscriptionResult {
         val node = RayNodes.get(nodeId) ?: throw Exception("raycontrol node $nodeId was removed")
         val info = node.subscription ?: throw Exception("raycontrol node ${node.host}: its registration has no subscription")
         val request = JsonObject().apply {
@@ -100,19 +111,25 @@ object RaySubscription {
         val result = JsonParser.parseString(Libcore.raycontrolFetchSubscription(request.toString())).asJsonObject
         val payload = result.getAsJsonObject("payload")
         val now = System.currentTimeMillis() / 1000
+        // rotation times are the node's: a device clock off by minutes would switch too early or too late
+        val skew = result.get("clock_skew_s")?.asLong ?: 0
+        val nodeNow = now + skew
         val profiles = (payload.get("profiles") as? JsonArray ?: JsonArray()).map { it.asJsonObject }
 
         var skipped = 0
         val beans = LinkedHashMap<String, AbstractBean>()
+        val links = HashMap<String, RayLinks>()
         profiles.zip(profileKeys(profiles)).forEach { (profile, key) ->
             try {
-                val bean = parseProxies(currentLink(profile, now)).firstOrNull()
+                val pair = linksOf(profile, nodeNow)
+                val bean = parseProxies(pair.activeLink).firstOrNull()
                 if (bean == null) {
                     skipped++
                 } else {
-                    profile.get("name")?.asString?.takeIf { it.isNotBlank() }?.let { bean.name = it }
+                    if (pair.name.isNotBlank()) bean.name = pair.name
                     bean.applyDefaultValues()
                     beans[key] = bean
+                    links[key] = pair
                 }
             } catch (e: Exception) {
                 Logs.w("raycontrol subscription: profile ${profile.get("name")}: ${e.message}")
@@ -121,19 +138,19 @@ object RaySubscription {
         }
 
         // the UI and the scheduled worker (`:bg`) may both get here: one writer across the processes
-        val stored = RayNodesLock.withLock { store(nodeId, payload.get("seq").asLong, nextRefresh(payload, now), beans) }
+        val refreshAt = maxOf(now + 60, nextRefresh(payload, nodeNow) - skew)
+        val stored = RayNodesLock.withLock { store(nodeId, payload.get("seq").asLong, refreshAt, skew, beans, links) }
         if (stored != null) {
             if (stored.groupCreated) GroupManager.iterator { groupAdd(stored.group) }
             GroupManager.postReload(stored.group.id)
-            // the core runs with the old credential: restart it. A broadcast, so this works from `:bg`, where the
-            // service state is not known; without a running service nobody receives it.
-            if (stored.runningChanged) SagerNet.reloadService()
+            if (stored.runningChanged) runningChanged(reloadNow)
         }
         return RaySubscriptionResult(
             profiles = beans.size,
             skipped = skipped,
-            clockSkew = result.get("clock_skew_s")?.asLong ?: 0,
+            clockSkew = skew,
             spaOverTcp = result.get("spa_over_tcp")?.asBoolean == true,
+            runningChanged = stored?.runningChanged == true,
         )
     }
 
@@ -150,7 +167,9 @@ object RaySubscription {
      *
      * Returns null when another process already stored a newer subscription.
      */
-    private fun store(nodeId: String, seq: Long, refreshAt: Long, beans: Map<String, AbstractBean>): Stored? {
+    private fun store(
+        nodeId: String, seq: Long, refreshAt: Long, skew: Long, beans: Map<String, AbstractBean>, links: Map<String, RayLinks>,
+    ): Stored? {
         val node = RayNodes.get(nodeId) ?: throw Exception("raycontrol node $nodeId was removed")
         if (seq < node.subSeq) return null
         var group = SagerDatabase.groupDao.getById(node.groupId)
@@ -190,7 +209,10 @@ object RaySubscription {
             if (toUpdate.isNotEmpty()) SagerDatabase.proxyDao.updateProxy(toUpdate)
             val stale = known.values.filter { it !in ids.values && it in rows }.associateBy { "stale:$it" }
             RayNodes.update(nodeId) {
-                it.copy(subSeq = seq, groupId = group.id, profileIds = ids + stale, refreshAt = refreshAt)
+                it.copy(
+                    subSeq = seq, groupId = group.id, profileIds = ids + stale, refreshAt = refreshAt,
+                    links = links.filterKeys { k -> k in ids }, clockSkew = skew,
+                )
             }
         }
         val gone = known.values.filter { it !in ids.values }.mapNotNull { rows[it] }
@@ -221,6 +243,67 @@ object RaySubscription {
         return ids
     }
 
+    /**
+     * The core runs with a row that got other credentials. A broadcast reload works from `:bg` too, where the
+     * service state is not known; without a running service nobody receives it.
+     */
+    private fun runningChanged(reloadNow: Boolean) {
+        if (reloadNow) SagerNet.reloadService() else RayWatchdog.markStale()
+    }
+
+    /**
+     * The worker could not fetch at a rotation: switch the rows whose `next` is due by the node's clock to it from
+     * what the last subscription carried. Returns whether the running row changed.
+     */
+    suspend fun applyDue(nodeId: String): Boolean {
+        val node = RayNodes.get(nodeId) ?: return false
+        val nodeNow = System.currentTimeMillis() / 1000 + node.clockSkew
+        var running = false
+        for ((key, l) in node.links) {
+            if (l.next != null && !l.nextActive && nodeNow >= l.from) running = setActive(nodeId, key, true) || running
+        }
+        return running
+    }
+
+    /**
+     * The running row of the node fails and the subscription could not be fetched: switch it to its other
+     * credential, `link` ↔ `next` (niko-r4-note.md §1 p. 2). Only rows in a rotation have one. Returns whether the
+     * row changed; the caller restarts the core.
+     */
+    suspend fun useAlternative(nodeId: String, key: String): Boolean {
+        val l = RayNodes.get(nodeId)?.links?.get(key) ?: return false
+        if (l.next == null) return false
+        return setActive(nodeId, key, !l.nextActive)
+    }
+
+    /** Puts `next` ([nextActive]) or `link` into the key's row. Returns whether the running row changed. */
+    private suspend fun setActive(nodeId: String, key: String, nextActive: Boolean): Boolean {
+        val l = RayNodes.get(nodeId)?.links?.get(key) ?: return false
+        val target = l.copy(nextActive = nextActive)
+        val bean = try {
+            parseProxies(target.activeLink).firstOrNull()
+        } catch (e: Exception) {
+            null
+        } ?: return false
+        if (target.name.isNotBlank()) bean.name = target.name
+        bean.applyDefaultValues()
+        return locks.getOrPut(nodeId) { Mutex() }.withLock {
+            RayNodesLock.withLock {
+                val node = RayNodes.get(nodeId) ?: return@withLock false
+                // a refresh meanwhile replaced the links: theirs win
+                if (node.links[key] != l) return@withLock false
+                val row = node.profileIds?.get(key)?.let { SagerDatabase.proxyDao.getById(it) } ?: return@withLock false
+                SagerDatabase.instance.runInTransaction {
+                    keepUserTweaks(row.requireBean(), bean)
+                    row.putBean(bean)
+                    SagerDatabase.proxyDao.updateProxy(row)
+                    RayNodes.update(nodeId) { it.copy(links = it.links + (key to target)) }
+                }
+                row.id == DataStore.selectedProxy || row.id == DataStore.currentProfile
+            }
+        }.also { if (it) Logs.i("raycontrol: profile $key of $nodeId now uses ${if (nextActive) "next" else "link"}") }
+    }
+
     /** settings the user set on a profile that the subscription link does not carry */
     private fun keepUserTweaks(old: AbstractBean, new: AbstractBean) {
         new.customOutboundJson = old.customOutboundJson
@@ -242,10 +325,19 @@ object RaySubscription {
         }
     }
 
-    /** rotation (R4): from `next.from` on, the next credential replaces the current one */
-    fun currentLink(profile: JsonObject, now: Long): String {
+    /** rotation (R4): from `next.from` on (the node's clock), the next credential replaces the current one */
+    fun currentLink(profile: JsonObject, nodeNow: Long) = linksOf(profile, nodeNow).activeLink
+
+    fun linksOf(profile: JsonObject, nodeNow: Long): RayLinks {
         val next = profile.get("next") as? JsonObject
-        return if (next != null && now >= next.get("from").asLong) next.get("link").asString else profile.get("link").asString
+        val from = next?.get("from")?.asLong ?: 0
+        return RayLinks(
+            name = profile.get("name")?.takeIf { it.isJsonPrimitive }?.asString.orEmpty(),
+            link = profile.get("link").asString,
+            next = next?.get("link")?.asString,
+            from = from,
+            nextActive = next != null && nodeNow >= from,
+        )
     }
 
     /**
@@ -298,10 +390,11 @@ object RaySubscription {
             for (node in RayNodes.list()) {
                 if (node.subscription == null || node.refreshAt <= 0 || node.refreshAt > now) continue
                 try {
-                    refresh(node.spa.nodeId, reschedule = false)
+                    refresh(node.spa.nodeId, reschedule = false, reloadNow = false)
                 } catch (e: Exception) {
-                    // refresh() planned the retry
+                    // refresh() planned the retry; a rotation due now still happens from the stored `next`
                     Logs.w("raycontrol subscription ${node.host}: ${e.message}")
+                    if (applyDue(node.spa.nodeId)) RayWatchdog.markStale()
                 }
             }
             schedule(fromWorker = true)

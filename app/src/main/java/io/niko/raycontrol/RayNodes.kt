@@ -12,6 +12,33 @@ import java.io.File
 import java.io.RandomAccessFile
 import java.util.concurrent.locks.ReentrantLock
 
+/**
+ * The credentials of one subscription profile (subscription-v1 `link` and `next`): the row holds [link] or, from
+ * [from] on (node time), [next]. [active] says which one the row holds now; the other is the fallback when the
+ * running one stops working (raycontrol niko-r4-note.md §1).
+ */
+data class RayLinks(val name: String, val link: String, val next: String? = null, val from: Long = 0, val nextActive: Boolean = false) {
+    val activeLink get() = if (nextActive && next != null) next else link
+
+    fun toJson() = JsonObject().apply {
+        addProperty("name", name)
+        addProperty("link", link)
+        next?.let { addProperty("next", it) }
+        addProperty("from", from)
+        addProperty("next_active", nextActive)
+    }
+
+    companion object {
+        fun fromJson(o: JsonObject) = RayLinks(
+            name = o.get("name")?.asString.orEmpty(),
+            link = o.string("link"),
+            next = o.get("next")?.takeIf { it.isJsonPrimitive }?.asString,
+            from = o.get("from")?.asLong ?: 0,
+            nextActive = o.get("next_active")?.asBoolean == true,
+        )
+    }
+}
+
 /** An imported raycontrol node: SPA v2 parameters and this device's wrapped key. */
 data class RayNode(
     val host: String,
@@ -29,6 +56,10 @@ data class RayNode(
     // when to fetch the subscription again (unix s): the next rotation or before expiry;
     // 0 = not planned yet (planned at start), STOPPED = the node refused this device, import it again
     val refreshAt: Long = 0,
+    // profile key → its current and next credential, for the switch at `from` and the fallback
+    val links: Map<String, RayLinks> = emptyMap(),
+    // node clock minus ours at the last fetch (s): rotation times are the node's
+    val clockSkew: Long = 0,
 ) {
     /** the key reference handed to the core; the key itself never enters the config */
     val keyRef get() = "raycontrol:${spa.nodeId}:$deviceId"
@@ -55,6 +86,8 @@ data class RayNode(
         addProperty("group_id", groupId)
         profileIds?.let { ids -> add("profile_ids", JsonObject().apply { ids.forEach { (k, v) -> addProperty(k, v) } }) }
         addProperty("refresh_at", refreshAt)
+        add("links", JsonObject().apply { links.forEach { (k, v) -> add(k, v.toJson()) } })
+        addProperty("clock_skew", clockSkew)
     }
 
     companion object {
@@ -72,6 +105,8 @@ data class RayNode(
             groupId = o.get("group_id")?.asLong ?: 0,
             profileIds = (o.get("profile_ids") as? JsonObject)?.entrySet()?.associate { it.key to it.value.asLong },
             refreshAt = o.get("refresh_at")?.asLong ?: 0,
+            links = (o.get("links") as? JsonObject)?.entrySet()?.associate { it.key to RayLinks.fromJson(it.value.asJsonObject) }.orEmpty(),
+            clockSkew = o.get("clock_skew")?.asLong ?: 0,
         )
     }
 }
@@ -193,6 +228,16 @@ object RayNodes {
     fun deviceKeyHex(node: RayNode): String {
         val key = DeviceKeyVault.unwrap(node.deviceKeyWrapped)
         return key.joinToString("") { "%02x".format(it) }.also { key.fill(0) }
+    }
+
+    /** the node whose subscription row [profileId] is, with the row's key */
+    fun ownerOf(profileId: Long): Pair<RayNode, String>? {
+        if (profileId <= 0) return null
+        for (node in list()) {
+            val key = node.profileIds?.entries?.firstOrNull { it.value == profileId && !it.key.startsWith("stale:") }?.key
+            if (key != null) return node to key
+        }
+        return null
     }
 
     fun forHost(address: String?): RayNode? = if (address.isNullOrBlank()) null else list().firstOrNull { it.matchesHost(address) }

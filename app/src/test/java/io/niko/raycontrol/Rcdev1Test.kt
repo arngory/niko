@@ -39,6 +39,18 @@ class Rcdev1Test {
         assertFalse(Rcdev1.matches("vless://x"))
     }
 
+    // `rayctl device add` without -o prints the package among other words; a terminal may wrap it
+    @Test
+    fun findsPackageInText() {
+        val token = pack(json)
+        val output = "Device phone of alice added.\nPackage: $token\nHand it over a trusted channel.\n"
+        assertTrue(Rcdev1.matches(output))
+        assertEquals("0123456789abcdef", Rcdev1.parse(output).deviceId)
+        val wrapped = "Package:\n" + token.chunked(80).joinToString("\n") + "\nDone\n"
+        assertEquals("203.0.113.7", Rcdev1.parse(wrapped).host)
+        assertFalse(Rcdev1.matches("xrcdev1:abc"))
+    }
+
     @Test
     fun rejectsBadPackages() {
         val bad = listOf(
@@ -53,10 +65,11 @@ class Rcdev1Test {
             pack(json.replace("\"len_max\": 160", "\"len_max\": 600")),
             pack(json.replace("\"slot_len_s\": 600", "\"slot_len_s\": 0")),
         )
-        for (text in bad) {
+        // no package text in the logs, not even a test one (niko-r4-note.md §5)
+        for ((i, text) in bad.withIndex()) {
             try {
                 Rcdev1.parse(text)
-                fail("accepted: $text")
+                fail("accepted bad package #$i")
             } catch (_: IllegalArgumentException) {
             }
         }
