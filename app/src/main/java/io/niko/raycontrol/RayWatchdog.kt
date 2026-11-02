@@ -3,6 +3,7 @@ package io.niko.raycontrol
 import io.niko.SagerNet
 import io.niko.database.DataStore
 import io.niko.ktx.Logs
+import io.niko.utils.DefaultNetworkListener
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -44,8 +45,10 @@ object RayWatchdog {
     @Volatile
     private var fastUntil = 0L
 
+    // the service's network listener sets it; false until it reports a network, so a start without one
+    // tests nothing, and the first network starts the backoff over
     @Volatile
-    private var online = true
+    private var online = false
 
     @Volatile
     private var failures = 0
@@ -70,6 +73,8 @@ object RayWatchdog {
     fun stop() {
         job?.cancel()
         job = null
+        // the listener stops with the service: what it reported may be stale at the next start
+        online = false
     }
 
     /** A test in [delayMs]. */
@@ -114,7 +119,8 @@ object RayWatchdog {
     }
 
     private suspend fun step(probe: suspend () -> Boolean): Long {
-        if (!online) return PERIOD
+        // without network callbacks (fallback) the state is unknown: test anyway
+        if (!online && !DefaultNetworkListener.fallback) return PERIOD
         // stale without an owner: the running row left the subscription; the core still runs it
         val owner = RayNodes.ownerOf(DataStore.currentProfile)
         if (owner == null && !stale) return PERIOD

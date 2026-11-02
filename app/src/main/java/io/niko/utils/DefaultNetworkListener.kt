@@ -100,7 +100,10 @@ object DefaultNetworkListener {
             runBlocking { networkActor.send(NetworkMessage.Lost(network)) }
     }
 
-    private var fallback = false
+    // no network callbacks (registration failed): listeners hear nothing
+    @Volatile
+    var fallback = false
+        private set
     private val request = NetworkRequest.Builder().apply {
         addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
         addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)
