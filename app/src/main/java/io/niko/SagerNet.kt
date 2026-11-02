@@ -93,6 +93,12 @@ class SagerNet : Application(),
                 }
 
                 updateNotificationChannels()
+                // raycontrol nodes whose subscription fetch was never planned (imported by 1.13.0)
+                try {
+                    io.niko.raycontrol.RaySubscription.startup()
+                } catch (e: Exception) {
+                    Logs.w(e)
+                }
             }
         }
 

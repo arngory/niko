@@ -25,6 +25,7 @@ import io.niko.ktx.app
 import io.niko.ktx.applyDefaultValues
 import io.niko.ktx.parseProxies
 import io.niko.ktx.readableMessage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import libcore.Libcore
@@ -49,22 +50,34 @@ object RaySubscription {
     /** the core's error when the port stayed closed (raysub.ErrNoAnswer) */
     private const val NO_ANSWER = "the node did not answer"
 
-    /** a failed fetch is tried again after this: soon when the port stayed closed, rarely when the node said no */
+    /**
+     * The node answered but refused this device or proved to be another key: a retry cannot fix it, the
+     * registration has to be imported again (raysub.ErrNotFound, the pin and signature checks).
+     */
+    private val REFUSED = listOf(
+        "does not know this device", "does not match the pin", "signature does not verify", "signed for another node",
+    )
+
+    private fun refused(e: Throwable) = e.message?.let { m -> REFUSED.any { m.contains(it) } } == true
+
+    /** a failed fetch is tried again after this: soon when the port stayed closed, rarely otherwise */
     private fun retryAfter(e: Throwable) = if (e.message?.contains(NO_ANSWER) == true) 15 * 60L else 6 * 3600L
 
     private val locks = ConcurrentHashMap<String, Mutex>()
 
     /**
-     * Fetches and stores the subscription; a failure plans a retry. [reschedule] is false only in the scheduled
-     * worker, which plans the next run itself.
+     * Fetches and stores the subscription; a failure plans a retry, a refusal stops the schedule. [reschedule] is
+     * false only in the scheduled worker, which plans the next run itself.
      */
     suspend fun refresh(nodeId: String, reschedule: Boolean = true): RaySubscriptionResult =
         locks.getOrPut(nodeId) { Mutex() }.withLock {
             try {
                 refreshLocked(nodeId)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                val now = System.currentTimeMillis() / 1000
-                RayNodes.update(nodeId) { if (it.subscription == null) it else it.copy(refreshAt = now + retryAfter(e)) }
+                val at = if (refused(e)) RayNodes.STOPPED else System.currentTimeMillis() / 1000 + retryAfter(e)
+                RayNodes.update(nodeId) { if (it.subscription == null) it else it.copy(refreshAt = at) }
                 throw e
             } finally {
                 if (reschedule) schedule()
@@ -72,7 +85,6 @@ object RaySubscription {
         }
 
     private suspend fun refreshLocked(nodeId: String): RaySubscriptionResult {
-        // read under the lock: another refresh or a re-import may have changed the node
         val node = RayNodes.get(nodeId) ?: throw Exception("raycontrol node $nodeId was removed")
         val info = node.subscription ?: throw Exception("raycontrol node ${node.host}: its registration has no subscription")
         val request = JsonObject().apply {
@@ -100,6 +112,7 @@ object RaySubscription {
                     skipped++
                 } else {
                     profile.get("name")?.asString?.takeIf { it.isNotBlank() }?.let { bean.name = it }
+                    bean.applyDefaultValues()
                     beans[key] = bean
                 }
             } catch (e: Exception) {
@@ -108,21 +121,15 @@ object RaySubscription {
             }
         }
 
-        val group = SagerDatabase.groupDao.getById(node.groupId) ?: GroupManager.createGroup(
-            ProxyGroup(name = "raycontrol · ${node.host}", type = GroupType.BASIC)
-        )
-        // 1.13.0 replaced the whole group and kept no ids: its rows are this node's, matched by name once
-        val known = node.profileIds.ifEmpty {
-            if (node.groupId == 0L) emptyMap() else legacyIds(group.id, beans)
+        // the UI and the scheduled worker (`:bg`) may both get here: one writer across the processes
+        val stored = RayNodesLock.withLock { store(nodeId, payload.get("seq").asLong, nextRefresh(payload, now), beans) }
+        if (stored != null) {
+            if (stored.groupCreated) GroupManager.iterator { groupAdd(stored.group) }
+            GroupManager.postReload(stored.group.id)
+            // the core runs with the old credential: restart it. A broadcast, so this works from `:bg`, where the
+            // service state is not known; without a running service nobody receives it.
+            if (stored.runningChanged) SagerNet.reloadService()
         }
-        val (ids, selectedChanged) = store(group.id, known, beans)
-        GroupManager.postReload(group.id)
-
-        RayNodes.update(nodeId) {
-            it.copy(subSeq = payload.get("seq").asLong, groupId = group.id, profileIds = ids, refreshAt = nextRefresh(payload, now))
-        }
-        // the running connection uses the old credential of the selected profile
-        if (selectedChanged && DataStore.serviceState.started) SagerNet.reloadService()
         return RaySubscriptionResult(
             profiles = beans.size,
             skipped = skipped,
@@ -131,47 +138,76 @@ object RaySubscription {
         )
     }
 
+    private class Stored(val group: ProxyGroup, val groupCreated: Boolean, val runningChanged: Boolean)
+
     /**
-     * Writes the profiles into the group: a known key updates its row (the id, the selection and the user's own
-     * tweaks stay), a new key adds a row, rows of keys gone from the subscription are deleted. Returns the new
-     * key → id map and whether the selected profile changed.
+     * Writes the profiles into the node's group (under [RayNodesLock]): a known key updates its row (the id, the
+     * selection and the user's own tweaks stay), a new key adds a row, rows of keys gone are deleted. Rows the user
+     * added to the group by hand stay.
+     *
+     * Crash safety: the rows and the node record are in two databases. The node record is written last inside the
+     * rows' transaction and keeps the rows to delete as `stale:` keys until they are gone, so a crash at any point
+     * leaves no row of the node unknown to it: the next refresh adds what is missing and deletes the stale rows.
+     *
+     * Returns null when another process already stored a newer subscription.
      */
-    private fun store(groupId: Long, known: Map<String, Long>, beans: Map<String, AbstractBean>): Pair<Map<String, Long>, Boolean> {
-        val selected = DataStore.selectedProxy
-        val rows = SagerDatabase.proxyDao.getByGroup(groupId).associateBy { it.id }
-        val ids = LinkedHashMap<String, Long>()
-        val toUpdate = ArrayList<ProxyEntity>()
-        var selectedChanged = false
-        var order = 1L
-        for ((key, bean) in beans) {
-            val row = known[key]?.let { rows[it] }
-            if (row == null) {
-                bean.applyDefaultValues()
-                val entity = ProxyEntity(groupId = groupId, userOrder = order).apply { putBean(bean) }
-                ids[key] = SagerDatabase.proxyDao.addProxy(entity)
-            } else {
-                bean.applyDefaultValues()
-                keepUserTweaks(row.requireBean(), bean)
-                if (row.requireBean() != bean || row.userOrder != order) {
-                    if (row.id == selected && row.requireBean() != bean) selectedChanged = true
-                    row.putBean(bean)
-                    row.userOrder = order
-                    toUpdate.add(row)
-                }
-                ids[key] = row.id
-            }
-            order++
+    private fun store(nodeId: String, seq: Long, refreshAt: Long, beans: Map<String, AbstractBean>): Stored? {
+        val node = RayNodes.get(nodeId) ?: throw Exception("raycontrol node $nodeId was removed")
+        if (seq < node.subSeq) return null
+        var group = SagerDatabase.groupDao.getById(node.groupId)
+        val groupCreated = group == null
+        if (group == null) {
+            group = ProxyGroup(name = "raycontrol · ${node.host}", type = GroupType.BASIC).applyDefaultValues()
+            group.userOrder = SagerDatabase.groupDao.nextOrder() ?: 1
+            group.id = SagerDatabase.groupDao.createGroup(group)
         }
-        if (toUpdate.isNotEmpty()) SagerDatabase.proxyDao.updateProxy(toUpdate)
-        // rows of this node only: profiles the user added to the group by hand stay
+        // 1.13.0 replaced the whole group and kept no ids: its rows are this node's, matched by name once
+        val known = node.profileIds.ifEmpty {
+            if (groupCreated || node.groupId == 0L) emptyMap() else legacyIds(group.id, beans)
+        }
+        val rows = SagerDatabase.proxyDao.getByGroup(group.id).associateBy { it.id }
+        val ids = LinkedHashMap<String, Long>()
+        val changed = HashSet<Long>()
+        SagerDatabase.instance.runInTransaction {
+            val toUpdate = ArrayList<ProxyEntity>()
+            var order = 1L
+            for ((key, bean) in beans) {
+                val row = known[key]?.let { rows[it] }
+                if (row == null) {
+                    ids[key] = SagerDatabase.proxyDao.addProxy(ProxyEntity(groupId = group.id, userOrder = order).apply { putBean(bean) })
+                } else {
+                    val old = row.requireBean()
+                    keepUserTweaks(old, bean)
+                    val beanChanged = old != bean
+                    if (beanChanged) changed += row.id
+                    if (beanChanged || row.userOrder != order) {
+                        row.putBean(bean)
+                        row.userOrder = order
+                        toUpdate.add(row)
+                    }
+                    ids[key] = row.id
+                }
+                order++
+            }
+            if (toUpdate.isNotEmpty()) SagerDatabase.proxyDao.updateProxy(toUpdate)
+            val stale = known.values.filter { it !in ids.values && it in rows }.associateBy { "stale:$it" }
+            RayNodes.update(nodeId) {
+                it.copy(subSeq = seq, groupId = group.id, profileIds = ids + stale, refreshAt = refreshAt)
+            }
+        }
         val gone = known.values.filter { it !in ids.values }.mapNotNull { rows[it] }
-        if (gone.isNotEmpty()) SagerDatabase.proxyDao.deleteProxy(gone)
-        if (gone.any { it.id == selected }) {
+        if (gone.isNotEmpty()) {
+            SagerDatabase.proxyDao.deleteProxy(gone)
+            RayNodes.update(nodeId) { it.copy(profileIds = ids) }
+            changed += gone.map { it.id }
+        }
+        val selected = DataStore.selectedProxy
+        if (selected in gone.map { it.id }) {
             // the selected service left the subscription: keep a profile of this node selected
             DataStore.selectedProxy = ids.values.firstOrNull() ?: 0L
-            selectedChanged = true
         }
-        return ids to selectedChanged
+        val runningChanged = selected in changed || DataStore.currentProfile in changed
+        return Stored(group, groupCreated, runningChanged)
     }
 
     private fun legacyIds(groupId: Long, beans: Map<String, AbstractBean>): Map<String, Long> {
@@ -230,6 +266,16 @@ object RaySubscription {
 
     private const val WORK_NAME = "RaycontrolSubscription"
 
+    /**
+     * At start: nodes whose fetch was never planned (imported by 1.13.0, or before their first fetch) are due now.
+     */
+    fun startup() {
+        val now = System.currentTimeMillis() / 1000
+        val due = RayNodes.list().filter { it.subscription != null && it.refreshAt == 0L }
+        due.forEach { n -> RayNodes.update(n.spa.nodeId) { if (it.refreshAt == 0L) it.copy(refreshAt = now) else it } }
+        if (due.isNotEmpty()) schedule()
+    }
+
     /** Plans the next scheduled fetch for the earliest node due; none due cancels it. */
     fun schedule(fromWorker: Boolean = false) {
         val at = RayNodes.list().filter { it.subscription != null && it.refreshAt > 0 }.minOfOrNull { it.refreshAt }
@@ -283,6 +329,7 @@ object RaySubscription {
         buildString {
             append(context.getString(R.string.raycontrol_sub_failed, e.readableMessage))
             if (e.message?.contains(NO_ANSWER) == true) append(" ").append(context.getString(R.string.raycontrol_clock_hint))
+            if (refused(e)) append(" ").append(context.getString(R.string.raycontrol_sub_reimport))
         }
     }
 }

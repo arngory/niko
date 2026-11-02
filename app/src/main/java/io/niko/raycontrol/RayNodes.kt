@@ -6,7 +6,11 @@ import com.google.gson.JsonParser
 import io.niko.Key
 import io.niko.database.DataStore
 import io.niko.ktx.Logs
+import io.niko.ktx.app
 import libcore.Libcore
+import java.io.File
+import java.io.RandomAccessFile
+import java.util.concurrent.locks.ReentrantLock
 
 /** An imported raycontrol node: SPA v2 parameters and this device's wrapped key. */
 data class RayNode(
@@ -21,7 +25,8 @@ data class RayNode(
     val groupId: Long = 0,
     // profile key (svc, see RaySubscription.profileKeys) → its row, so an update keeps the rows and the selection
     val profileIds: Map<String, Long> = emptyMap(),
-    // when to fetch the subscription again (unix s): the next rotation or before expiry; 0 = never
+    // when to fetch the subscription again (unix s): the next rotation or before expiry;
+    // 0 = not planned yet (planned at start), STOPPED = the node refused this device, import it again
     val refreshAt: Long = 0,
 ) {
     /** the key reference handed to the core; the key itself never enters the config */
@@ -90,7 +95,35 @@ fun RayNode.knockOptions(): Map<String, Any> = mapOf(
     "silence" to "15s",
 )
 
+/**
+ * One writer at a time across the app's processes: the UI and the scheduled refresh (`:bg`) both change the node
+ * list and the node's profile rows. Reentrant within a thread.
+ */
+object RayNodesLock {
+    private val local = ReentrantLock()
+
+    fun <T> withLock(block: () -> T): T {
+        local.lock()
+        try {
+            if (local.holdCount > 1) return block()
+            RandomAccessFile(File(app.filesDir, "raycontrol.lock"), "rw").channel.use { channel ->
+                // FileLock is AutoCloseable only from API 24
+                val lock = channel.lock()
+                try {
+                    return block()
+                } finally {
+                    lock.release()
+                }
+            }
+        } finally {
+            local.unlock()
+        }
+    }
+}
+
 object RayNodes {
+
+    const val STOPPED = -1L
 
     fun list(): List<RayNode> {
         val raw = DataStore.configurationStore.getString(Key.RAYCONTROL_NODES, null)
@@ -117,8 +150,7 @@ object RayNodes {
     }
 
     /** Imports a registration; the same node is replaced (a new device key for it). */
-    @Synchronized
-    fun import(registration: RayRegistration): RayNode {
+    fun import(registration: RayRegistration): RayNode = RayNodesLock.withLock {
         val wrapped = DeviceKeyVault.wrap(hexToBytes(registration.deviceKey))
         // a new registration of the same node keeps its profile group and rows
         val old = list().firstOrNull { it.spa.nodeId == registration.spa.nodeId }
@@ -127,17 +159,17 @@ object RayNodes {
             registration.subscription, groupId = old?.groupId ?: 0, profileIds = old?.profileIds.orEmpty(),
         )
         save(list().filter { it.spa.nodeId != node.spa.nodeId } + node)
-        return node
+        node
     }
 
     /**
      * Removes the stored node and drops its key from this process's core (latency tests ran here). The service's
      * core drops it on the reload that follows (buildConfig).
      */
-    @Synchronized
     fun remove(nodeId: String) {
-        val left = list().filter { it.spa.nodeId != nodeId }
-        save(left)
+        val left = RayNodesLock.withLock {
+            list().filter { it.spa.nodeId != nodeId }.also { save(it) }
+        }
         Libcore.spaRetainDeviceKeys(left.joinToString("\n") { it.keyRef })
     }
 
@@ -147,14 +179,13 @@ object RayNodes {
      * Changes the stored node in place: [change] gets the current entry, so a re-import (a new key) in between is
      * kept. Returns the stored node, or null when it was removed meanwhile.
      */
-    @Synchronized
-    fun update(nodeId: String, change: (RayNode) -> RayNode): RayNode? {
+    fun update(nodeId: String, change: (RayNode) -> RayNode): RayNode? = RayNodesLock.withLock {
         var updated: RayNode? = null
         val nodes = list().map {
             if (it.spa.nodeId == nodeId) change(it).also { n -> updated = n } else it
         }
         if (updated != null) save(nodes)
-        return updated
+        updated
     }
 
     /** the device key as hex, for the core */
