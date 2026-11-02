@@ -120,12 +120,14 @@ object RayWatchdog {
     }
 
     /**
-     * The service received a reload; [restarts]: it restarts the core now. Only then a pending own restart becomes
-     * the mark for the start that follows; a reload that restarts nothing (selector switch, busy service) drops it.
+     * The service received a reload; [restarts]: it restarts the core now. Only then the mark is decided: ours if a
+     * restart of ours is pending, else not (a restart by someone else). A reload that restarts nothing (selector
+     * switch, a service busy stopping or starting) drops only what is pending and leaves a mark for a restart
+     * already under way.
      */
     @Synchronized
     fun reloadReceived(restarts: Boolean) {
-        ownRestart = restarts && pendingOwn && System.currentTimeMillis() < pendingOwnUntil
+        if (restarts) ownRestart = pendingOwn && System.currentTimeMillis() < pendingOwnUntil
         pendingOwn = false
     }
 
