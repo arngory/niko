@@ -17,6 +17,8 @@ import io.niko.database.DataStore
 import io.niko.database.preference.EditTextPreferenceModifiers
 import io.niko.ktx.*
 import io.niko.raycontrol.RayNodes
+import io.niko.raycontrol.RayNode
+import io.niko.raycontrol.RaySubscription
 import io.niko.utils.Theme
 import io.niko.ui.*
 import libcore.Libcore
@@ -210,39 +212,70 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         findPreference<Preference>(Key.YGGDRASIL_PEERS_VIA_PROXY)!!.onPreferenceChangeListener = reloadListener
         findPreference<Preference>(Key.YGGDRASIL_TLS_CHROME)!!.onPreferenceChangeListener = reloadListener
 
-        // raycontrol nodes: imported from rcdev1 (clipboard or QR), removable here
-        val raycontrolNodes = findPreference<Preference>("raycontrolNodesView")!!
-        fun showRaycontrolNodes() {
-            val nodes = RayNodes.list()
-            raycontrolNodes.summary = if (nodes.isEmpty()) {
-                getString(R.string.raycontrol_nodes_empty)
-            } else {
-                nodes.joinToString("\n") { getString(R.string.raycontrol_node_line, it.host, it.deviceId, it.services.size) }
-            }
-        }
+        // raycontrol nodes: imported from rcdev1 (clipboard or QR); update the subscription or remove here
+        raycontrolNodes = findPreference("raycontrolNodesView")!!
         showRaycontrolNodes()
         raycontrolNodes.setOnPreferenceClickListener {
             val nodes = RayNodes.list()
             if (nodes.isEmpty()) return@setOnPreferenceClickListener true
             MaterialAlertDialogBuilder(requireContext())
-                .setTitle(R.string.raycontrol_node_remove)
+                .setTitle(R.string.raycontrol_nodes)
                 .setItems(nodes.map { it.host + " · " + it.services.joinToString { s -> s.name } }.toTypedArray()) { _, which ->
-                    val node = nodes[which]
-                    MaterialAlertDialogBuilder(requireContext())
-                        .setMessage(getString(R.string.raycontrol_node_remove_confirm, node.host))
-                        .setPositiveButton(R.string.yes) { _, _ ->
-                            RayNodes.remove(node.spa.nodeId)
-                            showRaycontrolNodes()
-                            // the running core still holds the key and knocks: restart it now, not on "Apply"
-                            if (DataStore.serviceState.started) SagerNet.reloadService()
-                        }
-                        .setNegativeButton(android.R.string.cancel, null)
-                        .show()
+                    showNodeActions(nodes[which])
                 }
                 .setNegativeButton(android.R.string.cancel, null)
                 .show()
             true
         }
+    }
+
+    private lateinit var raycontrolNodes: Preference
+
+    private fun showRaycontrolNodes() {
+        val nodes = RayNodes.list()
+        raycontrolNodes.summary = if (nodes.isEmpty()) {
+            getString(R.string.raycontrol_nodes_empty)
+        } else {
+            nodes.joinToString("\n") { getString(R.string.raycontrol_node_line, it.host, it.deviceId, it.services.size) }
+        }
+    }
+
+    private fun showNodeActions(node: RayNode) {
+        val actions = mutableListOf<Pair<Int, () -> Unit>>()
+        if (node.subscription != null) actions += R.string.raycontrol_sub_update to { updateSubscription(node) }
+        actions += R.string.raycontrol_node_remove to { confirmRemove(node) }
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(node.host)
+            .setItems(actions.map { getString(it.first) }.toTypedArray()) { _, i -> actions[i].second() }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun updateSubscription(node: RayNode) {
+        snackbar(R.string.raycontrol_sub_updating).show()
+        val context = requireContext().applicationContext
+        runOnDefaultDispatcher {
+            val message = try {
+                RaySubscription.describe(context, node, RaySubscription.refresh(node))
+            } catch (e: Exception) {
+                Logs.w(e)
+                context.getString(R.string.raycontrol_sub_failed, e.readableMessage)
+            }
+            onMainDispatcher { if (isAdded) snackbar(message).show() }
+        }
+    }
+
+    private fun confirmRemove(node: RayNode) {
+        MaterialAlertDialogBuilder(requireContext())
+            .setMessage(getString(R.string.raycontrol_node_remove_confirm, node.host))
+            .setPositiveButton(R.string.yes) { _, _ ->
+                RayNodes.remove(node.spa.nodeId)
+                showRaycontrolNodes()
+                // the running core still holds the key and knocks: restart it now, not on "Apply"
+                if (DataStore.serviceState.started) SagerNet.reloadService()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     override fun onResume() {

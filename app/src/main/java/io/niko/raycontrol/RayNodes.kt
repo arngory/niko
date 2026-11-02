@@ -15,6 +15,10 @@ data class RayNode(
     val deviceId: String,
     val deviceKeyWrapped: String,
     val services: List<RayService>,
+    val subscription: RaySubscriptionInfo? = null,
+    // the last accepted subscription (seq never goes back) and the group its profiles live in
+    val subSeq: Long = 0,
+    val groupId: Long = 0,
 ) {
     /** the key reference handed to the core; the key itself never enters the config */
     val keyRef get() = "raycontrol:${spa.nodeId}:$deviceId"
@@ -36,6 +40,9 @@ data class RayNode(
                 })
             }
         })
+        subscription?.let { add("sub", it.toJson()) }
+        addProperty("sub_seq", subSeq)
+        addProperty("group_id", groupId)
     }
 
     companion object {
@@ -48,6 +55,9 @@ data class RayNode(
                 val s = it.asJsonObject
                 RayService(s.long("id").toInt(), s.string("kind"), s.string("name"))
             }.orEmpty(),
+            subscription = (o.get("sub") as? JsonObject)?.let { RaySubscriptionInfo.fromJson(it) },
+            subSeq = o.get("sub_seq")?.asLong ?: 0,
+            groupId = o.get("group_id")?.asLong ?: 0,
         )
     }
 }
@@ -102,7 +112,12 @@ object RayNodes {
     @Synchronized
     fun import(registration: RayRegistration): RayNode {
         val wrapped = DeviceKeyVault.wrap(hexToBytes(registration.deviceKey))
-        val node = RayNode(registration.host, registration.spa, registration.deviceId, wrapped, registration.services)
+        // a new registration of the same node keeps its profile group
+        val old = list().firstOrNull { it.spa.nodeId == registration.spa.nodeId }
+        val node = RayNode(
+            registration.host, registration.spa, registration.deviceId, wrapped, registration.services,
+            registration.subscription, groupId = old?.groupId ?: 0,
+        )
         save(list().filter { it.spa.nodeId != node.spa.nodeId } + node)
         return node
     }
@@ -116,6 +131,17 @@ object RayNodes {
         val left = list().filter { it.spa.nodeId != nodeId }
         save(left)
         Libcore.spaRetainDeviceKeys(left.joinToString("\n") { it.keyRef })
+    }
+
+    @Synchronized
+    fun update(node: RayNode) {
+        save(list().map { if (it.spa.nodeId == node.spa.nodeId) node else it })
+    }
+
+    /** the device key as hex, for the core */
+    fun deviceKeyHex(node: RayNode): String {
+        val key = DeviceKeyVault.unwrap(node.deviceKeyWrapped)
+        return key.joinToString("") { "%02x".format(it) }.also { key.fill(0) }
     }
 
     fun forHost(address: String?): RayNode? = if (address.isNullOrBlank()) null else list().firstOrNull { it.matchesHost(address) }

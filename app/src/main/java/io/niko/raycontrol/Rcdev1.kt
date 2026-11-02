@@ -50,6 +50,37 @@ data class RaySpaParams(
 
 data class RayService(val id: Int, val kind: String, val name: String)
 
+/** Subscription endpoint (spa-v2.md §8 `sub`) and the node's signing keys (`node_keys`). */
+data class RaySubscriptionInfo(val port: Int, val pin: String, val ed25519: String, val mldsa65: String) {
+    fun toJson() = JsonObject().apply {
+        addProperty("port", port)
+        addProperty("pin", pin)
+        addProperty("ed25519", ed25519)
+        addProperty("mldsa65", mldsa65)
+    }
+
+    companion object {
+        fun fromJson(o: JsonObject) = RaySubscriptionInfo(o.long("port").toInt(), o.string("pin"), o.string("ed25519"), o.string("mldsa65"))
+
+        private val BASE64URL = Regex("^[A-Za-z0-9_-]+$")
+
+        /** From the registration: both `sub` and `node_keys`, or none (old nodes have neither). */
+        fun fromRegistration(o: JsonObject): RaySubscriptionInfo? {
+            val sub = o.get("sub") as? JsonObject ?: return null
+            val keys = o.get("node_keys") as? JsonObject
+                ?: throw IllegalArgumentException("rcdev1: sub without node_keys, the subscription could not be verified")
+            val port = sub.long("port").toInt()
+            require(port in 1..65535) { "rcdev1: invalid sub.port" }
+            val pin = sub.string("pin")
+            require(pin.length == 43 && BASE64URL.matches(pin)) { "rcdev1: sub.pin must be base64url SHA-256" }
+            val ed25519 = keys.hex("ed25519", 32)
+            val mldsa65 = keys.string("mldsa65")
+            require(mldsa65.length == 2603 && BASE64URL.matches(mldsa65)) { "rcdev1: node_keys.mldsa65 must be a base64url ML-DSA-65 key" }
+            return RaySubscriptionInfo(port, pin, ed25519, mldsa65)
+        }
+    }
+}
+
 /** A device registration package `rcdev1:` (raycontrol docs/spec/spa-v2.md §8). It holds the device key. */
 data class RayRegistration(
     val host: String,
@@ -57,6 +88,7 @@ data class RayRegistration(
     val deviceId: String,
     val deviceKey: String,
     val services: List<RayService>,
+    val subscription: RaySubscriptionInfo? = null,
 ) {
     override fun toString() = "RayRegistration(host=$host, node=${spa.nodeId}, device=$deviceId)"
 }
@@ -98,6 +130,7 @@ object Rcdev1 {
             deviceId = o.hex("device_id", 8),
             deviceKey = o.hex("device_key", 32),
             services = services,
+            subscription = RaySubscriptionInfo.fromRegistration(o),
         )
     }
 }

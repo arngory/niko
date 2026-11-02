@@ -408,3 +408,13 @@ func (c *trackedPacketConn) Close() error {
 }
 
 func (c *trackedPacketConn) Upstream() any { return c.PacketConn }
+
+// SPAv2Packet returns the slot port and a fresh packet for the options at now
+// (the subscription fetch sends it outside an outbound).
+func SPAv2Packet(options SPAv2Options, now time.Time) (uint16, []byte, error) {
+	p, err := parseSPAv2(options)
+	if err != nil {
+		return 0, nil, err
+	}
+	return p.packet(now)
+}

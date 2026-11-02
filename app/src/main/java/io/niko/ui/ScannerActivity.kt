@@ -2,6 +2,7 @@ package io.niko.ui
 
 import io.niko.raycontrol.Rcdev1
 import io.niko.raycontrol.RayNodes
+import io.niko.raycontrol.RaySubscription
 import android.Manifest
 import android.content.Intent
 import android.content.pm.ShortcutManager
@@ -125,6 +126,15 @@ class ScannerActivity : ThemedActivity(),
                     val node = RayNodes.import(Rcdev1.parse(text))
                     onMainDispatcher {
                         Toast.makeText(app, getString(R.string.raycontrol_node_imported, node.host, node.services.size), Toast.LENGTH_LONG).show()
+                    }
+                    if (node.subscription != null) {
+                        val message = try {
+                            RaySubscription.describe(app, node, RaySubscription.refresh(node))
+                        } catch (e: Exception) {
+                            Logs.w(e)
+                            app.getString(R.string.raycontrol_sub_failed, e.readableMessage)
+                        }
+                        onMainDispatcher { Toast.makeText(app, message, Toast.LENGTH_LONG).show() }
                     }
                     return@runOnDefaultDispatcher
                 }

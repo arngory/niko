@@ -277,6 +277,18 @@
             app:icon="@drawable/ic_baseline_vpn_key_24"
             app:key="raycontrolNodesView"
             app:title="@string/raycontrol_nodes" />
+        <EditTextPreference
+            app:defaultValue="https://common.dot.dns.yandex.net/dns-query"
+            app:dialogMessage="@string/raycontrol_dnstt_resolver_help"
+            app:key="raycontrolDnsttResolver"
+            app:title="@string/raycontrol_dnstt_resolver"
+            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            app:defaultValue="77.88.8.8&#10;77.88.8.1"
+            app:dialogMessage="@string/raycontrol_masterdns_resolvers_help"
+            app:key="raycontrolMasterDnsResolvers"
+            app:title="@string/raycontrol_masterdns_resolvers"
+            app:useSimpleSummaryProvider="true" />
     </PreferenceCategory>
 
     <PreferenceCategory app:title="@string/cag_misc">

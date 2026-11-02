@@ -99,6 +99,9 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var yggdrasilAllowInbound by configurationStore.boolean(Key.YGGDRASIL_ALLOW_INBOUND)
     var yggdrasilPeersViaProxy by configurationStore.boolean(Key.YGGDRASIL_PEERS_VIA_PROXY)
     var yggdrasilTlsChrome by configurationStore.boolean(Key.YGGDRASIL_TLS_CHROME) { true }
+    // raycontrol links leave the DNS tunnel resolver to the client: these defaults fill it (Yandex, reachable in RU whitelists)
+    var raycontrolDnsttResolver by configurationStore.string(Key.RAYCONTROL_DNSTT_RESOLVER) { "https://common.dot.dns.yandex.net/dns-query" }
+    var raycontrolMasterDnsResolvers by configurationStore.string(Key.RAYCONTROL_MASTERDNS_RESOLVERS) { "77.88.8.8\n77.88.8.1" }
 
     // the node identity of this install, made on first use and not part of backups
     val yggdrasilPrivateKey: String

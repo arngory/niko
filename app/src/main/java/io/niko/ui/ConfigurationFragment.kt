@@ -2,6 +2,7 @@ package io.niko.ui
 
 import io.niko.raycontrol.Rcdev1
 import io.niko.raycontrol.RayNodes
+import io.niko.raycontrol.RaySubscription
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.graphics.Color
@@ -403,6 +404,15 @@ class ConfigurationFragment @JvmOverloads constructor(
                             SagerNet.clearClipboard()
                             onMainDispatcher {
                                 snackbar(getString(R.string.raycontrol_node_imported, node.host, node.services.size)).show()
+                            }
+                            if (node.subscription != null) {
+                                val message = try {
+                                    RaySubscription.describe(requireContext(), node, RaySubscription.refresh(node))
+                                } catch (e: Exception) {
+                                    Logs.w(e)
+                                    getString(R.string.raycontrol_sub_failed, e.readableMessage)
+                                }
+                                onMainDispatcher { snackbar(message).show() }
                             }
                             return@runOnDefaultDispatcher
                         }

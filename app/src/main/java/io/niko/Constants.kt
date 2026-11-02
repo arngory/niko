@@ -187,6 +187,8 @@ object Key {
     const val YGGDRASIL_TLS_CHROME = "yggdrasilTlsChrome"
     const val YGGDRASIL_ADDRESS = "yggdrasilAddress"
     const val RAYCONTROL_NODES = "raycontrolNodes"
+    const val RAYCONTROL_DNSTT_RESOLVER = "raycontrolDnsttResolver"
+    const val RAYCONTROL_MASTERDNS_RESOLVERS = "raycontrolMasterDnsResolvers"
 }
 
 object TunImplementation {

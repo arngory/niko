@@ -3,6 +3,7 @@ package io.niko.fmt.v2ray
 import android.text.TextUtils
 import com.google.gson.Gson
 import io.niko.database.DataStore
+import io.niko.fmt.applyNikoParams
 import io.niko.fmt.http.HttpBean
 import io.niko.fmt.trojan.TrojanBean
 import io.niko.ktx.*
@@ -153,6 +154,7 @@ fun StandardV2RayBean.parseDuckSoft(url: HttpUrl) {
     }
 
     type = url.queryParameter("type") ?: "tcp"
+    if (type == "raw") type = "tcp" // Xray's name for plain TCP
     if (type == "h2" || url.queryParameter("headerType") == "http") type = "http"
     if (type == "splithttp") type = "xhttp" // the old Xray name
 
@@ -286,6 +288,8 @@ fun StandardV2RayBean.parseDuckSoft(url: HttpUrl) {
     url.queryParameter("fp")?.let {
         utlsFingerprint = it
     }
+    // raycontrol links (subscription-v1.md §4): DNS tunnel, certificate pin
+    applyNikoParams { url.queryParameter(it) }
 }
 
 private const val ECH_PEM_BEGIN = "-----BEGIN ECH CONFIGS-----"

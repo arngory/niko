@@ -16,6 +16,7 @@ require (
 )
 
 require (
+	github.com/cloudflare/circl v1.6.5
 	github.com/yggdrasil-network/yggdrasil-go v0.5.14
 	golang.org/x/crypto v0.54.0
 )
@@ -31,7 +32,6 @@ require (
 	github.com/bits-and-blooms/bloom/v3 v3.7.1 // indirect
 	github.com/caddyserver/certmagic v0.25.3-0.20260421143802-60d9d8b415d6 // indirect
 	github.com/caddyserver/zerossl v0.1.5 // indirect
-	github.com/cloudflare/circl v1.6.5 // indirect
 	github.com/coder/websocket v1.8.15 // indirect
 	github.com/cretz/bine v0.2.0 // indirect
 	github.com/database64128/netx-go v0.1.1 // indirect
