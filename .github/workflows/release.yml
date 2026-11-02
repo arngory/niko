@@ -20,6 +20,7 @@ jobs:
       tag: ${{ steps.tag.outputs.tag }}
       sha: ${{ steps.tag.outputs.sha }}
       prerelease: ${{ steps.tag.outputs.prerelease }}
+      kind: ${{ steps.tag.outputs.kind }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,6 +32,14 @@ jobs:
         env:
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
+          # niko-server-v* releases the node binaries (niko-server.yml), not the app
+          if [[ "$TAG" == niko-server-v* ]]; then
+            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+            echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+            echo "kind=server" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "kind=app" >> "$GITHUB_OUTPUT"
           version=$(grep '^VERSION_NAME=' niko.properties | cut -d= -f2)
           if [ "$TAG" != "v$version" ]; then
             echo "::error::tag $TAG does not match VERSION_NAME=$version in niko.properties"
@@ -50,8 +59,18 @@ jobs:
             *) echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
           esac
 
+  server:
+    needs: check
+    if: needs.check.outputs.kind == 'server'
+    uses: ./.github/workflows/niko-server.yml
+    with:
+      release_tag: ${{ needs.check.outputs.tag }}
+      sha: ${{ needs.check.outputs.sha }}
+    secrets: inherit
+
   build:
     needs: check
+    if: needs.check.outputs.kind == 'app'
     uses: ./.github/workflows/build.yml
     with:
       ref: ${{ needs.check.outputs.sha }}
@@ -62,6 +81,7 @@ jobs:
     name: Publish Release
     runs-on: ubuntu-latest
     needs: [check, build]
+    if: needs.check.outputs.kind == 'app'
     steps:
       - name: Checkout
         uses: actions/checkout@v4

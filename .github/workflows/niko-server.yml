@@ -13,13 +13,24 @@ on:
       - ".github/xray-interop.env"
     tags: ["niko-server-v*"]
   workflow_dispatch:
+  # release.yml with a niko-server-v* tag
+  workflow_call:
+    inputs:
+      release_tag:
+        type: string
+        default: ""
+      sha:
+        type: string
+        default: ""
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   integration:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
@@ -134,7 +145,7 @@ jobs:
           pkill -x xray || true; pkill -x niko-server || true; pkill -x sing-box || true
 
   release:
-    if: startsWith(github.ref, 'refs/tags/niko-server-v')
+    if: startsWith(github.ref, 'refs/tags/niko-server-v') || inputs.release_tag != ''
     needs: integration
     runs-on: ubuntu-latest
     permissions:
@@ -152,11 +163,13 @@ jobs:
           cache: false
       - name: Build
         working-directory: core
+        env:
+          TAG: ${{ inputs.release_tag || github.ref_name }}
         run: |
           mkdir -p ../dist
           for arch in amd64 arm64; do
             CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath \
-              -ldflags "-s -w -X main.version=${GITHUB_REF_NAME#niko-server-}" \
+              -ldflags "-s -w -X main.version=${TAG#niko-server-}" \
               -o ../dist/niko-server-linux-$arch ./cmd/niko-server
           done
           cd ../dist && sha256sum niko-server-* > SHA256SUMS && cat SHA256SUMS
@@ -164,9 +177,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ inputs.release_tag || github.ref_name }}
+          SHA: ${{ inputs.sha || github.sha }}
         run: |
-          flags=(--title "$TAG" --prerelease)
+          flags=(--title "$TAG" --prerelease --target "$SHA")
           if [ -f ".github/release-notes/$TAG.md" ]; then flags+=(--notes-file ".github/release-notes/$TAG.md"); fi
           if gh release view "$TAG" > /dev/null 2>&1; then
             gh release upload "$TAG" dist/* --clobber
