@@ -146,7 +146,7 @@ PQ даёт только `inner`.
 | §5.5–§5.7 имена, каталоги, `inner` | так и реализовано: сокет `<RuntimeDirectory>/packet.sock` 0660, бэкенду нужны только `AF_UNIX` (сокет фронта и `inner`) |
 | §5.9 порядок запуска | фронт переживает отсутствие бэкенда |
 
-**Релиз для интеграционного теста R1: `niko-server-v0.1.0`** (`arngory/niko`, releases; бинарники `linux-amd64`,
+**Релиз для интеграционного теста R1: `niko-server-v0.1.1`** (v0.1.0 не использовать: в ней MasterDnsVPN резолвил DNS-запросы клиентов через 1.1.1.1 прямо с ноды) (`arngory/niko`, releases; бинарники `linux-amd64`,
 `linux-arm64`, `SHA256SUMS`). В нём `front` (DNS, UDP 53) и `backend` для `dnstt` и `masterdns`. Сквозной тест
 в CI (`.github/workflows/niko-server.yml`): фронт + оба бэкенда + `inner` на Xray из `arngory/xray-core` + ядро
 клиента Niko через оба туннеля до `generate_204`, плюс `REFUSED` на чужое имя.
