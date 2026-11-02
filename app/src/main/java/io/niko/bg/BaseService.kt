@@ -299,6 +299,7 @@ class BaseService {
         var upstreamInterfaceName: String?
 
         suspend fun preInit() {
+            RayWatchdog.beginRun()
             DefaultNetworkListener.start(this) {
                 RayWatchdog.network(it != null)
                 SagerNet.connectivity.getLinkProperties(it)?.also { link ->

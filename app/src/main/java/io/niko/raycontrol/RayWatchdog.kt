@@ -4,6 +4,7 @@ import io.niko.SagerNet
 import io.niko.database.DataStore
 import io.niko.ktx.Logs
 import io.niko.utils.DefaultNetworkListener
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -26,8 +27,9 @@ import kotlinx.coroutines.withTimeoutOrNull
  *   profile switches to its other credential (`link` ↔ `next`), if it has one.
  *
  * Tests run 20 s after the start, 15 s after a network change, every 10 min, and every 30 s for 3 min after a
- * rotation; fetches after failures back off from 5 min to 1 h, and start over on a new network. Without a network
- * nothing is tested: a failure there says nothing about the node's credentials.
+ * rotation. Fetches after failures back off from 5 min to 1 h; the backoff starts over on a network that comes back
+ * and on any start of the core except the watchdog's own restarts (those must not loop). Without a network nothing
+ * is tested: a failure there says nothing about the node's credentials.
  */
 object RayWatchdog {
 
@@ -50,6 +52,10 @@ object RayWatchdog {
     @Volatile
     private var online: Boolean? = null
 
+    // the next start of the core is the watchdog's own restart: keep the backoff
+    @Volatile
+    private var selfRestart = false
+
     @Volatile
     private var failures = 0
 
@@ -66,6 +72,12 @@ object RayWatchdog {
         // the core just started with the current rows
         stale = false
         failures = 0
+        // a start by the user or the system (perhaps on another network) fetches without waiting
+        if (!selfRestart) {
+            recoverAt = 0
+            backoff = FIRST_BACKOFF
+        }
+        selfRestart = false
         job = scope.launch { loop(probe) }
     }
 
@@ -77,6 +89,19 @@ object RayWatchdog {
         online = null
     }
 
+    /**
+     * A run of the service begins (before its network listener registers): what the listener of the previous run
+     * reported, perhaps after [stop], does not count.
+     */
+    fun beginRun() {
+        online = null
+    }
+
+    private fun restart() {
+        selfRestart = true
+        SagerNet.reloadService()
+    }
+
     /** A test in [delayMs]. */
     fun poke(delayMs: Long) {
         wake.trySend(delayMs)
@@ -84,8 +109,8 @@ object RayWatchdog {
 
     /**
      * The default network appeared or went away (the service's network listener). The first report of a run only
-     * sets the state: after a restart it is the same network, and the backoff of failed fetches carries over (the
-     * watchdog's own restarts must not reset it). A network that comes back within the run starts it over.
+     * sets the state and schedules a test ([start] decided about the backoff); a network that comes back within the
+     * run starts the backoff over.
      */
     fun network(available: Boolean) {
         val before = online
@@ -146,7 +171,7 @@ object RayWatchdog {
             // the old credential stopped working: the row already holds the new one
             Logs.i("raycontrol: the running credential fails, restarting with the stored one")
             stale = false
-            SagerNet.reloadService()
+            restart()
             return PERIOD
         }
         val (node, key) = owner ?: return PERIOD
@@ -161,12 +186,23 @@ object RayWatchdog {
     private suspend fun recover(node: RayNode, key: String) {
         val nodeId = node.spa.nodeId
         Logs.i("raycontrol ${node.host}: the profile does not work, fetching the subscription")
+        // a restart by refresh() below is ours too
+        selfRestart = true
+        var restarted = false
         try {
             // restarts the core itself when the running row changed
-            if (RaySubscription.refresh(nodeId).runningChanged) return
+            restarted = RaySubscription.refresh(nodeId).runningChanged
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Logs.w("raycontrol ${node.host}: subscription: ${e.message}")
-            if (RaySubscription.useAlternative(nodeId, key)) SagerNet.reloadService()
+            if (RaySubscription.useAlternative(nodeId, key)) {
+                restart()
+                restarted = true
+            }
+        } finally {
+            // no restart followed (or the watchdog was stopped): the next start is not ours
+            if (!restarted) selfRestart = false
         }
     }
 }
