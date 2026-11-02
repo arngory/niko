@@ -65,7 +65,7 @@ jobs:
 
       - name: Unit and in-process tests
         working-directory: core
-        run: go test -count=1 -timeout 300s ./nikoserver ./transport/dnstt/...
+        run: go test -race -count=1 -timeout 300s ./nikoserver ./transport/dnstt/... && (cd third_party/masterdnsvpn && go test -count=1 -run Neko ./embed ./internal/udpserver)
 
       - name: Start the node
         run: |
