@@ -52,9 +52,10 @@ object RayWatchdog {
     @Volatile
     private var online: Boolean? = null
 
-    // a start of the core before this time (ms) is the watchdog's own restart: it keeps the backoff
+    // the next start of the core is the watchdog's own restart: it keeps the backoff. Cleared by that start, by a
+    // stop for good and by a reload that restarts nothing (clearOwnRestart), so it never outlives its restart
     @Volatile
-    private var ownRestartUntil = 0L
+    private var ownRestart = false
 
     @Volatile
     private var failures = 0
@@ -73,18 +74,18 @@ object RayWatchdog {
         stale = false
         failures = 0
         // a start by the user or the system (perhaps on another network) fetches without waiting
-        if (System.currentTimeMillis() >= ownRestartUntil) {
+        if (!ownRestart) {
             recoverAt = 0
             backoff = FIRST_BACKOFF
         }
-        ownRestartUntil = 0
+        ownRestart = false
         job = scope.launch { loop(probe) }
     }
 
     /** The core stops; [final]: the service stops for good, so no start that follows is the watchdog's. */
     @Synchronized
     fun stop(final: Boolean = false) {
-        if (final) ownRestartUntil = 0
+        if (final) ownRestart = false
         job?.cancel()
         job = null
         // the listener stops with the service: what it reported may be stale at the next start
@@ -99,13 +100,15 @@ object RayWatchdog {
         online = null
     }
 
-    /**
-     * Restarts the core as the watchdog's own restart. The mark lasts 30 s: a reload that restarts nothing (a
-     * selector switch, a busy service) or a restart that fails does not make a later start look like ours.
-     */
+    /** Restarts the core as the watchdog's own restart (however long the start takes). */
     fun restart() {
-        ownRestartUntil = System.currentTimeMillis() + 30_000L
+        ownRestart = true
         SagerNet.reloadService()
+    }
+
+    /** The reload restarted nothing (a selector switch, a busy service): no start that follows is ours. */
+    fun clearOwnRestart() {
+        ownRestart = false
     }
 
     /** A test in [delayMs]. */
