@@ -53,9 +53,13 @@ object RayWatchdog {
     private var online: Boolean? = null
 
     // the next start of the core is the watchdog's own restart: it keeps the backoff. Cleared by that start, by a
-    // stop for good and by a reload that restarts nothing (clearOwnRestart), so it never outlives its restart
+    // stop for good and by a reload that restarts nothing (clearOwnRestart); and it counts only until
+    // ownRestartUntil (5 min, longer than any start), in case the reload broadcast reached nobody
     @Volatile
     private var ownRestart = false
+
+    @Volatile
+    private var ownRestartUntil = 0L
 
     @Volatile
     private var failures = 0
@@ -74,7 +78,7 @@ object RayWatchdog {
         stale = false
         failures = 0
         // a start by the user or the system (perhaps on another network) fetches without waiting
-        if (!ownRestart) {
+        if (!ownRestart || System.currentTimeMillis() >= ownRestartUntil) {
             recoverAt = 0
             backoff = FIRST_BACKOFF
         }
@@ -100,9 +104,15 @@ object RayWatchdog {
         online = null
     }
 
-    /** Restarts the core as the watchdog's own restart (however long the start takes). */
+    /**
+     * Restarts the core as the watchdog's own restart (however long the start takes). Nothing when the watchdog was
+     * stopped meanwhile (e.g. during a fetch): the service stopped or restarts already.
+     */
+    @Synchronized
     fun restart() {
+        if (job == null) return
         ownRestart = true
+        ownRestartUntil = System.currentTimeMillis() + 5 * 60_000L
         SagerNet.reloadService()
     }
 
