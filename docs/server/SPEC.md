@@ -182,7 +182,7 @@ SPA v2 — [`spa-v2.md`](https://github.com/arngory/raycontrol/blob/claude/cleve
 ключи устройств по эпохам, порт по слотам, scope и время внутри пакета XChaCha20-Poly1305. Пакеты принимает
 `rayspa` через NFLOG и добавляет адрес в allow-наборы портов из scope. niko-server в SPA не участвует.
 
-Клиент Niko отправляет SPA v2 (`libcore/knock/spa2.go`, векторы raycontrol проверяются побайтно).
+Клиент Niko отправляет SPA v2 (`libcore/knock/spa2.go`, векторы raycontrol проверяются побайтно), по UDP, а при неудаче — TCP-носителем (`spa-v2.md` §10, с v1.12.1).
 Niko SPA v1 (`libcore/knock/spa.go`, шаг `ПОРТ/spa:КЛЮЧ`) остаётся в клиенте только для сторонних серверов.
 
 ### 3.6. REALITY в Xray

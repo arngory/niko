@@ -15,6 +15,7 @@ import (
 
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
+	N "github.com/sagernet/sing/common/network"
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
@@ -36,6 +37,8 @@ const (
 	spa2AADLabel   = "raycontrol-spa-v2"
 	// the server default when the packet asks for 0
 	spa2DefaultTTL = 10 * time.Minute
+	// the node reads the TCP carrier for at most 3 s
+	spa2TCPTimeout = 3 * time.Second
 )
 
 // SPAv2Options are the node parameters and the device key from the
@@ -237,13 +240,86 @@ func (p *spa2Params) renewIn() time.Duration {
 // sendSPA2 sends one packet to the port of the current slot, then waits a
 // random 150-400 ms before the connection may start.
 func (o *Outbound) sendSPA2(ctx context.Context, destination M.Socksaddr) error {
+	return o.sendSPA2Over(ctx, destination, o.spa2TCP.Load())
+}
+
+// sendSPA2Over sends the packet over UDP or, where unknown UDP is cut, inside a
+// TCP connection to the same slot port (spa-v2.md §10): the packet as the first
+// data, then close; the node answers nothing and resets.
+func (o *Outbound) sendSPA2Over(ctx context.Context, destination M.Socksaddr, tcp bool) error {
 	port, packet, err := o.spa2.packet(time.Now())
 	if err != nil {
 		return err
 	}
-	o.logger.DebugContext(ctx, "SPA v2 to ", destination.AddrString(), " port ", port)
-	o.send(ctx, M.Socksaddr{Addr: destination.Addr, Fqdn: destination.Fqdn, Port: port}, step{port: port, udp: true, payload: packet})
+	target := M.Socksaddr{Addr: destination.Addr, Fqdn: destination.Fqdn, Port: port}
+	if tcp {
+		o.logger.DebugContext(ctx, "SPA v2 over TCP to ", destination.AddrString(), " port ", port)
+		dialCtx, cancel := context.WithTimeout(ctx, spa2TCPTimeout)
+		conn, err := o.dialer.DialContext(dialCtx, N.NetworkTCP, target)
+		cancel()
+		if err != nil {
+			o.logger.DebugContext(ctx, "SPA v2 over TCP: ", err)
+		} else {
+			conn.SetWriteDeadline(time.Now().Add(spa2TCPTimeout))
+			conn.Write(packet)
+			if closer, ok := conn.(interface{ CloseWrite() error }); ok {
+				closer.CloseWrite()
+			}
+			conn.Close()
+		}
+	} else {
+		o.logger.DebugContext(ctx, "SPA v2 to ", destination.AddrString(), " port ", port)
+		o.send(ctx, target, step{port: port, udp: true, payload: packet})
+	}
 	return sleep(ctx, spa2Settle())
+}
+
+// dialSPA2 dials after SPA v2 (spa-v2.md §7, §10): on a failed dial one more
+// packet over the current carrier (the slot may have turned), then once over
+// TCP; the carrier that worked is kept until the network changes.
+func (o *Outbound) dialSPA2(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	if _, err := o.knock(ctx, destination, false); err != nil {
+		return nil, err
+	}
+	conn, err := o.dialer.DialContext(ctx, network, destination)
+	if err != nil {
+		o.logger.DebugContext(ctx, "dial after SPA failed, sending it once more: ", err)
+		if o.sendSPA2(ctx, destination) == nil {
+			conn, err = o.dialer.DialContext(ctx, network, destination)
+		}
+	}
+	if err != nil && !o.spa2TCP.Load() {
+		o.logger.DebugContext(ctx, "dial after SPA over UDP failed, trying the TCP carrier: ", err)
+		if o.sendSPA2Over(ctx, destination, true) == nil {
+			conn, err = o.dialer.DialContext(ctx, network, destination)
+			if err == nil {
+				o.spa2TCP.Store(true)
+				o.logger.InfoContext(ctx, "SPA v2 goes over TCP on this network (UDP did not open ", destination.AddrString(), ")")
+			}
+		}
+	}
+	if err != nil {
+		o.forget(destination)
+		return nil, err
+	}
+	o.touch(destination)
+	conn = o.trackConn(conn, destination)
+	if N.NetworkName(network) == N.NetworkUDP {
+		return o.watchConn(conn, destination), nil
+	}
+	return conn, nil
+}
+
+// touch records that access to the host is fresh and keeps it renewed.
+func (o *Outbound) touch(destination M.Socksaddr) {
+	t := o.target(destination.AddrString())
+	t.access.Lock()
+	defer t.access.Unlock()
+	if t.lastKnock.IsZero() || t.generation != o.generation.Load() {
+		t.lastKnock = time.Now()
+		t.generation = o.generation.Load()
+		o.scheduleRenewal(t, destination)
+	}
 }
 
 // scheduleRenewal arms the renewal of a host's access; t.access is held.

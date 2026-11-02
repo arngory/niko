@@ -110,9 +110,11 @@ type Outbound struct {
 	domainResolver *option.DomainResolveOptions
 	steps          []step
 	spa2           *spa2Params
-	interval       time.Duration
-	ttl            time.Duration
-	silence        time.Duration
+	// SPA v2 goes over TCP on this network (spa-v2.md §10); reset on a network change
+	spa2TCP  atomic.Bool
+	interval time.Duration
+	ttl      time.Duration
+	silence  time.Duration
 
 	// bumped on network changes, knocks of an older generation are stale
 	generation atomic.Uint64
@@ -229,18 +231,14 @@ func (o *Outbound) DialContext(ctx context.Context, network string, destination 
 	if err != nil {
 		return nil, err
 	}
+	if o.spa2 != nil {
+		return o.dialSPA2(ctx, network, destination)
+	}
 	knocked, err := o.knock(ctx, destination, false)
 	if err != nil {
 		return nil, err
 	}
 	conn, err := o.dialer.DialContext(ctx, network, destination)
-	if err != nil && knocked && o.spa2 != nil {
-		// the slot (and port) may have changed right at the boundary: one more packet
-		o.logger.DebugContext(ctx, "dial after SPA failed, sending it once more: ", err)
-		if o.sendSequence(ctx, destination) == nil {
-			conn, err = o.dialer.DialContext(ctx, network, destination)
-		}
-	}
 	if err != nil && !knocked {
 		// the cached knock may be stale (window closed, server restarted): knock and retry once
 		o.logger.DebugContext(ctx, "dial after cached knock failed, knocking again: ", err)
@@ -253,9 +251,6 @@ func (o *Outbound) DialContext(ctx context.Context, network string, destination 
 		// the port may need a moment more, knock again on the next attempt
 		o.forget(destination)
 		return nil, err
-	}
-	if o.spa2 != nil {
-		conn = o.trackConn(conn, destination)
 	}
 	if N.NetworkName(network) == N.NetworkUDP {
 		// e.g. WireGuard with one peer dials its UDP socket
@@ -298,6 +293,8 @@ func (o *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 // It must not block: sing-box calls it from ResetNetwork.
 func (o *Outbound) InterfaceUpdated(ctx context.Context) {
 	o.generation.Add(1)
+	// a new network: UDP first again
+	o.spa2TCP.Store(false)
 	if o.spa2 != nil {
 		// SPA v2: hosts in use get a packet from the new address at once
 		go o.renewInUse()

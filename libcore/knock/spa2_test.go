@@ -6,8 +6,10 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"io"
 	"net"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -292,5 +294,68 @@ func TestSPA2Options(t *testing.T) {
 	_, b, _ := p.packet(time.Now())
 	if bytes.Equal(a[:spa2NonceSize], b[:spa2NonceSize]) || len(a) < 96 || len(a) > 160 {
 		t.Fatal("packet not random")
+	}
+}
+
+// Where UDP is cut, the dial falls back to the TCP carrier (spa-v2.md §10) and keeps it.
+func TestSPA2TCPCarrier(t *testing.T) {
+	// the slot port takes TCP only: UDP packets are lost
+	carrier, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer carrier.Close()
+	slotPort := uint16(carrier.Addr().(*net.TCPAddr).Port)
+	// the service port opens once a TCP packet authenticates
+	probe, _ := net.Listen("tcp", "127.0.0.1:0")
+	servicePort := uint16(probe.Addr().(*net.TCPAddr).Port)
+	probe.Close()
+	options := SPAv2Options{
+		NodeID: "33333333333333333333333333333333", EpochLen: 86400, SlotLen: 600,
+		PortKey:  "4444444444444444444444444444444444444444444444444444444444444444",
+		PortBase: slotPort, PortRange: 1, LenMin: 96, LenMax: 160,
+		DeviceKey: "1111111111111111111111111111111111111111111111111111111111111111",
+	}
+	outbound := newBox(t, Options{SPAv2: &options})
+	opened := make(chan net.Listener, 1)
+	go func() {
+		conn, err := carrier.Accept()
+		if err != nil {
+			return
+		}
+		packet, _ := io.ReadAll(io.LimitReader(conn, 161))
+		conn.Close()
+		spa2Open(t, outbound.spa2, packet, time.Now())
+		service, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(int(servicePort))))
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		go func() {
+			for {
+				c, err := service.Accept()
+				if err != nil {
+					return
+				}
+				c.Close()
+			}
+		}()
+		opened <- service
+	}()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	conn, err := outbound.DialContext(ctx, N.NetworkTCP, M.ParseSocksaddrHostPort("127.0.0.1", servicePort))
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn.Close()
+	(<-opened).Close()
+	if !outbound.spa2TCP.Load() {
+		t.Fatal("the TCP carrier is not remembered")
+	}
+	// a new network starts with UDP again
+	outbound.InterfaceUpdated(context.Background())
+	if outbound.spa2TCP.Load() {
+		t.Fatal("the TCP carrier survived a network change")
 	}
 }
