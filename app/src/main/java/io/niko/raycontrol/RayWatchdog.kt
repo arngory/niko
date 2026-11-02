@@ -45,10 +45,10 @@ object RayWatchdog {
     @Volatile
     private var fastUntil = 0L
 
-    // the service's network listener sets it; false until it reports a network, so a start without one
-    // tests nothing, and the first network starts the backoff over
+    // the service's network listener sets it; null until its first report in this run (a start without a network
+    // gets none), so nothing is tested before a network is known
     @Volatile
-    private var online = false
+    private var online: Boolean? = null
 
     @Volatile
     private var failures = 0
@@ -74,7 +74,7 @@ object RayWatchdog {
         job?.cancel()
         job = null
         // the listener stops with the service: what it reported may be stale at the next start
-        online = false
+        online = null
     }
 
     /** A test in [delayMs]. */
@@ -82,11 +82,19 @@ object RayWatchdog {
         wake.trySend(delayMs)
     }
 
-    /** The default network appeared or went away (the service's network listener). */
+    /**
+     * The default network appeared or went away (the service's network listener). The first report of a run only
+     * sets the state: after a restart it is the same network, and the backoff of failed fetches carries over (the
+     * watchdog's own restarts must not reset it). A network that comes back within the run starts it over.
+     */
     fun network(available: Boolean) {
-        if (available == online) return
+        val before = online
+        if (available == before) return
         online = available
-        if (available) networkChanged()
+        when {
+            before == false && available -> networkChanged()
+            before == null && available -> poke(15_000L)
+        }
     }
 
     /** Another network: what failed on the old one says nothing here, test soon and fetch without waiting. */
@@ -120,7 +128,7 @@ object RayWatchdog {
 
     private suspend fun step(probe: suspend () -> Boolean): Long {
         // without network callbacks (fallback) the state is unknown: test anyway
-        if (!online && !DefaultNetworkListener.fallback) return PERIOD
+        if (online != true && !DefaultNetworkListener.fallback) return PERIOD
         // stale without an owner: the running row left the subscription; the core still runs it
         val owner = RayNodes.ownerOf(DataStore.currentProfile)
         if (owner == null && !stale) return PERIOD
