@@ -52,6 +52,11 @@ class RaySubscriptionTest {
         val node = RayNode(r.host, r.spa, r.deviceId, "w", r.services, r.subscription, subSeq = 42, groupId = 7,
             profileIds = mapOf("3" to 11L, "3#2" to 12L), refreshAt = 1767268800)
         assertEquals(node, RayNode.fromJson(JsonParser.parseString(node.toJson().toString()).asJsonObject))
+        // a 1.13.0 record has no profile_ids (matched by name once); an empty map stays empty
+        val legacy = node.toJson().apply { remove("profile_ids") }
+        assertNull(RayNode.fromJson(legacy).profileIds)
+        val empty = node.copy(profileIds = emptyMap())
+        assertEquals(emptyMap<String, Long>(), RayNode.fromJson(JsonParser.parseString(empty.toJson().toString()).asJsonObject).profileIds)
     }
 
     // the DNS tunnel link raycontrol renders (internal/sub Profiles), with the resolvers given

@@ -51,12 +51,11 @@ object RaySubscription {
     private const val NO_ANSWER = "the node did not answer"
 
     /**
-     * The node answered but refused this device or proved to be another key: a retry cannot fix it, the
-     * registration has to be imported again (raysub.ErrNotFound, the pin and signature checks).
+     * The node itself refused this device or proved to hold other keys: a retry cannot fix it, the registration has
+     * to be imported again (raysub.ErrNotFound and the signature checks, made inside the pinned TLS session). A pin
+     * mismatch is not one: any TLS middlebox on the network path causes it, so it is retried like other failures.
      */
-    private val REFUSED = listOf(
-        "does not know this device", "does not match the pin", "signature does not verify", "signed for another node",
-    )
+    private val REFUSED = listOf("does not know this device", "signature does not verify", "signed for another node")
 
     private fun refused(e: Throwable) = e.message?.let { m -> REFUSED.any { m.contains(it) } } == true
 
@@ -161,10 +160,9 @@ object RaySubscription {
             group.userOrder = SagerDatabase.groupDao.nextOrder() ?: 1
             group.id = SagerDatabase.groupDao.createGroup(group)
         }
-        // 1.13.0 replaced the whole group and kept no ids: its rows are this node's, matched by name once
-        val known = node.profileIds.ifEmpty {
-            if (groupCreated || node.groupId == 0L) emptyMap() else legacyIds(group.id, beans)
-        }
+        // a 1.13.0 record (no ids at all; an empty map is a subscription without profiles): that version replaced
+        // the whole group, so its rows are this node's, matched by name once
+        val known = node.profileIds ?: if (groupCreated) emptyMap() else legacyIds(group.id, beans)
         val rows = SagerDatabase.proxyDao.getByGroup(group.id).associateBy { it.id }
         val ids = LinkedHashMap<String, Long>()
         val changed = HashSet<Long>()

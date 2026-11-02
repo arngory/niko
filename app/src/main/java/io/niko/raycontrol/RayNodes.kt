@@ -23,8 +23,9 @@ data class RayNode(
     // the last accepted subscription (seq never goes back) and the group its profiles live in
     val subSeq: Long = 0,
     val groupId: Long = 0,
-    // profile key (svc, see RaySubscription.profileKeys) → its row, so an update keeps the rows and the selection
-    val profileIds: Map<String, Long> = emptyMap(),
+    // profile key (svc, see RaySubscription.profileKeys) → its row, so an update keeps the rows and the selection;
+    // null = a record from 1.13.0, which kept no ids: its group's rows are matched by name once
+    val profileIds: Map<String, Long>? = emptyMap(),
     // when to fetch the subscription again (unix s): the next rotation or before expiry;
     // 0 = not planned yet (planned at start), STOPPED = the node refused this device, import it again
     val refreshAt: Long = 0,
@@ -52,7 +53,7 @@ data class RayNode(
         subscription?.let { add("sub", it.toJson()) }
         addProperty("sub_seq", subSeq)
         addProperty("group_id", groupId)
-        add("profile_ids", JsonObject().apply { profileIds.forEach { (k, v) -> addProperty(k, v) } })
+        profileIds?.let { ids -> add("profile_ids", JsonObject().apply { ids.forEach { (k, v) -> addProperty(k, v) } }) }
         addProperty("refresh_at", refreshAt)
     }
 
@@ -69,7 +70,7 @@ data class RayNode(
             subscription = (o.get("sub") as? JsonObject)?.let { RaySubscriptionInfo.fromJson(it) },
             subSeq = o.get("sub_seq")?.asLong ?: 0,
             groupId = o.get("group_id")?.asLong ?: 0,
-            profileIds = (o.get("profile_ids") as? JsonObject)?.entrySet()?.associate { it.key to it.value.asLong }.orEmpty(),
+            profileIds = (o.get("profile_ids") as? JsonObject)?.entrySet()?.associate { it.key to it.value.asLong },
             refreshAt = o.get("refresh_at")?.asLong ?: 0,
         )
     }
@@ -156,7 +157,7 @@ object RayNodes {
         val old = list().firstOrNull { it.spa.nodeId == registration.spa.nodeId }
         val node = RayNode(
             registration.host, registration.spa, registration.deviceId, wrapped, registration.services,
-            registration.subscription, groupId = old?.groupId ?: 0, profileIds = old?.profileIds.orEmpty(),
+            registration.subscription, groupId = old?.groupId ?: 0, profileIds = if (old == null) emptyMap() else old.profileIds,
         )
         save(list().filter { it.spa.nodeId != node.spa.nodeId } + node)
         node
