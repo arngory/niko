@@ -12,6 +12,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"math/big"
 	"net"
 	"net/http"
@@ -124,10 +125,28 @@ func TestNekoSubscriptionRejects(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			n := newNode(t)
 			mutate(n)
-			if _, err := Fetch(context.Background(), n.request); err == nil {
+			_, err := Fetch(context.Background(), n.request)
+			if err == nil {
 				t.Fatal("accepted")
 			}
+			if errors.Is(err, ErrNoAnswer) {
+				t.Fatalf("the node answered, got %v", err)
+			}
 		})
+	}
+}
+
+// A port that stays closed is ErrNoAnswer (the app adds the clock hint), after UDP, UDP and TCP.
+func TestNekoSubscriptionNoAnswer(t *testing.T) {
+	n := newNode(t)
+	n.server.Close()
+	start := time.Now()
+	_, err := Fetch(context.Background(), n.request)
+	if !errors.Is(err, ErrNoAnswer) {
+		t.Fatalf("got %v, want ErrNoAnswer", err)
+	}
+	if time.Since(start) < 900*time.Millisecond {
+		t.Fatal("gave up before the three knocks")
 	}
 }
 

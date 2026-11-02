@@ -128,12 +128,7 @@ class ScannerActivity : ThemedActivity(),
                         Toast.makeText(app, getString(R.string.raycontrol_node_imported, node.host, node.services.size), Toast.LENGTH_LONG).show()
                     }
                     if (node.subscription != null) {
-                        val message = try {
-                            RaySubscription.describe(app, node, RaySubscription.refresh(node))
-                        } catch (e: Exception) {
-                            Logs.w(e)
-                            app.getString(R.string.raycontrol_sub_failed, e.readableMessage)
-                        }
+                        val message = RaySubscription.refreshForUser(app, node)
                         onMainDispatcher { Toast.makeText(app, message, Toast.LENGTH_LONG).show() }
                     }
                     return@runOnDefaultDispatcher

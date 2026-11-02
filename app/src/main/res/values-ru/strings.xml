@@ -543,6 +543,7 @@
     <string name="raycontrol_sub_updated">%1$s: профилей из подписки: %2$d.</string>
     <string name="raycontrol_sub_skipped">Не удалось прочитать ссылок: %d.</string>
     <string name="raycontrol_sub_failed">Подписка не обновлена: %s</string>
+    <string name="raycontrol_clock_hint">Если нода работает, проверьте время на устройстве: SPA работает, только если часы расходятся с нодой не больше чем на 30 с.</string>
     <string name="raycontrol_clock_wrong">Часы устройства расходятся с нодой на %d с: поправьте время, SPA работает при расхождении до 30 с.</string>
     <string name="raycontrol_dnstt_resolver">Резолвер DNS-туннеля (dnstt)</string>
     <string name="raycontrol_dnstt_resolver_help">Используется, когда ссылка ноды оставляет выбор резолвера клиенту: https://…/dns-query, tls://host или udp://host. Действует на профили со следующего обновления подписки.</string>

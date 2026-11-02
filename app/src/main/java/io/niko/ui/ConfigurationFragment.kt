@@ -402,17 +402,12 @@ class ConfigurationFragment @JvmOverloads constructor(
                             val node = RayNodes.import(Rcdev1.parse(text))
                             // the package carries the device key: do not leave it in the clipboard
                             SagerNet.clearClipboard()
-                            onMainDispatcher {
-                                snackbar(getString(R.string.raycontrol_node_imported, node.host, node.services.size)).show()
-                            }
+                            val imported = app.getString(R.string.raycontrol_node_imported, node.host, node.services.size)
+                            onMainDispatcher { if (isAdded) snackbar(imported).show() }
                             if (node.subscription != null) {
-                                val message = try {
-                                    RaySubscription.describe(requireContext(), node, RaySubscription.refresh(node))
-                                } catch (e: Exception) {
-                                    Logs.w(e)
-                                    getString(R.string.raycontrol_sub_failed, e.readableMessage)
-                                }
-                                onMainDispatcher { snackbar(message).show() }
+                                // the fetch takes seconds: the fragment may be gone by then
+                                val message = RaySubscription.refreshForUser(app, node)
+                                onMainDispatcher { if (isAdded) snackbar(message).show() }
                             }
                             return@runOnDefaultDispatcher
                         }

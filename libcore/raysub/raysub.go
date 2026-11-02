@@ -91,6 +91,14 @@ type envelope struct {
 
 var ErrNotFound = errors.New("raycontrol subscription: the node does not know this device (revoked, disabled or wrong key)")
 
+// ErrNoAnswer: the port stayed closed after SPA v2 over UDP and TCP. A clock off by more than 30 s is a likely
+// cause (the node drops the packet), so the app adds that hint to this error.
+var ErrNoAnswer = errors.New("raycontrol subscription: the node did not answer")
+
+type statusError int
+
+func (e statusError) Error() string { return "HTTP " + strconv.Itoa(int(e)) }
+
 // Fetch opens the port with SPA v2 (UDP, then the TCP carrier) and returns the verified payload.
 func Fetch(ctx context.Context, r Request) (*Result, error) {
 	now := time.Now
@@ -106,6 +114,8 @@ func Fetch(ctx context.Context, r Request) (*Result, error) {
 		return nil, errors.New("raycontrol subscription: bad device key")
 	}
 	client := r.httpClient(timeout)
+	// one Fetch per refresh: nothing to keep alive afterwards
+	defer client.CloseIdleConnections()
 	var lastErr error
 	for _, tcp := range []bool{false, false, true} {
 		if err = r.knock(ctx, tcp, now()); err != nil {
@@ -120,11 +130,16 @@ func Fetch(ctx context.Context, r Request) (*Result, error) {
 			}
 			return result, err
 		}
+		// the node answered: another knock changes nothing
 		if errors.Is(lastErr, ErrNotFound) || errors.Is(lastErr, errPin) {
 			return nil, lastErr
 		}
+		var status statusError
+		if errors.As(lastErr, &status) {
+			return nil, fmt.Errorf("raycontrol subscription: %w", lastErr)
+		}
 	}
-	return nil, fmt.Errorf("raycontrol subscription: %w", lastErr)
+	return nil, fmt.Errorf("%w: %v", ErrNoAnswer, lastErr)
 }
 
 func (r *Request) dialer() *net.Dialer {
@@ -225,7 +240,7 @@ func (r *Request) get(ctx context.Context, client *http.Client, deviceKey []byte
 		return nil, ErrNotFound
 	}
 	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d", response.StatusCode)
+		return nil, statusError(response.StatusCode)
 	}
 	body, err := io.ReadAll(io.LimitReader(response.Body, maxBody))
 	if err != nil {

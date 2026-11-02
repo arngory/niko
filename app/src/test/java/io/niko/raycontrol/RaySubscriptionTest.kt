@@ -49,7 +49,8 @@ class RaySubscriptionTest {
         }
         // the node store keeps the subscription, seq and group
         val r = Rcdev1.parse(pack(withSub))
-        val node = RayNode(r.host, r.spa, r.deviceId, "w", r.services, r.subscription, subSeq = 42, groupId = 7)
+        val node = RayNode(r.host, r.spa, r.deviceId, "w", r.services, r.subscription, subSeq = 42, groupId = 7,
+            profileIds = mapOf("3" to 11L, "3#2" to 12L), refreshAt = 1767268800)
         assertEquals(node, RayNode.fromJson(JsonParser.parseString(node.toJson().toString()).asJsonObject))
     }
 
@@ -79,5 +80,30 @@ class RaySubscriptionTest {
         val pinned = VMessBean().apply { alterId = -1; initializeDefaultValues() }
         pinned.applyNikoParams { if (it == "niko-pin") pin else null }
         assertEquals(pin, pinned.certPins)
+    }
+
+    private fun obj(json: String) = JsonParser.parseString(json).asJsonObject
+
+    // rows are matched by service: a renamed profile keeps its row, a service with two profiles gets two keys
+    @Test
+    fun profileKeys() {
+        val profiles = listOf(obj("""{"svc": 3}"""), obj("""{"svc": 5}"""), obj("""{"svc": 3}"""), obj("""{}"""))
+        assertEquals(listOf("3", "5", "3#2", "-"), RaySubscription.profileKeys(profiles))
+    }
+
+    @Test
+    fun rotation() {
+        val p = obj("""{"link": "a", "next": {"link": "b", "from": 1000}}""")
+        assertEquals("a", RaySubscription.currentLink(p, 999))
+        assertEquals("b", RaySubscription.currentLink(p, 1000))
+        assertEquals("a", RaySubscription.currentLink(obj("""{"link": "a"}"""), 5000))
+
+        // the next fetch: the rotation ahead, else 3/4 of the life, never sooner than a minute
+        val payload = obj("""{"issued": 0, "expires": 4000, "profiles": [
+            {"link": "a", "next": {"link": "b", "from": 1000}}, {"link": "c", "next": {"link": "d", "from": 2500}}]}""")
+        assertEquals(1000, RaySubscription.nextRefresh(payload, 100))
+        assertEquals(2500, RaySubscription.nextRefresh(payload, 1500))
+        assertEquals(3000, RaySubscription.nextRefresh(payload, 2600))
+        assertEquals(3660, RaySubscription.nextRefresh(payload, 3600))
     }
 }

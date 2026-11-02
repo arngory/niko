@@ -19,6 +19,10 @@ data class RayNode(
     // the last accepted subscription (seq never goes back) and the group its profiles live in
     val subSeq: Long = 0,
     val groupId: Long = 0,
+    // profile key (svc, see RaySubscription.profileKeys) → its row, so an update keeps the rows and the selection
+    val profileIds: Map<String, Long> = emptyMap(),
+    // when to fetch the subscription again (unix s): the next rotation or before expiry; 0 = never
+    val refreshAt: Long = 0,
 ) {
     /** the key reference handed to the core; the key itself never enters the config */
     val keyRef get() = "raycontrol:${spa.nodeId}:$deviceId"
@@ -43,6 +47,8 @@ data class RayNode(
         subscription?.let { add("sub", it.toJson()) }
         addProperty("sub_seq", subSeq)
         addProperty("group_id", groupId)
+        add("profile_ids", JsonObject().apply { profileIds.forEach { (k, v) -> addProperty(k, v) } })
+        addProperty("refresh_at", refreshAt)
     }
 
     companion object {
@@ -58,6 +64,8 @@ data class RayNode(
             subscription = (o.get("sub") as? JsonObject)?.let { RaySubscriptionInfo.fromJson(it) },
             subSeq = o.get("sub_seq")?.asLong ?: 0,
             groupId = o.get("group_id")?.asLong ?: 0,
+            profileIds = (o.get("profile_ids") as? JsonObject)?.entrySet()?.associate { it.key to it.value.asLong }.orEmpty(),
+            refreshAt = o.get("refresh_at")?.asLong ?: 0,
         )
     }
 }
@@ -112,11 +120,11 @@ object RayNodes {
     @Synchronized
     fun import(registration: RayRegistration): RayNode {
         val wrapped = DeviceKeyVault.wrap(hexToBytes(registration.deviceKey))
-        // a new registration of the same node keeps its profile group
+        // a new registration of the same node keeps its profile group and rows
         val old = list().firstOrNull { it.spa.nodeId == registration.spa.nodeId }
         val node = RayNode(
             registration.host, registration.spa, registration.deviceId, wrapped, registration.services,
-            registration.subscription, groupId = old?.groupId ?: 0,
+            registration.subscription, groupId = old?.groupId ?: 0, profileIds = old?.profileIds.orEmpty(),
         )
         save(list().filter { it.spa.nodeId != node.spa.nodeId } + node)
         return node
@@ -133,9 +141,20 @@ object RayNodes {
         Libcore.spaRetainDeviceKeys(left.joinToString("\n") { it.keyRef })
     }
 
+    fun get(nodeId: String) = list().firstOrNull { it.spa.nodeId == nodeId }
+
+    /**
+     * Changes the stored node in place: [change] gets the current entry, so a re-import (a new key) in between is
+     * kept. Returns the stored node, or null when it was removed meanwhile.
+     */
     @Synchronized
-    fun update(node: RayNode) {
-        save(list().map { if (it.spa.nodeId == node.spa.nodeId) node else it })
+    fun update(nodeId: String, change: (RayNode) -> RayNode): RayNode? {
+        var updated: RayNode? = null
+        val nodes = list().map {
+            if (it.spa.nodeId == nodeId) change(it).also { n -> updated = n } else it
+        }
+        if (updated != null) save(nodes)
+        return updated
     }
 
     /** the device key as hex, for the core */

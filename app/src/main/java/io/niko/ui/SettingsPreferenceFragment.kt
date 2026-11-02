@@ -255,12 +255,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         snackbar(R.string.raycontrol_sub_updating).show()
         val context = requireContext().applicationContext
         runOnDefaultDispatcher {
-            val message = try {
-                RaySubscription.describe(context, node, RaySubscription.refresh(node))
-            } catch (e: Exception) {
-                Logs.w(e)
-                context.getString(R.string.raycontrol_sub_failed, e.readableMessage)
-            }
+            val message = RaySubscription.refreshForUser(context, node)
             onMainDispatcher { if (isAdded) snackbar(message).show() }
         }
     }
@@ -270,6 +265,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             .setMessage(getString(R.string.raycontrol_node_remove_confirm, node.host))
             .setPositiveButton(R.string.yes) { _, _ ->
                 RayNodes.remove(node.spa.nodeId)
+                RaySubscription.schedule()
                 showRaycontrolNodes()
                 // the running core still holds the key and knocks: restart it now, not on "Apply"
                 if (DataStore.serviceState.started) SagerNet.reloadService()

@@ -631,6 +631,7 @@
     <string name="raycontrol_sub_updated">%1$s: %2$d profiles from the subscription.</string>
     <string name="raycontrol_sub_skipped">%d links could not be read.</string>
     <string name="raycontrol_sub_failed">Subscription not updated: %s</string>
+    <string name="raycontrol_clock_hint">If the node is up, check the time on this device: SPA works only within 30 s of the node clock.</string>
     <string name="raycontrol_clock_wrong">The clock of this device differs from the node by %d s: fix the time, SPA works within 30 s.</string>
     <string name="raycontrol_dnstt_resolver">DNS tunnel resolver (dnstt)</string>
     <string name="raycontrol_dnstt_resolver_help">Used when a node\'s link leaves the resolver to the client: https://…/dns-query, tls://host or udp://host. Applies to profiles from the next subscription update.</string>
