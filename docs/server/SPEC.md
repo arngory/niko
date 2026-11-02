@@ -156,7 +156,7 @@ Inbound hysteria2 и naive-quic должны принимать готовый `
 **MasterDnsVPN** (`arngory/MasterDnsVPN`, `main`):
 1. Добавить серверу `SetPacketConnFactory` (для клиента такой патч уже есть: `SetListenerFactory`).
 2. Режим `PROTOCOL_TYPE = "TCP"` с фиксированным upstream = `inner`. Режим `SOCKS5` на ноде не используется.
-3. `DATA_ENCRYPTION_METHOD` по умолчанию 2 (ChaCha20), ключ — через `LoadCredential=`.
+3. `DATA_ENCRYPTION_METHOD` = **5** (AES-256-GCM). Нода разрешает только AEAD (raycontrol R1-8): метод 2 у MasterDnsVPN — ChaCha20 без аутентификации. Ключ — файл с 32 символами через `LoadCredential=`; niko-server его только читает и никогда не генерирует.
 
 **DNS-записи:**
 ```

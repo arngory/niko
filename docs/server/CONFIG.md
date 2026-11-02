@@ -6,9 +6,20 @@ JSON Schema появится в `arngory/sing-box`, `cmd/niko-server/schema/` в
 
 Общие правила:
 - формат — JSON;
-- секреты только путями к файлам (`*_file`), обычно `/run/credentials/<юнит>/<имя>` из `LoadCredential=`;
+- секреты только путями к файлам (`*_file`): `/run/credentials/<юнит>.service/<имя>` из `LoadCredential=` (имя юнита полное, с `.service`, например `/run/credentials/niko-dns.service/noise.key`);
 - длительности — строки Go (`"60s"`, `"10m"`);
 - `SIGHUP` перечитывает файлы пользователей и ключей (`users_file`, `*_key_file`); остальные поля — только при перезапуске.
+  У DNS-туннелей пользователей нет: их бэкенды на `SIGHUP` только пишут в лог, новый ключ — перезапуск.
+- имена — по имени сервиса в raycontrol, не по виду: сервис `dns` вида `dnstt` → бэкенд `dns`,
+  сокет `/run/niko/dns/packet.sock`, юнит `niko-dns.service`; вид — поле `kind`.
+- UID: фронт 9100, бэкенды и Xray 9110–9179 (raycontrol R1-6).
+
+## Проверка (`niko-server check -c FILE [--json]`)
+
+- Коды выхода: `0` — конфиг верен, `1` — ошибка конфига, `2` — ошибка окружения (файл не читается).
+- `--json` печатает массив `[{"path": "dns.zones[0].backend", "error": "…"}]`, пустой — если всё верно.
+- `check` не открывает файлы секретов (`LoadCredential=` есть только внутри юнита): пути проверяются на форму,
+  содержимое — при запуске (ошибка — код 2).
 
 ## Фронт
 
@@ -35,7 +46,7 @@ JSON Schema появится в `arngory/sing-box`, `cmd/niko-server/schema/` в
     "routes": [
       {"sni": ["h7d.example.com"], "backend": "hy2-masq"},
       {"sni": ["p8w.example.com"], "backend": "naive-quic"},
-      {"salamander_password_file": "/run/credentials/niko-front/salamander", "backend": "hy2-obfs"}
+      {"salamander_password_file": "/run/credentials/niko-front.service/salamander", "backend": "hy2-obfs"}
     ]
   },
   "dns": {
@@ -62,6 +73,9 @@ JSON Schema появится в `arngory/sing-box`, `cmd/niko-server/schema/` в
 - `mode`: `fd` — передача сокета (`SCM_RIGHTS`), `proxy-v2` — поток с заголовком PROXY v2 (Xray), `packet` — датаграммы
   с заголовком адреса. Формат и права — [`IPC.md`](IPC.md). `uid` — ожидаемый `SO_PEERCRED` бэкенда.
 - Маршрут без бэкенда в `backends` — ошибка `check`.
+- Секции `tcp`, `udp`, `dns` необязательны: нет маршрутов — нет секции, фронт этот порт не слушает. Сейчас
+  (niko-server v0.1, R1) фронт обслуживает только `dns`; секции `tcp` и `udp` `check` отклоняет, пока они не реализованы.
+- `tcp.window_clamp` (байты, R2, предложение raycontrol): окно TCP в SYN-ACK на 443, чтобы клиент резал ClientHello.
 - `acme_listen` — порт окна ACME. В окне выпуска сертификата nftables перенаправляет на него TCP 443 от адресов
   без SPA. На этом порту фронт пропускает только ClientHello с ALPN `acme-tls/1` (в бэкенд `acme`). Остальное
   закрывает без ответа, маршруты по SNI здесь не действуют. Вне окна на порт ничего не попадает: снаружи он закрыт.
@@ -77,10 +91,10 @@ JSON Schema появится в `arngory/sing-box`, `cmd/niko-server/schema/` в
   "log": {"level": "warn"},
   "socket": "/run/niko/hy2-masq/packet.sock",
   "front_uid": 9100,
-  "users_file": "/run/credentials/niko-hy2-masq/users.json",
+  "users_file": "/run/credentials/niko-hy2-masq.service/users.json",
   "tls": {
-    "certificate_file": "/run/credentials/niko-hy2-masq/cert.pem",
-    "key_file": "/run/credentials/niko-hy2-masq/key.pem",
+    "certificate_file": "/run/credentials/niko-hy2-masq.service/cert.pem",
+    "key_file": "/run/credentials/niko-hy2-masq.service/key.pem",
     "curves": ["X25519MLKEM768"]
   },
   "options": {"masquerade": {"type": "proxy", "url": "https://www.example.org/", "rewrite_host": true}},
@@ -101,12 +115,15 @@ JSON Schema появится в `arngory/sing-box`, `cmd/niko-server/schema/` в
 | `hy2-obfs` | `obfs_password_file` (тот же пароль salamander, что у фронта) |
 | `naive` | `site` — сокет бэкенда `site` для запросов без авторизации |
 | `doh` | `path_token_file`, `upstream` (DNS-серверы sing-box) |
-| `dnstt` | `zone`, `private_key_file` |
-| `masterdns` | `zones`, `encryption_method` (0–5, по умолчанию 2), `encryption_key_file` |
+| `dnstt` | `zone`, `private_key_file` (hex закрытого ключа X25519, 64 символа и перевод строки, как `dnstt-server -gen-key`) |
+| `masterdns` | `zones`, `encryption_method` (только AEAD: 3–5; raycontrol — `5`, AES-256-GCM), `encryption_key_file` (ключ текстом: 32 символа для метода 5) |
 | `yggdrasil` | `private_key_file`, `allowed_public_keys_file`, `public_peers` (bool, по умолчанию `false`), `exit_ports` |
 | `site` | `root` (каталог сгенерированного сайта), `tls` как выше (сертификат `<r>` для self-steal) |
 
 ## Файл пользователей (`users_file`)
+
+raycontrol пишет отдельный файл для каждого бэкенда, только с учётными данными его `kind` (минимум прав).
+Бэкенд не должен рассчитывать на поля других видов.
 
 Один формат для всех видов. Неизвестные поля игнорируются. Пользователь без учётных данных для этого `kind`
 пропускается.
