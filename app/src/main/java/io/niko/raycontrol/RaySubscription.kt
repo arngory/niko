@@ -26,6 +26,8 @@ import io.niko.ktx.applyDefaultValues
 import io.niko.ktx.parseProxies
 import io.niko.ktx.readableMessage
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import libcore.Libcore
@@ -159,7 +161,7 @@ object RaySubscription {
             when {
                 !stored.runningChanged && !stored.runningGone -> {}
                 // the watchdog's own restart: it keeps its backoff
-                reload == Reload.WATCHDOG -> RayWatchdog.restart()
+                reload == Reload.WATCHDOG -> RayWatchdog.restart(currentCoroutineContext()[Job])
                 // a running row that is gone cannot wait: the core runs a profile that no longer exists
                 reload == Reload.NOW || stored.runningGone -> SagerNet.reloadService()
                 else -> RayWatchdog.markStale()

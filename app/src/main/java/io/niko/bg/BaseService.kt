@@ -193,16 +193,24 @@ class BaseService {
                     // => selector_OnProxySelected
                 }
                 // nothing restarted: a raycontrol watchdog mark must not stick to a later start
-                RayWatchdog.clearOwnRestart()
+                RayWatchdog.reloadReceived(restarts = false)
                 return
             }
             val s = data.state
             when {
-                s == State.Stopped -> startRunner()
-                s.canStop -> stopRunner(true)
+                s == State.Stopped -> {
+                    RayWatchdog.reloadReceived(restarts = false)
+                    startRunner()
+                }
+
+                s.canStop -> {
+                    RayWatchdog.reloadReceived(restarts = true)
+                    stopRunner(true)
+                }
+
                 else -> {
                     Logs.w("Illegal state $s when invoking use")
-                    RayWatchdog.clearOwnRestart()
+                    RayWatchdog.reloadReceived(restarts = false)
                 }
             }
         }

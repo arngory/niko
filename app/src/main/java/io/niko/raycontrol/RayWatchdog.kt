@@ -52,14 +52,13 @@ object RayWatchdog {
     @Volatile
     private var online: Boolean? = null
 
-    // the next start of the core is the watchdog's own restart: it keeps the backoff. Cleared by that start, by a
-    // stop for good and by a reload that restarts nothing (clearOwnRestart); and it counts only until
-    // ownRestartUntil (5 min, longer than any start), in case the reload broadcast reached nobody
-    @Volatile
+    // The watchdog's own restart keeps the backoff, in two steps. restart() sends the reload and sets pendingOwn
+    // (30 s for the broadcast to arrive: the receiver is in this process). The service's receiver turns it into
+    // ownRestart only on the branch that really restarts the core (reloadReceived); that start, or the stop for good
+    // after a failed one, clears it. So the mark covers exactly one restart, however long the start takes.
+    private var pendingOwn = false
+    private var pendingOwnUntil = 0L
     private var ownRestart = false
-
-    @Volatile
-    private var ownRestartUntil = 0L
 
     @Volatile
     private var failures = 0
@@ -78,7 +77,7 @@ object RayWatchdog {
         stale = false
         failures = 0
         // a start by the user or the system (perhaps on another network) fetches without waiting
-        if (!ownRestart || System.currentTimeMillis() >= ownRestartUntil) {
+        if (!ownRestart) {
             recoverAt = 0
             backoff = FIRST_BACKOFF
         }
@@ -89,7 +88,10 @@ object RayWatchdog {
     /** The core stops; [final]: the service stops for good, so no start that follows is the watchdog's. */
     @Synchronized
     fun stop(final: Boolean = false) {
-        if (final) ownRestart = false
+        if (final) {
+            ownRestart = false
+            pendingOwn = false
+        }
         job?.cancel()
         job = null
         // the listener stops with the service: what it reported may be stale at the next start
@@ -105,20 +107,26 @@ object RayWatchdog {
     }
 
     /**
-     * Restarts the core as the watchdog's own restart (however long the start takes). Nothing when the watchdog was
-     * stopped meanwhile (e.g. during a fetch): the service stopped or restarts already.
+     * Restarts the core as the watchdog's own restart. [caller] is the job of the coroutine asking (call it as
+     * `restart(currentCoroutineContext()[Job])` from the watchdog's own coroutine): a fetch that returns after its
+     * watchdog run was stopped, perhaps with a new run started meanwhile, restarts nothing.
      */
     @Synchronized
-    fun restart() {
-        if (job == null) return
-        ownRestart = true
-        ownRestartUntil = System.currentTimeMillis() + 5 * 60_000L
+    fun restart(caller: Job?) {
+        if (caller == null || caller !== job || !caller.isActive) return
+        pendingOwn = true
+        pendingOwnUntil = System.currentTimeMillis() + 30_000L
         SagerNet.reloadService()
     }
 
-    /** The reload restarted nothing (a selector switch, a busy service): no start that follows is ours. */
-    fun clearOwnRestart() {
-        ownRestart = false
+    /**
+     * The service received a reload; [restarts]: it restarts the core now. Only then a pending own restart becomes
+     * the mark for the start that follows; a reload that restarts nothing (selector switch, busy service) drops it.
+     */
+    @Synchronized
+    fun reloadReceived(restarts: Boolean) {
+        ownRestart = restarts && pendingOwn && System.currentTimeMillis() < pendingOwnUntil
+        pendingOwn = false
     }
 
     /** A test in [delayMs]. */
@@ -190,7 +198,7 @@ object RayWatchdog {
             // the old credential stopped working: the row already holds the new one
             Logs.i("raycontrol: the running credential fails, restarting with the stored one")
             stale = false
-            restart()
+            restart(currentCoroutineContext()[Job])
             return PERIOD
         }
         val (node, key) = owner ?: return PERIOD
@@ -212,7 +220,7 @@ object RayWatchdog {
             throw e
         } catch (e: Exception) {
             Logs.w("raycontrol ${node.host}: subscription: ${e.message}")
-            if (RaySubscription.useAlternative(nodeId, key)) restart()
+            if (RaySubscription.useAlternative(nodeId, key)) restart(currentCoroutineContext()[Job])
         }
     }
 }
