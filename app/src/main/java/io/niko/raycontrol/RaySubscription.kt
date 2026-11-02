@@ -143,7 +143,8 @@ object RaySubscription {
         if (stored != null) {
             if (stored.groupCreated) GroupManager.iterator { groupAdd(stored.group) }
             GroupManager.postReload(stored.group.id)
-            if (stored.runningChanged) runningChanged(reloadNow)
+            // a running row that is gone cannot wait: the core runs a profile that no longer exists
+            if (stored.runningGone) SagerNet.reloadService() else if (stored.runningChanged) runningChanged(reloadNow)
         }
         return RaySubscriptionResult(
             profiles = beans.size,
@@ -154,7 +155,7 @@ object RaySubscription {
         )
     }
 
-    private class Stored(val group: ProxyGroup, val groupCreated: Boolean, val runningChanged: Boolean)
+    private class Stored(val group: ProxyGroup, val groupCreated: Boolean, val runningChanged: Boolean, val runningGone: Boolean)
 
     /**
      * Writes the profiles into the node's group (under [RayNodesLock]): a known key updates its row (the id, the
@@ -226,8 +227,10 @@ object RaySubscription {
             // the selected service left the subscription: keep a profile of this node selected
             DataStore.selectedProxy = ids.values.firstOrNull() ?: 0L
         }
-        val runningChanged = selected in changed || DataStore.currentProfile in changed
-        return Stored(group, groupCreated, runningChanged)
+        val running = DataStore.currentProfile
+        val runningChanged = selected in changed || running in changed
+        val runningGone = gone.any { it.id == running || it.id == selected }
+        return Stored(group, groupCreated, runningChanged, runningGone)
     }
 
     private fun legacyIds(groupId: Long, beans: Map<String, AbstractBean>): Map<String, Long> {
@@ -271,8 +274,12 @@ object RaySubscription {
      * row changed; the caller restarts the core.
      */
     suspend fun useAlternative(nodeId: String, key: String): Boolean {
-        val l = RayNodes.get(nodeId)?.links?.get(key) ?: return false
+        val node = RayNodes.get(nodeId) ?: return false
+        val l = node.links[key] ?: return false
         if (l.next == null) return false
+        // `next` is not accepted before `from` (REALITY keys): only from shortly before it, for a clock behind
+        val nodeNow = System.currentTimeMillis() / 1000 + node.clockSkew
+        if (!l.nextActive && nodeNow < l.from - 120) return false
         return setActive(nodeId, key, !l.nextActive)
     }
 

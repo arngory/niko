@@ -7,7 +7,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -23,7 +25,8 @@ import kotlinx.coroutines.withTimeoutOrNull
  *   profile switches to its other credential (`link` ↔ `next`), if it has one.
  *
  * Tests run 20 s after the start, 15 s after a network change, every 10 min, and every 30 s for 3 min after a
- * rotation; fetches after failures back off from 5 min to 1 h.
+ * rotation; fetches after failures back off from 5 min to 1 h, and start over on a new network. Without a network
+ * nothing is tested: a failure there says nothing about the node's credentials.
  */
 object RayWatchdog {
 
@@ -40,8 +43,17 @@ object RayWatchdog {
 
     @Volatile
     private var fastUntil = 0L
+
+    @Volatile
+    private var online = true
+
+    @Volatile
     private var failures = 0
+
+    @Volatile
     private var recoverAt = 0L
+
+    @Volatile
     private var backoff = FIRST_BACKOFF
 
     /** The core connected: [probe] tests the running profile and returns whether it works. */
@@ -60,9 +72,24 @@ object RayWatchdog {
         job = null
     }
 
-    /** A test in [delayMs], e.g. after a network change. */
+    /** A test in [delayMs]. */
     fun poke(delayMs: Long) {
         wake.trySend(delayMs)
+    }
+
+    /** The default network appeared or went away (the service's network listener). */
+    fun network(available: Boolean) {
+        if (available == online) return
+        online = available
+        if (available) networkChanged()
+    }
+
+    /** Another network: what failed on the old one says nothing here, test soon and fetch without waiting. */
+    fun networkChanged() {
+        failures = 0
+        recoverAt = 0
+        backoff = FIRST_BACKOFF
+        poke(15_000L)
     }
 
     /** A rotation changed the running row without a restart: restart once the old credential fails. */
@@ -87,9 +114,15 @@ object RayWatchdog {
     }
 
     private suspend fun step(probe: suspend () -> Boolean): Long {
-        val (node, key) = RayNodes.ownerOf(DataStore.currentProfile) ?: return PERIOD
+        if (!online) return PERIOD
+        // stale without an owner: the running row left the subscription; the core still runs it
+        val owner = RayNodes.ownerOf(DataStore.currentProfile)
+        if (owner == null && !stale) return PERIOD
         val now = System.currentTimeMillis()
-        if (probe()) {
+        val ok = probe()
+        // stopped meanwhile (a restart): this result belongs to the old core
+        currentCoroutineContext().ensureActive()
+        if (ok) {
             failures = 0
             backoff = FIRST_BACKOFF
             return if (now < fastUntil) 30_000L else PERIOD
@@ -97,11 +130,12 @@ object RayWatchdog {
         failures++
         if (stale) {
             // the old credential stopped working: the row already holds the new one
-            Logs.i("raycontrol ${node.host}: the old credential fails, restarting with the new one")
+            Logs.i("raycontrol: the running credential fails, restarting with the stored one")
             stale = false
             SagerNet.reloadService()
             return PERIOD
         }
+        val (node, key) = owner ?: return PERIOD
         if (failures < 2) return 15_000L
         if (now < recoverAt) return minOf(PERIOD, recoverAt - now)
         recoverAt = now + backoff

@@ -226,6 +226,8 @@ class BaseService {
             return try {
                 withContext(Dispatchers.IO) { Libcore.urlTest(box, DataStore.connectionTestURL, 5000) }
                 true
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Logs.d("raycontrol watchdog: ${e.readableMessage}")
                 false
@@ -298,6 +300,7 @@ class BaseService {
 
         suspend fun preInit() {
             DefaultNetworkListener.start(this) {
+                RayWatchdog.network(it != null)
                 SagerNet.connectivity.getLinkProperties(it)?.also { link ->
                     SagerNet.underlyingNetwork = it
                     DataStore.vpnService?.updateUnderlyingNetwork()
@@ -312,7 +315,7 @@ class BaseService {
                             Libcore.resetAllConnections(true)
                         }
                         // a raycontrol node may be reachable differently here (SPA carrier, port)
-                        RayWatchdog.poke(15_000L)
+                        RayWatchdog.networkChanged()
                     }
                 }
             }
