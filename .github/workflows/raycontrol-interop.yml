@@ -103,7 +103,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           . .github/raycontrol.env
-          sudo apt-get install -y -qq socat > /dev/null
+          sudo apt-get install -y -qq socat strace > /dev/null
           tag=$(gh release list -R klzgrad/naiveproxy -L 100 --json tagName -q '.[].tagName' | grep -m1 "^v${NAIVE_CHROMIUM}-")
           [ -n "$tag" ] || { echo "no NaiveProxy release for Chromium $NAIVE_CHROMIUM"; exit 1; }
           gh release download "$tag" -R klzgrad/naiveproxy -p "naiveproxy-${tag}-linux-x64.tar.xz" -D /tmp
@@ -121,7 +121,9 @@ jobs:
           openssl x509 -req -in leaf.csr -CA ca.crt -CAkey ca.key -CAcreateserial -days 30 -extfile leaf.ext -out leaf.crt 2>/dev/null
           pw=$(openssl rand -hex 16); echo "$pw" > /tmp/naive.pw
           printf '["%s"]' "$(printf %s "$pw" | sha256sum | cut -d' ' -f1)" > users.json
-          nohup /tmp/rayd naive -users users.json -chain leaf.crt -key leaf.key -socket /tmp/naive.sock > /tmp/naive-server.log 2>&1 &
+          # rayd naive logs a failed dial to the destination at debug only: strace shows its connects
+          nohup strace -f -e trace=connect -o /tmp/rayd-naive.strace \
+            /tmp/rayd naive -users users.json -chain leaf.crt -key leaf.key -socket /tmp/naive.sock > /tmp/naive-server.log 2>&1 &
           for i in $(seq 50); do [ -S /tmp/naive.sock ] && break; sleep 0.2; done
           # the site passes TLS on to the socket on the node; here a plain relay does
           nohup socat TCP-LISTEN:18446,bind=127.0.0.1,reuseaddr,fork UNIX-CONNECT:/tmp/naive.sock > /dev/null 2>&1 &
@@ -153,5 +155,7 @@ jobs:
           for i in 1 2 3 4; do curl -s -m 5 -o /dev/null -x socks5h://127.0.0.1:11090 https://www.gstatic.com/generate_204 || true; done
           sleep 1
           echo "--- client net log errors"
-          python3 .github/scripts/netlog-errors.py /tmp/naive-net.json 'TUNNEL|RST_STREAM|GOAWAY|HTTP2_STREAM_ERROR|SEND_REQUEST_HEADERS|READ_RESPONSE_HEADERS|NAIVE' || true
+          python3 .github/scripts/netlog-errors.py /tmp/naive-net.json 'TUNNEL|RST_STREAM|GOAWAY|HTTP2_STREAM_ERROR|SEND_REQUEST_HEADERS|READ_RESPONSE_HEADERS|NAIVE|HTTP2_SESSION_RECV_DATA|HTTP2_SESSION_SEND_DATA|RECV_RST|STREAM_CLOSE' || true
+          echo "--- rayd naive connects (strace)"
+          grep -v 'AF_UNIX' /tmp/rayd-naive.strace | tail -n 20 || true
           pkill -x rayd || true; pkill -x naive || true; pkill -x socat || true
