@@ -165,9 +165,9 @@
                 <data android:scheme="hy2" />
                 <data android:scheme="tuic" />
                 <data android:scheme="anytls" />
-                <!-- raycontrol: a one-time invite and a device package; imported after a confirmation -->
+                <!-- raycontrol: a one-time invite, imported after a confirmation. Not rcdev1: that package comes
+                     from Register now, and by hand only by paste or file (raycontrol niko-r3-reply.md §3) -->
                 <data android:scheme="rcinv1" />
-                <data android:scheme="rcdev1" />
 
             </intent-filter>
 

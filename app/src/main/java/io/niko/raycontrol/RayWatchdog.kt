@@ -35,6 +35,7 @@ object RayWatchdog {
 
     private const val PERIOD = 10 * 60_000L
     private const val FIRST_BACKOFF = 5 * 60_000L
+    private const val STALE_MAX = 12 * 60 * 60_000L
 
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private var job: Job? = null
@@ -43,6 +44,11 @@ object RayWatchdog {
     // the running core holds an older credential than the profile row
     @Volatile
     private var stale = false
+
+    // when the running row turned stale: the old credential (UUID, DoH token) is accepted 2 days after the switch,
+    // and a stale DoH token does not fail the connection test, so the core restarts within STALE_MAX anyway
+    @Volatile
+    private var staleSince = 0L
 
     @Volatile
     private var fastUntil = 0L
@@ -161,6 +167,7 @@ object RayWatchdog {
 
     /** A rotation changed the running row without a restart: restart once the old credential fails. */
     fun markStale() {
+        if (!stale) staleSince = System.currentTimeMillis()
         stale = true
         fastUntil = System.currentTimeMillis() + 3 * 60_000L
         poke(15_000L)
@@ -193,6 +200,13 @@ object RayWatchdog {
         if (ok) {
             failures = 0
             backoff = FIRST_BACKOFF
+            if (stale && now - staleSince > STALE_MAX) {
+                // the old credential still works but not for long (raycontrol R4-1: 2 days after the switch)
+                Logs.i("raycontrol: restarting with the new credential before the old one expires")
+                stale = false
+                restart(currentCoroutineContext()[Job])
+                return PERIOD
+            }
             return if (now < fastUntil) 30_000L else PERIOD
         }
         failures++

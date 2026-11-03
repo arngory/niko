@@ -1,0 +1,151 @@
+name: raycontrol interop
+
+# The client side against a real rayd from arngory/raycontrol (niko-r3-note.md §4):
+# registration by invite through the remote API (libcore/rayapi), and the
+# NaiveProxy client against `rayd naive`.
+on:
+  push:
+    paths:
+      - ".github/workflows/raycontrol-interop.yml"
+      - ".github/raycontrol.env"
+      - "libcore/rayapi/**"
+      - "libcore/knock/**"
+      - "buildScript/lib/core/get_source_env.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  invite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch raycontrol and the core
+        run: |
+          . .github/raycontrol.env
+          . buildScript/lib/core/get_source_env.sh
+          git clone --filter=blob:none "$REPOSITORY_RAYCONTROL" raycontrol
+          git -C raycontrol checkout -q "$COMMIT_RAYCONTROL"
+          # libcore/go.mod replaces the core with ../../sing-box and ../../libneko
+          git clone --filter=blob:none "$REPOSITORY_SING_BOX" ../sing-box
+          git -C ../sing-box checkout -q "$COMMIT_SING_BOX"
+          git clone --filter=blob:none "$REPOSITORY_LIBNEKO" ../libneko
+          git -C ../libneko checkout -q "$COMMIT_LIBNEKO"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: raycontrol/go.mod
+          cache: false
+      - name: Build rayd and rayctl
+        working-directory: raycontrol
+        run: |
+          CGO_ENABLED=0 go build -o /tmp/rayd ./cmd/rayd
+          CGO_ENABLED=0 go build -o /tmp/rayctl ./cmd/rayctl
+
+      - name: A node with the remote API
+        run: |
+          mkdir -p /tmp/rc/rendered
+          /tmp/rayd init -db /tmp/rc/rayd.db -host 127.0.0.1
+          # no perimeter here (rayspa, nftables): the API port is open without SPA; the client still sends SPA
+          nohup /tmp/rayd serve -db /tmp/rc/rayd.db -socket /tmp/rc/rayd.sock -group "$(id -gn)" \
+            -live=false -acme-directory "" -rendered /tmp/rc/rendered > /tmp/rayd.log 2>&1 &
+          for i in $(seq 100); do [ -S /tmp/rc/rayd.sock ] && break; sleep 0.2; done
+          rc() { /tmp/rayctl -socket /tmp/rc/rayd.sock "$@"; }
+          rc service add api api
+          rc user add interop
+          rc device invite interop phone -role admin -o /tmp/rc/invite
+          rc service list
+          # the API listener follows the change
+          sleep 2
+          grep -q "remote api" /tmp/rayd.log && grep "remote api" /tmp/rayd.log | tail -2
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: libcore/go.mod
+          cache: false
+      - name: Register, admin calls, key rotation (libcore/rayapi)
+        working-directory: libcore
+        env:
+          RAYCONTROL_INVITE_FILE: /tmp/rc/invite
+        run: go test -count=1 -v -ldflags=-checklinkname=0 -run TestRaycontrolInterop ./rayapi
+
+      - name: Logs
+        if: always()
+        run: |
+          tail -n 60 /tmp/rayd.log || true
+          pkill -x rayd || true
+
+  naive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch raycontrol
+        run: |
+          . .github/raycontrol.env
+          git clone --filter=blob:none "$REPOSITORY_RAYCONTROL" raycontrol
+          git -C raycontrol checkout -q "$COMMIT_RAYCONTROL"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: raycontrol/go.mod
+          cache: false
+      - name: Build rayd
+        working-directory: raycontrol
+        run: CGO_ENABLED=0 go build -o /tmp/rayd ./cmd/rayd
+
+      - name: NaiveProxy client
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          . .github/raycontrol.env
+          sudo apt-get install -y -qq libnss3-tools socat > /dev/null
+          tag=$(gh release list -R klzgrad/naiveproxy -L 100 --json tagName -q '.[].tagName' | grep -m1 "^v${NAIVE_CHROMIUM}-")
+          [ -n "$tag" ] || { echo "no NaiveProxy release for Chromium $NAIVE_CHROMIUM"; exit 1; }
+          gh release download "$tag" -R klzgrad/naiveproxy -p "naiveproxy-${tag}-linux-x64.tar.xz" -D /tmp
+          tar -xJf /tmp/naiveproxy-${tag}-linux-x64.tar.xz -C /tmp
+          mv /tmp/naiveproxy-${tag}-linux-x64/naive /tmp/naive
+          echo "NaiveProxy $tag: $(sha256sum /tmp/naive | cut -d' ' -f1)"
+
+      - name: rayd naive behind TLS, a CA the client trusts
+        run: |
+          cd /tmp
+          openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 30 -subj "/CN=interop CA" \
+            -keyout ca.key -out ca.crt -addext "basicConstraints=critical,CA:TRUE" 2>/dev/null
+          openssl req -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -subj "/CN=naive.test" -keyout leaf.key -out leaf.csr 2>/dev/null
+          printf "subjectAltName=DNS:naive.test\nbasicConstraints=CA:FALSE\n" > leaf.ext
+          openssl x509 -req -in leaf.csr -CA ca.crt -CAkey ca.key -CAcreateserial -days 30 -extfile leaf.ext -out leaf.crt 2>/dev/null
+          mkdir -p ~/.pki/nssdb && certutil -d sql:$HOME/.pki/nssdb -N --empty-password
+          certutil -d sql:$HOME/.pki/nssdb -A -t "C,," -n interop -i ca.crt
+          pw=$(openssl rand -hex 16); echo "$pw" > /tmp/naive.pw
+          printf '["%s"]' "$(printf %s "$pw" | sha256sum | cut -d' ' -f1)" > users.json
+          nohup /tmp/rayd naive -users users.json -chain leaf.crt -key leaf.key -socket /tmp/naive.sock > /tmp/naive-server.log 2>&1 &
+          for i in $(seq 50); do [ -S /tmp/naive.sock ] && break; sleep 0.2; done
+          # the site passes TLS on to the socket on the node; here a plain relay does
+          nohup socat TCP-LISTEN:18446,bind=127.0.0.1,reuseaddr,fork UNIX-CONNECT:/tmp/naive.sock > /dev/null 2>&1 &
+          sleep 1
+
+      - name: Interop
+        run: |
+          pw=$(cat /tmp/naive.pw)
+          nohup /tmp/naive --listen=socks://127.0.0.1:11090 --proxy="https://niko:${pw}@naive.test:18446" \
+            --host-resolver-rules="MAP naive.test 127.0.0.1" --log > /tmp/naive-client.log 2>&1 &
+          nohup /tmp/naive --listen=socks://127.0.0.1:11091 --proxy="https://niko:wrong@naive.test:18446" \
+            --host-resolver-rules="MAP naive.test 127.0.0.1" --log > /tmp/naive-wrong.log 2>&1 &
+          sleep 3
+          fail=0
+          probe() { curl -s -m 30 -o /dev/null -w '%{http_code}' -x "socks5h://127.0.0.1:$2" https://www.gstatic.com/generate_204 || true; }
+          check() { got=$(probe "$2"); echo "$1: $got (want $3)"; [ "$got" = "$3" ] || fail=1; }
+          check "NaiveProxy (h2, padding) -> rayd naive" 11090 204
+          check "wrong password (must fail: 404 on CONNECT)" 11091 000
+          exit $fail
+
+      - name: Logs
+        if: always()
+        run: |
+          for f in naive-server naive-client naive-wrong; do echo "--- $f"; tail -n 30 /tmp/$f.log 2>/dev/null || true; done
+          pkill -x rayd || true; pkill -x naive || true; pkill -x socat || true

@@ -228,3 +228,30 @@ PQ даёт только `inner`.
 2. **Ссылка с `rcinv1:`.** Какую схему ссылки рисует `rayctl device invite`, чтобы клиент открывал её из браузера или
    мессенджера?
 
+
+## 11. Ответ на `niko-r3-reply.md`
+
+| Пункт | Ответ |
+|---|---|
+| §2 DoH | **v1.17.1**: DoH ноды — удалённый DNS только пока активен её профиль на TCP 443 (REALITY, naive); с Hysteria2 и DNS-туннелями — DNS, как прежде. Подключение — на адрес ноды через её SPA (пустой scope), SNI — имя DoH, h2, только `X25519MLKEM768`. Токен меняется вместе с остальными учётными данными: клиент перезапускает ядро с новым не позже чем через 12 ч после смены (прежний действует 2 дня) |
+| §3 `rcinv1:` как URI | так и сделано: intent-filter `VIEW`/`DEFAULT`/`BROWSABLE`, схема `rcinv1`, подтверждение перед импортом. **`rcdev1` из intent-filter убран** (v1.17.1): только вставка и файл. Отсканированный QR открывается так же, как ссылка, с подтверждением |
+| §4 ротация портов | клиент следует расписанию только у сервисов с `port_key` и только для строк Hysteria2 |
+| §4 режим администратора | решение владельца проекта: режим администратора в Niko **нужен** и сделан (v1.17.0) — `NodeService` по API для устройств-администраторов: состояние, пользователи, устройства и приглашения (QR), сервисы, смена ключей REALITY, журнал. `Backup` и `GetDeployment` не вызываются. `rayctl -remote` остаётся основным инструментом |
+| §5 перенос niko-server | сделано: [`arngory/niko-server`](https://github.com/arngory/niko-server), ветка `claude/intelligent-allen-0oa8na`, [PR #1](https://github.com/arngory/niko-server/pull/1) в `main` |
+
+Перенос по пунктам §5:
+
+1. История путей не сохранена (копия). Первый коммит называет исходный коммит `arngory/sing-box` `34eaa8c`.
+2. Модуль `github.com/arngory/niko-server`. Сервер dnstt — внутри (`dnsttserver/`), MasterDnsVPN — зависимость от
+   `arngory/sing-box/third_party/masterdnsvpn` на коммите `34eaa8c`; `replace` только на удалённые модули, не на
+   локальные пути.
+3. Релизы — **теги `vX.Y.Z`**, файлы с прежними именами (`niko-server-linux-amd64`, `-arm64`, `SHA256SUMS`), выпуск
+   через `workflow_dispatch` с входом `tag`. Первый — `v0.1.2` (без изменений к `niko-server-v0.1.1`), после слияния PR.
+4. CI в niko-server: `go test -race` и сквозной тест (фронт, оба бэкенда, `inner` на Xray, клиент Niko через оба
+   туннеля). В `arngory/niko` — `niko-server-interop.yml`: клиент через оба туннеля против закреплённого релиза
+   (`.github/niko-server.env`, пока `niko-server-v0.1.1`).
+5. `SPEC.md`, `CONFIG.md`, `IPC.md` — в `arngory/niko-server/docs`; здесь остались ссылки.
+
+Ещё в `arngory/niko` добавлен `raycontrol-interop.yml` (по `niko-r3-note.md` §4): регистрация по `rcinv1:` через
+настоящий `rayd serve` (коммит из `.github/raycontrol.env`) клиентом `libcore/rayapi`, вызовы администратора и смена
+клиентского ключа; NaiveProxy той же версии Chromium, что форк плагина, против `rayd naive`.

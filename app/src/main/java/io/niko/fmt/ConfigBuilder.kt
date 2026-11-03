@@ -9,6 +9,7 @@ import io.niko.database.ProxyEntity.Companion.TYPE_CONFIG
 import io.niko.database.SagerDatabase
 import io.niko.fmt.ConfigBuildResult.IndexEntity
 import io.niko.fmt.hysteria.HysteriaBean
+import io.niko.fmt.naive.NaiveBean
 import io.niko.fmt.hysteria.buildSingBoxOutboundHysteriaBean
 import io.niko.fmt.internal.ChainBean
 import io.niko.fmt.shadowsocks.ShadowsocksBean
@@ -590,7 +591,11 @@ fun buildConfig(
                     rayNode?.let { rotatingUdpPorts(it, proxyEntity, bean) }?.let {
                         knockOutbound._hack_config_map["udp_ports"] = it
                     }
-                    if (buildingProxy && entity.id == proxy.id && index == profileList.lastIndex && rayNode?.doh != null) {
+                    // only for the node's TCP 443 profiles (REALITY, naive): with Hysteria2 or a DNS tunnel the node's
+                    // TCP 443 may be unreachable (raycontrol niko-r3-reply.md §2)
+                    if (buildingProxy && entity.id == proxy.id && index == profileList.lastIndex && rayNode?.doh != null &&
+                        (bean is StandardV2RayBean || bean is NaiveBean)
+                    ) {
                         nodeDoh = rayNode to knockTag
                     }
                     currentOutbound._hack_config_map.remove("domain_resolver")?.let {
