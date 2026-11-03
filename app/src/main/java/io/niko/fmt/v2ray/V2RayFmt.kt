@@ -742,10 +742,12 @@ fun buildSingBoxOutboundStandardV2RayBean(bean: StandardV2RayBean): Outbound {
                     flow = bean.encryption
                 }
                 if (!bean.vlessEncryption.isNullOrBlank()) encryption = bean.vlessEncryption
-                when (bean.packetEncoding) {
-                    0 -> packet_encoding = ""
-                    1 -> packet_encoding = "packetaddr"
-                    2 -> packet_encoding = "xudp"
+                packet_encoding = when (bean.packetEncoding) {
+                    1 -> "packetaddr"
+                    2 -> "xudp"
+                    // Xray refuses plain VLESS UDP under Vision ("xtls-rprx-vision doesn't support UDP"): there UDP
+                    // goes in XUDP, as Xray's own client sends it. Links (raycontrol's too) rarely say packetEncoding
+                    else -> if (flow == "xtls-rprx-vision") "xudp" else ""
                 }
                 tls = buildSingBoxOutboundTLS(bean)
                 transport = buildSingBoxOutboundStreamSettings(bean)

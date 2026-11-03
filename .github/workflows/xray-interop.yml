@@ -1,15 +1,17 @@
 name: Xray interop
 
 # The core's clients against an Xray server built from arngory/xray-core:
-# REALITY + Vision with and without the ML-DSA-65 check, VLESS encryption, and
-# Hysteria2 as raycontrol renders hy2-obfs (salamander, a self-signed
-# certificate pinned by its key, SNI <hex>.invalid, X25519MLKEM768 only).
+# REALITY + Vision with and without the ML-DSA-65 check, UDP through it (XUDP;
+# plain VLESS UDP is refused under Vision), VLESS encryption, and Hysteria2 as
+# raycontrol renders hy2-obfs (salamander, a self-signed certificate pinned by
+# its key, SNI <hex>.invalid, X25519MLKEM768 only).
 on:
   push:
     paths:
       - ".github/workflows/xray-interop.yml"
       - "buildScript/lib/core/get_source_env.sh"
       - ".github/xray-interop.env"
+      - ".github/scripts/udp-dns-probe.py"
   workflow_dispatch:
 
 permissions:
@@ -75,7 +77,8 @@ jobs:
           echo "verify key: ${#verify} chars, encryption: ${enc%%.*}"
           jq -n --arg uuid "$uuid" --arg priv "$priv" --arg seed "$seed" --arg dec "$dec" \
                 --arg hy2pw "$hy2pw" --arg obfspw "$obfspw" '{
-            log: {loglevel: "warning"},
+            # info: Xray logs a refused request ("connection ends") at this level
+            log: {loglevel: "info"},
             inbounds: [
               {listen: "127.0.0.1", port: 18443, protocol: "vless",
                settings: {clients: [{id: $uuid, flow: "xtls-rprx-vision"}], decryption: "none"},
@@ -102,8 +105,12 @@ jobs:
             obfs: {type: "salamander", password: $obfspw},
             tls: {enabled: true, server_name: $sni, alpn: ["h3"], curve_preferences: ["X25519MLKEM768"],
               certificate_public_key_sha256: [$pin]}}'; }
+          # UDP under Vision: XUDP, as the app builds it; plain VLESS UDP (what the app sent before 1.17.2) Xray refuses
+          xudp=$(reality r-xudp "" | jq '. + {packet_encoding: "xudp"}')
+          noxudp=$(reality r-noxudp "" | jq '. + {packet_encoding: ""}')
           jq -n --argjson ok "$(reality r-ok "$verify")" --argjson plain "$(reality r-plain "")" \
                 --argjson bad "$(reality r-bad "$wrong")" --arg uuid "$uuid" --arg enc "$enc" \
+                --argjson xudp "$xudp" --argjson noxudp "$noxudp" \
                 --argjson hy2 "$(hy2 hy2 "$pin")" --argjson hy2bad "$(hy2 hy2-bad "$wrongpin")" '{
             log: {level: "warn"},
             inbounds: [
@@ -112,14 +119,19 @@ jobs:
               {type: "mixed", tag: "in-bad", listen: "127.0.0.1", listen_port: 11082},
               {type: "mixed", tag: "in-enc", listen: "127.0.0.1", listen_port: 11083},
               {type: "mixed", tag: "in-hy2", listen: "127.0.0.1", listen_port: 11084},
-              {type: "mixed", tag: "in-hy2-bad", listen: "127.0.0.1", listen_port: 11085}],
-            outbounds: [$ok, $plain, $bad, $hy2, $hy2bad,
+              {type: "mixed", tag: "in-hy2-bad", listen: "127.0.0.1", listen_port: 11085},
+              {type: "direct", tag: "in-xudp", listen: "127.0.0.1", listen_port: 15353, network: "udp",
+               override_address: "1.1.1.1", override_port: 53},
+              {type: "direct", tag: "in-noxudp", listen: "127.0.0.1", listen_port: 15354, network: "udp",
+               override_address: "1.1.1.1", override_port: 53}],
+            outbounds: [$ok, $plain, $bad, $hy2, $hy2bad, $xudp, $noxudp,
               {type: "vless", tag: "enc", server: "127.0.0.1", server_port: 18444, uuid: $uuid, encryption: $enc},
               {type: "direct", tag: "direct"}],
             route: {rules: [
               {inbound: ["in-ok"], outbound: "r-ok"}, {inbound: ["in-plain"], outbound: "r-plain"},
               {inbound: ["in-bad"], outbound: "r-bad"}, {inbound: ["in-enc"], outbound: "enc"},
-              {inbound: ["in-hy2"], outbound: "hy2"}, {inbound: ["in-hy2-bad"], outbound: "hy2-bad"}]}}' > /tmp/client.json
+              {inbound: ["in-hy2"], outbound: "hy2"}, {inbound: ["in-hy2-bad"], outbound: "hy2-bad"},
+              {inbound: ["in-xudp"], outbound: "r-xudp"}, {inbound: ["in-noxudp"], outbound: "r-noxudp"}]}}' > /tmp/client.json
           /tmp/xray run -test -c /tmp/xray.json
           /tmp/sing-box check -c /tmp/client.json
 
@@ -138,6 +150,11 @@ jobs:
           check "VLESS encryption mlkem768x25519plus" 11083 204
           check "Hysteria2 hy2-obfs: salamander, key pin, X25519MLKEM768" 11084 204
           check "Hysteria2, wrong key pin (must fail)" 11085 000
+          # a DNS query to 1.1.1.1 over UDP through REALITY + Vision
+          udp() { got=$(python3 -I .github/scripts/udp-dns-probe.py "$2"); echo "$1: $got (want $3)"; [ "$got" = "$3" ] || fail=1; }
+          udp "REALITY + Vision, UDP in XUDP" 15353 answer
+          udp "REALITY + Vision, plain VLESS UDP (Xray refuses it)" 15354 timeout
+          grep -q "doesn't support UDP" /tmp/xray.log || { echo "no Vision UDP refusal in the Xray log"; fail=1; }
           exit $fail
 
       - name: Logs
