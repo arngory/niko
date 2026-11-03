@@ -23,6 +23,9 @@ import io.niko.BuildConfig
 import io.niko.GroupType
 import io.niko.Key
 import io.niko.R
+import io.niko.raycontrol.Rcinv1
+import io.niko.raycontrol.Rcdev1
+import io.niko.raycontrol.RayImport
 import io.niko.SagerNet
 import io.niko.aidl.ISagerNetService
 import io.niko.aidl.SpeedDisplayData
@@ -44,6 +47,7 @@ import io.niko.fmt.overridesFullConfig
 import io.niko.group.GroupInterfaceAdapter
 import io.niko.group.GroupUpdater
 import io.niko.ktx.alert
+import io.niko.ktx.app
 import io.niko.ktx.isPreview
 import io.niko.ktx.launchCustomTab
 import io.niko.ktx.onMainDispatcher
@@ -139,6 +143,28 @@ class MainActivity : ThemedActivity(),
         super.onNewIntent(intent)
 
         val uri = intent.data ?: return
+
+        // a raycontrol invite or device package: any page or app can open such a link, so ask first
+        if (uri.scheme == "rcinv1" || uri.scheme == "rcdev1") {
+            val text = uri.toString()
+            val host = try {
+                if (uri.scheme == "rcinv1") Rcinv1.parse(text).host else Rcdev1.parse(text).host
+            } catch (e: Exception) {
+                alert(e.readableMessage).show()
+                return
+            }
+            MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.raycontrol_nodes)
+                .setMessage(getString(R.string.raycontrol_link_confirm, host))
+                .setPositiveButton(R.string.yes) { _, _ ->
+                    runOnDefaultDispatcher {
+                        RayImport.import(app, text) { message -> onMainDispatcher { snackbar(message).show() } }
+                    }
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+            return
+        }
 
         runOnDefaultDispatcher {
             if (uri.scheme == "sn" && uri.host == "subscription" || uri.scheme == "clash" ||

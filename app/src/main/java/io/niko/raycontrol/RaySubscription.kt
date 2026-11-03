@@ -441,6 +441,15 @@ object RaySubscription {
                     if (applyDue(node.spa.nodeId)) RayWatchdog.markStale()
                 }
             }
+            // admin devices: the client key changes every 90 days (api-v1.md §6)
+            for (node in RayNodes.list()) {
+                if (!node.isAdmin) continue
+                try {
+                    RayApi.rotateIfDue(node)
+                } catch (e: Exception) {
+                    Logs.w("raycontrol ${node.host}: client key rotation: ${e.message}")
+                }
+            }
             schedule(fromWorker = true)
             return Result.success()
         }

@@ -1,8 +1,6 @@
 package io.niko.ui
 
-import io.niko.raycontrol.Rcdev1
-import io.niko.raycontrol.RayNodes
-import io.niko.raycontrol.RaySubscription
+import io.niko.raycontrol.RayImport
 import android.Manifest
 import android.content.Intent
 import android.content.pm.ShortcutManager
@@ -122,13 +120,8 @@ class ScannerActivity : ThemedActivity(),
         runOnDefaultDispatcher {
             try {
                 val text = result?.text ?: throw Exception("QR code not found")
-                if (Rcdev1.matches(text)) {
-                    val node = RayNodes.import(Rcdev1.parse(text))
-                    onMainDispatcher {
-                        Toast.makeText(app, getString(R.string.raycontrol_node_imported, node.host, node.services.size), Toast.LENGTH_LONG).show()
-                    }
-                    if (node.subscription != null) {
-                        val message = RaySubscription.refreshForUser(app, node)
+                if (RayImport.matches(text)) {
+                    RayImport.import(app, text) { message ->
                         onMainDispatcher { Toast.makeText(app, message, Toast.LENGTH_LONG).show() }
                     }
                     return@runOnDefaultDispatcher

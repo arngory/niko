@@ -633,6 +633,11 @@
     <string name="raycontrol_sub_failed">Subscription not updated: %s</string>
     <string name="raycontrol_clock_hint">If the node is up, check the time on this device: SPA works only within 30 s of the node clock.</string>
     <string name="raycontrol_sub_reimport">The node refused this device or its keys changed: import its registration (rcdev1) again. Scheduled updates for it are stopped.</string>
+    <string name="raycontrol_invite_registering">Registering this device at %s…</string>
+    <string name="raycontrol_invite_registered">Registered at %1$s (role: %2$s).</string>
+    <string name="raycontrol_invite_refused">The node refused the invite: it is used, expired or revoked, or the clock of this device is off by more than 2 minutes. If the invite was fresh, someone else may have used it: tell the administrator.</string>
+    <string name="raycontrol_invite_failed">Registration failed: %s</string>
+    <string name="raycontrol_link_confirm">Import the raycontrol node %s from this link? Only accept links from your administrator.</string>
     <string name="raycontrol_clock_wrong">The clock of this device differs from the node by %d s: fix the time, SPA works within 30 s.</string>
     <string name="raycontrol_dnstt_resolver">DNS tunnel resolver (dnstt)</string>
     <string name="raycontrol_dnstt_resolver_help">Used when a node\'s link leaves the resolver to the client: https://…/dns-query, tls://host or udp://host. Applies to profiles from the next subscription update.</string>

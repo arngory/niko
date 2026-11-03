@@ -1,8 +1,6 @@
 package io.niko.ui
 
-import io.niko.raycontrol.Rcdev1
-import io.niko.raycontrol.RayNodes
-import io.niko.raycontrol.RaySubscription
+import io.niko.raycontrol.RayImport
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.graphics.Color
@@ -373,19 +371,13 @@ class ConfigurationFragment @JvmOverloads constructor(
         }
 
     /**
-     * A raycontrol device package anywhere in [text] (also the whole output of `rayctl device add`): imports the
-     * node and fetches its subscription. Returns false when the text holds none.
+     * A raycontrol invite or device package anywhere in [text] (also the whole output of `rayctl device add`):
+     * registers or imports the node and fetches its subscription. Returns false when the text holds none.
      */
     private suspend fun importRaycontrol(text: String): Boolean {
-        if (!Rcdev1.matches(text)) return false
-        val node = RayNodes.import(Rcdev1.parse(text))
-        val imported = app.getString(R.string.raycontrol_node_imported, node.host, node.services.size)
-        onMainDispatcher { if (isAdded) snackbar(imported).show() }
-        if (node.subscription != null) {
-            // the fetch takes seconds: the fragment may be gone by then
-            val message = RaySubscription.refreshForUser(app, node)
-            onMainDispatcher { if (isAdded) snackbar(message).show() }
-        }
+        if (!RayImport.matches(text)) return false
+        // the registration and the fetch take seconds: the fragment may be gone by then
+        RayImport.import(app, text) { message -> onMainDispatcher { if (isAdded) snackbar(message).show() } }
         return true
     }
 
@@ -417,8 +409,8 @@ class ConfigurationFragment @JvmOverloads constructor(
                     snackbar(getString(R.string.clipboard_empty)).show()
                 } else runOnDefaultDispatcher {
                     try {
-                        if (Rcdev1.matches(text)) {
-                            // the package carries the device key: do not leave it in the clipboard
+                        if (RayImport.matches(text)) {
+                            // a package or invite is a secret: do not leave it in the clipboard
                             SagerNet.clearClipboard()
                             importRaycontrol(text)
                             return@runOnDefaultDispatcher

@@ -160,5 +160,45 @@ class RaySubscriptionTest {
         // the pin is a SHA-256 of the key: it parses for sing-box
         assertEquals(1, io.niko.fmt.parseCertificatePins(hy2.certPins).size)
     }
+
+    // R3: invites (api-v1.md §3) and the api field of admin packages
+    @Test
+    fun invitesAndApi() {
+        val apiPin = "C".repeat(43)
+        val invite = "{" + base.replace(""""services": []""", """"services": [{"id": 7, "kind": "api", "name": "api"}]""") +
+            """, "api": {"port": 48213, "pin": "$apiPin"}, "expires": 1767312000}"""
+        val text = "Invite for alice/phone:\n" + Rcinv1.PREFIX + invite.encodeUtf8().base64Url().trimEnd('=') + "\nValid for a day.\n"
+        assertTrue(Rcinv1.matches(text))
+        assertTrue(!Rcdev1.matches(text))
+        assertTrue(RayImport.matches(text))
+        val parsed = Rcinv1.parse(text)
+        assertEquals("0123456789abcdef", parsed.inviteId)
+        assertEquals("11".repeat(32), parsed.inviteKey)
+        assertEquals(RayApiInfo(48213, apiPin), parsed.api)
+        assertEquals(1767312000, parsed.expires)
+        // the key stays out of logs
+        assertTrue(!parsed.toString().contains("11".repeat(32)))
+        for (bad in listOf(invite.replace(""", "api": {"port": 48213, "pin": "$apiPin"}""", ""),
+            invite.replace(apiPin, "short"), invite.replace("48213", "0"), invite.replace(""", "expires": 1767312000""", ""))) {
+            try {
+                Rcinv1.parse(Rcinv1.PREFIX + bad.encodeUtf8().base64Url().trimEnd('='))
+                fail("accepted a bad invite")
+            } catch (_: IllegalArgumentException) {
+            }
+        }
+
+        // an admin package: api kept in the node with the client certificate
+        val admin = Rcdev1.parse(pack("{$base, \"api\": {\"port\": 48213, \"pin\": \"$apiPin\"}}"))
+        assertEquals(RayApiInfo(48213, apiPin), admin.api)
+        val identity = RayIdentity("Y2VydA==", "wrapped", "D".repeat(43), 1767225600)
+        val node = RayNode(admin.host, admin.spa, admin.deviceId, "w", admin.services, api = admin.api, identity = identity,
+            identityNext = identity.copy(pin = "E".repeat(43)))
+        assertTrue(node.isAdmin)
+        assertEquals(node, RayNode.fromJson(JsonParser.parseString(node.toJson().toString()).asJsonObject))
+        assertTrue(!RayNode(admin.host, admin.spa, admin.deviceId, "w", admin.services).isAdmin)
+        assertEquals("not_found", RayApi.code(Exception("raycontrol api: not_found")))
+        assertEquals("unauthenticated", RayApi.code(Exception("go error: raycontrol api: unauthenticated: device revoked")))
+        assertNull(RayApi.code(Exception("raycontrol api: the node did not answer: dial tcp")))
+    }
 }
 

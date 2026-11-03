@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"math/big"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 
@@ -431,4 +432,33 @@ func SPAv2Packet(options SPAv2Options, now time.Time) (uint16, []byte, error) {
 		return 0, nil, err
 	}
 	return p.packet(now)
+}
+
+// SendSPAv2 sends one packet for options to host at the port of the slot of
+// now, over UDP or as the first data of a TCP connection (spa-v2.md §10), and
+// waits 300 ms for the node to apply it (§7). For requests made outside an
+// outbound: the subscription and the remote API.
+func SendSPAv2(ctx context.Context, dialer *net.Dialer, host string, options SPAv2Options, tcp bool, now time.Time) error {
+	port, packet, err := SPAv2Packet(options, now)
+	if err != nil {
+		return err
+	}
+	network := "udp"
+	if tcp {
+		network = "tcp"
+	}
+	dialCtx, cancel := context.WithTimeout(ctx, spa2TCPTimeout)
+	conn, err := dialer.DialContext(dialCtx, network, net.JoinHostPort(host, strconv.Itoa(int(port))))
+	cancel()
+	if err == nil {
+		conn.SetWriteDeadline(time.Now().Add(spa2TCPTimeout))
+		conn.Write(packet)
+		conn.Close()
+	}
+	select {
+	case <-time.After(300 * time.Millisecond):
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }

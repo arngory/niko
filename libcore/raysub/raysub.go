@@ -148,29 +148,7 @@ func (r *Request) dialer() *net.Dialer {
 
 // knock sends one SPA v2 packet over UDP or TCP and waits for the rules to apply.
 func (r *Request) knock(ctx context.Context, tcp bool, now time.Time) error {
-	port, packet, err := knock.SPAv2Packet(r.SPA, now)
-	if err != nil {
-		return err
-	}
-	address := net.JoinHostPort(r.Host, strconv.Itoa(int(port)))
-	network := "udp"
-	if tcp {
-		network = "tcp"
-	}
-	dialCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	conn, err := r.dialer().DialContext(dialCtx, network, address)
-	cancel()
-	if err == nil {
-		conn.SetWriteDeadline(time.Now().Add(3 * time.Second))
-		conn.Write(packet)
-		conn.Close()
-	}
-	select {
-	case <-time.After(300 * time.Millisecond):
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	return knock.SendSPAv2(ctx, r.dialer(), r.Host, r.SPA, tcp, now)
 }
 
 var errPin = errors.New("raycontrol subscription: the server key does not match the pin")

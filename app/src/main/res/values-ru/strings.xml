@@ -545,6 +545,11 @@
     <string name="raycontrol_sub_failed">Подписка не обновлена: %s</string>
     <string name="raycontrol_clock_hint">Если нода работает, проверьте время на устройстве: SPA работает, только если часы расходятся с нодой не больше чем на 30 с.</string>
     <string name="raycontrol_sub_reimport">Нода отклонила устройство или её ключи сменились: импортируйте регистрацию (rcdev1) заново. Автообновление для неё остановлено.</string>
+    <string name="raycontrol_invite_registering">Регистрация устройства на %s…</string>
+    <string name="raycontrol_invite_registered">Устройство зарегистрировано на %1$s (роль: %2$s).</string>
+    <string name="raycontrol_invite_refused">Нода отклонила приглашение: оно использовано, истекло или отозвано, либо часы устройства расходятся больше чем на 2 минуты. Если приглашение свежее, его мог использовать кто-то другой — сообщите администратору.</string>
+    <string name="raycontrol_invite_failed">Регистрация не удалась: %s</string>
+    <string name="raycontrol_link_confirm">Импортировать ноду raycontrol %s по этой ссылке? Принимайте ссылки только от своего администратора.</string>
     <string name="raycontrol_clock_wrong">Часы устройства расходятся с нодой на %d с: поправьте время, SPA работает при расхождении до 30 с.</string>
     <string name="raycontrol_dnstt_resolver">Резолвер DNS-туннеля (dnstt)</string>
     <string name="raycontrol_dnstt_resolver_help">Используется, когда ссылка ноды оставляет выбор резолвера клиенту: https://…/dns-query, tls://host или udp://host. Действует на профили со следующего обновления подписки.</string>

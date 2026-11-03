@@ -165,6 +165,9 @@
                 <data android:scheme="hy2" />
                 <data android:scheme="tuic" />
                 <data android:scheme="anytls" />
+                <!-- raycontrol: a one-time invite and a device package; imported after a confirmation -->
+                <data android:scheme="rcinv1" />
+                <data android:scheme="rcdev1" />
 
             </intent-filter>
 

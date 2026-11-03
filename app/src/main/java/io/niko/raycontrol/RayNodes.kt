@@ -39,6 +39,23 @@ data class RayLinks(val name: String, val link: String, val next: String? = null
     }
 }
 
+/**
+ * The device's client certificate for the node's remote API (api-v1.md §1): the node knows the device by the key.
+ * The key is wrapped by the Android Keystore like the device key.
+ */
+data class RayIdentity(val cert: String, val keyWrapped: String, val pin: String, val createdAt: Long) {
+    fun toJson() = JsonObject().apply {
+        addProperty("cert", cert)
+        addProperty("key_wrapped", keyWrapped)
+        addProperty("pin", pin)
+        addProperty("created_at", createdAt)
+    }
+
+    companion object {
+        fun fromJson(o: JsonObject) = RayIdentity(o.string("cert"), o.string("key_wrapped"), o.string("pin"), o.long("created_at"))
+    }
+}
+
 /** An imported raycontrol node: SPA v2 parameters and this device's wrapped key. */
 data class RayNode(
     val host: String,
@@ -63,7 +80,15 @@ data class RayNode(
     // the node's DoH from the subscription (https://<name>/dns-query/<token>, niko-* dropped): the remote DNS
     // while a profile of this node runs
     val doh: String? = null,
+    // admin devices: the node's remote API and this device's client certificate for it
+    val api: RayApiInfo? = null,
+    val identity: RayIdentity? = null,
+    // a rotation under way: the new key is kept before the node switches to it (api-v1.md §6)
+    val identityNext: RayIdentity? = null,
 ) {
+    /** an admin device of the node, registered through the API: the admin mode is available */
+    val isAdmin get() = api != null && identity != null
+
     /** the key reference handed to the core; the key itself never enters the config */
     val keyRef get() = "raycontrol:${spa.nodeId}:$deviceId"
 
@@ -84,6 +109,9 @@ data class RayNode(
         add("links", JsonObject().apply { links.forEach { (k, v) -> add(k, v.toJson()) } })
         addProperty("clock_skew", clockSkew)
         doh?.let { addProperty("doh", it) }
+        api?.let { add("api", it.toJson()) }
+        identity?.let { add("identity", it.toJson()) }
+        identityNext?.let { add("identity_next", it.toJson()) }
     }
 
     companion object {
@@ -101,6 +129,9 @@ data class RayNode(
             links = (o.get("links") as? JsonObject)?.entrySet()?.associate { it.key to RayLinks.fromJson(it.value.asJsonObject) }.orEmpty(),
             clockSkew = o.get("clock_skew")?.asLong ?: 0,
             doh = o.get("doh")?.takeIf { it.isJsonPrimitive }?.asString,
+            api = (o.get("api") as? JsonObject)?.let { RayApiInfo.fromJson(it) },
+            identity = (o.get("identity") as? JsonObject)?.let { RayIdentity.fromJson(it) },
+            identityNext = (o.get("identity_next") as? JsonObject)?.let { RayIdentity.fromJson(it) },
         )
     }
 }
@@ -179,14 +210,19 @@ object RayNodes {
         )
     }
 
-    /** Imports a registration; the same node is replaced (a new device key for it). */
-    fun import(registration: RayRegistration): RayNode = RayNodesLock.withLock {
+    /**
+     * Imports a registration; the same node is replaced (a new device key for it). [identity] is the client
+     * certificate a registration through the API made; a package of the same device keeps the one it had.
+     */
+    fun import(registration: RayRegistration, identity: RayIdentity? = null): RayNode = RayNodesLock.withLock {
         val wrapped = DeviceKeyVault.wrap(hexToBytes(registration.deviceKey))
         // a new registration of the same node keeps its profile group and rows
         val old = list().firstOrNull { it.spa.nodeId == registration.spa.nodeId }
         val node = RayNode(
             registration.host, registration.spa, registration.deviceId, wrapped, registration.services,
             registration.subscription, groupId = old?.groupId ?: 0, profileIds = if (old == null) emptyMap() else old.profileIds,
+            api = registration.api,
+            identity = identity ?: old?.identity?.takeIf { old.deviceId == registration.deviceId && registration.api != null },
         )
         save(list().filter { it.spa.nodeId != node.spa.nodeId } + node)
         node

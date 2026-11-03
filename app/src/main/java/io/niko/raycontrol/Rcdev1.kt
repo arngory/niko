@@ -109,6 +109,26 @@ data class RaySubscriptionInfo(val port: Int, val pin: String, val ed25519: Stri
     }
 }
 
+/** The node's remote API (api-v1.md §1): only in packages of admin devices and in invites. */
+data class RayApiInfo(val port: Int, val pin: String) {
+    fun toJson() = JsonObject().apply {
+        addProperty("port", port)
+        addProperty("pin", pin)
+    }
+
+    companion object {
+        private val BASE64URL = Regex("^[A-Za-z0-9_-]{43}$")
+
+        fun fromJson(o: JsonObject): RayApiInfo {
+            val port = o.long("port").toInt()
+            require(port in 1..65535) { "api.port is invalid" }
+            val pin = o.string("pin")
+            require(BASE64URL.matches(pin)) { "api.pin must be base64url SHA-256" }
+            return RayApiInfo(port, pin)
+        }
+    }
+}
+
 /** A device registration package `rcdev1:` (raycontrol docs/spec/spa-v2.md §8). It holds the device key. */
 data class RayRegistration(
     val host: String,
@@ -117,25 +137,55 @@ data class RayRegistration(
     val deviceKey: String,
     val services: List<RayService>,
     val subscription: RaySubscriptionInfo? = null,
+    val api: RayApiInfo? = null,
 ) {
     override fun toString() = "RayRegistration(host=$host, node=${spa.nodeId}, device=$deviceId)"
 }
 
-object Rcdev1 {
-    const val PREFIX = "rcdev1:"
+/**
+ * A one-time invite `rcinv1:` (api-v1.md §3): the registration package format with the invite's ID and one-time SPA
+ * key, the API endpoint and an expiry; the device registers itself with it and gets its own `rcdev1:`.
+ */
+data class RayInvite(
+    val host: String,
+    val spa: RaySpaParams,
+    val inviteId: String,
+    val inviteKey: String,
+    val services: List<RayService>,
+    val api: RayApiInfo,
+    val expires: Long,
+) {
+    override fun toString() = "RayInvite(host=$host, node=${spa.nodeId}, invite=$inviteId)"
+}
 
-    private val TOKEN = Regex("""(?<![A-Za-z0-9_-])rcdev1:[A-Za-z0-9_-]+""")
-    private val CONTINUATION = Regex("""^[A-Za-z0-9_-]+$""")
+object Rcinv1 {
+    const val PREFIX = "rcinv1:"
+    private val token = RayToken(PREFIX)
 
-    /** A package anywhere in the text, e.g. the whole output of `rayctl device add` (raycontrol niko-r4-note.md §4). */
-    fun matches(text: String) = TOKEN.containsMatchIn(text)
+    fun matches(text: String) = token.matches(text)
 
-    /**
-     * The package in [text]: the token that starts with `rcdev1:`. A terminal may have wrapped it, so the lines right
-     * after it that are base64url only are tried as its continuation, shortest first.
-     */
+    /** Throws IllegalArgumentException with a readable reason. */
+    fun parse(text: String): RayInvite = token.parse(text) { o ->
+        val r = Rcdev1.fields(o, "rcinv1")
+        val api = (o.get("api") as? JsonObject ?: throw IllegalArgumentException("rcinv1: no api")).let {
+            try {
+                RayApiInfo.fromJson(it)
+            } catch (e: IllegalArgumentException) {
+                throw IllegalArgumentException("rcinv1: ${e.message}")
+            }
+        }
+        RayInvite(r.host, r.spa, r.deviceId, r.deviceKey, r.services, api, o.long("expires"))
+    }
+}
+
+/** Finds and decodes a `<prefix><base64url JSON>` token in any text (rcdev1, rcinv1). */
+class RayToken(private val prefix: String) {
+    private val token = Regex("""(?<![A-Za-z0-9_-])${Regex.escape(prefix)}[A-Za-z0-9_-]+""")
+
+    fun matches(text: String) = token.containsMatchIn(text)
+
     fun candidates(text: String): List<String> {
-        val match = TOKEN.find(text) ?: return listOf(text.trim())
+        val match = token.find(text) ?: return listOf(text.trim())
         val out = mutableListOf(match.value)
         val rest = text.substring(match.range.last + 1)
         if (rest.startsWith("\n") || rest.startsWith("\r\n")) {
@@ -150,13 +200,11 @@ object Rcdev1 {
         return out
     }
 
-    /** Throws IllegalArgumentException with a readable reason. */
-    fun parse(text: String): RayRegistration {
-        val tries = candidates(text)
+    fun <T> parse(text: String, read: (JsonObject) -> T): T {
         var first: IllegalArgumentException? = null
-        for (token in tries) {
+        for (candidate in candidates(text)) {
             try {
-                return parseToken(token)
+                return read(decode(candidate))
             } catch (e: IllegalArgumentException) {
                 if (first == null) first = e
             }
@@ -164,32 +212,67 @@ object Rcdev1 {
         throw first!!
     }
 
-    private fun parseToken(text: String): RayRegistration {
-        val body = text.trim().removePrefix(PREFIX).trim()
-        require(body.isNotEmpty() && body.all { it.isLetterOrDigit() || it == '-' || it == '_' }) {
-            "rcdev1: not base64url"
-        }
-        val json = body.decodeBase64()?.utf8() ?: throw IllegalArgumentException("rcdev1: not base64url")
-        val o = try {
+    private fun decode(text: String): JsonObject {
+        val name = prefix.removeSuffix(":")
+        val body = text.trim().removePrefix(prefix).trim()
+        require(body.isNotEmpty() && body.all { it.isLetterOrDigit() || it == '-' || it == '_' }) { "$name: not base64url" }
+        val json = body.decodeBase64()?.utf8() ?: throw IllegalArgumentException("$name: not base64url")
+        return try {
             JsonParser.parseString(json).asJsonObject
         } catch (e: Exception) {
-            throw IllegalArgumentException("rcdev1: not JSON")
+            throw IllegalArgumentException("$name: not JSON")
         }
-        require(o.long("v") == 1L) { "rcdev1: unsupported version ${o.get("v")}" }
+    }
+
+    companion object {
+        private val CONTINUATION = Regex("""^[A-Za-z0-9_-]+$""")
+    }
+}
+
+object Rcdev1 {
+    const val PREFIX = "rcdev1:"
+    private val token = RayToken(PREFIX)
+
+    /** A package anywhere in the text, e.g. the whole output of `rayctl device add` (raycontrol niko-r4-note.md §4). */
+    fun matches(text: String) = token.matches(text)
+
+    /**
+     * The package in [text]: the token that starts with `rcdev1:`. A terminal may have wrapped it, so the lines right
+     * after it that are base64url only are tried as its continuation, shortest first.
+     */
+    fun candidates(text: String) = token.candidates(text)
+
+    /** Throws IllegalArgumentException with a readable reason. */
+    fun parse(text: String): RayRegistration = token.parse(text) { o ->
+        fields(o, "rcdev1").copy(
+            subscription = RaySubscriptionInfo.fromRegistration(o),
+            api = (o.get("api") as? JsonObject)?.let {
+                try {
+                    RayApiInfo.fromJson(it)
+                } catch (e: IllegalArgumentException) {
+                    throw IllegalArgumentException("rcdev1: ${e.message}")
+                }
+            },
+        )
+    }
+
+    /** The fields an rcdev1 package and an rcinv1 invite share (spa-v2.md §8). */
+    internal fun fields(o: JsonObject, name: String): RayRegistration {
+        require(o.long("v") == 1L) { "$name: unsupported version ${o.get("v")}" }
         val host = o.string("host")
-        require(host.isNotBlank() && host.none { it.isWhitespace() || it == '/' }) { "rcdev1: invalid host" }
-        val spa = (o.get("spa") as? JsonObject ?: throw IllegalArgumentException("rcdev1: no spa")).let {
+        require(host.isNotBlank() && host.none { it.isWhitespace() || it == '/' }) { "$name: invalid host" }
+        val spa = (o.get("spa") as? JsonObject ?: throw IllegalArgumentException("$name: no spa")).let {
             try {
                 RaySpaParams.fromJson(it)
             } catch (e: IllegalArgumentException) {
-                throw IllegalArgumentException("rcdev1: ${e.message}")
+                throw IllegalArgumentException("$name: ${e.message}")
             }
         }
         val services = (o.get("services") as? JsonArray)?.map {
             try {
                 RayService.fromJson(it.asJsonObject)
             } catch (e: IllegalArgumentException) {
-                throw IllegalArgumentException("rcdev1: services: ${e.message}")
+                throw IllegalArgumentException("$name: services: ${e.message}")
             }
         }.orEmpty()
         return RayRegistration(
@@ -198,7 +281,6 @@ object Rcdev1 {
             deviceId = o.hex("device_id", 8),
             deviceKey = o.hex("device_key", 32),
             services = services,
-            subscription = RaySubscriptionInfo.fromRegistration(o),
         )
     }
 }
