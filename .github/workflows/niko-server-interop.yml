@@ -1,9 +1,12 @@
 name: niko-server interop
 
-# The Niko client core through both DNS tunnels of a pinned niko-server release
-# (arngory/niko-server): the DNS front, the dnstt and masterdns backends and the
-# inner stage on Xray. Each side checks itself against the other's release; the
-# server's own end-to-end test runs in arngory/niko-server.
+# The Niko client core through a pinned niko-server release (arngory/niko-server),
+# configured as raycontrol renders a node: the DNS front with the dnstt and
+# masterdns backends, UDP 443 (udpmux) with Hysteria2 by name (hy2-masq) and by
+# salamander (hy2-obfs), TCP 443 (tcpmux) with Yggdrasil by name, the inner stage
+# on Xray. The client side is configured as the app builds raycontrol profiles.
+# Each side checks itself against the other's release; the server's own
+# end-to-end test runs in arngory/niko-server.
 on:
   push:
     paths:
@@ -11,6 +14,7 @@ on:
       - ".github/niko-server.env"
       - ".github/xray-interop.env"
       - "buildScript/lib/core/get_source_env.sh"
+      - ".github/scripts/ygg-address.py"
   workflow_dispatch:
 
 permissions:
@@ -53,13 +57,13 @@ jobs:
         working-directory: core
         run: |
           go build -o /tmp/sing-box -ldflags=-checklinkname=0 \
-            -tags=with_utls,with_quic,with_dnstt,with_masterdnsvpn,badlinkname,tfogo_checklinkname0 ./cmd/sing-box
+            -tags=with_utls,with_quic,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0 ./cmd/sing-box
 
       - name: Start the node
         run: |
           R=/tmp/run; C=/tmp/cred
-          mkdir -p $R/dns $R/mdns $R/inner $C
-          chmod 0710 $R/dns $R/mdns $R/inner
+          mkdir -p $R/dns $R/mdns $R/inner $R/h2m $R/h2o $R/ygg $C
+          chmod 0710 $R/dns $R/mdns $R/inner $R/h2m $R/h2o $R/ygg
           uid=$(id -u)
           /tmp/niko-server keygen dnstt > /tmp/dnstt.keys
           awk '/^private/{print $2}' /tmp/dnstt.keys > $C/noise.key
@@ -84,7 +88,43 @@ jobs:
             backends: {dns: {socket: ($R + "/dns/packet.sock"), mode: "packet", uid: ($uid | tonumber)},
                        mdns: {socket: ($R + "/mdns/packet.sock"), mode: "packet", uid: ($uid | tonumber)}},
             dns: {listen: ["127.0.0.1:5353"], zones: [{zone: "t.example.com", backend: "dns"}, {zone: "v.example.com", backend: "mdns"}]}}' > /tmp/front.json
-          for f in dns mdns front; do /tmp/niko-server check -c /tmp/$f.json --json; done
+          # Hysteria2 and Yggdrasil: a self-signed certificate for both names (the client pins its key), the
+          # users file as raycontrol writes it, the node's Yggdrasil key and one device key (ed25519 seeds)
+          openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 30 -subj "/CN=h2.test" \
+            -addext "subjectAltName=DNS:h2.test,DNS:ygg.test" -keyout $C/key.pem -out $C/cert.pem 2>/dev/null
+          openssl x509 -in $C/cert.pem -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64 > /tmp/pin
+          openssl rand -hex 16 | tr -d '\n' > /tmp/hy2.pw
+          openssl rand -hex 16 | tr -d '\n' > $C/salamander
+          openssl rand -hex 32 | tr -d '\n' > $C/ygg.key
+          openssl rand -hex 32 | tr -d '\n' > /tmp/device.seed
+          pub() { python3 -I -c "import sys; sys.stdout.buffer.write(bytes.fromhex('302e020100300506032b657004220420'+sys.argv[1]))" "$1" |
+                  openssl pkey -inform DER -pubout -outform DER | python3 -I -c "import sys; print(sys.stdin.buffer.read()[-32:].hex())"; }
+          pub "$(cat $C/ygg.key)" > /tmp/node.pub
+          python3 -I .github/scripts/ygg-address.py "$(cat /tmp/node.pub)" > /tmp/node.ygg
+          echo "node in Yggdrasil: $(cat /tmp/node.ygg)"
+          jq -n --arg pw "$(cat /tmp/hy2.pw)" --arg key "$(pub "$(cat /tmp/device.seed)")" \
+            '{users: [{name: "u-1", enabled: true, hy2: {password: $pw}, yggdrasil: {public_key: $key}}]}' > $C/users.json
+          tls() { jq -n --arg C "$C" '{certificate_file: ($C + "/cert.pem"), key_file: ($C + "/key.pem")}'; }
+          jq -n --arg uid "$uid" --arg R "$R" --arg C "$C" --argjson tls "$(tls)" '{schema: 1, role: "backend", kind: "hy2-masq",
+            log: {level: "info"}, socket: ($R + "/h2m/packet.sock"), front_uid: ($uid | tonumber),
+            users_file: ($C + "/users.json"), tls: $tls}' > /tmp/h2m.json
+          jq -n --arg uid "$uid" --arg R "$R" --arg C "$C" --argjson tls "$(tls)" '{schema: 1, role: "backend", kind: "hy2-obfs",
+            log: {level: "info"}, socket: ($R + "/h2o/packet.sock"), front_uid: ($uid | tonumber),
+            users_file: ($C + "/users.json"), tls: $tls, options: {obfs_password_file: ($C + "/salamander")}}' > /tmp/h2o.json
+          jq -n --arg uid "$uid" --arg R "$R" --arg C "$C" --argjson tls "$(tls)" '{schema: 1, role: "backend", kind: "yggdrasil",
+            log: {level: "info"}, socket: ($R + "/ygg/fd.sock"), front_uid: ($uid | tonumber),
+            users_file: ($C + "/users.json"), tls: $tls, inner: ($R + "/inner/vless.sock"),
+            options: {private_key_file: ($C + "/ygg.key"), exit_ports: [7000]}}' > /tmp/ygg.json
+          # the front: TCP and UDP 443 on a test port, besides DNS
+          jq --arg uid "$uid" --arg R "$R" --arg C "$C" '.backends += {
+                h2m: {socket: ($R + "/h2m/packet.sock"), mode: "packet", uid: ($uid | tonumber)},
+                h2o: {socket: ($R + "/h2o/packet.sock"), mode: "packet", uid: ($uid | tonumber)},
+                ygg: {socket: ($R + "/ygg/fd.sock"), mode: "fd", uid: ($uid | tonumber)}}
+              | .tcp = {listen: ["127.0.0.1:18443"], routes: [{sni: ["ygg.test"], backend: "ygg"}]}
+              | .udp = {listen: ["127.0.0.1:18443"], routes: [{sni: ["h2.test"], backend: "h2m"},
+                                                              {salamander_password_file: ($C + "/salamander"), backend: "h2o"}]}' \
+            /tmp/front.json > /tmp/front2.json && mv /tmp/front2.json /tmp/front.json
+          for f in dns mdns h2m h2o ygg front; do /tmp/niko-server check -c /tmp/$f.json --json; done
           echo '{"schema":1,"role":"front","tcp":{}}' > /tmp/bad.json
           set +e; /tmp/niko-server check -c /tmp/bad.json --json; code=$?; set -e
           [ "$code" = 1 ] || { echo "check exit $code, want 1"; exit 1; }
@@ -93,34 +133,62 @@ jobs:
           sleep 1
           nohup /tmp/niko-server backend -c /tmp/dns.json > /tmp/dns.log 2>&1 &
           nohup /tmp/niko-server backend -c /tmp/mdns.json > /tmp/mdns.log 2>&1 &
+          for f in h2m h2o ygg; do nohup /tmp/niko-server backend -c /tmp/$f.json > /tmp/$f.log 2>&1 & done
           nohup /tmp/niko-server front -c /tmp/front.json > /tmp/front.log 2>&1 &
           sleep 2
 
       - name: Client through the tunnels
         run: |
+          # Hysteria2 as the app builds a raycontrol link: the key pin (niko-pin) instead of a CA, X25519MLKEM768
+          # only; hy2-obfs with salamander and an SNI the node does not serve. Yggdrasil as the app builds niko-ygg:
+          # the device's own mesh node (its seed), the node as its only peer, VLESS to the node's mesh address
+          hy2() { jq -n --arg tag "$1" --arg sni "$2" --arg pw "$(cat /tmp/hy2.pw)" --arg pin "$(cat /tmp/pin)" '{
+            type: "hysteria2", tag: $tag, server: "127.0.0.1", server_port: 18443, password: $pw,
+            tls: {enabled: true, server_name: $sni, alpn: ["h3"], curve_preferences: ["X25519MLKEM768"],
+              certificate_public_key_sha256: [$pin]}}'; }
+          obfs=$(hy2 hy2-obfs "$(openssl rand -hex 8).invalid" | jq --arg pw "$(cat /tmp/cred/salamander)" '. + {obfs: {type: "salamander", password: $pw}}')
           jq -n --arg pub "$(cat /tmp/dnstt.pub)" --arg key "$(cat /tmp/cred/encryption.key)" \
-                --arg id "$(cat /tmp/inner.uuid)" --arg enc "$(cat /tmp/inner.enc)" '{
+                --arg id "$(cat /tmp/inner.uuid)" --arg enc "$(cat /tmp/inner.enc)" \
+                --argjson masq "$(hy2 hy2-masq h2.test)" --argjson obfs "$obfs" \
+                --arg seed "$(cat /tmp/device.seed)" --arg nodepub "$(cat /tmp/node.pub)" --arg nodeygg "$(cat /tmp/node.ygg)" '{
             log: {level: "warn"},
             inbounds: [
               {type: "mixed", tag: "in-dnstt", listen: "127.0.0.1", listen_port: 11080},
-              {type: "mixed", tag: "in-mdns", listen: "127.0.0.1", listen_port: 11081}],
+              {type: "mixed", tag: "in-mdns", listen: "127.0.0.1", listen_port: 11081},
+              {type: "mixed", tag: "in-masq", listen: "127.0.0.1", listen_port: 11082},
+              {type: "mixed", tag: "in-obfs", listen: "127.0.0.1", listen_port: 11083},
+              {type: "mixed", tag: "in-ygg", listen: "127.0.0.1", listen_port: 11084}],
+            endpoints: [
+              {type: "yggdrasil", tag: "ygg", private_key: $seed, node_info_privacy: true,
+               peers: ["tls://127.0.0.1:18443?key=" + $nodepub + "&sni=ygg.test"]}],
             outbounds: [
               {type: "vless", tag: "inner-dnstt", server: "127.0.0.1", server_port: 1, uuid: $id, encryption: $enc, detour: "dnstt"},
               {type: "vless", tag: "inner-mdns", server: "127.0.0.1", server_port: 1, uuid: $id, encryption: $enc, detour: "mdns"},
+              {type: "vless", tag: "inner-ygg", server: $nodeygg, server_port: 7000, uuid: $id, encryption: $enc, detour: "ygg"},
               {type: "dnstt", tag: "dnstt", domain: "t.example.com", public_key: $pub, resolver: "udp://127.0.0.1:5353"},
               {type: "masterdnsvpn", tag: "mdns", domains: ["v.example.com"], resolvers: ["127.0.0.1:5353"],
-               encryption_method: 5, encryption_key: $key, mode: "tcp"}],
-            route: {rules: [{inbound: ["in-dnstt"], outbound: "inner-dnstt"}, {inbound: ["in-mdns"], outbound: "inner-mdns"}]}}' > /tmp/client.json
+               encryption_method: 5, encryption_key: $key, mode: "tcp"},
+              $masq, $obfs],
+            route: {rules: [{inbound: ["in-dnstt"], outbound: "inner-dnstt"}, {inbound: ["in-mdns"], outbound: "inner-mdns"},
+                            {inbound: ["in-masq"], outbound: "hy2-masq"}, {inbound: ["in-obfs"], outbound: "hy2-obfs"},
+                            {inbound: ["in-ygg"], outbound: "inner-ygg"}]}}' > /tmp/client.json
           /tmp/sing-box check -c /tmp/client.json
           nohup /tmp/sing-box run -c /tmp/client.json > /tmp/client.log 2>&1 &
           sleep 3
           fail=0
+          # a few tries: the mesh link and the QUIC handshakes take a moment after the start
           probe() {
-            got=$(curl -s -m 90 -o /dev/null -w '%{http_code}' -x "socks5h://127.0.0.1:$2" https://www.gstatic.com/generate_204 || true)
+            for i in 1 2 3 4 5 6; do
+              got=$(curl -s -m 90 -o /dev/null -w '%{http_code}' -x "socks5h://127.0.0.1:$2" https://www.gstatic.com/generate_204 || true)
+              [ "$got" = 204 ] && break; sleep 5
+            done
             echo "$1: $got (want 204)"; [ "$got" = 204 ] || fail=1
           }
           probe "dnstt → inner (VLESS ML-KEM-768)" 11080
           probe "MasterDnsVPN AES-256-GCM → inner (VLESS ML-KEM-768)" 11081
+          probe "Hysteria2 hy2-masq through udpmux (by name)" 11082
+          probe "Hysteria2 hy2-obfs through udpmux (by salamander)" 11083
+          probe "Yggdrasil through tcpmux → inner (VLESS ML-KEM-768)" 11084
           # the node answers no foreign names
           dig +short +tries=1 +time=3 @127.0.0.1 -p 5353 example.org A > /tmp/dig.out 2>&1 || true
           dig +tries=1 +time=3 @127.0.0.1 -p 5353 example.org A | grep -q "status: REFUSED" && echo "foreign name: REFUSED" || { echo "foreign name not refused"; fail=1; }
@@ -129,5 +197,5 @@ jobs:
       - name: Logs
         if: always()
         run: |
-          for f in inner dns mdns front client; do echo "--- $f"; tail -n 20 /tmp/$f.log 2>/dev/null || true; done
+          for f in inner dns mdns h2m h2o ygg front client; do echo "--- $f"; tail -n 20 /tmp/$f.log 2>/dev/null || true; done
           pkill -x xray || true; pkill -x niko-server || true; pkill -x sing-box || true
