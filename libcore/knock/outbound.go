@@ -69,6 +69,8 @@ type Options struct {
 	Silence badoption.Duration `json:"silence,omitempty"`
 	// SPAv2 replaces the sequence with raycontrol SPA v2 (spa2.go).
 	SPAv2 *SPAv2Options `json:"spa_v2,omitempty"`
+	// UDPPorts: UDP services of the node whose port rotates (udpports.go), SPA v2 only.
+	UDPPorts []UDPPortSchedule `json:"udp_ports,omitempty"`
 }
 
 func Register(registry *outbound.Registry) {
@@ -110,6 +112,7 @@ type Outbound struct {
 	domainResolver *option.DomainResolveOptions
 	steps          []step
 	spa2           *spa2Params
+	udpPorts       map[uint16]*portSchedule
 	// SPA v2 goes over TCP on this network (spa-v2.md §10); reset on a network change
 	spa2TCP  atomic.Bool
 	interval time.Duration
@@ -137,6 +140,10 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, t
 	} else {
 		steps, err = parseSequence(options.Sequence)
 	}
+	if err != nil {
+		return nil, err
+	}
+	udpPorts, err := parseUDPPorts(options.UDPPorts, spa2)
 	if err != nil {
 		return nil, err
 	}
@@ -171,6 +178,7 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, t
 		domainResolver: options.DomainResolver,
 		steps:          steps,
 		spa2:           spa2,
+		udpPorts:       udpPorts,
 		interval:       interval,
 		ttl:            ttl,
 		silence:        silence,

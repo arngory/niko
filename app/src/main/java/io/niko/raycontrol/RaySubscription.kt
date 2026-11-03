@@ -31,6 +31,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import libcore.Libcore
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
@@ -133,9 +134,17 @@ object RaySubscription {
         var skipped = 0
         val beans = LinkedHashMap<String, AbstractBean>()
         val links = HashMap<String, RayLinks>()
+        val kinds = node.services.associate { it.id to it.kind }
+        var doh: String? = null
         profiles.zip(profileKeys(profiles)).forEach { (profile, key) ->
             try {
                 val pair = linksOf(profile, nodeNow)
+                // DoH is not a proxy: it becomes the remote DNS while a profile of the node runs
+                val kind = profile.get("svc")?.takeIf { it.isJsonPrimitive }?.asInt?.let { kinds[it] }
+                if (isDoh(pair.activeLink, kind)) {
+                    if (doh == null) doh = dohUrl(pair.activeLink)
+                    return@forEach
+                }
                 val bean = parseProxies(pair.activeLink).firstOrNull()
                 if (bean == null) {
                     skipped++
@@ -153,7 +162,7 @@ object RaySubscription {
 
         // the UI and the scheduled worker (`:bg`) may both get here: one writer across the processes
         val refreshAt = maxOf(now + 60, nextRefresh(payload, nodeNow) - skew)
-        val stored = RayNodesLock.withLock { store(nodeId, payload.get("seq").asLong, refreshAt, skew, beans, links) }
+        val stored = RayNodesLock.withLock { store(nodeId, payload.get("seq").asLong, refreshAt, skew, beans, links, doh) }
         if (stored != null) {
             if (stored.groupCreated) GroupManager.iterator { groupAdd(stored.group) }
             GroupManager.postReload(stored.group.id)
@@ -191,6 +200,7 @@ object RaySubscription {
      */
     private fun store(
         nodeId: String, seq: Long, refreshAt: Long, skew: Long, beans: Map<String, AbstractBean>, links: Map<String, RayLinks>,
+        doh: String?,
     ): Stored? {
         val node = RayNodes.get(nodeId) ?: throw Exception("raycontrol node $nodeId was removed")
         if (seq < node.subSeq) return null
@@ -233,7 +243,7 @@ object RaySubscription {
             RayNodes.update(nodeId) {
                 it.copy(
                     subSeq = seq, groupId = group.id, profileIds = ids + stale, refreshAt = refreshAt,
-                    links = links.filterKeys { k -> k in ids }, clockSkew = skew,
+                    links = links.filterKeys { k -> k in ids }, clockSkew = skew, doh = doh,
                 )
             }
         }
@@ -343,6 +353,20 @@ object RaySubscription {
             val n = seen.merge(svc, 1, Int::plus)!!
             if (n == 1) svc else "$svc#$n"
         }
+    }
+
+    /** A DoH profile of the subscription (subscription-v1.md §4): the service kind, or the RFC 8484 path. */
+    fun isDoh(link: String, kind: String?): Boolean =
+        kind == "doh" || (link.startsWith("https://") && link.toHttpUrlOrNull()?.encodedPath?.startsWith("/dns-query") == true)
+
+    /** The DoH URL to query: the link without `niko-*` parameters and the name (niko-r3-note.md §2 p. 2). */
+    fun dohUrl(link: String): String {
+        val url = link.toHttpUrlOrNull() ?: throw IllegalArgumentException("DoH: not a URL")
+        require(url.isHttps) { "DoH: not https" }
+        return url.newBuilder().apply {
+            url.queryParameterNames.filter { it.startsWith("niko-") }.forEach { removeAllQueryParameters(it) }
+            fragment(null)
+        }.build().toString()
     }
 
     /** rotation (R4): from `next.from` on (the node's clock), the next credential replaces the current one */

@@ -3,7 +3,6 @@ package knock
 import (
 	"context"
 	"crypto/hkdf"
-	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
@@ -160,11 +159,7 @@ func (p *spa2Params) slot(t time.Time) uint64  { return uint64(t.Unix()) / p.slo
 
 // port of a slot: base + BE64(HMAC-SHA256(port_key, label || BE64(slot))[0:8]) mod range
 func (p *spa2Params) port(slot uint64) uint16 {
-	mac := hmac.New(sha256.New, p.portKey[:])
-	mac.Write([]byte(spa2PortInfo))
-	mac.Write(be64(slot))
-	v := binary.BigEndian.Uint64(mac.Sum(nil)[:8])
-	return p.portBase + uint16(v%uint64(p.portRange))
+	return slotPort(p.portKey[:], p.portBase, p.portRange, slot)
 }
 
 // epochKey = HKDF-SHA256(ikm = device_key, salt = node_id, info = label || BE64(epoch), 32)
@@ -281,17 +276,17 @@ func (o *Outbound) dialSPA2(ctx context.Context, network string, destination M.S
 	if _, err := o.knock(ctx, destination, false); err != nil {
 		return nil, err
 	}
-	conn, err := o.dialer.DialContext(ctx, network, destination)
+	conn, err := o.dialPeer(ctx, network, destination)
 	if err != nil {
 		o.logger.DebugContext(ctx, "dial after SPA failed, sending it once more: ", err)
 		if o.sendSPA2(ctx, destination) == nil {
-			conn, err = o.dialer.DialContext(ctx, network, destination)
+			conn, err = o.dialPeer(ctx, network, destination)
 		}
 	}
 	if err != nil && !o.spa2TCP.Load() {
 		o.logger.DebugContext(ctx, "dial after SPA over UDP failed, trying the TCP carrier: ", err)
 		if o.sendSPA2Over(ctx, destination, true) == nil {
-			conn, err = o.dialer.DialContext(ctx, network, destination)
+			conn, err = o.dialPeer(ctx, network, destination)
 			if err == nil {
 				o.spa2TCP.Store(true)
 				o.logger.InfoContext(ctx, "SPA v2 goes over TCP on this network (UDP did not open ", destination.AddrString(), ")")
@@ -307,6 +302,25 @@ func (o *Outbound) dialSPA2(ctx context.Context, network string, destination M.S
 	if N.NetworkName(network) == N.NetworkUDP {
 		return o.watchConn(conn, destination), nil
 	}
+	return conn, nil
+}
+
+// dialPeer dials the service; a UDP service with a rotating port (spa-v2.md §11)
+// gets one socket that follows the slot port.
+func (o *Outbound) dialPeer(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	schedule := o.udpPorts[destination.Port]
+	if schedule == nil || N.NetworkName(network) != N.NetworkUDP || !destination.IsIP() {
+		return o.dialer.DialContext(ctx, network, destination)
+	}
+	packetConn, err := o.dialer.ListenPacket(ctx, destination)
+	if err != nil {
+		return nil, err
+	}
+	conn := newRotatingUDPConn(packetConn, destination, schedule)
+	conn.onTurn = func(from, to uint16) {
+		o.logger.Debug("UDP ", destination.AddrString(), ":", destination.Port, ": slot port ", from, " -> ", to)
+	}
+	o.logger.DebugContext(ctx, "UDP ", destination, " goes to the slot port ", conn.current().Port)
 	return conn, nil
 }
 

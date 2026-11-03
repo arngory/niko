@@ -115,4 +115,50 @@ class RaySubscriptionTest {
         assertEquals(3000, RaySubscription.nextRefresh(payload, 2600))
         assertEquals(3660, RaySubscription.nextRefresh(payload, 3600))
     }
+
+    // R3: rotating UDP ports of a service (spa-v2.md §11), kept in the node
+    @Test
+    fun servicePortSchedules() {
+        val services = """"services": [{"id": 4, "kind": "hy2-masq", "name": "hy2", "port_key": "${"55".repeat(32)}",
+            "port_base": 50000, "port_range": 2000}, {"id": 1, "kind": "reality", "name": "reality"}]"""
+        val r = Rcdev1.parse(pack("{" + base.replace(""""services": []""", services) + "}"))
+        assertEquals(RayPortSchedule("55".repeat(32), 50000, 2000), r.services[0].ports)
+        assertNull(r.services[1].ports)
+        val node = RayNode(r.host, r.spa, r.deviceId, "w", r.services, doh = "https://d.example/dns-query/tok")
+        assertEquals(node, RayNode.fromJson(JsonParser.parseString(node.toJson().toString()).asJsonObject))
+        for (bad in listOf(
+            services.replace(""""port_base": 50000, """, ""),
+            services.replace("2000", "20000"),
+            services.replace("55".repeat(32), "55"),
+        )) {
+            try {
+                Rcdev1.parse(pack("{" + base.replace(""""services": []""", bad) + "}"))
+                fail("accepted a bad port schedule")
+            } catch (_: IllegalArgumentException) {
+            }
+        }
+    }
+
+    // R3 links (subscription-v1.md §4): DoH is not a proxy; hy2-obfs pins the key by niko-pin
+    @Test
+    fun r3Links() {
+        val doh = "https://abc.node.example/dns-query/TOKEN?niko-node=33&niko-svc=5#doh"
+        assertTrue(RaySubscription.isDoh(doh, null))
+        assertTrue(RaySubscription.isDoh("https://x.example/q", "doh"))
+        assertTrue(!RaySubscription.isDoh("naive+https://niko:pw@n.example:443?niko-svc=6#naive", "naive"))
+        assertEquals("https://abc.node.example/dns-query/TOKEN", RaySubscription.dohUrl(doh))
+
+        val spki = "q".repeat(43)
+        val hy2 = io.niko.fmt.hysteria.parseHysteria2(
+            "hysteria2://pw@203.0.113.7:47000/?sni=0011aabb.invalid&insecure=0&obfs=salamander&obfs-password=op" +
+                "&niko-pin=$spki&pinSHA256=${"ab".repeat(32)}&niko-node=33&niko-svc=4#hy2-obfs"
+        )
+        assertEquals(spki, hy2.certPins)
+        assertEquals("0011aabb.invalid", hy2.sni)
+        assertEquals("op", hy2.obfuscation)
+        assertTrue(!hy2.allowInsecure)
+        // the pin is a SHA-256 of the key: it parses for sing-box
+        assertEquals(1, io.niko.fmt.parseCertificatePins(hy2.certPins).size)
+    }
 }
+

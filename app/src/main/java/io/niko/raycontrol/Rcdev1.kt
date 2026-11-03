@@ -48,7 +48,35 @@ data class RaySpaParams(
     }
 }
 
-data class RayService(val id: Int, val kind: String, val name: String)
+/** A UDP service whose port rotates every slot (spa-v2.md §11): the schedule's key and range. */
+data class RayPortSchedule(val portKey: String, val portBase: Int, val portRange: Int) {
+    init {
+        require(portRange > 0 && portBase > 0 && portBase + portRange <= 65536) { "invalid service port range" }
+    }
+}
+
+data class RayService(val id: Int, val kind: String, val name: String, val ports: RayPortSchedule? = null) {
+    fun toJson() = JsonObject().apply {
+        addProperty("id", id)
+        addProperty("kind", kind)
+        addProperty("name", name)
+        ports?.let {
+            addProperty("port_key", it.portKey)
+            addProperty("port_base", it.portBase)
+            addProperty("port_range", it.portRange)
+        }
+    }
+
+    companion object {
+        /** `services[]` of a registration (spa-v2.md §8): `port_key`, `port_base`, `port_range` all or none. */
+        fun fromJson(s: JsonObject): RayService {
+            val ports = if (s.has("port_key") || s.has("port_base") || s.has("port_range")) {
+                RayPortSchedule(s.hex("port_key", 32), s.long("port_base").toInt(), s.long("port_range").toInt())
+            } else null
+            return RayService(s.long("id").toInt(), s.string("kind"), s.string("name"), ports)
+        }
+    }
+}
 
 /** Subscription endpoint (spa-v2.md §8 `sub`) and the node's signing keys (`node_keys`). */
 data class RaySubscriptionInfo(val port: Int, val pin: String, val ed25519: String, val mldsa65: String) {
@@ -158,8 +186,11 @@ object Rcdev1 {
             }
         }
         val services = (o.get("services") as? JsonArray)?.map {
-            val s = it.asJsonObject
-            RayService(s.long("id").toInt(), s.string("kind"), s.string("name"))
+            try {
+                RayService.fromJson(it.asJsonObject)
+            } catch (e: IllegalArgumentException) {
+                throw IllegalArgumentException("rcdev1: services: ${e.message}")
+            }
         }.orEmpty()
         return RayRegistration(
             host = host.trim().removePrefix("[").removeSuffix("]"),

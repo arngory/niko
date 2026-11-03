@@ -24,6 +24,7 @@ import io.niko.fmt.v2ray.buildSingBoxOutboundStandardV2RayBean
 import io.niko.fmt.wireguard.WireGuardBean
 import io.niko.fmt.wireguard.buildSingBoxEndpointWireguardBean
 import io.niko.ktx.Logs
+import io.niko.raycontrol.RayNode
 import io.niko.raycontrol.RayNodes
 import io.niko.raycontrol.knockOptions
 import io.niko.ktx.isIpAddress
@@ -316,6 +317,9 @@ fun buildConfig(
         var tunnelledHop = false
         // the chains behind TAG_PROXY, which remote DNS uses, as opposed to route-rule outbounds
         var buildingProxy = false
+        // the main profile dials a raycontrol node with a DoH service: that DoH is the remote DNS, through the
+        // node's knock outbound (SPA, then straight to the node)
+        var nodeDoh: Pair<RayNode, String>? = null
         if (yggdrasil && !forTest) {
             addYggdrasilEndpoint(DataStore.yggdrasilPrivateKey)
             yggdrasilInboundRule = Rule_DefaultOptions().apply {
@@ -582,6 +586,13 @@ fun buildConfig(
                         rayNode?.let { if (forExport) it.knockOptions() else RayNodes.prepareKnock(it) }
                             ?: bean.buildKnockOutboundOptions()
                     )
+                    // the node's UDP service port rotates (spa-v2.md §11): the knock outbound follows it
+                    rayNode?.let { rotatingUdpPorts(it, proxyEntity, bean) }?.let {
+                        knockOutbound._hack_config_map["udp_ports"] = it
+                    }
+                    if (buildingProxy && entity.id == proxy.id && index == profileList.lastIndex && rayNode?.doh != null) {
+                        nodeDoh = rayNode to knockTag
+                    }
                     currentOutbound._hack_config_map.remove("domain_resolver")?.let {
                         knockOutbound._hack_config_map["domain_resolver"] = it
                     }
@@ -942,7 +953,9 @@ fun buildConfig(
             directDNS.firstOrNull() ?: throw Exception("No direct DNS, check your settings!"),
             "dns-direct", null, "dns-local"
         ))
-        if (!forTest) dns.servers.add(DNSServerOptions.fromAddress(
+        val dohOfNode = nodeDoh
+        if (!forTest && dohOfNode != null) dns.servers.add(nodeDohServer(dohOfNode.first, dohOfNode.second))
+        else if (!forTest) dns.servers.add(DNSServerOptions.fromAddress(
             remoteDns.firstOrNull() ?: throw Exception("No remote DNS, check your settings!"),
             "dns-remote", TAG_PROXY, "dns-direct"
         ).apply {
@@ -1069,4 +1082,40 @@ fun String.isYggdrasilAddress(): Boolean {
     val value = first.toIntOrNull(16) ?: return false
     // 200::/7: the first 16 bits are 0x0200-0x03ff
     return value in 0x200..0x3ff && host.isIpAddress()
+}
+
+/**
+ * The rotating port of a raycontrol UDP service (spa-v2.md §11) for a Hysteria2 row of the node's subscription:
+ * the row's key names the service. Null for other profiles, or when the profile hops ports itself.
+ */
+private fun rotatingUdpPorts(node: RayNode, entity: ProxyEntity, bean: AbstractBean): List<Map<String, Any>>? {
+    if (bean !is HysteriaBean || bean.serverPorts.contains(',') || bean.serverPorts.contains('-')) return null
+    val (owner, key) = RayNodes.ownerOf(entity.id) ?: return null
+    if (owner.spa.nodeId != node.spa.nodeId) return null
+    val svc = key.substringBefore('#').toIntOrNull() ?: return null
+    val ports = node.services.firstOrNull { it.id == svc }?.ports ?: return null
+    val port = bean.serverPorts.trim().toIntOrNull() ?: return null
+    return listOf(mapOf("port" to port, "port_key" to ports.portKey, "port_base" to ports.portBase, "port_range" to ports.portRange))
+}
+
+/**
+ * The node's DoH as the remote DNS (raycontrol niko-r3-note.md §2 p. 2): RFC 8484 over h2 to the node's own
+ * address, the one SPA opened, with the DoH name as SNI and post-quantum key exchange only.
+ */
+private fun nodeDohServer(node: RayNode, knockTag: String): DNSServerOptions {
+    val url = node.doh!!.toHttpUrlOrNull() ?: throw Exception("raycontrol node ${node.host}: bad DoH URL")
+    return DNSServerOptions().apply {
+        type = "https"
+        tag = "dns-remote"
+        server = node.host
+        server_port = url.port
+        path = url.encodedPath + (url.encodedQuery?.let { "?$it" } ?: "")
+        detour = knockTag
+        if (!node.host.isIpAddress()) domain_resolver = "dns-direct"
+        _hack_config_map["tls"] = mapOf(
+            "enabled" to true,
+            "server_name" to url.host,
+            "curve_preferences" to listOf("X25519MLKEM768"),
+        )
+    }
 }

@@ -60,6 +60,9 @@ data class RayNode(
     val links: Map<String, RayLinks> = emptyMap(),
     // node clock minus ours at the last fetch (s): rotation times are the node's
     val clockSkew: Long = 0,
+    // the node's DoH from the subscription (https://<name>/dns-query/<token>, niko-* dropped): the remote DNS
+    // while a profile of this node runs
+    val doh: String? = null,
 ) {
     /** the key reference handed to the core; the key itself never enters the config */
     val keyRef get() = "raycontrol:${spa.nodeId}:$deviceId"
@@ -72,15 +75,7 @@ data class RayNode(
         add("spa", spa.toJson())
         addProperty("device_id", deviceId)
         addProperty("device_key_wrapped", deviceKeyWrapped)
-        add("services", JsonArray().apply {
-            services.forEach {
-                add(JsonObject().apply {
-                    addProperty("id", it.id)
-                    addProperty("kind", it.kind)
-                    addProperty("name", it.name)
-                })
-            }
-        })
+        add("services", JsonArray().apply { services.forEach { add(it.toJson()) } })
         subscription?.let { add("sub", it.toJson()) }
         addProperty("sub_seq", subSeq)
         addProperty("group_id", groupId)
@@ -88,6 +83,7 @@ data class RayNode(
         addProperty("refresh_at", refreshAt)
         add("links", JsonObject().apply { links.forEach { (k, v) -> add(k, v.toJson()) } })
         addProperty("clock_skew", clockSkew)
+        doh?.let { addProperty("doh", it) }
     }
 
     companion object {
@@ -96,10 +92,7 @@ data class RayNode(
             spa = RaySpaParams.fromJson(o.getAsJsonObject("spa")),
             deviceId = o.string("device_id"),
             deviceKeyWrapped = o.string("device_key_wrapped"),
-            services = o.getAsJsonArray("services")?.map {
-                val s = it.asJsonObject
-                RayService(s.long("id").toInt(), s.string("kind"), s.string("name"))
-            }.orEmpty(),
+            services = o.getAsJsonArray("services")?.map { RayService.fromJson(it.asJsonObject) }.orEmpty(),
             subscription = (o.get("sub") as? JsonObject)?.let { RaySubscriptionInfo.fromJson(it) },
             subSeq = o.get("sub_seq")?.asLong ?: 0,
             groupId = o.get("group_id")?.asLong ?: 0,
@@ -107,6 +100,7 @@ data class RayNode(
             refreshAt = o.get("refresh_at")?.asLong ?: 0,
             links = (o.get("links") as? JsonObject)?.entrySet()?.associate { it.key to RayLinks.fromJson(it.value.asJsonObject) }.orEmpty(),
             clockSkew = o.get("clock_skew")?.asLong ?: 0,
+            doh = o.get("doh")?.takeIf { it.isJsonPrimitive }?.asString,
         )
     }
 }

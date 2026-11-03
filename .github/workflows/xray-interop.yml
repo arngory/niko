@@ -1,7 +1,9 @@
 name: Xray interop
 
-# The core's VLESS client against an Xray server built from arngory/xray-core:
-# REALITY + Vision with and without the ML-DSA-65 check, and VLESS encryption.
+# The core's clients against an Xray server built from arngory/xray-core:
+# REALITY + Vision with and without the ML-DSA-65 check, VLESS encryption, and
+# Hysteria2 as raycontrol renders hy2-obfs (salamander, a self-signed
+# certificate pinned by its key, SNI <hex>.invalid, X25519MLKEM768 only).
 on:
   push:
     paths:
@@ -59,9 +61,20 @@ jobs:
           dec=$(echo "$v" | awk -F'"' '/"decryption"/{print $4}')
           enc=$(echo "$v" | awk -F'"' '/"encryption"/{print $4}')
           uuid=$(cat /proc/sys/kernel/random/uuid)
-          for k in priv pbk seed verify wrong dec enc; do [ -n "${!k}" ] || { echo "no $k"; exit 1; }; done
+          # hy2-obfs: a self-signed P-256 certificate under a name that is not in DNS
+          sni="$(openssl rand -hex 8).invalid"
+          openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 30 -subj "/CN=$sni" \
+            -keyout /tmp/hy2.key -out /tmp/hy2.crt 2>/dev/null
+          spki() { openssl x509 -in "$1" -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64; }
+          pin=$(spki /tmp/hy2.crt)
+          openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 30 -subj "/CN=other" \
+            -keyout /tmp/other.key -out /tmp/other.crt 2>/dev/null
+          wrongpin=$(spki /tmp/other.crt)
+          hy2pw=$(openssl rand -hex 16); obfspw=$(openssl rand -hex 16)
+          for k in priv pbk seed verify wrong dec enc pin wrongpin; do [ -n "${!k}" ] || { echo "no $k"; exit 1; }; done
           echo "verify key: ${#verify} chars, encryption: ${enc%%.*}"
-          jq -n --arg uuid "$uuid" --arg priv "$priv" --arg seed "$seed" --arg dec "$dec" '{
+          jq -n --arg uuid "$uuid" --arg priv "$priv" --arg seed "$seed" --arg dec "$dec" \
+                --arg hy2pw "$hy2pw" --arg obfspw "$obfspw" '{
             log: {loglevel: "warning"},
             inbounds: [
               {listen: "127.0.0.1", port: 18443, protocol: "vless",
@@ -70,26 +83,43 @@ jobs:
                  realitySettings: {target: "www.microsoft.com:443", serverNames: ["www.microsoft.com"],
                    privateKey: $priv, shortIds: ["a1b2c3d4"], mldsa65Seed: $seed}}},
               {listen: "127.0.0.1", port: 18444, protocol: "vless",
-               settings: {clients: [{id: $uuid}], decryption: $dec}}],
+               settings: {clients: [{id: $uuid}], decryption: $dec}},
+              {listen: "127.0.0.1", port: 18445, protocol: "hysteria",
+               settings: {version: 2, clients: [{auth: $hy2pw, email: "u@hy2"}]},
+               streamSettings: {network: "hysteria", security: "tls",
+                 tlsSettings: {minVersion: "1.3", alpn: ["h3"], curvePreferences: ["X25519MLKEM768"],
+                   certificates: [{certificateFile: "/tmp/hy2.crt", keyFile: "/tmp/hy2.key"}]},
+                 hysteriaSettings: {version: 2, masquerade: {type: "string", statusCode: 404, content: ""}},
+                 finalmask: {udp: [{type: "salamander", settings: {password: $obfspw}}]}}}],
             outbounds: [{protocol: "freedom"}]}' > /tmp/xray.json
           reality() { jq -n --arg tag "$1" --arg uuid "$uuid" --arg pbk "$pbk" --arg pqv "$2" '{
             type: "vless", tag: $tag, server: "127.0.0.1", server_port: 18443, uuid: $uuid, flow: "xtls-rprx-vision",
             tls: {enabled: true, server_name: "www.microsoft.com", utls: {enabled: true, fingerprint: "chrome"},
               reality: ({enabled: true, public_key: $pbk, short_id: "a1b2c3d4"} + (if $pqv == "" then {} else {mldsa65_verify: $pqv} end))}}'; }
+          # what the app builds from a hy2-obfs link: niko-pin as the key pin, the CA check off, PQ key exchange only
+          hy2() { jq -n --arg tag "$1" --arg pin "$2" --arg sni "$sni" --arg pw "$hy2pw" --arg obfspw "$obfspw" '{
+            type: "hysteria2", tag: $tag, server: "127.0.0.1", server_port: 18445, password: $pw,
+            obfs: {type: "salamander", password: $obfspw},
+            tls: {enabled: true, server_name: $sni, alpn: ["h3"], curve_preferences: ["X25519MLKEM768"],
+              certificate_public_key_sha256: [$pin]}}'; }
           jq -n --argjson ok "$(reality r-ok "$verify")" --argjson plain "$(reality r-plain "")" \
-                --argjson bad "$(reality r-bad "$wrong")" --arg uuid "$uuid" --arg enc "$enc" '{
+                --argjson bad "$(reality r-bad "$wrong")" --arg uuid "$uuid" --arg enc "$enc" \
+                --argjson hy2 "$(hy2 hy2 "$pin")" --argjson hy2bad "$(hy2 hy2-bad "$wrongpin")" '{
             log: {level: "warn"},
             inbounds: [
               {type: "mixed", tag: "in-ok", listen: "127.0.0.1", listen_port: 11080},
               {type: "mixed", tag: "in-plain", listen: "127.0.0.1", listen_port: 11081},
               {type: "mixed", tag: "in-bad", listen: "127.0.0.1", listen_port: 11082},
-              {type: "mixed", tag: "in-enc", listen: "127.0.0.1", listen_port: 11083}],
-            outbounds: [$ok, $plain, $bad,
+              {type: "mixed", tag: "in-enc", listen: "127.0.0.1", listen_port: 11083},
+              {type: "mixed", tag: "in-hy2", listen: "127.0.0.1", listen_port: 11084},
+              {type: "mixed", tag: "in-hy2-bad", listen: "127.0.0.1", listen_port: 11085}],
+            outbounds: [$ok, $plain, $bad, $hy2, $hy2bad,
               {type: "vless", tag: "enc", server: "127.0.0.1", server_port: 18444, uuid: $uuid, encryption: $enc},
               {type: "direct", tag: "direct"}],
             route: {rules: [
               {inbound: ["in-ok"], outbound: "r-ok"}, {inbound: ["in-plain"], outbound: "r-plain"},
-              {inbound: ["in-bad"], outbound: "r-bad"}, {inbound: ["in-enc"], outbound: "enc"}]}}' > /tmp/client.json
+              {inbound: ["in-bad"], outbound: "r-bad"}, {inbound: ["in-enc"], outbound: "enc"},
+              {inbound: ["in-hy2"], outbound: "hy2"}, {inbound: ["in-hy2-bad"], outbound: "hy2-bad"}]}}' > /tmp/client.json
           /tmp/xray run -test -c /tmp/xray.json
           /tmp/sing-box check -c /tmp/client.json
 
@@ -106,6 +136,8 @@ jobs:
           check "REALITY, wrong ML-DSA-65 key (must fail)" 11082 000
           grep -q "ML-DSA-65 signature does not match" /tmp/client.log || { echo "no ML-DSA-65 error in the log"; fail=1; }
           check "VLESS encryption mlkem768x25519plus" 11083 204
+          check "Hysteria2 hy2-obfs: salamander, key pin, X25519MLKEM768" 11084 204
+          check "Hysteria2, wrong key pin (must fail)" 11085 000
           exit $fail
 
       - name: Logs
