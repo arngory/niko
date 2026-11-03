@@ -40,6 +40,8 @@ object RayImport {
     fun failure(context: Context, e: Throwable): String = when {
         // used, expired, revoked, a wrong key, or the clock off by more than 2 minutes
         RayApi.code(e) == "not_found" -> context.getString(R.string.raycontrol_invite_refused)
+        // the request reached the node: the invite may be used by this very registration (rayapi.ErrAnswerLost)
+        e.message?.contains("answer was lost") == true -> context.getString(R.string.raycontrol_invite_lost)
         e.message?.contains("did not answer") == true ->
             context.getString(R.string.raycontrol_invite_failed, e.readableMessage) + " " +
                 context.getString(R.string.raycontrol_clock_hint)

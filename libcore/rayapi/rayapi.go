@@ -82,6 +82,18 @@ func (e *Error) Error() string {
 // ErrNoAnswer: the API port stayed closed after SPA over UDP and TCP.
 var ErrNoAnswer = errors.New("raycontrol api: the node did not answer")
 
+// ErrAnswerLost: the request went out but no answer came. The call may have
+// taken effect on the node (an invite used, keys switched), so it is not sent
+// again.
+var ErrAnswerLost = errors.New("raycontrol api: the request was sent but its answer was lost; it may have taken effect")
+
+// connectError is a failure before any request was sent: TCP or the TLS
+// handshake. Only these are tried again after another SPA packet.
+type connectError struct{ err error }
+
+func (e *connectError) Error() string { return e.err.Error() }
+func (e *connectError) Unwrap() error { return e.err }
+
 var errPin = errors.New("raycontrol api: the server key does not match the pin")
 
 // NewIdentity makes a client key (ECDSA P-256) and a self-signed certificate
@@ -183,11 +195,26 @@ func (e *Endpoint) client() (*http.Client, error) {
 	if timeout == 0 {
 		timeout = 20 * time.Second
 	}
+	dialer := e.dialer()
 	return &http.Client{
 		Timeout: timeout,
 		Transport: &http.Transport{
-			DialContext:       e.dialer().DialContext,
-			TLSClientConfig:   config,
+			// the connection is made here, so that a failure before the request is told apart (connectError)
+			DialTLSContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+				raw, err := dialer.DialContext(ctx, network, address)
+				if err != nil {
+					return nil, &connectError{err}
+				}
+				conn := tls.Client(raw, config)
+				if err = conn.HandshakeContext(ctx); err != nil {
+					raw.Close()
+					if errors.Is(err, errPin) {
+						return nil, errPin
+					}
+					return nil, &connectError{err}
+				}
+				return conn, nil
+			},
 			ForceAttemptHTTP2: true,
 			Proxy:             nil,
 		},
@@ -196,8 +223,9 @@ func (e *Endpoint) client() (*http.Client, error) {
 
 // Call makes one unary call (method: "<package>.<Service>/<Method>") with a
 // JSON body (protobuf JSON mapping) and returns the JSON answer. SPA goes
-// over UDP, once more, then over TCP while the port does not answer; an
-// answer of the node (even an error) ends the attempts.
+// over UDP, once more, then over TCP while no connection can be made; once
+// the request went out it is never sent again (ErrAnswerLost), since calls
+// such as Register or RotateService must not run twice.
 func Call(ctx context.Context, e Endpoint, method string, body []byte) ([]byte, error) {
 	client, err := e.client()
 	if err != nil {
@@ -213,8 +241,8 @@ func Call(ctx context.Context, e Endpoint, method string, body []byte) ([]byte, 
 			return nil, err
 		}
 		answer, err := e.post(ctx, client, method, body)
-		var apiErr *Error
-		if err == nil || errors.As(err, &apiErr) || errors.Is(err, errPin) {
+		var connErr *connectError
+		if err == nil || !errors.As(err, &connErr) {
 			return answer, err
 		}
 		lastErr = err
@@ -235,15 +263,21 @@ func (e *Endpoint) post(ctx context.Context, client *http.Client, method string,
 	request.Header.Set("Connect-Protocol-Version", "1")
 	response, err := client.Do(request)
 	if err != nil {
-		if errors.Is(err, errPin) {
+		var connErr *connectError
+		switch {
+		case errors.Is(err, errPin):
 			return nil, errPin
+		case errors.As(err, &connErr):
+			return nil, err
+		default:
+			// the request may have reached the node
+			return nil, fmt.Errorf("%w: %v", ErrAnswerLost, err)
 		}
-		return nil, err
 	}
 	defer response.Body.Close()
 	answer, err := io.ReadAll(io.LimitReader(response.Body, maxBody))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", ErrAnswerLost, err)
 	}
 	if response.StatusCode != http.StatusOK {
 		apiErr := &Error{}

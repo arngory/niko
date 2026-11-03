@@ -26,6 +26,7 @@ import io.niko.R
 import io.niko.raycontrol.Rcinv1
 import io.niko.raycontrol.Rcdev1
 import io.niko.raycontrol.RayImport
+import io.niko.raycontrol.RayNodes
 import io.niko.SagerNet
 import io.niko.aidl.ISagerNetService
 import io.niko.aidl.SpeedDisplayData
@@ -147,15 +148,22 @@ class MainActivity : ThemedActivity(),
         // a raycontrol invite or device package: any page or app can open such a link, so ask first
         if (uri.scheme == "rcinv1" || uri.scheme == "rcdev1") {
             val text = uri.toString()
-            val host = try {
-                if (uri.scheme == "rcinv1") Rcinv1.parse(text).host else Rcdev1.parse(text).host
+            val (host, nodeId) = try {
+                if (uri.scheme == "rcinv1") Rcinv1.parse(text).let { it.host to it.spa.nodeId }
+                else Rcdev1.parse(text).let { it.host to it.spa.nodeId }
             } catch (e: Exception) {
                 alert(e.readableMessage).show()
                 return
             }
+            // a link must not quietly replace a node this device already has (its key, its admin certificate)
+            val known = RayNodes.get(nodeId)
+            if (known != null && !known.host.equals(host, ignoreCase = true)) {
+                alert(getString(R.string.raycontrol_link_host_mismatch, known.host, host)).show()
+                return
+            }
             MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.raycontrol_nodes)
-                .setMessage(getString(R.string.raycontrol_link_confirm, host))
+                .setMessage(getString(if (known != null) R.string.raycontrol_link_replace else R.string.raycontrol_link_confirm, host))
                 .setPositiveButton(R.string.yes) { _, _ ->
                     runOnDefaultDispatcher {
                         RayImport.import(app, text) { message -> onMainDispatcher { snackbar(message).show() } }

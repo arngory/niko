@@ -18,6 +18,7 @@ import (
 	"net/http/httptest"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -32,6 +33,7 @@ type node struct {
 	devices   map[string]string // client pin -> role
 	sawProto  string
 	sawCurve  tls.CurveID
+	slowHits  atomic.Int32
 }
 
 func writeError(w http.ResponseWriter, status int, code string) {
@@ -100,6 +102,12 @@ func newNode(t *testing.T) *node {
 		}
 		n.sawProto = r.Proto
 		w.Write([]byte(`{"users":[{"id":"1","name":"alice","enabled":true,"services":["reality"]}]}`))
+	})
+	mux.HandleFunc("/raycontrol.node.v1.NodeService/RotateService", func(w http.ResponseWriter, r *http.Request) {
+		n.slowHits.Add(1)
+		// processed, but the answer comes too late for the client
+		time.Sleep(1500 * time.Millisecond)
+		w.Write([]byte(`{"switchAt":"1"}`))
 	})
 	n.server = httptest.NewUnstartedServer(mux)
 	n.server.EnableHTTP2 = true
@@ -215,5 +223,23 @@ func TestNekoAPIWithSPA(t *testing.T) {
 	n.server.Close()
 	if _, err := Call(context.Background(), e, NodeService+"ListUsers", nil); !errors.Is(err, ErrNoAnswer) {
 		t.Fatalf("closed port: %v", err)
+	}
+}
+
+// A request that reached the node is never sent again: Register or RotateService must not run twice.
+func TestNekoAPIAnswerLostNoRetry(t *testing.T) {
+	n := newNode(t)
+	id, _ := NewIdentity()
+	e := n.endpoint(id)
+	e.NoSPA = false
+	e.Timeout = 500 * time.Millisecond
+	e.SPA = knock.SPAv2Options{NodeID: strings.Repeat("33", 16), EpochLen: 86400, SlotLen: 600, PortKey: strings.Repeat("44", 32),
+		PortBase: 40000, PortRange: 4096, LenMin: 96, LenMax: 160, DeviceKey: hex.EncodeToString(n.inviteKey)}
+	_, err := Call(context.Background(), e, NodeService+"RotateService", []byte(`{"name":"reality","now":true}`))
+	if !errors.Is(err, ErrAnswerLost) {
+		t.Fatalf("got %v, want ErrAnswerLost", err)
+	}
+	if hits := n.slowHits.Load(); hits != 1 {
+		t.Fatalf("the request was sent %d times", hits)
 	}
 }

@@ -84,6 +84,10 @@ object RayApi {
         }
         val answer = JsonParser.parseString(Libcore.raycontrolRegister(request.toString())).asJsonObject
         val registration = Rcdev1.parse(answer.get("bundle").asString)
+        // the package is for the node the invite named, at the same address
+        if (registration.spa.nodeId != invite.spa.nodeId || !registration.host.equals(invite.host, ignoreCase = true)) {
+            throw Exception("raycontrol invite for ${invite.host}: the node answered with a package of another node")
+        }
         val identity = answer.getAsJsonObject("identity")
         val key = identity.get("key").asString.decodeBase64()?.toByteArray()
             ?: throw Exception("raycontrol: the core returned no client key")
