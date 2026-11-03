@@ -141,8 +141,13 @@ jobs:
             --host-resolver-rules="MAP naive.test 127.0.0.1" --log > /tmp/naive-wrong.log 2>&1 &
           sleep 3
           fail=0
-          probe() { curl -s -m 30 -o /dev/null -w '%{http_code}' -x "socks5h://127.0.0.1:$2" https://www.gstatic.com/generate_204 || true; }
-          check() { got=$(probe "$2"); echo "$1: $got (want $3)"; [ "$got" = "$3" ] || fail=1; }
+          # curl's own error goes to the log: a 000 alone does not say whether SOCKS, the tunnel or TLS failed
+          probe() { curl -sS -m 30 -o /dev/null -w '%{http_code}' -x "socks5h://127.0.0.1:$1" https://www.gstatic.com/generate_204 2>"/tmp/curl-$1.err" || true; }
+          check() {
+            got=$(probe "$2"); echo "$1: $got (want $3)"
+            [ -s "/tmp/curl-$2.err" ] && sed 's/^/    curl: /' "/tmp/curl-$2.err"
+            [ "$got" = "$3" ] || fail=1
+          }
           check "NaiveProxy (h2, padding) -> rayd naive" 11090 204
           check "wrong password (must fail: 404 on CONNECT)" 11091 000
           exit $fail
