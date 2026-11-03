@@ -69,12 +69,23 @@ fun yggPeerHost(peer: String): String? = runCatching { java.net.URI(peer).host }
 class YggInUseException(name: String) :
     Exception("$name: its Yggdrasil key is in use by the running connection; a second link would disturb it")
 
-/** The Yggdrasil keys the running profile's chain uses. */
-fun runningYggKeys(): Set<String> {
-    val running = io.niko.database.SagerDatabase.proxyDao.getById(io.niko.database.DataStore.currentProfile) ?: return emptySet()
-    val beans = when (val bean = running.requireBean()) {
-        is io.niko.fmt.internal.ChainBean -> bean.proxies.mapNotNull { io.niko.database.SagerDatabase.proxyDao.getById(it)?.requireBean() }
-        else -> listOf(bean)
-    }
-    return beans.mapNotNull { it.yggKey?.takeIf { k -> k.isNotBlank() } }.toSet()
+/**
+ * The device keys of the Yggdrasil profiles the service's core runs (any profile its config holds: the selected
+ * one, a group's others, route rules, chains), as short hashes in the settings store, which every process of the
+ * app reads. The service sets them when its core starts and clears them when it stops.
+ */
+fun setRunningYggKeys(keys: Set<String>) {
+    io.niko.database.DataStore.configurationStore.putString(
+        io.niko.Key.RAYCONTROL_YGG_RUNNING, keys.joinToString(",") { yggKeyHash(it) }
+    )
 }
+
+/** Whether the service's core runs a mesh node with this device key. */
+fun yggKeyRunning(seed: String): Boolean {
+    if (!io.niko.database.DataStore.serviceState.started) return false
+    val running = io.niko.database.DataStore.configurationStore.getString(io.niko.Key.RAYCONTROL_YGG_RUNNING, null)
+    return !running.isNullOrBlank() && yggKeyHash(seed) in running.split(',')
+}
+
+private fun yggKeyHash(seed: String) = java.security.MessageDigest.getInstance("SHA-256")
+    .digest(seed.toByteArray()).take(8).joinToString("") { "%02x".format(it) }

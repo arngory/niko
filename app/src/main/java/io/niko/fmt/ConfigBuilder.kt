@@ -94,6 +94,8 @@ class ConfigBuildResult(
     var trafficMap: Map<String, List<ProxyEntity>>,
     var profileTagMap: Map<Long, String>,
     val selectorGroupId: Long,
+    // the device keys of the raycontrol Yggdrasil profiles in this config (their mesh nodes)
+    val yggKeys: Set<String> = emptySet(),
 ) {
     data class IndexEntity(var chain: LinkedHashMap<Int, ProxyEntity>)
 }
@@ -199,6 +201,9 @@ fun buildConfig(
         }
     }
 
+    // the mesh nodes of raycontrol Yggdrasil profiles, one per device key (key to tag and peer): nothing comes in
+    // through them; the service's result names their keys
+    val yggProfileEndpoints = mutableMapOf<String, Pair<String, String>>()
     return MyOptions().apply {
         if (!forTest && DataStore.enableClashAPI) experimental = ExperimentalOptions().apply {
             clash_api = ClashAPIOptions().apply {
@@ -313,8 +318,6 @@ fun buildConfig(
         // other nodes reach this device only when allowed, and then only its own services; it
         // goes first, above the DNS hijack, or every node would get a resolver
         var yggdrasilInboundRule: Rule_DefaultOptions? = null
-        // the mesh nodes of raycontrol Yggdrasil profiles, one per device key: nothing comes in through them
-        val yggProfileEndpoints = mutableMapOf<String, String>()
         // a hop behind a DNS tunnel may carry no UDP at all (SOCKS, HTTP, SSH, Shadowsocks
         // without UoT): remote DNS through the proxy then goes over TCP
         var tunnelledHop = false
@@ -628,8 +631,12 @@ fun buildConfig(
                     val seed = bean.yggKey.orEmpty()
                     // a second mesh node with the device's key would claim its address next to the running one: the
                     // node would send the running connection's packets down either link
-                    if (forTest && DataStore.serviceState.started && seed in runningYggKeys()) {
-                        throw YggInUseException(bean.displayName())
+                    // The reverse order is not covered: a test already running when the service starts with this key
+                    // overlaps it for the test's window (at most 20 s), and the node settles on the remaining link
+                    if (forTest && yggKeyRunning(seed)) throw YggInUseException(bean.displayName())
+                    // one mesh node per key: the same key with another peer would be a second node on that address
+                    yggProfileEndpoints[seed]?.let { (_, peer) ->
+                        if (peer != yggPeer) throw Exception("${bean.displayName()}: its Yggdrasil key is used with another node in this configuration")
                     }
                     val yggTag = yggProfileEndpoints.getOrPut(seed) {
                         "$tagOut-ygg".also { tag ->
@@ -642,8 +649,8 @@ fun buildConfig(
                                 _hack_config_map["node_info_privacy"] = true
                                 knockTag?.let { _hack_config_map["detour"] = it }
                             })
-                        }
-                    }
+                        } to yggPeer
+                    }.first
                     currentOutbound._hack_config_map.remove("domain_resolver")
                     currentOutbound._hack_config_map["detour"] = yggTag
                     pastDetourHolder = null
@@ -1097,7 +1104,7 @@ fun buildConfig(
         // nothing reaches the device through the mesh node of a raycontrol Yggdrasil profile: the node and the mesh
         // behind it would get the device's resolver, its local listeners or the proxy. Above every other rule
         if (yggProfileEndpoints.isNotEmpty()) route.rules.add(0, Rule_DefaultOptions().apply {
-            inbound = yggProfileEndpoints.values.toList()
+            inbound = yggProfileEndpoints.values.map { it.first }
             action = "reject"
         })
 
@@ -1120,7 +1127,8 @@ fun buildConfig(
             proxy.id,
             trafficMap,
             tagMap,
-            if (buildSelector) group.id else -1L
+            if (buildSelector) group.id else -1L,
+            yggProfileEndpoints.keys.toSet(),
         )
     }
 

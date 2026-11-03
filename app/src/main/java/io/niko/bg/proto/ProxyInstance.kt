@@ -50,6 +50,8 @@ class ProxyInstance(profile: ProxyEntity, var service: BaseService.Interface? = 
     @OptIn(DelicateCoroutinesApi::class)
     override fun launch() {
         box.setAsMain()
+        // the mesh nodes this core runs: a test with one of their keys would be a second node on that address
+        io.niko.fmt.setRunningYggKeys(config.yggKeys)
         super.launch() // start box
         // created right here, not in a coroutine: a close() after launch() must find it to stop it
         looper = service?.let { TrafficLooper(it.data, GlobalScope) }
@@ -58,6 +60,7 @@ class ProxyInstance(profile: ProxyEntity, var service: BaseService.Interface? = 
 
     override fun close() {
         super.close()
+        io.niko.fmt.setRunningYggKeys(emptySet())
         runBlocking {
             looper?.stop()
             looper = null
