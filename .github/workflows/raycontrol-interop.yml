@@ -133,7 +133,7 @@ jobs:
         run: |
           pw=$(cat /tmp/naive.pw)
           nohup /tmp/naive --listen=socks://127.0.0.1:11090 --proxy="https://niko:${pw}@naive.test:18446" \
-            --host-resolver-rules="MAP naive.test 127.0.0.1" --log > /tmp/naive-client.log 2>&1 &
+            --host-resolver-rules="MAP naive.test 127.0.0.1" --log --log-net-log=/tmp/naive-net.json > /tmp/naive-client.log 2>&1 &
           nohup /tmp/naive --listen=socks://127.0.0.1:11091 --proxy="https://niko:wrong@naive.test:18446" \
             --host-resolver-rules="MAP naive.test 127.0.0.1" --log > /tmp/naive-wrong.log 2>&1 &
           sleep 3
@@ -148,4 +148,18 @@ jobs:
         if: always()
         run: |
           for f in naive-server naive-client naive-wrong; do echo "--- $f"; tail -n 30 /tmp/$f.log 2>/dev/null || true; done
+          # the client's network errors (certificate, TLS, proxy): the --log output has none of them
+          echo "--- client net log errors"
+          python3 - <<'PY' || true
+          import json, re
+          text = open("/tmp/naive-net.json").read().rstrip().rstrip(",")
+          if not text.endswith("]}"):
+              text += "]}"
+          log = json.loads(text)
+          names = {v: k for k, v in log["constants"]["logEventTypes"].items()}
+          for e in log.get("events", []):
+              params = e.get("params", {})
+              if "net_error" in params or "cert_status" in params or "verifier_errors" in params:
+                  print(names.get(e["type"], e["type"]), json.dumps(params)[:400])
+          PY
           pkill -x rayd || true; pkill -x naive || true; pkill -x socat || true
