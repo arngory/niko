@@ -242,6 +242,9 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
 
     private fun showNodeActions(node: RayNode) {
         val actions = mutableListOf<Pair<Int, () -> Unit>>()
+        if (node.isAdmin) actions += R.string.raycontrol_admin to {
+            startActivity(Intent(requireContext(), RayAdminActivity::class.java).putExtra(RayAdminActivity.EXTRA_NODE, node.spa.nodeId))
+        }
         if (node.subscription != null) actions += R.string.raycontrol_sub_update to { updateSubscription(node) }
         actions += R.string.raycontrol_node_remove to { confirmRemove(node) }
         MaterialAlertDialogBuilder(requireContext())
