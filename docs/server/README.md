@@ -32,6 +32,22 @@
 | Проверка Yggdrasil на публичных пирах | `.github/workflows/ygg-probe.yml` |
 | Форки | `arngory/xray-core`, `arngory/dnstt`, `arngory/MasterDnsVPN`, `arngory/yggdrasil-go`, `arngory/naiveproxy` (статусы — SPEC §5) |
 
+## Кто что делает
+
+Две сессии: **raycontrol** (сервер) и **Niko** (клиент). Каждая пишет только в свои репозитории и пути; всё, что
+нужно от другой стороны, — через заметки: raycontrol → Niko в `docs/handoff/` raycontrol, Niko → raycontrol в
+[`RAYCONTROL.md`](RAYCONTROL.md).
+
+| Слой | Сессия | Где |
+|---|---|---|
+| Управление нодой: `rayd`, `rayctl`, `rayspa`, периметр, API, подписка, ротация, сертификаты, установка | raycontrol | `arngory/raycontrol` |
+| Данные на ноде сейчас: Xray (REALITY, Hysteria2), `rayd` (сайт, DoH, naive) | raycontrol | `arngory/raycontrol` |
+| niko-server: фронт (dnsmux; tcpmux и udpmux — R2/R3) и бэкенды | raycontrol | сейчас `arngory/sing-box` (`nikoserver/`, `cmd/niko-server`, серверные библиотеки dnstt и MasterDnsVPN) и `niko-server.yml` в `arngory/niko`; лучше перенести в отдельный репозиторий `arngory/niko-server`, чтобы сессии не писали в одну ветку |
+| Спецификации: `spa-v2`, `subscription-v1`, `api-v1`, `rcdev1`/`rcinv1`, ссылки | raycontrol (текст и векторы); Niko — вопросы и ответы заметками | `arngory/raycontrol` `docs/spec` |
+| Ядро клиента: SPA, подписка, PQ TLS, проверка REALITY, клиенты DNS-туннелей, UDP-desync, Yggdrasil | Niko | `arngory/sing-box` (кроме путей niko-server), `libcore/` в `arngory/niko` |
+| Приложение Android | Niko | `arngory/niko` |
+| Совместимость | обе: каждая проверяет свою сторону против закреплённого релиза другой | CI обоих репозиториев |
+
 ## Где остановились (2 ноября 2026)
 
 | Что | Состояние |
