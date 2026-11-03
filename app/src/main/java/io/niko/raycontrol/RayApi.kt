@@ -84,9 +84,10 @@ object RayApi {
         }
         val answer = JsonParser.parseString(Libcore.raycontrolRegister(request.toString())).asJsonObject
         val registration = Rcdev1.parse(answer.get("bundle").asString)
-        // the package is for the node the invite named, at the same address
-        if (registration.spa.nodeId != invite.spa.nodeId || !registration.host.equals(invite.host, ignoreCase = true)) {
-            throw Exception("raycontrol invite for ${invite.host}: the node answered with a package of another node")
+        // the channel is pinned to the invite's node; its package may name a new address (a moved node): that is kept
+        if (registration.spa.nodeId != invite.spa.nodeId) {
+            throw Exception("raycontrol invite for ${invite.host}: the node answered with a package of another node; " +
+                "the invite is used: ask the administrator to revoke this device")
         }
         val identity = answer.getAsJsonObject("identity")
         val key = identity.get("key").asString.decodeBase64()?.toByteArray()

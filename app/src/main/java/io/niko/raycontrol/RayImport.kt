@@ -11,6 +11,35 @@ object RayImport {
     fun matches(text: String) = Rcinv1.matches(text) || Rcdev1.matches(text)
 
     /**
+     * The bare token in [text], e.g. to pass a scanned QR code on as a link: the first candidate that parses, so a
+     * token wrapped over lines comes out whole.
+     */
+    fun token(text: String): String {
+        val invite = Rcinv1.matches(text)
+        val all = if (invite) Rcinv1.candidates(text) else Rcdev1.candidates(text)
+        return all.firstOrNull { runCatching { if (invite) Rcinv1.parse(it) else Rcdev1.parse(it) }.isSuccess } ?: all.first()
+    }
+
+    /**
+     * The question to ask before importing [text] when it replaces a stored node (same node ID): the device gets
+     * another key and loses the current one and its admin access. A node with another address is called out (a
+     * moved node is legitimate; a link from someone else is not). Null when it adds a node, or re-imports the same
+     * device package. Throws IllegalArgumentException for a broken package.
+     */
+    fun replaceQuestion(context: Context, text: String): String? {
+        val (nodeId, host, deviceId) = if (Rcinv1.matches(text)) {
+            Rcinv1.parse(text).let { Triple(it.spa.nodeId, it.host, null) }
+        } else {
+            Rcdev1.parse(text).let { Triple(it.spa.nodeId, it.host, it.deviceId) }
+        }
+        val known = RayNodes.get(nodeId) ?: return null
+        val sameHost = known.host.equals(host, ignoreCase = true)
+        if (sameHost && deviceId == known.deviceId) return null
+        return if (sameHost) context.getString(R.string.raycontrol_import_replace, host)
+        else context.getString(R.string.raycontrol_import_moved, known.host, host)
+    }
+
+    /**
      * Imports the invite (`rcinv1:`, registers this device) or the device package (`rcdev1:`) found in [text], then
      * fetches the node's subscription. [show] gets each line for the user as it comes: the registration and the
      * fetch take seconds. [context] is the application context.

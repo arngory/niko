@@ -5,6 +5,7 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.ShortcutManager
 import android.graphics.ImageDecoder
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
@@ -121,9 +122,9 @@ class ScannerActivity : ThemedActivity(),
             try {
                 val text = result?.text ?: throw Exception("QR code not found")
                 if (RayImport.matches(text)) {
-                    RayImport.import(app, text) { message ->
-                        onMainDispatcher { Toast.makeText(app, message, Toast.LENGTH_LONG).show() }
-                    }
+                    // a QR code may come from anywhere, like a link: MainActivity asks before the import
+                    startActivity(Intent(app, MainActivity::class.java).setAction(Intent.ACTION_VIEW)
+                        .setData(Uri.parse(RayImport.token(text))).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                     return@runOnDefaultDispatcher
                 }
                 val results = RawUpdater.parseRaw(text)

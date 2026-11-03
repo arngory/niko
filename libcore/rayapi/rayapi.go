@@ -26,8 +26,10 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"net/http/httptrace"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -79,6 +81,9 @@ func (e *Error) Error() string {
 	return "raycontrol api: " + e.Code + ": " + e.Message
 }
 
+// the TLS handshake of the API connection, apart from the dial and the whole call (a var for tests)
+var handshakeTimeout = 10 * time.Second
+
 // ErrNoAnswer: the API port stayed closed after SPA over UDP and TCP.
 var ErrNoAnswer = errors.New("raycontrol api: the node did not answer")
 
@@ -87,8 +92,9 @@ var ErrNoAnswer = errors.New("raycontrol api: the node did not answer")
 // again.
 var ErrAnswerLost = errors.New("raycontrol api: the request was sent but its answer was lost; it may have taken effect")
 
-// connectError is a failure before any request was sent: TCP or the TLS
-// handshake. Only these are tried again after another SPA packet.
+// connectError is a failure before the request was written (TCP, the TLS
+// handshake, a timeout meanwhile). Only these are tried again after another
+// SPA packet.
 type connectError struct{ err error }
 
 func (e *connectError) Error() string { return e.err.Error() }
@@ -206,7 +212,11 @@ func (e *Endpoint) client() (*http.Client, error) {
 					return nil, &connectError{err}
 				}
 				conn := tls.Client(raw, config)
-				if err = conn.HandshakeContext(ctx); err != nil {
+				// a handshake that hangs (a middlebox) fails here, as a failure to connect
+				handshakeCtx, cancel := context.WithTimeout(ctx, handshakeTimeout)
+				err = conn.HandshakeContext(handshakeCtx)
+				cancel()
+				if err != nil {
 					raw.Close()
 					if errors.Is(err, errPin) {
 						return nil, errPin
@@ -216,7 +226,9 @@ func (e *Endpoint) client() (*http.Client, error) {
 				return conn, nil
 			},
 			ForceAttemptHTTP2: true,
-			Proxy:             nil,
+			// a dial that completes after its request gave up still goes to the pool: do not keep it
+			IdleConnTimeout: 5 * time.Second,
+			Proxy:           nil,
 		},
 	}, nil
 }
@@ -261,14 +273,23 @@ func (e *Endpoint) post(ctx context.Context, client *http.Client, method string,
 	}
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Connect-Protocol-Version", "1")
+	// what decides a resend is whether the request went out, not the kind of error
+	var wrote atomic.Bool
+	request = request.WithContext(httptrace.WithClientTrace(request.Context(), &httptrace.ClientTrace{
+		WroteHeaders: func() { wrote.Store(true) },
+	}))
 	response, err := client.Do(request)
 	if err != nil {
-		var connErr *connectError
 		switch {
 		case errors.Is(err, errPin):
 			return nil, errPin
-		case errors.As(err, &connErr):
-			return nil, err
+		case !wrote.Load():
+			// nothing reached the node: a dial, a handshake or a timeout before the request
+			var connErr *connectError
+			if errors.As(err, &connErr) {
+				return nil, err
+			}
+			return nil, &connectError{err}
 		default:
 			// the request may have reached the node
 			return nil, fmt.Errorf("%w: %v", ErrAnswerLost, err)

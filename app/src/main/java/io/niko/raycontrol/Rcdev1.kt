@@ -164,6 +164,8 @@ object Rcinv1 {
 
     fun matches(text: String) = token.matches(text)
 
+    fun candidates(text: String) = token.candidates(text)
+
     /** Throws IllegalArgumentException with a readable reason. */
     fun parse(text: String): RayInvite = token.parse(text) { o ->
         val r = Rcdev1.fields(o, "rcinv1")

@@ -171,6 +171,10 @@ class RaySubscriptionTest {
         assertTrue(Rcinv1.matches(text))
         assertTrue(!Rcdev1.matches(text))
         assertTrue(RayImport.matches(text))
+        // a scanned QR code goes on as a link: the whole token, also when it was wrapped over lines
+        val token = Rcinv1.PREFIX + invite.encodeUtf8().base64Url().trimEnd('=')
+        assertEquals(token, RayImport.token(text))
+        assertEquals(token, RayImport.token("Invite:\n" + token.chunked(70).joinToString("\n") + "\nDone\n"))
         val parsed = Rcinv1.parse(text)
         assertEquals("0123456789abcdef", parsed.inviteId)
         assertEquals("11".repeat(32), parsed.inviteKey)

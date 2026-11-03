@@ -1,6 +1,8 @@
 package io.niko.ui
 
 import io.niko.raycontrol.RayImport
+import kotlin.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.graphics.Color
@@ -376,9 +378,30 @@ class ConfigurationFragment @JvmOverloads constructor(
      */
     private suspend fun importRaycontrol(text: String): Boolean {
         if (!RayImport.matches(text)) return false
+        // replacing a stored node (its key, its admin access) is asked first, whatever the source
+        val question = RayImport.replaceQuestion(app, text)
+        if (question != null && !onMainDispatcher { confirm(question) }) return true
         // the registration and the fetch take seconds: the fragment may be gone by then
         RayImport.import(app, text) { message -> onMainDispatcher { if (isAdded) snackbar(message).show() } }
         return true
+    }
+
+    private suspend fun confirm(message: String): Boolean = suspendCancellableCoroutine { continuation ->
+        if (!isAdded) return@suspendCancellableCoroutine continuation.resume(false)
+        var answered = false
+        val answer = { yes: Boolean ->
+            if (!answered) {
+                answered = true
+                continuation.resume(yes)
+            }
+        }
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.raycontrol_nodes)
+            .setMessage(message)
+            .setPositiveButton(R.string.yes) { _, _ -> answer(true) }
+            .setNegativeButton(android.R.string.cancel) { _, _ -> answer(false) }
+            .setOnDismissListener { answer(false) }
+            .show()
     }
 
     suspend fun import(proxies: List<AbstractBean>) {

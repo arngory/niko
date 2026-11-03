@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io"
 	"math/big"
 	"net"
 	"net/http"
@@ -241,5 +242,55 @@ func TestNekoAPIAnswerLostNoRetry(t *testing.T) {
 	}
 	if hits := n.slowHits.Load(); hits != 1 {
 		t.Fatalf("the request was sent %d times", hits)
+	}
+}
+
+// A handshake that never completes is a failure to connect, tried again after SPA, never "answer lost".
+func TestNekoAPIStalledHandshake(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	var accepted atomic.Int32
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				return
+			}
+			accepted.Add(1)
+			// reads the ClientHello and never answers
+			go func() { io.Copy(io.Discard, conn) }()
+		}
+	}()
+	for name, setup := range map[string]func(e *Endpoint){
+		// the call's timeout runs out during the handshake
+		"call timeout": func(e *Endpoint) { e.Timeout = 400 * time.Millisecond },
+		// the handshake's own deadline, well inside the call's
+		"handshake timeout": func(e *Endpoint) {
+			e.Timeout = 5 * time.Second
+			old := handshakeTimeout
+			handshakeTimeout = 300 * time.Millisecond
+			t.Cleanup(func() { handshakeTimeout = old })
+		},
+	} {
+		t.Run(name, func(t *testing.T) { stalledHandshake(t, listener, &accepted, setup) })
+	}
+}
+
+func stalledHandshake(t *testing.T, listener net.Listener, accepted *atomic.Int32, setup func(e *Endpoint)) {
+	accepted.Store(0)
+	id, _ := NewIdentity()
+	e := Endpoint{Host: "127.0.0.1", Port: listener.Addr().(*net.TCPAddr).Port, Pin: strings.Repeat("A", 43), Identity: id,
+		SPA: knock.SPAv2Options{NodeID: strings.Repeat("33", 16), EpochLen: 86400, SlotLen: 600, PortKey: strings.Repeat("44", 32),
+			PortBase: 40000, PortRange: 4096, LenMin: 96, LenMax: 160, DeviceKey: strings.Repeat("11", 32)}}
+	setup(&e)
+	_, err := Call(context.Background(), e, DeviceService+"Register", []byte(`{}`))
+	if !errors.Is(err, ErrNoAnswer) || errors.Is(err, ErrAnswerLost) {
+		t.Fatalf("got %v, want ErrNoAnswer", err)
+	}
+	if n := accepted.Load(); n != 3 {
+		t.Fatalf("%d connections, want 3 (UDP, UDP again, TCP)", n)
 	}
 }
