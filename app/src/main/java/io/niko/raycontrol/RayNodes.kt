@@ -1,5 +1,9 @@
 package io.niko.raycontrol
 
+import io.niko.database.SagerDatabase
+import io.niko.fmt.v2ray.StandardV2RayBean
+import io.niko.fmt.naive.NaiveBean
+import io.niko.fmt.hysteria.HysteriaBean
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
@@ -272,6 +276,23 @@ object RayNodes {
     }
 
     fun forHost(address: String?): RayNode? = if (address.isNullOrBlank()) null else list().firstOrNull { it.matchesHost(address) }
+
+    /**
+     * The names the node serves (its host, the SNI and server names of its profiles, its DoH): a fake QUIC Initial
+     * naming one of them would pin the flow to that backend of the node's front (niko-mux-note.md §2).
+     */
+    fun names(node: RayNode): Set<String> {
+        val names = mutableSetOf(node.host.lowercase())
+        node.doh?.let { runCatching { java.net.URI(it).host }.getOrNull() }?.let { names += it.lowercase() }
+        for (id in node.profileIds.orEmpty().values) {
+            val bean = SagerDatabase.proxyDao.getById(id)?.requireBean() ?: continue
+            names += listOfNotNull(
+                (bean as? HysteriaBean)?.sni, (bean as? StandardV2RayBean)?.sni, (bean as? NaiveBean)?.sni,
+                bean.serverAddress, bean.yggPeer?.let { io.niko.fmt.yggPeerHost(it) },
+            ).map { it.trim().lowercase() }.filter { it.isNotEmpty() }
+        }
+        return names
+    }
 
     /** Hands the node's device key to the core and returns the knock outbound options. */
     fun prepareKnock(node: RayNode): Map<String, Any> {

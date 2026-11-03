@@ -504,8 +504,15 @@ fun buildConfig(
                     _hack_custom_config = bean.customOutboundJson
                 }
 
+                // a raycontrol Yggdrasil profile (niko-ygg) as the entry hop: the VLESS server is the node's mesh
+                // address, the link to the mesh goes to the node itself
+                val yggPeer = bean.yggPeer?.takeIf { it.isNotBlank() && index == profileList.lastIndex && !proxyEntity.needExternal() }
                 // a raycontrol node (imported rcdev1) this hop dials; a DNS tunnel never reaches its address
-                val rayNode = if (DnsTunnel.of(bean).enabled) null else RayNodes.forHost(bean.serverAddress)
+                val rayNode = when {
+                    DnsTunnel.of(bean).enabled -> null
+                    yggPeer != null -> RayNodes.forHost(yggPeerHost(yggPeer))
+                    else -> RayNodes.forHost(bean.serverAddress)
+                }
 
                 // per-profile TLS tweaks, merged into the outbound's tls object
                 val tlsTweaks = mutableMapOf<String, Any>()
@@ -560,7 +567,12 @@ fun buildConfig(
                 ) {
                     currentOutbound._hack_config_map["udp_desync"] = buildMap {
                         (bean.udpPrelude ?: 0).coerceIn(0, 8).takeIf { it > 0 }?.let { put("prelude", it) }
-                        bean.udpPreludeSni?.takeIf { it.isNotBlank() }?.let { put("prelude_sni", it.trim()) }
+                        // never a name of the node: its front would pin the flow to that backend
+                        bean.udpPreludeSni?.trim()?.takeIf { it.isNotBlank() }?.let { sni ->
+                            val nodeName = RayNodes.forHost(bean.serverAddress)?.let { sni.lowercase() in RayNodes.names(it) } == true
+                            if (nodeName) Logs.w("UDP desync (${bean.displayName()}): $sni is a name of the node, the fakes are random bytes")
+                            else put("prelude_sni", sni)
+                        }
                         (bean.udpPreludeTtl ?: 0).coerceIn(0, 255).takeIf { it > 0 }?.let { put("prelude_ttl", it) }
                         // under Hysteria2 obfs the core never sees a QUIC Initial: reordering is moot
                         if (bean.udpReorderInitial == true && !(bean is HysteriaBean && bean.obfuscation.isNotBlank())) {
@@ -608,9 +620,26 @@ fun buildConfig(
                     outbounds.add(knockOutbound)
                 }
 
+                // the Yggdrasil profile's own mesh node: the device's key, the node as its only peer (P-14), the
+                // peer link through the node's SPA (TCP 443). The VLESS to the node's mesh address goes through it
+                if (yggPeer != null) {
+                    val yggTag = "$tagOut-ygg"
+                    endpoints.add(Outbound().apply {
+                        type = "yggdrasil"
+                        tag = yggTag
+                        _hack_config_map["private_key"] = bean.yggKey
+                        _hack_config_map["peers"] = listOf(yggPeer)
+                        _hack_config_map["node_info_privacy"] = true
+                        knockTag?.let { _hack_config_map["detour"] = it }
+                    })
+                    currentOutbound._hack_config_map.remove("domain_resolver")
+                    currentOutbound._hack_config_map["detour"] = yggTag
+                    pastDetourHolder = null
+                }
+
                 // an entry hop whose server is a Yggdrasil address dials through the mesh; with
                 // port knocking the knocks go through it too
-                if (yggdrasil && index == profileList.lastIndex &&
+                if (yggdrasil && yggPeer == null && index == profileList.lastIndex &&
                     !DnsTunnel.of(bean).enabled && !proxyEntity.needExternal() &&
                     bean.serverAddress.isYggdrasilAddress()
                 ) {

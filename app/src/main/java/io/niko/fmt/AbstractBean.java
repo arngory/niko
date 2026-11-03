@@ -45,6 +45,9 @@ public abstract class AbstractBean extends Serializable {
     public String udpPreludeSni; // the fakes are QUIC Initials naming this server; empty = random bytes
     public Integer udpPreludeTtl; // IP TTL of the fakes, 0 = default
     public Boolean udpReorderInitial; // the second QUIC Initial goes first
+    // extraVersion 7: raycontrol Yggdrasil profile (niko-ygg): the node as the only peer, this device's key
+    public String yggPeer; // tls://<name>:443?key=<node key hex>&sni=<name>; "" off
+    public String yggKey; // the device's ed25519 seed, 64 hex digits
 
     //
     public transient String finalAddress;
@@ -110,6 +113,8 @@ public abstract class AbstractBean extends Serializable {
         if (udpPrelude == null) udpPrelude = 0;
         if (udpPreludeSni == null) udpPreludeSni = "";
         if (udpPreludeTtl == null) udpPreludeTtl = 0;
+        if (yggPeer == null) yggPeer = "";
+        if (yggKey == null) yggKey = "";
         if (udpReorderInitial == null) udpReorderInitial = false;
     }
 
@@ -120,7 +125,7 @@ public abstract class AbstractBean extends Serializable {
     public void serializeToBuffer(@NonNull ByteBufferOutput output) {
         serialize(output);
 
-        output.writeInt(6);
+        output.writeInt(7);
         if (!serializeWithoutName) {
             output.writeString(name);
         }
@@ -142,6 +147,8 @@ public abstract class AbstractBean extends Serializable {
         output.writeString(udpPreludeSni != null ? udpPreludeSni : "");
         output.writeInt(udpPreludeTtl != null ? udpPreludeTtl : 0);
         output.writeBoolean(udpReorderInitial != null && udpReorderInitial);
+        output.writeString(yggPeer != null ? yggPeer : "");
+        output.writeString(yggKey != null ? yggKey : "");
     }
 
     @Override
@@ -178,6 +185,10 @@ public abstract class AbstractBean extends Serializable {
             udpPreludeSni = input.readString();
             udpPreludeTtl = input.readInt();
             udpReorderInitial = input.readBoolean();
+        }
+        if (extraVersion >= 7) {
+            yggPeer = input.readString();
+            yggKey = input.readString();
         }
     }
 
