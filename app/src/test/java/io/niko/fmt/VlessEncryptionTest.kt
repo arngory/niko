@@ -34,21 +34,6 @@ class VlessEncryptionTest {
     }
 
     @Test
-    fun visionUdpGoesInXudp() {
-        // Vision without packetEncoding, as raycontrol's REALITY links (TLS left out: its builder needs Android)
-        val vision = vless()
-        vision.parseDuckSoft("https://uuid@example.com:443?type=raw&flow=xtls-rprx-vision".toHttpUrl())
-        assertEquals("xudp", buildSingBoxOutboundStandardV2RayBean(vision).asMap()["packet_encoding"])
-        // packetaddr asked for stays
-        vision.packetEncoding = 1
-        assertEquals("packetaddr", buildSingBoxOutboundStandardV2RayBean(vision).asMap()["packet_encoding"])
-        // without Vision nothing changes: plain VLESS UDP
-        val plain = vless()
-        plain.parseDuckSoft("https://uuid@example.com:443?type=ws".toHttpUrl())
-        assertEquals("", buildSingBoxOutboundStandardV2RayBean(plain).asMap()["packet_encoding"])
-    }
-
-    @Test
     fun realityMldsa65Link() {
         val pqv = "A".repeat(2603)
         val bean = vless()

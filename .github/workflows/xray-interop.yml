@@ -1,8 +1,8 @@
 name: Xray interop
 
 # The core's clients against an Xray server built from arngory/xray-core:
-# REALITY + Vision with and without the ML-DSA-65 check, UDP through it (XUDP;
-# plain VLESS UDP is refused under Vision), VLESS encryption, and Hysteria2 as
+# REALITY + Vision with and without the ML-DSA-65 check, UDP through it (plain
+# VLESS UDP, as the app sends it, and XUDP), VLESS encryption, and Hysteria2 as
 # raycontrol renders hy2-obfs (salamander, a self-signed certificate pinned by
 # its key, SNI <hex>.invalid, X25519MLKEM768 only).
 on:
@@ -77,8 +77,7 @@ jobs:
           echo "verify key: ${#verify} chars, encryption: ${enc%%.*}"
           jq -n --arg uuid "$uuid" --arg priv "$priv" --arg seed "$seed" --arg dec "$dec" \
                 --arg hy2pw "$hy2pw" --arg obfspw "$obfspw" '{
-            # info: Xray logs a refused request ("connection ends") at this level
-            log: {loglevel: "info"},
+            log: {loglevel: "warning"},
             inbounds: [
               {listen: "127.0.0.1", port: 18443, protocol: "vless",
                settings: {clients: [{id: $uuid, flow: "xtls-rprx-vision"}], decryption: "none"},
@@ -105,7 +104,8 @@ jobs:
             obfs: {type: "salamander", password: $obfspw},
             tls: {enabled: true, server_name: $sni, alpn: ["h3"], curve_preferences: ["X25519MLKEM768"],
               certificate_public_key_sha256: [$pin]}}'; }
-          # UDP under Vision: XUDP, as the app builds it; plain VLESS UDP (what the app sent before 1.17.2) Xray refuses
+          # UDP under Vision: plain VLESS UDP, as the app builds a link without packetEncoding (the core sends UDP
+          # requests without the flow, which Xray lets through for a Vision user), and XUDP
           xudp=$(reality r-xudp "" | jq '. + {packet_encoding: "xudp"}')
           noxudp=$(reality r-noxudp "" | jq '. + {packet_encoding: ""}')
           jq -n --argjson ok "$(reality r-ok "$verify")" --argjson plain "$(reality r-plain "")" \
@@ -153,8 +153,7 @@ jobs:
           # a DNS query to 1.1.1.1 over UDP through REALITY + Vision
           udp() { got=$(python3 -I .github/scripts/udp-dns-probe.py "$2"); echo "$1: $got (want $3)"; [ "$got" = "$3" ] || fail=1; }
           udp "REALITY + Vision, UDP in XUDP" 15353 answer
-          udp "REALITY + Vision, plain VLESS UDP (Xray refuses it)" 15354 timeout
-          grep -q "doesn't support UDP" /tmp/xray.log || { echo "no Vision UDP refusal in the Xray log"; fail=1; }
+          udp "REALITY + Vision, plain VLESS UDP (a link without packetEncoding)" 15354 answer
           exit $fail
 
       - name: Logs
