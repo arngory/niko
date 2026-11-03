@@ -121,8 +121,9 @@ jobs:
           openssl x509 -req -in leaf.csr -CA ca.crt -CAkey ca.key -CAcreateserial -days 30 -extfile leaf.ext -out leaf.crt 2>/dev/null
           pw=$(openssl rand -hex 16); echo "$pw" > /tmp/naive.pw
           printf '["%s"]' "$(printf %s "$pw" | sha256sum | cut -d' ' -f1)" > users.json
-          # rayd naive logs a failed dial to the destination at debug only: strace shows its connects
-          nohup strace -f -e trace=connect -o /tmp/rayd-naive.strace \
+          # rayd naive logs a failed dial to the destination at debug only. strace shows its dials: Go connects
+          # non-blocking (EINPROGRESS), the outcome is the SO_ERROR of the getsockopt that follows
+          nohup strace -f -tt -e trace=connect,getsockopt -o /tmp/rayd-naive.strace \
             /tmp/rayd naive -users users.json -chain leaf.crt -key leaf.key -socket /tmp/naive.sock > /tmp/naive-server.log 2>&1 &
           for i in $(seq 50); do [ -S /tmp/naive.sock ] && break; sleep 0.2; done
           # the site passes TLS on to the socket on the node; here a plain relay does
@@ -156,6 +157,6 @@ jobs:
           sleep 1
           echo "--- client net log errors"
           python3 .github/scripts/netlog-errors.py /tmp/naive-net.json 'TUNNEL|RST_STREAM|GOAWAY|HTTP2_STREAM_ERROR|SEND_REQUEST_HEADERS|READ_RESPONSE_HEADERS|NAIVE|HTTP2_SESSION_RECV_DATA|HTTP2_SESSION_SEND_DATA|RECV_RST|STREAM_CLOSE' || true
-          echo "--- rayd naive connects (strace)"
-          grep -v 'AF_UNIX' /tmp/rayd-naive.strace | tail -n 20 || true
+          echo "--- rayd naive dials (strace: connect, then SO_ERROR)"
+          grep -E 'connect\(|SO_ERROR' /tmp/rayd-naive.strace | grep -v 'AF_UNIX' | tail -n 30 || true
           pkill -x rayd || true; pkill -x naive || true; pkill -x socat || true
