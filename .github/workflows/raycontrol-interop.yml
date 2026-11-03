@@ -8,6 +8,7 @@ on:
     paths:
       - ".github/workflows/raycontrol-interop.yml"
       - ".github/raycontrol.env"
+      - ".github/scripts/netlog-errors.py"
       - "libcore/rayapi/**"
       - "libcore/knock/**"
       - "buildScript/lib/core/get_source_env.sh"
