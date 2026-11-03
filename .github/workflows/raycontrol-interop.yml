@@ -139,14 +139,22 @@ jobs:
             --host-resolver-rules="MAP naive.test 127.0.0.1" --log --log-net-log=/tmp/naive-net.json > /tmp/naive-client.log 2>&1 &
           SSL_CERT_FILE=/tmp/ca.crt nohup /tmp/naive --listen=socks://127.0.0.1:11091 --proxy="https://niko:wrong@naive.test:18446" \
             --host-resolver-rules="MAP naive.test 127.0.0.1" --log > /tmp/naive-wrong.log 2>&1 &
-          sleep 3
+          for i in $(seq 75); do
+            [ -n "$(ss -Hltn 'sport = :11090')" ] && [ -n "$(ss -Hltn 'sport = :11091')" ] && break; sleep 0.2
+          done
           fail=0
-          # curl's own error goes to the log: a 000 alone does not say whether SOCKS, the tunnel or TLS failed
-          probe() { curl -sS -m 30 -o /dev/null -w '%{http_code}' -x "socks5h://127.0.0.1:$1" https://www.gstatic.com/generate_204 2>"/tmp/curl-$1.err" || true; }
+          # curl's own error and exit code go to the log: a 000 alone does not say whether SOCKS, the tunnel or TLS
+          # failed. Exit 7 (no proxy to connect to) fails every check: a refused tunnel must come from naive itself.
+          probe() {
+            local rc=0
+            curl -sS -m 30 -o /dev/null -w '%{http_code}' -x "socks5h://127.0.0.1:$1" https://www.gstatic.com/generate_204 \
+              2>"/tmp/curl-$1.err" || rc=$?
+            echo "$rc" > "/tmp/curl-$1.rc"
+          }
           check() {
-            got=$(probe "$2"); echo "$1: $got (want $3)"
-            [ -s "/tmp/curl-$2.err" ] && sed 's/^/    curl: /' "/tmp/curl-$2.err"
-            [ "$got" = "$3" ] || fail=1
+            got=$(probe "$2"); rc=$(cat "/tmp/curl-$2.rc"); echo "$1: $got, curl exit $rc (want $3)"
+            if [ -s "/tmp/curl-$2.err" ]; then sed 's/^/    curl: /' "/tmp/curl-$2.err"; fi
+            [ "$got" = "$3" ] && [ "$rc" != 7 ] || fail=1
           }
           check "NaiveProxy (h2, padding) -> rayd naive" 11090 204
           check "wrong password (must fail: 404 on CONNECT)" 11091 000

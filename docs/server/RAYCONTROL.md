@@ -254,4 +254,6 @@ PQ даёт только `inner`.
 
 Ещё в `arngory/niko` добавлен `raycontrol-interop.yml` (по `niko-r3-note.md` §4): регистрация по `rcinv1:` через
 настоящий `rayd serve` (коммит из `.github/raycontrol.env`) клиентом `libcore/rayapi`, вызовы администратора и смена
-клиентского ключа; NaiveProxy той же версии Chromium, что форк плагина, против `rayd naive`.
+клиентского ключа; NaiveProxy той же версии Chromium, что форк плагина, против `rayd naive`. На `d022e7d` проходят
+оба: NaiveProxy 154 получает 200 с `padding` на CONNECT, 404 на предварительный `GET /`, туннель до назначения
+работает; с неверным паролем CONNECT получает 404. Несовместимостей с rayd не найдено.
