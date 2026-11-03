@@ -2,12 +2,14 @@ name: raycontrol interop
 
 # The client side against a real rayd from arngory/raycontrol (niko-r3-note.md §4):
 # registration by invite through the remote API (libcore/rayapi), and the
-# NaiveProxy client against `rayd naive`.
+# NaiveProxy client against `rayd naive` behind the niko-server front, over h2
+# (TCP 443) and QUIC (UDP 443).
 on:
   push:
     paths:
       - ".github/workflows/raycontrol-interop.yml"
       - ".github/raycontrol.env"
+      - ".github/niko-server.env"
       - ".github/scripts/netlog-errors.py"
       - "libcore/rayapi/**"
       - "libcore/knock/**"
@@ -99,12 +101,17 @@ jobs:
         working-directory: raycontrol
         run: CGO_ENABLED=0 go build -o /tmp/rayd ./cmd/rayd
 
-      - name: NaiveProxy client
+      - name: NaiveProxy client and the niko-server front
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           . .github/raycontrol.env
-          sudo apt-get install -y -qq socat strace > /dev/null
+          . .github/niko-server.env
+          sudo apt-get install -y -qq strace > /dev/null
+          # rayd naive takes its connections from the node's front (raycontrol niko-mux-note.md §3), as in production
+          curl -fsSL --retry 3 -o /tmp/niko-server "$NIKO_SERVER_RELEASES/download/$NIKO_SERVER_TAG/niko-server-linux-amd64"
+          echo "$NIKO_SERVER_SHA256_AMD64  /tmp/niko-server" | sha256sum -c -
+          chmod +x /tmp/niko-server
           tag=$(gh release list -R klzgrad/naiveproxy -L 100 --json tagName -q '.[].tagName' | grep -m1 "^v${NAIVE_CHROMIUM}-")
           [ -n "$tag" ] || { echo "no NaiveProxy release for Chromium $NAIVE_CHROMIUM"; exit 1; }
           gh release download "$tag" -R klzgrad/naiveproxy -p "naiveproxy-${tag}-linux-x64.tar.xz" -D /tmp
@@ -112,7 +119,7 @@ jobs:
           mv /tmp/naiveproxy-${tag}-linux-x64/naive /tmp/naive
           echo "NaiveProxy $tag: $(sha256sum /tmp/naive | cut -d' ' -f1)"
 
-      - name: rayd naive behind TLS, a CA the client trusts
+      - name: rayd naive behind the front and TLS, a CA the client trusts
         run: |
           cd /tmp
           openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 30 -subj "/CN=interop CA" \
@@ -122,13 +129,22 @@ jobs:
           openssl x509 -req -in leaf.csr -CA ca.crt -CAkey ca.key -CAcreateserial -days 30 -extfile leaf.ext -out leaf.crt 2>/dev/null
           pw=$(openssl rand -hex 16); echo "$pw" > /tmp/naive.pw
           printf '["%s"]' "$(printf %s "$pw" | sha256sum | cut -d' ' -f1)" > users.json
+          # the order of raycontrol's TestRealitySelfStealWithXray: rayd naive takes the front's sockets (mode fd
+          # for TCP 443, mode packet for QUIC), then the front routes naive.test to it on a test port
+          uid=$(id -u); mkdir -p /tmp/run/naive && chmod 0710 /tmp/run/naive
           # rayd naive logs a failed dial to the destination at debug only. strace shows its dials: Go connects
           # non-blocking (EINPROGRESS), the outcome is the SO_ERROR of the getsockopt that follows
           nohup strace -f -tt -e trace=connect,getsockopt -o /tmp/rayd-naive.strace \
-            /tmp/rayd naive -users users.json -chain leaf.crt -key leaf.key -socket /tmp/naive.sock > /tmp/naive-server.log 2>&1 &
-          for i in $(seq 50); do [ -S /tmp/naive.sock ] && break; sleep 0.2; done
-          # the site passes TLS on to the socket on the node; here a plain relay does
-          nohup socat TCP-LISTEN:18446,bind=127.0.0.1,reuseaddr,fork UNIX-CONNECT:/tmp/naive.sock > /dev/null 2>&1 &
+            /tmp/rayd naive -users users.json -chain leaf.crt -key leaf.key -front-uid "$uid" \
+              -socket /tmp/run/naive/fd.sock -quic-socket /tmp/run/naive/packet.sock > /tmp/naive-server.log 2>&1 &
+          for i in $(seq 50); do [ -S /tmp/run/naive/fd.sock ] && [ -S /tmp/run/naive/packet.sock ] && break; sleep 0.2; done
+          jq -n --arg uid "$uid" '{schema: 1, role: "front", log: {level: "info"},
+            tcp: {listen: ["127.0.0.1:18446"], routes: [{sni: ["naive.test"], backend: "naive"}]},
+            udp: {listen: ["127.0.0.1:18446"], routes: [{sni: ["naive.test"], backend: "naive-quic"}]},
+            backends: {naive: {socket: "/tmp/run/naive/fd.sock", mode: "fd", uid: ($uid | tonumber)},
+                       "naive-quic": {socket: "/tmp/run/naive/packet.sock", mode: "packet", uid: ($uid | tonumber)}}}' > front.json
+          /tmp/niko-server check -c front.json --json
+          nohup /tmp/niko-server front -c front.json > /tmp/front.log 2>&1 &
           sleep 1
 
       - name: Interop
@@ -140,8 +156,12 @@ jobs:
             --host-resolver-rules="MAP naive.test 127.0.0.1" --log --log-net-log=/tmp/naive-net.json > /tmp/naive-client.log 2>&1 &
           SSL_CERT_FILE=/tmp/ca.crt nohup /tmp/naive --listen=socks://127.0.0.1:11091 --proxy="https://niko:wrong@naive.test:18446" \
             --host-resolver-rules="MAP naive.test 127.0.0.1" --log --log-net-log=/tmp/naive-wrong-net.json > /tmp/naive-wrong.log 2>&1 &
+          # naive-quic (naive+quic:// in raycontrol's links): the same name and credentials over UDP 443 of the front
+          SSL_CERT_FILE=/tmp/ca.crt nohup /tmp/naive --listen=socks://127.0.0.1:11092 --proxy="quic://niko:${pw}@naive.test:18446" \
+            --host-resolver-rules="MAP naive.test 127.0.0.1" --log > /tmp/naive-quic.log 2>&1 &
           for i in $(seq 75); do
-            [ -n "$(ss -Hltn 'sport = :11090')" ] && [ -n "$(ss -Hltn 'sport = :11091')" ] && break; sleep 0.2
+            [ -n "$(ss -Hltn 'sport = :11090')" ] && [ -n "$(ss -Hltn 'sport = :11091')" ] && [ -n "$(ss -Hltn 'sport = :11092')" ] && break
+            sleep 0.2
           done
           fail=0
           # curl's own error and exit code go to the log: a 000 alone does not say whether SOCKS, the tunnel or TLS
@@ -159,6 +179,7 @@ jobs:
           }
           check "NaiveProxy (h2, padding) -> rayd naive" 11090 204
           check "wrong password (must fail: 404 on CONNECT)" 11091 000
+          check "NaiveProxy over QUIC (naive-quic) -> front UDP -> rayd naive" 11092 204
           # curl sees only that the tunnel failed (a 404, a reset and a hang all read 000): the CONNECT's own answer
           # comes from the clients' net logs. naive writes them in batches of 15 events, so a few more tries push
           # the first ones out; a CONNECT counts only with an answer to every request of its source
@@ -173,7 +194,7 @@ jobs:
       - name: Logs
         if: always()
         run: |
-          for f in naive-server naive-client naive-wrong; do echo "--- $f"; tail -n 30 /tmp/$f.log 2>/dev/null || true; done
+          for f in front naive-server naive-client naive-wrong naive-quic; do echo "--- $f"; tail -n 30 /tmp/$f.log 2>/dev/null || true; done
           # the client's network errors (certificate, TLS, proxy): the --log output has none of them. naive writes
           # its net log in batches of 15 events and never at exit: a few more tries push the last ones out
           for i in 1 2 3 4; do curl -s -m 5 -o /dev/null -x socks5h://127.0.0.1:11090 https://www.gstatic.com/generate_204 || true; done
@@ -182,4 +203,4 @@ jobs:
           python3 .github/scripts/netlog-errors.py /tmp/naive-net.json 'TUNNEL|RST_STREAM|GOAWAY|HTTP2_STREAM_ERROR|SEND_REQUEST_HEADERS|READ_RESPONSE_HEADERS|NAIVE|HTTP2_SESSION_RECV_DATA|HTTP2_SESSION_SEND_DATA|RECV_RST|STREAM_CLOSE' || true
           echo "--- rayd naive dials (strace: connect, then SO_ERROR)"
           grep -E 'connect\(|SO_ERROR' /tmp/rayd-naive.strace | grep -v 'AF_UNIX' | tail -n 30 || true
-          pkill -x rayd || true; pkill -x naive || true; pkill -x socat || true
+          pkill -x rayd || true; pkill -x naive || true; pkill -x niko-server || true
