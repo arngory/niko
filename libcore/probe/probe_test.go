@@ -116,7 +116,9 @@ func dial(t *testing.T, addr string) net.Conn {
 func TestUDPAll(t *testing.T) {
 	addr := dnsServer(t, nil, nil)
 	r := UDP(context.Background(), dial(t, addr), Options{UDPServer: addr, UDPCount: 5, UDPIntervalMs: 20})
-	if !r.OK || r.Sent != 5 || r.Received != 5 || r.LossPct != 0 || r.Reordered != 0 || r.RTTAvgMs <= 0 {
+	// round trips on localhost may round to 0 ms: only their order is certain
+	if !r.OK || r.Sent != 5 || r.Received != 5 || r.LossPct != 0 || r.Reordered != 0 ||
+		r.RTTMinMs < 0 || r.RTTAvgMs < r.RTTMinMs || r.RTTMaxMs < r.RTTAvgMs {
 		t.Fatalf("%+v", r)
 	}
 }
