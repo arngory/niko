@@ -170,8 +170,10 @@ func (e *Endpoint) dialer() *net.Dialer {
 }
 
 // client makes the HTTP client of one Call; callCtx ends with the Call, and
-// with it any dial still under way (net/http keeps dialing for the pool after
-// a request gave up).
+// with it any dial still under way. net/http keeps dialing for its pool after
+// a request gave up; Go 1.23+ also cancels such dials in
+// CloseIdleConnections, which Call runs too: callCtx keeps that guarantee
+// whatever the version.
 func (e *Endpoint) client(callCtx context.Context) (*http.Client, error) {
 	cert, _, err := e.Identity.tlsCertificate()
 	if err != nil {

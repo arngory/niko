@@ -272,7 +272,7 @@ func TestNekoAPIStalledHandshake(t *testing.T) {
 		name  string
 		setup func(e *Endpoint)
 	}{
-		// the call's timeout runs out during the handshake (the handshake's own is longer)
+		// the call's timeout runs out during the handshake (which min() caps at the same 400 ms)
 		{"call timeout", func(e *Endpoint) { e.Timeout = 400 * time.Millisecond; e.HandshakeTimeout = 10 * time.Second }},
 		// the handshake's own deadline, well inside the call's
 		{"handshake timeout", func(e *Endpoint) { e.Timeout = 5 * time.Second; e.HandshakeTimeout = 300 * time.Millisecond }},
@@ -303,5 +303,52 @@ func stalledHandshake(t *testing.T, listener net.Listener, accepted, closed *ato
 	}
 	if c, n := closed.Load(), accepted.Load(); c != n {
 		t.Fatalf("%d of %d connections still open after the call", n-c, n)
+	}
+}
+
+// When the Call ends, a dial still in its handshake ends too, though both timeouts are far off (net/http keeps
+// dialing for its pool after the request gave up). Two things end it: the Call's context and, since Go 1.23,
+// CloseIdleConnections; this checks the behaviour, not which of them did it.
+func TestNekoAPIDialEndsWithCall(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	var accepted, closed atomic.Int32
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				return
+			}
+			accepted.Add(1)
+			go func() {
+				io.Copy(io.Discard, conn)
+				conn.Close()
+				closed.Add(1)
+			}()
+		}
+	}()
+	id, _ := NewIdentity()
+	e := Endpoint{Host: "127.0.0.1", Port: listener.Addr().(*net.TCPAddr).Port, Pin: strings.Repeat("A", 43), Identity: id,
+		Timeout: 5 * time.Second, HandshakeTimeout: 5 * time.Second,
+		SPA: knock.SPAv2Options{NodeID: strings.Repeat("33", 16), EpochLen: 86400, SlotLen: 600, PortKey: strings.Repeat("44", 32),
+			PortBase: 40000, PortRange: 4096, LenMin: 96, LenMax: 160, DeviceKey: strings.Repeat("11", 32)}}
+	// after the first SPA wait (300 ms) the handshake starts and stalls; the call ends at 800 ms
+	ctx, cancel := context.WithTimeout(context.Background(), 800*time.Millisecond)
+	defer cancel()
+	if _, err = Call(ctx, e, DeviceService+"Register", []byte(`{}`)); err == nil {
+		t.Fatal("a stalled handshake answered")
+	}
+	if accepted.Load() == 0 {
+		t.Fatal("no connection was made")
+	}
+	deadline := time.Now().Add(time.Second)
+	for closed.Load() < accepted.Load() && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	if c, n := closed.Load(), accepted.Load(); c != n {
+		t.Fatalf("%d of %d connections still open 1 s after the call (the handshake timeout is 5 s)", n-c, n)
 	}
 }
