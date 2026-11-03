@@ -24,7 +24,7 @@ def values(text):
         try:
             value, i = decoder.raw_decode(text, i)
             yield value
-        except ValueError:
+        except (ValueError, RecursionError):
             # unclosed (the outer object, a cut tail): go on inside it
             k = text.find("{", i + 1)
             if k < 0:
@@ -54,9 +54,16 @@ def main(path, extra=None):
         return
     names, events = {}, []
     for value in values(text):
-        walk(value, names, events)
+        try:
+            walk(value, names, events)
+        except RecursionError:
+            continue
     found = 0
-    pattern = re.compile(extra) if extra else None
+    try:
+        pattern = re.compile(extra) if extra else None
+    except re.error as e:
+        print(f"bad pattern {extra!r}: {e}")
+        pattern = None
     for e in events:
         params = e["params"]
         name = names.get(e["type"], str(e["type"]))

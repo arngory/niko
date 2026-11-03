@@ -128,14 +128,13 @@ jobs:
           sleep 1
 
       - name: Interop
-        env:
-          # NaiveProxy on Linux reads its roots from the system store, not NSS (use_nss_certs=false); this replaces it
-          SSL_CERT_FILE: /tmp/ca.crt
         run: |
           pw=$(cat /tmp/naive.pw)
-          nohup /tmp/naive --listen=socks://127.0.0.1:11090 --proxy="https://niko:${pw}@naive.test:18446" \
+          # NaiveProxy on Linux reads its roots from the system store, not NSS (use_nss_certs=false): SSL_CERT_FILE
+          # replaces it, for naive only; curl checks the destination's certificate through the tunnel itself
+          SSL_CERT_FILE=/tmp/ca.crt nohup /tmp/naive --listen=socks://127.0.0.1:11090 --proxy="https://niko:${pw}@naive.test:18446" \
             --host-resolver-rules="MAP naive.test 127.0.0.1" --log --log-net-log=/tmp/naive-net.json > /tmp/naive-client.log 2>&1 &
-          nohup /tmp/naive --listen=socks://127.0.0.1:11091 --proxy="https://niko:wrong@naive.test:18446" \
+          SSL_CERT_FILE=/tmp/ca.crt nohup /tmp/naive --listen=socks://127.0.0.1:11091 --proxy="https://niko:wrong@naive.test:18446" \
             --host-resolver-rules="MAP naive.test 127.0.0.1" --log > /tmp/naive-wrong.log 2>&1 &
           sleep 3
           fail=0
@@ -154,5 +153,5 @@ jobs:
           for i in 1 2 3 4; do curl -s -m 5 -o /dev/null -x socks5h://127.0.0.1:11090 https://www.gstatic.com/generate_204 || true; done
           sleep 1
           echo "--- client net log errors"
-          python3 .github/scripts/netlog-errors.py /tmp/naive-net.json 'TUNNEL|RST_STREAM|GOAWAY|HTTP2_STREAM_ERROR|SEND_REQUEST_HEADERS|READ_RESPONSE_HEADERS|NAIVE' 
+          python3 .github/scripts/netlog-errors.py /tmp/naive-net.json 'TUNNEL|RST_STREAM|GOAWAY|HTTP2_STREAM_ERROR|SEND_REQUEST_HEADERS|READ_RESPONSE_HEADERS|NAIVE' || true
           pkill -x rayd || true; pkill -x naive || true; pkill -x socat || true
