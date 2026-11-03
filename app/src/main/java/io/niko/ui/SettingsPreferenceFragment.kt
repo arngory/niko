@@ -283,8 +283,12 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             for ((key, id) in node.profileIds.orEmpty()) {
                 val profile = SagerDatabase.proxyDao.getById(id) ?: continue
                 val score = RayChannel.probe(profile, deep = true, mobile = network.mobile)
-                RayChannel.record(node.spa.nodeId, network, key, score)
-                lines += RayChannel.describe(context, profile.displayName(), score)
+                if (score == null) {
+                    lines += context.getString(R.string.raycontrol_channel_in_use, profile.displayName())
+                } else {
+                    RayChannel.record(node.spa.nodeId, network, key, score)
+                    lines += RayChannel.describe(context, profile.displayName(), score)
+                }
                 onMainDispatcher { dialog.setMessage(lines.joinToString("\n")) }
             }
             lines[0] = context.getString(R.string.raycontrol_channel_done)

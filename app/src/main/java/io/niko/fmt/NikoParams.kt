@@ -64,3 +64,17 @@ fun parseYggParam(spec: String): Pair<String, String> {
 
 /** The host a Yggdrasil profile's peer link dials: the node itself. */
 fun yggPeerHost(peer: String): String? = runCatching { java.net.URI(peer).host }.getOrNull()
+
+/** A latency test or probe of a Yggdrasil profile whose key the running connection uses: not run. */
+class YggInUseException(name: String) :
+    Exception("$name: its Yggdrasil key is in use by the running connection; a second link would disturb it")
+
+/** The Yggdrasil keys the running profile's chain uses. */
+fun runningYggKeys(): Set<String> {
+    val running = io.niko.database.SagerDatabase.proxyDao.getById(io.niko.database.DataStore.currentProfile) ?: return emptySet()
+    val beans = when (val bean = running.requireBean()) {
+        is io.niko.fmt.internal.ChainBean -> bean.proxies.mapNotNull { io.niko.database.SagerDatabase.proxyDao.getById(it)?.requireBean() }
+        else -> listOf(bean)
+    }
+    return beans.mapNotNull { it.yggKey?.takeIf { k -> k.isNotBlank() } }.toSet()
+}

@@ -627,6 +627,7 @@
     <string name="raycontrol_channel_title">Channel to %1$s</string>
     <string name="raycontrol_channel_checking">Checking each profile on this network (up to 20 s each)…</string>
     <string name="raycontrol_channel_done">Done. The results order the profiles when one stops working here.</string>
+    <string name="raycontrol_channel_in_use">%1$s: in use now, not checked (a second link would take its key)</string>
     <string name="raycontrol_channel_no_network">No network</string>
     <string name="raycontrol_channel_tcp">%1$s: TCP %2$s Mbit/s, first byte in %3$d ms</string>
     <string name="raycontrol_channel_stalled">%1$s: TCP stalls after %2$d KB</string>

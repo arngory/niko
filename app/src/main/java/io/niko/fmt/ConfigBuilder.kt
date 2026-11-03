@@ -313,6 +313,8 @@ fun buildConfig(
         // other nodes reach this device only when allowed, and then only its own services; it
         // goes first, above the DNS hijack, or every node would get a resolver
         var yggdrasilInboundRule: Rule_DefaultOptions? = null
+        // the mesh nodes of raycontrol Yggdrasil profiles, one per device key: nothing comes in through them
+        val yggProfileEndpoints = mutableMapOf<String, String>()
         // a hop behind a DNS tunnel may carry no UDP at all (SOCKS, HTTP, SSH, Shadowsocks
         // without UoT): remote DNS through the proxy then goes over TCP
         var tunnelledHop = false
@@ -623,15 +625,25 @@ fun buildConfig(
                 // the Yggdrasil profile's own mesh node: the device's key, the node as its only peer (P-14), the
                 // peer link through the node's SPA (TCP 443). The VLESS to the node's mesh address goes through it
                 if (yggPeer != null) {
-                    val yggTag = "$tagOut-ygg"
-                    endpoints.add(Outbound().apply {
-                        type = "yggdrasil"
-                        tag = yggTag
-                        _hack_config_map["private_key"] = bean.yggKey
-                        _hack_config_map["peers"] = listOf(yggPeer)
-                        _hack_config_map["node_info_privacy"] = true
-                        knockTag?.let { _hack_config_map["detour"] = it }
-                    })
+                    val seed = bean.yggKey.orEmpty()
+                    // a second mesh node with the device's key would claim its address next to the running one: the
+                    // node would send the running connection's packets down either link
+                    if (forTest && DataStore.serviceState.started && seed in runningYggKeys()) {
+                        throw YggInUseException(bean.displayName())
+                    }
+                    val yggTag = yggProfileEndpoints.getOrPut(seed) {
+                        "$tagOut-ygg".also { tag ->
+                            endpoints.add(Outbound().apply {
+                                type = "yggdrasil"
+                                this.tag = tag
+                                // the device's key never leaves the app, as the SPA key
+                                _hack_config_map["private_key"] = if (forExport) "<the device key stays in the app>" else seed
+                                _hack_config_map["peers"] = listOf(yggPeer)
+                                _hack_config_map["node_info_privacy"] = true
+                                knockTag?.let { _hack_config_map["detour"] = it }
+                            })
+                        }
+                    }
                     currentOutbound._hack_config_map.remove("domain_resolver")
                     currentOutbound._hack_config_map["detour"] = yggTag
                     pastDetourHolder = null
@@ -1082,6 +1094,12 @@ fun buildConfig(
                 })
             }
         }
+        // nothing reaches the device through the mesh node of a raycontrol Yggdrasil profile: the node and the mesh
+        // behind it would get the device's resolver, its local listeners or the proxy. Above every other rule
+        if (yggProfileEndpoints.isNotEmpty()) route.rules.add(0, Rule_DefaultOptions().apply {
+            inbound = yggProfileEndpoints.values.toList()
+            action = "reject"
+        })
 
         dns.strategy = autoDnsDomainStrategy(SingBoxOptionsUtil.domainStrategy(dns.final_))
         dns.rules.filterIsInstance<DNSRule_DefaultOptions>().forEach { rule ->

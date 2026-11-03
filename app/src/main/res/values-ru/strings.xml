@@ -539,6 +539,7 @@
     <string name="raycontrol_channel_title">Канал до %1$s</string>
     <string name="raycontrol_channel_checking">Проверяю каждый профиль в этой сети (до 20 с на каждый)…</string>
     <string name="raycontrol_channel_done">Готово. По этим результатам выбирается профиль, если текущий здесь перестанет работать.</string>
+    <string name="raycontrol_channel_in_use">%1$s: используется сейчас, не проверялся (второе подключение заняло бы его ключ)</string>
     <string name="raycontrol_channel_no_network">Нет сети</string>
     <string name="raycontrol_channel_tcp">%1$s: TCP %2$s Мбит/с, первый байт за %3$d мс</string>
     <string name="raycontrol_channel_stalled">%1$s: TCP встаёт после %2$d КБ</string>

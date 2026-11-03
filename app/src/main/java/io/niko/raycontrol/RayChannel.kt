@@ -135,13 +135,17 @@ object RayChannel {
         addProperty("window_ms", if (deep) 10_000 else 5_000)
     }.toString()
 
-    suspend fun probe(profile: ProxyEntity, deep: Boolean, mobile: Boolean): ChannelScore {
+    /** The probe's score, or null when it cannot run here: a Yggdrasil profile the running connection uses. */
+    suspend fun probe(profile: ProxyEntity, deep: Boolean, mobile: Boolean): ChannelScore? {
         val at = System.currentTimeMillis() / 1000
         return try {
             ChannelScore.fromProbe(at, TestInstance(profile, "", 0).doProbe(options(deep, mobile)))
         } catch (e: CancellationException) {
             // cancelled, not failed: nothing to record
             throw e
+        } catch (e: io.niko.fmt.YggInUseException) {
+            // a second link with the device's key would disturb the running one: not a result
+            null
         } catch (e: Exception) {
             Logs.w("raycontrol channel probe ${profile.displayName()}: ${e.message}")
             ChannelScore(at, tcpOk = false, tcpError = e.message ?: e.javaClass.simpleName)
@@ -251,7 +255,7 @@ object RayChannel {
             currentCoroutineContext().ensureActive()
             val id = node.profileIds?.get(key) ?: continue
             val profile = SagerDatabase.proxyDao.getById(id) ?: continue
-            val score = probe(profile, deep = false, mobile = network.mobile)
+            val score = probe(profile, deep = false, mobile = network.mobile) ?: continue
             record(nodeId, network, key, score)
             Logs.i("raycontrol ${node.host}: $key on this network: ${if (score.tcpOk) "works, ${score.kbps} kbit/s" else score.tcpError}")
             if (score.tcpOk && (best == null || score.rank() > best.second.rank())) best = key to score
