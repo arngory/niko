@@ -142,6 +142,9 @@ jobs:
       - name: Gradle build
         env:
           BUILD_PLUGIN: none
+          # assets.sh asks the GitHub API for the latest geoip and geosite releases: unauthenticated, the shared
+          # runner addresses run into the rate limit
+          GITHUB_TOKEN: ${{ github.token }}
           KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
           ALIAS_NAME: ${{ secrets.ALIAS_NAME }}
           ALIAS_PASS: ${{ secrets.ALIAS_PASS }}

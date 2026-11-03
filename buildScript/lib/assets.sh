@@ -7,10 +7,19 @@ rm -rf $DIR
 mkdir -p $DIR
 cd $DIR
 
+# the latest release tag of a GitHub repository; with GITHUB_TOKEN set (CI) the call is authenticated, since
+# the unauthenticated rate limit is shared by the runners' addresses. An empty answer stops the build here.
 get_latest_release() {
-  curl --silent "https://api.github.com/repos/$1/releases/latest" | # Get latest release from GitHub api
-    grep '"tag_name":' |                                            # Get tag line
-    sed -E 's/.*"([^"]+)".*/\1/'                                    # Pluck JSON value
+  local tag
+  tag=$(curl --silent --retry 3 ${GITHUB_TOKEN:+-H "Authorization: Bearer $GITHUB_TOKEN"} \
+    "https://api.github.com/repos/$1/releases/latest" |
+    grep '"tag_name":' |
+    sed -E 's/.*"([^"]+)".*/\1/')
+  if [ -z "$tag" ]; then
+    echo "no latest release of $1 (GitHub API rate limit or no network?)" >&2
+    exit 1
+  fi
+  echo "$tag"
 }
 
 ####

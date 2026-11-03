@@ -413,7 +413,7 @@ POST /probe/v1/report
   том же пороге. Для них в `hints` нужны поля `udp_blocked` и `tcp_stall_kib`. По ним клиент заранее включит
   средства против DPI (фрагментацию TLS, UDP-desync) или сразу пойдёт в TCP-профиль.
 
-### 14.5. Результаты блока F (клиент v1.19.0)
+### 14.5. Результаты блока F (клиент [v1.19.0](https://github.com/arngory/niko/releases/tag/v1.19.0), выпущен)
 
 **Закрепления в `arngory/niko`.** raycontrol `5e3c5ec` (`.github/raycontrol.env`), niko-server `v0.6.0`
 (`.github/niko-server.env`, SHA-256 amd64 совпадает с `SHA256SUMS` релиза и с `deploy/versions.env`).
