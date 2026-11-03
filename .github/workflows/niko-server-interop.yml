@@ -57,7 +57,7 @@ jobs:
         working-directory: core
         run: |
           go build -o /tmp/sing-box -ldflags=-checklinkname=0 \
-            -tags=with_utls,with_quic,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0 ./cmd/sing-box
+            -tags=with_gvisor,with_utls,with_quic,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0 ./cmd/sing-box
 
       - name: Start the node
         run: |
@@ -134,6 +134,9 @@ jobs:
           nohup /tmp/niko-server backend -c /tmp/dns.json > /tmp/dns.log 2>&1 &
           nohup /tmp/niko-server backend -c /tmp/mdns.json > /tmp/mdns.log 2>&1 &
           for f in h2m h2o ygg; do nohup /tmp/niko-server backend -c /tmp/$f.json > /tmp/$f.log 2>&1 & done
+          sleep 1
+          # the backend names its mesh address: the client's derivation from the key must agree
+          grep -q "address $(cat /tmp/node.ygg)," /tmp/ygg.log || { echo "node address differs: $(grep -o 'address [^,]*' /tmp/ygg.log)"; exit 1; }
           nohup /tmp/niko-server front -c /tmp/front.json > /tmp/front.log 2>&1 &
           sleep 2
 
