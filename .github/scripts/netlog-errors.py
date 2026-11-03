@@ -9,6 +9,7 @@ names come from any "logEventTypes" object, the events from any object with a
 "type" and "params". It says what it found, or that it could not read the file.
 """
 import json
+import re
 import sys
 
 
@@ -45,7 +46,7 @@ def walk(value, names, events):
             walk(v, names, events)
 
 
-def main(path):
+def main(path, extra=None):
     try:
         text = open(path, encoding="utf-8", errors="replace").read()
     except OSError as e:
@@ -55,13 +56,16 @@ def main(path):
     for value in values(text):
         walk(value, names, events)
     found = 0
+    pattern = re.compile(extra) if extra else None
     for e in events:
         params = e["params"]
-        if "net_error" in params or "cert_status" in params or "verifier_errors" in params:
+        name = names.get(e["type"], str(e["type"]))
+        if "net_error" in params or "verifier_errors" in params or (pattern and pattern.search(name)):
             found += 1
-            print(names.get(e["type"], e["type"]), json.dumps(params)[:400])
+            print(name, json.dumps(params)[:600])
     print(f"net log {path}: {len(text)} bytes, {len(events)} events, {found} with errors, {len(names)} event types")
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    # optional: a regular expression of event type names to print as well (e.g. TUNNEL|RST_STREAM)
+    main(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else None)

@@ -154,5 +154,5 @@ jobs:
           for i in 1 2 3 4; do curl -s -m 5 -o /dev/null -x socks5h://127.0.0.1:11090 https://www.gstatic.com/generate_204 || true; done
           sleep 1
           echo "--- client net log errors"
-          python3 .github/scripts/netlog-errors.py /tmp/naive-net.json
+          python3 .github/scripts/netlog-errors.py /tmp/naive-net.json 'TUNNEL|RST_STREAM|GOAWAY|HTTP2_STREAM_ERROR|SEND_REQUEST_HEADERS|READ_RESPONSE_HEADERS|NAIVE' 
           pkill -x rayd || true; pkill -x naive || true; pkill -x socat || true
