@@ -252,7 +252,7 @@ func TestNekoAPIStalledHandshake(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer listener.Close()
-	var accepted atomic.Int32
+	var accepted, closed atomic.Int32
 	go func() {
 		for {
 			conn, err := listener.Accept()
@@ -260,27 +260,30 @@ func TestNekoAPIStalledHandshake(t *testing.T) {
 				return
 			}
 			accepted.Add(1)
-			// reads the ClientHello and never answers
-			go func() { io.Copy(io.Discard, conn) }()
+			// reads the ClientHello and never answers; counts the client closing
+			go func() {
+				io.Copy(io.Discard, conn)
+				conn.Close()
+				closed.Add(1)
+			}()
 		}
 	}()
-	for name, setup := range map[string]func(e *Endpoint){
-		// the call's timeout runs out during the handshake
-		"call timeout": func(e *Endpoint) { e.Timeout = 400 * time.Millisecond },
+	for _, c := range []struct {
+		name  string
+		setup func(e *Endpoint)
+	}{
+		// the call's timeout runs out during the handshake (the handshake's own is longer)
+		{"call timeout", func(e *Endpoint) { e.Timeout = 400 * time.Millisecond; e.HandshakeTimeout = 10 * time.Second }},
 		// the handshake's own deadline, well inside the call's
-		"handshake timeout": func(e *Endpoint) {
-			e.Timeout = 5 * time.Second
-			old := handshakeTimeout
-			handshakeTimeout = 300 * time.Millisecond
-			t.Cleanup(func() { handshakeTimeout = old })
-		},
+		{"handshake timeout", func(e *Endpoint) { e.Timeout = 5 * time.Second; e.HandshakeTimeout = 300 * time.Millisecond }},
 	} {
-		t.Run(name, func(t *testing.T) { stalledHandshake(t, listener, &accepted, setup) })
+		t.Run(c.name, func(t *testing.T) { stalledHandshake(t, listener, &accepted, &closed, c.setup) })
 	}
 }
 
-func stalledHandshake(t *testing.T, listener net.Listener, accepted *atomic.Int32, setup func(e *Endpoint)) {
+func stalledHandshake(t *testing.T, listener net.Listener, accepted, closed *atomic.Int32, setup func(e *Endpoint)) {
 	accepted.Store(0)
+	closed.Store(0)
 	id, _ := NewIdentity()
 	e := Endpoint{Host: "127.0.0.1", Port: listener.Addr().(*net.TCPAddr).Port, Pin: strings.Repeat("A", 43), Identity: id,
 		SPA: knock.SPAv2Options{NodeID: strings.Repeat("33", 16), EpochLen: 86400, SlotLen: 600, PortKey: strings.Repeat("44", 32),
@@ -292,5 +295,13 @@ func stalledHandshake(t *testing.T, listener net.Listener, accepted *atomic.Int3
 	}
 	if n := accepted.Load(); n != 3 {
 		t.Fatalf("%d connections, want 3 (UDP, UDP again, TCP)", n)
+	}
+	// no dial outlives the Call (net/http would finish it for the pool)
+	deadline := time.Now().Add(2 * time.Second)
+	for closed.Load() < accepted.Load() && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	if c, n := closed.Load(), accepted.Load(); c != n {
+		t.Fatalf("%d of %d connections still open after the call", n-c, n)
 	}
 }

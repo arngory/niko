@@ -63,6 +63,8 @@ type Endpoint struct {
 	// a socket control that keeps the sockets out of the app's own VPN (nil in tests)
 	Control func(network, address string, conn syscall.RawConn) error `json:"-"`
 	Timeout time.Duration                                             `json:"-"`
+	// the TLS handshake on its own, at most Timeout (0: 10 s)
+	HandshakeTimeout time.Duration `json:"-"`
 	// no SPA (tests)
 	NoSPA bool `json:"-"`
 }
@@ -80,9 +82,6 @@ func (e *Error) Error() string {
 	}
 	return "raycontrol api: " + e.Code + ": " + e.Message
 }
-
-// the TLS handshake of the API connection, apart from the dial and the whole call (a var for tests)
-var handshakeTimeout = 10 * time.Second
 
 // ErrNoAnswer: the API port stayed closed after SPA over UDP and TCP.
 var ErrNoAnswer = errors.New("raycontrol api: the node did not answer")
@@ -170,7 +169,10 @@ func (e *Endpoint) dialer() *net.Dialer {
 	return &net.Dialer{Timeout: 10 * time.Second, Control: e.Control}
 }
 
-func (e *Endpoint) client() (*http.Client, error) {
+// client makes the HTTP client of one Call; callCtx ends with the Call, and
+// with it any dial still under way (net/http keeps dialing for the pool after
+// a request gave up).
+func (e *Endpoint) client(callCtx context.Context) (*http.Client, error) {
 	cert, _, err := e.Identity.tlsCertificate()
 	if err != nil {
 		return nil, err
@@ -201,19 +203,25 @@ func (e *Endpoint) client() (*http.Client, error) {
 	if timeout == 0 {
 		timeout = 20 * time.Second
 	}
+	handshakeTimeout := e.HandshakeTimeout
+	if handshakeTimeout == 0 {
+		handshakeTimeout = 10 * time.Second
+	}
+	handshakeTimeout = min(handshakeTimeout, timeout)
 	dialer := e.dialer()
 	return &http.Client{
 		Timeout: timeout,
 		Transport: &http.Transport{
 			// the connection is made here, so that a failure before the request is told apart (connectError)
-			DialTLSContext: func(ctx context.Context, network, address string) (net.Conn, error) {
-				raw, err := dialer.DialContext(ctx, network, address)
+			DialTLSContext: func(_ context.Context, network, address string) (net.Conn, error) {
+				// the transport's context outlives the request; the Call's does not
+				raw, err := dialer.DialContext(callCtx, network, address)
 				if err != nil {
 					return nil, &connectError{err}
 				}
 				conn := tls.Client(raw, config)
 				// a handshake that hangs (a middlebox) fails here, as a failure to connect
-				handshakeCtx, cancel := context.WithTimeout(ctx, handshakeTimeout)
+				handshakeCtx, cancel := context.WithTimeout(callCtx, handshakeTimeout)
 				err = conn.HandshakeContext(handshakeCtx)
 				cancel()
 				if err != nil {
@@ -226,7 +234,7 @@ func (e *Endpoint) client() (*http.Client, error) {
 				return conn, nil
 			},
 			ForceAttemptHTTP2: true,
-			// a dial that completes after its request gave up still goes to the pool: do not keep it
+			// a connection that completes after its request gave up still goes to the pool: do not keep it
 			IdleConnTimeout: 5 * time.Second,
 			Proxy:           nil,
 		},
@@ -239,7 +247,9 @@ func (e *Endpoint) client() (*http.Client, error) {
 // the request went out it is never sent again (ErrAnswerLost), since calls
 // such as Register or RotateService must not run twice.
 func Call(ctx context.Context, e Endpoint, method string, body []byte) ([]byte, error) {
-	client, err := e.client()
+	callCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	client, err := e.client(callCtx)
 	if err != nil {
 		return nil, err
 	}
