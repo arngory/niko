@@ -11,10 +11,13 @@ names come from any "logEventTypes" object, the events from any object with a
 With --connect STATUS it checks instead that a CONNECT through the proxy got
 STATUS: within one net log source the tunnel requests and their answers are
 paired in order, and only a source with an answer to each request counts, so a
-cut tail or a reset stream proves nothing. The method comes from the HTTP/2
-request headers: naive logs its own GET / before the CONNECT with the same
-tunnel line ("CONNECT host:port"), and that GET always gets the site's answer.
-Exit 0 when some CONNECT got STATUS, 1 otherwise.
+cut tail or a reset stream proves nothing. naive logs its own GET / before the
+CONNECT with the same tunnel line ("CONNECT host:port"), and that GET always
+gets the site's answer, so the method comes from the HTTP/2 request headers.
+Those are logged on the HTTP/2 session's source, right after the tunnel's own
+headers: each tunnel request takes the method of the next HTTP/2 request
+headers in the log, in order. Without HTTP/2 events (an HTTP/1.1 proxy) the
+tunnel line decides. Exit 0 when some CONNECT got STATUS, 1 otherwise.
 """
 import json
 import re
@@ -72,8 +75,10 @@ def read(path):
 
 def connect(path, want):
     _, names, events = read(path)
-    # per source: methods from the tunnel lines, from the HTTP/2 request headers, and the answers
+    # per source: its tunnel requests ([line method, HTTP/2 method, has credentials]) and their answers
     sources = OrderedDict()
+    pending = []
+    h2seen = False
     for e in events:
         name = names.get(e["type"])
         source = e.get("source")
@@ -81,25 +86,30 @@ def connect(path, want):
         params = e["params"]
         if name == "HTTP_TRANSACTION_SEND_TUNNEL_HEADERS":
             line = params.get("line")
-            method = line.split(" ", 1)[0] if isinstance(line, str) and line else "?"
-            sources.setdefault(key, ([], [], []))[0].append(method)
+            headers = [h for h in params.get("headers") or [] if isinstance(h, str)]
+            auth = any(h.lower().startswith("proxy-authorization:") for h in headers)
+            request = [line.split(" ", 1)[0] if isinstance(line, str) and line else "?", None, auth]
+            sources.setdefault(key, ([], []))[0].append(request)
+            pending.append(request)
         elif name == "HTTP_TRANSACTION_HTTP2_SEND_REQUEST_HEADERS":
+            h2seen = True
             method = next((h.split(": ", 1)[1] for h in params.get("headers") or []
                            if isinstance(h, str) and h.startswith(":method: ")), "?")
-            sources.setdefault(key, ([], [], []))[1].append(method)
+            if pending:
+                pending.pop(0)[1] = method
         elif name == "HTTP_TRANSACTION_READ_TUNNEL_RESPONSE_HEADERS":
             headers = params.get("headers") or ["?"]
             status = str(headers[0]).split(" ")
-            sources.setdefault(key, ([], [], []))[2].append(status[1] if len(status) > 1 else "?")
+            sources.setdefault(key, ([], []))[1].append(status[1] if len(status) > 1 else "?")
     got = []
-    for key, (lines, h2, answers) in sources.items():
-        # HTTP/2 tells a GET from a CONNECT; the tunnel line only for an HTTP/1.1 proxy
-        requests = h2 if h2 else lines
+    for key, (requests, answers) in sources.items():
         if not requests:
             continue
-        print(f"source {key}: sent {requests}{' (HTTP/2)' if h2 else ''}, answers {answers}")
+        methods = [(r[1] or "?") if h2seen else r[0] for r in requests]
+        shown = [m + (" +auth" if r[2] else "") for m, r in zip(methods, requests)]
+        print(f"source {key}: sent {shown}, answers {answers}")
         if len(answers) == len(requests):
-            got += [a for r, a in zip(requests, answers) if r == "CONNECT"]
+            got += [a for m, a in zip(methods, answers) if m == "CONNECT"]
     ok = want in got
     print(f"net log {path}: CONNECT answered {got or 'nothing complete'}, want {want}: {'ok' if ok else 'FAIL'}")
     return ok
