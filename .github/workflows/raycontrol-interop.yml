@@ -103,7 +103,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           . .github/raycontrol.env
-          sudo apt-get install -y -qq libnss3-tools socat > /dev/null
+          sudo apt-get install -y -qq socat > /dev/null
           tag=$(gh release list -R klzgrad/naiveproxy -L 100 --json tagName -q '.[].tagName' | grep -m1 "^v${NAIVE_CHROMIUM}-")
           [ -n "$tag" ] || { echo "no NaiveProxy release for Chromium $NAIVE_CHROMIUM"; exit 1; }
           gh release download "$tag" -R klzgrad/naiveproxy -p "naiveproxy-${tag}-linux-x64.tar.xz" -D /tmp
@@ -119,8 +119,6 @@ jobs:
           openssl req -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -subj "/CN=naive.test" -keyout leaf.key -out leaf.csr 2>/dev/null
           printf "subjectAltName=DNS:naive.test\nbasicConstraints=CA:FALSE\n" > leaf.ext
           openssl x509 -req -in leaf.csr -CA ca.crt -CAkey ca.key -CAcreateserial -days 30 -extfile leaf.ext -out leaf.crt 2>/dev/null
-          mkdir -p ~/.pki/nssdb && certutil -d sql:$HOME/.pki/nssdb -N --empty-password
-          certutil -d sql:$HOME/.pki/nssdb -A -t "C,," -n interop -i ca.crt
           pw=$(openssl rand -hex 16); echo "$pw" > /tmp/naive.pw
           printf '["%s"]' "$(printf %s "$pw" | sha256sum | cut -d' ' -f1)" > users.json
           nohup /tmp/rayd naive -users users.json -chain leaf.crt -key leaf.key -socket /tmp/naive.sock > /tmp/naive-server.log 2>&1 &
@@ -130,6 +128,9 @@ jobs:
           sleep 1
 
       - name: Interop
+        env:
+          # NaiveProxy on Linux reads its roots from the system store, not NSS (use_nss_certs=false); this replaces it
+          SSL_CERT_FILE: /tmp/ca.crt
         run: |
           pw=$(cat /tmp/naive.pw)
           nohup /tmp/naive --listen=socks://127.0.0.1:11090 --proxy="https://niko:${pw}@naive.test:18446" \
@@ -148,18 +149,10 @@ jobs:
         if: always()
         run: |
           for f in naive-server naive-client naive-wrong; do echo "--- $f"; tail -n 30 /tmp/$f.log 2>/dev/null || true; done
-          # the client's network errors (certificate, TLS, proxy): the --log output has none of them
+          # the client's network errors (certificate, TLS, proxy): the --log output has none of them. naive writes
+          # its net log in batches of 15 events and never at exit: a few more tries push the last ones out
+          for i in 1 2 3 4; do curl -s -m 5 -o /dev/null -x socks5h://127.0.0.1:11090 https://www.gstatic.com/generate_204 || true; done
+          sleep 1
           echo "--- client net log errors"
-          python3 - <<'PY' || true
-          import json, re
-          text = open("/tmp/naive-net.json").read().rstrip().rstrip(",")
-          if not text.endswith("]}"):
-              text += "]}"
-          log = json.loads(text)
-          names = {v: k for k, v in log["constants"]["logEventTypes"].items()}
-          for e in log.get("events", []):
-              params = e.get("params", {})
-              if "net_error" in params or "cert_status" in params or "verifier_errors" in params:
-                  print(names.get(e["type"], e["type"]), json.dumps(params)[:400])
-          PY
+          python3 .github/scripts/netlog-errors.py /tmp/naive-net.json
           pkill -x rayd || true; pkill -x naive || true; pkill -x socat || true
