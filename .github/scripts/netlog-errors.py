@@ -9,10 +9,12 @@ names come from any "logEventTypes" object, the events from any object with a
 "type" and "params". It says what it found, or that it could not read the file.
 
 With --connect STATUS it checks instead that a CONNECT through the proxy got
-STATUS: within one net log source the tunnel requests (the CONNECT, perhaps
-after naive's own GET / first) and their answers are paired in order, and only a
-source with an answer to each request counts, so a cut tail or a reset stream
-proves nothing. Exit 0 when some CONNECT got STATUS, 1 otherwise.
+STATUS: within one net log source the tunnel requests and their answers are
+paired in order, and only a source with an answer to each request counts, so a
+cut tail or a reset stream proves nothing. The method comes from the HTTP/2
+request headers: naive logs its own GET / before the CONNECT with the same
+tunnel line ("CONNECT host:port"), and that GET always gets the site's answer.
+Exit 0 when some CONNECT got STATUS, 1 otherwise.
 """
 import json
 import re
@@ -70,6 +72,7 @@ def read(path):
 
 def connect(path, want):
     _, names, events = read(path)
+    # per source: methods from the tunnel lines, from the HTTP/2 request headers, and the answers
     sources = OrderedDict()
     for e in events:
         name = names.get(e["type"])
@@ -79,16 +82,22 @@ def connect(path, want):
         if name == "HTTP_TRANSACTION_SEND_TUNNEL_HEADERS":
             line = params.get("line")
             method = line.split(" ", 1)[0] if isinstance(line, str) and line else "?"
-            sources.setdefault(key, ([], []))[0].append(method)
+            sources.setdefault(key, ([], [], []))[0].append(method)
+        elif name == "HTTP_TRANSACTION_HTTP2_SEND_REQUEST_HEADERS":
+            method = next((h.split(": ", 1)[1] for h in params.get("headers") or []
+                           if isinstance(h, str) and h.startswith(":method: ")), "?")
+            sources.setdefault(key, ([], [], []))[1].append(method)
         elif name == "HTTP_TRANSACTION_READ_TUNNEL_RESPONSE_HEADERS":
             headers = params.get("headers") or ["?"]
             status = str(headers[0]).split(" ")
-            sources.setdefault(key, ([], []))[1].append(status[1] if len(status) > 1 else "?")
+            sources.setdefault(key, ([], [], []))[2].append(status[1] if len(status) > 1 else "?")
     got = []
-    for key, (requests, answers) in sources.items():
-        if "CONNECT" not in requests:
+    for key, (lines, h2, answers) in sources.items():
+        # HTTP/2 tells a GET from a CONNECT; the tunnel line only for an HTTP/1.1 proxy
+        requests = h2 if h2 else lines
+        if not requests:
             continue
-        print(f"source {key}: sent {requests}, answers {answers}")
+        print(f"source {key}: sent {requests}{' (HTTP/2)' if h2 else ''}, answers {answers}")
         if len(answers) == len(requests):
             got += [a for r, a in zip(requests, answers) if r == "CONNECT"]
     ok = want in got
