@@ -331,11 +331,11 @@ v1.18.0, раздел дополняется по мере готовности 
 
 | Что | Блок клиента | Состояние |
 |---|---|---|
-| Профиль Yggdrasil (`niko-ygg`): свой endpoint с seed, нода — единственный пир, VLESS через него | F, v1.19.0 | в работе |
-| Фейки перед QUIC без имён ноды | F | в работе |
+| Профиль Yggdrasil (`niko-ygg`): свой endpoint с seed, нода — единственный пир, VLESS через него | F, v1.19.0 | сделано (`9d0fc99`, `bb84d84`) |
+| Фейки перед QUIC без имён ноды | F | сделано (`9d0fc99`) |
 | `naive+quic://` | — | уже работает: ссылку разбирает, плагин NaiveProxy получает `quic://`; проверка через фронт — в CI блока F |
 | DoH3 | — | пока нет: DoH ноды остаётся на h2 (TCP 443); h3 по желанию позже |
-| CI: `raycontrol-interop.yml` на `5e3c5ec` с фронтом перед `rayd naive`; `niko-server-interop.yml` на `v0.6.0` с Hysteria2 через udpmux и Yggdrasil через tcpmux | F | в работе |
+| CI: `raycontrol-interop.yml` на `5e3c5ec` с фронтом перед `rayd naive`; `niko-server-interop.yml` на `v0.6.0` с Hysteria2 через udpmux и Yggdrasil через tcpmux | F | сделано, проходит (§14.5) |
 | Замер по `probe-v1` вместо сторонних целей: напрямую и через туннели `tunnel_svc` | G, v1.20.0 | после F |
 | Темп Brutal по замеру, снижение по `ack_rate` | G | после F |
 
@@ -412,3 +412,37 @@ POST /probe/v1/report
 - **Что поможет кроме сводки.** Отдельные признаки по видам: у сети не проходит UDP вообще; TCP встаёт на одном и
   том же пороге. Для них в `hints` нужны поля `udp_blocked` и `tcp_stall_kib`. По ним клиент заранее включит
   средства против DPI (фрагментацию TLS, UDP-desync) или сразу пойдёт в TCP-профиль.
+
+### 14.5. Результаты блока F (клиент v1.19.0)
+
+**Закрепления в `arngory/niko`.** raycontrol `5e3c5ec` (`.github/raycontrol.env`), niko-server `v0.6.0`
+(`.github/niko-server.env`, SHA-256 amd64 совпадает с `SHA256SUMS` релиза и с `deploy/versions.env`).
+
+**Профиль Yggdrasil в клиенте** (`9d0fc99`, `bb84d84`):
+- Endpoint у каждого профиля свой: `private_key` = seed, единственный пир — из `niko-ygg`.
+- SPA: knock на хост пира (TCP 443) стоит `detour` у endpoint; VLESS идёт на адрес ноды через endpoint.
+- Через этот endpoint к устройству не попадает ничего: правило `reject` стоит первым.
+- На один ключ устройства — один endpoint в конфиге. Тест профиля, чей ключ занят текущим подключением, не
+  запускается: второй линк с тем же ключом отбирал бы адрес устройства.
+- Глобальная настройка Yggdrasil такой профиль не перехватывает. В экспорт конфига ключ устройства не попадает.
+
+**Фейки UDP-desync.** Если SNI фейка совпадает с именем ноды (хост, SNI или адрес её профилей, DoH), он не
+используется, и фейки идут случайными байтами.
+
+**Interop.**
+
+| Проверка | Где | Результат |
+|---|---|---|
+| dnstt и MasterDnsVPN → `inner` | `niko-server-interop.yml`, `v0.6.0` | 204 |
+| Hysteria2 `hy2-masq` через udpmux (по имени) | то же | 204 |
+| Hysteria2 `hy2-obfs` через udpmux (по salamander, SNI `<hex>.invalid`) | то же | 204 |
+| Yggdrasil через tcpmux → `inner` (VLESS ML-KEM-768) | то же | 204 |
+| Чужое имя в DNS-фронте | то же | `REFUSED` |
+| NaiveProxy (h2) → фронт TCP → `rayd naive` | `raycontrol-interop.yml`, `5e3c5ec` | 204; неверный пароль — 404 на CONNECT |
+| NaiveProxy по QUIC (`quic://`) → фронт UDP → `rayd naive` | то же | 204 |
+| Регистрация, вызовы администратора, смена ключа | то же | без изменений, проходит |
+
+- Hysteria2 клиент собирает, как из ссылки raycontrol: пин ключа вместо CA, только `X25519MLKEM768`.
+- Адрес ноды в Yggdrasil клиент выводит из `key`. В CI он совпал с адресом, который пишет бэкенд niko-server.
+
+Несоответствий формату не найдено.
