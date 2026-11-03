@@ -277,6 +277,11 @@
             app:icon="@drawable/ic_baseline_vpn_key_24"
             app:key="raycontrolNodesView"
             app:title="@string/raycontrol_nodes" />
+        <SwitchPreference
+            app:defaultValue="true"
+            app:key="raycontrolAutoSwitch"
+            app:summary="@string/raycontrol_auto_switch_summary"
+            app:title="@string/raycontrol_auto_switch" />
         <EditTextPreference
             app:defaultValue="https://common.dot.dns.yandex.net/dns-query"
             app:dialogMessage="@string/raycontrol_dnstt_resolver_help"

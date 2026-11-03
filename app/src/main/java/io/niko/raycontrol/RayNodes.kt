@@ -234,6 +234,7 @@ object RayNodes {
      */
     fun remove(nodeId: String) {
         val left = RayNodesLock.withLock {
+            RayChannel.forget(nodeId)
             list().filter { it.spa.nodeId != nodeId }.also { save(it) }
         }
         Libcore.spaRetainDeviceKeys(left.joinToString("\n") { it.keyRef })

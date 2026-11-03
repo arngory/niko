@@ -24,7 +24,9 @@ import kotlinx.coroutines.withTimeoutOrNull
  *   the test fails the core restarts with the new one;
  * - when the test fails twice and nothing is pending, the subscription is fetched at once (it does not depend on the
  *   profile: own port, SPA, pinned key) and the core restarts if the profile changed; if the fetch fails, the
- *   profile switches to its other credential (`link` ↔ `next`), if it has one.
+ *   profile switches to its other credential (`link` ↔ `next`), if it has one;
+ * - when neither changes anything, the network does not let the profile through: the node's other profiles are
+ *   probed and the core moves to the best one that works ([RayChannel.failover], setting raycontrolAutoSwitch).
  *
  * Tests run 20 s after the start, 15 s after a network change, every 10 min, and every 30 s for 3 min after a
  * rotation. Fetches after failures back off from 5 min to 1 h; the backoff starts over on a network that comes back
@@ -229,14 +231,41 @@ object RayWatchdog {
     private suspend fun recover(node: RayNode, key: String) {
         val nodeId = node.spa.nodeId
         Logs.i("raycontrol ${node.host}: the profile does not work, fetching the subscription")
-        try {
+        val restarted = try {
             // restarts the core itself (as ours) when the running row changed
-            RaySubscription.refresh(nodeId, reload = RaySubscription.Reload.WATCHDOG)
+            RaySubscription.refresh(nodeId, reload = RaySubscription.Reload.WATCHDOG).restarted
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Logs.w("raycontrol ${node.host}: subscription: ${e.message}")
-            if (RaySubscription.useAlternative(nodeId, key)) restart(currentCoroutineContext()[Job])
+            if (RaySubscription.useAlternative(nodeId, key)) {
+                restart(currentCoroutineContext()[Job])
+                return
+            }
+            false
         }
+        // a restart with changed rows is tested first
+        if (restarted || !DataStore.raycontrolAutoSwitch) return
+        // the credentials are current and the profile still fails: this network does not let it through. The
+        // refresh may have changed the node's rows: its current record and the running row's key
+        val current = RayNodes.get(nodeId) ?: return
+        val currentKey = current.profileIds?.entries?.firstOrNull { it.value == DataStore.currentProfile }?.key ?: return
+        switchProfile(current, currentKey)
+    }
+
+    /** Moves to the node's best profile that works on this network (RayChannel.failover), if one does. */
+    private suspend fun switchProfile(node: RayNode, key: String) {
+        val failedId = node.profileIds?.get(key) ?: return
+        val best = RayChannel.failover(node, key) ?: run {
+            Logs.w("raycontrol ${node.host}: no other profile of the node works on this network")
+            return
+        }
+        currentCoroutineContext().ensureActive()
+        val id = node.profileIds?.get(best) ?: return
+        // the user picked another profile meanwhile: theirs stands
+        if (DataStore.selectedProxy != failedId) return
+        Logs.i("raycontrol ${node.host}: switching from $key to $best, which works on this network")
+        DataStore.selectedProxy = id
+        restart(currentCoroutineContext()[Job])
     }
 }

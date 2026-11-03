@@ -621,6 +621,18 @@
     <string name="yggdrasil_peers">Peers</string>
     <string name="yggdrasil_peers_help">One per line: tls://host:port, tcp://, quic://, ws://, wss://. A raycontrol node: tls://address:443?sni=its-yggdrasil-name. Public peers: github.com/yggdrasil-network/public-peers</string>
     <string name="raycontrol">raycontrol nodes</string>
+    <string name="raycontrol_auto_switch">Switch node profiles automatically</string>
+    <string name="raycontrol_auto_switch_summary">When a node\'s profile stops working on this network, switch to the node\'s best working profile. Results are kept per network on this device</string>
+    <string name="raycontrol_channel_check">Check the channel</string>
+    <string name="raycontrol_channel_title">Channel to %1$s</string>
+    <string name="raycontrol_channel_checking">Checking each profile on this network (up to 20 s each)…</string>
+    <string name="raycontrol_channel_done">Done. The results order the profiles when one stops working here.</string>
+    <string name="raycontrol_channel_no_network">No network</string>
+    <string name="raycontrol_channel_tcp">%1$s: TCP %2$s Mbit/s, first byte in %3$d ms</string>
+    <string name="raycontrol_channel_stalled">%1$s: TCP stalls after %2$d KB</string>
+    <string name="raycontrol_channel_tcp_failed">%1$s: TCP fails (%2$s)</string>
+    <string name="raycontrol_channel_udp">UDP: loss %1$s%%, RTT %2$s ms</string>
+    <string name="raycontrol_channel_udp_failed">UDP fails</string>
     <string name="raycontrol_nodes">Imported nodes</string>
     <string name="raycontrol_nodes_empty">None. Paste an rcdev1: registration from the clipboard or scan its QR code (+ on the main screen); profiles whose server is the node\'s address then send SPA v2 first.</string>
     <string name="raycontrol_node_line">%1$s, device %2$s, %3$d services</string>

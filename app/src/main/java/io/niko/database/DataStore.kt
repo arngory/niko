@@ -102,6 +102,8 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     // raycontrol links leave the DNS tunnel resolver to the client: these defaults fill it (Yandex, reachable in RU whitelists)
     var raycontrolDnsttResolver by configurationStore.string(Key.RAYCONTROL_DNSTT_RESOLVER) { "https://common.dot.dns.yandex.net/dns-query" }
     var raycontrolMasterDnsResolvers by configurationStore.string(Key.RAYCONTROL_MASTERDNS_RESOLVERS) { "77.88.8.8\n77.88.8.1" }
+    // a node's profile that stops working on this network gives way to its best working one (RayChannel.failover)
+    var raycontrolAutoSwitch by configurationStore.boolean(Key.RAYCONTROL_AUTO_SWITCH) { true }
 
     // the node identity of this install, made on first use and not part of backups
     val yggdrasilPrivateKey: String
@@ -202,7 +204,9 @@ object DataStore : OnPreferenceDataStoreChangeListener {
 
     /** Secrets of this installation: not exported, not restored from another device's backup. */
     val installSecretKeys =
-        setOf("localProxyPassword", "clashApiSecret", "shortcutToken", "subscriptionHwid", Key.YGGDRASIL_PRIVATE_KEY, Key.RAYCONTROL_NODES)
+        setOf("localProxyPassword", "clashApiSecret", "shortcutToken", "subscriptionHwid", Key.YGGDRASIL_PRIVATE_KEY, Key.RAYCONTROL_NODES,
+            // what this device measured on its networks: of no use on another one
+            Key.RAYCONTROL_CHANNEL)
 
     /** Settings whose values must not appear in logs or crash reports. */
     fun isSensitiveKey(key: String) = key in installSecretKeys || key in secretValueKeys ||

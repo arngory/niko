@@ -11,13 +11,22 @@ import io.niko.ktx.tryResumeWithException
 import kotlinx.coroutines.delay
 import libcore.Libcore
 import io.niko.net.LocalResolverImpl
-import kotlin.coroutines.suspendCoroutine
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.Continuation
 
 class TestInstance(profile: ProxyEntity, val link: String, private val timeout: Int) :
     BoxInstance(profile) {
 
-    suspend fun doTest(): Int {
-        return suspendCoroutine { c ->
+    suspend fun doTest(): Int = withBox { Libcore.urlTest(it, link, timeout) }
+
+    /** A channel probe through this profile (libcore probe.Options as JSON in, the result as JSON out). */
+    suspend fun doProbe(options: String): String = withBox { Libcore.channelProbe(it, options) }
+
+    // cancellable: the caller goes on at once; a test already running ends within its own limits and closes the box
+    private suspend fun <T> withBox(test: (libcore.BoxInstance) -> T): T {
+        return suspendCancellableCoroutine { cancellable ->
+            // the app's tryResume (ignores a second resume), not CancellableContinuation's internal one
+            val c: Continuation<T> = cancellable
             processes = GuardedProcessPool {
                 Logs.w(it)
                 c.tryResumeWithException(it)
@@ -31,7 +40,7 @@ class TestInstance(profile: ProxyEntity, val link: String, private val timeout: 
                             // wait for plugin start
                             delay(500)
                         }
-                        c.tryResume(Libcore.urlTest(box, link, timeout))
+                        c.tryResume(test(box))
                     } catch (e: Exception) {
                         c.tryResumeWithException(e)
                     }

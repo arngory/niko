@@ -44,6 +44,8 @@ data class RaySubscriptionResult(
     val spaOverTcp: Boolean,
     // the row the core runs with got other credentials
     val runningChanged: Boolean = false,
+    // the core was asked to restart with the new rows
+    val restarted: Boolean = false,
 ) {
     /** spa-v2.md §7: SPA v2 needs the clocks within 30 s */
     val clockWrong get() = abs(clockSkew) > 30
@@ -163,6 +165,7 @@ object RaySubscription {
         // the UI and the scheduled worker (`:bg`) may both get here: one writer across the processes
         val refreshAt = maxOf(now + 60, nextRefresh(payload, nodeNow) - skew)
         val stored = RayNodesLock.withLock { store(nodeId, payload.get("seq").asLong, refreshAt, skew, beans, links, doh) }
+        var restarted = false
         if (stored != null) {
             if (stored.groupCreated) GroupManager.iterator { groupAdd(stored.group) }
             GroupManager.postReload(stored.group.id)
@@ -170,9 +173,16 @@ object RaySubscription {
             when {
                 !stored.runningChanged && !stored.runningGone -> {}
                 // the watchdog's own restart: it keeps its backoff
-                reload == Reload.WATCHDOG -> RayWatchdog.restart(currentCoroutineContext()[Job])
+                reload == Reload.WATCHDOG -> {
+                    RayWatchdog.restart(currentCoroutineContext()[Job])
+                    restarted = true
+                }
                 // a running row that is gone cannot wait: the core runs a profile that no longer exists
-                reload == Reload.NOW || stored.runningGone -> SagerNet.reloadService()
+                reload == Reload.NOW || stored.runningGone -> {
+                    SagerNet.reloadService()
+                    restarted = true
+                }
+
                 else -> RayWatchdog.markStale()
             }
         }
@@ -182,6 +192,7 @@ object RaySubscription {
             clockSkew = skew,
             spaOverTcp = result.get("spa_over_tcp")?.asBoolean == true,
             runningChanged = stored?.runningChanged == true,
+            restarted = restarted,
         )
     }
 

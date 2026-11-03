@@ -533,6 +533,18 @@
     <string name="yggdrasil_peers">Пиры</string>
     <string name="yggdrasil_peers_help">По одному в строке: tls://host:port, tcp://, quic://, ws://, wss://. Нода raycontrol: tls://адрес:443?sni=её-имя-yggdrasil. Публичные пиры: github.com/yggdrasil-network/public-peers</string>
     <string name="raycontrol">Ноды raycontrol</string>
+    <string name="raycontrol_auto_switch">Переключать профили ноды</string>
+    <string name="raycontrol_auto_switch_summary">Если профиль ноды перестал работать в этой сети, перейти на её лучший рабочий профиль. Результаты хранятся по сетям на этом устройстве</string>
+    <string name="raycontrol_channel_check">Проверить канал</string>
+    <string name="raycontrol_channel_title">Канал до %1$s</string>
+    <string name="raycontrol_channel_checking">Проверяю каждый профиль в этой сети (до 20 с на каждый)…</string>
+    <string name="raycontrol_channel_done">Готово. По этим результатам выбирается профиль, если текущий здесь перестанет работать.</string>
+    <string name="raycontrol_channel_no_network">Нет сети</string>
+    <string name="raycontrol_channel_tcp">%1$s: TCP %2$s Мбит/с, первый байт за %3$d мс</string>
+    <string name="raycontrol_channel_stalled">%1$s: TCP встаёт после %2$d КБ</string>
+    <string name="raycontrol_channel_tcp_failed">%1$s: TCP не работает (%2$s)</string>
+    <string name="raycontrol_channel_udp">UDP: потери %1$s%%, RTT %2$s мс</string>
+    <string name="raycontrol_channel_udp_failed">UDP не работает</string>
     <string name="raycontrol_nodes">Импортированные ноды</string>
     <string name="raycontrol_nodes_empty">Нет. Вставьте регистрацию rcdev1: из буфера обмена или отсканируйте её QR-код (+ на главном экране); профили с адресом ноды будут сначала отправлять SPA v2.</string>
     <string name="raycontrol_node_line">%1$s, устройство %2$s, сервисов: %3$d</string>

@@ -14,8 +14,10 @@ import io.niko.Key
 import io.niko.R
 import io.niko.SagerNet
 import io.niko.database.DataStore
+import io.niko.database.SagerDatabase
 import io.niko.database.preference.EditTextPreferenceModifiers
 import io.niko.ktx.*
+import io.niko.raycontrol.RayChannel
 import io.niko.raycontrol.RayNodes
 import io.niko.raycontrol.RayNode
 import io.niko.raycontrol.RaySubscription
@@ -246,6 +248,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             startActivity(Intent(requireContext(), RayAdminActivity::class.java).putExtra(RayAdminActivity.EXTRA_NODE, node.spa.nodeId))
         }
         if (node.subscription != null) actions += R.string.raycontrol_sub_update to { updateSubscription(node) }
+        if (!node.profileIds.isNullOrEmpty()) actions += R.string.raycontrol_channel_check to { checkChannel(node) }
         actions += R.string.raycontrol_node_remove to { confirmRemove(node) }
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(node.host)
@@ -261,6 +264,34 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             val message = RaySubscription.refreshForUser(context, node)
             onMainDispatcher { if (isAdded) snackbar(message).show() }
         }
+    }
+
+    /** Probes every profile of [node] on this network, one by one, and shows the results as they come. */
+    private fun checkChannel(node: RayNode) {
+        val network = RayChannel.network() ?: run {
+            snackbar(R.string.raycontrol_channel_no_network).show()
+            return
+        }
+        val context = requireContext().applicationContext
+        val lines = mutableListOf(getString(R.string.raycontrol_channel_checking))
+        val dialog = MaterialAlertDialogBuilder(requireContext())
+            .setTitle(getString(R.string.raycontrol_channel_title, node.host))
+            .setMessage(lines.joinToString("\n"))
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+        val job = runOnDefaultDispatcher {
+            for ((key, id) in node.profileIds.orEmpty()) {
+                val profile = SagerDatabase.proxyDao.getById(id) ?: continue
+                val score = RayChannel.probe(profile, deep = true, mobile = network.mobile)
+                RayChannel.record(node.spa.nodeId, network, key, score)
+                lines += RayChannel.describe(context, profile.displayName(), score)
+                onMainDispatcher { dialog.setMessage(lines.joinToString("\n")) }
+            }
+            lines[0] = context.getString(R.string.raycontrol_channel_done)
+            onMainDispatcher { dialog.setMessage(lines.joinToString("\n")) }
+        }
+        // a probe already running ends within its window; no new one starts
+        dialog.setOnDismissListener { job.cancel() }
     }
 
     private fun confirmRemove(node: RayNode) {
