@@ -15,6 +15,7 @@ import io.niko.database.ProxyEntity
 import io.niko.database.SagerDatabase
 import io.niko.ktx.Logs
 import io.niko.ktx.app
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import java.security.MessageDigest
@@ -138,6 +139,9 @@ object RayChannel {
         val at = System.currentTimeMillis() / 1000
         return try {
             ChannelScore.fromProbe(at, TestInstance(profile, "", 0).doProbe(options(deep, mobile)))
+        } catch (e: CancellationException) {
+            // cancelled, not failed: nothing to record
+            throw e
         } catch (e: Exception) {
             Logs.w("raycontrol channel probe ${profile.displayName()}: ${e.message}")
             ChannelScore(at, tcpOk = false, tcpError = e.message ?: e.javaClass.simpleName)

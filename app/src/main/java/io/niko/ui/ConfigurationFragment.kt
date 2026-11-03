@@ -2,6 +2,7 @@ package io.niko.ui
 
 import io.niko.raycontrol.RayImport
 import kotlin.coroutines.resume
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import android.annotation.SuppressLint
 import android.content.Intent
@@ -937,6 +938,9 @@ class ConfigurationFragment @JvmOverloads constructor(
                         } catch (e: PluginManager.PluginNotFoundException) {
                             profile.status = 2
                             profile.error = e.readableMessage
+                        } catch (e: CancellationException) {
+                            // the test was cancelled: no result for this profile
+                            throw e
                         } catch (e: Exception) {
                             profile.status = 3
                             profile.error = e.readableMessage

@@ -182,6 +182,9 @@ object RayWatchdog {
             val poked = withTimeoutOrNull(wait) { wake.receive() }
             wait = poked ?: try {
                 step(probe)
+            } catch (e: CancellationException) {
+                // the run was stopped (a restart, the service stopping): not an error
+                throw e
             } catch (e: Exception) {
                 Logs.w(e)
                 PERIOD
