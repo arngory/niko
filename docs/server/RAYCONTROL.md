@@ -333,7 +333,7 @@ v1.18.0, раздел дополняется по мере готовности 
 |---|---|---|
 | Профиль Yggdrasil (`niko-ygg`): свой endpoint с seed, нода — единственный пир, VLESS через него | F, v1.19.0 | в работе |
 | Фейки перед QUIC без имён ноды | F | в работе |
-| `naive+quic://` | — | клиент уже разбирает (`proto` = `quic`); проверка через фронт — в CI блока F |
+| `naive+quic://` | — | уже работает: ссылку разбирает, плагин NaiveProxy получает `quic://`; проверка через фронт — в CI блока F |
 | DoH3 | — | пока нет: DoH ноды остаётся на h2 (TCP 443); h3 по желанию позже |
 | CI: `raycontrol-interop.yml` на `5e3c5ec` с фронтом перед `rayd naive`; `niko-server-interop.yml` на `v0.6.0` с Hysteria2 через udpmux и Yggdrasil через tcpmux | F | в работе |
 | Замер по `probe-v1` вместо сторонних целей: напрямую и через туннели `tunnel_svc` | G, v1.20.0 | после F |
@@ -375,7 +375,7 @@ v1.18.0, раздел дополняется по мере готовности 
 POST /probe/v1/report
 {"v": 1,
  "net": "cellular",          // cellular | wifi | ethernet | other
- "mcc_mnc": "25001",         // только cellular: код оператора SIM-сети (Android отдаёт его без разрешений)
+ "mcc_mnc": "25001",         // только cellular: MCC и MNC сети, в которой зарегистрирован телефон (Android отдаёт без разрешений)
  "obs": [
    {"svc": 3, "kind": "reality",   // svc — ID сервиса ноды; kind — вид профиля из подписки
     "result": "works",             // works | degraded | fails
