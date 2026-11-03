@@ -4,8 +4,8 @@ niko-server (data plane ноды) переехал в [`arngory/niko-server`](ht
 CI, релизы (`vX.Y.Z`, начиная с v0.1.2) и документы `SPEC.md`, `CONFIG.md`, `IPC.md`. Релиз `niko-server-v0.1.1`
 остаётся в releases этого репозитория.
 
-Здесь остаются ответы клиента Niko для raycontrol — [`RAYCONTROL.md`](RAYCONTROL.md) (§1–§8 — R1, §9 — R4, §10 — R3, §11 — ответ на
-`niko-r3-reply.md`).
+Здесь остаются ответы клиента Niko для raycontrol — [`RAYCONTROL.md`](RAYCONTROL.md) (§1–§8 — R1, §9 — R4, §10 — R3, §11–§12 — ответы
+на `niko-r3-reply.md`).
 
 ## Кто что делает
 
@@ -25,6 +25,5 @@ CI, релизы (`vX.Y.Z`, начиная с v0.1.2) и документы `SPE
 
 ## Открытые вопросы к raycontrol
 
-- Заморозка формата подписки вместе с эндпоинтом (niko-r1-reply.md §1).
-
-DoH ноды и ссылки `rcinv1:` решены в `niko-r3-reply.md` (ответ — RAYCONTROL.md §11).
+Нет. DoH ноды и ссылки `rcinv1:` решены в `niko-r3-reply.md` (ответ — RAYCONTROL.md §11); формат подписки заморожен
+вместе с `/sub/v1` (`niko-r3-reply.md` §6, RAYCONTROL.md §12).
