@@ -41,7 +41,7 @@ object RayWatchdog {
 
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
-    // a summary on its way (RayReport.send), apart from the loop
+    // a summary on its way (RayReport.send): a child of the loop, not waited for
     @Volatile
     private var reportJob: Job? = null
     private var job: Job? = null
@@ -105,10 +105,9 @@ object RayWatchdog {
             ownRestart = false
             pendingOwn = false
         }
+        // the summary on its way is the loop's child: it goes with it
         job?.cancel()
         job = null
-        reportJob?.cancel()
-        reportJob = null
         // the listener stops with the service: what it reported may be stale at the next start
         online = null
     }
@@ -222,8 +221,11 @@ object RayWatchdog {
                     Logs.w("raycontrol ${node.host}: Brutal: ${e.message}")
                 }
                 // the anonymous summary of this network, with consent, once a day (RayReport): on its own, so a
-                // direct path that does not answer never holds the next connection test
-                if (reportJob?.isActive != true) reportJob = scope.launch {
+                // direct path that does not answer never holds the next connection test, and a child of this loop,
+                // so a stop or restart that cancels the loop (also during a long Brutal measurement) cancels it
+                val loop = currentCoroutineContext()
+                loop.ensureActive()
+                if (reportJob?.isActive != true) reportJob = CoroutineScope(loop).launch {
                     try {
                         RayReport.send(node)
                     } catch (e: CancellationException) {
