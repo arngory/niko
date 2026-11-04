@@ -15,6 +15,20 @@ object RayDiagnostics {
     private val IPV4 = Regex("""\b\d{1,3}(\.\d{1,3}){3}\b""")
     private val IPV6 = Regex("""\[[0-9a-fA-F:.]+]|\b[0-9a-fA-F]{1,4}(:[0-9a-fA-F]{0,4}){2,7}\b""")
 
+    /** Every field named *error, at any depth of [element], without [host] and IP addresses. */
+    fun redactErrors(element: com.google.gson.JsonElement, host: String?) {
+        when {
+            element.isJsonObject -> element.asJsonObject.entrySet().forEach { (key, value) ->
+                if (key.endsWith("error") && value.isJsonPrimitive) {
+                    element.asJsonObject.addProperty(key, redact(value.asString, host))
+                } else {
+                    redactErrors(value, host)
+                }
+            }
+            element.isJsonArray -> element.asJsonArray.forEach { redactErrors(it, host) }
+        }
+    }
+
     /** [text] without [host] and IP addresses. */
     fun redact(text: String, host: String?): String {
         var s = text
@@ -47,15 +61,8 @@ object RayDiagnostics {
         val out = JsonObject()
         for ((nodeId, value) in channel.entrySet()) {
             val host = nodes.firstOrNull { it.spa.nodeId == nodeId }?.host
-            // a probe's error may name the node's address ("dial tcp 198.51.100.7:443: ..."): left out
-            value.asJsonObject.entrySet().forEach { (_, network) ->
-                network.asJsonObject.entrySet().filter { !it.key.startsWith("_") }.forEach { (_, score) ->
-                    for (field in listOf("tcp_error", "udp_error")) {
-                        val o = score.asJsonObject
-                        o.get(field)?.takeIf { it.isJsonPrimitive }?.asString?.let { o.addProperty(field, redact(it, host)) }
-                    }
-                }
-            }
+            // an error may name the node's address ("dial tcp 198.51.100.7:443: ..."): left out, at any depth
+            redactErrors(value, host)
             out.add(labels[nodeId] ?: "node ?", value)
         }
         appendLine("  channel by network:")

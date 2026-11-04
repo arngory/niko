@@ -93,9 +93,9 @@ func (r *probeRequest) run(ctx context.Context, e *rayprobe.Endpoint) *probeResu
 		cancel()
 	}
 	if len(r.MTUSizes) > 0 {
-		mtuCtx, cancel := context.WithTimeout(ctx, window)
-		out.UDPMTU, out.MTU = c.PathMTU(mtuCtx, r.MTUSizes, 4)
-		cancel()
+		// each size within the window: a lost one waits for late echoes, and on a slow path several of them would
+		// spend a shared window before the small sizes that pass
+		out.UDPMTU, out.MTU = c.PathMTU(ctx, r.MTUSizes, 4, window)
 	}
 	if len(r.Report) > 0 {
 		reportCtx, cancel := context.WithTimeout(ctx, window)

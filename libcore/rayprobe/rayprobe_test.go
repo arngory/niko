@@ -261,8 +261,9 @@ func TestPathMTU(t *testing.T) {
 	n.maxSize = 1300
 	c := NewClient(n.endpoint(t))
 	defer c.Close()
-	largest, steps := c.PathMTU(context.Background(), []int{1452, 1350, 1280, 1200}, 3)
-	if largest != 1280 || len(steps) != 4 || steps[0].Received != 0 || steps[1].Received != 0 || steps[2].Received != 3 {
+	// the smallest first, stopping at the first lost
+	largest, steps := c.PathMTU(context.Background(), []int{1452, 1350, 1280, 1200}, 3, 5*time.Second)
+	if largest != 1280 || len(steps) != 3 || steps[0].Size != 1200 || steps[1].Received != 3 || steps[2].Received != 0 {
 		t.Fatalf("largest %d, steps %+v", largest, steps)
 	}
 }

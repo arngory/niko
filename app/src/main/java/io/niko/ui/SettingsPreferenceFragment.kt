@@ -286,8 +286,13 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             // the direct path first: which SPA carrier opens the node's port here, how large a UDP datagram passes
             RayChannel.directPath(node, network)?.let { path ->
                 lines += when {
+                    path.error != null -> context.getString(R.string.raycontrol_direct_failed, path.error)
                     path.spaCarrier == null -> context.getString(R.string.raycontrol_direct_none)
                     !path.udpProbed -> context.getString(R.string.raycontrol_direct_spa, path.spaCarrier.uppercase())
+                    !path.udpMeasured -> context.getString(R.string.raycontrol_direct_spa, path.spaCarrier.uppercase()) +
+                        context.getString(
+                            if (path.udpStatus == 429) R.string.raycontrol_direct_udp_busy else R.string.raycontrol_direct_udp_unmeasured
+                        )
                     path.udpMtu == 0 -> context.getString(R.string.raycontrol_direct_no_udp, path.spaCarrier.uppercase())
                     else -> context.getString(R.string.raycontrol_direct_mtu, path.spaCarrier.uppercase(), path.udpMtu) +
                         if (path.udpMtu < 1200) context.getString(R.string.raycontrol_direct_mtu_low) else ""

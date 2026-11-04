@@ -145,8 +145,8 @@ func TestRaycontrolInterop(t *testing.T) {
 	}
 	t.Logf("probe echo: %s", echo)
 	// the path's MTU by echo sizes (loopback carries them all)
-	largest, steps := pc.PathMTU(ctx, []int{1452, 1200, 576}, 3)
-	if largest != 1452 || len(steps) != 3 || steps[0].Received == 0 {
+	largest, steps := pc.PathMTU(ctx, []int{1452, 1200, 576}, 3, 10*time.Second)
+	if largest != 1452 || len(steps) != 3 || steps[2].Received == 0 {
 		t.Fatalf("probe path MTU: %d %+v", largest, steps)
 	}
 	t.Logf("probe path MTU: %d %+v", largest, steps)

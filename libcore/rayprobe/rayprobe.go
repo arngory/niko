@@ -20,6 +20,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -445,29 +446,37 @@ func (c *Client) Link(ctx context.Context) (json.RawMessage, error) {
 	return raw, nil
 }
 
-// MTUStep is one datagram size of PathMTU and how many of its echoes came back.
+// MTUStep is one datagram size of PathMTU: how many of its echoes went and came back; Status is the node's answer
+// when the session did not open (429: another probe of the device runs). Sent 0: the size was not measured.
 type MTUStep struct {
-	Size     int    `json:"size"`
-	Sent     int    `json:"sent"`
-	Received int    `json:"received"`
-	Error    string `json:"error,omitempty"`
+	Size     int `json:"size"`
+	Sent     int `json:"sent"`
+	Received int `json:"received"`
+	Status   int `json:"status,omitempty"`
 }
 
-// PathMTU sends a few echoes of each of sizes (UDP payload bytes, 36 at least) and reports what came back, and
-// the largest size that came back at all: the node drops IP fragments (probe-v1.md §4, R4-9), so a datagram over
-// the path's MTU is lost. QUIC (Hysteria2, naive-quic, DoH3) needs 1200 bytes and more. 0: none came back.
-func (c *Client) PathMTU(ctx context.Context, sizes []int, count int) (int, []MTUStep) {
+// PathMTU sends a few echoes of each of sizes (UDP payload bytes, 36 at least), the smallest first, each within
+// perSize, and returns the largest size that came back: the node drops IP fragments (probe-v1.md §4, R4-9), so a
+// datagram over the path's MTU is lost, and so would the larger ones be. It stops at the first size lost, or not
+// measured (the session did not open). QUIC (Hysteria2, naive-quic, DoH3) needs 1200 bytes and more. 0: none came
+// back, or none was measured (the steps tell which).
+func (c *Client) PathMTU(ctx context.Context, sizes []int, count int, perSize time.Duration) (int, []MTUStep) {
+	sorted := slices.Clone(sizes)
+	slices.Sort(sorted)
 	largest := 0
-	steps := make([]MTUStep, 0, len(sizes))
-	for _, size := range sizes {
+	steps := make([]MTUStep, 0, len(sorted))
+	for _, size := range sorted {
 		if ctx.Err() != nil {
 			break
 		}
-		r := c.Echo(ctx, count, max(size, echoHeader), 20*time.Millisecond)
-		steps = append(steps, MTUStep{Size: r.Size, Sent: r.Sent, Received: r.Received, Error: r.Error})
-		if r.Received > 0 && r.Size > largest {
-			largest = r.Size
+		sizeCtx, cancel := context.WithTimeout(ctx, perSize)
+		r := c.Echo(sizeCtx, count, max(size, echoHeader), 20*time.Millisecond)
+		cancel()
+		steps = append(steps, MTUStep{Size: r.Size, Sent: r.Sent, Received: r.Received, Status: r.Status})
+		if r.Sent == 0 || r.Received == 0 {
+			break
 		}
+		largest = r.Size
 	}
 	return largest, steps
 }

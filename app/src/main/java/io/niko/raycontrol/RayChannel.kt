@@ -328,8 +328,15 @@ object RayChannel {
     // echo sizes for the path's MTU: Ethernet's and PPPoE's payloads down to QUIC's minimum, and one well below it
     private val MTU_SIZES = listOf(1472, 1452, 1400, 1350, 1280, 1200, 576)
 
-    /** The direct path to [node] from this network, for the channel check: null when the node takes no probes. */
-    data class DirectPath(val spaCarrier: String?, val udpMtu: Int, val udpProbed: Boolean)
+    /**
+     * The direct path to a node from this network, for the channel check. [udpMeasured] false: the echo could not
+     * run ([udpStatus] 429: another probe of the device held the node's one slot), not a property of the network;
+     * [error]: the measurement itself failed (no SPA sent, ...), the node's address left out.
+     */
+    data class DirectPath(
+        val spaCarrier: String?, val udpMtu: Int, val udpProbed: Boolean,
+        val udpMeasured: Boolean = false, val udpStatus: Int = 0, val error: String? = null,
+    )
 
     /**
      * Measures the direct path to [node] on this network (probe-v1 directly, after SPA over UDP and then TCP): which
@@ -352,18 +359,37 @@ object RayChannel {
             throw e
         } catch (e: Exception) {
             Logs.w("raycontrol ${node.host}: direct path: ${e.message}")
-            return DirectPath(null, 0, udp)
+            return DirectPath(null, 0, udp, error = RayDiagnostics.redact(e.message ?: e.javaClass.simpleName, node.host))
         }
-        val path = DirectPath(o.get("spa_carrier")?.asString?.takeIf { it.isNotEmpty() }, o.get("udp_mtu")?.asInt ?: 0, udp)
-        RayNodesLock.withLock {
+        val steps = (o.get("mtu") as? JsonArray)?.map { it.asJsonObject }.orEmpty()
+        // the first size measured (datagrams sent): the steps say something about the network
+        val measured = steps.firstOrNull()?.get("sent")?.asInt?.let { it > 0 } == true
+        val path = DirectPath(
+            spaCarrier = o.get("spa_carrier")?.asString?.takeIf { it.isNotEmpty() },
+            udpMtu = o.get("udp_mtu")?.asInt ?: 0,
+            udpProbed = udp,
+            udpMeasured = measured,
+            udpStatus = steps.firstOrNull()?.get("status")?.asInt ?: 0,
+        )
+        // only what was measured: a busy node or a carrier that did not open says nothing about the network
+        if (path.spaCarrier != null) RayNodesLock.withLock {
             val all = load()
             val nodeObject = all.getAsJsonObject(node.spa.nodeId) ?: JsonObject().also { all.add(node.spa.nodeId, it) }
             val onNetwork = nodeObject.getAsJsonObject(network.key) ?: JsonObject().also { nodeObject.add(network.key, it) }
             onNetwork.add(DIRECT, JsonObject().apply {
                 addProperty("at", System.currentTimeMillis() / 1000)
-                path.spaCarrier?.let { addProperty("spa", it) }
-                if (udp) addProperty("udp_mtu", path.udpMtu)
-                (o.get("mtu") as? JsonArray)?.let { add("mtu", it) }
+                addProperty("spa", path.spaCarrier)
+                if (measured) {
+                    addProperty("udp_mtu", path.udpMtu)
+                    // sizes and counts only
+                    add("mtu", JsonArray().apply {
+                        steps.forEach { s ->
+                            add(JsonObject().apply {
+                                for (k in listOf("size", "sent", "received")) s.get(k)?.let { add(k, it) }
+                            })
+                        }
+                    })
+                }
             })
             DataStore.configurationStore.putString(Key.RAYCONTROL_CHANNEL, all.toString())
         }
