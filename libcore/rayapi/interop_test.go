@@ -141,11 +141,19 @@ func TestRaycontrolInterop(t *testing.T) {
 		t.Fatalf("probe echo: %+v", echo)
 	}
 	t.Logf("probe echo: %s", echo)
+	// link is the server's view of the device's address; from the node's own address (here loopback, as through a
+	// tunnel) the answer is 409 (probe-v1.md §4.1)
 	link, err := pc.Link(ctx)
-	if err != nil {
+	if ip := net.ParseIP(device.Host); ip != nil && ip.IsLoopback() {
+		if status, ok := err.(*rayprobe.StatusError); !ok || status.Status != 409 {
+			t.Fatalf("probe link from loopback: %s, %v, want 409", link, err)
+		}
+		t.Logf("probe link from loopback: 409, as through a tunnel")
+	} else if err != nil {
 		t.Fatalf("probe link: %v", err)
+	} else {
+		t.Logf("probe link: %s", link)
 	}
-	t.Logf("probe link: %s", link)
 
 	// the invite is spent: a second Register is refused
 	again := invite

@@ -70,7 +70,8 @@ func (r *probeRequest) run(ctx context.Context, e *rayprobe.Endpoint) *probeResu
 		out.Down = c.Down(ctx, r.DownBytes, probe.Options{WindowMs: int(window.Milliseconds())})
 	}
 	if r.UpBytes > 0 {
-		out.Up = c.Up(ctx, r.UpBytes, window)
+		// past the server's 30 s: on a slow uplink the server stops at its limit and answers what it got
+		out.Up = c.Up(ctx, r.UpBytes, max(window, 35*time.Second))
 	}
 	if r.EchoCount > 0 {
 		echoCtx, cancel := context.WithTimeout(ctx, window)

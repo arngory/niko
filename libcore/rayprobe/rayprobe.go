@@ -208,8 +208,13 @@ func (c *Client) Up(ctx context.Context, n int64, window time.Duration) *UpResul
 		return r
 	}
 	r.Bytes, r.Ms, r.TCP = answer.Bytes, answer.Ms, answer.TCP
-	if r.Ms > 0 {
+	// the server's time from its first byte to its last; under a millisecond (a short body on a fast path) the
+	// client's whole request time is the bound
+	switch {
+	case r.Ms > 0:
 		r.Kbps = r.Bytes * 8 / r.Ms
+	case r.ClientMs > 0:
+		r.Kbps = r.Bytes * 8 / r.ClientMs
 	}
 	r.OK = r.Bytes > 0
 	return r

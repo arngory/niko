@@ -290,13 +290,14 @@ object RayChannel {
     // the network's Brutal rates sit next to its profile results, under a key no profile has
     private const val BRUTAL = "_brutal"
 
-    /** The Brutal rates measured for [nodeId] on [network], while fresh (a day on mobile, a week otherwise). */
+    /** The Brutal rates measured for [nodeId] on [network], for a day after the measurement on any network. */
     fun brutalRates(nodeId: String, network: ChannelNetwork): BrutalRates? {
         val o = load().getAsJsonObject(nodeId)?.getAsJsonObject(network.key)?.getAsJsonObject(BRUTAL) ?: return null
         val rates = runCatching { BrutalRates.fromJson(o) }.getOrNull() ?: return null
-        val fresh = if (network.mobile) FRESH_MOBILE else FRESH_WIFI
-        return rates.takeIf { System.currentTimeMillis() / 1000 - it.at < fresh }
+        return rates.takeIf { System.currentTimeMillis() / 1000 - it.at < BRUTAL_FRESH }
     }
+
+    private const val BRUTAL_FRESH = 24 * 3600L
 
     fun recordBrutal(nodeId: String, network: ChannelNetwork, rates: BrutalRates) = RayNodesLock.withLock {
         val all = load()

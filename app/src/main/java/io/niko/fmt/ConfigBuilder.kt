@@ -27,6 +27,7 @@ import io.niko.fmt.wireguard.buildSingBoxEndpointWireguardBean
 import io.niko.ktx.Logs
 import io.niko.raycontrol.RayNode
 import io.niko.raycontrol.RayBrutal
+import io.niko.raycontrol.RayChannel
 import io.niko.raycontrol.RayNodes
 import io.niko.raycontrol.knockOptions
 import io.niko.ktx.isIpAddress
@@ -570,9 +571,12 @@ fun buildConfig(
                 // Brutal at the rates measured on this network (RayBrutal, setting raycontrolBrutal), each direction
                 // apart; none measured: BBR. The main config only: a test runs as the profile says
                 if (!forTest && rayNode != null && bean is HysteriaBean && bean.protocolVersion == 2) {
-                    RayBrutal.ratesFor(rayNode)?.let { rates ->
-                        if (rates.upKbps > 0) currentOutbound._hack_config_map["up_mbps"] = RayBrutal.mbps(rates.upKbps)
-                        if (rates.downKbps > 0) currentOutbound._hack_config_map["down_mbps"] = RayBrutal.mbps(rates.downKbps)
+                    val rates = RayBrutal.ratesFor(rayNode, RayChannel.network())
+                    // what this core declares: the watchdog restarts it when the network wants other rates
+                    RayBrutal.noteApplied(rayNode, rates)
+                    rates?.let {
+                        if (it.upKbps > 0) currentOutbound._hack_config_map["up_mbps"] = RayBrutal.mbps(it.upKbps)
+                        if (it.downKbps > 0) currentOutbound._hack_config_map["down_mbps"] = RayBrutal.mbps(it.downKbps)
                     }
                 }
 
