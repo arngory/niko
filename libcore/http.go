@@ -117,24 +117,22 @@ func (c *httpClient) PinnedSHA256(sumHex string) {
 func (c *httpClient) TrySocks5(port int32, username string, password string) {
 	dialer := new(net.Dialer)
 	c.h1h2Transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		for {
-			socksConn, err := dialer.DialContext(ctx, "tcp", "127.0.0.1:"+strconv.Itoa(int(port)))
-			if err != nil {
-				if c.tryH3Direct {
-					return nil, errFailConnectSocks5
-				}
-				break
+		socksConn, err := dialer.DialContext(ctx, "tcp", "127.0.0.1:"+strconv.Itoa(int(port)))
+		if err != nil {
+			if c.tryH3Direct {
+				return nil, errFailConnectSocks5
 			}
-			_, err = socks.ClientHandshake5(socksConn, socks5.CommandConnect, metadata.ParseSocksaddr(addr), username, password)
-			if err != nil {
-				if c.tryH3Direct {
-					return nil, errFailConnectSocks5
-				}
-				break
-			}
-			return socksConn, err
+			// the service is not running: nothing to go through, the request goes as any app's would
+			return dialer.DialContext(ctx, network, addr)
 		}
-		return dialer.DialContext(ctx, network, addr)
+		_, err = socks.ClientHandshake5(socksConn, socks5.CommandConnect, metadata.ParseSocksaddr(addr), username, password)
+		if err != nil {
+			socksConn.Close()
+			// the service runs but its proxy failed: going direct instead (h1/h2 or the H3 fallback, which
+			// errFailConnectSocks5 starts) would show the device's own address where the user chose the proxy
+			return nil, fmt.Errorf("through the local proxy: %w", err)
+		}
+		return socksConn, nil
 	}
 	c.trySocks5 = true
 }

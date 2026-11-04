@@ -53,6 +53,9 @@ const val TAG_MIXED = "mixed-in"
 // user name the app itself uses for the local proxy, see DataStore.localProxyPassword
 const val LOCAL_PROXY_USER = "nekobox-app"
 
+/** Stands for a secret of this install in an exported config. */
+const val EXPORT_SECRET_PLACEHOLDER = "<a secret of the app, not exported>"
+
 const val TAG_PROXY = "proxy"
 const val TAG_DIRECT = "direct"
 const val TAG_BYPASS = "bypass"
@@ -209,7 +212,9 @@ fun buildConfig(
     // per node: whether a mesh node of its Yggdrasil profiles runs with the node's public peers
     val yggViaNotes = mutableMapOf<String, Boolean>()
     return MyOptions().apply {
-        if (!forTest && DataStore.enableClashAPI) experimental = ExperimentalOptions().apply {
+        // an exported config is shared: it carries no secret of this install (Clash secret, local proxy
+        // passwords, the Yggdrasil key)
+        if (!forTest && !forExport && DataStore.enableClashAPI) experimental = ExperimentalOptions().apply {
             clash_api = ClashAPIOptions().apply {
                 external_controller = "127.0.0.1:9090"
                 external_ui = "../files/yacd"
@@ -274,7 +279,7 @@ fun buildConfig(
                 tag = TAG_MIXED
                 listen = bind
                 listen_port = DataStore.mixedPort
-                users = localProxyUsers(isVPN)
+                users = localProxyUsers(isVPN)?.onEach { if (forExport) it.password = EXPORT_SECRET_PLACEHOLDER }
             })
         }
 
@@ -331,7 +336,7 @@ fun buildConfig(
         // node's knock outbound (SPA, then straight to the node)
         var nodeDoh: Pair<RayNode, String>? = null
         if (yggdrasil && !forTest) {
-            addYggdrasilEndpoint(DataStore.yggdrasilPrivateKey)
+            addYggdrasilEndpoint(if (forExport) EXPORT_SECRET_PLACEHOLDER else DataStore.yggdrasilPrivateKey)
             yggdrasilInboundRule = Rule_DefaultOptions().apply {
                 inbound = listOf(TAG_YGGDRASIL)
                 if (DataStore.yggdrasilAllowInbound) outbound = TAG_DIRECT else action = "reject"

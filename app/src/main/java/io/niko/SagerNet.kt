@@ -46,7 +46,37 @@ class SagerNet : Application(),
 
     private val nativeInterface = NativeInterface()
 
-    val externalAssets: File by lazy { getExternalFilesDir(null) ?: filesDir }
+    /** Route rules (geoip.db, geosite.db) and an imported ca.pem. Internal storage: on Android 6-10 any app
+     *  with storage access could replace files under getExternalFilesDir and redirect traffic or add a root. */
+    val routeAssets: File by lazy { File(filesDir, "route") }
+
+    /**
+     * Rule databases of 1.25 and older lived under getExternalFilesDir: another provider's or the user's own would
+     * be replaced by the bundled ones, and rules with their codes would stop the service. They move once, but only
+     * where that folder was private to the app (Android 11+); a ca.pem there is never taken.
+     */
+    private fun migrateRouteAssets() {
+        if (Build.VERSION.SDK_INT < 30) return
+        val marker = File(routeAssets, ".migrated-1.26")
+        if (marker.exists()) return
+        val old = getExternalFilesDir(null) ?: return
+        old.listFiles()?.filter { it.isFile && (it.name.endsWith(".db") || it.name.endsWith(".version.txt")) }
+            ?.forEach { file ->
+                val target = File(routeAssets, file.name)
+                if (target.exists()) return@forEach
+                // the main and :bg processes may both get here: copy aside, then rename
+                val tmp = File(routeAssets, "${file.name}.$process.migrating")
+                try {
+                    file.copyTo(tmp, overwrite = true)
+                    if (!target.exists()) tmp.renameTo(target)
+                } catch (e: Exception) {
+                    Logs.w(e)
+                } finally {
+                    tmp.delete()
+                }
+            }
+        marker.createNewFile()
+    }
     val process: String = JavaUtil.getProcessName()
     private val isMainProcess = process == BuildConfig.APPLICATION_ID
     val isBgProcess = process.endsWith(":bg")
@@ -63,17 +93,20 @@ class SagerNet : Application(),
                 DataStore.clashApiSecret
                 DataStore.shortcutToken
             }
-            externalAssets.mkdirs()
+            routeAssets.mkdirs()
+            migrateRouteAssets()
             Seq.setContext(this)
             Libcore.initCore(
                 process,
                 cacheDir.absolutePath + "/",
                 filesDir.absolutePath + "/",
-                externalAssets.absolutePath + "/",
+                routeAssets.absolutePath + "/",
                 DataStore.logBufSize,
                 DataStore.logLevel > 0,
                 nativeInterface, nativeInterface, LocalResolverImpl
             )
+            // the user's node addresses stay out of this process' log
+            runOnDefaultDispatcher { io.niko.raycontrol.RayNodes.syncLogRedactions() }
 
             // fix multi process issue in Android 9+
             JavaUtil.handleWebviewDir(this)
@@ -174,8 +207,14 @@ class SagerNet : Application(),
             }
         }
 
-        fun trySetPrimaryClip(clip: String) = try {
-            clipboard.setPrimaryClip(ClipData.newPlainText(null, clip))
+        /** [sensitive]: a secret (an invite): the system hides it in its clipboard preview (Android 13+). */
+        fun trySetPrimaryClip(clip: String, sensitive: Boolean = false) = try {
+            clipboard.setPrimaryClip(ClipData.newPlainText(null, clip).apply {
+                // setExtras is API 24; the flag means something from 33 on
+                if (sensitive && Build.VERSION.SDK_INT >= 33) description.extras = android.os.PersistableBundle().apply {
+                    putBoolean(android.content.ClipDescription.EXTRA_IS_SENSITIVE, true)
+                }
+            })
             true
         } catch (e: RuntimeException) {
             Logs.w(e)

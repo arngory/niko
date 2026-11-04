@@ -406,6 +406,10 @@ class ConfigurationFragment @JvmOverloads constructor(
     }
 
     suspend fun import(proxies: List<AbstractBean>) {
+        // clipboard and file: the same question as a link when a profile rewrites the whole config
+        ImportReview.warning(app, proxies)?.let { question ->
+            if (!onMainDispatcher { confirm(question) }) return
+        }
         val targetId = DataStore.selectedGroupForImport()
         for (proxy in proxies) {
             ProfileManager.createProfile(targetId, proxy)

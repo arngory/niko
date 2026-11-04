@@ -96,23 +96,29 @@ object Util {
         return output.copyOfRange(0, compressedDataLength)
     }
 
-    fun zlibDecompress(input: ByteArray): ByteArray {
+    /** The most a shared link may inflate to: a few MB of `sn://` would otherwise inflate to gigabytes (OOM). */
+    const val ZLIB_MAX_OUTPUT = 16 shl 20
+
+    fun zlibDecompress(input: ByteArray, maxOutput: Int = ZLIB_MAX_OUTPUT): ByteArray {
         val inflater = Inflater()
         val outputStream = ByteArrayOutputStream()
 
-        return outputStream.use {
-            val buffer = ByteArray(1024)
+        return try {
+            val buffer = ByteArray(8192)
 
             inflater.setInput(input)
 
             var count = -1
             while (count != 0) {
                 count = inflater.inflate(buffer)
+                if (outputStream.size() + count > maxOutput) {
+                    throw IllegalArgumentException("compressed data is larger than ${maxOutput shr 20} MiB")
+                }
                 outputStream.write(buffer, 0, count)
             }
-
-            inflater.end()
             outputStream.toByteArray()
+        } finally {
+            inflater.end()
         }
     }
 

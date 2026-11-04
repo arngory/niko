@@ -95,10 +95,12 @@ type step struct {
 // target is the knock state of one server address. The lock only guards the
 // fields; it is never held while knocking.
 type target struct {
-	access     sync.Mutex
-	lastKnock  time.Time
-	generation uint64
-	inflight   chan struct{}
+	access    sync.Mutex
+	lastKnock time.Time
+	// the last knock that went over the TCP carrier (SPA v2, reknock)
+	lastTCPKnock time.Time
+	generation   uint64
+	inflight     chan struct{}
 	// SPA v2: the access is renewed while the host is in use
 	lastUse time.Time
 	active  int
@@ -492,9 +494,18 @@ func (o *Outbound) target(host string) *target {
 }
 
 func (o *Outbound) forget(destination M.Socksaddr) {
+	o.forgetBefore(destination, time.Now())
+}
+
+// forgetBefore drops the knock unless it finished after attempt, the start of
+// the dial that failed: a knock sent after it (by a parallel dial) is not
+// disproved by this failure, and dropping it would make every dial knock anew.
+func (o *Outbound) forgetBefore(destination M.Socksaddr, attempt time.Time) {
 	t := o.target(destination.AddrString())
 	t.access.Lock()
-	t.lastKnock = time.Time{}
+	if !t.lastKnock.After(attempt) {
+		t.lastKnock = time.Time{}
+	}
 	t.access.Unlock()
 }
 
@@ -510,27 +521,53 @@ func (o *Outbound) cached(destination M.Socksaddr) bool {
 // force: unless it was sent just now) and reports whether it sent one.
 // Concurrent callers share one knock in flight.
 func (o *Outbound) knock(ctx context.Context, destination M.Socksaddr, force bool) (bool, error) {
+	return o.knockOnce(ctx, destination, func(t *target, waited bool) bool {
+		since := time.Since(t.lastKnock)
+		// after waiting for a knock in flight: re-check, it may have failed or become stale
+		return since < o.ttl && (!force || waited) || since < minReknockGap
+	}, o.spa2 != nil && o.spa2TCP.Load(), o.sendSequence)
+}
+
+// reknock sends again after a dial that started at attempt failed, unless a
+// knock finished after that (a parallel dial already sent one, which this dial
+// did not wait for): a slot turn that breaks many dials at once sends one
+// packet, not one per dial. send is the carrier (SPA v2: UDP or TCP); a TCP
+// reknock is served only by a knock over TCP.
+func (o *Outbound) reknock(ctx context.Context, destination M.Socksaddr, attempt time.Time, tcp bool, send func(context.Context, M.Socksaddr) error) (bool, error) {
+	return o.knockOnce(ctx, destination, func(t *target, _ bool) bool {
+		if tcp {
+			return t.lastTCPKnock.After(attempt)
+		}
+		return t.lastKnock.After(attempt)
+	}, tcp, send)
+}
+
+// knockOnce runs send unless fresh (called under the target's lock, only for a
+// knock of this network) says the access is fresh; concurrent callers share
+// one send in flight and re-check after it.
+func (o *Outbound) knockOnce(ctx context.Context, destination M.Socksaddr, fresh func(t *target, waited bool) bool, tcp bool, send func(context.Context, M.Socksaddr) error) (bool, error) {
 	t := o.target(destination.AddrString())
+	waited := false
 	for {
 		t.access.Lock()
 		generation := o.generation.Load()
-		if !t.lastKnock.IsZero() && t.generation == generation {
-			since := time.Since(t.lastKnock)
-			if since < o.ttl && !force || since < minReknockGap {
-				t.access.Unlock()
-				return false, nil
-			}
+		if !t.lastKnock.IsZero() && t.generation == generation && fresh(t, waited) {
+			t.access.Unlock()
+			return false, nil
 		}
 		if t.inflight == nil {
 			done := make(chan struct{})
 			t.inflight = done
 			t.access.Unlock()
-			err := o.sendSequence(ctx, destination)
+			err := send(ctx, destination)
 			t.access.Lock()
 			t.inflight = nil
 			if err == nil {
 				// a network change during the knock leaves it stale
 				t.lastKnock = time.Now()
+				if tcp {
+					t.lastTCPKnock = t.lastKnock
+				}
 				t.generation = generation
 				if o.spa2 != nil {
 					o.scheduleRenewal(t, destination)
@@ -544,8 +581,7 @@ func (o *Outbound) knock(ctx context.Context, destination M.Socksaddr, force boo
 		t.access.Unlock()
 		select {
 		case <-inflight:
-			// re-check: the knock may have failed or become stale
-			force = false
+			waited = true
 		case <-ctx.Done():
 			return false, ctx.Err()
 		}

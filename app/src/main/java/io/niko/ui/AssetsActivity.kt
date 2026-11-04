@@ -11,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.isInvisible
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import io.niko.R
 import io.niko.database.DataStore
@@ -22,7 +23,6 @@ import libcore.Libcore
 import io.niko.utils.Util
 import org.json.JSONObject
 import java.io.File
-import java.io.FileWriter
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -91,6 +91,11 @@ class AssetsActivity : ThemedActivity() {
 
     val assetNames = arrayOf("geoip.db", "geosite.db")
 
+    companion object {
+        /** Read by the core at start (libcore/niko.go) and added to the system roots. */
+        const val CA_FILE = "ca.pem"
+    }
+
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.import_asset_menu, menu)
         return true
@@ -98,37 +103,53 @@ class AssetsActivity : ThemedActivity() {
 
     val importFile = registerForActivityResult(ActivityResultContracts.GetContent()) { file ->
         if (file != null) {
-            val fileName = contentResolver.query(file, null, null, null, null)?.use { cursor ->
-                cursor.moveToFirst()
-                cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME).let(cursor::getString)
-            }?.takeIf { it.isNotBlank() } ?: file.pathSegments.last()
-                .substringAfterLast('/')
-                .substringAfter(':')
+            // the name comes from a third-party DocumentsProvider: only its last segment is used
+            val fileName = File(
+                contentResolver.query(file, null, null, null, null)?.use { cursor ->
+                    cursor.moveToFirst()
+                    cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME).let(cursor::getString)
+                }?.takeIf { it.isNotBlank() } ?: file.pathSegments.last()
+                    .substringAfterLast('/')
+                    .substringAfter(':')
+            ).name
 
-            if (!fileName.endsWith(".db")) {
-                alert(getString(R.string.route_not_asset, fileName)).show()
-                return@registerForActivityResult
+            val dir = app.routeAssets
+            when {
+                fileName.endsWith(".pem") -> {
+                    // a root CA is trusted by every TLS connection without a pin: ask first
+                    MaterialAlertDialogBuilder(this)
+                        .setTitle(R.string.route_import_ca)
+                        .setMessage(getString(R.string.route_import_ca_message, fileName))
+                        .setPositiveButton(R.string.yes) { _, _ -> importAsset(file, dir, CA_FILE, false) }
+                        .setNegativeButton(R.string.no, null)
+                        .show()
+                }
+
+                fileName.endsWith(".db") && fileName != ".db" -> importAsset(file, dir, fileName, true)
+                else -> alert(getString(R.string.route_not_asset, fileName)).show()
             }
-            val filesDir = getExternalFilesDir(null) ?: filesDir
+        }
+    }
 
-            runOnDefaultDispatcher {
-                val outFile = File(filesDir, fileName).apply {
-                    parentFile?.mkdirs()
+    private fun importAsset(uri: android.net.Uri, dir: File, fileName: String, versioned: Boolean) {
+        runOnDefaultDispatcher {
+            try {
+                dir.mkdirs()
+                val outFile = File(dir, fileName)
+                require(outFile.canonicalFile.parentFile == dir.canonicalFile) { "bad file name: $fileName" }
+                val tmp = File(dir, "$fileName.tmp")
+                contentResolver.openInputStream(uri)?.use { input ->
+                    tmp.outputStream().use { input.copyTo(it) }
+                } ?: error("cannot open $fileName")
+                if (!tmp.renameTo(outFile)) error("cannot write $fileName")
+                if (versioned) {
+                    File(dir, outFile.nameWithoutExtension + ".version.txt").writeText("Custom")
                 }
-
-                contentResolver.openInputStream(file)?.use(outFile.outputStream())
-
-                File(outFile.parentFile, outFile.nameWithoutExtension + ".version.txt").apply {
-                    if (isFile) delete()
-                    createNewFile()
-                    val fw = FileWriter(this)
-                    fw.write("Custom")
-                    fw.close()
-                }
-
                 adapter.reloadAssets()
+                if (!versioned) onMainDispatcher { snackbar(R.string.route_import_ca_done).show() }
+            } catch (e: Exception) {
+                onMainDispatcher { alert(e.readableMessage).tryToShow() }
             }
-
         }
     }
 
@@ -152,9 +173,9 @@ class AssetsActivity : ThemedActivity() {
         }
 
         fun reloadAssets() {
-            val filesDir = getExternalFilesDir(null) ?: filesDir
+            val filesDir = app.routeAssets
             val files = filesDir.listFiles()
-                ?.filter { it.isFile && it.name.endsWith(".db") && it.name !in assetNames }
+                ?.filter { it.isFile && (it.name.endsWith(".db") && it.name !in assetNames || it.name == CA_FILE) }
             assets.clear()
             assets.add(File(filesDir, "geoip.db"))
             assets.add(File(filesDir, "geosite.db"))

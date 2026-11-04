@@ -246,6 +246,19 @@ object RayNodes {
         DataStore.configurationStore.putString(
             Key.RAYCONTROL_NODES, JsonArray().apply { nodes.forEach { add(it.toJson()) } }.toString()
         )
+        syncLogRedactions(nodes)
+    }
+
+    /**
+     * The nodes' addresses never reach the log or the debug export (libcore redact.go): set at each process' start
+     * and whenever the nodes change.
+     */
+    fun syncLogRedactions(nodes: List<RayNode> = runCatching { list() }.getOrDefault(emptyList())) {
+        val hosts = nodes.flatMap { node ->
+            listOfNotNull(node.host, node.doh?.let { runCatching { java.net.URI(it).host }.getOrNull() }) +
+                    node.links.values.flatMap { listOfNotNull(it.link, it.next) }.flatMap(RayRows::linkHosts)
+        }.map { it.trim('[', ']') }.filter { it.isNotBlank() }.distinct()
+        runCatching { libcore.Libcore.setLogRedactions(hosts.joinToString("\n")) }
     }
 
     /**
@@ -261,6 +274,13 @@ object RayNodes {
             registration.subscription, groupId = old?.groupId ?: 0, profileIds = if (old == null) emptyMap() else old.profileIds,
             api = registration.api,
             identity = identity ?: old?.identity?.takeIf { old.deviceId == registration.deviceId && registration.api != null },
+            // an older package of the same node (same signing and TLS keys) must not let an older subscription in;
+            // a node with new keys starts its seq anew
+            subSeq = old?.subSeq?.takeIf {
+                val a = old.subscription
+                val b = registration.subscription
+                a != null && b != null && a.pin == b.pin && a.ed25519 == b.ed25519 && a.mldsa65 == b.mldsa65
+            } ?: 0,
         )
         save(list().filter { it.spa.nodeId != node.spa.nodeId } + node)
         node

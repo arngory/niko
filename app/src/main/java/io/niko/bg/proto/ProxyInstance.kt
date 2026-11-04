@@ -5,6 +5,7 @@ import io.niko.bg.BaseService
 import io.niko.bg.ServiceNotification
 import io.niko.database.ProxyEntity
 import io.niko.ktx.Logs
+import io.niko.raycontrol.RayNodes
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.runBlocking
@@ -22,10 +23,14 @@ class ProxyInstance(profile: ProxyEntity, var service: BaseService.Interface? = 
     var looper: TrafficLooper? = null
 
     override fun buildConfig() {
+        // the node list may have changed in the main process since this one started
+        if (notTmp) RayNodes.syncLogRedactions()
         super.buildConfig()
         lastSelectorGroupId = super.config.selectorGroupId
         //
-        if (notTmp) Logs.d(config.config)
+        // the whole config (secrets, keys) only in debug builds; the log redacts, but this is the one place that
+        // would carry everything at once
+        if (notTmp && BuildConfig.DEBUG) Logs.d(config.config)
         if (notTmp && BuildConfig.DEBUG) Logs.d(JavaUtil.gson.toJson(config.trafficMap))
     }
 
@@ -37,7 +42,7 @@ class ProxyInstance(profile: ProxyEntity, var service: BaseService.Interface? = 
 
     override suspend fun init() {
         super.init()
-        pluginConfigs.forEach { (_, plugin) ->
+        if (BuildConfig.DEBUG) pluginConfigs.forEach { (_, plugin) ->
             val (_, content) = plugin
             Logs.d(content)
         }

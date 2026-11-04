@@ -361,6 +361,7 @@
 <string name="profile_import">Импортировать профиль</string>
 <string name="profile_import_message">Подтвердите, что хотите импортировать профиль %s?</string>
 <string name="profile_import_full_config_warning">Внимание: этот профиль заменяет или переписывает весь конфиг sing-box (локальный прокси, DNS, маршрутизацию). Импортируйте его, только если доверяете источнику.</string>
+<string name="profile_import_keys">Он задаёт эти части конфига: %s</string>
 <string name="profile_name">Имя профиля</string>
 <string name="profile_requiring_plugin">Профиль %s требует установки подключаемого модуля %s, но он не найден.</string>
 <string name="profile_traffic_statistics">Статистика трафика профиля</string>
@@ -400,6 +401,9 @@
 <string name="route_name">Название маршрута</string>
 <string name="route_need_vpn">Правило маршрутизации `%s` зависит от VPN, поэтому игнорируется.</string>
 <string name="route_not_asset">Не файл ресурса: ожидался .db, а не %s</string>
+<string name="route_import_ca">Добавить корневой сертификат?</string>
+<string name="route_import_ca_message">Сертификатам из %s будут доверять все TLS-соединения приложения без пина: прокси, удалённый DNS, загрузка подписок и правил. Владелец ключа такого сертификата может читать и менять этот трафик. Добавляйте, только если знаете, откуда он.</string>
+<string name="route_import_ca_done">Сертификат добавлен. Он начнёт действовать после перезапуска приложения.</string>
 <string name="route_opt_block_ads">Блокировать рекламу</string>
 <string name="route_opt_block_analysis">Блокировать аналитику</string>
 <string name="route_opt_block_quic">Блокировать QUIC</string>

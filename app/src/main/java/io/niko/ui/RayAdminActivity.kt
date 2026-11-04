@@ -9,6 +9,7 @@ import android.text.format.Formatter
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
+import android.view.WindowManager
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.ImageView
@@ -367,16 +368,22 @@ class RayAdminActivity : ThemedActivity() {
             this.text = message
             setPadding(0, 0, 0, 24)
         }
+        // the invite registers a device: no screenshots of the dialog (its own window) and no recent-apps
+        // thumbnail of the activity while it is shown
+        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.raycontrol_admin_invite)
             .setView(padded(text, image))
+            .setOnDismissListener { window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
             .setPositiveButton(R.string.share) { _, _ ->
                 startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, code), getString(R.string.share)))
             }
             .setNeutralButton(R.string.action_copy) { _, _ ->
-                if (SagerNet.trySetPrimaryClip(code)) snackbar(R.string.copy_success).show()
+                if (SagerNet.trySetPrimaryClip(code, sensitive = true)) snackbar(R.string.copy_success).show()
             }
             .setNegativeButton(android.R.string.cancel, null)
+            .create()
+            .apply { window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE) }
             .show()
     }
 

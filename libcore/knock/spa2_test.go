@@ -11,6 +11,8 @@ import (
 	"net/netip"
 	"os"
 	"strconv"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -243,6 +245,52 @@ func TestSPA2RetryAfterFailedDial(t *testing.T) {
 	}
 }
 
+// TestSPA2RetryCoalesced: parallel dials that fail together send one more packet between them, not one each.
+func TestSPA2RetryCoalesced(t *testing.T) {
+	spaConn, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer spaConn.Close()
+	closed, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	closedPort := uint16(closed.Addr().(*net.TCPAddr).Port)
+	closed.Close()
+	options := SPAv2Options{
+		NodeID: "33333333333333333333333333333333", EpochLen: 86400, SlotLen: 600,
+		PortKey:  "4444444444444444444444444444444444444444444444444444444444444444",
+		PortBase: uint16(spaConn.LocalAddr().(*net.UDPAddr).Port), PortRange: 1, LenMin: 96, LenMax: 160,
+		DeviceKey: "1111111111111111111111111111111111111111111111111111111111111111",
+	}
+	outbound := newBox(t, Options{SPAv2: &options})
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			outbound.DialContext(ctx, N.NetworkTCP, M.ParseSocksaddrHostPort("127.0.0.1", closedPort))
+		}()
+	}
+	wg.Wait()
+	// the first packet, shared, and one retry, shared
+	buffer := make([]byte, 1024)
+	packets := 0
+	for {
+		spaConn.SetReadDeadline(time.Now().Add(300 * time.Millisecond))
+		if _, _, err = spaConn.ReadFrom(buffer); err != nil {
+			break
+		}
+		packets++
+	}
+	if packets != 2 {
+		t.Fatalf("%d packets over UDP for 8 failed dials, want 2", packets)
+	}
+}
+
 func TestSPA2Options(t *testing.T) {
 	good := SPAv2Options{
 		NodeID: "33333333333333333333333333333333", EpochLen: 60, SlotLen: 60,
@@ -358,6 +406,87 @@ func TestSPA2TCPCarrier(t *testing.T) {
 	outbound.InterfaceUpdated(context.Background())
 	if outbound.spa2TCP.Load() {
 		t.Fatal("the TCP carrier survived a network change")
+	}
+}
+
+// TestSPA2TCPCarrierCoalesced: parallel dials that all find UDP cut send one TCP carrier packet between them, and
+// all connect after it.
+func TestSPA2TCPCarrierCoalesced(t *testing.T) {
+	carrier, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer carrier.Close()
+	slotPort := uint16(carrier.Addr().(*net.TCPAddr).Port)
+	probe, _ := net.Listen("tcp", "127.0.0.1:0")
+	servicePort := uint16(probe.Addr().(*net.TCPAddr).Port)
+	probe.Close()
+	options := SPAv2Options{
+		NodeID: "33333333333333333333333333333333", EpochLen: 86400, SlotLen: 600,
+		PortKey:  "4444444444444444444444444444444444444444444444444444444444444444",
+		PortBase: slotPort, PortRange: 1, LenMin: 96, LenMax: 160,
+		DeviceKey: "1111111111111111111111111111111111111111111111111111111111111111",
+	}
+	outbound := newBox(t, Options{SPAv2: &options})
+	var carried atomic.Int32
+	var service atomic.Pointer[net.Listener]
+	var serviceOnce sync.Once
+	go func() {
+		for {
+			conn, err := carrier.Accept()
+			if err != nil {
+				return
+			}
+			io.ReadAll(io.LimitReader(conn, 161))
+			conn.Close()
+			carried.Add(1)
+			serviceOnce.Do(func() {
+				l, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(int(servicePort))))
+				if err != nil {
+					t.Error(err)
+					return
+				}
+				service.Store(&l)
+				go func() {
+					for {
+						c, err := l.Accept()
+						if err != nil {
+							return
+						}
+						c.Close()
+					}
+				}()
+			})
+		}
+	}()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	var wg sync.WaitGroup
+	var failed atomic.Int32
+	for range 8 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			conn, err := outbound.DialContext(ctx, N.NetworkTCP, M.ParseSocksaddrHostPort("127.0.0.1", servicePort))
+			if err != nil {
+				failed.Add(1)
+				return
+			}
+			conn.Close()
+		}()
+	}
+	wg.Wait()
+	if l := service.Load(); l != nil {
+		(*l).Close()
+	}
+	if failed.Load() != 0 {
+		t.Fatalf("%d of 8 dials failed", failed.Load())
+	}
+	if n := carried.Load(); n != 1 {
+		t.Fatalf("%d TCP carrier packets for 8 dials, want 1", n)
+	}
+	if !outbound.spa2TCP.Load() {
+		t.Fatal("the TCP carrier is not remembered")
 	}
 }
 

@@ -23,7 +23,6 @@ import io.niko.fmt.AbstractBean
 import io.niko.ktx.Logs
 import io.niko.ktx.app
 import io.niko.ktx.applyDefaultValues
-import io.niko.ktx.parseProxies
 import io.niko.ktx.readableMessage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -147,15 +146,12 @@ object RaySubscription {
                     if (doh == null) doh = dohUrl(pair.activeLink)
                     return@forEach
                 }
-                val bean = parseProxies(pair.activeLink).firstOrNull()
-                if (bean == null) {
-                    skipped++
-                } else {
-                    if (pair.name.isNotBlank()) bean.name = pair.name
-                    bean.applyDefaultValues()
-                    beans[key] = bean
-                    links[key] = pair
-                }
+                // the spec's schemes only, without sent JSON (RayRows): a row that breaks it is skipped
+                val bean = RayRows.parse(pair.activeLink)
+                if (pair.name.isNotBlank()) bean.name = pair.name
+                bean.applyDefaultValues()
+                beans[key] = bean
+                links[key] = pair
             } catch (e: Exception) {
                 Logs.w("raycontrol subscription: profile ${profile.get("name")}: ${e.message}")
                 skipped++
@@ -332,7 +328,7 @@ object RaySubscription {
         val l = RayNodes.get(nodeId)?.links?.get(key) ?: return false
         val target = l.copy(nextActive = nextActive)
         val bean = try {
-            parseProxies(target.activeLink).firstOrNull()
+            RayRows.parse(target.activeLink)
         } catch (e: Exception) {
             null
         } ?: return false

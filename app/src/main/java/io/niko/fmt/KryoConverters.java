@@ -54,6 +54,10 @@ public class KryoConverters {
             bean.deserializeFromBuffer(buffer);
         } catch (KryoException e) {
             Logs.INSTANCE.w(e);
+        } catch (OutOfMemoryError e) {
+            // a string length of ~2^31 in a few bytes of a shared link: Kryo allocates its array before reading it.
+            // That allocation fails alone, so this is a refused link, not a full heap.
+            throw new IllegalArgumentException("corrupt data: a field larger than the data");
         }
         bean.initializeDefaultValues();
         return bean;

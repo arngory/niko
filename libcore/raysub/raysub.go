@@ -178,13 +178,21 @@ func (r *Request) knock(ctx context.Context, tcp bool, now time.Time) error {
 
 var errPin = errors.New("raycontrol subscription: the server key does not match the pin")
 
+// noRedirect keeps every raycontrol request on the pinned node and on TLS: a 3xx is returned as is and
+// fails the status check, it is never followed (a Location could point to plain http or another host).
+func noRedirect(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+
+// NoRedirect is noRedirect for rayprobe.
+var NoRedirect = noRedirect
+
 func (r *Request) httpClient(timeout time.Duration) *http.Client {
 	serverName := ""
 	if net.ParseIP(r.Host) == nil {
 		serverName = r.Host
 	}
 	return &http.Client{
-		Timeout: timeout,
+		Timeout:       timeout,
+		CheckRedirect: noRedirect,
 		Transport: &http.Transport{
 			DialContext:       r.dialer().DialContext,
 			TLSClientConfig:   TLSConfig(serverName, r.Pin),

@@ -43,7 +43,6 @@ import io.niko.fmt.AbstractBean
 import io.niko.fmt.KryoConverters
 import io.niko.fmt.PluginEntry
 import io.niko.group.parseSubscriptionDeepLink
-import io.niko.fmt.overridesFullConfig
 import io.niko.group.GroupInterfaceAdapter
 import io.niko.group.GroupUpdater
 import io.niko.ktx.alert
@@ -106,7 +105,7 @@ class MainActivity : ThemedActivity(),
         GroupManager.userInterface = GroupInterfaceAdapter(this)
 
         // only on a fresh start: a recreated activity (theme, rotation) would ask to import again
-        if (savedInstanceState == null && intent?.action == Intent.ACTION_VIEW) {
+        if (savedInstanceState == null && (intent?.action == Intent.ACTION_VIEW || intent?.action == ImportReview.ACTION_REVIEW)) {
             onNewIntent(intent)
         }
 
@@ -141,6 +140,20 @@ class MainActivity : ThemedActivity(),
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+
+        // profiles of a scanned QR code that rewrite the whole config: asked here (ImportReview)
+        if (intent.action == ImportReview.ACTION_REVIEW) {
+            val proxies = ImportReview.take()
+            val question = ImportReview.warning(this, proxies) ?: return
+            MaterialAlertDialogBuilder(this).setTitle(R.string.profile_import)
+                .setMessage(question)
+                .setPositiveButton(R.string.yes) { _, _ ->
+                    runOnDefaultDispatcher { proxies.forEach { finishImportProfile(it) } }
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+            return
+        }
 
         val uri = intent.data ?: return
 
@@ -260,10 +273,11 @@ class MainActivity : ThemedActivity(),
 
         onMainDispatcher {
             MaterialAlertDialogBuilder(this@MainActivity).setTitle(R.string.profile_import)
-                .setMessage(getString(R.string.profile_import_message, profile.displayName()).let {
-                    // a web page can open this link: say so when it rewrites the whole config
-                    if (profile.overridesFullConfig()) it + "\n\n" + getString(R.string.profile_import_full_config_warning) else it
-                })
+                // a web page can open this link: say so, with its keys, when it rewrites the whole config
+                .setMessage(
+                    ImportReview.warning(this@MainActivity, listOf(profile))
+                        ?: getString(R.string.profile_import_message, profile.displayName())
+                )
                 .setPositiveButton(R.string.yes) { _, _ ->
                     runOnDefaultDispatcher {
                         finishImportProfile(profile)

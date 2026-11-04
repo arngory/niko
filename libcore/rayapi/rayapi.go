@@ -212,7 +212,8 @@ func (e *Endpoint) client(callCtx context.Context) (*http.Client, error) {
 	handshakeTimeout = min(handshakeTimeout, timeout)
 	dialer := e.dialer()
 	return &http.Client{
-		Timeout: timeout,
+		Timeout:       timeout,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 		Transport: &http.Transport{
 			// the connection is made here, so that a failure before the request is told apart (connectError)
 			DialTLSContext: func(_ context.Context, network, address string) (net.Conn, error) {

@@ -23,6 +23,7 @@ import com.king.zxing.util.CodeUtils
 import com.king.zxing.util.LogUtils
 import com.king.zxing.util.PermissionUtils
 import io.niko.R
+import io.niko.fmt.overridesFullConfig
 import io.niko.database.DataStore
 import io.niko.database.ProfileManager
 import io.niko.databinding.LayoutScannerBinding
@@ -134,10 +135,13 @@ class ScannerActivity : ThemedActivity(),
                         DataStore.selectedGroup = currentGroupId
                     }
 
-                    for (profile in results) {
+                    // a QR code may come from anywhere: a profile that rewrites the whole config is asked first
+                    val (review, direct) = results.partition { it.overridesFullConfig() }
+                    for (profile in direct) {
                         ProfileManager.createProfile(currentGroupId, profile)
                         importedN.addAndGet(1)
                     }
+                    if (review.isNotEmpty()) ImportReview.handOff(app, review)
                 } else {
                     onMainDispatcher {
                         Toast.makeText(app, R.string.action_import_err, Toast.LENGTH_SHORT).show()

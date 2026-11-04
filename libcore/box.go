@@ -25,6 +25,7 @@ import (
 	"github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/service"
+	"github.com/sagernet/sing/service/filemanager"
 	"github.com/sagernet/sing/service/pause"
 )
 
@@ -97,6 +98,8 @@ func NewSingBoxInstance(config string, localTransport LocalDNSTransport) (b *Box
 	)
 	ctx = service.ContextWithDefaultRegistry(ctx)
 	service.MustRegister[adapter.PlatformInterface](ctx, boxPlatformInterfaceInstance)
+	service.MustRegister[adapter.SecurityPolicy](ctx, boxSecurityPolicy{})
+	service.MustRegister[filemanager.Manager](ctx, newBoxFileManager())
 
 	// parse options
 	var options option.Options
@@ -104,6 +107,10 @@ func NewSingBoxInstance(config string, localTransport LocalDNSTransport) (b *Box
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("decode config: %v", err)
+	}
+	if err = checkConfigSurface(&options); err != nil {
+		cancel()
+		return nil, err
 	}
 
 	// create box

@@ -160,6 +160,9 @@
     <string name="route_asset_no_update">No update</string>
     <string name="route_asset_updated">Updated</string>
     <string name="route_not_asset">Not an asset file: excepted .db, but %s</string>
+    <string name="route_import_ca">Add a root certificate?</string>
+    <string name="route_import_ca_message">The certificates in %s will be trusted for every TLS connection of the app that has no pin: proxies, remote DNS, subscription and rule downloads. Whoever holds the key of such a certificate can read and change that traffic. Add it only if you know where it came from.</string>
+    <string name="route_import_ca_done">Certificate added. It takes effect after the app restarts.</string>
     <string name="route_opt_bypass_lan">Bypass LAN</string>
     <string name="route_opt_block_ads">Block ADs</string>
     <string name="route_opt_block_analysis">Block analysis</string>
@@ -388,6 +391,7 @@
     <string name="profile_import">Import profile</string>
     <string name="profile_import_message">Confirm you want to import profile %s?</string>
     <string name="profile_import_full_config_warning">Warning: this profile replaces or rewrites the whole sing-box config (local proxy, DNS, routing). Import it only if you trust the source.</string>
+    <string name="profile_import_keys">It sets these parts of the config: %s</string>
     <string name="clear_profiles_message">Are you sure you want to clear this group?</string>
     <string name="apps">Applications</string>
     <string name="select_apps">Select Applications</string>

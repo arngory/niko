@@ -8,11 +8,10 @@ import io.niko.R
 import io.niko.SagerNet
 import io.niko.ktx.Logs
 import io.niko.ktx.app
-import io.niko.ktx.use
+import libcore.Libcore
 import io.niko.utils.CrashHandler
 import java.io.File
 import java.io.FileInputStream
-import java.io.FileOutputStream
 import java.io.IOException
 
 object SendLog {
@@ -23,29 +22,28 @@ object SendLog {
             ".log",
             File(app.cacheDir, "log").also { it.mkdirs() })
 
-        var report = CrashHandler.buildReportHeader()
-
-        report += "Logcat: \n\n"
-
-        logFile.writeText(report)
-
+        val report = StringBuilder(CrashHandler.buildReportHeader())
+        report.append("Logcat: \n\n")
         try {
-            Runtime.getRuntime().exec(arrayOf("logcat", "-d")).inputStream.use(
-                FileOutputStream(
-                    logFile, true
-                )
-            )
-            logFile.appendText("\n")
+            val logcat = Runtime.getRuntime().exec(arrayOf("logcat", "-d")).inputStream.bufferedReader().use { it.readText() }
+            report.append(logcat).append("\n")
         } catch (e: IOException) {
             Logs.w(e)
-            logFile.appendText("Export logcat error: " + CrashHandler.formatThrowable(e))
+            report.append("Export logcat error: " + CrashHandler.formatThrowable(e))
         }
-
-        logFile.appendText("\n")
+        report.append("\n")
         // what raycontrol measured and decided on, per network (no keys, links or node addresses)
-        logFile.appendText(runCatching { io.niko.raycontrol.RayDiagnostics.dump() }.getOrElse { "raycontrol: ${it.message}\n" })
-        logFile.appendText("\n")
-        logFile.appendBytes(getNekoLog(0))
+        report.append(runCatching { io.niko.raycontrol.RayDiagnostics.dump() }.getOrElse { "raycontrol: ${it.message}\n" })
+        report.append("\n")
+        report.append(String(getNekoLog(0)))
+        // the whole export without secrets and node addresses, logcat and old log lines too (libcore redact.go);
+        // the nodes as stored now, also those the service process added
+        io.niko.raycontrol.RayNodes.syncLogRedactions()
+        logFile.writeText(
+            report.lines().chunked(2000).joinToString("\n") { chunk ->
+                runCatching { Libcore.redactLog(chunk.joinToString("\n")) }.getOrDefault("<redaction failed>")
+            }
+        )
 
         context.startActivity(
             Intent.createChooser(

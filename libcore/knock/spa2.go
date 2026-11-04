@@ -277,25 +277,33 @@ func (o *Outbound) dialSPA2(ctx context.Context, network string, destination M.S
 	if _, err := o.knock(ctx, destination, false); err != nil {
 		return nil, err
 	}
+	// the retries are shared with parallel dials (reknock): a packet sent after this dial started serves it
+	// too, so a slot turn that breaks many dials sends one packet, not one per dial
+	attempt := time.Now()
 	conn, err := o.dialPeer(ctx, network, destination)
 	if err != nil {
 		o.logger.DebugContext(ctx, "dial after SPA failed, sending it once more: ", err)
-		if o.sendSPA2(ctx, destination) == nil {
+		if _, knockErr := o.reknock(ctx, destination, attempt, o.spa2TCP.Load(), o.sendSPA2); knockErr == nil {
+			attempt = time.Now()
 			conn, err = o.dialPeer(ctx, network, destination)
 		}
 	}
 	if err != nil && !o.spa2TCP.Load() {
 		o.logger.DebugContext(ctx, "dial after SPA over UDP failed, trying the TCP carrier: ", err)
-		if o.sendSPA2Over(ctx, destination, true) == nil {
+		_, knockErr := o.reknock(ctx, destination, attempt, true, func(ctx context.Context, destination M.Socksaddr) error {
+			return o.sendSPA2Over(ctx, destination, true)
+		})
+		if knockErr == nil {
+			attempt = time.Now()
 			conn, err = o.dialPeer(ctx, network, destination)
-			if err == nil {
-				o.spa2TCP.Store(true)
+			// a TCP knock after the UDP ones failed opened it (this dial's or a parallel one's)
+			if err == nil && o.spa2TCP.CompareAndSwap(false, true) {
 				o.logger.InfoContext(ctx, "SPA v2 goes over TCP on this network (UDP did not open ", destination.AddrString(), ")")
 			}
 		}
 	}
 	if err != nil {
-		o.forget(destination)
+		o.forgetBefore(destination, attempt)
 		return nil, err
 	}
 	o.touch(destination)

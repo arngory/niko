@@ -290,5 +290,5 @@ func (w *boxPlatformLogWriterWrapper) WriteMessage(level uint8, message string) 
 	if !strings.HasSuffix(message, "\n") {
 		message += "\n"
 	}
-	neko_log.LogWriter.Write([]byte(message))
+	neko_log.LogWriter.Write([]byte(RedactLog(message)))
 }

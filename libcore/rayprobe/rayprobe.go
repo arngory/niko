@@ -59,7 +59,7 @@ type Client struct {
 }
 
 func NewClient(e *Endpoint) *Client {
-	return &Client{e: e, http: &http.Client{Transport: &http.Transport{
+	return &Client{e: e, http: &http.Client{CheckRedirect: raysub.NoRedirect, Transport: &http.Transport{
 		DialContext:       e.Dial,
 		TLSClientConfig:   raysub.TLSConfig(e.ServerName, e.Pin),
 		ForceAttemptHTTP2: true,
