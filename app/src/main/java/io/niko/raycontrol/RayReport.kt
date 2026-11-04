@@ -5,6 +5,7 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.niko.database.DataStore
 import io.niko.ktx.Logs
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -128,6 +129,9 @@ object RayReport {
         }
         val result = try {
             JsonParser.parseString(withContext(Dispatchers.IO) { Libcore.raycontrolProbe(request.toString()) }).asJsonObject
+        } catch (e: CancellationException) {
+            // a stop or restart: nothing is recorded, the next run tries again (a repeat that went out gets 429)
+            throw e
         } catch (e: Exception) {
             Logs.w("raycontrol ${node.host}: summary: ${e.message}")
             null
