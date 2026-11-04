@@ -249,6 +249,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         }
         if (node.subscription != null) actions += R.string.raycontrol_sub_update to { updateSubscription(node) }
         if (!node.profileIds.isNullOrEmpty()) actions += R.string.raycontrol_channel_check to { checkChannel(node) }
+        if (DataStore.raycontrolReports) actions += R.string.raycontrol_report_show to { showReport(node) }
         actions += R.string.raycontrol_node_remove to { confirmRemove(node) }
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(node.host)
@@ -296,6 +297,21 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         }
         // a probe already running ends within its window; no new one starts
         dialog.setOnDismissListener { job.cancel() }
+    }
+
+    /** The summary for [node] from this network's probes, exactly as it would go out (RayReport). */
+    private fun showReport(node: RayNode) {
+        val network = RayChannel.network() ?: run {
+            snackbar(R.string.raycontrol_channel_no_network).show()
+            return
+        }
+        val report = io.niko.raycontrol.RayReport.build(node, network)
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.raycontrol_report_show)
+            .setMessage(report?.let { com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(it) }
+                ?: getString(R.string.raycontrol_report_empty))
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
     }
 
     private fun confirmRemove(node: RayNode) {

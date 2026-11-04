@@ -106,6 +106,8 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var raycontrolAutoSwitch by configurationStore.boolean(Key.RAYCONTROL_AUTO_SWITCH) { true }
     // Brutal for a node's Hysteria2 at a measured rate (RayBrutal); off: BBR
     var raycontrolBrutal by configurationStore.boolean(Key.RAYCONTROL_BRUTAL) { false }
+    // consent to the anonymous summary for the node (RayReport): off unless the user turns it on
+    var raycontrolReports by configurationStore.boolean(Key.RAYCONTROL_REPORTS) { false }
 
     // the node identity of this install, made on first use and not part of backups
     val yggdrasilPrivateKey: String

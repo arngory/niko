@@ -123,8 +123,11 @@ data class ChannelScore(
     }
 }
 
-/** The network the device is on, as the probes know it: a hash, never the raw values. */
-data class ChannelNetwork(val key: String, val mobile: Boolean)
+/**
+ * The network the device is on, as the probes know it: a hash, never the raw values; [kind] is cellular, wifi,
+ * ethernet or other.
+ */
+data class ChannelNetwork(val key: String, val mobile: Boolean, val kind: String = if (mobile) "cellular" else "other")
 
 /**
  * Measures the channel through the profiles of a raycontrol node and remembers the results per network (only on
@@ -226,7 +229,11 @@ object RayChannel {
             }
 
             else -> {
-                parts += if (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) "wifi" else "other"
+                parts += when {
+                    caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "wifi"
+                    caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "ethernet"
+                    else -> "other"
+                }
                 SagerNet.connectivity.getLinkProperties(net)?.let { lp ->
                     parts += lp.routes.filter { it.isDefaultRoute }.mapNotNull { it.gateway?.hostAddress }.sorted()
                     parts += lp.dnsServers.mapNotNull { it.hostAddress }.sorted()
@@ -235,7 +242,7 @@ object RayChannel {
             }
         }
         val digest = MessageDigest.getInstance("SHA-256").digest(parts.joinToString("|").toByteArray())
-        return ChannelNetwork(digest.take(8).joinToString("") { "%02x".format(it) }, mobile)
+        return ChannelNetwork(digest.take(8).joinToString("") { "%02x".format(it) }, mobile, parts.first())
     }
 
     private fun load(): JsonObject = try {

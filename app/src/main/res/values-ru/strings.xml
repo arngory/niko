@@ -548,6 +548,10 @@
     <string name="raycontrol_channel_udp_failed">UDP не работает</string>
     <string name="raycontrol_brutal">Hysteria2: Brutal по замеру</string>
     <string name="raycontrol_brutal_summary">Раз в сутки на сеть приложение меряет канал до ноды (несколько МБ) и заявляет часть от него, отдельно приём и отдачу; снижает при потерях, которые видит нода. Выключено или нет замера — BBR</string>
+    <string name="raycontrol_reports">Делиться обезличенной сводкой с нодой</string>
+    <string name="raycontrol_reports_summary">Раз в сутки на сеть: по каждому сервису ноды — работал ли он здесь, грубыми корзинами (порог остановки, потери UDP, скорость). Без устройства, имён сетей, адресов и времени; нода хранит только счётчики. Пока не отправляется: нода ещё не принимает сводки</string>
+    <string name="raycontrol_report_show">Что уйдёт в сводку</string>
+    <string name="raycontrol_report_empty">Отправлять нечего: за сутки в этой сети не было замеров</string>
     <string name="raycontrol_nodes">Импортированные ноды</string>
     <string name="raycontrol_nodes_empty">Нет. Вставьте регистрацию rcdev1: из буфера обмена или отсканируйте её QR-код (+ на главном экране); профили с адресом ноды будут сначала отправлять SPA v2.</string>
     <string name="raycontrol_node_line">%1$s, устройство %2$s, сервисов: %3$d</string>

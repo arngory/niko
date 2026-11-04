@@ -636,6 +636,10 @@
     <string name="raycontrol_channel_udp_failed">UDP fails</string>
     <string name="raycontrol_brutal">Hysteria2: Brutal at a measured rate</string>
     <string name="raycontrol_brutal_summary">Once a day per network the app measures the channel to the node (a few MB) and declares a share of it, download and upload apart; lowered when the node sees losses. Off, or without a measurement: BBR</string>
+    <string name="raycontrol_reports">Share an anonymous summary with the node</string>
+    <string name="raycontrol_reports_summary">Once a day per network: for each service of the node, whether it worked here, in coarse buckets (stall threshold, UDP loss, speed). No device, network names, addresses or times; the node keeps counters only. Not sent yet: the node does not accept summaries yet</string>
+    <string name="raycontrol_report_show">What the summary would send</string>
+    <string name="raycontrol_report_empty">Nothing to send: no probes on this network in the last day</string>
     <string name="raycontrol_nodes">Imported nodes</string>
     <string name="raycontrol_nodes_empty">None. Paste an rcdev1: registration from the clipboard or scan its QR code (+ on the main screen); profiles whose server is the node\'s address then send SPA v2 first.</string>
     <string name="raycontrol_node_line">%1$s, device %2$s, %3$d services</string>

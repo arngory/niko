@@ -191,6 +191,7 @@ object Key {
     const val RAYCONTROL_AUTO_SWITCH = "raycontrolAutoSwitch"
     const val RAYCONTROL_YGG_RUNNING = "raycontrolYggRunning"
     const val RAYCONTROL_BRUTAL = "raycontrolBrutal"
+    const val RAYCONTROL_REPORTS = "raycontrolReports"
     const val RAYCONTROL_DNSTT_RESOLVER = "raycontrolDnsttResolver"
     const val RAYCONTROL_MASTERDNS_RESOLVERS = "raycontrolMasterDnsResolvers"
 }

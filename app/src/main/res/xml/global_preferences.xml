@@ -287,6 +287,11 @@
             app:key="raycontrolBrutal"
             app:summary="@string/raycontrol_brutal_summary"
             app:title="@string/raycontrol_brutal" />
+        <SwitchPreference
+            app:defaultValue="false"
+            app:key="raycontrolReports"
+            app:summary="@string/raycontrol_reports_summary"
+            app:title="@string/raycontrol_reports" />
         <EditTextPreference
             app:defaultValue="https://common.dot.dns.yandex.net/dns-query"
             app:dialogMessage="@string/raycontrol_dnstt_resolver_help"
