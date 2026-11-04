@@ -94,15 +94,21 @@ object RayRows {
         return own.map { it.trim('[', ']') }.filter { it.isNotBlank() && it != "inner" }.distinct()
     }
 
+    /** Path words of subscription links that are not secrets: they stay readable in the log. */
+    private val PLAIN_SEGMENTS = setOf(
+        "subscribe", "subscription", "subscriptions", "download", "downloads", "client", "clients", "config",
+        "configs", "profile", "profiles", "singbox", "sing-box", "clashmeta", "clash-meta", "v2rayng", "nekobox",
+    )
+    private val PLAIN_FILE = Regex("[A-Za-z_-]+\\.(txt|yaml|yml|json|conf|list)")
+
     /**
-     * The token-like segments of a subscription link's path (panels: /sub/<token>), by the rule libcore/redact.go
-     * applies to any URL: 16+ chars mixing letters and digits, or one unbroken word of 24+. Plain words
-     * (api/v1/client/subscribe) stay readable; a token in the query is redacted by its name already.
+     * The secrets of a subscription link's path, as they stand in the log (encoded): every segment of 8 chars or
+     * more but known plain words (subscribe, client) and file names (config.yaml). Wider than the rule libcore
+     * applies to any URL (16+ mixed, 24+ unbroken): a panel's token may be short or have no digits
+     * (/sub/ab12cd34ef, /sub/qwhzkrtmbvplxnae). A token in the query is redacted by its name already.
      */
     fun subscriptionSecrets(link: String): List<String> =
-        link.toHttpUrlOrNull()?.pathSegments.orEmpty().filter { segment ->
-            val mixed = segment.length >= 16 && segment.any(Char::isDigit) && segment.any(Char::isLetter)
-            val word = segment.length >= 24 && segment.all { it.isLetterOrDigit() || it == '_' }
-            mixed || word
+        link.toHttpUrlOrNull()?.encodedPathSegments.orEmpty().filter { segment ->
+            segment.length >= 8 && segment.lowercase() !in PLAIN_SEGMENTS && !PLAIN_FILE.matches(segment)
         }
 }

@@ -60,10 +60,15 @@ class RayRowsTest {
         // known only by its address: its REALITY names are taken as its own (a self-steal name must not show)
         assertEquals(listOf("203.0.113.7", "r1.mynode.net", "a.mynode.net"),
             RayRows.nodeHosts("203.0.113.7", null, listOf(reality.replace("sni=a.example", "sni=r1.mynode.net&tlsServerName=a.mynode.net"))))
+        // tokens the generic URL rule misses: letters only, short custom ones, encoded characters as in the log
+        assertEquals(listOf("qwhzkrtmbvplxnae"), RayRows.subscriptionSecrets("https://panel.example/sub/qwhzkrtmbvplxnae"))
+        assertEquals(listOf("ab12cd34ef"), RayRows.subscriptionSecrets("https://panel.example/sub/ab12cd34ef"))
         assertEquals(listOf("aB3dE5fG7hJ9kL1mN"), RayRows.subscriptionSecrets("https://panel.example/sub/aB3dE5fG7hJ9kL1mN"))
-        assertEquals(listOf("qwhzkrtmbvplxnaeqwhzkrtm"), RayRows.subscriptionSecrets("https://panel.example/s/qwhzkrtmbvplxnaeqwhzkrtm"))
+        assertEquals(listOf("a%2Bb%3Dc%2Fd1234"), RayRows.subscriptionSecrets("https://panel.example/s/a%2Bb%3Dc%2Fd1234"))
+        // plain words and file names stay readable
         assertEquals(emptyList<String>(), RayRows.subscriptionSecrets("https://p.example/api/v1/client/subscribe?token=x"))
         assertEquals(emptyList<String>(), RayRows.subscriptionSecrets("https://p.example/subscribe"))
+        assertEquals(emptyList<String>(), RayRows.subscriptionSecrets("https://raw.example/user/repo/main/config.yaml"))
     }
 
     @Test
