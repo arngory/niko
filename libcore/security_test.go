@@ -13,6 +13,10 @@ func TestConfigSurface(t *testing.T) {
 		{"tor", `{"outbounds":[{"type":"tor","tag":"t","executable_path":"/system/bin/sh"}]}`, "tor"},
 		{"netns", `{"network_namespaces":[{"type":"unshare","tag":"n"}],"outbounds":[{"type":"direct","tag":"d"}]}`, "network_namespaces"},
 		{"system proxy", `{"inbounds":[{"type":"mixed","tag":"m","listen":"127.0.0.1","set_system_proxy":true}]}`, "set_system_proxy"},
+		{"clash on all", `{"experimental":{"clash_api":{"external_controller":"0.0.0.0:9090","secret":"s"}}}`, "loopback"},
+		{"clash no secret", `{"experimental":{"clash_api":{"external_controller":"127.0.0.1:9090"}}}`, "secret"},
+		{"clash ui elsewhere", `{"experimental":{"clash_api":{"external_controller":"127.0.0.1:9090","secret":"s","external_ui":"../databases"}}}`, "external_ui"},
+		{"clash ui download", `{"experimental":{"clash_api":{"external_controller":"127.0.0.1:9090","secret":"s","external_ui_download_url":"https://x.example/ui.zip"}}}`, "external_ui_download_url"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			b, err := NewSingBoxInstance(c.config, nil)
@@ -28,6 +32,20 @@ func TestConfigSurface(t *testing.T) {
 	b, err := NewSingBoxInstance(`{"inbounds":[{"type":"mixed","tag":"m","listen":"127.0.0.1"}],"outbounds":[{"type":"direct","tag":"d"}]}`, nil)
 	if err != nil {
 		t.Fatalf("plain config refused: %v", err)
+	}
+	b.Close()
+
+	// the app's own Clash API: loopback, a secret, its Yacd (ConfigBuilder: ../files/yacd from no_backup)
+	data := t.TempDir()
+	os.MkdirAll(filepath.Join(data, "no_backup"), 0o755)
+	os.MkdirAll(filepath.Join(data, "files", "yacd"), 0o755)
+	t.Chdir(filepath.Join(data, "no_backup"))
+	saved := internalAssetsPath
+	internalAssetsPath = filepath.Join(data, "files") + "/"
+	defer func() { internalAssetsPath = saved }()
+	b, err = NewSingBoxInstance(`{"experimental":{"clash_api":{"external_controller":"127.0.0.1:9090","secret":"s","external_ui":"../files/yacd"}},"outbounds":[{"type":"direct","tag":"d"}]}`, nil)
+	if err != nil {
+		t.Fatalf("the app's Clash API refused: %v", err)
 	}
 	b.Close()
 }

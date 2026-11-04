@@ -5,7 +5,9 @@ import io.niko.database.ProxyGroup
 import io.niko.proxy.config.ConfigBean
 import io.niko.utils.Util
 
-fun parseUniversal(link: String): AbstractBean {
+fun parseUniversal(link: String): AbstractBean = KryoConverters.strict { parseUniversalData(link) }
+
+private fun parseUniversalData(link: String): AbstractBean {
     return if (link.contains("?")) {
         val type = link.substringAfter("sn://").substringBefore("?")
         ProxyEntity(type = TypeMap[type] ?: error("Type $type not found")).apply {

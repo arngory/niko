@@ -67,14 +67,30 @@ object RayRows {
     }
 
     /**
-     * The names a profile link of the node shows: the server, its TLS name (sni) and the node's own Yggdrasil peer.
+     * The names that give a node away in the log: its address, the names its profile links dial or present (the
+     * server, the TLS name, its own Yggdrasil peer) and its DoH host. A REALITY name is a public site's (cover,
+     * github.com) unless it is under one of the node's own names (self-steal): only then is it the node's.
      * The public peers (niko-ygg-via) are not the user's and stay readable.
      */
-    fun linkHosts(link: String): List<String> {
-        val url = ("https://" + link.substringAfter("://")).toHttpUrlOrNull() ?: return emptyList()
-        val peer = url.queryParameter("niko-ygg")?.substringBefore(';')
-            ?.let { ("https://" + it.substringAfter("://")).toHttpUrlOrNull()?.host }
-        return listOfNotNull(url.host, url.queryParameter("sni"), url.queryParameter("tlsServerName"), peer)
-            .filter { it.isNotBlank() && it != "inner" }
+    fun nodeHosts(host: String, doh: String?, links: List<String>): List<String> {
+        val own = mutableListOf(host)
+        doh?.toHttpUrlOrNull()?.host?.let(own::add)
+        val realityNames = mutableListOf<String>()
+        for (link in links) {
+            val url = ("https://" + link.substringAfter("://")).toHttpUrlOrNull() ?: continue
+            own += url.host
+            url.queryParameter("niko-ygg")?.substringBefore(';')
+                ?.let { ("https://" + it.substringAfter("://")).toHttpUrlOrNull()?.host }?.let(own::add)
+            val name = url.queryParameter("sni") ?: url.queryParameter("tlsServerName") ?: continue
+            if (url.queryParameter("security") == "reality") realityNames += name else own += name
+        }
+        val domains = own.filter { it.any(Char::isLetter) && '.' in it }
+            .flatMap { listOf(it, it.substringAfter('.')) }.filter { '.' in it }
+        own += realityNames.filter { name -> domains.any { name == it || name.endsWith(".$it") } }
+        return own.map { it.trim('[', ']') }.filter { it.isNotBlank() && it != "inner" }.distinct()
     }
+
+    /** The path of a subscription link, without its first slash, when it is long enough to hold a token. */
+    fun subscriptionSecret(link: String): String? =
+        link.toHttpUrlOrNull()?.encodedPath?.trim('/')?.takeIf { it.length >= 8 }
 }

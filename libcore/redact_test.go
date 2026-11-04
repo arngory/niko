@@ -53,6 +53,9 @@ func TestRedactURLPathTokens(t *testing.T) {
 		`https://github.com/SagerNet/sing-geosite/releases/download/20261101/geosite.db`:  `https://github.com/SagerNet/sing-geosite/releases/download/20261101/geosite.db`,
 		`https://raw.githubusercontent.com/x/y/rule-set/geosite-category-ads-all.srs`:     `https://raw.githubusercontent.com/x/y/rule-set/geosite-category-ads-all.srs`,
 		`https://n.example/dns-query/0f3a9c2b7d1e4f6a8b0c`:                                `https://n.example/dns-query/<redacted>`,
+		`https://panel.example/sub/qwhzkrtmbvplxnaeqwhzkrtm`:                              `https://panel.example/sub/<redacted>`,
+		`https://panel.example/sub/qwhzkrtmbvplxnae`:                                      `https://panel.example/sub/qwhzkrtmbvplxnae`,
+		`https://u:p@panel.example/sub/aB3dE5fG7hJ9kL1mN`:                                 `https://<redacted>@panel.example/sub/<redacted>`,
 	} {
 		if out := RedactLog(in); out != want {
 			t.Errorf("%q -> %q, want %q", in, out, want)

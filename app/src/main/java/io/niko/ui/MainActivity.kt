@@ -214,9 +214,11 @@ class MainActivity : ThemedActivity(),
         } else {
             val data = uri.encodedQuery.takeIf { !it.isNullOrBlank() } ?: return
             try {
-                group = KryoConverters.deserialize(
-                    ProxyGroup().apply { export = true }, Util.zlibDecompress(Util.b64Decode(data))
-                ).apply {
+                group = KryoConverters.strict {
+                    KryoConverters.deserialize(
+                        ProxyGroup().apply { export = true }, Util.zlibDecompress(Util.b64Decode(data))
+                    )
+                }.apply {
                     export = false
                 }
             } catch (e: Exception) {

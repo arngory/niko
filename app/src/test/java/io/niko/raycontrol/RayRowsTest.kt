@@ -46,11 +46,19 @@ class RayRowsTest {
 
     @Test
     fun hostsForTheLog() {
-        assertEquals(listOf("203.0.113.7", "a.example"), RayRows.linkHosts(reality))
         val ygg = "vless://uuid@[200:1::2]:8443?type=raw&encryption=$enc&$node&niko-ygg=" +
-                "tls%3A%2F%2Fy.example%3A443%3Fkey%3Dab%26sni%3Dy.example%3B${"cd".repeat(32)}&niko-ygg-via=tls%3A%2F%2Fpublic.example%3A443"
-        assertEquals(listOf("200:1::2", "y.example"), RayRows.linkHosts(ygg))
-        assertEquals(emptyList<String>(), RayRows.linkHosts("vless://uuid@inner:1?type=raw&encryption=$enc"))
+                "tls%3A%2F%2Fy.node.example%3A443%3Fkey%3Dab%26sni%3Dy.node.example%3B${"cd".repeat(32)}&niko-ygg-via=tls%3A%2F%2Fpublic.example%3A443"
+        val naive = "naive+https://niko:pw@n.node.example:443?$node"
+        val selfSteal = reality.replace("sni=a.example", "sni=r1.node.example")
+        // REALITY's cover (a.example) is a public site: not the node's, it stays readable
+        assertEquals(
+            listOf("203.0.113.7", "200:1::2", "y.node.example", "n.node.example", "r1.node.example"),
+            RayRows.nodeHosts("203.0.113.7", null, listOf(reality, ygg, naive, selfSteal))
+        )
+        assertEquals(listOf("203.0.113.7", "d.node.example"),
+            RayRows.nodeHosts("203.0.113.7", "https://d.node.example/dns-query/t", listOf("vless://uuid@inner:1?type=raw&encryption=$enc")))
+        assertEquals("sub/qwhzkrtmbvplxnae", RayRows.subscriptionSecret("https://panel.example/sub/qwhzkrtmbvplxnae"))
+        assertEquals(null, RayRows.subscriptionSecret("https://panel.example/sub"))
     }
 
     @Test

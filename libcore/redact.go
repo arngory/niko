@@ -27,6 +27,7 @@ var (
 	redactURL = regexp.MustCompile(`[a-zA-Z][a-zA-Z0-9+.\-]*://[^\s"'<>]+`)
 	// a path segment that looks like a credential: long, and mixing letters with digits
 	tokenSegment = regexp.MustCompile(`^[A-Za-z0-9_\-=.~%]{16,}$`)
+	longWord     = regexp.MustCompile(`^[A-Za-z0-9_]+$`)
 	// literal strings the app registered (node hosts), as one case-insensitive alternation, longest first
 	redactLiterals atomic.Pointer[regexp.Regexp]
 )
@@ -81,8 +82,11 @@ func redactURLPath(u string) string {
 	segments := strings.Split(path, "/")
 	changed := false
 	for i, segment := range segments {
-		if tokenSegment.MatchString(segment) && strings.ContainsAny(segment, "0123456789") &&
-			strings.IndexFunc(segment, func(r rune) bool { return r >= 'A' && r <= 'z' && (r <= 'Z' || r >= 'a') }) >= 0 {
+		// letters with digits from 16 chars on, or one unbroken word of 24 and more (a token without digits);
+		// names like geosite-category-ads-all.srs have separators and stay
+		mixed := strings.ContainsAny(segment, "0123456789") &&
+			strings.IndexFunc(segment, func(r rune) bool { return r >= 'A' && r <= 'z' && (r <= 'Z' || r >= 'a') }) >= 0
+		if tokenSegment.MatchString(segment) && (mixed || len(segment) >= 24 && longWord.MatchString(segment)) {
 			segments[i] = "<redacted>"
 			changed = true
 		}

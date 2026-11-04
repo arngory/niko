@@ -6,7 +6,6 @@ import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryo.io.ByteBufferInput;
 import com.esotericsoftware.kryo.io.ByteBufferOutput;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 
 import io.niko.database.SubscriptionBean;
@@ -46,17 +45,33 @@ public class KryoConverters {
         return out.toByteArray();
     }
 
+    /** Set while a shared link is read ([strict]): data that ends early is refused, not a half-filled profile. */
+    private static final ThreadLocal<Boolean> STRICT = new ThreadLocal<>();
+
+    /** Runs [read] (a link's deserialization) refusing data that is cut short or declares more than it holds. */
+    public static <R> R strict(java.util.concurrent.Callable<R> read) throws Exception {
+        Boolean outer = STRICT.get();
+        STRICT.set(true);
+        try {
+            return read.call();
+        } finally {
+            STRICT.set(outer);
+        }
+    }
+
     public static <T extends Serializable> T deserialize(T bean, byte[] bytes) {
         if (bytes == null) return bean;
-        ByteArrayInputStream input = new ByteArrayInputStream(bytes);
-        ByteBufferInput buffer = KryosKt.byteBuffer(input);
+        // sizes checked against the data before Kryo allocates for them (a shared link may declare gigabytes)
+        ByteBufferInput buffer = new BoundedKryoInput(bytes);
         try {
             bean.deserializeFromBuffer(buffer);
         } catch (KryoException e) {
+            if (Boolean.TRUE.equals(STRICT.get())) {
+                throw new IllegalArgumentException("corrupt data: " + e.getMessage());
+            }
             Logs.INSTANCE.w(e);
         } catch (OutOfMemoryError e) {
-            // a string length of ~2^31 in a few bytes of a shared link: Kryo allocates its array before reading it.
-            // That allocation fails alone, so this is a refused link, not a full heap.
+            // an allocation no check above caught; it failed alone, so this is refused data, not a full heap
             throw new IllegalArgumentException("corrupt data: a field larger than the data");
         }
         bean.initializeDefaultValues();

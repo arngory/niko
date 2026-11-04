@@ -255,10 +255,12 @@ object RayNodes {
      */
     fun syncLogRedactions(nodes: List<RayNode> = runCatching { list() }.getOrDefault(emptyList())) {
         val hosts = nodes.flatMap { node ->
-            listOfNotNull(node.host, node.doh?.let { runCatching { java.net.URI(it).host }.getOrNull() }) +
-                    node.links.values.flatMap { listOfNotNull(it.link, it.next) }.flatMap(RayRows::linkHosts)
-        }.map { it.trim('[', ']') }.filter { it.isNotBlank() }.distinct()
-        runCatching { libcore.Libcore.setLogRedactions(hosts.joinToString("\n")) }
+            RayRows.nodeHosts(node.host, node.doh, node.links.values.flatMap { listOfNotNull(it.link, it.next) })
+        }
+        // subscription links carry their token in the path (panels: /sub/<token>); Room refuses the main thread
+        val paths = runCatching { SagerDatabase.groupDao.allGroups() }.getOrDefault(emptyList())
+            .mapNotNull { it.subscription?.link }.mapNotNull(RayRows::subscriptionSecret)
+        runCatching { libcore.Libcore.setLogRedactions((hosts + paths).distinct().joinToString("\n")) }
     }
 
     /**

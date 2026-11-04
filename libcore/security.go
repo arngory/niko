@@ -2,6 +2,7 @@ package libcore
 
 import (
 	"context"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,6 +33,43 @@ func checkConfigSurface(options *option.Options) error {
 	for _, in := range options.Inbounds {
 		if o, ok := in.Options.(*option.HTTPMixedInboundOptions); ok && o.SetSystemProxy {
 			return E.New("inbound[", in.Tag, "]: set_system_proxy is not available in Niko")
+		}
+	}
+	if options.Experimental != nil && options.Experimental.ClashAPI != nil {
+		if err := checkClashAPI(options.Experimental.ClashAPI); err != nil {
+			return E.Cause(err, "clash_api")
+		}
+	}
+	return nil
+}
+
+// checkClashAPI keeps the Clash API what the app makes of it: on loopback, behind a secret, serving the app's own
+// Yacd. Its /ui/ route has no secret and serves any folder it is given (the app's databases, shared_prefs) to
+// every local app, or to the network on a wildcard address.
+func checkClashAPI(api *option.ClashAPIOptions) error {
+	if api.ExternalController != "" {
+		host, _, err := net.SplitHostPort(api.ExternalController)
+		if err != nil {
+			return E.Cause(err, "external_controller")
+		}
+		if ip := net.ParseIP(host); host != "localhost" && (ip == nil || !ip.IsLoopback()) {
+			return E.New("external_controller: only a loopback address is available in Niko")
+		}
+		if api.Secret == "" {
+			return E.New("external_controller without a secret is not available in Niko")
+		}
+	}
+	if api.ExternalUIDownloadURL != "" {
+		return E.New("external_ui_download_url is not available in Niko")
+	}
+	if api.ExternalUI != "" {
+		ui, err := resolvePath(os.ExpandEnv(api.ExternalUI))
+		if err != nil {
+			return E.Cause(err, "external_ui")
+		}
+		yacd, err := resolvePath(filepath.Join(internalAssetsPath, "yacd"))
+		if err != nil || internalAssetsPath == "" || ui != yacd {
+			return E.New("external_ui: only the app's own Yacd is available in Niko")
 		}
 	}
 	return nil
