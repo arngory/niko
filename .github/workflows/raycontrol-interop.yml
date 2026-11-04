@@ -181,7 +181,7 @@ jobs:
           RAYCONTROL_BUNDLE: /tmp/phone.bundle
           RAYCONTROL_ADDRESS: ${{ steps.node.outputs.address }}
           RAYCONTROL_CA: /tmp/rccert/root.pem
-          RAYCONTROL_EXPECT: hysteria2,reality,yggdrasil
+          RAYCONTROL_EXPECT: hysteria2-pin,hysteria2-ca,reality,yggdrasil
         run: |
           TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
           go test -count=1 -v -timeout 10m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .

@@ -32,7 +32,7 @@ import (
 //
 // RAYCONTROL_BUNDLE is the device's rcdev1 package, RAYCONTROL_ADDRESS the node's address (not loopback: the node
 // takes the client's address for link), RAYCONTROL_CA the test CA of the node's site (hy2-masq), RAYCONTROL_EXPECT
-// the kinds of profiles that must be among them (hysteria2, reality, yggdrasil).
+// the kinds of profiles that must be among them (hysteria2-pin, hysteria2-ca, reality, yggdrasil).
 func TestRaycontrolTunnelInterop(t *testing.T) {
 	path := os.Getenv("RAYCONTROL_BUNDLE")
 	if path == "" {
@@ -100,20 +100,24 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 			continue
 		}
 		instance := startTestBox(t, config)
-		// the first link of a mesh node or a QUIC handshake takes a moment: a small probe until one answers
+		// the first link of a mesh node or a QUIC handshake takes a moment: a small probe until one answers, 90 s
+		// at most for the profile
 		warm, _ := json.Marshal(probeRequest{Host: b.Host, Port: b.Sub.Port, Pin: b.Sub.Pin, DeviceID: b.DeviceID, SPA: b.SPA,
 			Tunnel: probeInfo.Tunnel, DownBytes: 1024, WindowMs: 5000})
-		for i := 0; i < 12; i++ {
+		for deadline := time.Now().Add(90 * time.Second); ; {
 			out, err := RaycontrolProbeTunnel(instance, string(warm))
 			var r probeResult
 			if err == nil && json.Unmarshal([]byte(out), &r) == nil && r.Down != nil && r.Down.OK {
 				break
 			}
-			time.Sleep(5 * time.Second)
+			if time.Now().After(deadline) {
+				t.Fatalf("%s %s (svc %d): no answer through the tunnel in 90 s: %s %v", kind, p.Name, p.Svc, out, err)
+			}
+			time.Sleep(3 * time.Second)
 		}
 		probeThrough(t, kind+" "+p.Name, instance, b.Host, b.Sub.Port, b.Sub.Pin, b.DeviceID, b.SPA, probeInfo.Tunnel, p.Svc)
 		tested[kind] = true
-		if kind == "hysteria2" {
+		if strings.HasPrefix(kind, "hysteria2") {
 			hysteriaSvc = append(hysteriaSvc, p.Svc)
 		}
 	}
@@ -132,7 +136,10 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 		DeviceID: b.DeviceID, DeviceKey: deviceKey, Dial: (&net.Dialer{}).DialContext,
 	})
 	defer pc.Close()
-	rawLink, err := pc.Link(ctx)
+	// a context of its own: the tunnels' probes before may have taken minutes
+	linkCtx, linkCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer linkCancel()
+	rawLink, err := pc.Link(linkCtx)
 	if err != nil {
 		t.Fatalf("link: %v", err)
 	}
@@ -186,7 +193,8 @@ func profileConfig(t *testing.T, link, node, ca string, downMbps int) (kind, con
 	var outbound map[string]any
 	switch {
 	case u.Scheme == "hysteria2":
-		kind = "hysteria2"
+		// hy2-obfs is pinned by its key, hy2-masq verified against the site's CA: two paths of the app
+		kind = "hysteria2-ca"
 		tls := map[string]any{
 			"enabled": true, "server_name": q.Get("sni"), "alpn": []string{"h3"},
 			"curve_preferences": []string{"X25519MLKEM768"},
@@ -197,6 +205,7 @@ func profileConfig(t *testing.T, link, node, ca string, downMbps int) (kind, con
 				t.Fatalf("niko-pin %q: %v", pin, err)
 			}
 			tls["certificate_public_key_sha256"] = []string{base64.StdEncoding.EncodeToString(sum)}
+			kind = "hysteria2-pin"
 		} else if ca != "" {
 			tls["certificate_path"] = ca
 		}
