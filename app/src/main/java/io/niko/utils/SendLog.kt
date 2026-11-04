@@ -42,6 +42,9 @@ object SendLog {
         }
 
         logFile.appendText("\n")
+        // what raycontrol measured and decided on, per network (no keys, links or node addresses)
+        logFile.appendText(runCatching { io.niko.raycontrol.RayDiagnostics.dump() }.getOrElse { "raycontrol: ${it.message}\n" })
+        logFile.appendText("\n")
         logFile.appendBytes(getNekoLog(0))
 
         context.startActivity(

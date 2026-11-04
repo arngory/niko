@@ -552,6 +552,11 @@
     <string name="raycontrol_reports_summary">Раз в сутки на сеть: по каждому сервису ноды — работал ли он здесь, грубыми корзинами (порог остановки, потери UDP, скорость). Без устройства, имён сетей, адресов и времени; нода хранит только счётчики. Отправляется напрямую из этой сети нодам, которые принимают сводки; в ответ подписка может принести подсказки других устройств для этой сети</string>
     <string name="raycontrol_report_show">Сводка и подсказки</string>
     <string name="raycontrol_report_empty">Отправлять нечего: за сутки в этой сети не было замеров</string>
+    <string name="raycontrol_direct_none">Напрямую: нода не отвечает (SPA по UDP и TCP)</string>
+    <string name="raycontrol_direct_spa">Напрямую: ноду открывает SPA по %1$s</string>
+    <string name="raycontrol_direct_no_udp">Напрямую: ноду открывает SPA по %1$s; UDP не проходит</string>
+    <string name="raycontrol_direct_mtu">Напрямую: ноду открывает SPA по %1$s; UDP проходит до %2$d байт</string>
+    <string name="raycontrol_direct_mtu_low"> (меньше 1200: QUIC здесь не пойдёт)</string>
     <string name="raycontrol_ygg_peers">  публичные пиры Yggdrasil отсюда: связь с %1$d из %2$d</string>
     <string name="raycontrol_ygg_peer_taken">  %1$s: %2$d мс, будет взят</string>
     <string name="raycontrol_ygg_peer_up">  %1$s: %2$d мс</string>

@@ -144,6 +144,12 @@ func TestRaycontrolInterop(t *testing.T) {
 		t.Fatalf("probe echo: %+v", echo)
 	}
 	t.Logf("probe echo: %s", echo)
+	// the path's MTU by echo sizes (loopback carries them all)
+	largest, steps := pc.PathMTU(ctx, []int{1452, 1200, 576}, 3)
+	if largest != 1452 || len(steps) != 3 || steps[0].Received == 0 {
+		t.Fatalf("probe path MTU: %d %+v", largest, steps)
+	}
+	t.Logf("probe path MTU: %d %+v", largest, steps)
 	// link is the server's view of the device's address; from the node's own address (here loopback, as through a
 	// tunnel) the answer is 409 (probe-v1.md §4.1)
 	link, err := pc.Link(ctx)

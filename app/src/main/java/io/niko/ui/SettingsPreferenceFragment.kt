@@ -283,6 +283,17 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             .setPositiveButton(android.R.string.ok, null)
             .show()
         val job = runOnDefaultDispatcher {
+            // the direct path first: which SPA carrier opens the node's port here, how large a UDP datagram passes
+            RayChannel.directPath(node, network)?.let { path ->
+                lines += when {
+                    path.spaCarrier == null -> context.getString(R.string.raycontrol_direct_none)
+                    !path.udpProbed -> context.getString(R.string.raycontrol_direct_spa, path.spaCarrier.uppercase())
+                    path.udpMtu == 0 -> context.getString(R.string.raycontrol_direct_no_udp, path.spaCarrier.uppercase())
+                    else -> context.getString(R.string.raycontrol_direct_mtu, path.spaCarrier.uppercase(), path.udpMtu) +
+                        if (path.udpMtu < 1200) context.getString(R.string.raycontrol_direct_mtu_low) else ""
+                }
+                onMainDispatcher { dialog.setMessage(lines.joinToString("\n")) }
+            }
             for ((key, id) in node.profileIds.orEmpty()) {
                 val profile = SagerDatabase.proxyDao.getById(id) ?: continue
                 val score = RayChannel.probe(profile, deep = true, mobile = network.mobile)

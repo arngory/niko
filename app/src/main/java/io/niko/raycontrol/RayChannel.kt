@@ -21,6 +21,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import java.security.MessageDigest
 import kotlin.math.ln
+import libcore.Libcore
 
 /**
  * A channel probe of one profile on one network: a TCP download through it (did it work, time to the first byte,
@@ -320,6 +321,57 @@ object RayChannel {
         Logs.w("raycontrol: broken channel results: ${e.message}")
         JsonObject()
     }
+
+    // the direct path to the node on a network (directPath): which SPA carrier opens its port, the UDP MTU
+    private const val DIRECT = "_direct"
+
+    // echo sizes for the path's MTU: Ethernet's and PPPoE's payloads down to QUIC's minimum, and one well below it
+    private val MTU_SIZES = listOf(1472, 1452, 1400, 1350, 1280, 1200, 576)
+
+    /** The direct path to [node] from this network, for the channel check: null when the node takes no probes. */
+    data class DirectPath(val spaCarrier: String?, val udpMtu: Int, val udpProbed: Boolean)
+
+    /**
+     * Measures the direct path to [node] on this network (probe-v1 directly, after SPA over UDP and then TCP): which
+     * carrier opened the port, and the largest UDP datagram that comes back (the node drops fragments, QUIC needs
+     * 1200 bytes). Kept with the network's results for the debug export.
+     */
+    suspend fun directPath(node: RayNode, network: ChannelNetwork): DirectPath? {
+        if (node.probe == null || node.subscription == null) return null
+        val udp = node.probe.udp
+        val request = RayBrutal.request(node).apply {
+            addProperty("down_bytes", 64 * 1024)
+            if (udp) add("mtu_sizes", JsonArray().apply { MTU_SIZES.forEach { add(it) } })
+            addProperty("window_ms", 10_000)
+        }
+        val o = try {
+            JsonParser.parseString(
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Libcore.raycontrolProbe(request.toString()) }
+            ).asJsonObject
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Logs.w("raycontrol ${node.host}: direct path: ${e.message}")
+            return DirectPath(null, 0, udp)
+        }
+        val path = DirectPath(o.get("spa_carrier")?.asString?.takeIf { it.isNotEmpty() }, o.get("udp_mtu")?.asInt ?: 0, udp)
+        RayNodesLock.withLock {
+            val all = load()
+            val nodeObject = all.getAsJsonObject(node.spa.nodeId) ?: JsonObject().also { all.add(node.spa.nodeId, it) }
+            val onNetwork = nodeObject.getAsJsonObject(network.key) ?: JsonObject().also { nodeObject.add(network.key, it) }
+            onNetwork.add(DIRECT, JsonObject().apply {
+                addProperty("at", System.currentTimeMillis() / 1000)
+                path.spaCarrier?.let { addProperty("spa", it) }
+                if (udp) addProperty("udp_mtu", path.udpMtu)
+                (o.get("mtu") as? JsonArray)?.let { add("mtu", it) }
+            })
+            DataStore.configurationStore.putString(Key.RAYCONTROL_CHANNEL, all.toString())
+        }
+        return path
+    }
+
+    /** Everything stored, by node and network (a hash), for the debug export (RayDiagnostics). */
+    fun exportState(): JsonObject = load()
 
     /** The stored results of [nodeId] on [network], by profile key. */
     fun scores(nodeId: String, network: ChannelNetwork): Map<String, ChannelScore> {

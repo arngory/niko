@@ -445,6 +445,33 @@ func (c *Client) Link(ctx context.Context) (json.RawMessage, error) {
 	return raw, nil
 }
 
+// MTUStep is one datagram size of PathMTU and how many of its echoes came back.
+type MTUStep struct {
+	Size     int    `json:"size"`
+	Sent     int    `json:"sent"`
+	Received int    `json:"received"`
+	Error    string `json:"error,omitempty"`
+}
+
+// PathMTU sends a few echoes of each of sizes (UDP payload bytes, 36 at least) and reports what came back, and
+// the largest size that came back at all: the node drops IP fragments (probe-v1.md §4, R4-9), so a datagram over
+// the path's MTU is lost. QUIC (Hysteria2, naive-quic, DoH3) needs 1200 bytes and more. 0: none came back.
+func (c *Client) PathMTU(ctx context.Context, sizes []int, count int) (int, []MTUStep) {
+	largest := 0
+	steps := make([]MTUStep, 0, len(sizes))
+	for _, size := range sizes {
+		if ctx.Err() != nil {
+			break
+		}
+		r := c.Echo(ctx, count, max(size, echoHeader), 20*time.Millisecond)
+		steps = append(steps, MTUStep{Size: r.Size, Sent: r.Sent, Received: r.Received, Error: r.Error})
+		if r.Received > 0 && r.Size > largest {
+			largest = r.Size
+		}
+	}
+	return largest, steps
+}
+
 // MaxReport is the largest summary the node takes (probe-v1.md §6.1).
 const MaxReport = 4 << 10
 

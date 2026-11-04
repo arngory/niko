@@ -640,6 +640,11 @@
     <string name="raycontrol_reports_summary">Once a day per network: for each service of the node, whether it worked here, in coarse buckets (stall threshold, UDP loss, speed). No device, network names, addresses or times; the node keeps counters only. Sent directly from this network, to nodes that take summaries; in return the subscription may carry other devices\' hints for this network</string>
     <string name="raycontrol_report_show">The summary and hints</string>
     <string name="raycontrol_report_empty">Nothing to send: no probes on this network in the last day</string>
+    <string name="raycontrol_direct_none">Directly: the node does not answer (SPA over UDP and TCP)</string>
+    <string name="raycontrol_direct_spa">Directly: SPA over %1$s opens the node</string>
+    <string name="raycontrol_direct_no_udp">Directly: SPA over %1$s opens the node; UDP does not pass</string>
+    <string name="raycontrol_direct_mtu">Directly: SPA over %1$s opens the node; UDP passes up to %2$d bytes</string>
+    <string name="raycontrol_direct_mtu_low"> (under 1200: no QUIC here)</string>
     <string name="raycontrol_ygg_peers">  public Yggdrasil peers from here: %1$d of %2$d link</string>
     <string name="raycontrol_ygg_peer_taken">  %1$s: %2$d ms, would be taken</string>
     <string name="raycontrol_ygg_peer_up">  %1$s: %2$d ms</string>

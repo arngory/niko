@@ -41,6 +41,8 @@ type node struct {
 	noCount  bool
 	closed   int
 	reports  [][]byte
+	// datagrams longer than this are lost on the way (a path's MTU); 0: none
+	maxSize int
 }
 
 func newNode(t *testing.T) *node {
@@ -129,7 +131,7 @@ func (n *node) echo() {
 		n.mu.Lock()
 		ok := k >= echoHeader && n.token != nil && string(buf[:16]) == string(n.token)
 		seq := binary.BigEndian.Uint32(buf[16:20])
-		drop := ok && n.dropUp != nil && n.dropUp(seq)
+		drop := ok && (n.dropUp != nil && n.dropUp(seq) || n.maxSize > 0 && k > n.maxSize)
 		if ok && !drop {
 			n.received++
 			n.echoed++
@@ -250,6 +252,18 @@ func TestReport(t *testing.T) {
 	}
 	if err := c.Report(context.Background(), make([]byte, MaxReport+1)); err == nil {
 		t.Fatal("an oversized report went out")
+	}
+}
+
+// PathMTU: datagrams over the path's size are lost; the largest that came back is the path's
+func TestPathMTU(t *testing.T) {
+	n := newNode(t)
+	n.maxSize = 1300
+	c := NewClient(n.endpoint(t))
+	defer c.Close()
+	largest, steps := c.PathMTU(context.Background(), []int{1452, 1350, 1280, 1200}, 3)
+	if largest != 1280 || len(steps) != 4 || steps[0].Received != 0 || steps[1].Received != 0 || steps[2].Received != 3 {
+		t.Fatalf("largest %d, steps %+v", largest, steps)
 	}
 }
 

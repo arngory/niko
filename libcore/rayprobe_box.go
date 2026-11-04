@@ -35,6 +35,8 @@ type probeRequest struct {
 	Link      bool  `json:"link,omitempty"`
 	// the anonymous summary to send (probe-v1.md §6.1), directly only
 	Report json.RawMessage `json:"report,omitempty"`
+	// echo datagram sizes for the path's MTU (rayprobe.Client.PathMTU), a few of each
+	MTUSizes []int `json:"mtu_sizes,omitempty"`
 	// each step's limit (default 10 s, at most the server's 30 s)
 	WindowMs int `json:"window_ms,omitempty"`
 }
@@ -50,6 +52,11 @@ type probeResult struct {
 	ReportStatus     int    `json:"report_status,omitempty"`
 	ReportRetryAfter int    `json:"report_retry_after,omitempty"`
 	ReportError      string `json:"report_error,omitempty"`
+	// the largest echo size that came back (0: none), and each size's count
+	UDPMTU int                `json:"udp_mtu,omitempty"`
+	MTU    []rayprobe.MTUStep `json:"mtu,omitempty"`
+	// directly: the SPA carrier that opened the port, "udp" or "tcp" (spa-v2.md §10)
+	SPACarrier string `json:"spa_carrier,omitempty"`
 }
 
 func (r *probeRequest) window() time.Duration {
@@ -85,6 +92,11 @@ func (r *probeRequest) run(ctx context.Context, e *rayprobe.Endpoint) *probeResu
 		out.Echo = c.Echo(echoCtx, r.EchoCount, r.EchoSize, 20*time.Millisecond)
 		cancel()
 	}
+	if len(r.MTUSizes) > 0 {
+		mtuCtx, cancel := context.WithTimeout(ctx, window)
+		out.UDPMTU, out.MTU = c.PathMTU(mtuCtx, r.MTUSizes, 4)
+		cancel()
+	}
 	if len(r.Report) > 0 {
 		reportCtx, cancel := context.WithTimeout(ctx, window)
 		err := c.Report(reportCtx, r.Report)
@@ -105,7 +117,7 @@ func (r *probeRequest) run(ctx context.Context, e *rayprobe.Endpoint) *probeResu
 // answered: some step got an HTTP answer, so the port was open
 func (o *probeResult) answered() bool {
 	return o.Link != nil || o.Down != nil && (o.Down.OK || o.Down.Status != 0) || o.Up != nil && (o.Up.OK || o.Up.Status != 0) ||
-		o.Echo != nil && (o.Echo.OK || o.Echo.Status != 0) || o.ReportStatus != 0
+		o.Echo != nil && (o.Echo.OK || o.Echo.Status != 0) || o.ReportStatus != 0 || o.UDPMTU > 0
 }
 
 func parseProbeRequest(requestJSON string) (*probeRequest, []byte, error) {
@@ -146,6 +158,7 @@ func RaycontrolProbe(requestJSON string) (result string, err error) {
 			return "", err
 		}
 		if out = r.run(ctx, e); out.answered() {
+			out.SPACarrier = map[bool]string{false: "udp", true: "tcp"}[tcp]
 			break
 		}
 	}
