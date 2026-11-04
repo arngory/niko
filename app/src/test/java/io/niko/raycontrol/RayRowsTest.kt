@@ -57,8 +57,13 @@ class RayRowsTest {
         )
         assertEquals(listOf("203.0.113.7", "d.node.example"),
             RayRows.nodeHosts("203.0.113.7", "https://d.node.example/dns-query/t", listOf("vless://uuid@inner:1?type=raw&encryption=$enc")))
-        assertEquals("sub/qwhzkrtmbvplxnae", RayRows.subscriptionSecret("https://panel.example/sub/qwhzkrtmbvplxnae"))
-        assertEquals(null, RayRows.subscriptionSecret("https://panel.example/sub"))
+        // known only by its address: its REALITY names are taken as its own (a self-steal name must not show)
+        assertEquals(listOf("203.0.113.7", "r1.mynode.net", "a.mynode.net"),
+            RayRows.nodeHosts("203.0.113.7", null, listOf(reality.replace("sni=a.example", "sni=r1.mynode.net&tlsServerName=a.mynode.net"))))
+        assertEquals(listOf("aB3dE5fG7hJ9kL1mN"), RayRows.subscriptionSecrets("https://panel.example/sub/aB3dE5fG7hJ9kL1mN"))
+        assertEquals(listOf("qwhzkrtmbvplxnaeqwhzkrtm"), RayRows.subscriptionSecrets("https://panel.example/s/qwhzkrtmbvplxnaeqwhzkrtm"))
+        assertEquals(emptyList<String>(), RayRows.subscriptionSecrets("https://p.example/api/v1/client/subscribe?token=x"))
+        assertEquals(emptyList<String>(), RayRows.subscriptionSecrets("https://p.example/subscribe"))
     }
 
     @Test

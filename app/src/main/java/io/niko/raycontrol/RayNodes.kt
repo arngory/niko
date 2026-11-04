@@ -257,9 +257,9 @@ object RayNodes {
         val hosts = nodes.flatMap { node ->
             RayRows.nodeHosts(node.host, node.doh, node.links.values.flatMap { listOfNotNull(it.link, it.next) })
         }
-        // subscription links carry their token in the path (panels: /sub/<token>); Room refuses the main thread
+        // subscription links carry their token in the path (panels: /sub/<token>)
         val paths = runCatching { SagerDatabase.groupDao.allGroups() }.getOrDefault(emptyList())
-            .mapNotNull { it.subscription?.link }.mapNotNull(RayRows::subscriptionSecret)
+            .mapNotNull { it.subscription?.link }.flatMap(RayRows::subscriptionSecrets)
         runCatching { libcore.Libcore.setLogRedactions((hosts + paths).distinct().joinToString("\n")) }
     }
 

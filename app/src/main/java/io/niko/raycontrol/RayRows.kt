@@ -68,8 +68,9 @@ object RayRows {
 
     /**
      * The names that give a node away in the log: its address, the names its profile links dial or present (the
-     * server, the TLS name, its own Yggdrasil peer) and its DoH host. A REALITY name is a public site's (cover,
-     * github.com) unless it is under one of the node's own names (self-steal): only then is it the node's.
+     * server, the TLS names, its own Yggdrasil peer) and its DoH host. A REALITY name is a public site's (cover,
+     * github.com) unless it is under one of the node's own names (self-steal). A node known only by its address
+     * has no names to tell them apart: its REALITY names count as its own, a cover among them goes too.
      * The public peers (niko-ygg-via) are not the user's and stay readable.
      */
     fun nodeHosts(host: String, doh: String?, links: List<String>): List<String> {
@@ -81,16 +82,27 @@ object RayRows {
             own += url.host
             url.queryParameter("niko-ygg")?.substringBefore(';')
                 ?.let { ("https://" + it.substringAfter("://")).toHttpUrlOrNull()?.host }?.let(own::add)
-            val name = url.queryParameter("sni") ?: url.queryParameter("tlsServerName") ?: continue
-            if (url.queryParameter("security") == "reality") realityNames += name else own += name
+            for (name in listOfNotNull(url.queryParameter("sni"), url.queryParameter("tlsServerName"))) {
+                if (url.queryParameter("security") == "reality") realityNames += name else own += name
+            }
         }
-        val domains = own.filter { it.any(Char::isLetter) && '.' in it }
+        val domains = own.filter { it.any(Char::isLetter) && '.' in it && it != "inner" }
             .flatMap { listOf(it, it.substringAfter('.')) }.filter { '.' in it }
-        own += realityNames.filter { name -> domains.any { name == it || name.endsWith(".$it") } }
+        own += if (domains.isEmpty()) realityNames else realityNames.filter { name ->
+            domains.any { name == it || name.endsWith(".$it") }
+        }
         return own.map { it.trim('[', ']') }.filter { it.isNotBlank() && it != "inner" }.distinct()
     }
 
-    /** The path of a subscription link, without its first slash, when it is long enough to hold a token. */
-    fun subscriptionSecret(link: String): String? =
-        link.toHttpUrlOrNull()?.encodedPath?.trim('/')?.takeIf { it.length >= 8 }
+    /**
+     * The token-like segments of a subscription link's path (panels: /sub/<token>), by the rule libcore/redact.go
+     * applies to any URL: 16+ chars mixing letters and digits, or one unbroken word of 24+. Plain words
+     * (api/v1/client/subscribe) stay readable; a token in the query is redacted by its name already.
+     */
+    fun subscriptionSecrets(link: String): List<String> =
+        link.toHttpUrlOrNull()?.pathSegments.orEmpty().filter { segment ->
+            val mixed = segment.length >= 16 && segment.any(Char::isDigit) && segment.any(Char::isLetter)
+            val word = segment.length >= 24 && segment.all { it.isLetterOrDigit() || it == '_' }
+            mixed || word
+        }
 }
