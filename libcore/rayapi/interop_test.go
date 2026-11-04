@@ -8,13 +8,16 @@ import (
 	"errors"
 	"net"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"libcore/knock"
 	"libcore/probe"
 	"libcore/rayprobe"
+	"libcore/raysub"
 )
 
 // TestRaycontrolInterop registers through a real rayd (arngory/raycontrol), run by
@@ -157,10 +160,17 @@ func TestRaycontrolInterop(t *testing.T) {
 
 	// the anonymous summary (probe-v1.md §6.1): about the network it comes from, so from loopback (as through a
 	// tunnel) 409; from the runner's own address 404 while the node takes none, 204, then 429 for the day
-	checkReport(ctx, t, endpoint, pc, net.ParseIP(device.Host).IsLoopback(), &rayprobe.Endpoint{
+	svc, own := checkReport(ctx, t, endpoint, pc, net.ParseIP(device.Host).IsLoopback(), &rayprobe.Endpoint{
 		Address: net.JoinHostPort(device.Host, strconv.Itoa(device.Sub.Port)), Pin: device.Sub.Pin, ServerName: serverName,
 		DeviceID: registered.DeviceID, DeviceKey: deviceKey, Dial: (&net.Dialer{}).DialContext,
 	}, device.Sub.Port)
+	// with a test AS database on the node (RAYCONTROL_HINTS, raycontrol v0.5.1): k = 10 reports give the hint
+	if os.Getenv("RAYCONTROL_HINTS") != "" {
+		checkHints(ctx, t, endpoint, registered, svc, own)
+	}
+	if _, err = Call(ctx, endpoint, NodeService+"SetSummary", []byte(`{"enabled":"off"}`)); err != nil {
+		t.Fatalf("SetSummary off: %v", err)
+	}
 
 	// the invite is spent: a second Register is refused
 	again := invite
@@ -186,7 +196,8 @@ func TestRaycontrolInterop(t *testing.T) {
 }
 
 // checkReport sends a summary for the user's api service, the admin turning the node's summaries on in between.
-func checkReport(ctx context.Context, t *testing.T, admin Endpoint, nodeClient *rayprobe.Client, nodeLoopback bool, e *rayprobe.Endpoint, port int) {
+// It returns the service reported on and the runner's own address, the summaries left on.
+func checkReport(ctx context.Context, t *testing.T, admin Endpoint, nodeClient *rayprobe.Client, nodeLoopback bool, e *rayprobe.Endpoint, port int) (int64, string) {
 	t.Helper()
 	services, err := Call(ctx, admin, NodeService+"ListServices", []byte(`{}`))
 	if err != nil {
@@ -270,7 +281,117 @@ func checkReport(ctx context.Context, t *testing.T, admin Endpoint, nodeClient *
 		t.Fatalf("GetSummary: %s, %v", summary, err)
 	}
 	t.Logf("report from %s: 404 while off, 204, 429 (Retry-After), 400 for another service; GetSummary %s", own, summary)
-	if _, err = Call(ctx, admin, NodeService+"SetSummary", []byte(`{"enabled":"off"}`)); err != nil {
-		t.Fatalf("SetSummary off: %v", err)
+	return svc, own
+}
+
+// bundle is what a test needs of an rcdev1 package.
+type bundle struct {
+	Host      string             `json:"host"`
+	DeviceKey string             `json:"device_key"`
+	SPA       knock.SPAv2Options `json:"spa"`
+	Sub       struct {
+		Port int    `json:"port"`
+		Pin  string `json:"pin"`
+	} `json:"sub"`
+	NodeKeys struct {
+		Ed25519 string `json:"ed25519"`
+		MLDSA65 string `json:"mldsa65"`
+	} `json:"node_keys"`
+}
+
+func parseBundle(t *testing.T, code string) bundle {
+	t.Helper()
+	raw, err := base64.RawURLEncoding.DecodeString(strings.TrimPrefix(code, "rcdev1:"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b bundle
+	if err = json.Unmarshal(raw, &b); err != nil || b.Sub.Port == 0 {
+		t.Fatalf("package: %v", err)
+	}
+	b.SPA.DeviceKey = b.DeviceKey
+	return b
+}
+
+// newDevice invites a device of the user interop and registers it.
+func newDevice(ctx context.Context, t *testing.T, admin Endpoint, name string) (*Registered, bundle) {
+	t.Helper()
+	raw, err := Call(ctx, admin, NodeService+"CreateInvite",
+		[]byte(`{"user":"interop","name":"`+name+`","role":"user","ttlSeconds":"3600"}`))
+	if err != nil {
+		t.Fatalf("CreateInvite %s: %v", name, err)
+	}
+	var created struct {
+		InviteCode string `json:"inviteCode"`
+	}
+	if err = json.Unmarshal(raw, &created); err != nil {
+		t.Fatal(err)
+	}
+	body, err := base64.RawURLEncoding.DecodeString(strings.TrimPrefix(created.InviteCode, "rcinv1:"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var invite Invite
+	var key struct {
+		DeviceKey string `json:"device_key"`
+	}
+	if err = json.Unmarshal(body, &invite); err != nil {
+		t.Fatal(err)
+	}
+	if err = json.Unmarshal(body, &key); err != nil {
+		t.Fatal(err)
+	}
+	invite.SPA.DeviceKey = key.DeviceKey
+	registered, err := Register(ctx, invite, nil)
+	if err != nil {
+		t.Fatalf("Register %s: %v", name, err)
+	}
+	return registered, parseBundle(t, registered.Bundle)
+}
+
+// checkHints: nine more devices report from the runner's address, which the node's test AS database puts in an AS;
+// with the first device's report that is k = 10, and the subscription asked from that address carries the hint
+// (probe-v1.md §6.2). Asked from the node's own address it carries none.
+func checkHints(ctx context.Context, t *testing.T, admin Endpoint, first *Registered, svc int64, own string) {
+	t.Helper()
+	report := []byte(`{"v":1,"net":"cellular","obs":[{"svc":` + strconv.FormatInt(svc, 10) + `,"result":"works","udp":"none","mbps":"1-5"}]}`)
+	for i := 2; i <= 10; i++ {
+		registered, b := newDevice(ctx, t, admin, "hint-"+strconv.Itoa(i))
+		key, err := hex.DecodeString(b.DeviceKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		c := rayprobe.NewClient(&rayprobe.Endpoint{
+			Address: net.JoinHostPort(own, strconv.Itoa(b.Sub.Port)), Pin: b.Sub.Pin,
+			DeviceID: registered.DeviceID, DeviceKey: key, Dial: (&net.Dialer{}).DialContext,
+		})
+		err = c.Report(ctx, report)
+		c.Close()
+		if err != nil {
+			t.Fatalf("report of device %d: %v", i, err)
+		}
+	}
+	b := parseBundle(t, first.Bundle)
+	request := raysub.Request{
+		Host: own, Port: b.Sub.Port, Pin: b.Sub.Pin, DeviceID: first.DeviceID, NodeID: b.SPA.NodeID,
+		Ed25519: b.NodeKeys.Ed25519, MLDSA65: b.NodeKeys.MLDSA65, SPA: b.SPA,
+	}
+	result, err := raysub.Fetch(ctx, request)
+	if err != nil {
+		t.Fatalf("subscription from %s: %v", own, err)
+	}
+	h := result.Payload.Hints
+	// nine of the ten said UDP does not pass: over the 60 % majority
+	if h == nil || h.Devices < 10 || !slices.Contains(h.Order, uint16(svc)) || !h.UDPBlocked {
+		t.Fatalf("subscription from %s: hints %+v, want order with %d and udp_blocked over 10 reports", own, h, svc)
+	}
+	t.Logf("hints from %s after 10 reports: %+v", own, *h)
+	// from the node's own address (as through a tunnel): no hint
+	request.Host = b.Host
+	if result, err = raysub.Fetch(ctx, request); err != nil {
+		t.Fatalf("subscription from %s: %v", b.Host, err)
+	}
+	if net.ParseIP(b.Host).IsLoopback() && result.Payload.Hints != nil {
+		t.Fatalf("subscription from the node's own address carries hints: %+v", *result.Payload.Hints)
 	}
 }

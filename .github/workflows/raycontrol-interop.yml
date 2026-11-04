@@ -50,6 +50,15 @@ jobs:
           CGO_ENABLED=0 go build -o /tmp/rayd ./cmd/rayd
           CGO_ENABLED=0 go build -o /tmp/rayctl ./cmd/rayctl
 
+      # the runner's addresses are private: a test AS database (raycontrol's test/install/asndb) puts them in an AS,
+      # so ten reports from here give a hint (probe-v1.md §6.2)
+      - name: A test AS database
+        working-directory: raycontrol
+        run: |
+          go run ./test/install/asndb -o /tmp/asn-test.mmdb 0.0.0.0/0
+          sudo install -d -m 755 /var/lib/raycontrol
+          sudo install -m 644 /tmp/asn-test.mmdb /var/lib/raycontrol/asn.mmdb
+
       - name: A node with the remote API
         run: |
           mkdir -p /tmp/rc/rendered
@@ -75,6 +84,7 @@ jobs:
         working-directory: libcore
         env:
           RAYCONTROL_INVITE_FILE: /tmp/rc/invite
+          RAYCONTROL_HINTS: "1"
         run: go test -count=1 -v -ldflags=-checklinkname=0 -run TestRaycontrolInterop ./rayapi
 
       - name: Logs
