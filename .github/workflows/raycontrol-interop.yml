@@ -99,111 +99,98 @@ jobs:
           tail -n 60 /tmp/rayd.log || true
           pkill -x rayd || true
 
-  # hy2-obfs as rayd renders it: a niko-server backend (options.probe, stats_socket) behind its front, run from the
-  # rendered files as the node's units would; the client measures through the tunnel and finds its own session in link
-  hysteria:
+  # a node as raycontrol's test/supervise recipe runs it: a plain debian container, root, no systemd, rayd serve
+  # -supervise running the data plane from the rendered files (Xray for REALITY and inner, niko-server for Hysteria2,
+  # Yggdrasil and the front), a test CA for the site; the client on the runner measures through each tunnel profile
+  # and finds its own Hysteria2 sessions in link
+  supervised:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch raycontrol and the core
+      - name: Fetch raycontrol, Xray and the core
         run: |
           . .github/raycontrol.env
+          . .github/xray-interop.env
           . buildScript/lib/core/get_source_env.sh
           git clone --filter=blob:none "$REPOSITORY_RAYCONTROL" raycontrol
           git -C raycontrol checkout -q "$COMMIT_RAYCONTROL"
+          git clone --filter=blob:none "$REPOSITORY_XRAY" xray
+          git -C xray checkout -q "$COMMIT_XRAY"
           git clone --filter=blob:none "$REPOSITORY_SING_BOX" ../sing-box
           git -C ../sing-box checkout -q "$COMMIT_SING_BOX"
           git clone --filter=blob:none "$REPOSITORY_LIBNEKO" ../libneko
           git -C ../libneko checkout -q "$COMMIT_LIBNEKO"
-          . .github/xray-interop.env
-          git clone --filter=blob:none "$REPOSITORY_XRAY" xray
-          git -C xray checkout -q "$COMMIT_XRAY"
 
       - uses: actions/setup-go@v5
         with:
           go-version-file: raycontrol/go.mod
           cache: false
-      - name: Build rayd, rayctl and Xray
+      - name: Build rayd, rayctl, Xray; the test certificate; niko-server
         run: |
-          (cd raycontrol && CGO_ENABLED=0 go build -o /tmp/rayd ./cmd/rayd && CGO_ENABLED=0 go build -o /tmp/rayctl ./cmd/rayctl)
-          (cd xray && CGO_ENABLED=0 go build -o /tmp/xray -trimpath ./main) && /tmp/xray version | head -1
-
-      - name: niko-server
-        run: |
+          mkdir -p /tmp/rcbin /tmp/rccert
+          (cd raycontrol && CGO_ENABLED=0 go build -o /tmp/rcbin/rayd ./cmd/rayd &&
+            CGO_ENABLED=0 go build -o /tmp/rcbin/rayctl ./cmd/rayctl &&
+            go run ./test/supervise/testcert -o /tmp/rccert '*.example.test')
+          (cd xray && CGO_ENABLED=0 go build -o /tmp/rcbin/xray -trimpath ./main) && /tmp/rcbin/xray version | head -1
           . .github/niko-server.env
-          curl -fsSL --retry 3 -o /tmp/niko-server "$NIKO_SERVER_RELEASES/download/$NIKO_SERVER_TAG/niko-server-linux-amd64"
-          echo "$NIKO_SERVER_SHA256_AMD64  /tmp/niko-server" | sha256sum -c -
-          chmod +x /tmp/niko-server
+          curl -fsSL --retry 3 -o /tmp/rcbin/niko-server "$NIKO_SERVER_RELEASES/download/$NIKO_SERVER_TAG/niko-server-linux-amd64"
+          echo "$NIKO_SERVER_SHA256_AMD64  /tmp/rcbin/niko-server" | sha256sum -c -
+          chmod +x /tmp/rcbin/niko-server
+          chmod 0644 /tmp/rccert/*.pem
 
-      - name: A node with hy2-obfs and a DNS tunnel; the processes from the rendered files
+      - name: The node under rayd serve -supervise
         id: node
         run: |
-          mkdir -p /tmp/rc/rendered
-          # a domain: the DNS tunnel's zone is under it, and with the tunnel comes the inner stage
-          /tmp/rayd init -db /tmp/rc/rayd.db -host 127.0.0.1 -domain interop.test
-          # the Hysteria2 sockets (packet, stats) live under /run/niko on a node (render.DefaultPaths.Run), where
-          # rayd asks the backends for link
-          sudo install -d -o "$(id -u)" -g "$(id -g)" -m 0755 /run/niko /run/niko/hy2-obfs
-          # -live (the default): rayd renders the data plane; without systemd it only warns about the units
-          nohup /tmp/rayd serve -db /tmp/rc/rayd.db -socket /tmp/rc/rayd.sock -group "$(id -gn)" \
-            -acme-directory "" -rendered /tmp/rc/rendered > /tmp/rayd.log 2>&1 &
-          for i in $(seq 100); do [ -S /tmp/rc/rayd.sock ] && break; sleep 0.2; done
-          rc() { /tmp/rayctl -socket /tmp/rc/rayd.sock "$@"; }
-          rc service add hy2-obfs hy2-obfs
-          rc service add dnstt dns
-          rc user add interop -services hy2-obfs,dns
-          rc device add interop phone -o /tmp/rc/phone.bundle
-          D=/tmp/rc/rendered/hy2-obfs
-          for i in $(seq 100); do
-            [ -f $D/backend.json ] && jq -e '.users | length > 0' $D/users.json > /dev/null 2>&1 && break; sleep 0.2
+          docker network create rc-net > /dev/null
+          docker run -d --name rc-node --network rc-net -v /tmp/rcbin:/opt/rc:ro -v /tmp/rccert:/opt/cert:ro \
+            debian:13 sleep infinity > /dev/null
+          ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' rc-node)
+          echo "address=$ip" >> "$GITHUB_OUTPUT"
+          x() { docker exec rc-node "$@"; }
+          x mkdir -p /var/lib/raycontrol /run/raycontrol
+          x /opt/rc/rayd init -host "$ip" -domain example.test > /dev/null
+          # NIKO_SERVER_UNSAFE_ANY_DESTINATION: the tunnels may reach this private network; never on a real node
+          x sh -c 'NIKO_SERVER_UNSAFE_ANY_DESTINATION=1 nohup /opt/rc/rayd serve -supervise \
+            -xray /opt/rc/xray -niko-server /opt/rc/niko-server -acme-directory "" > /var/log/rayd.log 2>&1 &'
+          for i in $(seq 50); do x test -S /run/raycontrol/rayd.sock && break; sleep 0.2; done
+          x /opt/rc/rayctl service add reality reality > /dev/null
+          x /opt/rc/rayctl service add hy2-obfs hy2o > /dev/null
+          x /opt/rc/rayctl service add yggdrasil ygg > /dev/null
+          # the test CA in place of ACME: REALITY's site, Yggdrasil and hy2-masq take the site's certificate
+          x /opt/rc/rayctl service cert site -chain /opt/cert/chain.pem -key /opt/cert/key.pem
+          x /opt/rc/rayctl service add hy2-masq hy2m > /dev/null
+          x /opt/rc/rayctl user add alice -services reality,hy2o,hy2m,ygg > /dev/null
+          x /opt/rc/rayctl device add alice phone -o /root/phone.bundle
+          x cat /root/phone.bundle > /tmp/phone.bundle
+          for sock in /run/niko/inner/vless.sock /run/niko/site/tls.sock /run/niko/reality/reality.sock \
+              /run/niko/hy2o/stats.sock /run/niko/hy2m/stats.sock /run/niko/ygg/fd.sock; do
+            for i in $(seq 150); do x test -S "$sock" && break; sleep 0.2; done
+            x test -S "$sock" || { echo "no $sock"; x tail -n 80 /var/log/rayd.log; exit 1; }
           done
-          jq '{kind, socket, stats_socket, options: (.options | del(.obfs_password_file))}' $D/backend.json
-          # what the unit's systemd does: the credentials into its runtime directory; the front as this user
-          cp $D/key.pem $D/salamander /run/niko/hy2-obfs/
-          uid=$(id -u)
-          jq --arg uid "$uid" '.front_uid = ($uid | tonumber) | .log.level = "info"' $D/backend.json > /tmp/h2o.json
-          own=$(ip -4 route get 1.1.1.1 | awk '{for (i = 1; i < NF; i++) if ($i == "src") print $(i + 1)}')
-          echo "address=$own" >> "$GITHUB_OUTPUT"
-          jq -n --arg uid "$uid" --arg own "$own" --arg pw "$D/salamander" '{schema: 1, role: "front", log: {level: "info"},
-            backends: {h2o: {socket: "/run/niko/hy2-obfs/packet.sock", mode: "packet", uid: ($uid | tonumber)}},
-            udp: {listen: [($own + ":18443")], routes: [{salamander_password_file: $pw, backend: "h2o"}]}}' > /tmp/front.json
-          /tmp/niko-server check -c /tmp/h2o.json --json
-          /tmp/niko-server check -c /tmp/front.json --json
-          nohup /tmp/niko-server backend -c /tmp/h2o.json > /tmp/h2o.log 2>&1 &
-          for i in $(seq 50); do [ -S /run/niko/hy2-obfs/packet.sock ] && [ -S /run/niko/hy2-obfs/stats.sock ] && break; sleep 0.2; done
-          nohup /tmp/niko-server front -c /tmp/front.json > /tmp/front.log 2>&1 &
-          # the inner stage as rendered (VLESS ML-KEM-768, the probe name's route to the subscription endpoint), its
-          # inbound on TCP for a client here instead of the DNS tunnel's socket, without the API socket
-          I=/tmp/rc/rendered/inner
-          for i in $(seq 100); do [ -f $I/xray.json ] && break; sleep 0.2; done
-          jq '.inbounds[0].listen = "127.0.0.1" | .inbounds[0].port = 18444 | del(.api)' $I/xray.json > /tmp/inner.json
-          jq -c '.routing.rules[0], [.outbounds[] | select(.tag == "probe") | .settings.redirect]' /tmp/inner.json
-          /tmp/xray run -test -c /tmp/inner.json > /dev/null
-          nohup /tmp/xray run -c /tmp/inner.json > /tmp/inner.log 2>&1 &
-          sleep 1
+          x grep 'supervise: started' /var/log/rayd.log | sed 's/^.*unit=/  /'
 
       - uses: actions/setup-go@v5
         with:
           go-version-file: libcore/go.mod
           cache: false
-      - name: Through the tunnel and own (libcore)
+      - name: Through each tunnel and own (libcore)
         working-directory: libcore
         env:
-          RAYCONTROL_BUNDLE: /tmp/rc/phone.bundle
+          RAYCONTROL_BUNDLE: /tmp/phone.bundle
           RAYCONTROL_ADDRESS: ${{ steps.node.outputs.address }}
-          RAYCONTROL_FRONT_PORT: "18443"
-          RAYCONTROL_INNER_PORT: "18444"
+          RAYCONTROL_CA: /tmp/rccert/root.pem
+          RAYCONTROL_EXPECT: hysteria2,reality,yggdrasil
         run: |
           TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
-          go test -count=1 -v -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
+          go test -count=1 -v -timeout 10m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
 
       - name: Logs
         if: always()
         run: |
-          for f in rayd h2o front inner; do echo "== $f"; tail -n 40 /tmp/$f.log || true; done
-          pkill -x rayd || true; pkill -x niko-server || true; pkill -x xray || true
+          docker exec rc-node tail -n 120 /var/log/rayd.log || true
+          docker rm -f rc-node > /dev/null 2>&1 || true
 
   naive:
     runs-on: ubuntu-latest

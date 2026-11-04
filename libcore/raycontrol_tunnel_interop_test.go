@@ -23,20 +23,24 @@ import (
 	"github.com/sagernet/sing-box/option"
 )
 
-// TestRaycontrolTunnelInterop: a node's hy2-obfs as rayd renders it (a niko-server backend behind its front), run
-// by raycontrol-interop.yml. The client builds the profile from the subscription's link, measures the channel
-// through the tunnel at the probe name (probe-v1.md §1.1) with RaycontrolProbeTunnel, and asks link directly while
-// the tunnel is up: the node lists the device's own Hysteria2 session (own, niko-server v0.7) with the rate the
-// client declared, the field the app's Brutal watches. RAYCONTROL_BUNDLE is the device's rcdev1 package,
-// RAYCONTROL_ADDRESS and RAYCONTROL_FRONT_PORT where the front listens (the runner's own address, not loopback).
+// TestRaycontrolTunnelInterop: a node under rayd serve -supervise, the data plane as a node runs it (Xray for REALITY
+// and inner, niko-server for Hysteria2, Yggdrasil and the front), run by raycontrol-interop.yml. The client takes
+// the subscription, builds each profile of the probe's tunnels from its link as the app does and measures the
+// channel through it at the probe name (probe-v1.md §1.1) with RaycontrolProbeTunnel. Then link, asked directly
+// while the tunnels are up, lists the device's own Hysteria2 session (own, niko-server v0.7) with the rate the client
+// declared, the field the app's Brutal watches.
+//
+// RAYCONTROL_BUNDLE is the device's rcdev1 package, RAYCONTROL_ADDRESS the node's address (not loopback: the node
+// takes the client's address for link), RAYCONTROL_CA the test CA of the node's site (hy2-masq), RAYCONTROL_EXPECT
+// the kinds of profiles that must be among them (hysteria2, reality, yggdrasil).
 func TestRaycontrolTunnelInterop(t *testing.T) {
 	path := os.Getenv("RAYCONTROL_BUNDLE")
 	if path == "" {
 		t.Skip("RAYCONTROL_BUNDLE not set (raycontrol-interop.yml sets it)")
 	}
-	frontPort, err := strconv.Atoi(os.Getenv("RAYCONTROL_FRONT_PORT"))
-	if err != nil {
-		t.Fatal("RAYCONTROL_FRONT_PORT: ", err)
+	node := os.Getenv("RAYCONTROL_ADDRESS")
+	if node == "" {
+		t.Fatal("RAYCONTROL_ADDRESS not set")
 	}
 	raw, err := os.ReadFile(path)
 	if err != nil {
@@ -68,17 +72,11 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// the address the front listens on, which the node sees the client come from
-	own := os.Getenv("RAYCONTROL_ADDRESS")
-	if own == "" {
-		own = runnerAddress(t)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
-	// the subscription, asked from the runner's address as the app asks it
 	result, err := raysub.Fetch(ctx, raysub.Request{
-		Host: own, Port: b.Sub.Port, Pin: b.Sub.Pin, DeviceID: b.DeviceID, NodeID: b.SPA.NodeID,
+		Host: node, Port: b.Sub.Port, Pin: b.Sub.Pin, DeviceID: b.DeviceID, NodeID: b.SPA.NodeID,
 		Ed25519: b.NodeKeys.Ed25519, MLDSA65: b.NodeKeys.MLDSA65, SPA: b.SPA,
 	})
 	if err != nil {
@@ -88,79 +86,49 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 	if probeInfo == nil || probeInfo.Tunnel == "" {
 		t.Fatalf("subscription without probe: %+v", result.Payload)
 	}
-	var link string
-	var svc uint16
-	for _, p := range result.Payload.Profiles {
-		if strings.HasPrefix(p.Link, "hysteria2://") && slices.Contains(probeInfo.TunnelSvc, p.Svc) {
-			link, svc = p.Link, p.Svc
-		}
-	}
-	if link == "" {
-		t.Fatalf("no Hysteria2 profile among the probe's tunnels %v", probeInfo.TunnelSvc)
-	}
 
-	// the profile as the app builds a raycontrol hy2-obfs link: the key pin (niko-pin) instead of a CA,
-	// X25519MLKEM768 only, salamander; Brutal at a declared download rate
-	u, err := url.Parse(link)
-	if err != nil {
-		t.Fatal(err)
-	}
-	q := u.Query()
-	pin, err := base64.RawURLEncoding.DecodeString(strings.TrimRight(q.Get("niko-pin"), "="))
-	if err != nil || len(pin) != 32 {
-		t.Fatalf("niko-pin %q: %v", q.Get("niko-pin"), err)
-	}
 	const downMbps = 50
-	outbound := map[string]any{
-		"type": "hysteria2", "tag": "proxy", "server": own, "server_port": frontPort, "password": u.User.Username(),
-		"up_mbps": 20, "down_mbps": downMbps,
-		"obfs": map[string]any{"type": q.Get("obfs"), "password": q.Get("obfs-password")},
-		"tls": map[string]any{
-			"enabled": true, "server_name": q.Get("sni"), "alpn": []string{"h3"},
-			"curve_preferences":             []string{"X25519MLKEM768"},
-			"certificate_public_key_sha256": []string{base64.StdEncoding.EncodeToString(pin)},
-		},
-	}
-	config, _ := json.Marshal(map[string]any{
-		"log":       map[string]any{"level": "warn"},
-		"outbounds": []any{outbound},
-		"route":     map[string]any{"final": "proxy"},
-	})
-	instance := startTestBox(t, string(config))
-	probeThrough(t, "Hysteria2 hy2-obfs", instance, b.Host, b.Sub.Port, b.Sub.Pin, b.DeviceID, b.SPA, probeInfo.Tunnel, svc)
-
-	// Xray's inner stage (behind the DNS tunnels and Yggdrasil) as rendered, its inbound on TCP
-	// (RAYCONTROL_INNER_PORT): the VLESS of a DNS tunnel profile, with its ML-KEM-768 encryption, straight to it
-	if port, err := strconv.Atoi(os.Getenv("RAYCONTROL_INNER_PORT")); err == nil {
-		var innerLink string
-		var innerSvc uint16
-		for _, p := range result.Payload.Profiles {
-			if strings.HasPrefix(p.Link, "vless://") && strings.Contains(p.Link, "niko-dns=") && slices.Contains(probeInfo.TunnelSvc, p.Svc) {
-				innerLink, innerSvc = p.Link, p.Svc
+	tested := map[string]bool{}
+	var hysteriaSvc []uint16
+	for _, p := range result.Payload.Profiles {
+		if !slices.Contains(probeInfo.TunnelSvc, p.Svc) {
+			continue
+		}
+		kind, config := profileConfig(t, p.Link, node, os.Getenv("RAYCONTROL_CA"), downMbps)
+		if config == "" {
+			t.Logf("svc %d: %s not measured here", p.Svc, kind)
+			continue
+		}
+		instance := startTestBox(t, config)
+		// the first link of a mesh node or a QUIC handshake takes a moment: a small probe until one answers
+		warm, _ := json.Marshal(probeRequest{Host: b.Host, Port: b.Sub.Port, Pin: b.Sub.Pin, DeviceID: b.DeviceID, SPA: b.SPA,
+			Tunnel: probeInfo.Tunnel, DownBytes: 1024, WindowMs: 5000})
+		for i := 0; i < 12; i++ {
+			out, err := RaycontrolProbeTunnel(instance, string(warm))
+			var r probeResult
+			if err == nil && json.Unmarshal([]byte(out), &r) == nil && r.Down != nil && r.Down.OK {
+				break
 			}
+			time.Sleep(5 * time.Second)
 		}
-		if innerLink == "" {
-			t.Fatalf("no DNS tunnel profile among the probe's tunnels %v", probeInfo.TunnelSvc)
+		probeThrough(t, kind+" "+p.Name, instance, b.Host, b.Sub.Port, b.Sub.Pin, b.DeviceID, b.SPA, probeInfo.Tunnel, p.Svc)
+		tested[kind] = true
+		if kind == "hysteria2" {
+			hysteriaSvc = append(hysteriaSvc, p.Svc)
 		}
-		v, err := url.Parse(innerLink)
-		if err != nil {
-			t.Fatal(err)
+	}
+	for _, kind := range strings.Split(os.Getenv("RAYCONTROL_EXPECT"), ",") {
+		if kind != "" && !tested[kind] {
+			t.Fatalf("no %s profile measured (tested %v, tunnels %v)", kind, tested, probeInfo.TunnelSvc)
 		}
-		vless, _ := json.Marshal(map[string]any{
-			"log": map[string]any{"level": "warn"},
-			"outbounds": []any{map[string]any{
-				"type": "vless", "tag": "proxy", "server": "127.0.0.1", "server_port": port,
-				"uuid": v.User.Username(), "encryption": v.Query().Get("encryption"),
-			}},
-			"route": map[string]any{"final": "proxy"},
-		})
-		probeThrough(t, "Xray inner (VLESS ML-KEM-768)", startTestBox(t, string(vless)),
-			b.Host, b.Sub.Port, b.Sub.Pin, b.DeviceID, b.SPA, probeInfo.Tunnel, innerSvc)
+	}
+	if len(hysteriaSvc) == 0 {
+		return
 	}
 
-	// directly, while the tunnel is up: the device's own session on the service, with the declared rate
+	// directly, while the tunnels are up: the device's own session on each Hysteria2 service, at the declared rate
 	pc := rayprobe.NewClient(&rayprobe.Endpoint{
-		Address: net.JoinHostPort(own, strconv.Itoa(b.Sub.Port)), Pin: b.Sub.Pin,
+		Address: net.JoinHostPort(node, strconv.Itoa(b.Sub.Port)), Pin: b.Sub.Pin,
 		DeviceID: b.DeviceID, DeviceKey: deviceKey, Dial: (&net.Dialer{}).DialContext,
 	})
 	defer pc.Close()
@@ -170,8 +138,7 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 	}
 	var view struct {
 		Hysteria2 map[string]struct {
-			Connections int `json:"connections"`
-			Own         []struct {
+			Own []struct {
 				Brutal *struct {
 					RateBps float64  `json:"rate_bps"`
 					AckRate *float64 `json:"ack_rate"`
@@ -182,25 +149,112 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 	if err = json.Unmarshal(rawLink, &view); err != nil {
 		t.Fatalf("link: %s: %v", rawLink, err)
 	}
-	service, ok := view.Hysteria2[strconv.Itoa(int(svc))]
-	if !ok || len(service.Own) == 0 {
-		t.Fatalf("link without the device's own session on %d: %s", svc, rawLink)
-	}
-	// the app picks its session by the rate it declared and reads its ack rate (RayBrutal.ackRate); the ack rate
-	// covers the last seconds and may be absent on an idle session
-	found := false
-	for _, s := range service.Own {
-		if s.Brutal != nil && s.Brutal.RateBps == downMbps*1e6 {
-			found = true
-			if s.Brutal.AckRate == nil {
-				t.Logf("own session at %d Mbit/s without an ack rate (idle)", downMbps)
+	for _, svc := range hysteriaSvc {
+		// the app picks its session by the rate it declared and reads its ack rate (RayBrutal.ackRate); the ack rate
+		// covers the last seconds and may be absent on an idle session
+		found := false
+		for _, s := range view.Hysteria2[strconv.Itoa(int(svc))].Own {
+			if s.Brutal != nil && s.Brutal.RateBps == downMbps*1e6 {
+				found = true
+				if s.Brutal.AckRate == nil {
+					t.Logf("svc %d: own session without an ack rate (idle)", svc)
+				}
 			}
 		}
-	}
-	if !found {
-		t.Fatalf("no own session at the declared %d Mbit/s: %s", downMbps, rawLink)
+		if !found {
+			t.Fatalf("svc %d: no own session at the declared %d Mbit/s: %s", svc, downMbps, rawLink)
+		}
 	}
 	t.Logf("link: %s", rawLink)
+}
+
+// profileConfig is a core config for one profile of the subscription, built from its link as the app builds a
+// raycontrol profile: Hysteria2 with the key pin (niko-pin) or the site's certificate, X25519MLKEM768 only, Brutal
+// at downMbps; VLESS over REALITY with Vision, ML-KEM-768 encryption and the ML-DSA-65 key; Yggdrasil as the device's
+// own mesh node with the node as its only peer and VLESS to the node's mesh address. The empty config for a kind not
+// measured here (DNS tunnels, naive: a plugin, not the core). The node's names do not resolve here: a peer's host is
+// the node's address.
+func profileConfig(t *testing.T, link, node, ca string, downMbps int) (kind, config string) {
+	t.Helper()
+	u, err := url.Parse(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := u.Query()
+	port, _ := strconv.Atoi(u.Port())
+	var endpoints []any
+	var outbound map[string]any
+	switch {
+	case u.Scheme == "hysteria2":
+		kind = "hysteria2"
+		tls := map[string]any{
+			"enabled": true, "server_name": q.Get("sni"), "alpn": []string{"h3"},
+			"curve_preferences": []string{"X25519MLKEM768"},
+		}
+		if pin := q.Get("niko-pin"); pin != "" {
+			sum, err := base64.RawURLEncoding.DecodeString(strings.TrimRight(pin, "="))
+			if err != nil || len(sum) != 32 {
+				t.Fatalf("niko-pin %q: %v", pin, err)
+			}
+			tls["certificate_public_key_sha256"] = []string{base64.StdEncoding.EncodeToString(sum)}
+		} else if ca != "" {
+			tls["certificate_path"] = ca
+		}
+		outbound = map[string]any{
+			"type": "hysteria2", "server": u.Hostname(), "server_port": port, "password": u.User.Username(),
+			"up_mbps": 20, "down_mbps": downMbps, "tls": tls,
+		}
+		if q.Get("obfs") != "" {
+			outbound["obfs"] = map[string]any{"type": q.Get("obfs"), "password": q.Get("obfs-password")}
+		}
+	case u.Scheme == "vless" && q.Get("security") == "reality":
+		kind = "reality"
+		outbound = map[string]any{
+			"type": "vless", "server": u.Hostname(), "server_port": port, "uuid": u.User.Username(),
+			"flow": q.Get("flow"), "encryption": q.Get("encryption"), "packet_encoding": "",
+			"tls": map[string]any{
+				"enabled": true, "server_name": q.Get("sni"),
+				// only our uTLS Chrome carries the X25519MLKEM768 share the node wants
+				"utls": map[string]any{"enabled": true, "fingerprint": "chrome"},
+				"reality": map[string]any{
+					"enabled": true, "public_key": q.Get("pbk"), "short_id": q.Get("sid"),
+					"mldsa65_verify": q.Get("pqv"), "key_share": "hybrid",
+				},
+			},
+		}
+	case u.Scheme == "vless" && q.Get("niko-ygg") != "":
+		kind = "yggdrasil"
+		spec := strings.SplitN(q.Get("niko-ygg"), ";", 2)
+		if len(spec) != 2 {
+			t.Fatalf("niko-ygg %q", q.Get("niko-ygg"))
+		}
+		peer, err := url.Parse(spec[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		peer.Host = net.JoinHostPort(node, peer.Port())
+		endpoints = []any{map[string]any{
+			"type": "yggdrasil", "tag": "ygg", "private_key": spec[1], "node_info_privacy": true,
+			"peers": []string{peer.String()},
+		}}
+		outbound = map[string]any{
+			"type": "vless", "server": u.Hostname(), "server_port": port, "uuid": u.User.Username(),
+			"encryption": q.Get("encryption"), "detour": "ygg",
+		}
+	default:
+		return u.Scheme, ""
+	}
+	outbound["tag"] = "proxy"
+	c := map[string]any{
+		"log":       map[string]any{"level": "warn"},
+		"outbounds": []any{outbound},
+		"route":     map[string]any{"final": "proxy"},
+	}
+	if endpoints != nil {
+		c["endpoints"] = endpoints
+	}
+	raw, _ := json.Marshal(c)
+	return kind, string(raw)
 }
 
 // probeThrough measures the channel through instance's tunnel at the probe name as the app does
@@ -211,7 +265,7 @@ func probeThrough(t *testing.T, name string, instance *BoxInstance, host string,
 	t.Helper()
 	request, _ := json.Marshal(probeRequest{
 		Host: host, Port: port, Pin: pin, DeviceID: deviceID, SPA: spa, Tunnel: tunnel,
-		DownBytes: 1 << 20, EchoCount: 20, EchoSize: 1200, Link: true,
+		DownBytes: 1 << 20, EchoCount: 20, EchoSize: 1200, Link: true, WindowMs: 20000,
 		Report: json.RawMessage(`{"v":1,"net":"wifi","obs":[]}`),
 	})
 	out, err := RaycontrolProbeTunnel(instance, string(request))
@@ -232,20 +286,6 @@ func probeThrough(t *testing.T, name string, instance *BoxInstance, host string,
 		t.Fatalf("%s: link or the summary went through the tunnel: %s", name, out)
 	}
 	t.Logf("%s (svc %d): down %d kbit/s, server %v; %s", name, svc, r.Down.Kbps, r.Down.Server, r.Echo)
-}
-
-// runnerAddress: an IPv4 address of this machine besides loopback; the node sees requests to it as coming from it,
-// so link and the summary take them as direct.
-func runnerAddress(t *testing.T) string {
-	t.Helper()
-	addrs, _ := net.InterfaceAddrs()
-	for _, a := range addrs {
-		if ip, ok := a.(*net.IPNet); ok && ip.IP.To4() != nil && !ip.IP.IsLoopback() {
-			return ip.IP.String()
-		}
-	}
-	t.Fatal("no address besides loopback")
-	return ""
 }
 
 // startTestBox runs a core with libcore's protocols, without the Android platform (protect, interface monitor).

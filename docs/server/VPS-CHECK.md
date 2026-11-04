@@ -28,7 +28,8 @@
 
 1. Из [publicpeers.neilalexander.dev](https://publicpeers.neilalexander.dev/) или
    [yggdrasil-network/public-peers](https://github.com/yggdrasil-network/public-peers) взять живые пиры близко к
-   VPS: один `tls://`, один `quic://`.
+   VPS. Нода принимает до 8: стоит брать несколько от разных операторов и стран, разными схемами (`tls://`,
+   `quic://`, `wss://`), чтобы у телефона был выбор, если часть закрыта в его сети.
 2. У `quic://` имя заменить адресом: `dig +short A host`. С именем `rayctl` его не примет.
 3. Проверить `tls://` с ноды: `timeout 5 openssl s_client -connect host:port </dev/null` доходит до рукопожатия.
 4. `rayctl service set ygg peers=tls://host:port,quic://<IP>:port`, затем `rayctl apply`: юнит бэкенда получает сеть
