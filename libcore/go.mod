@@ -1,6 +1,6 @@
 module libcore
 
-go 1.25.5
+go 1.26.0
 
 require (
 	github.com/matsuridayo/libneko v1.0.0 // replaced
@@ -12,23 +12,24 @@ require (
 	github.com/sagernet/sing-tun v0.9.7-0.20261023115432-040db71fcd33
 	github.com/ulikunitz/xz v0.5.15
 	golang.org/x/mobile v0.0.0-20231108233038-35478a0c49da
-	golang.org/x/sys v0.47.0
+	golang.org/x/sys v0.49.0
 )
 
 require (
 	github.com/cloudflare/circl v1.6.5
 	github.com/yggdrasil-network/yggdrasil-go v0.5.14
-	golang.org/x/crypto v0.54.0
+	golang.org/x/crypto v0.58.0
 )
 
 require (
-	github.com/Arceliar/ironwood v0.0.0-20260613025018-d50055b11f5e // indirect
+	filippo.io/edwards25519 v1.2.0 // indirect
+	github.com/Arceliar/ironwood v0.0.0-20261023231900-0712eccbb962 // indirect
 	github.com/Arceliar/phony v0.0.0-20220903101357-530938a4b13d // indirect
 	github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c // indirect
 	github.com/ajg/form v1.5.1 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/anytls/sing-anytls v0.0.11 // indirect
-	github.com/bits-and-blooms/bitset v1.24.5 // indirect
+	github.com/bits-and-blooms/bitset v1.26.0 // indirect
 	github.com/bits-and-blooms/bloom/v3 v3.7.1 // indirect
 	github.com/caddyserver/certmagic v0.25.3-0.20260421143802-60d9d8b415d6 // indirect
 	github.com/caddyserver/zerossl v0.1.5 // indirect
@@ -72,7 +73,7 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.26 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
-	github.com/quic-go/quic-go v0.60.0 // indirect
+	github.com/quic-go/quic-go v0.64.1 // indirect
 	github.com/sagernet/bbolt v0.0.0-20260915102804-500ee1e84832 // indirect
 	github.com/sagernet/cors v1.2.1 // indirect
 	github.com/sagernet/fswatch v0.1.2 // indirect
@@ -102,12 +103,12 @@ require (
 	go.uber.org/zap/exp v0.3.0 // indirect
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f // indirect
-	golang.org/x/mod v0.37.0 // indirect
-	golang.org/x/net v0.57.0 // indirect
-	golang.org/x/sync v0.22.0 // indirect
-	golang.org/x/text v0.40.0 // indirect
+	golang.org/x/mod v0.41.0 // indirect
+	golang.org/x/net v0.61.0 // indirect
+	golang.org/x/sync v0.24.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
-	golang.org/x/tools v0.47.0 // indirect
+	golang.org/x/tools v0.51.0 // indirect
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
 	google.golang.org/grpc v1.79.1 // indirect
@@ -127,4 +128,4 @@ replace github.com/sagernet/wireguard-go => ../../sing-box/third_party/wireguard
 
 replace masterdnsvpn-go => ../../sing-box/third_party/masterdnsvpn
 
-replace github.com/yggdrasil-network/yggdrasil-go => ../../sing-box/third_party/yggdrasil-go
+replace github.com/yggdrasil-network/yggdrasil-go => github.com/arngory/yggdrasil-go v0.5.16-0.20261103204312-0db15d43777a
