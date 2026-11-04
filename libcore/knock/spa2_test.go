@@ -3,19 +3,24 @@ package knock
 import (
 	"bytes"
 	"context"
+	stdtls "crypto/tls"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"net"
 	"net/netip"
 	"os"
+	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/sagernet/sing-box/common/tls/chromehello"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"golang.org/x/crypto/chacha20poly1305"
@@ -346,66 +351,249 @@ func TestSPA2Options(t *testing.T) {
 	}
 }
 
-// Where UDP is cut, the dial falls back to the TCP carrier (spa-v2.md §10) and keeps it.
-func TestSPA2TCPCarrier(t *testing.T) {
-	// the slot port takes TCP only: UDP packets are lost
+// fromTLSCarrier is the node's reading of a ClientHello carrier (raycontrol internal/spa FromTLSCarrier,
+// spa-v2.md §10.1): the data of the first session_ticket extension.
+func fromTLSCarrier(data []byte) ([]byte, bool) {
+	if len(data) < 5 || data[0] != 0x16 || data[1] != 0x03 || data[2] > 0x04 {
+		return nil, false
+	}
+	rec := int(binary.BigEndian.Uint16(data[3:5]))
+	if len(data) < 5+rec {
+		return nil, false
+	}
+	b := data[5 : 5+rec]
+	if len(b) < 4 || b[0] != 0x01 {
+		return nil, false
+	}
+	n := int(b[1])<<16 | int(b[2])<<8 | int(b[3])
+	if len(b) < 4+n {
+		return nil, false
+	}
+	b = b[4 : 4+n]
+	skip := func(k int) bool {
+		if len(b) < k {
+			return false
+		}
+		b = b[k:]
+		return true
+	}
+	vec := func(lenBytes int) bool {
+		if len(b) < lenBytes {
+			return false
+		}
+		l := 0
+		for i := range lenBytes {
+			l = l<<8 | int(b[i])
+		}
+		return skip(lenBytes + l)
+	}
+	if !skip(2+32) || !vec(1) || !vec(2) || !vec(1) || len(b) < 2 {
+		return nil, false
+	}
+	extLen := int(binary.BigEndian.Uint16(b))
+	b = b[2:]
+	if len(b) < extLen {
+		return nil, false
+	}
+	b = b[:extLen]
+	for len(b) >= 4 {
+		typ := int(binary.BigEndian.Uint16(b))
+		l := int(binary.BigEndian.Uint16(b[2:]))
+		if len(b) < 4+l {
+			return nil, false
+		}
+		if typ == 0x0023 {
+			return b[4 : 4+l], true
+		}
+		b = b[4+l:]
+	}
+	return nil, false
+}
+
+// tcpNode is a node whose slot port takes TCP only (UDP is lost on the way): it reads each connection to EOF
+// like rayd (at most 4096 bytes), takes the packet out of a ClientHello when tls, a bare packet when bare, and
+// opens the service port on the first one that authenticates.
+type tcpNode struct {
+	slotPort, servicePort uint16
+	tls, bare             atomic.Int32 // carriers that arrived
+	opened                chan struct{}
+}
+
+func newTCPNode(t *testing.T, acceptTLS, acceptBare bool) (*tcpNode, *SPAv2Options) {
 	carrier, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer carrier.Close()
-	slotPort := uint16(carrier.Addr().(*net.TCPAddr).Port)
-	// the service port opens once a TCP packet authenticates
+	t.Cleanup(func() { carrier.Close() })
 	probe, _ := net.Listen("tcp", "127.0.0.1:0")
-	servicePort := uint16(probe.Addr().(*net.TCPAddr).Port)
+	node := &tcpNode{
+		slotPort:    uint16(carrier.Addr().(*net.TCPAddr).Port),
+		servicePort: uint16(probe.Addr().(*net.TCPAddr).Port),
+		opened:      make(chan struct{}),
+	}
 	probe.Close()
-	options := SPAv2Options{
+	options := &SPAv2Options{
 		NodeID: "33333333333333333333333333333333", EpochLen: 86400, SlotLen: 600,
 		PortKey:  "4444444444444444444444444444444444444444444444444444444444444444",
-		PortBase: slotPort, PortRange: 1, LenMin: 96, LenMax: 160,
+		PortBase: node.slotPort, PortRange: 1, LenMin: 96, LenMax: 160,
 		DeviceKey: "1111111111111111111111111111111111111111111111111111111111111111",
 	}
-	outbound := newBox(t, Options{SPAv2: &options})
-	opened := make(chan net.Listener, 1)
-	go func() {
-		conn, err := carrier.Accept()
-		if err != nil {
-			return
-		}
-		packet, _ := io.ReadAll(io.LimitReader(conn, 161))
-		conn.Close()
-		spa2Open(t, outbound.spa2, packet, time.Now())
-		service, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(int(servicePort))))
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		go func() {
-			for {
-				c, err := service.Accept()
-				if err != nil {
-					return
-				}
-				c.Close()
+	params, err := parseSPAv2(*options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var once sync.Once
+	open := func() {
+		once.Do(func() {
+			service, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(int(node.servicePort))))
+			if err != nil {
+				t.Error(err)
+				return
 			}
-		}()
-		opened <- service
+			t.Cleanup(func() { service.Close() })
+			go func() {
+				for {
+					c, err := service.Accept()
+					if err != nil {
+						return
+					}
+					c.Close()
+				}
+			}()
+			close(node.opened)
+		})
+	}
+	authentic := func(packet []byte) bool {
+		if len(packet) < params.lenMin || len(packet) > params.lenMax {
+			return false
+		}
+		aad := append([]byte(spa2AADLabel), params.nodeID[:]...)
+		now := time.Now()
+		for _, epoch := range []uint64{params.epoch(now) - 1, params.epoch(now), params.epoch(now) + 1} {
+			key, _ := params.epochKey(epoch)
+			aead, _ := chacha20poly1305.NewX(key)
+			if _, err := aead.Open(nil, packet[:spa2NonceSize], packet[spa2NonceSize:], aad); err == nil {
+				return true
+			}
+		}
+		return false
+	}
+	go func() {
+		for {
+			conn, err := carrier.Accept()
+			if err != nil {
+				return
+			}
+			go func() {
+				defer conn.Close()
+				conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+				data, _ := io.ReadAll(io.LimitReader(conn, 4096))
+				if packet, ok := fromTLSCarrier(data); ok {
+					node.tls.Add(1)
+					if acceptTLS && authentic(packet) {
+						open()
+					}
+				} else if len(data) > 0 {
+					node.bare.Add(1)
+					if acceptBare && authentic(data) {
+						open()
+					}
+				}
+			}()
+		}
 	}()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	return node, options
+}
+
+func (n *tcpNode) dial(t *testing.T, outbound *Outbound) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	conn, err := outbound.DialContext(ctx, N.NetworkTCP, M.ParseSocksaddrHostPort("127.0.0.1", servicePort))
+	conn, err := outbound.DialContext(ctx, N.NetworkTCP, M.ParseSocksaddrHostPort("127.0.0.1", n.servicePort))
 	if err != nil {
 		t.Fatal(err)
 	}
 	conn.Close()
-	(<-opened).Close()
-	if !outbound.spa2TCP.Load() {
-		t.Fatal("the TCP carrier is not remembered")
+}
+
+// Where UDP is cut, the dial falls back to the ClientHello carrier (spa-v2.md §10.1) and keeps it; a node
+// that reads ClientHello never sees a bare packet.
+func TestSPA2TLSCarrier(t *testing.T) {
+	node, options := newTCPNode(t, true, false)
+	outbound := newBox(t, Options{SPAv2: options})
+	node.dial(t, outbound)
+	if outbound.carrier() != CarrierTLS {
+		t.Fatalf("carrier %v, want tls", outbound.carrier())
+	}
+	if node.bare.Load() != 0 {
+		t.Fatalf("%d bare packets to a node that took the ClientHello", node.bare.Load())
 	}
 	// a new network starts with UDP again
 	outbound.InterfaceUpdated(context.Background())
-	if outbound.spa2TCP.Load() {
-		t.Fatal("the TCP carrier survived a network change")
+	if outbound.carrier() != CarrierUDP {
+		t.Fatal("the carrier survived a network change")
+	}
+}
+
+// A node before raycontrol v0.10.0 does not read a ClientHello: the bare packet opens it, and is kept.
+func TestSPA2BareCarrierForOldNode(t *testing.T) {
+	node, options := newTCPNode(t, false, true)
+	outbound := newBox(t, Options{SPAv2: options})
+	node.dial(t, outbound)
+	if outbound.carrier() != CarrierTCP {
+		t.Fatalf("carrier %v, want tcp", outbound.carrier())
+	}
+	if node.tls.Load() == 0 {
+		t.Fatal("no ClientHello was tried first")
+	}
+	tried := node.tls.Load()
+	node.dial(t, outbound)
+	if node.tls.Load() != tried {
+		t.Fatal("a ClientHello again after bare TCP worked")
+	}
+}
+
+// The carrier is a ClientHello crypto/tls reads as one: no server name (an address), TLS 1.3, the packet as the
+// session ticket; and the rest of it is the core's Chrome reference.
+func TestTLSCarrierShape(t *testing.T) {
+	packet := bytes.Repeat([]byte{0xab}, 128)
+	record, err := tlsCarrier(packet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, ok := fromTLSCarrier(record)
+	if !ok || !bytes.Equal(got, packet) {
+		t.Fatal("the node does not find the packet")
+	}
+	client, server := net.Pipe()
+	defer client.Close()
+	hello := make(chan *stdtls.ClientHelloInfo, 1)
+	go func() {
+		stdtls.Server(server, &stdtls.Config{GetConfigForClient: func(info *stdtls.ClientHelloInfo) (*stdtls.Config, error) {
+			hello <- info
+			return nil, errors.New("enough")
+		}}).Handshake()
+		server.Close()
+	}()
+	go client.Write(record)
+	select {
+	case info := <-hello:
+		if info.ServerName != "" || !slices.Contains(info.SupportedVersions, stdtls.VersionTLS13) {
+			t.Fatalf("server name %q, versions %v", info.ServerName, info.SupportedVersions)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("crypto/tls did not read a ClientHello")
+	}
+	h, err := chromehello.Parse(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reference, _ := chromehello.Raw()
+	r, _ := chromehello.Parse(reference)
+	// t13d…17… with a name, t13i…16… to an address (no server_name); the hashes of ciphers and extensions are equal
+	ja4, ref := strings.SplitN(h.JA4(), "_", 2), strings.SplitN(r.JA4(), "_", 2)
+	if !strings.HasPrefix(ja4[0], "t13i") || ja4[1] != ref[1] {
+		t.Fatalf("JA4 %s, reference %s", h.JA4(), r.JA4())
 	}
 }
 
@@ -485,7 +673,7 @@ func TestSPA2TCPCarrierCoalesced(t *testing.T) {
 	if n := carried.Load(); n != 1 {
 		t.Fatalf("%d TCP carrier packets for 8 dials, want 1", n)
 	}
-	if !outbound.spa2TCP.Load() {
+	if outbound.carrier() == CarrierUDP {
 		t.Fatal("the TCP carrier is not remembered")
 	}
 }

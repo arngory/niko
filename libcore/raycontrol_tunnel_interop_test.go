@@ -94,7 +94,7 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 		if !slices.Contains(probeInfo.TunnelSvc, p.Svc) {
 			continue
 		}
-		kind, config := profileConfig(t, p.Link, node, os.Getenv("RAYCONTROL_CA"), downMbps)
+		kind, config := profileConfig(t, p.Link, node, os.Getenv("RAYCONTROL_CA"), b.DeviceKey, downMbps)
 		if config == "" {
 			t.Logf("svc %d: %s not measured here", p.Svc, kind)
 			continue
@@ -117,7 +117,7 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 		}
 		// a DNS tunnel carries kilobytes, not megabytes, in a window
 		down := int64(1 << 20)
-		if kind == "dnstt" || kind == "masterdns" {
+		if strings.HasPrefix(kind, "dnstt") || kind == "masterdns" {
 			down = 64 << 10
 		}
 		probeThrough(t, kind+" "+p.Name, instance, b.Host, b.Sub.Port, b.Sub.Pin, b.DeviceID, b.SPA, probeInfo.Tunnel, p.Svc, down)
@@ -186,7 +186,7 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 // own mesh node with the node as its only peer and VLESS to the node's mesh address. The empty config for a kind not
 // measured here (DNS tunnels, naive: a plugin, not the core). The node's names do not resolve here: a peer's host is
 // the node's address.
-func profileConfig(t *testing.T, link, node, ca string, downMbps int) (kind, config string) {
+func profileConfig(t *testing.T, link, node, ca, deviceKey string, downMbps int) (kind, config string) {
 	t.Helper()
 	u, err := url.Parse(link)
 	if err != nil {
@@ -250,6 +250,12 @@ func profileConfig(t *testing.T, link, node, ca string, downMbps int) (kind, con
 			tunnel = map[string]any{
 				"type": "dnstt", "domain": spec[2], "public_key": strings.ToLower(spec[3]),
 				"resolver": "udp://" + net.JoinHostPort(node, "53"),
+			}
+			// dnsauth-v1 (raycontrol v0.10.0, the node's dnstt with auth=required): queries signed by the device
+			if q.Get("niko-dnsauth") == "v1" {
+				kind = "dnstt-auth"
+				svc, _ := strconv.Atoi(q.Get("niko-svc"))
+				tunnel["auth"] = map[string]any{"node_id": q.Get("niko-node"), "service_id": svc, "device_key": deviceKey}
 			}
 		case "masterdns":
 			kind = "masterdns"

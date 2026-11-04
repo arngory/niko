@@ -105,8 +105,9 @@ type Result struct {
 	Payload Payload `json:"payload"`
 	// node clock minus ours, seconds; over 30 s SPA v2 fails
 	ClockSkew int64 `json:"clock_skew_s"`
-	// the TCP carrier was needed to open the port
-	SPAOverTCP bool `json:"spa_over_tcp"`
+	// the TCP carrier was needed to open the port (a ClientHello or bare, SPACarrier)
+	SPAOverTCP bool   `json:"spa_over_tcp"`
+	SPACarrier string `json:"spa_carrier"`
 }
 
 type envelope struct {
@@ -142,8 +143,9 @@ func Fetch(ctx context.Context, r Request) (*Result, error) {
 	// one Fetch per refresh: nothing to keep alive afterwards
 	defer client.CloseIdleConnections()
 	var lastErr error
-	for _, tcp := range []bool{false, false, true} {
-		if err = r.knock(ctx, tcp, now()); err != nil {
+	// UDP twice (the slot may turn), then a ClientHello, then bare TCP for nodes before v0.10.0
+	for _, carrier := range []knock.Carrier{knock.CarrierUDP, knock.CarrierUDP, knock.CarrierTLS, knock.CarrierTCP} {
+		if err = r.knock(ctx, carrier, now()); err != nil {
 			return nil, err
 		}
 		var envelope *envelope
@@ -151,7 +153,8 @@ func Fetch(ctx context.Context, r Request) (*Result, error) {
 		if lastErr == nil {
 			result, err := r.verify(envelope, now())
 			if result != nil {
-				result.SPAOverTCP = tcp
+				result.SPAOverTCP = carrier != knock.CarrierUDP
+				result.SPACarrier = carrier.String()
 			}
 			return result, err
 		}
@@ -171,9 +174,9 @@ func (r *Request) dialer() *net.Dialer {
 	return &net.Dialer{Timeout: 10 * time.Second, Control: r.Control}
 }
 
-// knock sends one SPA v2 packet over UDP or TCP and waits for the rules to apply.
-func (r *Request) knock(ctx context.Context, tcp bool, now time.Time) error {
-	return knock.SendSPAv2(ctx, r.dialer(), r.Host, r.SPA, tcp, now)
+// knock sends one SPA v2 packet over the carrier and waits for the rules to apply.
+func (r *Request) knock(ctx context.Context, carrier knock.Carrier, now time.Time) error {
+	return knock.SendSPAv2(ctx, r.dialer(), r.Host, r.SPA, carrier, now)
 }
 
 var errPin = errors.New("raycontrol subscription: the server key does not match the pin")

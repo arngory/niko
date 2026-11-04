@@ -44,6 +44,17 @@ fun AbstractBean.applyNikoParams(param: (String) -> String?, params: (String) ->
 
             else -> throw IllegalArgumentException("niko-dns: unknown engine $engine")
         }
+        // dnsauth-v1 (raycontrol v0.10.0): the queries carry a tag of the device's key for this node and service;
+        // another version is unknown here and the tunnel goes without (a node in "required" mode refuses it)
+        dnsTunnelAuth = ""
+        if (dnsTunnel == DnsTunnel.DNSTT && param("niko-dnsauth")?.trim() == "v1") {
+            val node = param("niko-node")?.trim()?.lowercase()
+            val svc = param("niko-svc")?.trim()?.toIntOrNull()
+            require(node != null && NODE_ID.matches(node) && svc != null && svc in 0..0xffff) {
+                "niko-dnsauth: needs niko-node and niko-svc"
+            }
+            dnsTunnelAuth = "v1;$node;$svc"
+        }
     }
     param("niko-pin")?.takeIf { it.isNotBlank() }?.let { certPins = it.trim() }
     param("niko-ygg")?.takeIf { it.isNotBlank() }?.let { spec ->
@@ -60,6 +71,8 @@ fun AbstractBean.applyNikoParams(param: (String) -> String?, params: (String) ->
         }.distinct().joinToString("\n")
     }
 }
+
+private val NODE_ID = Regex("^[0-9a-f]{32}$")
 
 /** The peer schemes yggdrasil-go dials (subscription-v1.md §4). */
 private val YGG_VIA_SCHEMES = listOf("tls", "quic", "wss", "ws", "tcp")

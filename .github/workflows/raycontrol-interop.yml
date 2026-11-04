@@ -160,6 +160,8 @@ jobs:
           x /opt/rc/rayctl service add yggdrasil ygg > /dev/null
           # the DNS tunnels, on the container's UDP 53 (the runner's own is systemd-resolved's)
           x /opt/rc/rayctl service add dnstt dns > /dev/null
+          # dnsauth-v1 (v0.10.0): unsigned queries are refused, the client signs with the device's key
+          x /opt/rc/rayctl service set dns auth=required > /dev/null
           x /opt/rc/rayctl service add masterdns mdns > /dev/null
           # the test CA in place of ACME: REALITY's site, Yggdrasil and hy2-masq take the site's certificate
           x /opt/rc/rayctl service cert site -chain /opt/cert/chain.pem -key /opt/cert/key.pem
@@ -185,7 +187,7 @@ jobs:
           RAYCONTROL_BUNDLE: /tmp/phone.bundle
           RAYCONTROL_ADDRESS: ${{ steps.node.outputs.address }}
           RAYCONTROL_CA: /tmp/rccert/root.pem
-          RAYCONTROL_EXPECT: hysteria2-pin,hysteria2-ca,reality,yggdrasil,dnstt,masterdns
+          RAYCONTROL_EXPECT: hysteria2-pin,hysteria2-ca,reality,yggdrasil,dnstt-auth,masterdns
         run: |
           TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
           go test -count=1 -v -timeout 10m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .

@@ -40,6 +40,8 @@ public abstract class AbstractBean extends Serializable {
     public String dnsTunnelKey; // dnstt: the server's public key; masterdnsvpn: the shared key
     public Integer dnsTunnelMethod; // masterdnsvpn DATA_ENCRYPTION_METHOD, 0-5
     public Boolean dnsTunnelFixedUpstream; // masterdnsvpn server in TCP mode instead of SOCKS5
+    // version 9: raycontrol dnsauth-v1 of a dnstt tunnel, "v1;<node id>;<service id>", "" off
+    public String dnsTunnelAuth;
     // extraVersion 6: UDP desync of QUIC clients (Hysteria2, TUIC), core common/udpdesync
     public Integer udpPrelude; // fake datagrams before the first real one, 0-8
     public String udpPreludeSni; // the fakes are QUIC Initials naming this server; empty = random bytes
@@ -112,6 +114,7 @@ public abstract class AbstractBean extends Serializable {
         if (dnsTunnelKey == null) dnsTunnelKey = "";
         if (dnsTunnelMethod == null) dnsTunnelMethod = 2;
         if (dnsTunnelFixedUpstream == null) dnsTunnelFixedUpstream = false;
+        if (dnsTunnelAuth == null) dnsTunnelAuth = "";
         if (udpPrelude == null) udpPrelude = 0;
         if (udpPreludeSni == null) udpPreludeSni = "";
         if (udpPreludeTtl == null) udpPreludeTtl = 0;
@@ -128,7 +131,7 @@ public abstract class AbstractBean extends Serializable {
     public void serializeToBuffer(@NonNull ByteBufferOutput output) {
         serialize(output);
 
-        output.writeInt(8);
+        output.writeInt(9);
         if (!serializeWithoutName) {
             output.writeString(name);
         }
@@ -153,6 +156,7 @@ public abstract class AbstractBean extends Serializable {
         output.writeString(yggPeer != null ? yggPeer : "");
         output.writeString(yggKey != null ? yggKey : "");
         output.writeString(yggVia != null ? yggVia : "");
+        output.writeString(dnsTunnelAuth != null ? dnsTunnelAuth : "");
     }
 
     @Override
@@ -196,6 +200,9 @@ public abstract class AbstractBean extends Serializable {
         }
         if (extraVersion >= 8) {
             yggVia = input.readString();
+        }
+        if (extraVersion >= 9) {
+            dnsTunnelAuth = input.readString();
         }
     }
 

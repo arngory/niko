@@ -293,8 +293,8 @@ func stalledHandshake(t *testing.T, listener net.Listener, accepted, closed *ato
 	if !errors.Is(err, ErrNoAnswer) || errors.Is(err, ErrAnswerLost) {
 		t.Fatalf("got %v, want ErrNoAnswer", err)
 	}
-	if n := accepted.Load(); n != 3 {
-		t.Fatalf("%d connections, want 3 (UDP, UDP again, TCP)", n)
+	if n := accepted.Load(); n != 4 {
+		t.Fatalf("%d connections, want 4 (UDP, UDP again, ClientHello, bare TCP)", n)
 	}
 	// no dial outlives the Call (net/http would finish it for the pool)
 	deadline := time.Now().Add(2 * time.Second)

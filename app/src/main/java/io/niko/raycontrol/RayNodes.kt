@@ -352,6 +352,15 @@ object RayNodes {
 
     /** Hands the node's device key to the core and returns the knock outbound options. */
     fun prepareKnock(node: RayNode): Map<String, Any> {
+        prepareDeviceKey(node)
+        return node.knockOptions()
+    }
+
+    /**
+     * Puts the node's device key into the core under [RayNode.keyRef]: SPA and the dnsauth-v1 tag of its DNS tunnels
+     * take it by that reference, so the key itself never is in a config.
+     */
+    fun prepareDeviceKey(node: RayNode) {
         val key = try {
             DeviceKeyVault.unwrap(node.deviceKeyWrapped)
         } catch (e: Exception) {
@@ -359,7 +368,6 @@ object RayNodes {
         }
         Libcore.spaSetDeviceKey(node.keyRef, key.joinToString("") { "%02x".format(it) })
         key.fill(0)
-        return node.knockOptions()
     }
 
     private fun hexToBytes(hex: String) = ByteArray(hex.length / 2) { hex.substring(it * 2, it * 2 + 2).toInt(16).toByte() }

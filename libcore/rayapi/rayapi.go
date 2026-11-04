@@ -261,8 +261,9 @@ func Call(ctx context.Context, e Endpoint, method string, body []byte) ([]byte, 
 		return e.post(ctx, client, method, body)
 	}
 	var lastErr error
-	for _, tcp := range []bool{false, false, true} {
-		if err = knock.SendSPAv2(ctx, e.dialer(), e.Host, e.SPA, tcp, time.Now()); err != nil {
+	// UDP twice (the slot may turn), then a ClientHello, then bare TCP for nodes before v0.10.0
+	for _, carrier := range []knock.Carrier{knock.CarrierUDP, knock.CarrierUDP, knock.CarrierTLS, knock.CarrierTCP} {
+		if err = knock.SendSPAv2(ctx, e.dialer(), e.Host, e.SPA, carrier, time.Now()); err != nil {
 			return nil, err
 		}
 		answer, err := e.post(ctx, client, method, body)

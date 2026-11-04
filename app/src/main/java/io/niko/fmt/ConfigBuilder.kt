@@ -745,9 +745,16 @@ fun buildConfig(
                     val protectPath = "protect_path".takeIf {
                         !forTest || File(SagerNet.application.noBackupFilesDir, it).exists()
                     }
+                    // dnsauth-v1: the node's device key goes into the core by reference, never into the config
+                    val authRef = dnsTunnel.authNode?.let { (nodeId, _) ->
+                        val node = RayNodes.get(nodeId)
+                            ?: throw Exception("$prefix: the raycontrol node of this tunnel is not imported (dnsauth)")
+                        if (!forExport) RayNodes.prepareDeviceKey(node)
+                        node.keyRef
+                    }
                     outbounds.add(Outbound().apply {
                         tag = tunnelTag
-                        _hack_config_map.putAll(dnsTunnel.outboundOptions(protectPath))
+                        _hack_config_map.putAll(dnsTunnel.outboundOptions(protectPath, authRef))
                     })
                     // the tunnel server resolves or ignores the hop's server name
                     currentOutbound._hack_config_map.remove("domain_resolver")

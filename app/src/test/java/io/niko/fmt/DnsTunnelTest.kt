@@ -49,6 +49,34 @@ class DnsTunnelTest {
         assertEquals("tcp", mdv("8.8.8.8").copy(fixedUpstream = true).outboundOptions(null)["mode"])
     }
 
+    /** raycontrol dnsauth-v1: the link's niko-dnsauth with niko-node and niko-svc, an auth block by key reference. */
+    @Test
+    fun dnsAuth() {
+        val node = "33".repeat(16)
+        val params = mapOf(
+            "niko-dns" to "dnstt;udp://8.8.8.8;t.example.com;$key", "niko-dnsauth" to "v1",
+            "niko-node" to node, "niko-svc" to "3",
+        )
+        val bean = SOCKSBean().apply { initializeDefaultValues(); applyNikoParams({ params[it] }) }
+        assertEquals("v1;$node;3", bean.dnsTunnelAuth)
+        val tunnel = DnsTunnel.of(bean)
+        assertEquals(node to 3, tunnel.authNode)
+        val auth = tunnel.outboundOptions(null, "raycontrol:$node:dev")["auth"] as Map<*, *>
+        assertEquals(mapOf("node_id" to node, "service_id" to 3, "device_key_ref" to "raycontrol:$node:dev"), auth)
+        // no key reference, no auth block (the device key is never in the config)
+        assertFalse(tunnel.outboundOptions(null).containsKey("auth"))
+        // another version, or masterdnsvpn: off
+        val other = SOCKSBean().apply { initializeDefaultValues(); applyNikoParams({ (params + ("niko-dnsauth" to "v2"))[it] }) }
+        assertEquals("", other.dnsTunnelAuth)
+        assertNull(DnsTunnel.of(other).authNode)
+        // without the node it can not be signed
+        try {
+            SOCKSBean().apply { initializeDefaultValues(); applyNikoParams({ (params - "niko-node")[it] }) }
+            org.junit.Assert.fail("accepted without niko-node")
+        } catch (e: IllegalArgumentException) {
+        }
+    }
+
     @Test
     fun beanRoundTrip() {
         val bean = SOCKSBean().apply {

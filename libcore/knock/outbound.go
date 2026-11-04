@@ -97,10 +97,10 @@ type step struct {
 type target struct {
 	access    sync.Mutex
 	lastKnock time.Time
-	// the last knock that went over the TCP carrier (SPA v2, reknock)
-	lastTCPKnock time.Time
-	generation   uint64
-	inflight     chan struct{}
+	// the last knock over each SPA v2 carrier (reknock)
+	lastByCarrier [3]time.Time
+	generation    uint64
+	inflight      chan struct{}
 	// SPA v2: the access is renewed while the host is in use
 	lastUse time.Time
 	active  int
@@ -122,11 +122,11 @@ type Outbound struct {
 	steps          []step
 	spa2           *spa2Params
 	udpPorts       map[uint16]*portSchedule
-	// SPA v2 goes over TCP on this network (spa-v2.md §10); reset on a network change
-	spa2TCP  atomic.Bool
-	interval time.Duration
-	ttl      time.Duration
-	silence  time.Duration
+	// the SPA v2 carrier that opened the node on this network (spa-v2.md §10); UDP again on a network change
+	spa2Carrier atomic.Int32
+	interval    time.Duration
+	ttl         time.Duration
+	silence     time.Duration
 
 	// bumped on network changes, knocks of an older generation are stale
 	generation atomic.Uint64
@@ -445,7 +445,7 @@ func (o *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 func (o *Outbound) InterfaceUpdated(ctx context.Context) {
 	o.generation.Add(1)
 	// a new network: UDP first again
-	o.spa2TCP.Store(false)
+	o.spa2Carrier.Store(int32(CarrierUDP))
 	if o.spa2 != nil {
 		// SPA v2: hosts in use get a packet from the new address at once
 		go o.renewInUse()
@@ -525,27 +525,28 @@ func (o *Outbound) knock(ctx context.Context, destination M.Socksaddr, force boo
 		since := time.Since(t.lastKnock)
 		// after waiting for a knock in flight: re-check, it may have failed or become stale
 		return since < o.ttl && (!force || waited) || since < minReknockGap
-	}, o.spa2 != nil && o.spa2TCP.Load(), o.sendSequence)
+	}, o.carrier(), o.sendSequence)
 }
 
-// reknock sends again after a dial that started at attempt failed, unless a
-// knock finished after that (a parallel dial already sent one, which this dial
-// did not wait for): a slot turn that breaks many dials at once sends one
-// packet, not one per dial. send is the carrier (SPA v2: UDP or TCP); a TCP
-// reknock is served only by a knock over TCP.
-func (o *Outbound) reknock(ctx context.Context, destination M.Socksaddr, attempt time.Time, tcp bool, send func(context.Context, M.Socksaddr) error) (bool, error) {
+// carrier is the SPA v2 carrier in use on this network (UDP for SPA v1 and port knocking).
+func (o *Outbound) carrier() Carrier {
+	return Carrier(o.spa2Carrier.Load())
+}
+
+// reknock sends again over carrier after a dial that started at attempt
+// failed, unless a knock over the same carrier finished after that (a parallel
+// dial already sent one, which this dial did not wait for): a slot turn that
+// breaks many dials at once sends one packet, not one per dial.
+func (o *Outbound) reknock(ctx context.Context, destination M.Socksaddr, attempt time.Time, carrier Carrier, send func(context.Context, M.Socksaddr) error) (bool, error) {
 	return o.knockOnce(ctx, destination, func(t *target, _ bool) bool {
-		if tcp {
-			return t.lastTCPKnock.After(attempt)
-		}
-		return t.lastKnock.After(attempt)
-	}, tcp, send)
+		return t.lastByCarrier[carrier].After(attempt)
+	}, carrier, send)
 }
 
 // knockOnce runs send unless fresh (called under the target's lock, only for a
 // knock of this network) says the access is fresh; concurrent callers share
 // one send in flight and re-check after it.
-func (o *Outbound) knockOnce(ctx context.Context, destination M.Socksaddr, fresh func(t *target, waited bool) bool, tcp bool, send func(context.Context, M.Socksaddr) error) (bool, error) {
+func (o *Outbound) knockOnce(ctx context.Context, destination M.Socksaddr, fresh func(t *target, waited bool) bool, carrier Carrier, send func(context.Context, M.Socksaddr) error) (bool, error) {
 	t := o.target(destination.AddrString())
 	waited := false
 	for {
@@ -565,9 +566,7 @@ func (o *Outbound) knockOnce(ctx context.Context, destination M.Socksaddr, fresh
 			if err == nil {
 				// a network change during the knock leaves it stale
 				t.lastKnock = time.Now()
-				if tcp {
-					t.lastTCPKnock = t.lastKnock
-				}
+				t.lastByCarrier[carrier] = t.lastKnock
 				t.generation = generation
 				if o.spa2 != nil {
 					o.scheduleRenewal(t, destination)

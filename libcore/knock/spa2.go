@@ -95,6 +95,16 @@ func SetDeviceKey(ref, keyHex string) {
 	deviceKeys.Store(ref, keyHex)
 }
 
+// DeviceKey is the device key stored for ref (SetDeviceKey), 32 bytes: other users of the node's key
+// (dnsauth-v1 of DNS tunnels) take it by the same reference as SPA.
+func DeviceKey(ref string) ([]byte, error) {
+	key, loaded := deviceKeys.Load(ref)
+	if !loaded {
+		return nil, E.New("no device key for ", ref)
+	}
+	return hex.DecodeString(key.(string))
+}
+
 // RetainDeviceKeys forgets every stored device key whose reference is not in
 // refs. Outbounds already created keep their own copy, and keys still in refs
 // stay, so this is safe while boxes are being built and run.
@@ -233,46 +243,52 @@ func (p *spa2Params) renewIn() time.Duration {
 	return access/2 + time.Duration(randomInt(int64(access*3/10)+1))
 }
 
-// sendSPA2 sends one packet to the port of the current slot, then waits a
-// random 150-400 ms before the connection may start.
+// sendSPA2 sends one packet to the port of the current slot over the carrier
+// in use, then waits a random 150-400 ms before the connection may start.
 func (o *Outbound) sendSPA2(ctx context.Context, destination M.Socksaddr) error {
-	return o.sendSPA2Over(ctx, destination, o.spa2TCP.Load())
+	return o.sendSPA2Over(ctx, destination, o.carrier())
 }
 
-// sendSPA2Over sends the packet over UDP or, where unknown UDP is cut, inside a
-// TCP connection to the same slot port (spa-v2.md §10): the packet as the first
-// data, then close; the node answers nothing and resets.
-func (o *Outbound) sendSPA2Over(ctx context.Context, destination M.Socksaddr, tcp bool) error {
+// sendSPA2Over sends the packet over UDP or, where unknown UDP is cut, in a TCP
+// connection to the same slot port (spa-v2.md §10): as a ClientHello (§10.1)
+// or bare for nodes before raycontrol v0.10.0, then close; the node answers
+// nothing and resets.
+func (o *Outbound) sendSPA2Over(ctx context.Context, destination M.Socksaddr, carrier Carrier) error {
 	port, packet, err := o.spa2.packet(time.Now())
 	if err != nil {
 		return err
 	}
 	target := M.Socksaddr{Addr: destination.Addr, Fqdn: destination.Fqdn, Port: port}
-	if tcp {
-		o.logger.DebugContext(ctx, "SPA v2 over TCP to ", destination.AddrString(), " port ", port)
-		dialCtx, cancel := context.WithTimeout(ctx, spa2TCPTimeout)
-		conn, err := o.dialer.DialContext(dialCtx, N.NetworkTCP, target)
-		cancel()
-		if err != nil {
-			o.logger.DebugContext(ctx, "SPA v2 over TCP: ", err)
-		} else {
-			conn.SetWriteDeadline(time.Now().Add(spa2TCPTimeout))
-			conn.Write(packet)
-			if closer, ok := conn.(interface{ CloseWrite() error }); ok {
-				closer.CloseWrite()
-			}
-			conn.Close()
-		}
-	} else {
+	if carrier == CarrierUDP {
 		o.logger.DebugContext(ctx, "SPA v2 to ", destination.AddrString(), " port ", port)
 		o.send(ctx, target, step{port: port, udp: true, payload: packet})
+		return sleep(ctx, spa2Settle())
+	}
+	payload, err := carrierPayload(carrier, packet)
+	if err != nil {
+		return err
+	}
+	o.logger.DebugContext(ctx, "SPA v2 over ", carrier, " to ", destination.AddrString(), " port ", port)
+	dialCtx, cancel := context.WithTimeout(ctx, spa2TCPTimeout)
+	conn, err := o.dialer.DialContext(dialCtx, N.NetworkTCP, target)
+	cancel()
+	if err != nil {
+		o.logger.DebugContext(ctx, "SPA v2 over ", carrier, ": ", err)
+	} else {
+		conn.SetWriteDeadline(time.Now().Add(spa2TCPTimeout))
+		conn.Write(payload)
+		if closer, ok := conn.(interface{ CloseWrite() error }); ok {
+			closer.CloseWrite()
+		}
+		conn.Close()
 	}
 	return sleep(ctx, spa2Settle())
 }
 
 // dialSPA2 dials after SPA v2 (spa-v2.md §7, §10): on a failed dial one more
-// packet over the current carrier (the slot may have turned), then once over
-// TCP; the carrier that worked is kept until the network changes.
+// packet over the carrier in use (the slot may have turned), then the carriers
+// after it in turn (UDP, ClientHello, bare TCP); the one that worked is kept
+// until the network changes.
 func (o *Outbound) dialSPA2(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	if _, err := o.knock(ctx, destination, false); err != nil {
 		return nil, err
@@ -281,25 +297,30 @@ func (o *Outbound) dialSPA2(ctx context.Context, network string, destination M.S
 	// too, so a slot turn that breaks many dials sends one packet, not one per dial
 	attempt := time.Now()
 	conn, err := o.dialPeer(ctx, network, destination)
+	current := o.carrier()
 	if err != nil {
 		o.logger.DebugContext(ctx, "dial after SPA failed, sending it once more: ", err)
-		if _, knockErr := o.reknock(ctx, destination, attempt, o.spa2TCP.Load(), o.sendSPA2); knockErr == nil {
+		if _, knockErr := o.reknock(ctx, destination, attempt, current, o.sendSPA2); knockErr == nil {
 			attempt = time.Now()
 			conn, err = o.dialPeer(ctx, network, destination)
 		}
 	}
-	if err != nil && !o.spa2TCP.Load() {
-		o.logger.DebugContext(ctx, "dial after SPA over UDP failed, trying the TCP carrier: ", err)
-		_, knockErr := o.reknock(ctx, destination, attempt, true, func(ctx context.Context, destination M.Socksaddr) error {
-			return o.sendSPA2Over(ctx, destination, true)
+	for _, carrier := range Carriers[current+1:] {
+		if err == nil {
+			break
+		}
+		o.logger.DebugContext(ctx, "dial after SPA over ", Carrier(o.spa2Carrier.Load()), " failed, trying ", carrier, ": ", err)
+		_, knockErr := o.reknock(ctx, destination, attempt, carrier, func(ctx context.Context, destination M.Socksaddr) error {
+			return o.sendSPA2Over(ctx, destination, carrier)
 		})
-		if knockErr == nil {
-			attempt = time.Now()
-			conn, err = o.dialPeer(ctx, network, destination)
-			// a TCP knock after the UDP ones failed opened it (this dial's or a parallel one's)
-			if err == nil && o.spa2TCP.CompareAndSwap(false, true) {
-				o.logger.InfoContext(ctx, "SPA v2 goes over TCP on this network (UDP did not open ", destination.AddrString(), ")")
-			}
+		if knockErr != nil {
+			continue
+		}
+		attempt = time.Now()
+		conn, err = o.dialPeer(ctx, network, destination)
+		// a knock over this carrier after the earlier ones failed opened it (this dial's or a parallel one's)
+		if err == nil && o.spa2Carrier.CompareAndSwap(int32(current), int32(carrier)) {
+			o.logger.InfoContext(ctx, "SPA v2 goes over ", carrier, " on this network (", current, " did not open ", destination.AddrString(), ")")
 		}
 	}
 	if err != nil {
@@ -443,24 +464,25 @@ func SPAv2Packet(options SPAv2Options, now time.Time) (uint16, []byte, error) {
 }
 
 // SendSPAv2 sends one packet for options to host at the port of the slot of
-// now, over UDP or as the first data of a TCP connection (spa-v2.md §10), and
+// now, over UDP or as the first data of a TCP connection, as a ClientHello or
+// bare (spa-v2.md §10, §10.1), and
 // waits 300 ms for the node to apply it (§7). For requests made outside an
 // outbound: the subscription and the remote API.
-func SendSPAv2(ctx context.Context, dialer *net.Dialer, host string, options SPAv2Options, tcp bool, now time.Time) error {
+func SendSPAv2(ctx context.Context, dialer *net.Dialer, host string, options SPAv2Options, carrier Carrier, now time.Time) error {
 	port, packet, err := SPAv2Packet(options, now)
 	if err != nil {
 		return err
 	}
-	network := "udp"
-	if tcp {
-		network = "tcp"
+	payload, err := carrierPayload(carrier, packet)
+	if err != nil {
+		return err
 	}
 	dialCtx, cancel := context.WithTimeout(ctx, spa2TCPTimeout)
-	conn, err := dialer.DialContext(dialCtx, network, net.JoinHostPort(host, strconv.Itoa(int(port))))
+	conn, err := dialer.DialContext(dialCtx, carrier.network(), net.JoinHostPort(host, strconv.Itoa(int(port))))
 	cancel()
 	if err == nil {
 		conn.SetWriteDeadline(time.Now().Add(spa2TCPTimeout))
-		conn.Write(packet)
+		conn.Write(payload)
 		conn.Close()
 	}
 	select {

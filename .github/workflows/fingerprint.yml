@@ -1,0 +1,54 @@
+# The core's "chrome" fingerprint (uTLS, REALITY, Yggdrasil tls://) is the ClientHello captured from a real Chrome
+# (sing-box fork, common/tls/chromehello). This job checks it against Google Chrome stable on the runner: the
+# core must send the embedded capture, and the browser must still send it. When Chrome changes, the job fails
+# and the new capture is in the "chrome-hello" artifact: it goes into the fork, the fork is pinned again.
+name: Chrome fingerprint
+
+on:
+  push:
+    paths:
+      - "buildScript/lib/core/get_source_env.sh"
+      - "libcore/chromecheck/**"
+      - ".github/workflows/fingerprint.yml"
+  schedule:
+    - cron: "41 3 * * 1"
+  workflow_dispatch:
+
+jobs:
+  chrome:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: libcore/go.mod
+          cache-dependency-path: libcore/go.sum
+
+      - name: Fetch sources
+        run: ./run lib core/init
+
+      - name: Chrome and a display
+        run: |
+          google-chrome --version
+          command -v xvfb-run || (sudo apt-get update -q && sudo apt-get install -y -q xvfb)
+          # a name, not an address: Chrome sends what it sends to sites
+          echo "127.0.0.1 niko-capture.example" | sudo tee -a /etc/hosts
+
+      - name: Core's chrome = embedded capture = Chrome stable
+        run: |
+          TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
+          (cd ../sing-box && go test -count=1 ./common/tls/chromehello)
+          cd libcore
+          CHROME_BIN="$(command -v google-chrome)" CHROME_HELLO_OUT="$RUNNER_TEMP/chrome-hello" \
+            xvfb-run -a go test -count=1 -v -ldflags=-checklinkname=0 -tags="$TAGS" -run TestChromeLive ./chromecheck
+
+      - name: The capture of this Chrome
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: chrome-hello
+          path: ${{ runner.temp }}/chrome-hello
+          if-no-files-found: ignore

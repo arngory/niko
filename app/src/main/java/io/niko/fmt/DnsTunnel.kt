@@ -15,6 +15,8 @@ data class DnsTunnel(
     val key: String,
     val method: Int = 2,
     val fixedUpstream: Boolean = false,
+    /** raycontrol dnsauth-v1 of a dnstt tunnel: "v1;<node id>;<service id>", "" off */
+    val auth: String = "",
 ) {
 
     companion object {
@@ -35,6 +37,7 @@ data class DnsTunnel(
             key = bean.dnsTunnelKey.orEmpty(),
             method = bean.dnsTunnelMethod ?: 2,
             fixedUpstream = bean.dnsTunnelFixedUpstream == true,
+            auth = bean.dnsTunnelAuth.orEmpty(),
         )
     }
 
@@ -71,8 +74,14 @@ data class DnsTunnel(
         }
     }
 
-    /** The core outbound. */
-    fun outboundOptions(protectPath: String?): Map<String, Any> = when (engine) {
+    /** The node id and the service id of dnsauth-v1, or null when it is off. */
+    val authNode: Pair<String, Int>?
+        get() = auth.split(';').takeIf { it.size == 3 && it[0] == "v1" }?.let { (_, node, svc) ->
+            svc.toIntOrNull()?.let { node to it }
+        }
+
+    /** The core outbound; [deviceKeyRef]: the reference of the node's device key (dnsauth-v1). */
+    fun outboundOptions(protectPath: String?, deviceKeyRef: String? = null): Map<String, Any> = when (engine) {
         MASTERDNSVPN -> buildMap {
             put("type", MASTERDNSVPN)
             put("domains", domains)
@@ -84,11 +93,16 @@ data class DnsTunnel(
             if (protectPath != null) put("protect_path", protectPath)
         }
 
-        else -> mapOf(
-            "type" to DNSTT,
-            "domain" to domain.trim(),
-            "public_key" to key.lowercase(),
-            "resolver" to resolver.trim(),
-        )
+        else -> buildMap {
+            put("type", DNSTT)
+            put("domain", domain.trim())
+            put("public_key", key.lowercase())
+            put("resolver", resolver.trim())
+            authNode?.let { (node, svc) ->
+                if (deviceKeyRef != null) {
+                    put("auth", mapOf("node_id" to node, "service_id" to svc, "device_key_ref" to deviceKeyRef))
+                }
+            }
+        }
     }
 }
