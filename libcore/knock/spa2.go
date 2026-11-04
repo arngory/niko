@@ -83,11 +83,16 @@ func (o SPAv2Options) CarrierOrder() []Carrier {
 }
 
 // TryCarriers is the order for a one-off request (the subscription, the API, the probe): the node's carriers first,
-// then the ones it did not list as a last resort. The list is the one of the last subscription, and only a
-// subscription brings a new one: a node that changed it must still be reachable when the old one fails.
+// then UDP or the ClientHello it did not list as a last resort. The list is the one of the last subscription, and
+// only a subscription brings a new one: a node that changed it must still be reachable when the old one fails.
+// Bare TCP never goes to a node whose list leaves it out: random bytes as the first data of a TCP connection are
+// the class of traffic censors drop on sight (RAYCONTROL.md §22.2.3), and such a node does not read it.
 func (o SPAv2Options) TryCarriers() []Carrier {
 	order := o.CarrierOrder()
 	for _, c := range Carriers {
+		if c == CarrierTCP && len(o.Carriers) > 0 {
+			continue
+		}
 		if !slices.Contains(order, c) {
 			order = append(order, c)
 		}

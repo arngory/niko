@@ -569,12 +569,20 @@ func TestSPA2CarrierOrder(t *testing.T) {
 			t.Errorf("%v: %v, want %v", c.names, got, c.want)
 		}
 	}
-	// one-off requests: the listed ones first, the others last (the list may be out of date)
-	if got := (SPAv2Options{Carriers: []string{"udp", "tls"}}).FetchCarriers(); !slices.Equal(got, []Carrier{CarrierUDP, CarrierUDP, CarrierTLS, CarrierTCP}) {
-		t.Errorf("fetch order %v", got)
-	}
-	if got := (SPAv2Options{Carriers: []string{"tcp"}}).TryCarriers(); !slices.Equal(got, []Carrier{CarrierTCP, CarrierUDP, CarrierTLS}) {
-		t.Errorf("try order %v", got)
+	// one-off requests: the listed ones first, then UDP or the ClientHello it left out (the list may be out of
+	// date); bare TCP only to a node that lists it, or sends no list
+	for _, c := range []struct {
+		names []string
+		want  []Carrier
+	}{
+		{[]string{"udp", "tls"}, []Carrier{CarrierUDP, CarrierUDP, CarrierTLS}},
+		{[]string{"udp"}, []Carrier{CarrierUDP, CarrierUDP, CarrierTLS}},
+		{[]string{"tcp"}, []Carrier{CarrierTCP, CarrierUDP, CarrierUDP, CarrierTLS}},
+		{nil, []Carrier{CarrierUDP, CarrierUDP, CarrierTLS, CarrierTCP}},
+	} {
+		if got := (SPAv2Options{Carriers: c.names}).FetchCarriers(); !slices.Equal(got, c.want) {
+			t.Errorf("fetch order for %v: %v, want %v", c.names, got, c.want)
+		}
 	}
 }
 
