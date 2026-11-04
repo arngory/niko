@@ -37,6 +37,8 @@ type node struct {
 	echoed   int64
 	dropUp   func(seq uint32) bool
 	links    int
+	noCount  bool
+	closed   int
 }
 
 func newNode(t *testing.T) *node {
@@ -98,6 +100,11 @@ func (n *node) openUDP(w http.ResponseWriter, r *http.Request) {
 func (n *node) closeUDP(w http.ResponseWriter, r *http.Request) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
+	n.closed++
+	if n.noCount {
+		http.Error(w, "gone", http.StatusInternalServerError)
+		return
+	}
 	json.NewEncoder(w).Encode(map[string]any{"received": n.received, "echoed": n.echoed, "dropped": 0, "bytes": 0})
 }
 
@@ -213,5 +220,36 @@ func TestWrongPin(t *testing.T) {
 	defer c.Close()
 	if _, err := c.Link(context.Background()); err == nil {
 		t.Fatal("a wrong pin must fail")
+	}
+}
+
+// the echo's window spent before the last datagram: the session is still closed and counted
+func TestEchoWindowSpent(t *testing.T) {
+	n := newNode(t)
+	c := NewClient(n.endpoint(t))
+	defer c.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+	r := c.Echo(ctx, 100, 64, 20*time.Millisecond)
+	if !r.OK || r.Sent >= 100 || !r.Counted || r.LostUp != 0 || r.Lost != r.Sent-r.Received {
+		t.Fatalf("%+v", r)
+	}
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if n.closed != 1 {
+		t.Fatalf("session closed %d times", n.closed)
+	}
+}
+
+// no count from the server: the loss stays whole, not all of it put on the way up
+func TestEchoNoCount(t *testing.T) {
+	n := newNode(t)
+	n.noCount = true
+	n.dropUp = func(seq uint32) bool { return seq == 2 }
+	c := NewClient(n.endpoint(t))
+	defer c.Close()
+	r := c.Echo(context.Background(), 5, 64, 5*time.Millisecond)
+	if !r.OK || r.Counted || r.Lost != 1 || r.LostUp != -1 || r.LostDown != -1 {
+		t.Fatalf("%+v", r)
 	}
 }

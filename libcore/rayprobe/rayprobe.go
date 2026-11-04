@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"libcore/probe"
@@ -197,7 +198,7 @@ func (c *Client) Up(ctx context.Context, n int64, window time.Duration) *UpResul
 			}
 		}
 	}
-	r.Sent, r.ClientMs = body.n, time.Since(start).Milliseconds()
+	r.Sent, r.ClientMs = body.n.Load(), time.Since(start).Milliseconds()
 	if err != nil {
 		var status *StatusError
 		if errors.As(err, &status) {
@@ -221,34 +222,39 @@ func (zeros) Read(b []byte) (int, error) {
 	return len(b), nil
 }
 
+// counter counts what the transport read of a request body; atomic, since the transport may still read it after
+// Do returned (a deadline, an early answer)
 type counter struct {
 	r io.Reader
-	n int64
+	n atomic.Int64
 }
 
 func (c *counter) Read(b []byte) (int, error) {
 	n, err := c.r.Read(b)
-	c.n += int64(n)
+	c.n.Add(int64(n))
 	return n, err
 }
 
 // EchoResult is Echo's (probe-v1.md §4): round trips by the client's clock, losses each way from the server's
 // count, reordering.
 type EchoResult struct {
-	OK        bool    `json:"ok"`
-	Error     string  `json:"error,omitempty"`
-	Status    int     `json:"status,omitempty"`
-	Size      int     `json:"size"`
-	Sent      int     `json:"sent"`
-	Received  int     `json:"received"`
-	Reordered int     `json:"reordered"`
-	LostUp    int     `json:"lost_up"`
-	LostDown  int     `json:"lost_down"`
-	RTTMinMs  float64 `json:"rtt_min_ms"`
-	RTTAvgMs  float64 `json:"rtt_avg_ms"`
-	RTTMaxMs  float64 `json:"rtt_max_ms"`
-	JitterMs  float64 `json:"jitter_ms"`
+	OK        bool   `json:"ok"`
+	Error     string `json:"error,omitempty"`
+	Status    int    `json:"status,omitempty"`
+	Size      int    `json:"size"`
+	Sent      int    `json:"sent"`
+	Received  int    `json:"received"`
+	Reordered int    `json:"reordered"`
+	// Lost is Sent - Received; LostUp and LostDown split it by the server's count, -1 when the count did not come
+	Lost     int     `json:"lost"`
+	LostUp   int     `json:"lost_up"`
+	LostDown int     `json:"lost_down"`
+	RTTMinMs float64 `json:"rtt_min_ms"`
+	RTTAvgMs float64 `json:"rtt_avg_ms"`
+	RTTMaxMs float64 `json:"rtt_max_ms"`
+	JitterMs float64 `json:"jitter_ms"`
 	// the server's count (GET /probe/v1/udp?token=): what it received and echoed
+	Counted        bool  `json:"counted"`
 	ServerReceived int64 `json:"server_received"`
 	ServerEchoed   int64 `json:"server_echoed"`
 }
@@ -286,8 +292,12 @@ func (c *Client) Echo(ctx context.Context, count, size int, interval time.Durati
 	}
 	r.exchange(ctx, conn, token, count, interval)
 	c.closeSession(ctx, session.Token, r)
-	r.LostUp = max(r.Sent-int(r.ServerReceived), 0)
-	r.LostDown = max(int(r.ServerEchoed)-r.Received, 0)
+	r.Lost = max(r.Sent-r.Received, 0)
+	r.LostUp, r.LostDown = -1, -1
+	if r.Counted {
+		r.LostUp = max(r.Sent-int(r.ServerReceived), 0)
+		r.LostDown = max(int(r.ServerEchoed)-r.Received, 0)
+	}
 	r.OK = r.Received > 0
 	if !r.OK && r.Error == "" {
 		r.Error = "no echo"
@@ -308,8 +318,12 @@ func (c *Client) closeSession(ctx context.Context, token string, r *EchoResult) 
 		Received int64 `json:"received"`
 		Echoed   int64 `json:"echoed"`
 	}
-	// the session closes by itself after its seconds: a lost count only leaves the losses unsplit
+	// a context of its own: the echo's window may be spent by now, and a session left open holds the device's one
+	// probe until its seconds run out. A lost count leaves the losses unsplit (Counted false)
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
 	if err := c.do(ctx, http.MethodGet, "/probe/v1/udp?token="+token, nil, &count); err == nil {
+		r.Counted = true
 		r.ServerReceived, r.ServerEchoed = count.Received, count.Echoed
 	}
 }
@@ -428,5 +442,5 @@ func (c *Client) Link(ctx context.Context) (json.RawMessage, error) {
 
 // String is a short line for logs.
 func (r *EchoResult) String() string {
-	return fmt.Sprintf("udp %d/%d, up lost %d, down lost %d, rtt %.1f ms", r.Received, r.Sent, r.LostUp, r.LostDown, r.RTTAvgMs)
+	return fmt.Sprintf("udp %d/%d, lost %d (up %d, down %d), rtt %.1f ms", r.Received, r.Sent, r.Lost, r.LostUp, r.LostDown, r.RTTAvgMs)
 }
