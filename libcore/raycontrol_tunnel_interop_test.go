@@ -115,7 +115,12 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 			}
 			time.Sleep(3 * time.Second)
 		}
-		probeThrough(t, kind+" "+p.Name, instance, b.Host, b.Sub.Port, b.Sub.Pin, b.DeviceID, b.SPA, probeInfo.Tunnel, p.Svc)
+		// a DNS tunnel carries kilobytes, not megabytes, in a window
+		down := int64(1 << 20)
+		if kind == "dnstt" || kind == "masterdns" {
+			down = 64 << 10
+		}
+		probeThrough(t, kind+" "+p.Name, instance, b.Host, b.Sub.Port, b.Sub.Pin, b.DeviceID, b.SPA, probeInfo.Tunnel, p.Svc, down)
 		tested[kind] = true
 		if strings.HasPrefix(kind, "hysteria2") {
 			hysteriaSvc = append(hysteriaSvc, p.Svc)
@@ -189,7 +194,7 @@ func profileConfig(t *testing.T, link, node, ca string, downMbps int) (kind, con
 	}
 	q := u.Query()
 	port, _ := strconv.Atoi(u.Port())
-	var endpoints []any
+	var endpoints, extra []any
 	var outbound map[string]any
 	switch {
 	case u.Scheme == "hysteria2":
@@ -231,6 +236,37 @@ func profileConfig(t *testing.T, link, node, ca string, downMbps int) (kind, con
 				},
 			},
 		}
+	case u.Scheme == "vless" && q.Get("niko-dns") != "":
+		// a DNS tunnel to the inner stage, as the app builds a raycontrol niko-dns profile: the resolver here is the
+		// node's own UDP 53 (the client picks one when the link leaves it empty)
+		spec := strings.Split(q.Get("niko-dns"), ";")
+		if len(spec) != 4 {
+			t.Fatalf("niko-dns %q", q.Get("niko-dns"))
+		}
+		var tunnel map[string]any
+		switch spec[0] {
+		case "dnstt":
+			kind = "dnstt"
+			tunnel = map[string]any{
+				"type": "dnstt", "domain": spec[2], "public_key": strings.ToLower(spec[3]),
+				"resolver": "udp://" + net.JoinHostPort(node, "53"),
+			}
+		case "masterdns":
+			kind = "masterdns"
+			method, _ := strconv.Atoi(spec[3])
+			tunnel = map[string]any{
+				"type": "masterdnsvpn", "domains": []string{spec[2]}, "resolvers": []string{net.JoinHostPort(node, "53")},
+				"encryption_method": method, "encryption_key": q.Get("niko-dnskey"), "mode": "tcp",
+			}
+		default:
+			return spec[0], ""
+		}
+		tunnel["tag"] = "tunnel"
+		extra = append(extra, tunnel)
+		outbound = map[string]any{
+			"type": "vless", "server": u.Hostname(), "server_port": port, "uuid": u.User.Username(),
+			"encryption": q.Get("encryption"), "detour": "tunnel",
+		}
 	case u.Scheme == "vless" && q.Get("niko-ygg") != "":
 		kind = "yggdrasil"
 		spec := strings.SplitN(q.Get("niko-ygg"), ";", 2)
@@ -256,7 +292,7 @@ func profileConfig(t *testing.T, link, node, ca string, downMbps int) (kind, con
 	outbound["tag"] = "proxy"
 	c := map[string]any{
 		"log":       map[string]any{"level": "warn"},
-		"outbounds": []any{outbound},
+		"outbounds": append([]any{outbound}, extra...),
 		"route":     map[string]any{"final": "proxy"},
 	}
 	if endpoints != nil {
@@ -270,11 +306,11 @@ func profileConfig(t *testing.T, link, node, ca string, downMbps int) (kind, con
 // (RaycontrolProbeTunnel): down with the server's trailer and the UDP echo; link and the summary are dropped there
 // (directly only).
 func probeThrough(t *testing.T, name string, instance *BoxInstance, host string, port int, pin, deviceID string,
-	spa knock.SPAv2Options, tunnel string, svc uint16) {
+	spa knock.SPAv2Options, tunnel string, svc uint16, down int64) {
 	t.Helper()
 	request, _ := json.Marshal(probeRequest{
 		Host: host, Port: port, Pin: pin, DeviceID: deviceID, SPA: spa, Tunnel: tunnel,
-		DownBytes: 1 << 20, EchoCount: 20, EchoSize: 1200, Link: true, WindowMs: 20000,
+		DownBytes: down, EchoCount: 20, EchoSize: 1200, Link: true, WindowMs: 30000,
 		Report: json.RawMessage(`{"v":1,"net":"wifi","obs":[]}`),
 	})
 	out, err := RaycontrolProbeTunnel(instance, string(request))
@@ -285,7 +321,7 @@ func probeThrough(t *testing.T, name string, instance *BoxInstance, host string,
 	if err = json.Unmarshal([]byte(out), &r); err != nil {
 		t.Fatal(err)
 	}
-	if r.Down == nil || !r.Down.OK || r.Down.Bytes != 1<<20 || r.Down.Server["bytes"] != float64(1<<20) {
+	if r.Down == nil || !r.Down.OK || r.Down.Bytes != down || r.Down.Server["bytes"] != float64(down) {
 		t.Fatalf("%s: down through the tunnel: %s", name, out)
 	}
 	if r.Echo == nil || !r.Echo.OK || r.Echo.Received == 0 {
