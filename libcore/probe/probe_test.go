@@ -3,9 +3,9 @@ package probe
 import (
 	"context"
 	"net"
-	"os"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"testing"

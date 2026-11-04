@@ -66,14 +66,24 @@ type Profile struct {
 	Next *Next  `json:"next,omitempty"`
 }
 
+// ProbeInfo is the payload's `probe`: the node answers channel probes (probe-v1.md §1), directly and through the
+// tunnels of TunnelSvc at the name Tunnel.
+type ProbeInfo struct {
+	V         int      `json:"v"`
+	UDP       bool     `json:"udp"`
+	Tunnel    string   `json:"tunnel,omitempty"`
+	TunnelSvc []uint16 `json:"tunnel_svc,omitempty"`
+}
+
 type Payload struct {
-	V        int       `json:"v"`
-	NodeID   string    `json:"node_id"`
-	Seq      uint64    `json:"seq"`
-	Time     int64     `json:"time"`
-	Issued   int64     `json:"issued"`
-	Expires  int64     `json:"expires"`
-	Profiles []Profile `json:"profiles"`
+	V        int        `json:"v"`
+	NodeID   string     `json:"node_id"`
+	Seq      uint64     `json:"seq"`
+	Time     int64      `json:"time"`
+	Issued   int64      `json:"issued"`
+	Expires  int64      `json:"expires"`
+	Profiles []Profile  `json:"profiles"`
+	Probe    *ProbeInfo `json:"probe,omitempty"`
 }
 
 type Result struct {
@@ -154,8 +164,25 @@ func (r *Request) knock(ctx context.Context, tcp bool, now time.Time) error {
 var errPin = errors.New("raycontrol subscription: the server key does not match the pin")
 
 func (r *Request) httpClient(timeout time.Duration) *http.Client {
-	pin := r.Pin
-	tlsConfig := &tls.Config{
+	serverName := ""
+	if net.ParseIP(r.Host) == nil {
+		serverName = r.Host
+	}
+	return &http.Client{
+		Timeout: timeout,
+		Transport: &http.Transport{
+			DialContext:       r.dialer().DialContext,
+			TLSClientConfig:   TLSConfig(serverName, r.Pin),
+			ForceAttemptHTTP2: true,
+			Proxy:             nil,
+		},
+	}
+}
+
+// TLSConfig is the TLS of the node's subscription endpoint (subscription-v1.md §1), which the channel probe shares
+// (probe-v1.md §1): TLS 1.3, X25519MLKEM768 only, the self-signed certificate checked by its key pin.
+func TLSConfig(serverName, pin string) *tls.Config {
+	return &tls.Config{
 		MinVersion:       tls.VersionTLS13,
 		CurvePreferences: []tls.CurveID{tls.X25519MLKEM768},
 		// the certificate is self-signed; it is checked by its key pin below
@@ -174,19 +201,14 @@ func (r *Request) httpClient(timeout time.Duration) *http.Client {
 			}
 			return nil
 		},
+		ServerName: serverName,
 	}
-	if net.ParseIP(r.Host) == nil {
-		tlsConfig.ServerName = r.Host
-	}
-	return &http.Client{
-		Timeout: timeout,
-		Transport: &http.Transport{
-			DialContext:       r.dialer().DialContext,
-			TLSClientConfig:   tlsConfig,
-			ForceAttemptHTTP2: true,
-			Proxy:             nil,
-		},
-	}
+}
+
+// Authorization is the device's RC1 token for the minute of now (subscription-v1.md §2), the value of the
+// Authorization header next to X-Raycontrol-Device.
+func Authorization(deviceKey []byte, now time.Time) string {
+	return authToken(deviceKey, now.Unix()/60)
 }
 
 func authToken(deviceKey []byte, minute int64) string {

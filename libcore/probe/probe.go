@@ -53,6 +53,8 @@ type TCPResult struct {
 	Kbps       int64 `json:"kbps"`
 	// StalledAt is the byte count when no byte came for StallMs; -1 when the transfer did not stall
 	StalledAt int64 `json:"stalled_at"`
+	// Trailer holds the trailers of a body read to its end (raycontrol probe-v1: Probe-Result)
+	Trailer map[string]string `json:"trailer,omitempty"`
 }
 
 // UDPResult of the DNS round trips.
@@ -96,6 +98,17 @@ func (o Options) stall() time.Duration {
 
 // TCP downloads o.TCPURL with client (its transport dials through the tunnel).
 func TCP(ctx context.Context, client *http.Client, o Options) *TCPResult {
+	req, err := http.NewRequest(http.MethodGet, o.TCPURL, nil)
+	if err != nil {
+		return &TCPResult{StalledAt: -1, Error: err.Error()}
+	}
+	req.Header.Set("Cache-Control", "no-cache")
+	return Download(ctx, client, req, o)
+}
+
+// Download sends req with client and reads the answer like TCP: up to o.TCPBytes (a body that ends earlier ends
+// the read; its trailers come in Trailer), within o.WindowMs, a stall after o.StallMs.
+func Download(ctx context.Context, client *http.Client, req *http.Request, o Options) *TCPResult {
 	r := &TCPResult{StalledAt: -1}
 	limit := o.TCPBytes
 	if limit <= 0 {
@@ -114,12 +127,7 @@ func TCP(ctx context.Context, client *http.Client, o Options) *TCPResult {
 			firstByte.Store(since())
 		},
 	}
-	req, err := http.NewRequestWithContext(httptrace.WithClientTrace(ctx, trace), http.MethodGet, o.TCPURL, nil)
-	if err != nil {
-		r.Error = err.Error()
-		return r
-	}
-	req.Header.Set("Cache-Control", "no-cache")
+	req = req.WithContext(httptrace.WithClientTrace(ctx, trace))
 	resp, err := client.Do(req)
 	if err != nil {
 		r.Error = err.Error()
@@ -135,6 +143,7 @@ func TCP(ctx context.Context, client *http.Client, o Options) *TCPResult {
 	// the body is read in a goroutine; this one watches progress, the window and the limit
 	var read atomic.Int64
 	var lastRead atomic.Int64
+	var eof atomic.Bool
 	lastRead.Store(time.Now().UnixNano())
 	done := make(chan error, 1)
 	go func() {
@@ -150,6 +159,7 @@ func TCP(ctx context.Context, client *http.Client, o Options) *TCPResult {
 			}
 			if err != nil {
 				if errors.Is(err, io.EOF) {
+					eof.Store(true)
 					err = nil
 				}
 				done <- err
@@ -178,6 +188,13 @@ func TCP(ctx context.Context, client *http.Client, o Options) *TCPResult {
 		}
 	}
 	cancel()
+	// the trailers are read with the end of the body
+	if eof.Load() && len(resp.Trailer) > 0 {
+		r.Trailer = map[string]string{}
+		for k := range resp.Trailer {
+			r.Trailer[k] = resp.Trailer.Get(k)
+		}
+	}
 	end := time.Unix(0, lastRead.Load())
 	r.Bytes = read.Load()
 	r.DurationMs = max(end.Sub(start).Milliseconds()-r.FirstByteMs, 0)
