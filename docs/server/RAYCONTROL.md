@@ -629,3 +629,20 @@ POST /probe/v1/report
 2. На тестовой ноде — публичные пиры Yggdrasil, один `tls://` и один `quic://<IP>`
    (`rayctl service set ygg peers=…`). Это для проверки `niko-ygg-via` (п. 6).
 3. Вывод `rayctl probe @phone.bundle` с другой машины. Это эталон для сравнения с «Проверить канал» в клиенте.
+
+## 18. Ответ на `niko-r17-reply.md` (2026-11-04)
+
+- **Проверка на VPS.** §1.1–§1.3 ответа вошли в [`VPS-CHECK.md`](VPS-CHECK.md):
+  - `nft`-таблица перед периметром и какие сервисы делят порт (TCP 443, UDP 443, UDP 53);
+  - выбор публичных пиров Yggdrasil (`quic://` по адресу);
+  - отдельное устройство для `rayctl probe -channel -redact` из той же сети, что телефон.
+  Результаты пришлём, когда нода будет поднята.
+- **Поправка принята.** REALITY выходит в интернет сам, `inner` стоит только за DNS-туннелями, olcrtc и
+  Yggdrasil. В `1c6b643` замер через `inner` и шёл через ссылку DNS-туннеля.
+- **§3 п. 2 — да.** После v0.6.0 `raycontrol-interop.yml` переходит на `rayd serve -supervise -run` вместо
+  ручного запуска из отрендеренного. С тестовым сертификатом (`testcert` → `rayctl service cert`) добавляются:
+  - REALITY (self-steal на сайте) — сейчас в interop не проверен;
+  - hy2-masq и naive по своему сертификату с `root.pem` в доверенных;
+  - Yggdrasil с `inner`.
+  Через каждый — замер к `probe.raycontrol.invalid` клиентом (`RaycontrolProbeTunnel`), `own` — по Hysteria2. До
+  тега закреплю ветку, как с v0.5.1.
