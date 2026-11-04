@@ -13,6 +13,7 @@ on:
       - ".github/scripts/netlog-errors.py"
       - "libcore/rayapi/**"
       - "libcore/rayprobe/**"
+      - "libcore/raysub/**"
       - "libcore/probe/**"
       - "libcore/knock/**"
       - "buildScript/lib/core/get_source_env.sh"
