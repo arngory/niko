@@ -569,8 +569,12 @@ func TestSPA2CarrierOrder(t *testing.T) {
 			t.Errorf("%v: %v, want %v", c.names, got, c.want)
 		}
 	}
-	if got := (SPAv2Options{Carriers: []string{"udp", "tls"}}).FetchCarriers(); !slices.Equal(got, []Carrier{CarrierUDP, CarrierUDP, CarrierTLS}) {
+	// one-off requests: the listed ones first, the others last (the list may be out of date)
+	if got := (SPAv2Options{Carriers: []string{"udp", "tls"}}).FetchCarriers(); !slices.Equal(got, []Carrier{CarrierUDP, CarrierUDP, CarrierTLS, CarrierTCP}) {
 		t.Errorf("fetch order %v", got)
+	}
+	if got := (SPAv2Options{Carriers: []string{"tcp"}}).TryCarriers(); !slices.Equal(got, []Carrier{CarrierTCP, CarrierUDP, CarrierTLS}) {
+		t.Errorf("try order %v", got)
 	}
 }
 

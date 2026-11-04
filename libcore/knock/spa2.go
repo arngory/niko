@@ -60,7 +60,8 @@ type SPAv2Options struct {
 	// TTL is the access time asked for, seconds; 0 = the server default (10 min)
 	TTL uint16 `json:"ttl_s,omitempty"`
 	// Carriers the node takes, in the order to try them (the subscription's spa.carriers, raycontrol v0.10.1):
-	// "udp", "tls", "tcp"; none = an older node, all three in that order
+	// "udp", "tls", "tcp"; none = an older node, all three in that order. The outbound tries only these; one-off
+	// requests try the others last (TryCarriers)
 	Carriers []string `json:"carriers,omitempty"`
 }
 
@@ -81,11 +82,24 @@ func (o SPAv2Options) CarrierOrder() []Carrier {
 	return order
 }
 
-// FetchCarriers is the order of the knocks before a one-off request (the subscription, the API): UDP twice, as the
-// slot may turn, then the others the node takes.
+// TryCarriers is the order for a one-off request (the subscription, the API, the probe): the node's carriers first,
+// then the ones it did not list as a last resort. The list is the one of the last subscription, and only a
+// subscription brings a new one: a node that changed it must still be reachable when the old one fails.
+func (o SPAv2Options) TryCarriers() []Carrier {
+	order := o.CarrierOrder()
+	for _, c := range Carriers {
+		if !slices.Contains(order, c) {
+			order = append(order, c)
+		}
+	}
+	return order
+}
+
+// FetchCarriers is the order of the knocks before a one-off request: TryCarriers, with UDP twice, as the slot may
+// turn.
 func (o SPAv2Options) FetchCarriers() []Carrier {
 	var out []Carrier
-	for _, c := range o.CarrierOrder() {
+	for _, c := range o.TryCarriers() {
 		out = append(out, c)
 		if c == CarrierUDP {
 			out = append(out, c)
