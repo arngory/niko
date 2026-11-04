@@ -291,7 +291,12 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                     !path.udpProbed -> context.getString(R.string.raycontrol_direct_spa, path.spaCarrier.uppercase())
                     !path.udpMeasured -> context.getString(R.string.raycontrol_direct_spa, path.spaCarrier.uppercase()) +
                         context.getString(
-                            if (path.udpStatus == 429) R.string.raycontrol_direct_udp_busy else R.string.raycontrol_direct_udp_unmeasured
+                            when {
+                                // a Retry-After past a probe's half minute: the day's probe volume is spent
+                                path.udpStatus == 429 && path.udpRetryAfter > 30 -> R.string.raycontrol_direct_udp_quota
+                                path.udpStatus == 429 -> R.string.raycontrol_direct_udp_busy
+                                else -> R.string.raycontrol_direct_udp_unmeasured
+                            }
                         )
                     path.udpMtu == 0 -> context.getString(R.string.raycontrol_direct_no_udp, path.spaCarrier.uppercase())
                     else -> context.getString(R.string.raycontrol_direct_mtu, path.spaCarrier.uppercase(), path.udpMtu) +

@@ -553,6 +553,7 @@
     <string name="raycontrol_report_show">Сводка и подсказки</string>
     <string name="raycontrol_report_empty">Отправлять нечего: за сутки в этой сети не было замеров</string>
     <string name="raycontrol_direct_failed">Напрямую: замер не удался (%1$s)</string>
+    <string name="raycontrol_direct_udp_quota">; UDP не измерен: суточный объём замеров устройства исчерпан (до конца суток UTC)</string>
     <string name="raycontrol_direct_udp_busy">; UDP не измерен: идёт другой замер этого устройства, повторите позже</string>
     <string name="raycontrol_direct_udp_unmeasured">; UDP измерить не удалось</string>
     <string name="raycontrol_direct_none">Напрямую: нода не отвечает (SPA по UDP и TCP)</string>

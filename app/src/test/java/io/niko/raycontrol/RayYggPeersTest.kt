@@ -25,6 +25,9 @@ class RayYggPeersTest {
             listOf("tls://b.example:443", "tcp://e.example:9001", "ws://f.example:80"),
             RayYggPeers.pick(withPlain.filter { it.uri.startsWith("tcp") || it.uri.startsWith("ws:") || it.uri == "tls://b.example:443" })
         )
+        // socks is plain too: after the encrypted ones
+        val withSocks = checks + YggPeerCheck("socks://g.example:1080/h.example:443", up = true, latencyMs = 1)
+        assertEquals(listOf("tls://b.example:443", "wss://c.example:443", "tls://a.example:443"), RayYggPeers.pick(withSocks))
         // none up: none taken (the public peers would not help on this network)
         assertEquals(emptyList<String>(), RayYggPeers.pick(checks.map { it.copy(up = false) }))
     }

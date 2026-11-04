@@ -244,13 +244,15 @@ func (c *counter) Read(b []byte) (int, error) {
 // EchoResult is Echo's (probe-v1.md §4): round trips by the client's clock, losses each way from the server's
 // count, reordering.
 type EchoResult struct {
-	OK        bool   `json:"ok"`
-	Error     string `json:"error,omitempty"`
-	Status    int    `json:"status,omitempty"`
-	Size      int    `json:"size"`
-	Sent      int    `json:"sent"`
-	Received  int    `json:"received"`
-	Reordered int    `json:"reordered"`
+	OK     bool   `json:"ok"`
+	Error  string `json:"error,omitempty"`
+	Status int    `json:"status,omitempty"`
+	// with a 429: seconds until the node takes a probe again (to the end of the UTC day when the volume is spent)
+	RetryAfter int `json:"retry_after,omitempty"`
+	Size       int `json:"size"`
+	Sent       int `json:"sent"`
+	Received   int `json:"received"`
+	Reordered  int `json:"reordered"`
 	// Lost is Sent - Received; LostUp and LostDown split it by the server's count, -1 when the count did not come
 	Lost     int     `json:"lost"`
 	LostUp   int     `json:"lost_up"`
@@ -314,7 +316,7 @@ func (c *Client) Echo(ctx context.Context, count, size int, interval time.Durati
 func (r *EchoResult) fail(err error) {
 	var status *StatusError
 	if errors.As(err, &status) {
-		r.Status = status.Status
+		r.Status, r.RetryAfter = status.Status, status.RetryAfter
 	}
 	r.Error = err.Error()
 }
@@ -446,13 +448,15 @@ func (c *Client) Link(ctx context.Context) (json.RawMessage, error) {
 	return raw, nil
 }
 
-// MTUStep is one datagram size of PathMTU: how many of its echoes went and came back; Status is the node's answer
-// when the session did not open (429: another probe of the device runs). Sent 0: the size was not measured.
+// MTUStep is one datagram size of PathMTU: how many of its echoes went and came back; Status and RetryAfter are the
+// node's answer when the session did not open (429: another probe of the device runs, or with a long RetryAfter the
+// day's volume is spent). Sent 0: the size was not measured, and the sizes before it are a lower bound only.
 type MTUStep struct {
-	Size     int `json:"size"`
-	Sent     int `json:"sent"`
-	Received int `json:"received"`
-	Status   int `json:"status,omitempty"`
+	Size       int `json:"size"`
+	Sent       int `json:"sent"`
+	Received   int `json:"received"`
+	Status     int `json:"status,omitempty"`
+	RetryAfter int `json:"retry_after,omitempty"`
 }
 
 // PathMTU sends a few echoes of each of sizes (UDP payload bytes, 36 at least), the smallest first, each within
@@ -472,7 +476,7 @@ func (c *Client) PathMTU(ctx context.Context, sizes []int, count int, perSize ti
 		sizeCtx, cancel := context.WithTimeout(ctx, perSize)
 		r := c.Echo(sizeCtx, count, max(size, echoHeader), 20*time.Millisecond)
 		cancel()
-		steps = append(steps, MTUStep{Size: r.Size, Sent: r.Sent, Received: r.Received, Status: r.Status})
+		steps = append(steps, MTUStep{Size: r.Size, Sent: r.Sent, Received: r.Received, Status: r.Status, RetryAfter: r.RetryAfter})
 		if r.Sent == 0 || r.Received == 0 {
 			break
 		}

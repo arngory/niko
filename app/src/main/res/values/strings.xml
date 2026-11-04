@@ -641,6 +641,7 @@
     <string name="raycontrol_report_show">The summary and hints</string>
     <string name="raycontrol_report_empty">Nothing to send: no probes on this network in the last day</string>
     <string name="raycontrol_direct_failed">Directly: could not measure (%1$s)</string>
+    <string name="raycontrol_direct_udp_quota">; UDP not measured: the day\'s probe volume of this device is spent (until the end of the UTC day)</string>
     <string name="raycontrol_direct_udp_busy">; UDP not measured: another probe of this device is running, try again</string>
     <string name="raycontrol_direct_udp_unmeasured">; UDP could not be measured</string>
     <string name="raycontrol_direct_none">Directly: the node does not answer (SPA over UDP and TCP)</string>
