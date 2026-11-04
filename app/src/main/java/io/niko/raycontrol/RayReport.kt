@@ -71,7 +71,8 @@ object RayReport {
                         addProperty("svc", svc)
                         addProperty("result", result(s))
                         stallKib(s)?.let { addProperty("tcp_stall_kib", it) }
-                        addProperty("udp", udpBucket(s))
+                        // not measured: no field (§14.3), not "none"
+                        if (s.udpMeasured) addProperty("udp", udpBucket(s))
                         if (s.tcpOk) addProperty("mbps", mbpsBucket(s))
                     })
                 }

@@ -622,7 +622,7 @@
     <string name="yggdrasil_peers_help">One per line: tls://host:port, tcp://, quic://, ws://, wss://. A raycontrol node: tls://address:443?sni=its-yggdrasil-name. Public peers: github.com/yggdrasil-network/public-peers</string>
     <string name="raycontrol">raycontrol nodes</string>
     <string name="raycontrol_auto_switch">Switch node profiles automatically</string>
-    <string name="raycontrol_auto_switch_summary">When a node\'s profile stops working on this network, switch to the node\'s best working profile. Results are kept per network on this device</string>
+    <string name="raycontrol_auto_switch_summary">When a node\'s profile stops working on this network, switch to the node\'s best working profile; a Yggdrasil profile first tries the node\'s public peers there. Results are kept per network on this device</string>
     <string name="raycontrol_channel_check">Check the channel</string>
     <string name="raycontrol_channel_title">Channel to %1$s</string>
     <string name="raycontrol_channel_checking">Checking each profile on this network (up to 20 s each)…</string>

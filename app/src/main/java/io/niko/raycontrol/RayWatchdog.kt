@@ -264,13 +264,14 @@ object RayWatchdog {
         // refresh may have changed the node's rows: its current record and the running row's key
         val current = RayNodes.get(nodeId) ?: return
         val currentKey = current.profileIds?.entries?.firstOrNull { it.value == DataStore.currentProfile }?.key ?: return
+        // both change the path on their own: only with automatic switching on
+        if (!DataStore.raycontrolAutoSwitch) return
         // a Yggdrasil profile tries the node's public peers once on this network before another profile (R4-18)
         if (RayChannel.tryYggVia(current, currentKey)) {
             Logs.i("raycontrol ${current.host}: the direct Yggdrasil peer fails here, adding the node's public peers")
             restart(currentCoroutineContext()[Job])
             return
         }
-        if (!DataStore.raycontrolAutoSwitch) return
         switchProfile(current, currentKey)
     }
 

@@ -54,11 +54,13 @@ class YggProfileTest {
         val via1 = java.net.URLEncoder.encode("tls://ygg.example.net:443", "UTF-8")
         val via2 = java.net.URLEncoder.encode("quic://[2001:db8::1]:8443?key=" + "cd".repeat(32), "UTF-8")
         val bad = java.net.URLEncoder.encode("http://evil.example/", "UTF-8")
+        // a quic:// peer by name: yggdrasil-go would resolve it past the core's DNS
+        val quicName = java.net.URLEncoder.encode("quic://ygg.example.net:443", "UTF-8")
         val bean = vless()
         bean.parseDuckSoft(
-            "https://uuid@[200:1234::1]:31337?type=raw&niko-ygg=$ygg&niko-ygg-via=$via1&niko-ygg-via=$via2&niko-ygg-via=$bad&niko-ygg-via=$via1".toHttpUrl()
+            "https://uuid@[200:1234::1]:31337?type=raw&niko-ygg=$ygg&niko-ygg-via=$via1&niko-ygg-via=$via2&niko-ygg-via=$bad&niko-ygg-via=$quicName&niko-ygg-via=$via1".toHttpUrl()
         )
-        // repeated, kept in order, duplicates and unknown schemes dropped
+        // repeated, kept in order, duplicates, unknown schemes and quic:// names dropped
         assertEquals(listOf("tls://ygg.example.net:443", "quic://[2001:db8::1]:8443?key=" + "cd".repeat(32)), bean.yggVia.lines())
         assertEquals(bean.yggVia, KryoConverters.deserialize(vless(), KryoConverters.serialize(bean)).yggVia)
         // without the parameter: the direct path only

@@ -206,6 +206,8 @@ fun buildConfig(
     // the mesh nodes of raycontrol Yggdrasil profiles, one per device key (key to tag and peer): nothing comes in
     // through them; the service's result names their keys
     val yggProfileEndpoints = mutableMapOf<String, Pair<String, String>>()
+    // per node: whether a mesh node of its Yggdrasil profiles runs with the node's public peers
+    val yggViaNotes = mutableMapOf<String, Boolean>()
     return MyOptions().apply {
         if (!forTest && DataStore.enableClashAPI) experimental = ExperimentalOptions().apply {
             clash_api = ClashAPIOptions().apply {
@@ -658,8 +660,13 @@ fun buildConfig(
                     val via = bean.yggVia.orEmpty().lines().map { it.trim() }.filter { it.isNotEmpty() }
                     val viaOn = !forTest && via.isNotEmpty() && rayNode != null &&
                         RayChannel.yggViaActive(rayNode.spa.nodeId, RayChannel.network())
-                    // what this core runs with: the watchdog adds the peers when the network wants them
-                    if (!forTest && rayNode != null) RayChannel.noteYggVia(rayNode.spa.nodeId, viaOn)
+                    // what this core runs with, per node (any of its mesh nodes): the watchdog adds the peers when
+                    // the network wants them
+                    if (!forTest && rayNode != null) {
+                        val on = yggViaNotes[rayNode.spa.nodeId] == true || viaOn
+                        yggViaNotes[rayNode.spa.nodeId] = on
+                        RayChannel.noteYggVia(rayNode.spa.nodeId, on)
+                    }
                     // only the node gets its SPA: the knock outbound knocks at the node's own names (and what they
                     // resolve to) and dials anything else plainly, the public peers among them, by name or address
                     knockHolder?._hack_config_map?.set(
@@ -678,6 +685,11 @@ fun buildConfig(
                             })
                         } to yggPeer
                     }.first
+                    // a key an earlier profile started the mesh node with: this profile's public peers join it
+                    if (viaOn) endpoints.filterIsInstance<Outbound>().firstOrNull { it.tag == yggTag }?.let { endpoint ->
+                        val peers = (endpoint._hack_config_map["peers"] as? List<*>).orEmpty().map { it.toString() }
+                        endpoint._hack_config_map["peers"] = (peers + via).distinct()
+                    }
                     currentOutbound._hack_config_map.remove("domain_resolver")
                     currentOutbound._hack_config_map["detour"] = yggTag
                     pastDetourHolder = null

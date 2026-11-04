@@ -36,6 +36,8 @@ data class ChannelScore(
     val udpLossPct: Double = 0.0,
     val udpRttMs: Double = 0.0,
     val udpError: String? = null,
+    // UDP was probed at all (not: a TCP-only node service, a failover's record of a failed profile)
+    val udpMeasured: Boolean = false,
 ) {
 
     /**
@@ -62,6 +64,7 @@ data class ChannelScore(
         addProperty("udp_loss_pct", udpLossPct)
         addProperty("udp_rtt_ms", udpRttMs)
         udpError?.let { addProperty("udp_error", it) }
+        addProperty("udp_measured", udpMeasured)
     }
 
     companion object {
@@ -76,7 +79,14 @@ data class ChannelScore(
             udpLossPct = o.get("udp_loss_pct")?.asDouble ?: 0.0,
             udpRttMs = o.get("udp_rtt_ms")?.asDouble ?: 0.0,
             udpError = o.get("udp_error")?.asString,
+            // records before 1.21.0: what they say about UDP
+            udpMeasured = o.get("udp_measured")?.asBoolean ?: (o.get("udp_ok")?.asBoolean == true ||
+                (o.get("udp_loss_pct")?.asDouble ?: 0.0) > 0 ||
+                o.get("udp_error")?.asString.let { it != null && it != NO_ECHO }),
         )
+
+        // a node service that answers no UDP echo
+        private const val NO_ECHO = "no UDP echo at this node"
 
         /**
          * libcore RaycontrolProbeTunnel's result (probe-v1 through the profile's tunnel), or null when the node's one
@@ -98,7 +108,8 @@ data class ChannelScore(
                 udpOk = echo?.get("ok")?.asBoolean ?: false,
                 udpLossPct = if (sent > 0) (echo?.get("lost")?.asInt ?: 0) * 100.0 / sent else 0.0,
                 udpRttMs = echo?.get("rtt_avg_ms")?.asDouble ?: 0.0,
-                udpError = echo?.get("error")?.asString ?: if (echo == null) "no UDP echo at this node" else null,
+                udpError = echo?.get("error")?.asString ?: if (echo == null) NO_ECHO else null,
+                udpMeasured = echo != null,
             )
         }
 
@@ -118,6 +129,7 @@ data class ChannelScore(
                 udpLossPct = udp?.get("loss_pct")?.asDouble ?: 0.0,
                 udpRttMs = udp?.get("rtt_avg_ms")?.asDouble ?: 0.0,
                 udpError = udp?.get("error")?.asString,
+                udpMeasured = udp != null,
             )
         }
     }

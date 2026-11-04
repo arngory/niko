@@ -534,7 +534,7 @@
     <string name="yggdrasil_peers_help">По одному в строке: tls://host:port, tcp://, quic://, ws://, wss://. Нода raycontrol: tls://адрес:443?sni=её-имя-yggdrasil. Публичные пиры: github.com/yggdrasil-network/public-peers</string>
     <string name="raycontrol">Ноды raycontrol</string>
     <string name="raycontrol_auto_switch">Переключать профили ноды</string>
-    <string name="raycontrol_auto_switch_summary">Если профиль ноды перестал работать в этой сети, перейти на её лучший рабочий профиль. Результаты хранятся по сетям на этом устройстве</string>
+    <string name="raycontrol_auto_switch_summary">Если профиль ноды перестал работать в этой сети, перейти на её лучший рабочий профиль; профиль Yggdrasil сначала пробует там публичные пиры ноды. Результаты хранятся по сетям на этом устройстве</string>
     <string name="raycontrol_channel_check">Проверить канал</string>
     <string name="raycontrol_channel_title">Канал до %1$s</string>
     <string name="raycontrol_channel_checking">Проверяю каждый профиль в этой сети (до 20 с на каждый)…</string>

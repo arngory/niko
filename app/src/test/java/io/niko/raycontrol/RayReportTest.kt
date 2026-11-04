@@ -8,7 +8,24 @@ import org.junit.Test
 class RayReportTest {
 
     private fun score(tcpOk: Boolean = true, kbps: Long = 8000, stalledAt: Long = -1, udpOk: Boolean = true, loss: Double = 0.0) =
-        ChannelScore(0, tcpOk = tcpOk, kbps = kbps, stalledAt = stalledAt, udpOk = udpOk, udpLossPct = loss)
+        ChannelScore(0, tcpOk = tcpOk, kbps = kbps, stalledAt = stalledAt, udpOk = udpOk, udpLossPct = loss, udpMeasured = true)
+
+    @Test
+    fun udpMeasured() {
+        // a node service without UDP echo: not measured; one whose echo got no answer: measured, blocked
+        val tcpOnly = ChannelScore.fromNodeProbe(0, """{"down":{"ok":true,"kbps":8000}}""")!!
+        val blocked = ChannelScore.fromNodeProbe(0, """{"down":{"ok":true,"kbps":8000},"echo":{"ok":false,"sent":50,"lost":50}}""")!!
+        assertEquals(false, tcpOnly.udpMeasured)
+        assertEquals(true, blocked.udpMeasured)
+        assertEquals("none", RayReport.udpBucket(blocked))
+        // the stored form keeps it; records from before keep what they said
+        assertEquals(false, ChannelScore.fromJson(tcpOnly.toJson()).udpMeasured)
+        assertEquals(true, ChannelScore.fromJson(blocked.toJson()).udpMeasured)
+        val old = blocked.toJson().apply { remove("udp_measured") }
+        assertEquals(true, ChannelScore.fromJson(old).udpMeasured)
+        val oldTcpOnly = tcpOnly.toJson().apply { remove("udp_measured") }
+        assertEquals(false, ChannelScore.fromJson(oldTcpOnly).udpMeasured)
+    }
 
     @Test
     fun result() {

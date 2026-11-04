@@ -1,6 +1,7 @@
 package io.niko.fmt
 
 import io.niko.database.DataStore
+import io.niko.ktx.isIpAddress
 
 /**
  * Niko parameters of a share link (raycontrol subscription-v1.md §4):
@@ -49,9 +50,13 @@ fun AbstractBean.applyNikoParams(param: (String) -> String?, params: (String) ->
         val (peer, seed) = parseYggParam(spec)
         yggPeer = peer
         yggKey = seed
-        // the node's public peers (R4-18): a way through the public mesh when the direct peer does not connect
+        // the node's public peers (R4-18): a way through the public mesh when the direct peer does not connect.
+        // A quic:// peer only by address: yggdrasil-go looks its name up with the system resolver, past the core's
+        // DNS (on the network's DNS in the clear, or into a tunnel that is down right then)
         yggVia = params("niko-ygg-via").map { it.trim() }.filter { via ->
-            YGG_VIA_SCHEMES.any { via.startsWith("$it://") } && runCatching { java.net.URI(via).host }.getOrNull() != null
+            val host = runCatching { java.net.URI(via).host }.getOrNull()?.trim('[', ']')
+            YGG_VIA_SCHEMES.any { via.startsWith("$it://") } && host != null &&
+                (!via.startsWith("quic://") || host.isIpAddress())
         }.distinct().joinToString("\n")
     }
 }
