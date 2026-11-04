@@ -78,6 +78,30 @@ data class ChannelScore(
             udpError = o.get("udp_error")?.asString,
         )
 
+        /**
+         * libcore RaycontrolProbeTunnel's result (probe-v1 through the profile's tunnel), or null when the node's one
+         * probe slot was busy (429): not a result for the profile.
+         */
+        fun fromNodeProbe(at: Long, json: String): ChannelScore? {
+            val o = JsonParser.parseString(json).asJsonObject
+            val down = o.getAsJsonObject("down")
+            val echo = o.getAsJsonObject("echo")
+            if (down?.get("status")?.asInt == 429 || echo?.get("status")?.asInt == 429) return null
+            val sent = echo?.get("sent")?.asInt ?: 0
+            return ChannelScore(
+                at = at,
+                tcpOk = down?.get("ok")?.asBoolean ?: false,
+                firstByteMs = down?.get("first_byte_ms")?.asLong ?: 0,
+                kbps = down?.get("kbps")?.asLong ?: 0,
+                stalledAt = down?.get("stalled_at")?.asLong ?: -1,
+                tcpError = down?.get("error")?.asString,
+                udpOk = echo?.get("ok")?.asBoolean ?: false,
+                udpLossPct = if (sent > 0) (echo?.get("lost")?.asInt ?: 0) * 100.0 / sent else 0.0,
+                udpRttMs = echo?.get("rtt_avg_ms")?.asDouble ?: 0.0,
+                udpError = echo?.get("error")?.asString ?: if (echo == null) "no UDP echo at this node" else null,
+            )
+        }
+
         /** libcore ChannelProbe's result. */
         fun fromProbe(at: Long, json: String): ChannelScore {
             val o = JsonParser.parseString(json).asJsonObject
@@ -135,11 +159,22 @@ object RayChannel {
         addProperty("window_ms", if (deep) 10_000 else 5_000)
     }.toString()
 
-    /** The probe's score, or null when it cannot run here: a Yggdrasil profile the running connection uses. */
+    /**
+     * The probe's score, or null when it cannot run here: a Yggdrasil profile the running connection uses, or the
+     * node's probe slot busy. A node that answers probes (probe-v1) is measured through the profile's tunnel at its
+     * probe name: the tunnel as a whole, its exit included; other profiles through a download from Cloudflare.
+     */
     suspend fun probe(profile: ProxyEntity, deep: Boolean, mobile: Boolean): ChannelScore? {
         val at = System.currentTimeMillis() / 1000
+        val nodeRequest = RayNodes.ownerOf(profile.id)?.let { (node, key) ->
+            node.probe?.takeIf { it.reachesThrough(key.substringBefore('#').toIntOrNull()) }?.let { probeRequest(node, it, deep, mobile) }
+        }
         return try {
-            ChannelScore.fromProbe(at, TestInstance(profile, "", 0).doProbe(options(deep, mobile)))
+            if (nodeRequest != null) {
+                ChannelScore.fromNodeProbe(at, TestInstance(profile, "", 0).doProbeNode(nodeRequest.toString()))
+            } else {
+                ChannelScore.fromProbe(at, TestInstance(profile, "", 0).doProbe(options(deep, mobile)))
+            }
         } catch (e: CancellationException) {
             // cancelled, not failed: nothing to record
             throw e
@@ -150,6 +185,31 @@ object RayChannel {
             Logs.w("raycontrol channel probe ${profile.displayName()}: ${e.message}")
             ChannelScore(at, tcpOk = false, tcpError = e.message ?: e.javaClass.simpleName)
         }
+    }
+
+    /** A probe-v1 request through a profile's tunnel: the subscription's endpoint and the device, then the steps. */
+    private fun probeRequest(node: RayNode, info: RayProbeInfo, deep: Boolean, mobile: Boolean): JsonObject? {
+        val sub = node.subscription ?: return null
+        return JsonObject().apply {
+            addProperty("host", node.host)
+            addProperty("port", sub.port)
+            addProperty("pin", sub.pin)
+            addProperty("device_id", node.deviceId)
+            add("spa", node.spa.toJson().apply { addProperty("device_key", RayNodes.deviceKeyHex(node)) })
+            addProperty("tunnel", info.tunnel)
+            addProperty("down_bytes", downBytes(deep, mobile))
+            if (info.udp) {
+                addProperty("echo_count", if (deep) 50 else 20)
+                addProperty("echo_size", 1200)
+            }
+            addProperty("window_ms", if (deep) 10_000 else 5_000)
+        }
+    }
+
+    private fun downBytes(deep: Boolean, mobile: Boolean): Long = when {
+        !deep -> 256L shl 10
+        mobile -> 2L shl 20
+        else -> 8L shl 20
     }
 
     /** The network under the VPN: transport, operator or the LAN's gateway, DNS servers and domain, hashed. */
@@ -189,7 +249,7 @@ object RayChannel {
     /** The stored results of [nodeId] on [network], by profile key. */
     fun scores(nodeId: String, network: ChannelNetwork): Map<String, ChannelScore> {
         val byProfile = load().getAsJsonObject(nodeId)?.getAsJsonObject(network.key) ?: return emptyMap()
-        return byProfile.entrySet().mapNotNull { (key, value) ->
+        return byProfile.entrySet().filter { it.key != BRUTAL }.mapNotNull { (key, value) ->
             runCatching { key to ChannelScore.fromJson(value.asJsonObject) }.getOrNull()
         }.toMap()
     }
@@ -225,6 +285,25 @@ object RayChannel {
             if (score.udpOk) context.getString(R.string.raycontrol_channel_udp, "%.0f".format(score.udpLossPct), "%.0f".format(score.udpRttMs))
             else context.getString(R.string.raycontrol_channel_udp_failed)
         )
+    }
+
+    // the network's Brutal rates sit next to its profile results, under a key no profile has
+    private const val BRUTAL = "_brutal"
+
+    /** The Brutal rates measured for [nodeId] on [network], while fresh (a day on mobile, a week otherwise). */
+    fun brutalRates(nodeId: String, network: ChannelNetwork): BrutalRates? {
+        val o = load().getAsJsonObject(nodeId)?.getAsJsonObject(network.key)?.getAsJsonObject(BRUTAL) ?: return null
+        val rates = runCatching { BrutalRates.fromJson(o) }.getOrNull() ?: return null
+        val fresh = if (network.mobile) FRESH_MOBILE else FRESH_WIFI
+        return rates.takeIf { System.currentTimeMillis() / 1000 - it.at < fresh }
+    }
+
+    fun recordBrutal(nodeId: String, network: ChannelNetwork, rates: BrutalRates) = RayNodesLock.withLock {
+        val all = load()
+        val node = all.getAsJsonObject(nodeId) ?: JsonObject().also { all.add(nodeId, it) }
+        val onNetwork = node.getAsJsonObject(network.key) ?: JsonObject().also { node.add(network.key, it) }
+        onNetwork.add(BRUTAL, rates.toJson())
+        DataStore.configurationStore.putString(Key.RAYCONTROL_CHANNEL, all.toString())
     }
 
     /** Forgets the results of a node (it was removed). */

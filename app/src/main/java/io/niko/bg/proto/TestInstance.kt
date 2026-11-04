@@ -22,6 +22,9 @@ class TestInstance(profile: ProxyEntity, val link: String, private val timeout: 
     /** A channel probe through this profile (libcore probe.Options as JSON in, the result as JSON out). */
     suspend fun doProbe(options: String): String = withBox { Libcore.channelProbe(it, options) }
 
+    /** A raycontrol node's channel probe (probe-v1) through this profile's tunnel, at the probe name. */
+    suspend fun doProbeNode(request: String): String = withBox { Libcore.raycontrolProbeTunnel(it, request) }
+
     // cancellable: the caller goes on at once; a test already running ends within its own limits and closes the box
     private suspend fun <T> withBox(test: (libcore.BoxInstance) -> T): T {
         return suspendCancellableCoroutine { cancellable ->

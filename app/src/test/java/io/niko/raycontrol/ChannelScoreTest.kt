@@ -58,4 +58,35 @@ class ChannelScoreTest {
         assertTrue(fast.rank() > waits.rank())
         assertTrue(slow.rank() > dnsTunnel.rank())
     }
+
+    @Test
+    fun fromNodeProbe() {
+        val s = ChannelScore.fromNodeProbe(
+            100,
+            """{"down":{"ok":true,"first_byte_ms":120,"bytes":262145,"kbps":9000,"stalled_at":-1,
+               "server":{"bytes":262144,"rtt_us":41000}},
+               "echo":{"ok":true,"size":1200,"sent":20,"received":19,"lost":1,"lost_up":1,"lost_down":0,"rtt_avg_ms":44.5}}""",
+        )!!
+        assertTrue(s.tcpOk)
+        assertEquals(9000L, s.kbps)
+        assertTrue(s.udpOk)
+        assertEquals(5.0, s.udpLossPct, 0.001)
+        assertEquals(44.5, s.udpRttMs, 0.0)
+        // the node's one probe slot was busy: no result
+        assertEquals(null, ChannelScore.fromNodeProbe(100, """{"down":{"ok":false,"status":429,"error":"429 Too Many Requests"}}"""))
+        // naive carries no UDP: TCP decides
+        val naive = ChannelScore.fromNodeProbe(100, """{"down":{"ok":true,"kbps":3000,"stalled_at":-1},"echo":{"ok":false,"sent":20,"lost":20,"error":"no echo"}}""")!!
+        assertTrue(naive.tcpOk)
+        assertFalse(naive.udpOk)
+    }
+
+    @Test
+    fun brutalRates() {
+        val r = BrutalRates(100, 8500, 0)
+        assertEquals(r, BrutalRates.fromJson(r.toJson()))
+        assertTrue(r.any)
+        assertFalse(BrutalRates(100, 0, 0).any)
+        assertEquals(8, RayBrutal.mbps(8500))
+        assertEquals(1, RayBrutal.mbps(400))
+    }
 }

@@ -26,6 +26,7 @@ import io.niko.fmt.wireguard.WireGuardBean
 import io.niko.fmt.wireguard.buildSingBoxEndpointWireguardBean
 import io.niko.ktx.Logs
 import io.niko.raycontrol.RayNode
+import io.niko.raycontrol.RayBrutal
 import io.niko.raycontrol.RayNodes
 import io.niko.raycontrol.knockOptions
 import io.niko.ktx.isIpAddress
@@ -565,6 +566,15 @@ fun buildConfig(
                     tlsTweaks["certificate"] = emptyList<String>()
                 }
                 if (tlsTweaks.isNotEmpty()) currentOutbound._hack_config_map["tls"] = tlsTweaks
+
+                // Brutal at the rates measured on this network (RayBrutal, setting raycontrolBrutal), each direction
+                // apart; none measured: BBR. The main config only: a test runs as the profile says
+                if (!forTest && rayNode != null && bean is HysteriaBean && bean.protocolVersion == 2) {
+                    RayBrutal.ratesFor(rayNode)?.let { rates ->
+                        if (rates.upKbps > 0) currentOutbound._hack_config_map["up_mbps"] = RayBrutal.mbps(rates.upKbps)
+                        if (rates.downKbps > 0) currentOutbound._hack_config_map["down_mbps"] = RayBrutal.mbps(rates.downKbps)
+                    }
+                }
 
                 // UDP desync of QUIC clients (core common/udpdesync)
                 if (!proxyEntity.needExternal() && outboundType in UDP_DESYNC_TYPES &&

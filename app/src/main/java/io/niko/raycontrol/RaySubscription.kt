@@ -164,7 +164,13 @@ object RaySubscription {
 
         // the UI and the scheduled worker (`:bg`) may both get here: one writer across the processes
         val refreshAt = maxOf(now + 60, nextRefresh(payload, nodeNow) - skew)
-        val stored = RayNodesLock.withLock { store(nodeId, payload.get("seq").asLong, refreshAt, skew, beans, links, doh) }
+        // probe v1 only: another version is unknown to this client
+        val probe = (payload.get("probe") as? JsonObject)?.let { RayProbeInfo.fromJson(it) }?.takeIf { it.v == 1 }
+        val stored = RayNodesLock.withLock {
+            store(nodeId, payload.get("seq").asLong, refreshAt, skew, beans, links, doh)?.also {
+                RayNodes.update(nodeId) { node -> node.copy(probe = probe) }
+            }
+        }
         var restarted = false
         if (stored != null) {
             if (stored.groupCreated) GroupManager.iterator { groupAdd(stored.group) }

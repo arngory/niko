@@ -60,6 +60,30 @@ data class RayIdentity(val cert: String, val keyWrapped: String, val pin: String
     }
 }
 
+/**
+ * The subscription's `probe` (probe-v1.md §1): v1, the UDP echo, and the name inside the tunnels of tunnelSvc that
+ * leads to the probe.
+ */
+data class RayProbeInfo(val v: Int, val udp: Boolean, val tunnel: String?, val tunnelSvc: List<Int>) {
+    fun reachesThrough(svc: Int?) = svc != null && tunnel != null && svc in tunnelSvc
+
+    fun toJson() = JsonObject().apply {
+        addProperty("v", v)
+        addProperty("udp", udp)
+        tunnel?.let { addProperty("tunnel", it) }
+        add("tunnel_svc", JsonArray().apply { tunnelSvc.forEach { add(it) } })
+    }
+
+    companion object {
+        fun fromJson(o: JsonObject) = RayProbeInfo(
+            v = o.get("v")?.asInt ?: 0,
+            udp = o.get("udp")?.asBoolean ?: false,
+            tunnel = o.get("tunnel")?.takeIf { it.isJsonPrimitive }?.asString,
+            tunnelSvc = (o.get("tunnel_svc") as? JsonArray)?.mapNotNull { runCatching { it.asInt }.getOrNull() }.orEmpty(),
+        )
+    }
+}
+
 /** An imported raycontrol node: SPA v2 parameters and this device's wrapped key. */
 data class RayNode(
     val host: String,
@@ -89,6 +113,8 @@ data class RayNode(
     val identity: RayIdentity? = null,
     // a rotation under way: the new key is kept before the node switches to it (api-v1.md §6)
     val identityNext: RayIdentity? = null,
+    // the subscription's `probe`: the node answers channel probes (probe-v1.md), directly and through these tunnels
+    val probe: RayProbeInfo? = null,
 ) {
     /** an admin device of the node, registered through the API: the admin mode is available */
     val isAdmin get() = api != null && identity != null
@@ -116,6 +142,7 @@ data class RayNode(
         api?.let { add("api", it.toJson()) }
         identity?.let { add("identity", it.toJson()) }
         identityNext?.let { add("identity_next", it.toJson()) }
+        probe?.let { add("probe", it.toJson()) }
     }
 
     companion object {
@@ -136,6 +163,7 @@ data class RayNode(
             api = (o.get("api") as? JsonObject)?.let { RayApiInfo.fromJson(it) },
             identity = (o.get("identity") as? JsonObject)?.let { RayIdentity.fromJson(it) },
             identityNext = (o.get("identity_next") as? JsonObject)?.let { RayIdentity.fromJson(it) },
+            probe = (o.get("probe") as? JsonObject)?.let { RayProbeInfo.fromJson(it) },
         )
     }
 }

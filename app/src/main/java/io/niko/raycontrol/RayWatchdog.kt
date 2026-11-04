@@ -90,6 +90,7 @@ object RayWatchdog {
             backoff = FIRST_BACKOFF
         }
         ownRestart = false
+        RayBrutal.reset()
         job = scope.launch { loop(probe) }
     }
 
@@ -205,6 +206,16 @@ object RayWatchdog {
         if (ok) {
             failures = 0
             backoff = FIRST_BACKOFF
+            // Brutal by measurement: this network measured once a day, the rate's ack watched (RayBrutal)
+            owner?.let { (node, key) ->
+                try {
+                    RayBrutal.afterTest(node, key, currentCoroutineContext()[Job])
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Logs.w("raycontrol ${node.host}: Brutal: ${e.message}")
+                }
+            }
             if (stale && now - staleSince > STALE_MAX) {
                 // the old credential still works but not for long (raycontrol R4-1: 2 days after the switch)
                 Logs.i("raycontrol: restarting with the new credential before the old one expires")

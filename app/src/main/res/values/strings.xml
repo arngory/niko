@@ -634,6 +634,8 @@
     <string name="raycontrol_channel_tcp_failed">%1$s: TCP fails (%2$s)</string>
     <string name="raycontrol_channel_udp">UDP: loss %1$s%%, RTT %2$s ms</string>
     <string name="raycontrol_channel_udp_failed">UDP fails</string>
+    <string name="raycontrol_brutal">Hysteria2: Brutal at a measured rate</string>
+    <string name="raycontrol_brutal_summary">Once a day per network the app measures the channel to the node (a few MB) and declares a share of it, download and upload apart; lowered when the node sees losses. Off, or without a measurement: BBR</string>
     <string name="raycontrol_nodes">Imported nodes</string>
     <string name="raycontrol_nodes_empty">None. Paste an rcdev1: registration from the clipboard or scan its QR code (+ on the main screen); profiles whose server is the node\'s address then send SPA v2 first.</string>
     <string name="raycontrol_node_line">%1$s, device %2$s, %3$d services</string>

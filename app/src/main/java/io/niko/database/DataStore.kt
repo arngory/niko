@@ -104,6 +104,8 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var raycontrolMasterDnsResolvers by configurationStore.string(Key.RAYCONTROL_MASTERDNS_RESOLVERS) { "77.88.8.8\n77.88.8.1" }
     // a node's profile that stops working on this network gives way to its best working one (RayChannel.failover)
     var raycontrolAutoSwitch by configurationStore.boolean(Key.RAYCONTROL_AUTO_SWITCH) { true }
+    // Brutal for a node's Hysteria2 at a measured rate (RayBrutal); off: BBR
+    var raycontrolBrutal by configurationStore.boolean(Key.RAYCONTROL_BRUTAL) { false }
 
     // the node identity of this install, made on first use and not part of backups
     val yggdrasilPrivateKey: String
