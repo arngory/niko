@@ -16,6 +16,9 @@ on:
       - "libcore/raysub/**"
       - "libcore/probe/**"
       - "libcore/knock/**"
+      - "libcore/rayprobe_box.go"
+      - "libcore/raycontrol_tunnel_interop_test.go"
+      - ".github/xray-interop.env"
       - "buildScript/lib/core/get_source_env.sh"
   workflow_dispatch:
 
@@ -114,16 +117,18 @@ jobs:
           git -C ../sing-box checkout -q "$COMMIT_SING_BOX"
           git clone --filter=blob:none "$REPOSITORY_LIBNEKO" ../libneko
           git -C ../libneko checkout -q "$COMMIT_LIBNEKO"
+          . .github/xray-interop.env
+          git clone --filter=blob:none "$REPOSITORY_XRAY" xray
+          git -C xray checkout -q "$COMMIT_XRAY"
 
       - uses: actions/setup-go@v5
         with:
           go-version-file: raycontrol/go.mod
           cache: false
-      - name: Build rayd and rayctl
-        working-directory: raycontrol
+      - name: Build rayd, rayctl and Xray
         run: |
-          CGO_ENABLED=0 go build -o /tmp/rayd ./cmd/rayd
-          CGO_ENABLED=0 go build -o /tmp/rayctl ./cmd/rayctl
+          (cd raycontrol && CGO_ENABLED=0 go build -o /tmp/rayd ./cmd/rayd && CGO_ENABLED=0 go build -o /tmp/rayctl ./cmd/rayctl)
+          (cd xray && CGO_ENABLED=0 go build -o /tmp/xray -trimpath ./main) && /tmp/xray version | head -1
 
       - name: niko-server
         run: |
@@ -132,11 +137,12 @@ jobs:
           echo "$NIKO_SERVER_SHA256_AMD64  /tmp/niko-server" | sha256sum -c -
           chmod +x /tmp/niko-server
 
-      - name: A node with hy2-obfs, its backend and front from the rendered files
+      - name: A node with hy2-obfs and a DNS tunnel; the processes from the rendered files
         id: node
         run: |
           mkdir -p /tmp/rc/rendered
-          /tmp/rayd init -db /tmp/rc/rayd.db -host 127.0.0.1
+          # a domain: the DNS tunnel's zone is under it, and with the tunnel comes the inner stage
+          /tmp/rayd init -db /tmp/rc/rayd.db -host 127.0.0.1 -domain interop.test
           # the Hysteria2 sockets (packet, stats) live under /run/niko on a node (render.DefaultPaths.Run), where
           # rayd asks the backends for link
           sudo install -d -o "$(id -u)" -g "$(id -g)" -m 0755 /run/niko /run/niko/hy2-obfs
@@ -146,7 +152,8 @@ jobs:
           for i in $(seq 100); do [ -S /tmp/rc/rayd.sock ] && break; sleep 0.2; done
           rc() { /tmp/rayctl -socket /tmp/rc/rayd.sock "$@"; }
           rc service add hy2-obfs hy2-obfs
-          rc user add interop -services hy2-obfs
+          rc service add dnstt dns
+          rc user add interop -services hy2-obfs,dns
           rc device add interop phone -o /tmp/rc/phone.bundle
           D=/tmp/rc/rendered/hy2-obfs
           for i in $(seq 100); do
@@ -167,6 +174,14 @@ jobs:
           nohup /tmp/niko-server backend -c /tmp/h2o.json > /tmp/h2o.log 2>&1 &
           for i in $(seq 50); do [ -S /run/niko/hy2-obfs/packet.sock ] && [ -S /run/niko/hy2-obfs/stats.sock ] && break; sleep 0.2; done
           nohup /tmp/niko-server front -c /tmp/front.json > /tmp/front.log 2>&1 &
+          # the inner stage as rendered (VLESS ML-KEM-768, the probe name's route to the subscription endpoint), its
+          # inbound on TCP for a client here instead of the DNS tunnel's socket, without the API socket
+          I=/tmp/rc/rendered/inner
+          for i in $(seq 100); do [ -f $I/xray.json ] && break; sleep 0.2; done
+          jq '.inbounds[0].listen = "127.0.0.1" | .inbounds[0].port = 18444 | del(.api)' $I/xray.json > /tmp/inner.json
+          jq -c '.routing.rules[0], [.outbounds[] | select(.tag == "probe") | .settings.redirect]' /tmp/inner.json
+          /tmp/xray run -test -c /tmp/inner.json > /dev/null
+          nohup /tmp/xray run -c /tmp/inner.json > /tmp/inner.log 2>&1 &
           sleep 1
 
       - uses: actions/setup-go@v5
@@ -179,6 +194,7 @@ jobs:
           RAYCONTROL_BUNDLE: /tmp/rc/phone.bundle
           RAYCONTROL_ADDRESS: ${{ steps.node.outputs.address }}
           RAYCONTROL_FRONT_PORT: "18443"
+          RAYCONTROL_INNER_PORT: "18444"
         run: |
           TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
           go test -count=1 -v -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
@@ -186,8 +202,8 @@ jobs:
       - name: Logs
         if: always()
         run: |
-          for f in rayd h2o front; do echo "== $f"; tail -n 40 /tmp/$f.log || true; done
-          pkill -x rayd || true; pkill -x niko-server || true
+          for f in rayd h2o front inner; do echo "== $f"; tail -n 40 /tmp/$f.log || true; done
+          pkill -x rayd || true; pkill -x niko-server || true; pkill -x xray || true
 
   naive:
     runs-on: ubuntu-latest

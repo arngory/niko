@@ -127,32 +127,36 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 		"route":     map[string]any{"final": "proxy"},
 	})
 	instance := startTestBox(t, string(config))
+	probeThrough(t, "Hysteria2 hy2-obfs", instance, b.Host, b.Sub.Port, b.Sub.Pin, b.DeviceID, b.SPA, probeInfo.Tunnel, svc)
 
-	// through the tunnel: down with the server's trailer and the UDP echo; link and the summary are dropped
-	// there (directly only)
-	request, _ := json.Marshal(probeRequest{
-		Host: b.Host, Port: b.Sub.Port, Pin: b.Sub.Pin, DeviceID: b.DeviceID, SPA: b.SPA, Tunnel: probeInfo.Tunnel,
-		DownBytes: 1 << 20, EchoCount: 20, EchoSize: 1200, Link: true,
-		Report: json.RawMessage(`{"v":1,"net":"wifi","obs":[]}`),
-	})
-	out, err := RaycontrolProbeTunnel(instance, string(request))
-	if err != nil {
-		t.Fatalf("probe through the tunnel: %v", err)
+	// Xray's inner stage (behind the DNS tunnels and Yggdrasil) as rendered, its inbound on TCP
+	// (RAYCONTROL_INNER_PORT): the VLESS of a DNS tunnel profile, with its ML-KEM-768 encryption, straight to it
+	if port, err := strconv.Atoi(os.Getenv("RAYCONTROL_INNER_PORT")); err == nil {
+		var innerLink string
+		var innerSvc uint16
+		for _, p := range result.Payload.Profiles {
+			if strings.HasPrefix(p.Link, "vless://") && strings.Contains(p.Link, "niko-dns=") && slices.Contains(probeInfo.TunnelSvc, p.Svc) {
+				innerLink, innerSvc = p.Link, p.Svc
+			}
+		}
+		if innerLink == "" {
+			t.Fatalf("no DNS tunnel profile among the probe's tunnels %v", probeInfo.TunnelSvc)
+		}
+		v, err := url.Parse(innerLink)
+		if err != nil {
+			t.Fatal(err)
+		}
+		vless, _ := json.Marshal(map[string]any{
+			"log": map[string]any{"level": "warn"},
+			"outbounds": []any{map[string]any{
+				"type": "vless", "tag": "proxy", "server": "127.0.0.1", "server_port": port,
+				"uuid": v.User.Username(), "encryption": v.Query().Get("encryption"),
+			}},
+			"route": map[string]any{"final": "proxy"},
+		})
+		probeThrough(t, "Xray inner (VLESS ML-KEM-768)", startTestBox(t, string(vless)),
+			b.Host, b.Sub.Port, b.Sub.Pin, b.DeviceID, b.SPA, probeInfo.Tunnel, innerSvc)
 	}
-	var r probeResult
-	if err = json.Unmarshal([]byte(out), &r); err != nil {
-		t.Fatal(err)
-	}
-	if r.Down == nil || !r.Down.OK || r.Down.Bytes != 1<<20 || r.Down.Server["bytes"] != float64(1<<20) {
-		t.Fatalf("down through the tunnel: %s", out)
-	}
-	if r.Echo == nil || !r.Echo.OK || r.Echo.Received == 0 {
-		t.Fatalf("echo through the tunnel: %s", out)
-	}
-	if r.Link != nil || r.LinkError != "" || r.ReportStatus != 0 || r.ReportError != "" {
-		t.Fatalf("link or the summary went through the tunnel: %s", out)
-	}
-	t.Logf("through the tunnel (svc %d): down %d kbit/s, server %v; %s", svc, r.Down.Kbps, r.Down.Server, r.Echo)
 
 	// directly, while the tunnel is up: the device's own session on the service, with the declared rate
 	pc := rayprobe.NewClient(&rayprobe.Endpoint{
@@ -197,6 +201,37 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 		t.Fatalf("no own session at the declared %d Mbit/s: %s", downMbps, rawLink)
 	}
 	t.Logf("link: %s", rawLink)
+}
+
+// probeThrough measures the channel through instance's tunnel at the probe name as the app does
+// (RaycontrolProbeTunnel): down with the server's trailer and the UDP echo; link and the summary are dropped there
+// (directly only).
+func probeThrough(t *testing.T, name string, instance *BoxInstance, host string, port int, pin, deviceID string,
+	spa knock.SPAv2Options, tunnel string, svc uint16) {
+	t.Helper()
+	request, _ := json.Marshal(probeRequest{
+		Host: host, Port: port, Pin: pin, DeviceID: deviceID, SPA: spa, Tunnel: tunnel,
+		DownBytes: 1 << 20, EchoCount: 20, EchoSize: 1200, Link: true,
+		Report: json.RawMessage(`{"v":1,"net":"wifi","obs":[]}`),
+	})
+	out, err := RaycontrolProbeTunnel(instance, string(request))
+	if err != nil {
+		t.Fatalf("%s: probe through the tunnel: %v", name, err)
+	}
+	var r probeResult
+	if err = json.Unmarshal([]byte(out), &r); err != nil {
+		t.Fatal(err)
+	}
+	if r.Down == nil || !r.Down.OK || r.Down.Bytes != 1<<20 || r.Down.Server["bytes"] != float64(1<<20) {
+		t.Fatalf("%s: down through the tunnel: %s", name, out)
+	}
+	if r.Echo == nil || !r.Echo.OK || r.Echo.Received == 0 {
+		t.Fatalf("%s: echo through the tunnel: %s", name, out)
+	}
+	if r.Link != nil || r.LinkError != "" || r.ReportStatus != 0 || r.ReportError != "" {
+		t.Fatalf("%s: link or the summary went through the tunnel: %s", name, out)
+	}
+	t.Logf("%s (svc %d): down %d kbit/s, server %v; %s", name, svc, r.Down.Kbps, r.Down.Server, r.Echo)
 }
 
 // runnerAddress: an IPv4 address of this machine besides loopback; the node sees requests to it as coming from it,
