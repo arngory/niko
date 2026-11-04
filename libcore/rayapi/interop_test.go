@@ -3,12 +3,18 @@ package rayapi
 import (
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"net"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"libcore/probe"
+	"libcore/rayprobe"
 )
 
 // TestRaycontrolInterop registers through a real rayd (arngory/raycontrol), run by
@@ -68,6 +74,10 @@ func TestRaycontrolInterop(t *testing.T) {
 			Port int    `json:"port"`
 			Pin  string `json:"pin"`
 		} `json:"api"`
+		Sub struct {
+			Port int    `json:"port"`
+			Pin  string `json:"pin"`
+		} `json:"sub"`
 	}
 	if err = json.Unmarshal(bundle, &device); err != nil || device.API.Port == 0 {
 		t.Fatalf("package without api: %v", err)
@@ -97,6 +107,45 @@ func TestRaycontrolInterop(t *testing.T) {
 	if err != nil || !strings.Contains(string(invited), `"inviteCode":"rcinv1:`) {
 		t.Fatalf("CreateInvite: %s, %v", invited, err)
 	}
+
+	// the channel probe (probe-v1) on the subscription endpoint, directly: down with the server's Probe-Result,
+	// up with the server's count, the UDP echo with its session count, link
+	if device.Sub.Port == 0 {
+		t.Fatal("package without sub")
+	}
+	deviceKey, err := hex.DecodeString(device.DeviceKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverName := device.Host
+	if net.ParseIP(serverName) != nil {
+		serverName = ""
+	}
+	pc := rayprobe.NewClient(&rayprobe.Endpoint{
+		Address: net.JoinHostPort(device.Host, strconv.Itoa(device.Sub.Port)), Pin: device.Sub.Pin, ServerName: serverName,
+		DeviceID: registered.DeviceID, DeviceKey: deviceKey, Dial: (&net.Dialer{}).DialContext,
+	})
+	defer pc.Close()
+	down := pc.Down(ctx, 1<<20, probe.Options{WindowMs: 20000})
+	if !down.OK || down.Bytes != 1<<20 || down.Server["bytes"] != int64(1<<20) {
+		t.Fatalf("probe down: %+v", down)
+	}
+	t.Logf("probe down: %d kbit/s, server %v", down.Kbps, down.Server)
+	up := pc.Up(ctx, 512<<10, 20*time.Second)
+	if !up.OK || up.Bytes != 512<<10 {
+		t.Fatalf("probe up: %+v", up)
+	}
+	t.Logf("probe up: %d kbit/s (server), tcp %v", up.Kbps, up.TCP)
+	echo := pc.Echo(ctx, 20, 1200, 20*time.Millisecond)
+	if !echo.OK || !echo.Counted || echo.LostUp != 0 {
+		t.Fatalf("probe echo: %+v", echo)
+	}
+	t.Logf("probe echo: %s", echo)
+	link, err := pc.Link(ctx)
+	if err != nil {
+		t.Fatalf("probe link: %v", err)
+	}
+	t.Logf("probe link: %s", link)
 
 	// the invite is spent: a second Register is refused
 	again := invite

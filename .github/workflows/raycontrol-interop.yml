@@ -12,6 +12,8 @@ on:
       - ".github/niko-server.env"
       - ".github/scripts/netlog-errors.py"
       - "libcore/rayapi/**"
+      - "libcore/rayprobe/**"
+      - "libcore/probe/**"
       - "libcore/knock/**"
       - "buildScript/lib/core/get_source_env.sh"
   workflow_dispatch:
