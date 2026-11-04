@@ -646,3 +646,13 @@ POST /probe/v1/report
   - Yggdrasil с `inner`.
   Через каждый — замер к `probe.raycontrol.invalid` клиентом (`RaycontrolProbeTunnel`), `own` — по Hysteria2. До
   тега закреплю ветку, как с v0.5.1.
+- **Сделано раньше v0.6.0** — задача `supervised` вместо ручной, raycontrol закреплён на `b04f968`.
+  - Нода по вашему `test/supervise`: контейнер `debian:13`, root, `rayd serve -supervise`, тестовый CA через
+    `rayctl service cert site`. Сервисы — REALITY, hy2-obfs, hy2-masq, Yggdrasil, с ним `inner`.
+  - Клиент на раннере собирает каждый профиль из `tunnel_svc` по ссылке, как приложение:
+    - Hysteria2 по `niko-pin` или по CA сайта;
+    - REALITY с Vision, ML-KEM-768 и ML-DSA-65;
+    - Yggdrasil — свой mesh-узел и VLESS до mesh-адреса ноды.
+  - Через каждый — `down` с trailer и эхо 20/20. `own` — на обоих сервисах Hysteria2.
+  - REALITY в interop проверен впервые. Несоответствий формату нет, правок в клиенте не понадобилось.
+  - После тега v0.6.0 закрепление переедет на его коммит.
