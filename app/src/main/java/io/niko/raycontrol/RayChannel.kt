@@ -467,10 +467,14 @@ object RayChannel {
         DataStore.configurationStore.putString(Key.RAYCONTROL_CHANNEL, all.toString())
     }
 
-    /** Whether [profile] goes over UDP (Hysteria, TUIC, WireGuard, NaiveProxy over QUIC): what blocked UDP stops. */
+    /**
+     * Whether [profile] goes over UDP (Hysteria, TUIC, WireGuard, NaiveProxy over QUIC, V2Ray's QUIC transport):
+     * what blocked UDP stops.
+     */
     fun overUdp(profile: ProxyEntity?): Boolean = when (val bean = profile?.requireBean()) {
         is io.niko.fmt.hysteria.HysteriaBean, is io.niko.fmt.tuic.TuicBean, is io.niko.fmt.wireguard.WireGuardBean -> true
         is io.niko.fmt.naive.NaiveBean -> bean.proto == "quic"
+        is io.niko.fmt.v2ray.StandardV2RayBean -> bean.type == "quic"
         else -> false
     }
 

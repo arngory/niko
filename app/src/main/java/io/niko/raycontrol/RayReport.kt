@@ -103,6 +103,9 @@ object RayReport {
 
     private val sending = Mutex()
 
+    // what the node answers to a summary: taken, a repeat, not taken, refused, not directly
+    private val FINAL = setOf(200, 204, 400, 404, 409, 429)
+
     /**
      * Sends the summary about the network the device is on to [node], directly from it, when the user agreed and the
      * node answers probes: once a UTC day per network, also when the node refused it or takes none (404). Returns
@@ -118,7 +121,11 @@ object RayReport {
         if (state?.get("day")?.asLong == today && (state.get("status")?.asInt ?: 0) != 0) return null
         if ((state?.get("retry_at")?.asLong ?: 0) > now) return null
         val report = build(node, network, now) ?: return null
-        val request = RayBrutal.request(node).apply { add("report", report) }
+        // a short window: over UDP and then the TCP carrier, a node that does not answer costs ~10 s
+        val request = RayBrutal.request(node).apply {
+            add("report", report)
+            addProperty("window_ms", 5_000)
+        }
         val result = try {
             JsonParser.parseString(withContext(Dispatchers.IO) { Libcore.raycontrolProbe(request.toString()) }).asJsonObject
         } catch (e: Exception) {
@@ -126,18 +133,21 @@ object RayReport {
             null
         }
         val status = result?.get("report_status")?.asInt ?: 0
+        // the node's answers (probe-v1.md §6.1) end the day for this network; anything else (no answer, a front's
+        // 502 while the node restarts) is tried again within the hour
+        val final = status in FINAL
         RayChannel.recordReportState(nodeId, network, JsonObject().apply {
             addProperty("at", now)
             addProperty("day", today)
-            addProperty("status", status)
-            if (status == 0) addProperty("retry_at", now + RETRY)
+            addProperty("status", if (final) status else 0)
+            if (!final) addProperty("retry_at", now + RETRY)
         })
         val outcome = when (status) {
             200, 204 -> Outcome.SENT
             429 -> Outcome.ALREADY_SENT
             404 -> Outcome.NOT_TAKEN
-            0 -> Outcome.FAILED
-            else -> Outcome.REFUSED
+            400, 409 -> Outcome.REFUSED
+            else -> Outcome.FAILED
         }
         Logs.i("raycontrol ${node.host}: summary of this network: $outcome" +
             (if (status != 0) " ($status)" else result?.get("report_error")?.asString?.let { ": $it" } ?: ""))

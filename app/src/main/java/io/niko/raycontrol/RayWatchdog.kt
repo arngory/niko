@@ -40,6 +40,10 @@ object RayWatchdog {
     private const val STALE_MAX = 12 * 60 * 60_000L
 
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+
+    // a summary on its way (RayReport.send), apart from the loop
+    @Volatile
+    private var reportJob: Job? = null
     private var job: Job? = null
     private val wake = Channel<Long>(Channel.CONFLATED)
 
@@ -103,6 +107,8 @@ object RayWatchdog {
         }
         job?.cancel()
         job = null
+        reportJob?.cancel()
+        reportJob = null
         // the listener stops with the service: what it reported may be stale at the next start
         online = null
     }
@@ -215,13 +221,16 @@ object RayWatchdog {
                 } catch (e: Exception) {
                     Logs.w("raycontrol ${node.host}: Brutal: ${e.message}")
                 }
-                // the anonymous summary of this network, with consent, once a day (RayReport)
-                try {
-                    RayReport.send(node)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Logs.w("raycontrol ${node.host}: summary: ${e.message}")
+                // the anonymous summary of this network, with consent, once a day (RayReport): on its own, so a
+                // direct path that does not answer never holds the next connection test
+                if (reportJob?.isActive != true) reportJob = scope.launch {
+                    try {
+                        RayReport.send(node)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Logs.w("raycontrol ${node.host}: summary: ${e.message}")
+                    }
                 }
             }
             if (stale && now - staleSince > STALE_MAX) {

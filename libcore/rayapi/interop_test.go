@@ -157,7 +157,7 @@ func TestRaycontrolInterop(t *testing.T) {
 
 	// the anonymous summary (probe-v1.md §6.1): about the network it comes from, so from loopback (as through a
 	// tunnel) 409; from the runner's own address 404 while the node takes none, 204, then 429 for the day
-	checkReport(ctx, t, endpoint, pc, &rayprobe.Endpoint{
+	checkReport(ctx, t, endpoint, pc, net.ParseIP(device.Host).IsLoopback(), &rayprobe.Endpoint{
 		Address: net.JoinHostPort(device.Host, strconv.Itoa(device.Sub.Port)), Pin: device.Sub.Pin, ServerName: serverName,
 		DeviceID: registered.DeviceID, DeviceKey: deviceKey, Dial: (&net.Dialer{}).DialContext,
 	}, device.Sub.Port)
@@ -186,7 +186,7 @@ func TestRaycontrolInterop(t *testing.T) {
 }
 
 // checkReport sends a summary for the user's api service, the admin turning the node's summaries on in between.
-func checkReport(ctx context.Context, t *testing.T, admin Endpoint, loopback *rayprobe.Client, e *rayprobe.Endpoint, port int) {
+func checkReport(ctx context.Context, t *testing.T, admin Endpoint, nodeClient *rayprobe.Client, nodeLoopback bool, e *rayprobe.Endpoint, port int) {
 	t.Helper()
 	services, err := Call(ctx, admin, NodeService+"ListServices", []byte(`{}`))
 	if err != nil {
@@ -224,8 +224,11 @@ func checkReport(ctx context.Context, t *testing.T, admin Endpoint, loopback *ra
 		}
 		return 204
 	}
-	if got := status(loopback.Report(ctx, report)); got != 409 {
-		t.Fatalf("report from loopback: %d, want 409", got)
+	// to the node's address on loopback the request comes from loopback too, as through a tunnel
+	if nodeLoopback {
+		if got := status(nodeClient.Report(ctx, report)); got != 409 {
+			t.Fatalf("report from loopback: %d, want 409", got)
+		}
 	}
 	// the runner's own address: not loopback, a private one (the node counts it under AS 0)
 	var own string
