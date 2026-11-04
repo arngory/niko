@@ -171,6 +171,10 @@ object RaySubscription {
                 RayNodes.update(nodeId) { node -> node.copy(probe = probe) }
             }
         }
+        // the hints are for the network this subscription was asked from: directly, the node saw its address
+        RayChannel.network()?.let { network ->
+            RayChannel.recordHints(nodeId, network, (payload.get("hints") as? JsonObject)?.let { RayHints.fromJson(it, now) })
+        }
         var restarted = false
         if (stored != null) {
             if (stored.groupCreated) GroupManager.iterator { groupAdd(stored.group) }

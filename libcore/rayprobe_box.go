@@ -33,6 +33,8 @@ type probeRequest struct {
 	EchoCount int   `json:"echo_count,omitempty"`
 	EchoSize  int   `json:"echo_size,omitempty"`
 	Link      bool  `json:"link,omitempty"`
+	// the anonymous summary to send (probe-v1.md §6.1), directly only
+	Report json.RawMessage `json:"report,omitempty"`
 	// each step's limit (default 10 s, at most the server's 30 s)
 	WindowMs int `json:"window_ms,omitempty"`
 }
@@ -43,6 +45,11 @@ type probeResult struct {
 	Echo      *rayprobe.EchoResult `json:"echo,omitempty"`
 	Link      json.RawMessage      `json:"link,omitempty"`
 	LinkError string               `json:"link_error,omitempty"`
+	// the summary: 204 taken, or the node's status (404, 409, 429 with ReportRetryAfter, 400); 0 with ReportError
+	// when no answer came
+	ReportStatus     int    `json:"report_status,omitempty"`
+	ReportRetryAfter int    `json:"report_retry_after,omitempty"`
+	ReportError      string `json:"report_error,omitempty"`
 }
 
 func (r *probeRequest) window() time.Duration {
@@ -78,13 +85,27 @@ func (r *probeRequest) run(ctx context.Context, e *rayprobe.Endpoint) *probeResu
 		out.Echo = c.Echo(echoCtx, r.EchoCount, r.EchoSize, 20*time.Millisecond)
 		cancel()
 	}
+	if len(r.Report) > 0 {
+		reportCtx, cancel := context.WithTimeout(ctx, window)
+		err := c.Report(reportCtx, r.Report)
+		cancel()
+		var status *rayprobe.StatusError
+		switch {
+		case err == nil:
+			out.ReportStatus = 204
+		case errors.As(err, &status):
+			out.ReportStatus, out.ReportRetryAfter = status.Status, status.RetryAfter
+		default:
+			out.ReportError = err.Error()
+		}
+	}
 	return out
 }
 
 // answered: some step got an HTTP answer, so the port was open
 func (o *probeResult) answered() bool {
 	return o.Link != nil || o.Down != nil && (o.Down.OK || o.Down.Status != 0) || o.Up != nil && (o.Up.OK || o.Up.Status != 0) ||
-		o.Echo != nil && (o.Echo.OK || o.Echo.Status != 0)
+		o.Echo != nil && (o.Echo.OK || o.Echo.Status != 0) || o.ReportStatus != 0
 }
 
 func parseProbeRequest(requestJSON string) (*probeRequest, []byte, error) {
@@ -146,8 +167,10 @@ func RaycontrolProbeTunnel(i *BoxInstance, requestJSON string) (result string, e
 	if r.Tunnel == "" {
 		return "", errors.New("raycontrol probe: no probe name for the tunnel")
 	}
-	// link is the server's view of the device's address: through a tunnel it is the node's own (409)
+	// link is the server's view of the device's address, and the summary is about the network it comes from: through
+	// a tunnel both would be the node's own (409)
 	r.Link = false
+	r.Report = nil
 	e := &rayprobe.Endpoint{
 		Address: net.JoinHostPort(r.Tunnel, "443"), Pin: r.Pin, ServerName: r.Tunnel,
 		DeviceID: r.DeviceID, DeviceKey: key,

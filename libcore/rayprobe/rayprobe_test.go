@@ -1,6 +1,7 @@
 package rayprobe
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -39,6 +40,7 @@ type node struct {
 	links    int
 	noCount  bool
 	closed   int
+	reports  [][]byte
 }
 
 func newNode(t *testing.T) *node {
@@ -56,6 +58,7 @@ func newNode(t *testing.T) *node {
 	mux.HandleFunc("POST /probe/v1/udp", n.auth(n.openUDP))
 	mux.HandleFunc("GET /probe/v1/udp", n.auth(n.closeUDP))
 	mux.HandleFunc("GET /probe/v1/link", n.auth(n.link))
+	mux.HandleFunc("POST /probe/v1/report", n.auth(n.report))
 	n.server = httptest.NewUnstartedServer(mux)
 	n.server.EnableHTTP2 = true
 	n.server.StartTLS()
@@ -209,6 +212,44 @@ func TestLinkAndAuth(t *testing.T) {
 	}
 	if d := bad.Down(context.Background(), 1024, probe.Options{}); d.Status != 404 || d.OK {
 		t.Fatalf("down with a bad key: %+v", d)
+	}
+}
+
+// report: 204 for the first of the day, 429 with Retry-After for the next (probe-v1.md §6.1)
+func (n *node) report(w http.ResponseWriter, r *http.Request) {
+	body, _ := io.ReadAll(r.Body)
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if r.Header.Get("Content-Type") != "application/json" || !json.Valid(body) {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if len(n.reports) > 0 {
+		w.Header().Set("Retry-After", "3600")
+		w.WriteHeader(http.StatusTooManyRequests)
+		return
+	}
+	n.reports = append(n.reports, body)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func TestReport(t *testing.T) {
+	n := newNode(t)
+	c := NewClient(n.endpoint(t))
+	defer c.Close()
+	body := []byte(`{"v":1,"net":"wifi","obs":[{"svc":3,"result":"works","udp":"0-1","mbps":"5-20"}]}`)
+	if err := c.Report(context.Background(), body); err != nil {
+		t.Fatal(err)
+	}
+	if len(n.reports) != 1 || !bytes.Equal(n.reports[0], body) {
+		t.Fatalf("the node got %q", n.reports)
+	}
+	err := c.Report(context.Background(), body)
+	if status, ok := err.(*StatusError); !ok || status.Status != 429 || status.RetryAfter != 3600 {
+		t.Fatalf("want 429 with Retry-After, got %v", err)
+	}
+	if err := c.Report(context.Background(), make([]byte, MaxReport+1)); err == nil {
+		t.Fatal("an oversized report went out")
 	}
 }
 

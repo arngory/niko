@@ -215,6 +215,14 @@ object RayWatchdog {
                 } catch (e: Exception) {
                     Logs.w("raycontrol ${node.host}: Brutal: ${e.message}")
                 }
+                // the anonymous summary of this network, with consent, once a day (RayReport)
+                try {
+                    RayReport.send(node)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Logs.w("raycontrol ${node.host}: summary: ${e.message}")
+                }
             }
             if (stale && now - staleSince > STALE_MAX) {
                 // the old credential still works but not for long (raycontrol R4-1: 2 days after the switch)

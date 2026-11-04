@@ -249,7 +249,9 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         }
         if (node.subscription != null) actions += R.string.raycontrol_sub_update to { updateSubscription(node) }
         if (!node.profileIds.isNullOrEmpty()) actions += R.string.raycontrol_channel_check to { checkChannel(node) }
-        if (DataStore.raycontrolReports) actions += R.string.raycontrol_report_show to { showReport(node) }
+        // the summary with consent; the node's hints for this network come with the subscription either way
+        val hasHints = RayChannel.network()?.let { RayChannel.hints(node.spa.nodeId, it) } != null
+        if (DataStore.raycontrolReports || hasHints) actions += R.string.raycontrol_report_show to { showReport(node) }
         actions += R.string.raycontrol_node_remove to { confirmRemove(node) }
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(node.host)
@@ -293,23 +295,55 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                 onMainDispatcher { dialog.setMessage(lines.joinToString("\n")) }
             }
             lines[0] = context.getString(R.string.raycontrol_channel_done)
+            // with consent the day's summary of this network goes out now, the results just measured in it
+            reportLine(context, io.niko.raycontrol.RayReport.send(RayNodes.get(node.spa.nodeId) ?: node))?.let { lines += it }
             onMainDispatcher { dialog.setMessage(lines.joinToString("\n")) }
         }
         // a probe already running ends within its window; no new one starts
         dialog.setOnDismissListener { job.cancel() }
     }
 
-    /** The summary for [node] from this network's probes, exactly as it would go out (RayReport). */
+    private fun reportLine(context: android.content.Context, outcome: io.niko.raycontrol.RayReport.Outcome?): String? = when (outcome) {
+        null -> null
+        io.niko.raycontrol.RayReport.Outcome.SENT -> context.getString(R.string.raycontrol_report_sent)
+        io.niko.raycontrol.RayReport.Outcome.ALREADY_SENT -> context.getString(R.string.raycontrol_report_already)
+        io.niko.raycontrol.RayReport.Outcome.NOT_TAKEN -> context.getString(R.string.raycontrol_report_not_taken)
+        io.niko.raycontrol.RayReport.Outcome.REFUSED -> context.getString(R.string.raycontrol_report_refused)
+        io.niko.raycontrol.RayReport.Outcome.FAILED -> context.getString(R.string.raycontrol_report_failed)
+    }
+
+    /**
+     * The summary for [node] from this network's probes, exactly as it goes out (RayReport), whether today's went
+     * out, and the node's hints for this network.
+     */
     private fun showReport(node: RayNode) {
         val network = RayChannel.network() ?: run {
             snackbar(R.string.raycontrol_channel_no_network).show()
             return
         }
         val report = io.niko.raycontrol.RayReport.build(node, network)
+        val message = buildString {
+            append(report?.let { com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(it) }
+                ?: getString(R.string.raycontrol_report_empty))
+            val state = RayChannel.reportState(node.spa.nodeId, network)
+            val today = System.currentTimeMillis() / 1000 / (24 * 3600)
+            if (state?.get("day")?.asLong == today) when (state.get("status")?.asInt) {
+                200, 204, 429 -> append("\n\n").append(getString(R.string.raycontrol_report_already))
+                404 -> append("\n\n").append(getString(R.string.raycontrol_report_not_taken))
+            }
+            RayChannel.hints(node.spa.nodeId, network)?.let { h ->
+                val names = node.services.associate { it.id to it.name.ifBlank { "svc ${it.id}" } }
+                fun list(ids: List<Int>) = ids.joinToString(", ") { names[it] ?: "svc $it" }
+                append("\n\n").append(getString(R.string.raycontrol_hints, h.devices, h.days))
+                if (h.order.isNotEmpty()) append("\n").append(getString(R.string.raycontrol_hints_order, list(h.order)))
+                if (h.avoid.isNotEmpty()) append("\n").append(getString(R.string.raycontrol_hints_avoid, list(h.avoid)))
+                if (h.udpBlocked) append("\n").append(getString(R.string.raycontrol_hints_udp_blocked))
+                if (h.tcpStallKib > 0) append("\n").append(getString(R.string.raycontrol_hints_stall, h.tcpStallKib))
+            }
+        }
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.raycontrol_report_show)
-            .setMessage(report?.let { com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(it) }
-                ?: getString(R.string.raycontrol_report_empty))
+            .setMessage(message)
             .setPositiveButton(android.R.string.ok, null)
             .show()
     }

@@ -155,6 +155,13 @@ func TestRaycontrolInterop(t *testing.T) {
 		t.Logf("probe link: %s", link)
 	}
 
+	// the anonymous summary (probe-v1.md §6.1): about the network it comes from, so from loopback (as through a
+	// tunnel) 409; from the runner's own address 404 while the node takes none, 204, then 429 for the day
+	checkReport(ctx, t, endpoint, pc, &rayprobe.Endpoint{
+		Address: net.JoinHostPort(device.Host, strconv.Itoa(device.Sub.Port)), Pin: device.Sub.Pin, ServerName: serverName,
+		DeviceID: registered.DeviceID, DeviceKey: deviceKey, Dial: (&net.Dialer{}).DialContext,
+	}, device.Sub.Port)
+
 	// the invite is spent: a second Register is refused
 	again := invite
 	if _, err = Register(ctx, again, nil); !isCode(err, "not_found") {
@@ -175,5 +182,92 @@ func TestRaycontrolInterop(t *testing.T) {
 	endpoint.Identity = next
 	if _, err = Call(ctx, endpoint, DeviceService+"GetSelf", nil); err != nil {
 		t.Fatalf("new key: %v", err)
+	}
+}
+
+// checkReport sends a summary for the user's api service, the admin turning the node's summaries on in between.
+func checkReport(ctx context.Context, t *testing.T, admin Endpoint, loopback *rayprobe.Client, e *rayprobe.Endpoint, port int) {
+	t.Helper()
+	services, err := Call(ctx, admin, NodeService+"ListServices", []byte(`{}`))
+	if err != nil {
+		t.Fatalf("ListServices: %v", err)
+	}
+	var listed struct {
+		Services []struct {
+			ID   int64  `json:"id"`
+			Name string `json:"name"`
+		} `json:"services"`
+	}
+	if err = json.Unmarshal(services, &listed); err != nil {
+		t.Fatalf("ListServices: %s: %v", services, err)
+	}
+	svc := int64(0)
+	for _, s := range listed.Services {
+		if s.Name == "api" {
+			svc = s.ID
+		}
+	}
+	if svc == 0 {
+		t.Fatalf("no api service in %s", services)
+	}
+	// the node takes observations of the user's own services only
+	if _, err = Call(ctx, admin, NodeService+"SetUserServices", []byte(`{"name":"interop","services":["api"]}`)); err != nil {
+		t.Fatalf("SetUserServices: %v", err)
+	}
+	report := []byte(`{"v":1,"net":"wifi","obs":[{"svc":` + strconv.FormatInt(svc, 10) + `,"result":"works","udp":"0-1","mbps":"5-20"}]}`)
+	status := func(err error) int {
+		if s, ok := err.(*rayprobe.StatusError); ok {
+			return s.Status
+		}
+		if err != nil {
+			t.Fatalf("report: %v", err)
+		}
+		return 204
+	}
+	if got := status(loopback.Report(ctx, report)); got != 409 {
+		t.Fatalf("report from loopback: %d, want 409", got)
+	}
+	// the runner's own address: not loopback, a private one (the node counts it under AS 0)
+	var own string
+	addrs, _ := net.InterfaceAddrs()
+	for _, a := range addrs {
+		if ip, ok := a.(*net.IPNet); ok && ip.IP.To4() != nil && !ip.IP.IsLoopback() {
+			own = ip.IP.String()
+			break
+		}
+	}
+	if own == "" {
+		t.Fatal("no address of the runner besides loopback")
+	}
+	direct := *e
+	direct.Address = net.JoinHostPort(own, strconv.Itoa(port))
+	direct.ServerName = ""
+	c := rayprobe.NewClient(&direct)
+	defer c.Close()
+	if got := status(c.Report(ctx, report)); got != 404 {
+		t.Fatalf("report while the node takes none: %d, want 404", got)
+	}
+	if _, err = Call(ctx, admin, NodeService+"SetSummary", []byte(`{"enabled":"on"}`)); err != nil {
+		t.Fatalf("SetSummary on: %v", err)
+	}
+	if got := status(c.Report(ctx, report)); got != 204 {
+		t.Fatalf("report: %d, want 204", got)
+	}
+	err = c.Report(ctx, report)
+	if s, ok := err.(*rayprobe.StatusError); !ok || s.Status != 429 || s.RetryAfter <= 0 {
+		t.Fatalf("second report of the day: %v, want 429 with Retry-After", err)
+	}
+	// a service the user does not have: 400, and the day's report stays the one taken
+	bad := []byte(`{"v":1,"net":"wifi","obs":[{"svc":` + strconv.FormatInt(svc+1000, 10) + `,"result":"fails"}]}`)
+	if got := status(c.Report(ctx, bad)); got != 400 {
+		t.Fatalf("report of another service: %d, want 400", got)
+	}
+	summary, err := Call(ctx, admin, NodeService+"GetSummary", []byte(`{}`))
+	if err != nil || !strings.Contains(string(summary), `"otherReports":"1"`) {
+		t.Fatalf("GetSummary: %s, %v", summary, err)
+	}
+	t.Logf("report from %s: 404 while off, 204, 429 (Retry-After), 400 for another service; GetSummary %s", own, summary)
+	if _, err = Call(ctx, admin, NodeService+"SetSummary", []byte(`{"enabled":"off"}`)); err != nil {
+		t.Fatalf("SetSummary off: %v", err)
 	}
 }

@@ -445,6 +445,33 @@ func (c *Client) Link(ctx context.Context) (json.RawMessage, error) {
 	return raw, nil
 }
 
+// MaxReport is the largest summary the node takes (probe-v1.md §6.1).
+const MaxReport = 4 << 10
+
+// Report sends the anonymous summary (probe-v1.md §6.1). nil: taken (204). A StatusError otherwise: 404 the node
+// takes no summaries (or does not know the device), 409 not directly (through a tunnel), 429 this network's report
+// of the UTC day is in (RetryAfter until the day's end), 400 a field or service the node does not take.
+func (c *Client) Report(ctx context.Context, body []byte) error {
+	if len(body) > MaxReport {
+		return fmt.Errorf("probe: report of %d bytes, over %d", len(body), MaxReport)
+	}
+	req, err := c.request(ctx, http.MethodPost, "/probe/v1/report", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
+		return statusError(resp)
+	}
+	return nil
+}
+
 // String is a short line for logs.
 func (r *EchoResult) String() string {
 	return fmt.Sprintf("udp %d/%d, lost %d (up %d, down %d), rtt %.1f ms", r.Received, r.Sent, r.Lost, r.LostUp, r.LostDown, r.RTTAvgMs)

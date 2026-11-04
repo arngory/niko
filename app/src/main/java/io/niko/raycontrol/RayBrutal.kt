@@ -140,7 +140,8 @@ object RayBrutal {
         RayWatchdog.restart(caller)
     }
 
-    private fun request(node: RayNode) = JsonObject().apply {
+    /** A direct probe request to [node]'s subscription endpoint (libcore RaycontrolProbe), steps to be added. */
+    fun request(node: RayNode) = JsonObject().apply {
         val sub = node.subscription!!
         addProperty("host", node.host)
         addProperty("port", sub.port)

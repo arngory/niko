@@ -39,6 +39,20 @@ class RayReportTest {
     }
 
     @Test
+    fun hintsOrder() {
+        val hints = RayHints(0, order = listOf(5, 3), avoid = listOf(4), udpBlocked = true)
+        val keys = listOf("1#a", "3#b", "4#c", "5#d", "6#e")
+        // order first, then the unknown (TCP before UDP where UDP is blocked), avoided last
+        assertEquals(listOf("5#d", "3#b", "6#e", "1#a", "4#c"), hints.sort(keys) { it == "1#a" })
+        // the stored form
+        val stored = RayHints.fromJson(hints.toJson(), 99)
+        assertEquals(hints, stored)
+        // as the node sends it: no at, fields left out
+        val sent = RayHints.fromJson(com.google.gson.JsonParser.parseString("""{"order":[3],"devices":12,"days":7}""").asJsonObject, 42)
+        assertEquals(RayHints(42, order = listOf(3), devices = 12, days = 7), sent)
+    }
+
+    @Test
     fun stall() {
         assertNull(RayReport.stallKib(score()))
         assertEquals(16, RayReport.stallKib(score(stalledAt = 17 * 1024L)))

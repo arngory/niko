@@ -2,7 +2,14 @@ package io.niko.raycontrol
 
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import io.niko.database.DataStore
+import io.niko.ktx.Logs
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import libcore.Libcore
 
 /**
  * The anonymous summary for a node (RAYCONTROL.md §14.3 with niko-r14-reply.md §2): what this device's own probes
@@ -10,7 +17,8 @@ import io.niko.database.DataStore
  * by default) and only about the current network, from it, at most once a day. No device or network identifiers,
  * no times, no exact figures; the node takes the ASN from the request's address and keeps counters only.
  *
- * Sending waits for the node's POST /probe/v1/report; until then the report is only built (and shown on request).
+ * It goes to the node's POST /probe/v1/report (raycontrol v0.5.0, probe-v1.md §6.1) directly, after a probe or a
+ * passing connection test on the network: the node takes one per device and network a UTC day.
  */
 object RayReport {
 
@@ -54,10 +62,12 @@ object RayReport {
     /** The report about [network] for [node] from the last day's probes there, or null when there is nothing. */
     fun build(node: RayNode, network: ChannelNetwork, now: Long = System.currentTimeMillis() / 1000): JsonObject? {
         val scores = RayChannel.scores(node.spa.nodeId, network)
+        // the node refuses a report with a service the user does not have (400): only the subscription's current ones
+        val current = node.profileIds.orEmpty().keys.mapNotNull { it.substringBefore('#').toIntOrNull() }.toSet()
         val bySvc = LinkedHashMap<Int, ChannelScore>()
         for ((key, score) in scores) {
             if (now - score.at > RECENT) continue
-            val svc = key.substringBefore('#').toIntOrNull() ?: continue
+            val svc = key.substringBefore('#').toIntOrNull()?.takeIf { it in current } ?: continue
             // one per service: the latest
             if ((bySvc[svc]?.at ?: 0) < score.at) bySvc[svc] = score
         }
@@ -80,6 +90,57 @@ object RayReport {
         }
     }
 
-    /** Consent given (the setting is on). Sending itself waits for the node's endpoint. */
+    /** Consent given (the setting is on). */
     val consented get() = DataStore.raycontrolReports
+
+    /** What became of a summary. */
+    enum class Outcome { SENT, ALREADY_SENT, NOT_TAKEN, REFUSED, FAILED }
+
+    private const val DAY = 24 * 3600L
+
+    // a summary that got no answer goes again after this
+    private const val RETRY = 3600L
+
+    private val sending = Mutex()
+
+    /**
+     * Sends the summary about the network the device is on to [node], directly from it, when the user agreed and the
+     * node answers probes: once a UTC day per network, also when the node refused it or takes none (404). Returns
+     * what happened, or null when nothing was due (no consent, sent or answered today, nothing measured here).
+     */
+    suspend fun send(node: RayNode): Outcome? = sending.withLock {
+        if (!consented || node.probe == null || node.subscription == null) return null
+        val network = RayChannel.network() ?: return null
+        val nodeId = node.spa.nodeId
+        val now = System.currentTimeMillis() / 1000
+        val today = now / DAY
+        val state = RayChannel.reportState(nodeId, network)
+        if (state?.get("day")?.asLong == today && (state.get("status")?.asInt ?: 0) != 0) return null
+        if ((state?.get("retry_at")?.asLong ?: 0) > now) return null
+        val report = build(node, network, now) ?: return null
+        val request = RayBrutal.request(node).apply { add("report", report) }
+        val result = try {
+            JsonParser.parseString(withContext(Dispatchers.IO) { Libcore.raycontrolProbe(request.toString()) }).asJsonObject
+        } catch (e: Exception) {
+            Logs.w("raycontrol ${node.host}: summary: ${e.message}")
+            null
+        }
+        val status = result?.get("report_status")?.asInt ?: 0
+        RayChannel.recordReportState(nodeId, network, JsonObject().apply {
+            addProperty("at", now)
+            addProperty("day", today)
+            addProperty("status", status)
+            if (status == 0) addProperty("retry_at", now + RETRY)
+        })
+        val outcome = when (status) {
+            200, 204 -> Outcome.SENT
+            429 -> Outcome.ALREADY_SENT
+            404 -> Outcome.NOT_TAKEN
+            0 -> Outcome.FAILED
+            else -> Outcome.REFUSED
+        }
+        Logs.i("raycontrol ${node.host}: summary of this network: $outcome" +
+            (if (status != 0) " ($status)" else result?.get("report_error")?.asString?.let { ": $it" } ?: ""))
+        outcome
+    }
 }

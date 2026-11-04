@@ -75,6 +75,17 @@ type ProbeInfo struct {
 	TunnelSvc []uint16 `json:"tunnel_svc,omitempty"`
 }
 
+// Hints is the payload's `hints` (probe-v1.md §6.2): the clients' summaries for the network the subscription was
+// asked from (its AS), only with k reports from it. A starting order for a network without the device's own results.
+type Hints struct {
+	Order       []uint16 `json:"order,omitempty"`
+	Avoid       []uint16 `json:"avoid,omitempty"`
+	UDPBlocked  bool     `json:"udp_blocked,omitempty"`
+	TCPStallKiB int      `json:"tcp_stall_kib,omitempty"`
+	Devices     int64    `json:"devices"`
+	Days        int      `json:"days"`
+}
+
 type Payload struct {
 	V        int        `json:"v"`
 	NodeID   string     `json:"node_id"`
@@ -84,6 +95,7 @@ type Payload struct {
 	Expires  int64      `json:"expires"`
 	Profiles []Profile  `json:"profiles"`
 	Probe    *ProbeInfo `json:"probe,omitempty"`
+	Hints    *Hints     `json:"hints,omitempty"`
 }
 
 type Result struct {

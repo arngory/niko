@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.NetworkCapabilities
 import android.telephony.TelephonyManager
 import androidx.core.content.getSystemService
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.niko.Key
@@ -133,6 +134,57 @@ data class ChannelScore(
             )
         }
     }
+}
+
+/**
+ * The subscription's `hints` (probe-v1.md §6.2): what other devices' summaries say about the network the
+ * subscription was asked from, with k reports or more. Only a starting order: this device's own results come first.
+ */
+data class RayHints(
+    val at: Long,
+    val order: List<Int> = emptyList(),
+    val avoid: List<Int> = emptyList(),
+    val udpBlocked: Boolean = false,
+    val tcpStallKib: Int = 0,
+    val devices: Long = 0,
+    val days: Int = 0,
+) {
+    fun toJson() = JsonObject().apply {
+        addProperty("at", at)
+        add("order", JsonArray().apply { order.forEach { add(it) } })
+        add("avoid", JsonArray().apply { avoid.forEach { add(it) } })
+        addProperty("udp_blocked", udpBlocked)
+        addProperty("tcp_stall_kib", tcpStallKib)
+        addProperty("devices", devices)
+        addProperty("days", days)
+    }
+
+    companion object {
+        /** The payload's `hints` as the node sends it, or null when there are none. */
+        fun fromJson(o: JsonObject, at: Long) = RayHints(
+            at = o.get("at")?.asLong ?: at,
+            order = (o.get("order") as? JsonArray)?.mapNotNull { runCatching { it.asInt }.getOrNull() }.orEmpty(),
+            avoid = (o.get("avoid") as? JsonArray)?.mapNotNull { runCatching { it.asInt }.getOrNull() }.orEmpty(),
+            udpBlocked = o.get("udp_blocked")?.asBoolean ?: false,
+            tcpStallKib = o.get("tcp_stall_kib")?.asInt ?: 0,
+            devices = o.get("devices")?.asLong ?: 0,
+            days = o.get("days")?.asInt ?: 0,
+        )
+    }
+
+    /**
+     * [keys] (profile keys, svc first) in the hint's order: its `order` first, then the services it says nothing
+     * about (where UDP is blocked, those over [overUdp] after the rest), the ones to avoid last.
+     */
+    fun sort(keys: List<String>, overUdp: (String) -> Boolean): List<String> = keys.sortedWith(compareBy({ key ->
+        val svc = key.substringBefore('#').toIntOrNull()
+        when {
+            svc in avoid -> 3
+            svc in order -> 0
+            udpBlocked && overUdp(key) -> 2
+            else -> 1
+        }
+    }, { key -> order.indexOf(key.substringBefore('#').toIntOrNull()) }))
 }
 
 /**
@@ -372,6 +424,56 @@ object RayChannel {
         return true
     }
 
+    // the subscription's hints for a network, next to the network's results
+    private const val HINTS = "_hints"
+
+    // the node counts them over a week; a subscription asked on the network since replaces them
+    private const val HINTS_FRESH = 7 * 24 * 3600L
+
+    /** The node's hints for [network], from a subscription asked there in the last week. */
+    fun hints(nodeId: String, network: ChannelNetwork): RayHints? {
+        val o = load().getAsJsonObject(nodeId)?.getAsJsonObject(network.key)?.getAsJsonObject(HINTS) ?: return null
+        val hints = runCatching { RayHints.fromJson(o, 0) }.getOrNull() ?: return null
+        return hints.takeIf { System.currentTimeMillis() / 1000 - it.at < HINTS_FRESH }
+    }
+
+    /** What the subscription asked on [network] said: its hints, or none (fewer than k reports, or none at all). */
+    fun recordHints(nodeId: String, network: ChannelNetwork, hints: RayHints?) = RayNodesLock.withLock {
+        val all = load()
+        val node = all.getAsJsonObject(nodeId)
+        if (hints == null) {
+            if (node?.getAsJsonObject(network.key)?.remove(HINTS) != null) {
+                DataStore.configurationStore.putString(Key.RAYCONTROL_CHANNEL, all.toString())
+            }
+            return@withLock
+        }
+        val onNode = node ?: JsonObject().also { all.add(nodeId, it) }
+        val onNetwork = onNode.getAsJsonObject(network.key) ?: JsonObject().also { onNode.add(network.key, it) }
+        onNetwork.add(HINTS, hints.toJson())
+        DataStore.configurationStore.putString(Key.RAYCONTROL_CHANNEL, all.toString())
+    }
+
+    // the network's summary state (RayReport): the UTC day it was sent on, and the node's answer
+    const val REPORT = "_report"
+
+    fun reportState(nodeId: String, network: ChannelNetwork): JsonObject? =
+        load().getAsJsonObject(nodeId)?.getAsJsonObject(network.key)?.getAsJsonObject(REPORT)
+
+    fun recordReportState(nodeId: String, network: ChannelNetwork, state: JsonObject) = RayNodesLock.withLock {
+        val all = load()
+        val node = all.getAsJsonObject(nodeId) ?: JsonObject().also { all.add(nodeId, it) }
+        val onNetwork = node.getAsJsonObject(network.key) ?: JsonObject().also { node.add(network.key, it) }
+        onNetwork.add(REPORT, state)
+        DataStore.configurationStore.putString(Key.RAYCONTROL_CHANNEL, all.toString())
+    }
+
+    /** Whether [profile] goes over UDP (Hysteria, TUIC, WireGuard, NaiveProxy over QUIC): what blocked UDP stops. */
+    fun overUdp(profile: ProxyEntity?): Boolean = when (val bean = profile?.requireBean()) {
+        is io.niko.fmt.hysteria.HysteriaBean, is io.niko.fmt.tuic.TuicBean, is io.niko.fmt.wireguard.WireGuardBean -> true
+        is io.niko.fmt.naive.NaiveBean -> bean.proto == "quic"
+        else -> false
+    }
+
     /** Forgets the results of a node (it was removed). */
     fun forget(nodeId: String) = RayNodesLock.withLock {
         val all = load()
@@ -381,7 +483,8 @@ object RayChannel {
     /**
      * The running profile [failedKey] of [node] stopped working: probes the node's other profiles on this network
      * (the best known first) and returns the key of the best one that works, or null. Profiles that failed here in
-     * the last [FAILED_HOLD] are not tried.
+     * the last [FAILED_HOLD] are not tried. On a network without this device's own results the node's hints set the
+     * order (probe-v1.md §6.2), and the first profile that works there is taken.
      */
     suspend fun failover(node: RayNode, failedKey: String): String? {
         val network = network() ?: return null
@@ -394,8 +497,15 @@ object RayChannel {
             .filter { it != failedKey }
             .filter { key -> known[key]?.let { it.tcpOk || now - it.at > FAILED_HOLD } ?: true }
             .sortedByDescending { key -> known[key]?.takeIf { now - it.at < fresh }?.rank() ?: 0.0 }
+        // own results, fresh: they decide; otherwise the hints, if the node has them for this network
+        val hints = hints(nodeId, network)?.takeIf { _ -> candidates.none { key -> known[key]?.let { now - it.at < fresh } == true } }
+        val order = hints?.let { h ->
+            val udp = candidates.associateWith { key -> overUdp(node.profileIds?.get(key)?.let { SagerDatabase.proxyDao.getById(it) }) }
+            h.sort(candidates) { udp[it] == true }
+        } ?: candidates
+        if (hints != null) Logs.i("raycontrol ${node.host}: no own results on this network, the node's hints first: $order")
         var best: Pair<String, ChannelScore>? = null
-        for (key in candidates) {
+        for (key in order) {
             // the watchdog run that asked was stopped (the core restarted, the service stopped): no more probes
             currentCoroutineContext().ensureActive()
             val id = node.profileIds?.get(key) ?: continue
@@ -404,6 +514,8 @@ object RayChannel {
             record(nodeId, network, key, score)
             Logs.i("raycontrol ${node.host}: $key on this network: ${if (score.tcpOk) "works, ${score.kbps} kbit/s" else score.tcpError}")
             if (score.tcpOk && (best == null || score.rank() > best.second.rank())) best = key to score
+            // the hints' order: the first that works, without waiting for the rest
+            if (hints != null && best != null) break
         }
         return best?.first
     }
