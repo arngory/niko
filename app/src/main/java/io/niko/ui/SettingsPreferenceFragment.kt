@@ -293,6 +293,24 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                     lines += RayChannel.describe(context, profile.displayName(), score)
                 }
                 onMainDispatcher { dialog.setMessage(lines.joinToString("\n")) }
+                // a Yggdrasil profile: its public peers from here, each with a node of the app's own
+                val via = profile.requireBean().yggVia.orEmpty().lines().map { it.trim() }.filter { it.isNotEmpty() }
+                if (via.isNotEmpty()) {
+                    val checks = io.niko.raycontrol.RayYggPeers.check(via)
+                    val picked = io.niko.raycontrol.RayYggPeers.pick(checks)
+                    lines += context.getString(R.string.raycontrol_ygg_peers, checks.count { it.up }, checks.size)
+                    for (c in checks) {
+                        val name = io.niko.raycontrol.RayYggPeers.label(c.uri)
+                        lines += when {
+                            c.up -> context.getString(
+                                if (c.uri in picked) R.string.raycontrol_ygg_peer_taken else R.string.raycontrol_ygg_peer_up,
+                                name, c.latencyMs.toInt()
+                            )
+                            else -> context.getString(R.string.raycontrol_ygg_peer_down, name, c.error ?: "—")
+                        }
+                    }
+                    onMainDispatcher { dialog.setMessage(lines.joinToString("\n")) }
+                }
             }
             lines[0] = context.getString(R.string.raycontrol_channel_done)
             // with consent the day's summary of this network goes out now, the results just measured in it

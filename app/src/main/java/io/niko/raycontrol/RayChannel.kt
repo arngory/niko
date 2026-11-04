@@ -401,11 +401,22 @@ object RayChannel {
     }
 
     /**
+     * The public peers taken on [network] (the check's pick), or null: none checked (a record from before 1.23.0,
+     * which took them all).
+     */
+    fun yggViaPeers(nodeId: String, network: ChannelNetwork?): List<String>? {
+        network ?: return null
+        val o = load().getAsJsonObject(nodeId)?.getAsJsonObject(network.key)?.getAsJsonObject(YGG_VIA) ?: return null
+        return (o.get("peers") as? com.google.gson.JsonArray)?.mapNotNull { runCatching { it.asString }.getOrNull() }
+    }
+
+    /**
      * The running Yggdrasil profile [key] of [node] does not work: with public peers of the node and none in use yet
-     * on this network, they are taken for a day (the caller restarts the core) and true is returned. Back to the
+     * on this network, they are checked (RayYggPeers) and the fastest that answer are taken for a day (the caller
+     * restarts the core): true. None answering: false, the public peers would not help here either. Back to the
      * direct peer alone at a start after that day.
      */
-    fun tryYggVia(node: RayNode, key: String): Boolean {
+    suspend fun tryYggVia(node: RayNode, key: String): Boolean {
         val id = node.profileIds?.get(key) ?: return false
         val bean = SagerDatabase.proxyDao.getById(id)?.requireBean() ?: return false
         if (bean.yggPeer.isNullOrBlank() || bean.yggVia.isNullOrBlank()) return false
@@ -414,11 +425,21 @@ object RayChannel {
             // the network wants them since earlier today: a core built elsewhere runs without them
             return yggViaRunning[node.spa.nodeId] != true
         }
+        val via = bean.yggVia.orEmpty().lines().map { it.trim() }.filter { it.isNotEmpty() }
+        val checks = RayYggPeers.check(via)
+        val picked = RayYggPeers.pick(checks)
+        Logs.i("raycontrol ${node.host}: public Yggdrasil peers here: " + checks.joinToString("; ") {
+            RayYggPeers.label(it.uri) + if (it.up) " ${it.latencyMs} ms" else " no link" + (it.error?.let { e -> " ($e)" } ?: "")
+        })
+        if (picked.isEmpty()) return false
         RayNodesLock.withLock {
             val all = load()
             val nodeObject = all.getAsJsonObject(node.spa.nodeId) ?: JsonObject().also { all.add(node.spa.nodeId, it) }
             val onNetwork = nodeObject.getAsJsonObject(network.key) ?: JsonObject().also { nodeObject.add(network.key, it) }
-            onNetwork.add(YGG_VIA, JsonObject().apply { addProperty("at", System.currentTimeMillis() / 1000) })
+            onNetwork.add(YGG_VIA, JsonObject().apply {
+                addProperty("at", System.currentTimeMillis() / 1000)
+                add("peers", JsonArray().apply { picked.forEach { add(it) } })
+            })
             DataStore.configurationStore.putString(Key.RAYCONTROL_CHANNEL, all.toString())
         }
         return true

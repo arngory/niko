@@ -656,10 +656,15 @@ fun buildConfig(
                     yggProfileEndpoints[seed]?.let { (_, peer) ->
                         if (peer != yggPeer) throw Exception("${bean.displayName()}: its Yggdrasil key is used with another node in this configuration")
                     }
-                    // the node's public peers (niko-ygg-via, R4-18) once the direct peer failed on this network
-                    val via = bean.yggVia.orEmpty().lines().map { it.trim() }.filter { it.isNotEmpty() }
-                    val viaOn = !forTest && via.isNotEmpty() && rayNode != null &&
+                    // the node's public peers (niko-ygg-via, R4-18) once the direct peer failed on this network: the
+                    // ones the check took there (RayYggPeers), all of them for a record from before the check
+                    val allVia = bean.yggVia.orEmpty().lines().map { it.trim() }.filter { it.isNotEmpty() }
+                    val viaOn = !forTest && allVia.isNotEmpty() && rayNode != null &&
                         RayChannel.yggViaActive(rayNode.spa.nodeId, RayChannel.network())
+                    val via = if (viaOn && rayNode != null) {
+                        RayChannel.yggViaPeers(rayNode.spa.nodeId, RayChannel.network())
+                            ?.filter { it in allVia }?.takeIf { it.isNotEmpty() } ?: allVia
+                    } else allVia
                     // what this core runs with, per node (any of its mesh nodes): the watchdog adds the peers when
                     // the network wants them
                     if (!forTest && rayNode != null) {

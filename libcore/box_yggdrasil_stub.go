@@ -15,3 +15,7 @@ func YggdrasilGenerateKey() (string, error) {
 }
 
 func YggdrasilAddress(privateKeyHex string) string { return "" }
+
+func YggdrasilPeers(i *BoxInstance, tag string) (string, error) {
+	return "", errors.New("yggdrasil is not included in this build")
+}

@@ -534,7 +534,7 @@
     <string name="yggdrasil_peers_help">По одному в строке: tls://host:port, tcp://, quic://, ws://, wss://. Нода raycontrol: tls://адрес:443?sni=её-имя-yggdrasil. Публичные пиры: github.com/yggdrasil-network/public-peers</string>
     <string name="raycontrol">Ноды raycontrol</string>
     <string name="raycontrol_auto_switch">Переключать профили ноды</string>
-    <string name="raycontrol_auto_switch_summary">Если профиль ноды перестал работать в этой сети, перейти на её лучший рабочий профиль; профиль Yggdrasil сначала пробует там публичные пиры ноды. Результаты хранятся по сетям на этом устройстве</string>
+    <string name="raycontrol_auto_switch_summary">Если профиль ноды перестал работать в этой сети, перейти на её лучший рабочий профиль; профиль Yggdrasil сначала пробует там публичные пиры ноды — несколько самых быстрых из ответивших. Результаты хранятся по сетям на этом устройстве</string>
     <string name="raycontrol_channel_check">Проверить канал</string>
     <string name="raycontrol_channel_title">Канал до %1$s</string>
     <string name="raycontrol_channel_checking">Проверяю каждый профиль в этой сети (до 20 с на каждый)…</string>
@@ -552,6 +552,10 @@
     <string name="raycontrol_reports_summary">Раз в сутки на сеть: по каждому сервису ноды — работал ли он здесь, грубыми корзинами (порог остановки, потери UDP, скорость). Без устройства, имён сетей, адресов и времени; нода хранит только счётчики. Отправляется напрямую из этой сети нодам, которые принимают сводки; в ответ подписка может принести подсказки других устройств для этой сети</string>
     <string name="raycontrol_report_show">Сводка и подсказки</string>
     <string name="raycontrol_report_empty">Отправлять нечего: за сутки в этой сети не было замеров</string>
+    <string name="raycontrol_ygg_peers">  публичные пиры Yggdrasil отсюда: связь с %1$d из %2$d</string>
+    <string name="raycontrol_ygg_peer_taken">  %1$s: %2$d мс, будет взят</string>
+    <string name="raycontrol_ygg_peer_up">  %1$s: %2$d мс</string>
+    <string name="raycontrol_ygg_peer_down">  %1$s: нет связи (%2$s)</string>
     <string name="raycontrol_report_sent">Сводка этой сети отправлена ноде</string>
     <string name="raycontrol_report_already">Сводка этой сети за сегодня уже у ноды</string>
     <string name="raycontrol_report_not_taken">Нода не принимает сводки</string>
