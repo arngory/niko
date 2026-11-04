@@ -169,9 +169,10 @@ jobs:
           x /opt/rc/rayctl user add alice -services reality,hy2o,hy2m,ygg,dns,mdns > /dev/null
           x /opt/rc/rayctl device add alice phone -o /root/phone.bundle
           x cat /root/phone.bundle > /tmp/phone.bundle
-          for sock in /run/niko/inner/vless.sock /run/niko/site/tls.sock /run/niko/reality/reality.sock \
-              /run/niko/hy2o/stats.sock /run/niko/hy2m/stats.sock /run/niko/ygg/fd.sock \
-              /run/niko/dns/packet.sock /run/niko/mdns/packet.sock; do
+          # v0.10.0: what the front passes on goes to /run/niko/<service>-in/ (S-1), stats stay in /run/niko/<service>/
+          for sock in /run/niko/inner/vless.sock /run/niko/site/tls.sock /run/niko/reality-in/reality.sock \
+              /run/niko/hy2o/stats.sock /run/niko/hy2m/stats.sock /run/niko/ygg-in/fd.sock \
+              /run/niko/dns-in/packet.sock /run/niko/mdns-in/packet.sock; do
             for i in $(seq 150); do x test -S "$sock" && break; sleep 0.2; done
             x test -S "$sock" || { echo "no $sock"; x tail -n 80 /var/log/rayd.log; exit 1; }
           done

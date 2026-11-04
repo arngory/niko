@@ -197,6 +197,12 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
         knockSilence = DataStore.serverKnockSilence
         tlsFragment = DataStore.serverTlsFragment
         certPins = DataStore.serverCertPins
+        // dnsauth-v1 belongs to the node's tunnel the link gave: another server, domain or key is not that tunnel
+        if (dnsTunnel != DataStore.serverDnsTunnel || dnsTunnelResolver != DataStore.serverDnsTunnelResolver ||
+            dnsTunnelDomain != DataStore.serverDnsTunnelDomain || dnsTunnelKey != DataStore.serverDnsTunnelKey
+        ) {
+            dnsTunnelAuth = ""
+        }
         dnsTunnel = DataStore.serverDnsTunnel
         dnsTunnelResolver = DataStore.serverDnsTunnelResolver
         dnsTunnelDomain = DataStore.serverDnsTunnelDomain

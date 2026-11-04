@@ -74,9 +74,9 @@ data class DnsTunnel(
         }
     }
 
-    /** The node id and the service id of dnsauth-v1, or null when it is off. */
+    /** The node id and the service id of dnsauth-v1 (dnstt only), or null when it is off. */
     val authNode: Pair<String, Int>?
-        get() = auth.split(';').takeIf { it.size == 3 && it[0] == "v1" }?.let { (_, node, svc) ->
+        get() = auth.split(';').takeIf { engine == DNSTT && it.size == 3 && it[0] == "v1" }?.let { (_, node, svc) ->
             svc.toIntOrNull()?.let { node to it }
         }
 

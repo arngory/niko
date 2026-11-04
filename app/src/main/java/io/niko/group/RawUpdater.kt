@@ -213,6 +213,7 @@ object RawUpdater : GroupUpdater() {
                 bean.dnsTunnelKey = existsBean.dnsTunnelKey
                 bean.dnsTunnelMethod = existsBean.dnsTunnelMethod
                 bean.dnsTunnelFixedUpstream = existsBean.dnsTunnelFixedUpstream
+                bean.dnsTunnelAuth = existsBean.dnsTunnelAuth
                 bean.udpPrelude = existsBean.udpPrelude
                 bean.udpPreludeSni = existsBean.udpPreludeSni
                 bean.udpPreludeTtl = existsBean.udpPreludeTtl

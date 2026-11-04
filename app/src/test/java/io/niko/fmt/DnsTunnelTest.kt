@@ -65,6 +65,8 @@ class DnsTunnelTest {
         assertEquals(mapOf("node_id" to node, "service_id" to 3, "device_key_ref" to "raycontrol:$node:dev"), auth)
         // no key reference, no auth block (the device key is never in the config)
         assertFalse(tunnel.outboundOptions(null).containsKey("auth"))
+        // only dnstt signs
+        assertNull(tunnel.copy(engine = DnsTunnel.MASTERDNSVPN).authNode)
         // another version, or masterdnsvpn: off
         val other = SOCKSBean().apply { initializeDefaultValues(); applyNikoParams({ (params + ("niko-dnsauth" to "v2"))[it] }) }
         assertEquals("", other.dnsTunnelAuth)

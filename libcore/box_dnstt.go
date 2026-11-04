@@ -10,9 +10,13 @@ import (
 	dnsttTransport "github.com/sagernet/sing-box/transport/dnstt"
 )
 
+func init() {
+	// dnsauth-v1 signs with the node's device key, by the reference SPA uses: the key stays out of the config.
+	// Set once here, not per box: boxes are built while others run.
+	dnsttTransport.DeviceKeys = knock.DeviceKey
+}
+
 // the DNS tunnel outbound (experimental), only in builds with with_dnstt
 func registerDNSTT(registry *outbound.Registry) {
-	// dnsauth-v1 signs with the node's device key, by the reference SPA uses: the key stays out of the config
-	dnsttTransport.DeviceKeys = knock.DeviceKey
 	dnstt.RegisterOutbound(registry)
 }
