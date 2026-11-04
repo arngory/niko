@@ -146,15 +146,21 @@ type knockHosts struct {
 }
 
 type hostLookup struct {
+	// what the name resolved to last; a failed lookup keeps them (the node's addresses stay knocked at)
 	addrs []netip.Addr
-	at    time.Time
+	// the last successful lookup, and the last one at all
+	resolved, tried time.Time
+	// closed when the running lookup ends: the dials that wait take its result
+	inflight chan struct{}
 }
 
 const (
-	// what a listed name resolved to is kept this long
+	// what a listed name resolved to counts this long for an address it does not hold
 	hostLookupTTL = 5 * time.Minute
 	// an address matching none of them looks the names up again, at most this often
 	hostLookupRetry = 10 * time.Second
+	// a lookup holds a dial this long at most (the name may be what this network drops)
+	hostLookupTimeout = 3 * time.Second
 )
 
 func parseHosts(hosts []string) *knockHosts {
@@ -199,32 +205,60 @@ func (o *Outbound) plain(ctx context.Context, destination M.Socksaddr) bool {
 	return true
 }
 
-// hostAddrs: what the listed name resolves to, from the cache while fresh; looked up again when it misses [want]
-// and the last lookup is older than hostLookupRetry
+// hostAddrs: what the listed name resolves to, from the cache while it holds [want] and is fresh, or was looked up
+// less than hostLookupRetry ago; otherwise looked up again, one lookup per name at a time. A failed lookup keeps
+// the addresses of the last good one
 func (o *Outbound) hostAddrs(ctx context.Context, name string, want netip.Addr) []netip.Addr {
 	h := o.hosts
 	h.access.Lock()
-	cached := h.lookups[name]
-	h.access.Unlock()
-	if cached != nil {
-		age := time.Since(cached.at)
-		if age < hostLookupTTL && (slices.Contains(cached.addrs, want) || age < hostLookupRetry) {
-			return cached.addrs
-		}
+	l := h.lookups[name]
+	if l == nil {
+		l = &hostLookup{}
+		h.lookups[name] = l
 	}
-	resolved, err := o.lookup(ctx, name)
+	if !l.tried.IsZero() && (time.Since(l.tried) < hostLookupRetry ||
+		time.Since(l.resolved) < hostLookupTTL && slices.Contains(l.addrs, want)) {
+		addrs := l.addrs
+		h.access.Unlock()
+		return addrs
+	}
+	if wait := l.inflight; wait != nil {
+		h.access.Unlock()
+		select {
+		case <-wait:
+		case <-ctx.Done():
+		}
+		h.access.Lock()
+		addrs := l.addrs
+		h.access.Unlock()
+		return addrs
+	}
+	done := make(chan struct{})
+	l.inflight = done
+	h.access.Unlock()
+
+	lookupCtx, cancel := context.WithTimeout(ctx, hostLookupTimeout)
+	resolved, err := o.lookup(lookupCtx, name)
+	cancel()
 	if err != nil {
 		o.logger.DebugContext(ctx, "knock: resolve ", name, ": ", err)
 	}
-	// a copy: the resolver's slice may be its cache
-	addrs := make([]netip.Addr, 0, len(resolved))
-	for _, addr := range resolved {
-		addrs = append(addrs, addr.Unmap())
-	}
+
 	h.access.Lock()
-	h.lookups[name] = &hostLookup{addrs: addrs, at: time.Now()}
-	h.access.Unlock()
-	return addrs
+	defer h.access.Unlock()
+	now := time.Now()
+	l.tried = now
+	if err == nil && len(resolved) > 0 {
+		// a copy: the resolver's slice may be its cache
+		addrs := make([]netip.Addr, 0, len(resolved))
+		for _, addr := range resolved {
+			addrs = append(addrs, addr.Unmap())
+		}
+		l.addrs, l.resolved = addrs, now
+	}
+	l.inflight = nil
+	close(done)
+	return l.addrs
 }
 
 func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options Options) (adapter.Outbound, error) {

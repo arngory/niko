@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"io"
 	"net"
+	"net/netip"
 	"os"
 	"strconv"
 	"testing"
@@ -421,4 +422,18 @@ func TestSPA2Hosts(t *testing.T) {
 	dial(node, "127.0.0.1", true)
 	// without a list, everything is knocked at
 	dial(newBox(t, Options{SPAv2: &options}), "127.0.0.1", true)
+
+	// a failed lookup keeps what the name resolved to before: the node stays knocked at by address
+	kept := newBox(t, Options{SPAv2: &options, Hosts: []string{"node.invalid"}})
+	stale := time.Now().Add(-hostLookupTTL - time.Minute)
+	kept.hosts.lookups["node.invalid"] = &hostLookup{
+		addrs: []netip.Addr{netip.MustParseAddr("127.0.0.1")}, resolved: stale, tried: stale,
+	}
+	if kept.plain(ctx, M.ParseSocksaddrHostPort("127.0.0.2", server)) != true {
+		t.Fatal("an address the name never had is knocked at")
+	}
+	if l := kept.hosts.lookups["node.invalid"]; len(l.addrs) != 1 || time.Since(l.tried) > time.Minute {
+		t.Fatal("the failed lookup dropped the addresses or was not noted: ", l.addrs)
+	}
+	dial(kept, "127.0.0.1", true)
 }
