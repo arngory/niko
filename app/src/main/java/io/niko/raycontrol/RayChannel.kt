@@ -147,6 +147,8 @@ data class RayHints(
     val avoid: List<Int> = emptyList(),
     val udpBlocked: Boolean = false,
     val tcpStallKib: Int = 0,
+    // the UDP MTU bucket of most reports from the network (raycontrol v0.8); "<1200": no QUIC there
+    val udpMtu: String? = null,
     val devices: Long = 0,
     val days: Int = 0,
 ) {
@@ -156,6 +158,7 @@ data class RayHints(
         add("avoid", JsonArray().apply { avoid.forEach { add(it) } })
         addProperty("udp_blocked", udpBlocked)
         addProperty("tcp_stall_kib", tcpStallKib)
+        udpMtu?.let { addProperty("udp_mtu", it) }
         addProperty("devices", devices)
         addProperty("days", days)
     }
@@ -168,6 +171,7 @@ data class RayHints(
             avoid = (o.get("avoid") as? JsonArray)?.mapNotNull { runCatching { it.asInt }.getOrNull() }.orEmpty(),
             udpBlocked = o.get("udp_blocked")?.asBoolean ?: false,
             tcpStallKib = o.get("tcp_stall_kib")?.asInt ?: 0,
+            udpMtu = o.get("udp_mtu")?.takeIf { it.isJsonPrimitive }?.asString,
             devices = o.get("devices")?.asLong ?: 0,
             days = o.get("days")?.asInt ?: 0,
         )
@@ -182,7 +186,8 @@ data class RayHints(
         when {
             svc in avoid -> 3
             svc in order -> 0
-            udpBlocked && overUdp(key) -> 2
+            // UDP blocked, or a path MTU under QUIC's 1200 bytes
+            (udpBlocked || udpMtu == "<1200") && overUdp(key) -> 2
             else -> 1
         }
     }, { key -> order.indexOf(key.substringBefore('#').toIntOrNull()) }))
@@ -324,6 +329,16 @@ object RayChannel {
 
     // the direct path to the node on a network (directPath): which SPA carrier opens its port, the UDP MTU
     private const val DIRECT = "_direct"
+
+    /**
+     * The UDP MTU measured directly to [nodeId] on [network] since [since] (unix s), or null: not measured then, or
+     * no echo came back at all.
+     */
+    fun directUdpMtu(nodeId: String, network: ChannelNetwork, since: Long): Int? {
+        val o = load().getAsJsonObject(nodeId)?.getAsJsonObject(network.key)?.getAsJsonObject(DIRECT) ?: return null
+        if ((o.get("at")?.asLong ?: 0) < since) return null
+        return o.get("udp_mtu")?.asInt?.takeIf { it > 0 }
+    }
 
     // echo sizes for the path's MTU: Ethernet's and PPPoE's payloads down to QUIC's minimum, and one well below it
     private val MTU_SIZES = listOf(1472, 1452, 1400, 1350, 1280, 1200, 576)

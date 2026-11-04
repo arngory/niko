@@ -662,6 +662,7 @@
     <string name="raycontrol_hints_order">Works best: %1$s</string>
     <string name="raycontrol_hints_avoid">Mostly fails: %1$s</string>
     <string name="raycontrol_hints_udp_blocked">UDP mostly does not pass</string>
+    <string name="raycontrol_hints_udp_mtu">UDP mostly passes datagrams of %1$s bytes</string>
     <string name="raycontrol_hints_stall">TCP mostly stalls near %1$d KiB</string>
     <string name="raycontrol_nodes">Imported nodes</string>
     <string name="raycontrol_nodes_empty">None. Paste an rcdev1: registration from the clipboard or scan its QR code (+ on the main screen); profiles whose server is the node\'s address then send SPA v2 first.</string>

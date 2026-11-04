@@ -378,6 +378,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                 if (h.avoid.isNotEmpty()) append("\n").append(getString(R.string.raycontrol_hints_avoid, list(h.avoid)))
                 if (h.udpBlocked) append("\n").append(getString(R.string.raycontrol_hints_udp_blocked))
                 if (h.tcpStallKib > 0) append("\n").append(getString(R.string.raycontrol_hints_stall, h.tcpStallKib))
+                h.udpMtu?.let { append("\n").append(getString(R.string.raycontrol_hints_udp_mtu, it)) }
             }
         }
         MaterialAlertDialogBuilder(requireContext())

@@ -64,7 +64,11 @@ data class RayIdentity(val cert: String, val keyWrapped: String, val pin: String
  * The subscription's `probe` (probe-v1.md §1): v1, the UDP echo, and the name inside the tunnels of tunnelSvc that
  * leads to the probe.
  */
-data class RayProbeInfo(val v: Int, val udp: Boolean, val tunnel: String?, val tunnelSvc: List<Int>) {
+data class RayProbeInfo(
+    val v: Int, val udp: Boolean, val tunnel: String?, val tunnelSvc: List<Int>,
+    // optional fields of the summary the node takes (probe-v1.md §6.1, raycontrol v0.8): sent only when listed
+    val report: List<String> = emptyList(),
+) {
     fun reachesThrough(svc: Int?) = svc != null && tunnel != null && svc in tunnelSvc
 
     fun toJson() = JsonObject().apply {
@@ -72,6 +76,7 @@ data class RayProbeInfo(val v: Int, val udp: Boolean, val tunnel: String?, val t
         addProperty("udp", udp)
         tunnel?.let { addProperty("tunnel", it) }
         add("tunnel_svc", JsonArray().apply { tunnelSvc.forEach { add(it) } })
+        if (report.isNotEmpty()) add("report", JsonArray().apply { report.forEach { add(it) } })
     }
 
     companion object {
@@ -80,6 +85,7 @@ data class RayProbeInfo(val v: Int, val udp: Boolean, val tunnel: String?, val t
             udp = o.get("udp")?.asBoolean ?: false,
             tunnel = o.get("tunnel")?.takeIf { it.isJsonPrimitive }?.asString,
             tunnelSvc = (o.get("tunnel_svc") as? JsonArray)?.mapNotNull { runCatching { it.asInt }.getOrNull() }.orEmpty(),
+            report = (o.get("report") as? JsonArray)?.mapNotNull { runCatching { it.asString }.getOrNull() }.orEmpty(),
         )
     }
 }

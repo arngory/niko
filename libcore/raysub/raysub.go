@@ -73,6 +73,8 @@ type ProbeInfo struct {
 	UDP       bool     `json:"udp"`
 	Tunnel    string   `json:"tunnel,omitempty"`
 	TunnelSvc []uint16 `json:"tunnel_svc,omitempty"`
+	// optional fields of the summary the node takes (probe-v1.md §6.1, raycontrol v0.8): sent only when listed
+	Report []string `json:"report,omitempty"`
 }
 
 // Hints is the payload's `hints` (probe-v1.md §6.2): the clients' summaries for the network the subscription was
@@ -82,6 +84,7 @@ type Hints struct {
 	Avoid       []uint16 `json:"avoid,omitempty"`
 	UDPBlocked  bool     `json:"udp_blocked,omitempty"`
 	TCPStallKiB int      `json:"tcp_stall_kib,omitempty"`
+	UDPMTU      string   `json:"udp_mtu,omitempty"` // the UDP MTU bucket of most reports from the network
 	Devices     int64    `json:"devices"`
 	Days        int      `json:"days"`
 }

@@ -51,6 +51,14 @@ object RayReport {
         else -> "50-100"
     }
 
+    /** The bucket of the largest UDP echo that came back directly (probe-v1.md §6.1): <1200 means no QUIC there. */
+    fun mtuBucket(mtu: Int): String = when {
+        mtu < 1200 -> "<1200"
+        mtu < 1350 -> "1200-1350"
+        mtu < 1472 -> "1350-1472"
+        else -> "1472+"
+    }
+
     /** The download speed bucket through the tunnel, Mbit/s. */
     fun mbpsBucket(s: ChannelScore): String = when {
         s.kbps < 1000 -> "<1"
@@ -76,6 +84,10 @@ object RayReport {
         return JsonObject().apply {
             addProperty("v", 1)
             addProperty("net", network.kind)
+            // only to a node that takes it (probe.report): an older one answers 400, which closes the day
+            if ("udp_mtu" in node.probe?.report.orEmpty()) {
+                RayChannel.directUdpMtu(node.spa.nodeId, network, now - RECENT)?.let { addProperty("udp_mtu", mtuBucket(it)) }
+            }
             add("obs", JsonArray().apply {
                 bySvc.entries.take(MAX_OBS).forEach { (svc, s) ->
                     add(JsonObject().apply {

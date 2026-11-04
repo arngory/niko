@@ -233,7 +233,8 @@ func checkReport(ctx context.Context, t *testing.T, admin Endpoint, nodeClient *
 	if _, err = Call(ctx, admin, NodeService+"SetUserServices", []byte(`{"name":"interop","services":["api","hy2-obfs"]}`)); err != nil {
 		t.Fatalf("SetUserServices: %v", err)
 	}
-	report := []byte(`{"v":1,"net":"wifi","obs":[{"svc":` + strconv.FormatInt(svc, 10) + `,"result":"works","udp":"0-1","mbps":"5-20"}]}`)
+	// udp_mtu: an optional field the node lists in probe.report (raycontrol v0.8), checked with the hint
+	report := []byte(`{"v":1,"net":"wifi","udp_mtu":"1350-1472","obs":[{"svc":` + strconv.FormatInt(svc, 10) + `,"result":"works","udp":"0-1","mbps":"5-20"}]}`)
 	status := func(err error) int {
 		if s, ok := err.(*rayprobe.StatusError); ok {
 			return s.Status
@@ -362,7 +363,7 @@ func newDevice(ctx context.Context, t *testing.T, admin Endpoint, name string) (
 // (probe-v1.md §6.2). Asked from the node's own address it carries none.
 func checkHints(ctx context.Context, t *testing.T, admin Endpoint, first *Registered, svc int64, own string) {
 	t.Helper()
-	report := []byte(`{"v":1,"net":"cellular","obs":[{"svc":` + strconv.FormatInt(svc, 10) + `,"result":"works","udp":"none","mbps":"1-5"}]}`)
+	report := []byte(`{"v":1,"net":"cellular","udp_mtu":"1350-1472","obs":[{"svc":` + strconv.FormatInt(svc, 10) + `,"result":"works","udp":"none","mbps":"1-5"}]}`)
 	for i := 2; i <= 10; i++ {
 		registered, b := newDevice(ctx, t, admin, "hint-"+strconv.Itoa(i))
 		key, err := hex.DecodeString(b.DeviceKey)
@@ -389,9 +390,13 @@ func checkHints(ctx context.Context, t *testing.T, admin Endpoint, first *Regist
 		t.Fatalf("subscription from %s: %v", own, err)
 	}
 	h := result.Payload.Hints
-	// nine of the ten said UDP does not pass: over the 60 % majority
-	if h == nil || h.Devices < 10 || !slices.Contains(h.Order, uint16(svc)) || !h.UDPBlocked {
-		t.Fatalf("subscription from %s: hints %+v, want order with %d and udp_blocked over 10 reports", own, h, svc)
+	// nine of the ten said UDP does not pass: over the 60 % majority; all ten carried the same UDP MTU bucket
+	if h == nil || h.Devices < 10 || !slices.Contains(h.Order, uint16(svc)) || !h.UDPBlocked || h.UDPMTU != "1350-1472" {
+		t.Fatalf("subscription from %s: hints %+v, want order with %d, udp_blocked and udp_mtu over 10 reports", own, h, svc)
+	}
+	// the node lists the optional field the client may send
+	if p := result.Payload.Probe; p == nil || !slices.Contains(p.Report, "udp_mtu") {
+		t.Fatalf("subscription's probe without report [udp_mtu]: %+v", p)
 	}
 	t.Logf("hints from %s after 10 reports: %+v", own, *h)
 	// from the node's own address (as through a tunnel): no hint

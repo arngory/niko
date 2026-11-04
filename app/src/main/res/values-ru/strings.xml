@@ -574,6 +574,7 @@
     <string name="raycontrol_hints_order">Лучше всего работают: %1$s</string>
     <string name="raycontrol_hints_avoid">Чаще всего не работают: %1$s</string>
     <string name="raycontrol_hints_udp_blocked">UDP в основном не проходит</string>
+    <string name="raycontrol_hints_udp_mtu">UDP чаще всего пропускает датаграммы %1$s байт</string>
     <string name="raycontrol_hints_stall">TCP чаще всего встаёт около %1$d КиБ</string>
     <string name="raycontrol_nodes">Импортированные ноды</string>
     <string name="raycontrol_nodes_empty">Нет. Вставьте регистрацию rcdev1: из буфера обмена или отсканируйте её QR-код (+ на главном экране); профили с адресом ноды будут сначала отправлять SPA v2.</string>

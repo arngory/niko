@@ -53,6 +53,23 @@ class RayReportTest {
     }
 
     @Test
+    fun mtuBucket() {
+        assertEquals("<1200", RayReport.mtuBucket(576))
+        assertEquals("1200-1350", RayReport.mtuBucket(1200))
+        assertEquals("1200-1350", RayReport.mtuBucket(1280))
+        assertEquals("1350-1472", RayReport.mtuBucket(1350))
+        assertEquals("1350-1472", RayReport.mtuBucket(1452))
+        assertEquals("1472+", RayReport.mtuBucket(1472))
+        // a hint's MTU under QUIC's minimum puts the UDP profiles after the rest, as a blocked UDP does
+        val hints = RayHints(0, udpMtu = "<1200")
+        assertEquals(listOf("2#b", "1#a"), hints.sort(listOf("1#a", "2#b")) { it == "1#a" })
+        val probe = RayProbeInfo.fromJson(com.google.gson.JsonParser.parseString(
+            """{"v":1,"udp":true,"report":["udp_mtu"],"tunnel_svc":[3]}""").asJsonObject)
+        assertEquals(listOf("udp_mtu"), probe.report)
+        assertEquals(probe, RayProbeInfo.fromJson(probe.toJson()))
+    }
+
+    @Test
     fun stall() {
         assertNull(RayReport.stallKib(score()))
         assertEquals(16, RayReport.stallKib(score(stalledAt = 17 * 1024L)))
