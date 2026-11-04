@@ -360,9 +360,9 @@ func TestSPA2TCPCarrier(t *testing.T) {
 	}
 }
 
-// SkipHosts: a Yggdrasil endpoint dials the node and the node's public peers through one knock outbound; the peers
-// are never knocked at, the node always, by name or by the address a resolver made of it (the node's DoH)
-func TestSPA2SkipHosts(t *testing.T) {
+// Hosts: a Yggdrasil endpoint dials the node and the node's public peers through one knock outbound; only the node
+// is knocked at, by name, by address, or by the address its name resolves to (a caller that resolved it first)
+func TestSPA2Hosts(t *testing.T) {
 	spaConn, err := net.ListenPacket("udp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -389,32 +389,36 @@ func TestSPA2SkipHosts(t *testing.T) {
 		DeviceKey: "1111111111111111111111111111111111111111111111111111111111111111",
 		Scope:     []uint16{1}, TTL: 600,
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	dial := func(o *Outbound, host string, knocked bool) {
+		t.Helper()
+		conn, err := o.DialContext(ctx, N.NetworkTCP, M.ParseSocksaddrHostPort(host, server))
+		if err != nil {
+			t.Fatal(host, ": ", err)
+		}
+		conn.Close()
+		select {
+		case <-packets:
+			if !knocked {
+				t.Fatal(host, ": a host outside the list got an SPA packet")
+			}
+		case <-time.After(map[bool]time.Duration{true: 2 * time.Second, false: 300 * time.Millisecond}[knocked]):
+			if knocked {
+				t.Fatal(host, ": no SPA packet for the node")
+			}
+		}
+	}
 
-	// a public peer (here by its address): dialled plainly, no packet
-	peer := newBox(t, Options{SPAv2: &options, SkipHosts: []string{"ygg.example.net", "127.0.0.1"}})
-	conn, err := peer.DialContext(ctx, N.NetworkTCP, M.ParseSocksaddrHostPort("127.0.0.1", server))
-	if err != nil {
-		t.Fatal(err)
-	}
-	conn.Close()
-	select {
-	case <-packets:
-		t.Fatal("a skipped host got an SPA packet")
-	case <-time.After(300 * time.Millisecond):
-	}
-
-	// the node, whose name is not skipped, reached as an address (resolved before the knock): knocked
-	node := newBox(t, Options{SPAv2: &options, SkipHosts: []string{"ygg.example.net"}})
-	conn, err = node.DialContext(ctx, N.NetworkTCP, M.ParseSocksaddrHostPort("127.0.0.1", server))
-	if err != nil {
-		t.Fatal(err)
-	}
-	conn.Close()
-	select {
-	case <-packets:
-	case <-time.After(2 * time.Second):
-		t.Fatal("no SPA packet for the node")
-	}
+	// the node elsewhere: 127.0.0.1 is a public peer, by address, dialled plainly
+	dial(newBox(t, Options{SPAv2: &options, Hosts: []string{"node.invalid"}}), "127.0.0.1", false)
+	// the node by its address
+	dial(newBox(t, Options{SPAv2: &options, Hosts: []string{"node.invalid", "127.0.0.1"}}), "127.0.0.1", true)
+	// the node by name, and by the address a caller resolved its name to
+	node := newBox(t, Options{SPAv2: &options, Hosts: []string{"localhost"}})
+	dial(node, "localhost", true)
+	node.forget(M.ParseSocksaddrHostPort("127.0.0.1", server))
+	dial(node, "127.0.0.1", true)
+	// without a list, everything is knocked at
+	dial(newBox(t, Options{SPAv2: &options}), "127.0.0.1", true)
 }

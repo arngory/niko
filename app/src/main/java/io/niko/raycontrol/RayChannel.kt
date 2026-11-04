@@ -220,6 +220,13 @@ object RayChannel {
         val net = SagerNet.underlyingNetwork ?: return null
         val caps = SagerNet.connectivity.getNetworkCapabilities(net) ?: return null
         val mobile = caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
+        val wifi = caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+        val kind = when {
+            mobile -> "cellular"
+            wifi -> "wifi"
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "ethernet"
+            else -> "other"
+        }
         val parts = mutableListOf<String>()
         when {
             mobile -> {
@@ -229,11 +236,8 @@ object RayChannel {
             }
 
             else -> {
-                parts += when {
-                    caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "wifi"
-                    caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "ethernet"
-                    else -> "other"
-                }
+                // the key as before the network kind was reported: what was measured on a network stays its own
+                parts += if (wifi) "wifi" else "other"
                 SagerNet.connectivity.getLinkProperties(net)?.let { lp ->
                     parts += lp.routes.filter { it.isDefaultRoute }.mapNotNull { it.gateway?.hostAddress }.sorted()
                     parts += lp.dnsServers.mapNotNull { it.hostAddress }.sorted()
@@ -242,7 +246,7 @@ object RayChannel {
             }
         }
         val digest = MessageDigest.getInstance("SHA-256").digest(parts.joinToString("|").toByteArray())
-        return ChannelNetwork(digest.take(8).joinToString("") { "%02x".format(it) }, mobile, parts.first())
+        return ChannelNetwork(digest.take(8).joinToString("") { "%02x".format(it) }, mobile, kind)
     }
 
     private fun load(): JsonObject = try {

@@ -15,6 +15,7 @@ import (
 	"encoding/hex"
 	"net"
 	"net/netip"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -72,10 +73,11 @@ type Options struct {
 	SPAv2 *SPAv2Options `json:"spa_v2,omitempty"`
 	// UDPPorts: UDP services of the node whose port rotates (udpports.go), SPA v2 only.
 	UDPPorts []UDPPortSchedule `json:"udp_ports,omitempty"`
-	// SkipHosts are dialled plainly, never knocked at (names or addresses, matched as dialled). A Yggdrasil
-	// endpoint dials the node and, as a fallback, the node's public peers through this outbound: those must never
-	// get its SPA. Everything else is knocked at as before, also a name resolved before it gets here.
-	SkipHosts []string `json:"skip_hosts,omitempty"`
+	// Hosts, when set, are the only ones knocked at (names or addresses); everything else is dialled plainly. A
+	// name also covers the addresses it resolves to with this outbound's resolver, since a caller may resolve it
+	// before dialling (a DNS server's domain_resolver, yggdrasil-go's quic://). A Yggdrasil endpoint dials the node
+	// and, as a fallback, the node's public peers through this outbound: the peers must never get its SPA.
+	Hosts []string `json:"hosts,omitempty"`
 }
 
 func Register(registry *outbound.Registry) {
@@ -130,19 +132,99 @@ type Outbound struct {
 	access  sync.Mutex
 	targets map[string]*target
 
-	// hosts never knocked at (Options.SkipHosts), lower case
-	skipHosts map[string]bool
+	// the only hosts knocked at (Options.Hosts); nil: all
+	hosts *knockHosts
 }
 
-// plain: a destination in Options.SkipHosts, dialled without a knock
-func (o *Outbound) plain(destination M.Socksaddr) bool {
-	if len(o.skipHosts) == 0 {
+// knockHosts: Options.Hosts, names in lower case and addresses, with what the names resolved to
+type knockHosts struct {
+	names map[string]bool
+	addrs map[netip.Addr]bool
+
+	access  sync.Mutex
+	lookups map[string]*hostLookup
+}
+
+type hostLookup struct {
+	addrs []netip.Addr
+	at    time.Time
+}
+
+const (
+	// what a listed name resolved to is kept this long
+	hostLookupTTL = 5 * time.Minute
+	// an address matching none of them looks the names up again, at most this often
+	hostLookupRetry = 10 * time.Second
+)
+
+func parseHosts(hosts []string) *knockHosts {
+	if len(hosts) == 0 {
+		return nil
+	}
+	h := &knockHosts{names: map[string]bool{}, addrs: map[netip.Addr]bool{}, lookups: map[string]*hostLookup{}}
+	for _, host := range hosts {
+		host = strings.ToLower(strings.TrimSuffix(strings.Trim(strings.TrimSpace(host), "[]"), "."))
+		if host == "" {
+			continue
+		}
+		if addr, err := netip.ParseAddr(host); err == nil {
+			h.addrs[addr.Unmap()] = true
+		} else {
+			h.names[host] = true
+		}
+	}
+	return h
+}
+
+// plain: a destination outside Options.Hosts, dialled without a knock. An address is matched against the listed
+// addresses and what the listed names resolve to; a name that does not resolve covers nothing
+func (o *Outbound) plain(ctx context.Context, destination M.Socksaddr) bool {
+	h := o.hosts
+	if h == nil {
 		return false
 	}
 	if destination.IsFqdn() {
-		return o.skipHosts[strings.ToLower(strings.TrimSuffix(destination.Fqdn, "."))]
+		return !h.names[strings.ToLower(strings.TrimSuffix(destination.Fqdn, "."))]
 	}
-	return o.skipHosts[destination.Addr.Unmap().String()]
+	addr := destination.Addr.Unmap()
+	// nothing to knock at (ListenPacket on 0.0.0.0) is left to the dial path, as without a list
+	if !addr.IsValid() || addr.IsUnspecified() || h.addrs[addr] {
+		return false
+	}
+	for name := range h.names {
+		if slices.Contains(o.hostAddrs(ctx, name, addr), addr) {
+			return false
+		}
+	}
+	return true
+}
+
+// hostAddrs: what the listed name resolves to, from the cache while fresh; looked up again when it misses [want]
+// and the last lookup is older than hostLookupRetry
+func (o *Outbound) hostAddrs(ctx context.Context, name string, want netip.Addr) []netip.Addr {
+	h := o.hosts
+	h.access.Lock()
+	cached := h.lookups[name]
+	h.access.Unlock()
+	if cached != nil {
+		age := time.Since(cached.at)
+		if age < hostLookupTTL && (slices.Contains(cached.addrs, want) || age < hostLookupRetry) {
+			return cached.addrs
+		}
+	}
+	resolved, err := o.lookup(ctx, name)
+	if err != nil {
+		o.logger.DebugContext(ctx, "knock: resolve ", name, ": ", err)
+	}
+	// a copy: the resolver's slice may be its cache
+	addrs := make([]netip.Addr, 0, len(resolved))
+	for _, addr := range resolved {
+		addrs = append(addrs, addr.Unmap())
+	}
+	h.access.Lock()
+	h.lookups[name] = &hostLookup{addrs: addrs, at: time.Now()}
+	h.access.Unlock()
+	return addrs
 }
 
 func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options Options) (adapter.Outbound, error) {
@@ -188,15 +270,6 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, t
 	if err != nil {
 		return nil, err
 	}
-	skipHosts := map[string]bool{}
-	for _, h := range options.SkipHosts {
-		if h = strings.ToLower(strings.TrimSuffix(strings.Trim(strings.TrimSpace(h), "[]"), ".")); h != "" {
-			if addr, err := netip.ParseAddr(h); err == nil {
-				h = addr.Unmap().String()
-			}
-			skipHosts[h] = true
-		}
-	}
 	return &Outbound{
 		Adapter:        outbound.NewAdapterWithDialerOptions(TypeKnock, tag, []string{N.NetworkTCP, N.NetworkUDP}, options.DialerOptions),
 		ctx:            ctx,
@@ -210,7 +283,7 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, t
 		interval:       interval,
 		ttl:            ttl,
 		silence:        silence,
-		skipHosts:      skipHosts,
+		hosts:          parseHosts(options.Hosts),
 		targets:        make(map[string]*target),
 	}, nil
 }
@@ -264,7 +337,7 @@ func parseSequence(sequence []Step) ([]step, error) {
 }
 
 func (o *Outbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	plain := o.plain(destination)
+	plain := o.plain(ctx, destination)
 	destination, err := o.resolve(ctx, destination)
 	if err != nil {
 		return nil, err
@@ -304,7 +377,7 @@ func (o *Outbound) DialContext(ctx context.Context, network string, destination 
 }
 
 func (o *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	plain := o.plain(destination)
+	plain := o.plain(ctx, destination)
 	destination, err := o.resolve(ctx, destination)
 	if err != nil {
 		return nil, err
@@ -354,11 +427,7 @@ func (o *Outbound) resolve(ctx context.Context, destination M.Socksaddr) (M.Sock
 	if !destination.IsFqdn() || o.hasDetour {
 		return destination, nil
 	}
-	queryOptions, err := dialer.NewDNSQueryOptions(o.ctx, o.domainResolver, false)
-	if err != nil {
-		return M.Socksaddr{}, err
-	}
-	addresses, err := service.FromContext[adapter.DNSRouter](o.ctx).Lookup(ctx, destination.Fqdn, queryOptions)
+	addresses, err := o.lookup(ctx, destination.Fqdn)
 	if err != nil {
 		return M.Socksaddr{}, err
 	}
@@ -366,6 +435,15 @@ func (o *Outbound) resolve(ctx context.Context, destination M.Socksaddr) (M.Sock
 		return M.Socksaddr{}, E.New("knock: no address for ", destination.Fqdn)
 	}
 	return M.SocksaddrFrom(addresses[0], destination.Port), nil
+}
+
+// lookup resolves a name with this outbound's resolver (domain_resolver)
+func (o *Outbound) lookup(ctx context.Context, name string) ([]netip.Addr, error) {
+	queryOptions, err := dialer.NewDNSQueryOptions(o.ctx, o.domainResolver, false)
+	if err != nil {
+		return nil, err
+	}
+	return service.FromContext[adapter.DNSRouter](o.ctx).Lookup(ctx, name, queryOptions)
 }
 
 func (o *Outbound) target(host string) *target {

@@ -603,6 +603,7 @@ fun buildConfig(
                 // port knocking: a libcore "knock" outbound dials the server for this hop. A raycontrol node
                 // gets SPA v2 instead of the profile's own sequence
                 var knockTag: String? = null
+                var knockHolder: Outbound? = null
                 pastDetourHolder = null
                 if (rayNode != null || bean.hasPortKnocking()) {
                     if (proxyEntity.needExternal() && index != profileList.lastIndex) {
@@ -613,6 +614,7 @@ fun buildConfig(
                         type = "knock"
                         tag = knockTag
                     }
+                    knockHolder = knockOutbound
                     // an export carries only the key reference: the key never leaves the app
                     knockOutbound._hack_config_map.putAll(
                         rayNode?.let { if (forExport) it.knockOptions() else RayNodes.prepareKnock(it) }
@@ -658,10 +660,10 @@ fun buildConfig(
                         RayChannel.yggViaActive(rayNode.spa.nodeId, RayChannel.network())
                     // what this core runs with: the watchdog adds the peers when the network wants them
                     if (!forTest && rayNode != null) RayChannel.noteYggVia(rayNode.spa.nodeId, viaOn)
-                    // the public peers never get the node's SPA: the knock outbound dials them plainly (they are
-                    // dialled by the names or addresses in their URIs); everything else through it is knocked at
-                    if (viaOn) (pastDetourHolder as? Outbound)?._hack_config_map?.set(
-                        "skip_hosts", via.mapNotNull { yggPeerHost(it)?.trim('[', ']') }.distinct()
+                    // only the node gets its SPA: the knock outbound knocks at the node's own names (and what they
+                    // resolve to) and dials anything else plainly, the public peers among them, by name or address
+                    knockHolder?._hack_config_map?.set(
+                        "hosts", listOfNotNull(rayNode?.host, yggPeerHost(yggPeer)).map { it.trim('[', ']') }.distinct()
                     )
                     val yggTag = yggProfileEndpoints.getOrPut(seed) {
                         "$tagOut-ygg".also { tag ->

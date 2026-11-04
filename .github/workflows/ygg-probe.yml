@@ -60,19 +60,25 @@ jobs:
           echo "address:"
           grep -m1 'Yggdrasil address' /tmp/node.log || true
 
+      # live services of other people: one of them may be down, so the step wants most of them, not all
       - name: Services inside the network
         run: |
+          ok=0
           probe() {
-            out=$(curl -sS -m 30 -o /tmp/body -w '%{http_code} %{time_total}s' -x socks5h://127.0.0.1:14080 "$2" 2>&1)
+            rm -f /tmp/body
+            out=$(curl -sS -m 30 -o /tmp/body -w '%{http_code} %{time_total}s' -x socks5h://127.0.0.1:14080 "$2" 2>&1) &&
+              ok=$((ok + 1))
             title=$(grep -oiE '<title>[^<]*' /tmp/body 2>/dev/null | head -1 | cut -c8-80)
             echo "$1 | $2 | $out | $title"
           }
           probe "IP checker" 'http://[200:56bd:a9e9:c1fa:8f99:1d3c:3c84:6507]/'
-          head -c 300 /tmp/body; echo
+          head -c 300 /tmp/body 2>/dev/null || true; echo
           probe "Project homepage" 'http://[300:8101:e046:d91e::5]/'
           probe "Web directory" 'http://[21e:a51c:885b:7db0:166e:927:98cd:d186]/'
           probe "Search" 'http://[200:b48d:469e:c7c7:3e13:c41d:ba4d:d2b8]/'
           probe "Map" 'http://[227:bc24:9a82:e290:7f4a:f992:2ef6:5b34]/'
+          echo "answered: $ok of 5"
+          [ "$ok" -ge 3 ]
 
       - name: Node log
         if: always()
