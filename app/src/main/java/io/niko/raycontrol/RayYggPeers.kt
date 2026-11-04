@@ -71,9 +71,14 @@ object RayYggPeers {
             (key == null || key.length == 64 && key.all { it in "0123456789abcdefABCDEF" })
     }.getOrDefault(false)
 
-    /** The peers to take: up, the fastest first, at most [TAKE]. */
+    /**
+     * The peers to take: up, the encrypted links first (tls, quic, wss), then the fastest, at most [TAKE]. A tcp or
+     * ws link shows the Yggdrasil protocol on the wire: taken only when too few encrypted ones answer.
+     */
     fun pick(checks: List<YggPeerCheck>): List<String> =
-        checks.filter { it.up }.sortedBy { it.latencyMs }.take(TAKE).map { it.uri }
+        checks.filter { it.up }.sortedWith(compareBy({ plain(it.uri) }, { it.latencyMs })).take(TAKE).map { it.uri }
+
+    private fun plain(uri: String) = runCatching { java.net.URI(uri).scheme.lowercase() in listOf("tcp", "ws") }.getOrDefault(false)
 
     /** One line for the user: the peer's scheme and host, and how the check went. */
     fun label(uri: String): String = runCatching {
