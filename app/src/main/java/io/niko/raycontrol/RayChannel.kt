@@ -421,11 +421,14 @@ object RayChannel {
         val bean = SagerDatabase.proxyDao.getById(id)?.requireBean() ?: return false
         if (bean.yggPeer.isNullOrBlank() || bean.yggVia.isNullOrBlank()) return false
         val network = network() ?: return false
-        if (yggViaActive(node.spa.nodeId, network)) {
-            // the network wants them since earlier today: a core built elsewhere runs without them
-            return yggViaRunning[node.spa.nodeId] != true
-        }
         val via = bean.yggVia.orEmpty().lines().map { it.trim() }.filter { it.isNotEmpty() }
+        if (yggViaActive(node.spa.nodeId, network)) {
+            val picked = yggViaPeers(node.spa.nodeId, network)
+            // the network wants them since earlier today: a core built elsewhere runs without them. Unless the
+            // subscription dropped every peer the check took: then the new list is checked
+            if (picked == null || picked.any { it in via }) return yggViaRunning[node.spa.nodeId] != true
+            Logs.i("raycontrol ${node.host}: the public Yggdrasil peers taken here are gone from the subscription, checking the new ones")
+        }
         val checks = RayYggPeers.check(via)
         val picked = RayYggPeers.pick(checks)
         Logs.i("raycontrol ${node.host}: public Yggdrasil peers here: " + checks.joinToString("; ") {

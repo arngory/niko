@@ -28,29 +28,48 @@ object RayYggPeers {
     private const val TAG = "check"
     private const val WAIT_MS = 6000L
 
-    /** The state of each of [peers] after up to a few seconds, in their order. */
+    /**
+     * The state of each of [peers] after up to a few seconds, in their order. Never throws: a peer the core would
+     * refuse (from the subscription) is reported invalid, a check that cannot run reports every peer with its error.
+     */
     suspend fun check(peers: List<String>): List<YggPeerCheck> = withContext(Dispatchers.IO) {
         if (peers.isEmpty()) return@withContext emptyList()
-        val box = Libcore.newSingBoxInstance(config(peers), LocalResolverImpl)
+        // one bad entry would fail the core for all of them
+        val valid = peers.filter { valid(it) }
         var seen = emptyList<YggPeerCheck>()
-        try {
+        var failure: String? = null
+        var box: libcore.BoxInstance? = null
+        if (valid.isNotEmpty()) try {
+            box = Libcore.newSingBoxInstance(config(valid), LocalResolverImpl)
             box.start()
             val until = System.currentTimeMillis() + WAIT_MS
             while (System.currentTimeMillis() < until) {
                 delay(300)
                 seen = parse(Libcore.yggdrasilPeers(box, TAG))
                 // each one up or failed: nothing more to wait for
-                if (peers.all { uri -> seen.any { sameEndpoint(it.uri, uri) && (it.up || it.error != null) } }) break
+                if (valid.all { uri -> seen.any { sameEndpoint(it.uri, uri) && (it.up || it.error != null) } }) break
             }
         } catch (e: Exception) {
             Logs.w("raycontrol: Yggdrasil peer check: ${e.message}")
+            failure = e.message ?: e.javaClass.simpleName
         } finally {
-            runCatching { box.close() }
+            runCatching { box?.close() }
         }
         peers.map { uri ->
-            seen.firstOrNull { sameEndpoint(it.uri, uri) }?.copy(uri = uri) ?: YggPeerCheck(uri, false, error = null)
+            when {
+                uri !in valid -> YggPeerCheck(uri, false, error = "invalid peer")
+                else -> seen.firstOrNull { sameEndpoint(it.uri, uri) }?.copy(uri = uri) ?: YggPeerCheck(uri, false, error = failure)
+            }
         }
     }
+
+    // what the core takes as a peer: a known scheme, host and port, a node key (when given) of 64 hex digits
+    private fun valid(uri: String): Boolean = runCatching {
+        val u = java.net.URI(uri)
+        val key = u.rawQuery.orEmpty().split('&').firstOrNull { it.startsWith("key=") }?.removePrefix("key=")
+        u.scheme in listOf("tls", "quic", "tcp", "ws", "wss") && !u.host.isNullOrBlank() && u.port in 1..65535 &&
+            (key == null || key.length == 64 && key.all { it in "0123456789abcdefABCDEF" })
+    }.getOrDefault(false)
 
     /** The peers to take: up, the fastest first, at most [TAKE]. */
     fun pick(checks: List<YggPeerCheck>): List<String> =
@@ -101,7 +120,11 @@ object RayYggPeers {
                     )
                 ),
                 "outbounds" to listOf(mapOf("type" to "direct", "tag" to "direct")),
-                "route" to mapOf("final" to "direct", "default_domain_resolver" to "dns-direct"),
+                // auto_detect_interface: the dials are protected from the app's own VPN (protect_path in the UI,
+                // VpnService.protect in :bg), so the peers are reached from the network, not through a profile
+                "route" to mapOf(
+                    "final" to "direct", "default_domain_resolver" to "dns-direct", "auto_detect_interface" to true,
+                ),
             )
         )
     }
