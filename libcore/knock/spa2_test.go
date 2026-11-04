@@ -359,3 +359,62 @@ func TestSPA2TCPCarrier(t *testing.T) {
 		t.Fatal("the TCP carrier survived a network change")
 	}
 }
+
+// SkipHosts: a Yggdrasil endpoint dials the node and the node's public peers through one knock outbound; the peers
+// are never knocked at, the node always, by name or by the address a resolver made of it (the node's DoH)
+func TestSPA2SkipHosts(t *testing.T) {
+	spaConn, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer spaConn.Close()
+	spaPort := uint16(spaConn.LocalAddr().(*net.UDPAddr).Port)
+	packets := make(chan []byte, 8)
+	go func() {
+		buffer := make([]byte, 1024)
+		for {
+			n, _, err := spaConn.ReadFrom(buffer)
+			if err != nil {
+				return
+			}
+			packets <- bytes.Clone(buffer[:n])
+		}
+	}()
+	r := &recorder{}
+	server := listenTCP(t, r, "server")
+	options := SPAv2Options{
+		NodeID: "33333333333333333333333333333333", EpochLen: 86400, SlotLen: 600,
+		PortKey:  "4444444444444444444444444444444444444444444444444444444444444444",
+		PortBase: spaPort, PortRange: 1, LenMin: 96, LenMax: 160,
+		DeviceKey: "1111111111111111111111111111111111111111111111111111111111111111",
+		Scope:     []uint16{1}, TTL: 600,
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// a public peer (here by its address): dialled plainly, no packet
+	peer := newBox(t, Options{SPAv2: &options, SkipHosts: []string{"ygg.example.net", "127.0.0.1"}})
+	conn, err := peer.DialContext(ctx, N.NetworkTCP, M.ParseSocksaddrHostPort("127.0.0.1", server))
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn.Close()
+	select {
+	case <-packets:
+		t.Fatal("a skipped host got an SPA packet")
+	case <-time.After(300 * time.Millisecond):
+	}
+
+	// the node, whose name is not skipped, reached as an address (resolved before the knock): knocked
+	node := newBox(t, Options{SPAv2: &options, SkipHosts: []string{"ygg.example.net"}})
+	conn, err = node.DialContext(ctx, N.NetworkTCP, M.ParseSocksaddrHostPort("127.0.0.1", server))
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn.Close()
+	select {
+	case <-packets:
+	case <-time.After(2 * time.Second):
+		t.Fatal("no SPA packet for the node")
+	}
+}

@@ -14,6 +14,7 @@ import (
 	"context"
 	"encoding/hex"
 	"net"
+	"net/netip"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -71,6 +72,10 @@ type Options struct {
 	SPAv2 *SPAv2Options `json:"spa_v2,omitempty"`
 	// UDPPorts: UDP services of the node whose port rotates (udpports.go), SPA v2 only.
 	UDPPorts []UDPPortSchedule `json:"udp_ports,omitempty"`
+	// SkipHosts are dialled plainly, never knocked at (names or addresses, matched as dialled). A Yggdrasil
+	// endpoint dials the node and, as a fallback, the node's public peers through this outbound: those must never
+	// get its SPA. Everything else is knocked at as before, also a name resolved before it gets here.
+	SkipHosts []string `json:"skip_hosts,omitempty"`
 }
 
 func Register(registry *outbound.Registry) {
@@ -124,6 +129,20 @@ type Outbound struct {
 
 	access  sync.Mutex
 	targets map[string]*target
+
+	// hosts never knocked at (Options.SkipHosts), lower case
+	skipHosts map[string]bool
+}
+
+// plain: a destination in Options.SkipHosts, dialled without a knock
+func (o *Outbound) plain(destination M.Socksaddr) bool {
+	if len(o.skipHosts) == 0 {
+		return false
+	}
+	if destination.IsFqdn() {
+		return o.skipHosts[strings.ToLower(strings.TrimSuffix(destination.Fqdn, "."))]
+	}
+	return o.skipHosts[destination.Addr.Unmap().String()]
 }
 
 func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options Options) (adapter.Outbound, error) {
@@ -169,6 +188,15 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, t
 	if err != nil {
 		return nil, err
 	}
+	skipHosts := map[string]bool{}
+	for _, h := range options.SkipHosts {
+		if h = strings.ToLower(strings.TrimSuffix(strings.Trim(strings.TrimSpace(h), "[]"), ".")); h != "" {
+			if addr, err := netip.ParseAddr(h); err == nil {
+				h = addr.Unmap().String()
+			}
+			skipHosts[h] = true
+		}
+	}
 	return &Outbound{
 		Adapter:        outbound.NewAdapterWithDialerOptions(TypeKnock, tag, []string{N.NetworkTCP, N.NetworkUDP}, options.DialerOptions),
 		ctx:            ctx,
@@ -182,6 +210,7 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, t
 		interval:       interval,
 		ttl:            ttl,
 		silence:        silence,
+		skipHosts:      skipHosts,
 		targets:        make(map[string]*target),
 	}, nil
 }
@@ -235,9 +264,13 @@ func parseSequence(sequence []Step) ([]step, error) {
 }
 
 func (o *Outbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	plain := o.plain(destination)
 	destination, err := o.resolve(ctx, destination)
 	if err != nil {
 		return nil, err
+	}
+	if plain {
+		return o.dialer.DialContext(ctx, network, destination)
 	}
 	if o.spa2 != nil {
 		return o.dialSPA2(ctx, network, destination)
@@ -271,12 +304,13 @@ func (o *Outbound) DialContext(ctx context.Context, network string, destination 
 }
 
 func (o *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+	plain := o.plain(destination)
 	destination, err := o.resolve(ctx, destination)
 	if err != nil {
 		return nil, err
 	}
 	// e.g. multi-peer WireGuard listens on 0.0.0.0, there is nothing to knock at
-	if !knockable(destination) {
+	if plain || !knockable(destination) {
 		return o.dialer.ListenPacket(ctx, destination)
 	}
 	_, err = o.knock(ctx, destination, false)

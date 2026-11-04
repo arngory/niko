@@ -10,10 +10,14 @@ import io.niko.database.DataStore
  * - niko-pin: SHA-256 of the server key (SPKI), base64url;
  * - niko-ygg: `<peer>;<seed>`, a Yggdrasil profile: the VLESS server is the node's mesh address, reached through a
  *   mesh node of the device's own (the ed25519 seed, 64 hex digits) whose only peer is the node
- *   (`tls://<name>:443?key=<node key>&sni=<name>`).
+ *   (`tls://<name>:443?key=<node key>&sni=<name>`);
+ * - niko-ygg-via (repeated): the node's public peers, used only when the direct peer does not connect.
  * niko-node and niko-svc tie the profile to an imported node: its SPA follows the server address already.
  */
-fun AbstractBean.applyNikoParams(param: (String) -> String?) {
+fun AbstractBean.applyNikoParams(param: (String) -> String?) = applyNikoParams(param) { listOfNotNull(param(it)) }
+
+/** As [applyNikoParams], with [params] giving every value of a repeated parameter (niko-ygg-via). */
+fun AbstractBean.applyNikoParams(param: (String) -> String?, params: (String) -> List<String>) {
     param("niko-dns")?.takeIf { it.isNotBlank() }?.let { spec ->
         val parts = spec.split(';')
         require(parts.size == 4) { "niko-dns: want engine;resolver;zone;key-or-method" }
@@ -45,8 +49,15 @@ fun AbstractBean.applyNikoParams(param: (String) -> String?) {
         val (peer, seed) = parseYggParam(spec)
         yggPeer = peer
         yggKey = seed
+        // the node's public peers (R4-18): a way through the public mesh when the direct peer does not connect
+        yggVia = params("niko-ygg-via").map { it.trim() }.filter { via ->
+            YGG_VIA_SCHEMES.any { via.startsWith("$it://") } && runCatching { java.net.URI(via).host }.getOrNull() != null
+        }.distinct().joinToString("\n")
     }
 }
+
+/** The peer schemes yggdrasil-go dials (subscription-v1.md §4). */
+private val YGG_VIA_SCHEMES = listOf("tls", "quic", "wss", "ws", "tcp")
 
 /** `<peer>;<seed>` of niko-ygg, checked: a tls:// peer with the node's key, a 32-byte seed in hex. */
 fun parseYggParam(spec: String): Pair<String, String> {

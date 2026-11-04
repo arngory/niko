@@ -114,7 +114,7 @@ fun parseHysteria2(url: String): HysteriaBean {
         // pinSHA256 pins the hash of the whole certificate; sing-box can only pin the public key
         // (certificate_public_key_sha256), so it can not be carried over. A raycontrol hy2-obfs link carries the
         // key pin as niko-pin (its certificate is self-signed, its name not in DNS)
-        applyNikoParams { link.queryParameter(it) }
+        applyNikoParams({ link.queryParameter(it) })
     }
 }
 

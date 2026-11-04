@@ -652,6 +652,17 @@ fun buildConfig(
                     yggProfileEndpoints[seed]?.let { (_, peer) ->
                         if (peer != yggPeer) throw Exception("${bean.displayName()}: its Yggdrasil key is used with another node in this configuration")
                     }
+                    // the node's public peers (niko-ygg-via, R4-18) once the direct peer failed on this network
+                    val via = bean.yggVia.orEmpty().lines().map { it.trim() }.filter { it.isNotEmpty() }
+                    val viaOn = !forTest && via.isNotEmpty() && rayNode != null &&
+                        RayChannel.yggViaActive(rayNode.spa.nodeId, RayChannel.network())
+                    // what this core runs with: the watchdog adds the peers when the network wants them
+                    if (!forTest && rayNode != null) RayChannel.noteYggVia(rayNode.spa.nodeId, viaOn)
+                    // the public peers never get the node's SPA: the knock outbound dials them plainly (they are
+                    // dialled by the names or addresses in their URIs); everything else through it is knocked at
+                    if (viaOn) (pastDetourHolder as? Outbound)?._hack_config_map?.set(
+                        "skip_hosts", via.mapNotNull { yggPeerHost(it)?.trim('[', ']') }.distinct()
+                    )
                     val yggTag = yggProfileEndpoints.getOrPut(seed) {
                         "$tagOut-ygg".also { tag ->
                             endpoints.add(Outbound().apply {
@@ -659,7 +670,7 @@ fun buildConfig(
                                 this.tag = tag
                                 // the device's key never leaves the app, as the SPA key
                                 _hack_config_map["private_key"] = if (forExport) "<the device key stays in the app>" else seed
-                                _hack_config_map["peers"] = listOf(yggPeer)
+                                _hack_config_map["peers"] = listOf(yggPeer) + (if (viaOn) via else emptyList())
                                 _hack_config_map["node_info_privacy"] = true
                                 knockTag?.let { _hack_config_map["detour"] = it }
                             })

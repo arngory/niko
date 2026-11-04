@@ -289,7 +289,7 @@ fun StandardV2RayBean.parseDuckSoft(url: HttpUrl) {
         utlsFingerprint = it
     }
     // raycontrol links (subscription-v1.md §4): DNS tunnel, certificate pin
-    applyNikoParams { url.queryParameter(it) }
+    applyNikoParams({ url.queryParameter(it) }, { url.queryParameterValues(it).filterNotNull() })
 }
 
 private const val ECH_PEM_BEGIN = "-----BEGIN ECH CONFIGS-----"

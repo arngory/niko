@@ -249,7 +249,7 @@ object RayChannel {
     /** The stored results of [nodeId] on [network], by profile key. */
     fun scores(nodeId: String, network: ChannelNetwork): Map<String, ChannelScore> {
         val byProfile = load().getAsJsonObject(nodeId)?.getAsJsonObject(network.key) ?: return emptyMap()
-        return byProfile.entrySet().filter { it.key != BRUTAL }.mapNotNull { (key, value) ->
+        return byProfile.entrySet().filter { !it.key.startsWith("_") }.mapNotNull { (key, value) ->
             runCatching { key to ChannelScore.fromJson(value.asJsonObject) }.getOrNull()
         }.toMap()
     }
@@ -305,6 +305,48 @@ object RayChannel {
         val onNetwork = node.getAsJsonObject(network.key) ?: JsonObject().also { node.add(network.key, it) }
         onNetwork.add(BRUTAL, rates.toJson())
         DataStore.configurationStore.putString(Key.RAYCONTROL_CHANNEL, all.toString())
+    }
+
+    // node ID → the running core has the node's public peers (ConfigBuilder notes it)
+    private val yggViaRunning = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+
+    fun noteYggVia(nodeId: String, on: Boolean) {
+        yggViaRunning[nodeId] = on
+    }
+
+    // a network where a Yggdrasil profile of the node goes through the node's public peers (R4-18), for a day
+    private const val YGG_VIA = "_ygg_via"
+    private const val YGG_VIA_HOLD = 24 * 3600L
+
+    /** The node's Yggdrasil profiles take its public peers on [network]: the direct peer failed there today. */
+    fun yggViaActive(nodeId: String, network: ChannelNetwork?): Boolean {
+        network ?: return false
+        val at = load().getAsJsonObject(nodeId)?.getAsJsonObject(network.key)?.getAsJsonObject(YGG_VIA)?.get("at")?.asLong ?: return false
+        return System.currentTimeMillis() / 1000 - at < YGG_VIA_HOLD
+    }
+
+    /**
+     * The running Yggdrasil profile [key] of [node] does not work: with public peers of the node and none in use yet
+     * on this network, they are taken for a day (the caller restarts the core) and true is returned. Back to the
+     * direct peer alone at a start after that day.
+     */
+    fun tryYggVia(node: RayNode, key: String): Boolean {
+        val id = node.profileIds?.get(key) ?: return false
+        val bean = SagerDatabase.proxyDao.getById(id)?.requireBean() ?: return false
+        if (bean.yggPeer.isNullOrBlank() || bean.yggVia.isNullOrBlank()) return false
+        val network = network() ?: return false
+        if (yggViaActive(node.spa.nodeId, network)) {
+            // the network wants them since earlier today: a core built elsewhere runs without them
+            return yggViaRunning[node.spa.nodeId] != true
+        }
+        RayNodesLock.withLock {
+            val all = load()
+            val nodeObject = all.getAsJsonObject(node.spa.nodeId) ?: JsonObject().also { all.add(node.spa.nodeId, it) }
+            val onNetwork = nodeObject.getAsJsonObject(network.key) ?: JsonObject().also { nodeObject.add(network.key, it) }
+            onNetwork.add(YGG_VIA, JsonObject().apply { addProperty("at", System.currentTimeMillis() / 1000) })
+            DataStore.configurationStore.putString(Key.RAYCONTROL_CHANNEL, all.toString())
+        }
+        return true
     }
 
     /** Forgets the results of a node (it was removed). */

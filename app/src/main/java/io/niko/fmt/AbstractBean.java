@@ -48,6 +48,8 @@ public abstract class AbstractBean extends Serializable {
     // extraVersion 7: raycontrol Yggdrasil profile (niko-ygg): the node as the only peer, this device's key
     public String yggPeer; // tls://<name>:443?key=<node key hex>&sni=<name>; "" off
     public String yggKey; // the device's ed25519 seed, 64 hex digits
+    // extraVersion 8: the node's public peers (niko-ygg-via, R4-18), one per line: a fallback when the direct one fails
+    public String yggVia;
 
     //
     public transient String finalAddress;
@@ -115,6 +117,7 @@ public abstract class AbstractBean extends Serializable {
         if (udpPreludeTtl == null) udpPreludeTtl = 0;
         if (yggPeer == null) yggPeer = "";
         if (yggKey == null) yggKey = "";
+        if (yggVia == null) yggVia = "";
         if (udpReorderInitial == null) udpReorderInitial = false;
     }
 
@@ -125,7 +128,7 @@ public abstract class AbstractBean extends Serializable {
     public void serializeToBuffer(@NonNull ByteBufferOutput output) {
         serialize(output);
 
-        output.writeInt(7);
+        output.writeInt(8);
         if (!serializeWithoutName) {
             output.writeString(name);
         }
@@ -149,6 +152,7 @@ public abstract class AbstractBean extends Serializable {
         output.writeBoolean(udpReorderInitial != null && udpReorderInitial);
         output.writeString(yggPeer != null ? yggPeer : "");
         output.writeString(yggKey != null ? yggKey : "");
+        output.writeString(yggVia != null ? yggVia : "");
     }
 
     @Override
@@ -189,6 +193,9 @@ public abstract class AbstractBean extends Serializable {
         if (extraVersion >= 7) {
             yggPeer = input.readString();
             yggKey = input.readString();
+        }
+        if (extraVersion >= 8) {
+            yggVia = input.readString();
         }
     }
 
