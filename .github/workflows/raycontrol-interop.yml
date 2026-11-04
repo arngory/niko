@@ -70,6 +70,8 @@ jobs:
           for i in $(seq 100); do [ -S /tmp/rc/rayd.sock ] && break; sleep 0.2; done
           rc() { /tmp/rayctl -socket /tmp/rc/rayd.sock "$@"; }
           rc service add api api
+          # a service with a profile in the subscription (the hints are for those), without a domain
+          rc service add hy2-obfs hy2-obfs
           rc user add interop
           rc device invite interop phone -role admin -o /tmp/rc/invite
           rc service list

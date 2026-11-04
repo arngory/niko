@@ -195,7 +195,9 @@ func TestRaycontrolInterop(t *testing.T) {
 	}
 }
 
-// checkReport sends a summary for the user's api service, the admin turning the node's summaries on in between.
+// checkReport sends a summary for the user's hy2-obfs service, the admin turning the node's summaries on in between.
+// A service with a profile in the subscription: the node gives hints only for those (internal/sub, R4-21); hy2-obfs
+// needs no domain (its certificate is its own).
 // It returns the service reported on and the runner's own address, the summaries left on.
 func checkReport(ctx context.Context, t *testing.T, admin Endpoint, nodeClient *rayprobe.Client, nodeLoopback bool, e *rayprobe.Endpoint, port int) (int64, string) {
 	t.Helper()
@@ -214,15 +216,15 @@ func checkReport(ctx context.Context, t *testing.T, admin Endpoint, nodeClient *
 	}
 	svc := int64(0)
 	for _, s := range listed.Services {
-		if s.Name == "api" {
+		if s.Name == "hy2-obfs" {
 			svc = s.ID
 		}
 	}
 	if svc == 0 {
-		t.Fatalf("no api service in %s", services)
+		t.Fatalf("no hy2-obfs service in %s", services)
 	}
 	// the node takes observations of the user's own services only
-	if _, err = Call(ctx, admin, NodeService+"SetUserServices", []byte(`{"name":"interop","services":["api"]}`)); err != nil {
+	if _, err = Call(ctx, admin, NodeService+"SetUserServices", []byte(`{"name":"interop","services":["api","hy2-obfs"]}`)); err != nil {
 		t.Fatalf("SetUserServices: %v", err)
 	}
 	report := []byte(`{"v":1,"net":"wifi","obs":[{"svc":` + strconv.FormatInt(svc, 10) + `,"result":"works","udp":"0-1","mbps":"5-20"}]}`)
