@@ -69,6 +69,8 @@ class RayRowsTest {
         assertEquals(emptyList<String>(), RayRows.subscriptionSecrets("https://p.example/api/v1/client/subscribe?token=x"))
         assertEquals(emptyList<String>(), RayRows.subscriptionSecrets("https://p.example/subscribe"))
         assertEquals(emptyList<String>(), RayRows.subscriptionSecrets("https://raw.example/user/repo/main/config.yaml"))
+        assertEquals(emptyList<String>(), RayRows.subscriptionSecrets("https://p.example/sub/v2ray-json"))
+        assertEquals(listOf("qwhzkrtmbvplxnae.txt"), RayRows.subscriptionSecrets("https://p.example/qwhzkrtmbvplxnae.txt"))
     }
 
     @Test

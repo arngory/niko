@@ -98,8 +98,14 @@ object RayRows {
     private val PLAIN_SEGMENTS = setOf(
         "subscribe", "subscription", "subscriptions", "download", "downloads", "client", "clients", "config",
         "configs", "profile", "profiles", "singbox", "sing-box", "clashmeta", "clash-meta", "v2rayng", "nekobox",
+        "v2ray-json", "sing-box-json", "outline-json",
     )
-    private val PLAIN_FILE = Regex("[A-Za-z_-]+\\.(txt|yaml|yml|json|conf|list)")
+
+    /** Known file names (config.yaml); a token with an extension (/qwhzkrtmbvplxnae.txt) is still a token. */
+    private val PLAIN_FILE = Regex(
+        "(config|configs|sub|subscribe|subscription|clash|mihomo|nodes|proxies|proxy|singbox|sing-box|v2ray|list)" +
+                "\\.(txt|yaml|yml|json|conf|list)", RegexOption.IGNORE_CASE
+    )
 
     /**
      * The secrets of a subscription link's path, as they stand in the log (encoded): every segment of 8 chars or
