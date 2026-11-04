@@ -261,8 +261,8 @@ func Call(ctx context.Context, e Endpoint, method string, body []byte) ([]byte, 
 		return e.post(ctx, client, method, body)
 	}
 	var lastErr error
-	// UDP twice (the slot may turn), then a ClientHello, then bare TCP for nodes before v0.10.0
-	for _, carrier := range []knock.Carrier{knock.CarrierUDP, knock.CarrierUDP, knock.CarrierTLS, knock.CarrierTCP} {
+	// UDP twice (the slot may turn), then the others the node takes (a ClientHello, then bare TCP for an older node)
+	for _, carrier := range e.SPA.FetchCarriers() {
 		if err = knock.SendSPAv2(ctx, e.dialer(), e.Host, e.SPA, carrier, time.Now()); err != nil {
 			return nil, err
 		}

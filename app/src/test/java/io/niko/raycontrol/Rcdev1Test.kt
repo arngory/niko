@@ -90,5 +90,13 @@ class Rcdev1Test {
         // the key itself never enters the config
         assertFalse(spa.containsKey("device_key"))
         assertFalse(node.knockOptions().toString().contains("1".repeat(64)))
+        assertFalse(spa.containsKey("carriers"))
+        assertFalse(node.spaJson().has("carriers"))
+
+        // the subscription's spa.carriers (v0.10.1) go with the SPA options to the core, and are stored
+        val listed = node.copy(spaCarriers = listOf("udp", "tls"))
+        assertEquals(listOf("udp", "tls"), (listed.knockOptions()["spa_v2"] as Map<*, *>)["carriers"])
+        assertEquals("[\"udp\",\"tls\"]", listed.spaJson().get("carriers").toString())
+        assertEquals(listed, RayNode.fromJson(JsonParser.parseString(listed.toJson().toString()).asJsonObject))
     }
 }

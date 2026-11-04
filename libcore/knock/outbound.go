@@ -122,8 +122,10 @@ type Outbound struct {
 	steps          []step
 	spa2           *spa2Params
 	udpPorts       map[uint16]*portSchedule
-	// the SPA v2 carrier that opened the node on this network (spa-v2.md §10); UDP again on a network change
+	// the SPA v2 carrier that opened the node on this network (spa-v2.md §10); the first of carriers again on a
+	// network change
 	spa2Carrier atomic.Int32
+	carriers    []Carrier
 	interval    time.Duration
 	ttl         time.Duration
 	silence     time.Duration
@@ -306,7 +308,12 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, t
 	if err != nil {
 		return nil, err
 	}
-	return &Outbound{
+	// SPA v2: the carriers the node takes, in their order (UDP for port knocking and SPA v1)
+	carriers := []Carrier{CarrierUDP}
+	if options.SPAv2 != nil {
+		carriers = options.SPAv2.CarrierOrder()
+	}
+	o := &Outbound{
 		Adapter:        outbound.NewAdapterWithDialerOptions(TypeKnock, tag, []string{N.NetworkTCP, N.NetworkUDP}, options.DialerOptions),
 		ctx:            ctx,
 		logger:         logger,
@@ -321,7 +328,10 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, t
 		silence:        silence,
 		hosts:          parseHosts(options.Hosts),
 		targets:        make(map[string]*target),
-	}, nil
+		carriers:       carriers,
+	}
+	o.spa2Carrier.Store(int32(carriers[0]))
+	return o, nil
 }
 
 func parseSequence(sequence []Step) ([]step, error) {
@@ -444,8 +454,8 @@ func (o *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 // It must not block: sing-box calls it from ResetNetwork.
 func (o *Outbound) InterfaceUpdated(ctx context.Context) {
 	o.generation.Add(1)
-	// a new network: UDP first again
-	o.spa2Carrier.Store(int32(CarrierUDP))
+	// a new network: the first carrier again
+	o.spa2Carrier.Store(int32(o.carriers[0]))
 	if o.spa2 != nil {
 		// SPA v2: hosts in use get a packet from the new address at once
 		go o.renewInUse()

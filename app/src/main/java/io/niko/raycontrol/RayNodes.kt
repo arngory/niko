@@ -121,7 +121,15 @@ data class RayNode(
     val identityNext: RayIdentity? = null,
     // the subscription's `probe`: the node answers channel probes (probe-v1.md), directly and through these tunnels
     val probe: RayProbeInfo? = null,
+    // the subscription's spa.carriers (raycontrol v0.10.1): the SPA carriers the node takes, in the order to try
+    // them; null = an older node (UDP, ClientHello, bare TCP)
+    val spaCarriers: List<String>? = null,
 ) {
+    /** The node's SPA parameters for the core, with the carriers it takes. */
+    fun spaJson(): JsonObject = spa.toJson().apply {
+        spaCarriers?.let { carriers -> add("carriers", JsonArray().apply { carriers.forEach { add(it) } }) }
+    }
+
     /** an admin device of the node, registered through the API: the admin mode is available */
     val isAdmin get() = api != null && identity != null
 
@@ -149,6 +157,7 @@ data class RayNode(
         identity?.let { add("identity", it.toJson()) }
         identityNext?.let { add("identity_next", it.toJson()) }
         probe?.let { add("probe", it.toJson()) }
+        spaCarriers?.let { carriers -> add("spa_carriers", JsonArray().apply { carriers.forEach { add(it) } }) }
     }
 
     companion object {
@@ -170,6 +179,7 @@ data class RayNode(
             identity = (o.get("identity") as? JsonObject)?.let { RayIdentity.fromJson(it) },
             identityNext = (o.get("identity_next") as? JsonObject)?.let { RayIdentity.fromJson(it) },
             probe = (o.get("probe") as? JsonObject)?.let { RayProbeInfo.fromJson(it) },
+            spaCarriers = (o.get("spa_carriers") as? JsonArray)?.mapNotNull { runCatching { it.asString }.getOrNull() },
         )
     }
 }
@@ -189,7 +199,7 @@ fun RayNode.knockOptions(): Map<String, Any> = mapOf(
         "len_min" to spa.lenMin,
         "len_max" to spa.lenMax,
         "device_key_ref" to keyRef,
-    ),
+    ) + (spaCarriers?.let { mapOf("carriers" to it) } ?: emptyMap()),
     // a UDP session without replies sends a new packet once
     "silence" to "15s",
 )

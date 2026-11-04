@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"math/big"
 	"net"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -58,6 +59,39 @@ type SPAv2Options struct {
 	Scope        []uint16 `json:"scope,omitempty"`
 	// TTL is the access time asked for, seconds; 0 = the server default (10 min)
 	TTL uint16 `json:"ttl_s,omitempty"`
+	// Carriers the node takes, in the order to try them (the subscription's spa.carriers, raycontrol v0.10.1):
+	// "udp", "tls", "tcp"; none = an older node, all three in that order
+	Carriers []string `json:"carriers,omitempty"`
+}
+
+// CarrierOrder is the order to try the carriers in: the node's list (unknown names left out), or UDP, ClientHello,
+// bare TCP for a node that sends none.
+func (o SPAv2Options) CarrierOrder() []Carrier {
+	var order []Carrier
+	for _, name := range o.Carriers {
+		for _, c := range Carriers {
+			if c.String() == name && !slices.Contains(order, c) {
+				order = append(order, c)
+			}
+		}
+	}
+	if len(order) == 0 {
+		return Carriers
+	}
+	return order
+}
+
+// FetchCarriers is the order of the knocks before a one-off request (the subscription, the API): UDP twice, as the
+// slot may turn, then the others the node takes.
+func (o SPAv2Options) FetchCarriers() []Carrier {
+	var out []Carrier
+	for _, c := range o.CarrierOrder() {
+		out = append(out, c)
+		if c == CarrierUDP {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 type spa2Params struct {
@@ -298,6 +332,7 @@ func (o *Outbound) dialSPA2(ctx context.Context, network string, destination M.S
 	attempt := time.Now()
 	conn, err := o.dialPeer(ctx, network, destination)
 	current := o.carrier()
+	order := o.carriers
 	if err != nil {
 		o.logger.DebugContext(ctx, "dial after SPA failed, sending it once more: ", err)
 		if _, knockErr := o.reknock(ctx, destination, attempt, current, o.sendSPA2); knockErr == nil {
@@ -305,7 +340,7 @@ func (o *Outbound) dialSPA2(ctx context.Context, network string, destination M.S
 			conn, err = o.dialPeer(ctx, network, destination)
 		}
 	}
-	for _, carrier := range Carriers[current+1:] {
+	for _, carrier := range order[slices.Index(order, current)+1:] {
 		if err == nil {
 			break
 		}

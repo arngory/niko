@@ -553,6 +553,51 @@ func TestSPA2BareCarrierForOldNode(t *testing.T) {
 	}
 }
 
+// The node's spa.carriers (raycontrol v0.10.1): the order to try them in, and nothing it does not list.
+func TestSPA2CarrierOrder(t *testing.T) {
+	for _, c := range []struct {
+		names []string
+		want  []Carrier
+	}{
+		{nil, []Carrier{CarrierUDP, CarrierTLS, CarrierTCP}},
+		{[]string{"udp"}, []Carrier{CarrierUDP}},
+		{[]string{"udp", "tcp", "tls"}, []Carrier{CarrierUDP, CarrierTCP, CarrierTLS}},
+		{[]string{"quic", "udp", "udp"}, []Carrier{CarrierUDP}},
+		{[]string{"quic"}, []Carrier{CarrierUDP, CarrierTLS, CarrierTCP}},
+	} {
+		if got := (SPAv2Options{Carriers: c.names}).CarrierOrder(); !slices.Equal(got, c.want) {
+			t.Errorf("%v: %v, want %v", c.names, got, c.want)
+		}
+	}
+	if got := (SPAv2Options{Carriers: []string{"udp", "tls"}}).FetchCarriers(); !slices.Equal(got, []Carrier{CarrierUDP, CarrierUDP, CarrierTLS}) {
+		t.Errorf("fetch order %v", got)
+	}
+}
+
+// A node that lists udp and tcp is never sent a ClientHello; one that lists only udp and tls never a bare packet.
+func TestSPA2CarriersListed(t *testing.T) {
+	node, options := newTCPNode(t, true, true)
+	options.Carriers = []string{"udp", "tcp"}
+	outbound := newBox(t, Options{SPAv2: options})
+	node.dial(t, outbound)
+	if outbound.carrier() != CarrierTCP || node.tls.Load() != 0 {
+		t.Fatalf("carrier %v, %d ClientHellos to a node without tls", outbound.carrier(), node.tls.Load())
+	}
+
+	old, options := newTCPNode(t, false, true)
+	options.Carriers = []string{"udp", "tls"}
+	outbound = newBox(t, Options{SPAv2: options})
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	if conn, err := outbound.DialContext(ctx, N.NetworkTCP, M.ParseSocksaddrHostPort("127.0.0.1", old.servicePort)); err == nil {
+		conn.Close()
+		t.Fatal("opened by a carrier the node did not list")
+	}
+	if old.bare.Load() != 0 {
+		t.Fatalf("%d bare packets to a node that listed udp and tls", old.bare.Load())
+	}
+}
+
 // The carrier is a ClientHello crypto/tls reads as one: no server name (an address), TLS 1.3, the packet as the
 // session ticket; and the rest of it is the core's Chrome reference.
 func TestTLSCarrierShape(t *testing.T) {

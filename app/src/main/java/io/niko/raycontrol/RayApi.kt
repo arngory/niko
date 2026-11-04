@@ -42,7 +42,7 @@ object RayApi {
                     addProperty("key", key.toByteString().base64())
                     addProperty("pin", identity.pin)
                 })
-                add("spa", spaJson(node.spa, RayNodes.deviceKeyHex(node)))
+                add("spa", node.spaJson().apply { addProperty("device_key", RayNodes.deviceKeyHex(node)) })
             }.toString()
         } finally {
             key.fill(0)

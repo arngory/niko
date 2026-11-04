@@ -99,6 +99,12 @@ type Payload struct {
 	Profiles []Profile  `json:"profiles"`
 	Probe    *ProbeInfo `json:"probe,omitempty"`
 	Hints    *Hints     `json:"hints,omitempty"`
+	SPA      *SPAInfo   `json:"spa,omitempty"`
+}
+
+// SPAInfo is the subscription's spa (raycontrol v0.10.1): the carriers the node takes, in the order to try them.
+type SPAInfo struct {
+	Carriers []string `json:"carriers,omitempty"`
 }
 
 type Result struct {
@@ -143,8 +149,8 @@ func Fetch(ctx context.Context, r Request) (*Result, error) {
 	// one Fetch per refresh: nothing to keep alive afterwards
 	defer client.CloseIdleConnections()
 	var lastErr error
-	// UDP twice (the slot may turn), then a ClientHello, then bare TCP for nodes before v0.10.0
-	for _, carrier := range []knock.Carrier{knock.CarrierUDP, knock.CarrierUDP, knock.CarrierTLS, knock.CarrierTCP} {
+	// UDP twice (the slot may turn), then the others the node takes (a ClientHello, then bare TCP for an older node)
+	for _, carrier := range r.SPA.FetchCarriers() {
 		if err = r.knock(ctx, carrier, now()); err != nil {
 			return nil, err
 		}

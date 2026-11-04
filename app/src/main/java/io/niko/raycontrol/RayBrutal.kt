@@ -147,7 +147,7 @@ object RayBrutal {
         addProperty("port", sub.port)
         addProperty("pin", sub.pin)
         addProperty("device_id", node.deviceId)
-        add("spa", node.spa.toJson().apply { addProperty("device_key", RayNodes.deviceKeyHex(node)) })
+        add("spa", node.spaJson().apply { addProperty("device_key", RayNodes.deviceKeyHex(node)) })
     }
 
     /**

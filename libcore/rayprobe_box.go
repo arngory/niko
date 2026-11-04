@@ -153,7 +153,7 @@ func RaycontrolProbe(requestJSON string) (result string, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	var out *probeResult
-	for _, carrier := range knock.Carriers {
+	for _, carrier := range r.SPA.CarrierOrder() {
 		if err = knock.SendSPAv2(ctx, dialer, r.Host, r.SPA, carrier, time.Now()); err != nil {
 			return "", err
 		}

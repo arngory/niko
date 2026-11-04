@@ -122,7 +122,7 @@ object RaySubscription {
             addProperty("ed25519", info.ed25519)
             addProperty("mldsa65", info.mldsa65)
             addProperty("last_seq", node.subSeq)
-            add("spa", node.spa.toJson().apply { addProperty("device_key", RayNodes.deviceKeyHex(node)) })
+            add("spa", node.spaJson().apply { addProperty("device_key", RayNodes.deviceKeyHex(node)) })
         }
         val result = JsonParser.parseString(Libcore.raycontrolFetchSubscription(request.toString())).asJsonObject
         val payload = result.getAsJsonObject("payload")
@@ -162,9 +162,12 @@ object RaySubscription {
         val refreshAt = maxOf(now + 60, nextRefresh(payload, nodeNow) - skew)
         // probe v1 only: another version is unknown to this client
         val probe = (payload.get("probe") as? JsonObject)?.let { RayProbeInfo.fromJson(it) }?.takeIf { it.v == 1 }
+        // the SPA carriers the node takes (v0.10.1); none = an older node, which gets the whole ladder
+        val carriers = ((payload.get("spa") as? JsonObject)?.get("carriers") as? JsonArray)
+            ?.mapNotNull { runCatching { it.asString }.getOrNull() }?.takeIf { it.isNotEmpty() }
         val stored = RayNodesLock.withLock {
             store(nodeId, payload.get("seq").asLong, refreshAt, skew, beans, links, doh)?.also {
-                RayNodes.update(nodeId) { node -> node.copy(probe = probe) }
+                RayNodes.update(nodeId) { node -> node.copy(probe = probe, spaCarriers = carriers) }
             }
         }
         // the hints are for the network this subscription was asked from: directly, the node saw its address
