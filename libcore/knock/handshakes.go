@@ -13,7 +13,8 @@ import (
 // its hello. A slot frees on the node's first bytes, on close, or after handshakeHold.
 //
 // naive (cronet) takes the socket itself (a dup of the TCP fd) and closes this wrapper at once, so its connections
-// are not held here; it carries every stream of the node over one HTTP/2 or QUIC session, without a volley.
+// are not held here. It carries every stream of the node over one HTTP/2 or QUIC session, or over as many as
+// insecure_concurrency asks: those open at once and are not limited.
 const (
 	maxHandshakes = 3
 	handshakeHold = 10 * time.Second
