@@ -96,8 +96,9 @@
     - нет отдельного APK плагина и его процесса;
     - закрывается S8 (доверие плагину по префиксу authority).
 
-    Нужно до включения:
-    - сокеты cronet должны идти через protect VPN;
-    - interop `naive` против `rayd` с исходящим ядра вместо плагина.
-
-    Это B4 вместе с S8.
+    Включено в 1.29.0 (B4):
+    - сокеты cronet открывает dialer ядра (`cronet.NaiveClientOptions.Dialer`) и передаёт cronet их копию: protect
+      VPN, стук и detour действуют как у остальных исходящих;
+    - interop с `rayd naive` за фронтом niko-server по h2 и QUIC — в `raycontrol-interop.yml`, сборка для Linux
+      через clang и lld;
+    - профили naive строятся как исходящий ядра (`fmt/naive/NaiveFmt.kt`), плагин больше не нужен.

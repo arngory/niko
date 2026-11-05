@@ -10,6 +10,7 @@ import io.niko.database.SagerDatabase
 import io.niko.fmt.ConfigBuildResult.IndexEntity
 import io.niko.fmt.hysteria.HysteriaBean
 import io.niko.fmt.naive.NaiveBean
+import io.niko.fmt.naive.buildSingBoxOutboundNaiveBean
 import io.niko.fmt.hysteria.buildSingBoxOutboundHysteriaBean
 import io.niko.fmt.internal.ChainBean
 import io.niko.fmt.shadowsocks.ShadowsocksBean
@@ -495,6 +496,9 @@ fun buildConfig(
 
                         is AnyTLSBean ->
                             buildSingBoxOutboundAnyTLSBean(bean)
+
+                        is NaiveBean ->
+                            buildSingBoxOutboundNaiveBean(bean)
 
                         else -> throw IllegalStateException("can't reach")
                     }

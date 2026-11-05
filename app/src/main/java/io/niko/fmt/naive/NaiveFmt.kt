@@ -1,5 +1,6 @@
 package io.niko.fmt.naive
 
+import io.niko.SingBoxOptions
 import io.niko.database.DataStore
 import io.niko.fmt.LOCALHOST
 import io.niko.ktx.*
@@ -88,3 +89,32 @@ fun NaiveBean.buildNaiveConfig(port: Int): String {
         }
     }.toStringPretty()
 }
+/**
+ * The core's naive outbound: Chromium's network stack (cronet) in the core, so the TLS and HTTP/2 of the tunnel are
+ * Chrome's by construction, its sockets come from the core's dialer (the VPN's protect, a knock detour) and no
+ * plugin process runs (review S8, FINGERPRINT.md §2).
+ */
+fun buildSingBoxOutboundNaiveBean(bean: NaiveBean): SingBoxOptions.Outbound = SingBoxOptions.Outbound().apply {
+    type = "naive"
+    _hack_config_map["server"] = bean.serverAddress
+    _hack_config_map["server_port"] = bean.serverPort
+    if (bean.username.isNotBlank()) _hack_config_map["username"] = bean.username
+    if (bean.password.isNotBlank()) _hack_config_map["password"] = bean.password
+    if ((bean.insecureConcurrency ?: 0) > 0) _hack_config_map["insecure_concurrency"] = bean.insecureConcurrency
+    if (bean.proto == "quic") _hack_config_map["quic"] = true
+    naiveHeaders(bean.extraHeaders).takeIf { it.isNotEmpty() }?.let { _hack_config_map["extra_headers"] = it }
+    _hack_config_map["tls"] = buildMap {
+        put("enabled", true)
+        // the name naive shows: the SNI, else a server name (an address gets none of its own)
+        val name = bean.sni.takeIf { it.isNotBlank() } ?: bean.serverAddress.takeUnless { it.isIpAddress() }
+        if (name != null) put("server_name", name)
+        // naive takes no "insecure": the certificate is checked, against these roots when given
+        if (bean.certificates.isNotBlank()) put("certificate", listOf(bean.certificates))
+    }
+}
+
+/** "Name: value" lines of a naive profile's extra headers. */
+fun naiveHeaders(text: String?): Map<String, String> = text.orEmpty().lines().mapNotNull { line ->
+    val name = line.substringBefore(':', "").trim()
+    if (name.isEmpty()) null else name to line.substringAfter(':').trim()
+}.toMap()
