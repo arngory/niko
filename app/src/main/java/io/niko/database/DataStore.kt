@@ -104,8 +104,9 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var yggdrasilPeersViaProxy by configurationStore.boolean(Key.YGGDRASIL_PEERS_VIA_PROXY)
     var yggdrasilTlsChrome by configurationStore.boolean(Key.YGGDRASIL_TLS_CHROME) { true }
     // raycontrol links leave the DNS tunnel resolver to the client: these defaults fill it (Yandex, reachable in RU whitelists)
-    var raycontrolDnsttResolver by configurationStore.string(Key.RAYCONTROL_DNSTT_RESOLVER) { "https://common.dot.dns.yandex.net/dns-query" }
-    var raycontrolMasterDnsResolvers by configurationStore.string(Key.RAYCONTROL_MASTERDNS_RESOLVERS) { "77.88.8.8\n77.88.8.1" }
+    // "auto": picked per network (dnsprobe-v1, RayDnsResolvers); a resolver set here is used everywhere
+    var raycontrolDnsttResolver by configurationStore.string(Key.RAYCONTROL_DNSTT_RESOLVER) { "auto" }
+    var raycontrolMasterDnsResolvers by configurationStore.string(Key.RAYCONTROL_MASTERDNS_RESOLVERS) { "auto" }
     // a node's profile that stops working on this network gives way to its best working one (RayChannel.failover)
     var raycontrolAutoSwitch by configurationStore.boolean(Key.RAYCONTROL_AUTO_SWITCH) { true }
     // Brutal for a node's Hysteria2 at a measured rate (RayBrutal); off: BBR

@@ -1,0 +1,19 @@
+package io.niko.raycontrol
+
+import com.google.gson.JsonParser
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+class RayDnsResolversTest {
+
+    @Test
+    fun hintsPerTunnelKind() {
+        val h = RayHints.fromJson(
+            JsonParser.parseString("""{"order":[7],"dns":{"dnstt":"doh","masterdns":"udp","x":1},"devices":12,"days":3}""").asJsonObject, 1
+        )!!
+        assertEquals(mapOf("dnstt" to "doh", "masterdns" to "udp", "x" to "1"), h.dns)
+        assertEquals(h.dns, RayHints.fromJson(h.toJson(), 1)!!.dns)
+        assertEquals("masterdns", RayDnsResolvers.tunnelKind("masterdnsvpn"))
+        assertEquals("dnstt", RayDnsResolvers.tunnelKind("dnstt"))
+    }
+}

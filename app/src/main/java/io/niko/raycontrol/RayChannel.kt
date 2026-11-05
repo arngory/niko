@@ -156,6 +156,8 @@ data class RayHints(
     val days: Int = 0,
     // most reports from the network went through a relay (relay-v1 §9.3): a place to start, not a verdict
     val viaRelay: Boolean = false,
+    // per DNS tunnel kind (dnstt, masterdns): the resolver kind most of its working reports from the network used
+    val dns: Map<String, String> = emptyMap(),
 ) {
     fun toJson() = JsonObject().apply {
         addProperty("at", at)
@@ -167,6 +169,7 @@ data class RayHints(
         addProperty("devices", devices)
         addProperty("days", days)
         if (viaRelay) addProperty("via_relay", true)
+        if (dns.isNotEmpty()) add("dns", JsonObject().apply { dns.forEach { (k, v) -> addProperty(k, v) } })
     }
 
     companion object {
@@ -181,6 +184,8 @@ data class RayHints(
             devices = o.get("devices")?.asLong ?: 0,
             days = o.get("days")?.asInt ?: 0,
             viaRelay = o.get("via_relay")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false,
+            dns = (o.get("dns") as? JsonObject)?.entrySet()
+                ?.mapNotNull { (k, v) -> v.takeIf { it.isJsonPrimitive }?.asString?.let { k to it } }?.toMap().orEmpty(),
         )
     }
 
@@ -623,6 +628,8 @@ object RayChannel {
         val nodeId = node.spa.nodeId
         val now = System.currentTimeMillis() / 1000
         record(nodeId, network, failedKey, ChannelScore(now, tcpOk = false, tcpError = "connection test failed"))
+        // the DNS tunnels' resolver for this network, when their rows leave it to the client and none is picked
+        runCatching { RayDnsResolvers.detectForNode(node, network) }.onFailure { if (it is CancellationException) throw it }
         val known = scores(nodeId, network)
         val fresh = if (network.mobile) FRESH_MOBILE else FRESH_WIFI
         val candidates = node.profileIds.orEmpty().keys
@@ -667,6 +674,18 @@ object RayChannel {
         }
         return best?.first
     }
+
+    // the resolver picked for a DNS tunnel kind on a network (dnsprobe-v1, RayDnsResolvers): held a day
+    private const val DNS_PICK = "_dns_"
+    private const val DNS_HOLD = 24 * 3600L
+
+    fun dnsPick(nodeId: String, network: ChannelNetwork, tunnelKind: String): JsonObject? {
+        val o = load().getAsJsonObject(nodeId)?.getAsJsonObject(network.key)?.getAsJsonObject(DNS_PICK + tunnelKind) ?: return null
+        return o.takeIf { System.currentTimeMillis() / 1000 - (it.get("at")?.asLong ?: 0) < DNS_HOLD }
+    }
+
+    fun recordDnsPick(nodeId: String, network: ChannelNetwork, tunnelKind: String, pick: JsonObject) =
+        edit(nodeId, network) { it.add(DNS_PICK + tunnelKind, pick) }
 
     // the path to the node on a network (relay-v1 §9): {"path": "relay"|"direct", "at": s}. A relay finding holds a
     // day, then direct is tried again; a direct one (or nothing answering at all) an hour, so the detector does not

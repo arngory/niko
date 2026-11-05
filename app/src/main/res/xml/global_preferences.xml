@@ -300,13 +300,13 @@
             app:summary="@string/raycontrol_reports_summary"
             app:title="@string/raycontrol_reports" />
         <EditTextPreference
-            app:defaultValue="https://common.dot.dns.yandex.net/dns-query"
+            app:defaultValue="auto"
             app:dialogMessage="@string/raycontrol_dnstt_resolver_help"
             app:key="raycontrolDnsttResolver"
             app:title="@string/raycontrol_dnstt_resolver"
             app:useSimpleSummaryProvider="true" />
         <EditTextPreference
-            app:defaultValue="77.88.8.8&#10;77.88.8.1"
+            app:defaultValue="auto"
             app:dialogMessage="@string/raycontrol_masterdns_resolvers_help"
             app:key="raycontrolMasterDnsResolvers"
             app:title="@string/raycontrol_masterdns_resolvers"

@@ -180,6 +180,9 @@ object RaySubscription {
         var doh: String? = null
         // relays in front of the node (relay-v1 §4, a draft): a profile with `via` gets a row through each
         val relays = RayRelay.listFromJson(payload.get("relays") as? JsonArray)
+        // dnsprobe-v1: the key that probes the resolvers of the node's DNS tunnels (only for a user with one)
+        val dnsProbeKey = (payload.get("dns_probe") as? JsonObject)?.takeIf { it.get("v")?.asInt == 1 }
+            ?.get("key")?.takeIf { it.isJsonPrimitive }?.asString
         profiles.zip(profileKeys(profiles)).forEach { (profile, key) ->
             try {
                 val pair = linksOf(profile, nodeNow)
@@ -226,7 +229,10 @@ object RaySubscription {
         val stored = RayNodesLock.withLock {
             store(nodeId, payload.get("seq").asLong, refreshAt, skew, beans, links, doh)?.also {
                 RayNodes.update(nodeId) { node ->
-                    node.copy(probe = probe, spaCarriers = carriers, failedFetches = 0, failedNetwork = null, relays = relays)
+                    node.copy(
+                        probe = probe, spaCarriers = carriers, failedFetches = 0, failedNetwork = null, relays = relays,
+                        dnsProbeKey = dnsProbeKey,
+                    )
                 }
             }
         }

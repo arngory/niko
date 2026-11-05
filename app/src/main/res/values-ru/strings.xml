@@ -680,9 +680,9 @@
     </string-array>
     <string name="raycontrol_clock_wrong">Часы устройства расходятся с нодой на %d с: поправьте время, SPA работает при расхождении до 30 с.</string>
     <string name="raycontrol_dnstt_resolver">Резолвер DNS-туннеля (dnstt)</string>
-    <string name="raycontrol_dnstt_resolver_help">Используется, когда ссылка ноды оставляет выбор резолвера клиенту: https://…/dns-query, tls://host или udp://host. Действует на профили со следующего обновления подписки.</string>
+    <string name="raycontrol_dnstt_resolver_help">Используется, когда ссылка ноды оставляет выбор резолвера клиенту. auto — выбор для каждой сети (сначала резолвер самой сети, затем публичные резолверы страны, с проверкой пробой ноды); или https://…/dns-query, tls://host, udp://host для всех сетей. Действует на профили со следующего обновления подписки.</string>
     <string name="raycontrol_masterdns_resolvers">Резолверы DNS-туннеля (MasterDnsVPN)</string>
-    <string name="raycontrol_masterdns_resolvers_help">Используются, когда ссылка ноды оставляет выбор резолверов клиенту: по одному IP в строке. Действуют на профили со следующего обновления подписки.</string>
+    <string name="raycontrol_masterdns_resolvers_help">Используются, когда ссылка ноды оставляет выбор резолверов клиенту. auto — выбор для каждой сети; или по одному IP в строке для всех сетей. Действуют на профили со следующего обновления подписки.</string>
     <string name="raycontrol_node_remove_confirm">Удалить ноду %1$s и сохранённый ключ устройства? Активное подключение перезапустится без неё. Чтобы пользоваться нодой снова, импортируйте новую регистрацию.</string>
     <string name="yggdrasil_peers_via_proxy">Пиры через прокси</string>
     <string name="yggdrasil_peers_via_proxy_summary">Подключаться к пирам через выбранный профиль, провайдер видит только прокси. Выключено — напрямую. Профиль с сервером на адресе Yggdrasil всегда подключается к пирам напрямую.</string>

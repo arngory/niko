@@ -129,6 +129,8 @@ data class RayNode(
     val failedNetwork: String? = null,
     // relays in front of the node (relay-v1 §4, a draft): profiles of the subscription's `via` go through them
     val relays: List<RayRelay> = emptyList(),
+    // the subscription's dns_probe key (dnsprobe-v1): probes the resolvers of the node's DNS tunnels, base64url
+    val dnsProbeKey: String? = null,
 ) {
     /** The node's SPA parameters for the core, with the carriers it takes. */
     fun spaJson(): JsonObject = spa.toJson().apply {
@@ -166,6 +168,7 @@ data class RayNode(
         if (failedFetches > 0) addProperty("failed_fetches", failedFetches)
         failedNetwork?.let { addProperty("failed_network", it) }
         if (relays.isNotEmpty()) add("relays", JsonArray().apply { relays.forEach { add(it.toJson()) } })
+        dnsProbeKey?.let { addProperty("dns_probe_key", it) }
     }
 
     /** The relay with this address, for a profile row through it. */
@@ -197,6 +200,7 @@ data class RayNode(
             failedFetches = o.get("failed_fetches")?.asInt ?: 0,
             failedNetwork = o.get("failed_network")?.takeIf { it.isJsonPrimitive }?.asString,
             relays = RayRelay.listFromJson(o.get("relays") as? JsonArray),
+            dnsProbeKey = o.get("dns_probe_key")?.takeIf { it.isJsonPrimitive }?.asString,
         )
     }
 }

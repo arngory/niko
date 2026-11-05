@@ -767,9 +767,9 @@
     <string name="raycontrol_test_run_share">Share the run\'s log</string>
     <string name="raycontrol_test_run_share_last">Share the last test run\'s log</string>
     <string name="raycontrol_dnstt_resolver">DNS tunnel resolver (dnstt)</string>
-    <string name="raycontrol_dnstt_resolver_help">Used when a node\'s link leaves the resolver to the client: https://…/dns-query, tls://host or udp://host. Applies to profiles from the next subscription update.</string>
+    <string name="raycontrol_dnstt_resolver_help">Used when a node\'s link leaves the resolver to the client. auto: picked per network (the network\'s own resolver, then public ones of the country, checked with the node\'s probe); or https://…/dns-query, tls://host or udp://host for every network. Applies to profiles from the next subscription update.</string>
     <string name="raycontrol_masterdns_resolvers">DNS tunnel resolvers (MasterDnsVPN)</string>
-    <string name="raycontrol_masterdns_resolvers_help">Used when a node\'s link leaves the resolvers to the client: one IP per line. Applies to profiles from the next subscription update.</string>
+    <string name="raycontrol_masterdns_resolvers_help">Used when a node\'s link leaves the resolvers to the client. auto: picked per network; or one IP per line for every network. Applies to profiles from the next subscription update.</string>
     <string name="raycontrol_node_remove_confirm">Remove node %1$s and its stored device key? A running connection restarts without it. To use the node again, import a new registration.</string>
     <string name="yggdrasil_peers_via_proxy">Peers through the proxy</string>
     <string name="yggdrasil_peers_via_proxy_summary">Connect to the peers through the selected profile, so the network sees only the proxy. Off: directly. A profile whose server is a Yggdrasil address always peers directly.</string>

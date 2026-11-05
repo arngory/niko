@@ -95,6 +95,10 @@ object RayTestRun {
                     }.onFailure { addProperty("error", it.message ?: it.javaClass.simpleName) }
                 }
                 val current = RayNodes.get(node.spa.nodeId) ?: node
+                // the DNS tunnels' resolvers on this network, anew (dnsprobe-v1)
+                RayDnsResolvers.detectForNode(current, network, force = true) { line ->
+                    step("dns") { addProperty("result", line) }
+                }
                 for ((key, rowId) in current.profileIds.orEmpty()) {
                     val profile = SagerDatabase.proxyDao.getById(rowId) ?: continue
                     step("profile_start") {
