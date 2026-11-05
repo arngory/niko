@@ -89,6 +89,15 @@ type Hints struct {
 	UDPMTU      string   `json:"udp_mtu,omitempty"` // the UDP MTU bucket of most reports from the network
 	Devices     int64    `json:"devices"`
 	Days        int      `json:"days"`
+	// relay-v1 §9: the network reaches the node through its relay; dnsprobe-v1: the resolver kind per tunnel kind
+	ViaRelay bool              `json:"via_relay,omitempty"`
+	DNS      map[string]string `json:"dns,omitempty"`
+}
+
+// DNSProbe is the payload's dns_probe (dnsprobe-v1 §2): the key that probes the resolvers of the node's dnstt.
+type DNSProbe struct {
+	V   int    `json:"v"`
+	Key string `json:"key"`
 }
 
 type Payload struct {
@@ -103,7 +112,22 @@ type Payload struct {
 	Hints    *Hints     `json:"hints,omitempty"`
 	SPA      *SPAInfo   `json:"spa,omitempty"`
 	// Relays in front of the node (relay-v1 §4, a draft until the format is frozen)
-	Relays []Relay `json:"relays,omitempty"`
+	Relays   []Relay   `json:"relays,omitempty"`
+	DNSProbe *DNSProbe `json:"dns_probe,omitempty"`
+
+	// the payload as the node signed it: what the app reads (MarshalJSON), whole, with the fields this struct
+	// does not name
+	raw json.RawMessage
+}
+
+// MarshalJSON gives the payload as the node signed it when it came from one (verify), so the app gets every field
+// the node sent, not only those named here.
+func (p Payload) MarshalJSON() ([]byte, error) {
+	if len(p.raw) > 0 {
+		return p.raw, nil
+	}
+	type plain Payload
+	return json.Marshal(plain(p))
 }
 
 // SPAInfo is the subscription's spa (raycontrol v0.10.1): the carriers the node takes, in the order to try them.
@@ -337,9 +361,10 @@ func (r *Request) verify(e *envelope, now time.Time) (*Result, error) {
 	}
 	var p Payload
 	decoder := json.NewDecoder(bytes.NewReader(body))
-	if err = decoder.Decode(&p); err != nil {
+	if err = decoder.Decode(&p); err != nil || !json.Valid(body) {
 		return nil, errors.New("raycontrol subscription: bad payload")
 	}
+	p.raw = body
 	switch {
 	case p.V != 1:
 		return nil, fmt.Errorf("raycontrol subscription: version %d", p.V)

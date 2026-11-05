@@ -33,6 +33,8 @@ type node struct {
 	mlKey    *mldsa65.PrivateKey
 	payload  Payload
 	sawCurve tls.CurveID
+	// the payload's JSON as sent, in place of payload's
+	rawPayload []byte
 }
 
 const nodeID = "33333333333333333333333333333333"
@@ -61,6 +63,9 @@ func newNode(t *testing.T) *node {
 			return
 		}
 		body, _ := json.Marshal(n.payload)
+		if n.rawPayload != nil {
+			body = n.rawPayload
+		}
 		message := append([]byte(signLabel), body...)
 		mlSig := make([]byte, mldsa65.SignatureSize)
 		mldsa65.SignTo(n.mlKey, message, nil, true, mlSig)
@@ -90,6 +95,41 @@ func newNode(t *testing.T) *node {
 		Timeout: 5 * time.Second,
 	}
 	return n
+}
+
+// the app reads the payload from the result's JSON: every field the node signed reaches it, those this package does
+// not name too (a dns_probe or hints.via_relay dropped here once kept the app from them)
+func TestSubscriptionKeepsThePayloadWhole(t *testing.T) {
+	n := newNode(t)
+	plain, _ := json.Marshal(n.payload)
+	var fields map[string]any
+	json.Unmarshal(plain, &fields)
+	fields["dns_probe"] = map[string]any{"v": 1, "key": "AAEC"}
+	fields["hints"] = map[string]any{"via_relay": true, "dns": map[string]any{"dnstt": "doh"}, "devices": 12, "days": 3}
+	fields["x_later"] = map[string]any{"a": []any{1, "b"}}
+	n.rawPayload, _ = json.Marshal(fields)
+	result, err := Fetch(context.Background(), n.request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p := result.Payload; p.DNSProbe == nil || p.DNSProbe.Key != "AAEC" || p.Hints == nil || !p.Hints.ViaRelay || p.Hints.DNS["dnstt"] != "doh" {
+		t.Fatalf("%+v", p)
+	}
+	out, err := json.Marshal(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got struct {
+		Payload map[string]any `json:"payload"`
+	}
+	if err = json.Unmarshal(out, &got); err != nil {
+		t.Fatal(err)
+	}
+	want, _ := json.Marshal(fields)
+	have, _ := json.Marshal(got.Payload)
+	if string(have) != string(want) {
+		t.Fatalf("the app gets %s, the node signed %s", have, want)
+	}
 }
 
 func TestNekoSubscriptionFetch(t *testing.T) {

@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"libcore/dnsprobe"
 	"libcore/knock"
 	"libcore/rayprobe"
 	"libcore/raysub"
@@ -126,6 +127,11 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 			hysteriaSvc = append(hysteriaSvc, p.Svc)
 		}
 	}
+	// dnsprobe-v1 (raycontrol v0.11.1): the key comes to a user with a dnstt profile
+	if dp := result.Payload.DNSProbe; dp != nil && dp.V == 1 {
+		dnsProbeInterop(t, result.Payload, node, dp.Key)
+		tested["dnsprobe"] = true
+	}
 	// relay-v1: the subscription and the profiles with via through the relay in front of the node
 	if relay := os.Getenv("RAYCONTROL_RELAY"); relay != "" {
 		relayThrough(t, relay, result.Payload, b.Host, b.Sub.Port, b.Sub.Pin, b.DeviceID, b.DeviceKey, b.SPA,
@@ -210,6 +216,52 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 		}
 	}
 	t.Logf("link: %s", rawLink)
+}
+
+// dnsProbeInterop asks the node's front a small and a large probe in its dnstt zone through RaycontrolDnsProbe, as the
+// app asks of each resolver (here the node's own UDP 53), and one with another key: to the node that is no probe, the
+// tunnel's backend answers it, which the app takes as unclear (dnsprobe-v1 §6).
+func dnsProbeInterop(t *testing.T, payload raysub.Payload, node, key string) {
+	zone := ""
+	for _, p := range payload.Profiles {
+		u, err := url.Parse(p.Link)
+		if err != nil {
+			continue
+		}
+		if spec := strings.Split(u.Query().Get("niko-dns"), ";"); len(spec) == 4 && spec[0] == "dnstt" {
+			zone = strings.Split(spec[2], ",")[0]
+			break
+		}
+	}
+	if zone == "" {
+		t.Fatal("dns_probe in the subscription, no dnstt profile")
+	}
+	ask := func(key string, large bool) dnsprobe.Result {
+		request, _ := json.Marshal(map[string]any{"resolver": "udp://" + net.JoinHostPort(node, "53"), "zone": zone,
+			"key": key, "large": large, "timeout_ms": 4000})
+		out, err := RaycontrolDnsProbe(string(request))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var r dnsprobe.Result
+		if err = json.Unmarshal([]byte(out), &r); err != nil {
+			t.Fatal(err)
+		}
+		return r
+	}
+	// the node saw the query's EDNS size and the runner's address
+	small := ask(key, false)
+	if !small.OK || small.Large || small.EDNS != 1232 || small.From == "" {
+		t.Fatalf("dnsprobe small: %+v", small)
+	}
+	if r := ask(key, true); !r.OK || !r.Large {
+		t.Fatalf("dnsprobe large: %+v", r)
+	}
+	if r := ask(base64.RawURLEncoding.EncodeToString(make([]byte, 32)), false); r.OK || !r.Unclear {
+		t.Fatalf("dnsprobe with another key: %+v", r)
+	}
+	t.Logf("dnsprobe: the node's front answers small and large (seen edns %d, case %v), another key is unclear",
+		small.EDNS, small.Case)
 }
 
 // relayThrough asks the subscription through the relay (its SPA with K_relay, the node's pin and signatures) and
