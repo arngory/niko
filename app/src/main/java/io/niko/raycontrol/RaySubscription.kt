@@ -135,13 +135,7 @@ object RaySubscription {
             for (relay in node.relays) {
                 val via = request.deepCopy().apply {
                     addProperty("host", relay.host)
-                    add("spa", relay.spa.toJson().apply {
-                        addProperty("device_key", RayNodes.deviceKeyHex(node))
-                        add("relay", JsonObject().apply {
-                            addProperty("exit_node_id", node.spa.nodeId)
-                            addProperty("id", relay.id)
-                        })
-                    })
+                    add("spa", relay.spaJson(node, RayNodes.deviceKeyHex(node)))
                 }
                 try {
                     return Libcore.raycontrolFetchSubscription(via.toString()).also {

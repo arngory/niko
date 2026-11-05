@@ -146,6 +146,17 @@ func parseProbeRequest(requestJSON string) (*probeRequest, []byte, error) {
 	if err != nil || len(key) != 32 {
 		return nil, nil, errors.New("raycontrol probe: bad device key")
 	}
+	// a relay's probe endpoint (relay-v1 §9.1): RC1 on K_relay, the only key of the device the relay knows
+	if relay := r.SPA.Relay; relay != nil {
+		exit, err1 := hex.DecodeString(relay.ExitNodeID)
+		relayNode, err2 := hex.DecodeString(r.SPA.NodeID)
+		if err1 != nil || err2 != nil || len(exit) != 16 || len(relayNode) != 16 || relay.ID == "" {
+			return nil, nil, errors.New("raycontrol probe: bad relay")
+		}
+		if key, err = knock.RelayKey(key, exit, relayNode, relay.ID); err != nil {
+			return nil, nil, err
+		}
+	}
 	return &r, key, nil
 }
 

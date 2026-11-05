@@ -152,6 +152,8 @@ data class RayHints(
     val udpMtu: String? = null,
     val devices: Long = 0,
     val days: Int = 0,
+    // most reports from the network went through a relay (relay-v1 §9.3): a place to start, not a verdict
+    val viaRelay: Boolean = false,
 ) {
     fun toJson() = JsonObject().apply {
         addProperty("at", at)
@@ -162,6 +164,7 @@ data class RayHints(
         udpMtu?.let { addProperty("udp_mtu", it) }
         addProperty("devices", devices)
         addProperty("days", days)
+        if (viaRelay) addProperty("via_relay", true)
     }
 
     companion object {
@@ -175,6 +178,7 @@ data class RayHints(
             udpMtu = o.get("udp_mtu")?.takeIf { it.isJsonPrimitive }?.asString,
             devices = o.get("devices")?.asLong ?: 0,
             days = o.get("days")?.asInt ?: 0,
+            viaRelay = o.get("via_relay")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false,
         )
     }
 
@@ -630,8 +634,14 @@ object RayChannel {
             h.sort(candidates) { udp[it] == true }
         } ?: candidates
         if (hints != null) Logs.i("raycontrol ${node.host}: no own results on this network, the node's hints first: $order")
+        // relay-v1 §9: where the node is reached through its relay, the relay rows go first; elsewhere they are the
+        // last resort
+        val viaFirst = node.relays.isNotEmpty() &&
+                (relayPath(nodeId, network) || hints(nodeId, network)?.viaRelay == true || detectRelay(node, network))
+        val ordered = RayRelays.order(order, viaFirst)
+        if (viaFirst) Logs.i("raycontrol ${node.host}: this network reaches the node through its relay: relay rows first")
         var best: Pair<String, ChannelScore>? = null
-        for (key in order) {
+        for (key in ordered) {
             // the watchdog run that asked was stopped (the core restarted, the service stopped): no more probes
             currentCoroutineContext().ensureActive()
             val id = node.profileIds?.get(key) ?: continue
@@ -643,6 +653,54 @@ object RayChannel {
             // the hints' order: the first that works, without waiting for the rest
             if (hints != null && best != null) break
         }
+        // the path that works here, for the order and the summary's path next time
+        best?.let { (key, _) -> if (node.relays.isNotEmpty()) markRelayPath(nodeId, network, RayRelays.relayOfKey(key) != null) }
         return best?.first
+    }
+
+    // the path to the node on a network (relay-v1 §9): "relay" since when, while it holds
+    private const val RELAY_PATH = "_relay_path"
+    private const val RELAY_HOLD = 24 * 3600L
+
+    /** The node is reached through its relay on [network] (found in the last day); direct is tried again after. */
+    fun relayPath(nodeId: String, network: ChannelNetwork, now: Long = System.currentTimeMillis() / 1000): Boolean {
+        val at = load().getAsJsonObject(nodeId)?.getAsJsonObject(network.key)?.get(RELAY_PATH)?.asLong ?: return false
+        return now - at < RELAY_HOLD
+    }
+
+    fun markRelayPath(nodeId: String, network: ChannelNetwork, relay: Boolean) {
+        val had = load().getAsJsonObject(nodeId)?.getAsJsonObject(network.key)?.has(RELAY_PATH) == true
+        if (!relay && !had) return
+        edit(nodeId, network) {
+            if (relay) it.addProperty(RELAY_PATH, System.currentTimeMillis() / 1000) else it.remove(RELAY_PATH)
+        }
+    }
+
+    /**
+     * The whitelist detector (relay-v1 §5): the node does not answer directly and one of its relays does, at its own
+     * probe endpoint. A small probe each; only for relays that measure (relays[].probe).
+     */
+    private suspend fun detectRelay(node: RayNode, network: ChannelNetwork): Boolean {
+        val relays = node.relays.filter { it.probe != null }
+        if (relays.isEmpty() || node.subscription == null) return false
+        val key = RayNodes.deviceKeyHex(node)
+        fun answered(request: JsonObject): Boolean = runCatching {
+            val out = JsonParser.parseString(Libcore.raycontrolProbe(request.apply {
+                addProperty("down_bytes", 16L shl 10)
+                addProperty("window_ms", 5_000)
+            }.toString())).asJsonObject
+            out.getAsJsonObject("down")?.let { it.get("ok")?.asBoolean == true || (it.get("status")?.asInt ?: 0) != 0 } == true
+        }.getOrDefault(false)
+        if (kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { answered(RayBrutal.request(node)) }) return false
+        for (relay in relays) {
+            currentCoroutineContext().ensureActive()
+            val request = RayRelays.probeRequest(node, relay, key) ?: continue
+            if (kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { answered(request) }) {
+                Logs.i("raycontrol ${node.host}: no answer directly, relay ${relay.id} answers: the relay path on this network")
+                markRelayPath(node.spa.nodeId, network, true)
+                return true
+            }
+        }
+        return false
     }
 }

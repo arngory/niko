@@ -88,6 +88,10 @@ object RayReport {
             if ("udp_mtu" in node.probe?.report.orEmpty()) {
                 RayChannel.directUdpMtu(node.spa.nodeId, network, now - RECENT)?.let { addProperty("udp_mtu", mtuBucket(it)) }
             }
+            // the path this network reaches the node by (relay-v1 §9.3), to a node that declares it
+            if ("path" in node.probe?.report.orEmpty()) {
+                addProperty("path", if (RayChannel.relayPath(node.spa.nodeId, network, now)) "relay" else "direct")
+            }
             add("obs", JsonArray().apply {
                 bySvc.entries.take(MAX_OBS).forEach { (svc, s) ->
                     add(JsonObject().apply {
@@ -134,8 +138,13 @@ object RayReport {
         if (state?.get("day")?.asLong == today && (state.get("status")?.asInt ?: 0) != 0) return null
         if ((state?.get("retry_at")?.asLong ?: 0) > now) return null
         val report = build(node, network, now) ?: return null
+        // a network that reaches the node through a relay reports to the relay (relay-v1 §9.3): the node would see the
+        // relay's address there, and the relay passes the client's network on; none that takes reports: nothing due
+        val through = if (report.get("path")?.asString == "relay") {
+            node.relays.firstOrNull { it.probe?.report == true } ?: return null
+        } else null
         // a short window: over UDP and then the TCP carrier, a node that does not answer costs ~10 s
-        val request = RayBrutal.request(node).apply {
+        val request = (through?.let { RayRelays.probeRequest(node, it, RayNodes.deviceKeyHex(node)) } ?: RayBrutal.request(node)).apply {
             add("report", report)
             addProperty("window_ms", 5_000)
         }
@@ -165,7 +174,7 @@ object RayReport {
             400, 409 -> Outcome.REFUSED
             else -> Outcome.FAILED
         }
-        Logs.i("raycontrol ${node.host}: summary of this network: $outcome" +
+        Logs.i("raycontrol ${node.host}: summary of this network${through?.let { " (through relay ${it.id})" } ?: ""}: $outcome" +
             (if (status != 0) " ($status)" else result?.get("report_error")?.asString?.let { ": $it" } ?: ""))
         outcome
     }
