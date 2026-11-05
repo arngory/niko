@@ -131,6 +131,7 @@
     <string name="raycontrol_test_run_running">Прогон %s…</string>
     <string name="raycontrol_test_run_done">Готово: журнал прогона можно отправить</string>
     <string name="raycontrol_test_run_share">Отправить журнал прогона</string>
+    <string name="raycontrol_test_run_share_last">Отправить журнал последнего прогона</string>
     <string name="direct_dns_help">local — резолвер самой сети, как у других приложений (с учётом частного DNS). Или сервер: https://…/dns-query, tls://…, 1.1.1.1</string>
     <string name="private_dns_strict">Частный DNS задан как %s: приложения шлют DNS по TLS прямо ему, мимо DNS Niko. Правила по доменам тогда держатся только на сниффинге, а этот резолвер видит все имена. Настройки → Сеть → Частный DNS: «Автоматически» или «Отключено».</string>
 <string name="disable">Отключить</string>

@@ -123,7 +123,14 @@ func sendFdToProtect(fd int, path string) error {
 }
 
 // SetLogEnable turns the log writer on or off in this process (initCore set it from the log level); a test run
-// turns it on for its window and back after.
+// turns it on for its window and back after. The flag is a plain bool of libneko read by the writer without a lock:
+// a word-sized store, at worst a line more or less around the switch.
 func SetLogEnable(enable bool) {
 	neko_log.LogWriterDisable = !enable
+}
+
+// LogMarker writes one line to the app's log: a test run finds its own part of the log by it, whatever the file
+// was trimmed to meanwhile.
+func LogMarker(text string) {
+	log.Println(text)
 }

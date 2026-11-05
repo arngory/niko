@@ -251,6 +251,9 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         if (node.subscription != null) actions += R.string.raycontrol_sub_update to { updateSubscription(node) }
         if (!node.profileIds.isNullOrEmpty()) actions += R.string.raycontrol_channel_check to { checkChannel(node) }
         if (!node.profileIds.isNullOrEmpty()) actions += R.string.raycontrol_test_run to { testRun(node) }
+        io.niko.raycontrol.RayTestRun.lastFile?.takeIf { it.exists() }?.let { file ->
+            actions += R.string.raycontrol_test_run_share_last to { shareRunLog(file) }
+        }
         // the summary with consent; the node's hints for this network come with the subscription either way
         val hasHints = RayChannel.network()?.let { RayChannel.hints(node.spa.nodeId, it) } != null
         if (DataStore.raycontrolReports || hasHints) actions += R.string.raycontrol_report_show to { showReport(node) }
@@ -320,20 +323,25 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                 return@runOnDefaultDispatcher
             }
             show(context.getString(R.string.raycontrol_test_run_done))
-            onMainDispatcher {
-                context.startActivity(
-                    Intent.createChooser(
-                        Intent(Intent.ACTION_SEND).setType("text/x-log")
-                            .setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            .putExtra(
-                                Intent.EXTRA_STREAM, androidx.core.content.FileProvider.getUriForFile(
-                                    context, io.niko.BuildConfig.APPLICATION_ID + ".cache", file
-                                )
-                            ), context.getString(R.string.raycontrol_test_run_share)
-                    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                )
-            }
+            // the share sheet from this screen only: an app in the background may not start one (Android 10+); the
+            // node's menu then offers the last run's log
+            onMainDispatcher { if (isAdded) shareRunLog(file) }
         }
+    }
+
+    private fun shareRunLog(file: java.io.File) {
+        val context = context ?: return
+        startActivity(
+            Intent.createChooser(
+                Intent(Intent.ACTION_SEND).setType("text/x-log")
+                    .setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    .putExtra(
+                        Intent.EXTRA_STREAM, androidx.core.content.FileProvider.getUriForFile(
+                            context, io.niko.BuildConfig.APPLICATION_ID + ".cache", file
+                        )
+                    ), getString(R.string.raycontrol_test_run_share)
+            )
+        )
     }
 
     private fun checkChannel(node: RayNode) {

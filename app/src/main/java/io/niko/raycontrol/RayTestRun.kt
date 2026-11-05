@@ -17,10 +17,21 @@ import java.time.format.DateTimeFormatter
  * in turn (handshake to the first byte, down, the UDP echo through the tunnel). Every step is a JSON line with the
  * id and a UTC time; the core runs at debug meanwhile. The file holds the steps and the app's log since the run
  * started, redacted as "Send log" is (node names and addresses, tokens and keys).
+ *
+ * The debug level and the log writer are the process's for the run's window: another test core of the app running
+ * then (a URL test) logs at debug too, and its lines may be in the file.
  */
 object RayTestRun {
 
     private val running = java.util.concurrent.atomic.AtomicBoolean(false)
+    private const val MARKER = "niko test run "
+
+    /** The last run's file, to share later when the screen was gone at its end. */
+    @Volatile
+    var lastFile: File? = null
+        private set
+
+    private fun file(id: String) = File(File(app.cacheDir, "log").also { it.mkdirs() }, "niko-$id.log")
 
     private val day = DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneOffset.UTC)
     private val minute = DateTimeFormatter.ofPattern("HHmm").withZone(ZoneOffset.UTC)
@@ -48,11 +59,13 @@ object RayTestRun {
             progress(line.toString())
         }
         check(running.compareAndSet(false, true)) { "a test run is going already" }
-        val logFrom = SendLog.getNekoLog(0).size
         // the test cores of this run log at debug, the log writer on for its window; nothing stored: the settings and
         // the running service stay as they are
         io.niko.fmt.testLogLevel = maxOf(DataStore.logLevel, 3)
         Libcore.setLogEnable(true)
+        // the run's part of the log starts at this line, wherever a trim (the service starting, a clear) moves it; the
+        // log's redaction may rewrite a long id, so the line is found by its prefix (one run at a time: the last one)
+        Libcore.logMarker("$MARKER$id start ${utc()}")
         try {
             val network = RayChannel.network()
             step("start") {
@@ -119,19 +132,19 @@ object RayTestRun {
             running.set(false)
         }
 
-        // the log grew from where it stood at the start; a log trimmed meanwhile (the service started, a clear) is
-        // taken whole, and the file says so
-        val all = SendLog.getNekoLog(0)
-        val trimmed = all.size < logFrom
-        val log = if (trimmed) String(all) else String(all, logFrom, all.size - logFrom)
+        // from the run's marker on; no marker (the log trimmed past it): the whole log, and the file says so
+        val all = String(SendLog.getNekoLog(0))
+        val at = all.lastIndexOf(MARKER)
+        val log = if (at >= 0) all.substring(all.lastIndexOf('\n', at) + 1) else all
         val report = buildString {
             append("# Niko test run ").append(id).append(", ").append(utc()).append('\n')
             append("# steps (JSON lines)\n").append(steps)
-            append(if (trimmed) "# the app's log, whole: it was trimmed during the run\n" else "# the app's log since the run started\n")
+            append(if (at >= 0) "# the app's log since the run started\n" else "# the app's log, whole: the run's start was trimmed from it\n")
             append(log)
         }
+        lastFile = file(id)
         RayNodes.syncLogRedactions()
-        val file = File(File(app.cacheDir, "log").also { it.mkdirs() }, "niko-$id.log")
+        val file = file(id)
         file.writeText(report.lines().chunked(2000).joinToString("\n") { chunk ->
             runCatching { Libcore.redactLog(chunk.joinToString("\n")) }.getOrDefault("<redaction failed>")
         })

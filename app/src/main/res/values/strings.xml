@@ -765,6 +765,7 @@
     <string name="raycontrol_test_run_running">Run %s…</string>
     <string name="raycontrol_test_run_done">Done: the log of the run is ready to share</string>
     <string name="raycontrol_test_run_share">Share the run\'s log</string>
+    <string name="raycontrol_test_run_share_last">Share the last test run\'s log</string>
     <string name="raycontrol_dnstt_resolver">DNS tunnel resolver (dnstt)</string>
     <string name="raycontrol_dnstt_resolver_help">Used when a node\'s link leaves the resolver to the client: https://…/dns-query, tls://host or udp://host. Applies to profiles from the next subscription update.</string>
     <string name="raycontrol_masterdns_resolvers">DNS tunnel resolvers (MasterDnsVPN)</string>
