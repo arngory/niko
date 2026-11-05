@@ -29,6 +29,19 @@ jobs:
         with:
           name: APKs
           path: apks
+      - name: A throwaway signature for an unsigned APK
+        # without the signing secrets (forks, pull requests from them) the release APK is unsigned and does not
+        # install: a key for this emulator only, never the release key
+        run: |
+          bt=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          apk=$(ls apks/*-x86_64.apk | head -1)
+          if ! "$bt/apksigner" verify "$apk" > /dev/null 2>&1; then
+            keytool -genkeypair -keystore "$RUNNER_TEMP/smoke.jks" -storepass smokekey -keypass smokekey -alias smoke \
+              -keyalg RSA -keysize 2048 -validity 1 -dname CN=smoke -noprompt
+            "$bt/zipalign" -f -p 4 "$apk" "$RUNNER_TEMP/aligned.apk"
+            "$bt/apksigner" sign --ks "$RUNNER_TEMP/smoke.jks" --ks-pass pass:smokekey --out "$apk" "$RUNNER_TEMP/aligned.apk"
+            echo "the APK was unsigned: signed with a throwaway key for the emulator"
+          fi
       - name: KVM for the emulator
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
