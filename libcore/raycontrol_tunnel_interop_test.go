@@ -126,6 +126,11 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 			hysteriaSvc = append(hysteriaSvc, p.Svc)
 		}
 	}
+	// relay-v1: the subscription and the profiles with via through the relay in front of the node
+	if relay := os.Getenv("RAYCONTROL_RELAY"); relay != "" {
+		relayThrough(t, relay, result.Payload, b.Host, b.Sub.Port, b.Sub.Pin, b.DeviceID, b.DeviceKey, b.SPA,
+			b.NodeKeys.Ed25519, b.NodeKeys.MLDSA65, node, probeInfo, downMbps, tested)
+	}
 	for _, kind := range strings.Split(os.Getenv("RAYCONTROL_EXPECT"), ",") {
 		if kind != "" && !tested[kind] {
 			t.Fatalf("no %s profile measured (tested %v, tunnels %v)", kind, tested, probeInfo.TunnelSvc)
@@ -178,6 +183,80 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 		}
 	}
 	t.Logf("link: %s", rawLink)
+}
+
+// relayThrough asks the subscription through the relay (its SPA with K_relay, the node's pin and signatures) and
+// measures each profile whose via names the relay at the relay's address, as the app builds such a row: the link
+// with the relay's host, Hysteria2 on UDP 443, a knock outbound with the relay's SPA in front.
+func relayThrough(t *testing.T, relayAddr string, payload raysub.Payload, host string, subPort int,
+	pin, deviceID, deviceKey string, spa knock.SPAv2Options, ed25519, mldsa65, node string, probeInfo *raysub.ProbeInfo,
+	downMbps int, tested map[string]bool) {
+	t.Helper()
+	if len(payload.Relays) == 0 {
+		t.Fatalf("relay %s set, the subscription has no relays", relayAddr)
+	}
+	relay := payload.Relays[0]
+	relaySPA := relay.SPA
+	relaySPA.DeviceKey = deviceKey
+	relaySPA.Relay = &knock.SPARelay{ExitNodeID: spa.NodeID, ID: relay.ID}
+
+	// a context of its own: the tunnels measured before may have taken minutes
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	viaSub, err := raysub.Fetch(ctx, raysub.Request{
+		Host: relayAddr, Port: subPort, Pin: pin, DeviceID: deviceID, NodeID: spa.NodeID,
+		Ed25519: ed25519, MLDSA65: mldsa65, SPA: relaySPA,
+	})
+	if err != nil {
+		t.Fatalf("subscription through relay %s: %v", relay.ID, err)
+	}
+	if viaSub.Payload.NodeID != payload.NodeID {
+		t.Fatalf("subscription through the relay: node %s, want %s", viaSub.Payload.NodeID, payload.NodeID)
+	}
+	tested["relay-subscription"] = true
+
+	for _, p := range payload.Profiles {
+		if !slices.Contains(p.Via, relay.ID) || !slices.Contains(probeInfo.TunnelSvc, p.Svc) {
+			continue
+		}
+		u, err := url.Parse(p.Link)
+		if err != nil {
+			t.Fatal(err)
+		}
+		port := u.Port()
+		if u.Scheme == "hysteria2" || u.Scheme == "hy2" {
+			port = "443"
+		}
+		u.Host = net.JoinHostPort(relayAddr, port)
+		kind, config := profileConfig(t, u.String(), node, os.Getenv("RAYCONTROL_CA"), deviceKey, downMbps)
+		if config == "" {
+			continue
+		}
+		var c map[string]any
+		if err = json.Unmarshal([]byte(config), &c); err != nil {
+			t.Fatal(err)
+		}
+		outbounds := c["outbounds"].([]any)
+		outbounds[0].(map[string]any)["detour"] = "relay-knock"
+		c["outbounds"] = append(outbounds, map[string]any{"type": knock.TypeKnock, "tag": "relay-knock", "spa_v2": relaySPA})
+		raw, _ := json.Marshal(c)
+		instance := startTestBox(t, string(raw))
+		warm, _ := json.Marshal(probeRequest{Host: host, Port: subPort, Pin: pin, DeviceID: deviceID, SPA: spa,
+			Tunnel: probeInfo.Tunnel, DownBytes: 1024, WindowMs: 5000})
+		for deadline := time.Now().Add(90 * time.Second); ; {
+			out, err := RaycontrolProbeTunnel(instance, string(warm))
+			var r probeResult
+			if err == nil && json.Unmarshal([]byte(out), &r) == nil && r.Down != nil && r.Down.OK {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("relay %s, %s %s (svc %d): no answer through the relay in 90 s: %s %v", relay.ID, kind, p.Name, p.Svc, out, err)
+			}
+			time.Sleep(3 * time.Second)
+		}
+		probeThrough(t, "relay "+kind+" "+p.Name, instance, host, subPort, pin, deviceID, spa, probeInfo.Tunnel, p.Svc, 1<<20)
+		tested["relay-"+kind] = true
+	}
 }
 
 // profileConfig is a core config for one profile of the subscription, built from its link as the app builds a

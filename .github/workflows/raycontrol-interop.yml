@@ -134,6 +134,7 @@ jobs:
           mkdir -p /tmp/rcbin /tmp/rccert
           (cd raycontrol && CGO_ENABLED=0 go build -o /tmp/rcbin/rayd ./cmd/rayd &&
             CGO_ENABLED=0 go build -o /tmp/rcbin/rayctl ./cmd/rayctl &&
+            CGO_ENABLED=0 go build -o /tmp/rcbin/rayspa ./cmd/rayspa &&
             go run ./test/supervise/testcert -o /tmp/rccert '*.example.test')
           (cd xray && CGO_ENABLED=0 go build -o /tmp/rcbin/xray -trimpath ./main) && /tmp/rcbin/xray version | head -1
           . .github/niko-server.env
@@ -145,8 +146,10 @@ jobs:
       - name: The node under rayd serve -supervise
         id: node
         run: |
-          docker network create rc-net > /dev/null
-          docker run -d --name rc-node --network rc-net -v /tmp/rcbin:/opt/rc:ro -v /tmp/rccert:/opt/cert:ro \
+          # documentation addresses (relay-v1: the exit takes only a public relay address): the runner 203.0.113.1,
+          # the node (the exit) .2, its relay .3; no NAT between the relay and the exit
+          docker network create --subnet 203.0.113.0/24 --gateway 203.0.113.1 rc-net > /dev/null
+          docker run -d --name rc-node --network rc-net --ip 203.0.113.2 -v /tmp/rcbin:/opt/rc:ro -v /tmp/rccert:/opt/cert:ro \
             debian:13 sleep infinity > /dev/null
           ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' rc-node)
           echo "address=$ip" >> "$GITHUB_OUTPUT"
@@ -171,6 +174,12 @@ jobs:
           x /opt/rc/rayctl user add alice -services reality,hy2o,hy2m,ygg,dns,mdns > /dev/null
           x /opt/rc/rayctl device add alice phone -o /root/phone.bundle
           x cat /root/phone.bundle > /tmp/phone.bundle
+          # relay-v1: the remote API the relay takes its perimeter from, the relay r1 and its bundle (root only); the
+          # relay's own SSH opens to the runner
+          x /opt/rc/rayctl service add api api > /dev/null
+          x /opt/rc/rayctl relay add r1 203.0.113.3 > /dev/null
+          x /opt/rc/rayctl relay bundle -exit 203.0.113.2 -admin 203.0.113.1/32 -o /root/r1.bundle r1
+          x cat /root/r1.bundle > /tmp/r1.bundle
           # v0.10.0: what the front passes on goes to /run/niko/<service>-in/ (S-1), stats stay in /run/niko/<service>/
           for sock in /run/niko/inner/vless.sock /run/niko/site/tls.sock /run/niko/reality-in/reality.sock \
               /run/niko/hy2o/stats.sock /run/niko/hy2m/stats.sock /run/niko/ygg-in/fd.sock \
@@ -179,6 +188,20 @@ jobs:
             x test -S "$sock" || { echo "no $sock"; x tail -n 80 /var/log/rayd.log; exit 1; }
           done
           x grep 'supervise: started' /var/log/rayd.log | sed 's/^.*unit=/  /'
+
+      - name: The relay (rayspa run -relay)
+        run: |
+          # the real rayspa in the relay's role: DNAT and masquerade to the exit for whoever knocked with K_relay
+          docker run -d --name rc-relay --network rc-net --ip 203.0.113.3 --cap-add NET_ADMIN \
+            --sysctl net.ipv4.ip_forward=1 -v /tmp/rcbin:/opt/rc:ro debian:13 sleep infinity > /dev/null
+          r() { docker exec rc-relay "$@"; }
+          r sh -c 'apt-get update -qq > /dev/null && apt-get install -y -qq nftables > /dev/null'
+          docker cp /tmp/r1.bundle rc-relay:/root/r1.bundle
+          r chmod 0600 /root/r1.bundle
+          docker exec -d rc-relay sh -c '/opt/rc/rayspa run -relay /root/r1.bundle > /var/log/rayspa.log 2>&1'
+          for i in $(seq 150); do r grep -q 'snapshot applied' /var/log/rayspa.log 2>/dev/null && break; sleep 0.2; done
+          r grep -q 'snapshot applied' /var/log/rayspa.log || { r cat /var/log/rayspa.log; exit 1; }
+          r nft list ruleset | grep -cE 'dnat|masquerade' | sed 's/^/  nat rules: /'
 
       - uses: actions/setup-go@v5
         with:
@@ -190,7 +213,8 @@ jobs:
           RAYCONTROL_BUNDLE: /tmp/phone.bundle
           RAYCONTROL_ADDRESS: ${{ steps.node.outputs.address }}
           RAYCONTROL_CA: /tmp/rccert/root.pem
-          RAYCONTROL_EXPECT: hysteria2-pin,hysteria2-ca,reality,yggdrasil,dnstt-auth,masterdns
+          RAYCONTROL_RELAY: 203.0.113.3
+          RAYCONTROL_EXPECT: hysteria2-pin,hysteria2-ca,reality,yggdrasil,dnstt-auth,masterdns,relay-subscription,relay-reality,relay-hysteria2-pin,relay-hysteria2-ca
         run: |
           TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
           go test -count=1 -v -timeout 10m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
@@ -199,7 +223,9 @@ jobs:
         if: always()
         run: |
           docker exec rc-node tail -n 120 /var/log/rayd.log || true
-          docker rm -f rc-node > /dev/null 2>&1 || true
+          echo "--- relay"; docker exec rc-relay tail -n 60 /var/log/rayspa.log || true
+          docker exec rc-relay nft list ruleset 2>/dev/null | tail -n 60 || true
+          docker rm -f rc-node rc-relay > /dev/null 2>&1 || true
 
   naive:
     runs-on: ubuntu-latest
