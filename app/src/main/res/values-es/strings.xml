@@ -261,15 +261,6 @@
     <string name="plugin_configure">Configurar…</string> 
     <string name="plugin_disabled">Desactivado</string> 
     <string name="plugin_unknown">Complemento desconocido %s</string> 
-    <string name="plugin_untrusted">Advertencia: este complemento no parece provenir de una fuente confiable conocida.</string> 
-    <string name="plugin_auto_connect_unlock_only">Es posible que este complemento no funcione con Autoconectar</string> 
-    <string name="proxy_cat">Ajustes del servidor</string> 
-    <string name="ss_cat">Ajustes de Shadowsocks</string> 
-    <string name="unsaved_changes_prompt">Cambios no guardados. ¿Quieres guardar?</string> 
-    <string name="yes">Sí</string> 
-    <string name="no">No</string> 
-    <string name="apply">Aplicar</string> 
-    <string name="need_reload">Vuelva a cargar el servicio de proxy para aplicar los cambios</string>
     <string name="license">Licencia</string> 
     <string name="route_warn">Asegúrese de haber leído la documentación antes de agregar reglas personalizadas; de lo contrario, es posible que no pueda conectarse a Internet.</string> 
     <string name="lines">%d líneas</string> 

@@ -20,6 +20,10 @@ class PortKnockingTest {
         assertTrue(parseKnockSequence("  ").isEmpty())
         val key = "AB".repeat(32)
         assertEquals(listOf(KnockStep(62201, true, key.lowercase(), spa = true)), parseKnockSequence("62201/spa:$key"))
+        assertEquals(
+            listOf(KnockStep(62201, true, key.lowercase(), spa = true, spaMasked = true)),
+            parseKnockSequence("62201/SPA1M:$key")
+        )
     }
 
     @Test

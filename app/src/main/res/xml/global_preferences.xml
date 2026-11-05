@@ -169,7 +169,8 @@
             app:title="@string/domain_strategy_for_remote"
             app:useSimpleSummaryProvider="true" />
         <EditTextPreference
-            app:defaultValue="https://223.5.5.5/dns-query"
+            app:defaultValue="local"
+            app:dialogMessage="@string/direct_dns_help"
             app:icon="@drawable/ic_action_dns"
             app:key="directDns"
             app:title="@string/direct_dns"
@@ -266,6 +267,12 @@
             app:key="yggdrasilAllowInbound"
             app:summary="@string/yggdrasil_allow_inbound_summary"
             app:title="@string/yggdrasil_allow_inbound" />
+        <EditTextPreference
+            app:dependency="yggdrasilAllowInbound"
+            app:dialogMessage="@string/yggdrasil_inbound_ports_help"
+            app:key="yggdrasilInboundPorts"
+            app:title="@string/yggdrasil_inbound_ports"
+            app:useSimpleSummaryProvider="true" />
         <Preference
             app:dependency="yggdrasilEnabled"
             app:key="yggdrasilAddress"

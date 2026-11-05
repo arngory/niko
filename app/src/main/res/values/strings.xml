@@ -88,6 +88,8 @@
     <string name="cag_dns">DNS Settings</string>
     <string name="remote_dns">Remote DNS</string>
     <string name="direct_dns">Direct DNS</string>
+    <string name="direct_dns_help">local: the network\'s own resolver, as other apps use it (Private DNS included). Or a server: https://…/dns-query, tls://…, 1.1.1.1</string>
+    <string name="private_dns_strict">Private DNS is set to %s: apps send their DNS over TLS to it, past Niko\'s DNS. Domain rules then rest on sniffing, and that resolver sees every name. Settings → Network → Private DNS: Automatic or Off.</string>
     <string name="enable_dns_routing">Enable DNS Routing</string>
     <string name="dns_routing_message">Resolve domains in bypass routes with Direct DNS. Be aware of
         potential DNS leaks</string>
@@ -293,8 +295,14 @@
     <string name="plugin_configure">Configure…</string>
     <string name="plugin_disabled">Disabled</string>
     <string name="plugin_unknown">Unknown plugin %s</string>
-    <string name="plugin_untrusted">Warning: This plugin does not seem to come from a known trusted
-        source.</string>
+    <string name="plugin_untrusted">Plugin %1$s from %2$s is not trusted yet: in About, tap the plugin and check its signer.</string>
+    <string name="plugin_trust_title">Trust this plugin?</string>
+    <string name="plugin_trust_message">%1$s (%2$s)\n\nSigner SHA-256:\n%3$s\n\nA plugin runs as Niko: it reads the profiles it serves and passes the VPN. Trust it only if you installed it from its author. A new signer is asked about again.</string>
+    <string name="plugin_trusted">trusted</string>
+    <string name="plugin_not_trusted">not trusted: tap to check</string>
+    <string name="plugin_trust">Trust</string>
+    <string name="plugin_revoke">Revoke</string>
+    <string name="plugin_app_info">App info</string>
     <string name="plugin_auto_connect_unlock_only">This plugin might not work with Auto Connect</string>
     <string name="proxy_cat">Server Settings</string>
     <string name="ss_cat">Shadowsocks Settings</string>
@@ -759,7 +767,9 @@
     <string name="yggdrasil_tls_chrome">Browser-like TLS links</string>
     <string name="yggdrasil_tls_chrome_summary">tls:// peers get a Chrome ClientHello, not the recognisable one of Go. Turn off if a peer stops connecting.</string>
     <string name="yggdrasil_allow_inbound">Allow incoming connections</string>
-    <string name="yggdrasil_allow_inbound_summary">Other nodes may connect to services on this device (they arrive at 127.0.0.1). Off: refused.</string>
+    <string name="yggdrasil_allow_inbound_summary">Other nodes may connect to services on this device (they arrive at 127.0.0.1). Niko\'s own ports are always closed to them. Off: refused.</string>
+    <string name="yggdrasil_inbound_ports">Ports open to other nodes</string>
+    <string name="yggdrasil_inbound_ports_help">Comma-separated, for example 22, 8080. Empty: every port but Niko\'s own, including other apps\' local proxies.</string>
     <string name="yggdrasil_address">Address of this device</string>
     <string name="yggdrasil_not_built">not in this build</string>
     <string name="dns_tunnel">DNS tunnel (experimental)</string>
@@ -787,11 +797,11 @@
     <string name="port_knocking_sequence">Knock sequence, e.g. 7000, 8000/udp, 9000</string>
     <string name="port_knocking_interval">Delay between knocks, ms</string>
     <string name="port_knocking_ttl">Knock again after, seconds</string>
-    <string name="port_knocking_summary">Before connecting, sends TCP SYNs or UDP datagrams to these ports of the server, in order. UDP steps may carry a hex payload: 1234/udp:68656c6c6f. SPA: 62201/spa:KEY sends one signed datagram that cannot be replayed (KEY = 64 hex digits, as on the server). Knocks again after a network change and when a connection fails. If a UDP session (WireGuard, Hysteria2, TUIC) gets no reply for the silence timeout after sending, knocks once more and logs whether the server answers again. Leave the sequence empty to disable.</string>
+    <string name="port_knocking_summary">Before connecting, sends TCP SYNs or UDP datagrams to these ports of the server, in order. UDP steps may carry a hex payload: 1234/udp:68656c6c6f. SPA: 62201/spa:KEY sends one signed datagram that cannot be replayed (KEY = 64 hex digits, as on the server); 62201/spa1m:KEY hides its time too, if the server reads SPA v1m (v1 sends the time in clear, which DPI can match). Knocks again after a network change and when a connection fails. If a UDP session (WireGuard, Hysteria2, TUIC) gets no reply for the silence timeout after sending, knocks once more and logs whether the server answers again. Leave the sequence empty to disable.</string>
     <string name="port_knocking_invalid">Invalid knock sequence: %s</string>
     <string name="local_proxy_username">Local proxy user name</string>
     <string name="local_proxy_password">Local proxy password</string>
     <string name="local_proxy_no_auth_in_vpn">Local proxy without password in VPN mode</string>
-    <string name="local_proxy_no_auth_in_vpn_sum">Unsafe: any app on the device can use the local proxy and learn the server address. Needed for the system HTTP proxy option.</string>
+    <string name="local_proxy_no_auth_in_vpn_sum">Unsafe: any app on the device can use the local proxy and learn the server address. Needed for the system HTTP proxy option. In VPN mode the port opens only with this or with a local proxy password set.</string>
     <string name="port_knocking_silence">Re-knock if a UDP session gets no reply, seconds (0 = off)</string>
 </resources>

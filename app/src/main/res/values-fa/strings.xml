@@ -281,7 +281,6 @@
     <string name="plugin_configure">پیکربندی...</string>
     <string name="plugin_disabled">غیرفعال</string>
     <string name="plugin_unknown">افزونه نامشخص %s</string>
-    <string name="plugin_untrusted">هشدار: به نظر می‌رسد این افزونه از منابع شناخته‌شده نیست و ممکن است ناامن باشد.</string>
     <string name="plugin_auto_connect_unlock_only">این افزونه ممکن است با اتصال خودکار، کار نکند</string>
     <string name="proxy_cat">تنظیمات سرور</string>
     <string name="ss_cat">تنظیمات سرور</string>

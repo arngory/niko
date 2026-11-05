@@ -285,7 +285,6 @@
     <string name="plugin_configure">Налаштувати…</string>
     <string name="plugin_disabled">Вимкнено</string>
     <string name="plugin_unknown">Невідомий плагін %s</string>
-    <string name="plugin_untrusted">Попередження: цей плагін, здається, не з надійного джерела.</string>
     <string name="plugin_auto_connect_unlock_only">Цей плагін може не працювати з автоматичним підключенням</string>
     <string name="proxy_cat">Налаштування сервера</string>
     <string name="ss_cat">Налаштування Shadowsocks</string>

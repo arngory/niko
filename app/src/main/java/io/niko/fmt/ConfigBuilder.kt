@@ -92,6 +92,16 @@ fun localProxyUsers(isVPN: Boolean): List<User>? {
     }, custom)
 }
 
+/** Whether the local proxy port opens: always in proxy mode; in VPN mode when the user set it up for other apps. */
+fun localProxyWanted(isVPN: Boolean) =
+    !isVPN || DataStore.mixedPassword.isNotBlank() || DataStore.localProxyNoAuthInVpn
+
+/**
+ * Proxy mode with the service started: the app's own requests go through its port and never around it, which would
+ * show the device's address (a core restarting is waited for).
+ */
+fun localProxyRequired() = DataStore.serviceState.started && DataStore.serviceMode != Key.MODE_VPN
+
 class ConfigBuildResult(
     var config: String,
     var externalIndex: List<IndexEntity>,
@@ -279,7 +289,10 @@ fun buildConfig(
                     )
                 }
             })
-            inbounds.add(Inbound_MixedOptions().apply {
+            // in VPN mode the app itself goes through the TUN: the port only serves what the user set up for it (an
+            // own login, or no login allowed). Without that it stays closed, so no app on the device can learn the
+            // exit address through it (R3)
+            if (localProxyWanted(isVPN)) inbounds.add(Inbound_MixedOptions().apply {
                 type = "mixed"
                 tag = TAG_MIXED
                 listen = bind
@@ -322,7 +335,15 @@ fun buildConfig(
                 tag = TAG_YGGDRASIL
                 _hack_config_map["private_key"] = privateKey
                 _hack_config_map["peers"] = DataStore.yggdrasilPeers.lines().map { it.trim() }
-                    .filter { it.isNotEmpty() && !it.startsWith("#") }
+                    .filter { it.isNotEmpty() && !it.startsWith("#") }.filter { peer ->
+                        // the core resolves a quic:// name with the system resolver, and outside a VPN that is the
+                        // network's DNS: in proxy mode such a peer goes, an address stays
+                        val name = peer.substringAfter("://").substringBefore('/').substringBefore('?')
+                            .substringBeforeLast(':').trim('[', ']')
+                        val dropped = !isVPN && peer.startsWith("quic://", ignoreCase = true) && !name.isIpAddress()
+                        if (dropped) Logs.w("Yggdrasil: $peer left out in proxy mode, the system resolver would look it up")
+                        !dropped
+                    }
                 _hack_config_map["node_info_privacy"] = true
                 // a Chrome ClientHello on tls:// links unless turned off (core default: chrome)
                 if (!DataStore.yggdrasilTlsChrome) _hack_config_map["tls_fingerprint"] = "go"
@@ -1137,7 +1158,37 @@ fun buildConfig(
                 inbound = if (isVPN) listOf("tun-in", TAG_MIXED) else listOf(TAG_MIXED)
                 action = "sniff"
             })
-            yggdrasilInboundRule?.let { route.rules.add(0, it) }
+            yggdrasilInboundRule?.let { rule ->
+                val meshRules = mutableListOf<Rule_DefaultOptions>()
+                if (rule.outbound == TAG_DIRECT) {
+                    // the mesh arrives at 127.0.0.1: never at this app's own listeners (the local proxy, the Clash
+                    // API, the plugins' SOCKS and forwarding ports), whatever their password (S7)
+                    val own = (inbounds.mapNotNull {
+                        (it as? Inbound_MixedOptions)?.listen_port ?: (it as? Inbound_DirectOptions)?.listen_port
+                    } + externalIndexMap.flatMap { it.chain.keys } +
+                            listOfNotNull(9090.takeIf { experimental?.clash_api != null })).distinct()
+                    if (own.isNotEmpty()) meshRules += Rule_DefaultOptions().apply {
+                        inbound = listOf(TAG_YGGDRASIL)
+                        port = own
+                        action = "reject"
+                    }
+                    // the ports the user opened, or every other one
+                    val open = MeshPorts.parse(DataStore.yggdrasilInboundPorts)
+                    if (open != null) {
+                        meshRules += Rule_DefaultOptions().apply {
+                            inbound = listOf(TAG_YGGDRASIL)
+                            if (open.ports.isNotEmpty()) port = open.ports
+                            if (open.ranges.isNotEmpty()) port_range = open.ranges
+                            outbound = TAG_DIRECT
+                        }
+                        meshRules += Rule_DefaultOptions().apply {
+                            inbound = listOf(TAG_YGGDRASIL)
+                            action = "reject"
+                        }
+                    } else meshRules += rule
+                } else meshRules += rule
+                route.rules.addAll(0, meshRules)
+            }
             if (DataStore.bypassLanInCore) {
                 route.rules.add(Rule_DefaultOptions().apply {
                     outbound = TAG_BYPASS

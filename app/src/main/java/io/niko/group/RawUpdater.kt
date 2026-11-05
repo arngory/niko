@@ -1,6 +1,7 @@
 package io.niko.group
 
 import io.niko.fmt.LOCAL_PROXY_USER
+import io.niko.fmt.localProxyRequired
 import android.annotation.SuppressLint
 import android.os.Build
 import io.niko.R
@@ -65,6 +66,8 @@ object RawUpdater : GroupUpdater() {
 
             val response = Libcore.newHttpClient().apply {
                 trySocks5(DataStore.mixedPort, LOCAL_PROXY_USER, DataStore.localProxyPassword)
+                // proxy mode with the service running: never around it (the device's own address)
+                if (localProxyRequired()) requireSocks5()
                 tryH3Direct()
                 when (DataStore.appTLSVersion) {
                     "1.3" -> restrictedTLS()

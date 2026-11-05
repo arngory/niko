@@ -256,7 +256,6 @@
     <string name="ss_cat">Shadowsocks Ayarları</string>
     <string name="proxy_cat">Sunucu Ayarları</string>
     <string name="plugin_auto_connect_unlock_only">Bu eklenti Otomatik Bağlan ile çalışmayabilir</string>
-    <string name="plugin_untrusted">Uyarı: Bu eklenti bilinen güvenilir bir kaynaktan geliyora benzemiyor.</string>
     <string name="plugin_unknown">Bilinmeyen eklenti %s</string>
     <string name="plugin_disabled">Devre Dışı</string>
     <string name="plugin">Eklenti</string>

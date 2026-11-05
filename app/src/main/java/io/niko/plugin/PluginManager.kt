@@ -40,6 +40,12 @@ object PluginManager {
     }
 
     private fun initNative(pluginId: String): InitResult? {
+        // a binary shipped in the app goes first: nothing outside it to trust
+        try {
+            initNativeInternal(pluginId)?.let { return InitResult(it, ProviderInfo().apply { authority = Plugins.AUTHORITIES_PREFIX_NEKO_EXE }) }
+        } catch (t: Throwable) {
+            Logs.w("initNativeInternal failed", t)
+        }
         val info = Plugins.getPlugin(pluginId) ?: return null
 
         // internal so
@@ -52,6 +58,8 @@ object PluginManager {
             return null
         }
 
+        // another app's binary runs as Niko: only from a package whose signer the user trusts (S8)
+        PluginTrust.require(pluginId, info.packageName)
         try {
             initNativeFaster(info)?.let { return InitResult(it, info) }
         } catch (t: Throwable) {
@@ -80,7 +88,10 @@ object PluginManager {
     private fun initNativeFaster(provider: ProviderInfo): String? {
         return provider.loadString(Plugins.METADATA_KEY_EXECUTABLE_PATH)
             ?.let { relativePath ->
-                File(provider.applicationInfo.nativeLibraryDir).resolve(relativePath).apply {
+                // inside the plugin's own library folder: "../" cannot point elsewhere
+                val dir = File(provider.applicationInfo.nativeLibraryDir).canonicalFile
+                dir.resolve(relativePath).canonicalFile.apply {
+                    check(path.startsWith(dir.path + File.separator)) { "plugin binary outside its library folder" }
                     check(canExecute())
                 }.absolutePath
             }

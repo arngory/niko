@@ -1,6 +1,7 @@
 package io.niko.ui
 
 import io.niko.fmt.LOCAL_PROXY_USER
+import io.niko.fmt.localProxyRequired
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.text.format.DateFormat
@@ -304,6 +305,8 @@ class AssetsActivity : ThemedActivity() {
             modernTLS()
             keepAlive()
             trySocks5(DataStore.mixedPort, LOCAL_PROXY_USER, DataStore.localProxyPassword)
+            // proxy mode with the service running: never around it (the device's own address)
+            if (localProxyRequired()) requireSocks5()
         }
 
         try {

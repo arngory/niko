@@ -37,6 +37,7 @@ type HTTPClient interface {
 	PinnedTLS12()
 	PinnedSHA256(sumHex string)
 	TrySocks5(port int32, username string, password string)
+	RequireSocks5()
 	TryH3Direct()
 	KeepAlive()
 	NewRequest() HTTPRequest
@@ -73,6 +74,9 @@ type httpClient struct {
 	h1h2Client    http.Client
 	trySocks5     bool
 	tryH3Direct   bool
+	// requireSocks5: the service runs in proxy mode, a request never goes direct (it would show the device's
+	// address); a port that does not answer is a core restarting, waited for a few seconds
+	requireSocks5 bool
 }
 
 func NewHttpClient() HTTPClient {
@@ -118,7 +122,17 @@ func (c *httpClient) TrySocks5(port int32, username string, password string) {
 	dialer := new(net.Dialer)
 	c.h1h2Transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		socksConn, err := dialer.DialContext(ctx, "tcp", "127.0.0.1:"+strconv.Itoa(int(port)))
+		for wait := 0; err != nil && c.requireSocks5 && wait < 10 && ctx.Err() == nil; wait++ {
+			select {
+			case <-ctx.Done():
+			case <-time.After(500 * time.Millisecond):
+				socksConn, err = dialer.DialContext(ctx, "tcp", "127.0.0.1:"+strconv.Itoa(int(port)))
+			}
+		}
 		if err != nil {
+			if c.requireSocks5 {
+				return nil, fmt.Errorf("the local proxy does not answer: %w", err)
+			}
 			if c.tryH3Direct {
 				return nil, errFailConnectSocks5
 			}
@@ -135,6 +149,12 @@ func (c *httpClient) TrySocks5(port int32, username string, password string) {
 		return socksConn, nil
 	}
 	c.trySocks5 = true
+}
+
+// RequireSocks5 keeps every request on the SOCKS port of TrySocks5: the service runs in proxy mode, and a port
+// that does not answer is waited for (a core restarting), never gone around.
+func (c *httpClient) RequireSocks5() {
+	c.requireSocks5 = true
 }
 
 func (c *httpClient) TryH3Direct() {

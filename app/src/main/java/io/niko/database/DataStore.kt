@@ -97,6 +97,10 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var yggdrasilEnabled by configurationStore.boolean(Key.YGGDRASIL_ENABLED)
     var yggdrasilPeers by configurationStore.string(Key.YGGDRASIL_PEERS)
     var yggdrasilAllowInbound by configurationStore.boolean(Key.YGGDRASIL_ALLOW_INBOUND)
+    // the ports other nodes may reach when incoming is allowed: "22, 8080"; empty: all but Niko's own
+    var yggdrasilInboundPorts by configurationStore.string(Key.YGGDRASIL_INBOUND_PORTS)
+    // plugin package → the signer the user trusted (PluginTrust)
+    var pluginTrust by configurationStore.string(Key.PLUGIN_TRUST) { "{}" }
     var yggdrasilPeersViaProxy by configurationStore.boolean(Key.YGGDRASIL_PEERS_VIA_PROXY)
     var yggdrasilTlsChrome by configurationStore.boolean(Key.YGGDRASIL_TLS_CHROME) { true }
     // raycontrol links leave the DNS tunnel resolver to the client: these defaults fill it (Yandex, reachable in RU whitelists)
@@ -142,7 +146,8 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var globalCustomConfig by configurationStore.string(Key.GLOBAL_CUSTOM_CONFIG) { "" }
 
     var remoteDns by configurationStore.string(Key.REMOTE_DNS) { "https://dns.google/dns-query" }
-    var directDns by configurationStore.string(Key.DIRECT_DNS) { "https://223.5.5.5/dns-query" }
+    // the network's own resolver (Android's, Private DNS included): a direct name looks like any app's (R8)
+    var directDns by configurationStore.string(Key.DIRECT_DNS) { "local" }
     var enableDnsRouting by configurationStore.boolean(Key.ENABLE_DNS_ROUTING) { true }
     var enableFakeDns by configurationStore.boolean(Key.ENABLE_FAKEDNS) { true }
     var dnsOptimisticCache by configurationStore.boolean(Key.DNS_OPTIMISTIC_CACHE)

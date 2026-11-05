@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.RemoteException
+import android.net.NetworkCapabilities
 import android.view.KeyEvent
 import android.view.MenuItem
 import androidx.core.net.toUri
@@ -431,6 +432,26 @@ class MainActivity : ThemedActivity(),
 
     override fun stateChanged(state: BaseService.State, profileName: String?, msg: String?) {
         changeState(state, msg, true)
+        if (state == BaseService.State.Connected) warnStrictPrivateDns()
+    }
+
+    private var privateDnsWarned = false
+
+    /**
+     * Strict Private DNS sends the apps' DNS over TLS to its host, past the VPN's DNS (R8): say so once a run. The
+     * underlying network's setting is the one in force.
+     */
+    private fun warnStrictPrivateDns() {
+        if (privateDnsWarned || Build.VERSION.SDK_INT < Build.VERSION_CODES.P || DataStore.serviceMode != Key.MODE_VPN) return
+        val cm = SagerNet.connectivity
+        @Suppress("DEPRECATION")
+        val host = cm.allNetworks.asSequence().filter { network ->
+            cm.getNetworkCapabilities(network)?.let {
+                !it.hasTransport(NetworkCapabilities.TRANSPORT_VPN) && it.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            } == true
+        }.mapNotNull { cm.getLinkProperties(it)?.privateDnsServerName }.firstOrNull() ?: return
+        privateDnsWarned = true
+        snackbar(getString(R.string.private_dns_strict, host)).show()
     }
 
     val connection = SagerConnection(SagerConnection.CONNECTION_ID_MAIN_ACTIVITY_FOREGROUND, true)

@@ -1,6 +1,7 @@
 package io.niko.ui
 
 import io.niko.fmt.LOCAL_PROXY_USER
+import io.niko.fmt.localProxyRequired
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -31,6 +32,7 @@ import io.niko.utils.PackageCache
 import io.niko.utils.isNewerVersion
 import io.niko.widget.ListListener
 import libcore.Libcore
+import io.niko.plugin.PluginTrust
 import io.niko.plugin.Plugins
 import androidx.core.net.toUri
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -73,6 +75,38 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                     .replace(R.id.about_fragment_holder, AboutContent())
                     .commitAllowingStateLoss()
             }
+        }
+
+        /** The plugin's signer and whether to trust it (S8): a plugin runs only once the user said yes. */
+        private fun reviewPlugin(pluginId: String, packageName: String) {
+            val context = context ?: return
+            val signer = PluginTrust.signer(packageName) ?: return
+            val trusted = PluginTrust.isTrusted(packageName)
+            fun reload() = parentFragmentManager.beginTransaction()
+                .replace(R.id.about_fragment_holder, AboutContent())
+                .commitAllowingStateLoss()
+            MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.plugin_trust_title)
+                .setMessage(
+                    getString(R.string.plugin_trust_message, pluginId, packageName, signer.replace(",", "\n"))
+                )
+                .apply {
+                    if (trusted) setPositiveButton(R.string.plugin_revoke) { _, _ ->
+                        PluginTrust.revoke(packageName)
+                        reload()
+                    } else setPositiveButton(R.string.plugin_trust) { _, _ ->
+                        PluginTrust.trust(packageName)
+                        reload()
+                    }
+                }
+                .setNeutralButton(R.string.plugin_app_info) { _, _ ->
+                    startActivity(Intent().apply {
+                        action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                        data = Uri.fromParts("package", packageName, null)
+                    })
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
         }
 
         override fun getMaterialAboutList(activityContext: Context): MaterialAboutList {
@@ -139,16 +173,11 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                                                     pluginId
                                                 ) + " (${Plugins.displayExeProvider(pkg.packageName)})"
                                             )
-                                            .subText("v" + pkg.versionName)
-                                            .setOnClickAction {
-                                                startActivity(Intent().apply {
-                                                    action =
-                                                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS
-                                                    data = Uri.fromParts(
-                                                        "package", pkg.packageName, null
-                                                    )
-                                                })
-                                            }
+                                            .subText("v" + pkg.versionName + " · " + getString(
+                                                if (PluginTrust.isTrusted(pkg.packageName)) R.string.plugin_trusted
+                                                else R.string.plugin_not_trusted
+                                            ))
+                                            .setOnClickAction { reviewPlugin(pluginId, pkg.packageName) }
                                             .build())
                                 } catch (e: Exception) {
                                     Logs.w(e)
@@ -218,6 +247,8 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                     val client = Libcore.newHttpClient().apply {
                         modernTLS()
                         trySocks5(DataStore.mixedPort, LOCAL_PROXY_USER, DataStore.localProxyPassword)
+                        // proxy mode with the service running: never around it (the device's own address)
+                        if (localProxyRequired()) requireSocks5()
                     }
                     val content = try {
                         client.newRequest().apply {

@@ -381,6 +381,16 @@ func (o *Outbound) dialSPA2(ctx context.Context, network string, destination M.S
 		o.forgetBefore(destination, attempt)
 		return nil, err
 	}
+	// a new TCP connection waits its turn to say hello when three to the node have not heard from it yet (R5);
+	// the dial itself is not held, so the SPA retries of parallel dials stay shared
+	if N.NetworkName(network) == N.NetworkTCP {
+		release, err := o.handshakes.acquire(ctx, destination.String())
+		if err != nil {
+			conn.Close()
+			return nil, err
+		}
+		conn = &gatedConn{Conn: conn, release: release}
+	}
 	o.touch(destination)
 	conn = o.trackConn(conn, destination)
 	if N.NetworkName(network) == N.NetworkUDP {

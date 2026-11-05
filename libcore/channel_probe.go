@@ -41,7 +41,10 @@ func ChannelProbe(i *BoxInstance, options string) (result string, err error) {
 			},
 			ForceAttemptHTTP2: true,
 		}
-		out.TCP = probe.TCP(ctx, &http.Client{Transport: transport}, o)
+		// a redirect would take the measurement to another host, outside the probe's
+		out.TCP = probe.TCP(ctx, &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		}}, o)
 		transport.CloseIdleConnections()
 	}
 	if o.UDPServer != "" {

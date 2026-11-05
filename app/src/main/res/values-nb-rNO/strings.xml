@@ -165,7 +165,6 @@
     <string name="unsaved_changes_prompt">Endringene er ikke lagret. Vil du spare\?</string>
     <string name="ss_cat">Innstillinger for Shadowsocks</string>
     <string name="plugin_auto_connect_unlock_only">Denne pluginen fungerer kanskje ikke med Auto Connect</string>
-    <string name="plugin_untrusted">Advarsel: Det ser ikke ut til at denne pluginen kommer fra en kjent klarert kilde.</string>
     <string name="plugin_unknown">Ukjent plugin %s</string>
     <string name="plugin_disabled">Funksjonshemmet</string>
     <string name="plugin">Plugg inn</string>
