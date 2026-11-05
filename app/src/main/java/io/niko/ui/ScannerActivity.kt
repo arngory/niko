@@ -4,6 +4,7 @@ import io.niko.raycontrol.RayImport
 import android.Manifest
 import android.content.Intent
 import android.content.pm.ShortcutManager
+import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
@@ -15,8 +16,11 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.getSystemService
 import androidx.core.net.toUri
+import com.google.zxing.RGBLuminanceSource
 import com.google.zxing.Result
 import com.king.zxing.CameraScan
+import com.king.zxing.DecodeConfig
+import com.king.zxing.DecodeFormatManager
 import com.king.zxing.DefaultCameraScan
 import com.king.zxing.analyze.QRCodeAnalyzer
 import com.king.zxing.util.CodeUtils
@@ -80,7 +84,7 @@ class ScannerActivity : ThemedActivity(),
                             contentResolver, uri
                         )
                     }
-                    val result = CodeUtils.parseCodeResult(bitmap)
+                    val result = CodeUtils.parseCodeResult(bitmap) ?: invertedCode(bitmap)
                     onMainDispatcher {
                         onScanResultCallback(result, true)
                     }
@@ -93,6 +97,20 @@ class ScannerActivity : ThemedActivity(),
                 }
             }
         }
+    }
+
+    /**
+     * The QR code in [bitmap] with its light and dark swapped (one drawn in a dark terminal: rayctl device invite -qr),
+     * or null; a large picture scaled to 2048 px first.
+     */
+    private fun invertedCode(bitmap: Bitmap): Result? {
+        val scale = minOf(1f, 2048f / maxOf(bitmap.width, bitmap.height))
+        val image = if (scale < 1f) {
+            Bitmap.createScaledBitmap(bitmap, (bitmap.width * scale).toInt(), (bitmap.height * scale).toInt(), true)
+        } else bitmap
+        val pixels = IntArray(image.width * image.height)
+        image.getPixels(pixels, 0, image.width, 0, 0, image.width, image.height)
+        return CodeUtils.parseCodeResult(RGBLuminanceSource(image.width, image.height, pixels).invert(), DecodeFormatManager.QR_CODE_HINTS)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -169,7 +187,10 @@ class ScannerActivity : ThemedActivity(),
      */
     fun initCameraScan() {
         cameraScan = DefaultCameraScan(this, binding.previewView)
-        cameraScan.setAnalyzer(QRCodeAnalyzer())
+        // a code light on dark too (a QR drawn in a dark terminal), tried when a frame has no other
+        cameraScan.setAnalyzer(
+            QRCodeAnalyzer(DecodeConfig().setHints(DecodeFormatManager.QR_CODE_HINTS).setSupportLuminanceInvert(true))
+        )
         cameraScan.setOnScanResultCallback(this)
         cameraScan.setNeedAutoZoom(true)
     }
