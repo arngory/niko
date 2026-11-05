@@ -172,6 +172,8 @@ jobs:
           x /opt/rc/rayctl service cert site -chain /opt/cert/chain.pem -key /opt/cert/key.pem
           x /opt/rc/rayctl service add hy2-masq hy2m > /dev/null
           x /opt/rc/rayctl user add alice -services reality,hy2o,hy2m,ygg,dns,mdns > /dev/null
+          # client summaries (probe-v1 §6): off by default, a node answers 404 to them then
+          x /opt/rc/rayctl summary on > /dev/null
           x /opt/rc/rayctl device add alice phone -o /root/phone.bundle
           x cat /root/phone.bundle > /tmp/phone.bundle
           # relay-v1: the remote API the relay takes its perimeter from, the relay r1 and its bundle (root only); the
