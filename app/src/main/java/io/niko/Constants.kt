@@ -196,6 +196,7 @@ object Key {
     const val RAYCONTROL_REPORTS = "raycontrolReports"
     const val RAYCONTROL_DNSTT_RESOLVER = "raycontrolDnsttResolver"
     const val RAYCONTROL_MASTERDNS_RESOLVERS = "raycontrolMasterDnsResolvers"
+    const val MIGRATED_DNS_RESOLVERS_AUTO = "migratedDnsResolversAuto"
 }
 
 object TunImplementation {

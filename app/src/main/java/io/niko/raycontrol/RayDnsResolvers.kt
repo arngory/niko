@@ -129,30 +129,42 @@ object RayDnsResolvers {
 
     /**
      * Probes the candidates for [engine] at [zone] and keeps the first that passes a large answer, else the first that
-     * passes a small one (TC on the large: the tunnel goes, slower); masterdns all that pass, the large ones if any,
-     * at most [MAX_RESOLVERS]. Returns the pick, or null when none answered (kept as a pick of [NONE]).
+     * passes a small one (the large probe answered small, the resolver's EDNS being smaller, or lost: the tunnel goes,
+     * slower); masterdns all that pass, the large ones if any, at most [MAX_RESOLVERS]. Returns the pick, or null when
+     * none answered (kept as a pick of [NONE]).
      */
     suspend fun detect(node: RayNode, network: ChannelNetwork, engine: String, zone: String, progress: (String) -> Unit = {}): Candidate? {
-        val key = node.dnsProbeKey ?: return null
+        var key = node.dnsProbeKey ?: return null
         val kind = tunnelKind(engine)
         val hint = RayChannel.hints(node.spa.nodeId, network)?.dns?.get(kind)
         val list = engine == "masterdnsvpn"
         val full = mutableListOf<Candidate>()
         val smallOnly = mutableListOf<Candidate>()
+        // an answer not the node's may be a stale key (dnsprobe-v1 §6): the subscription anew once, and the same
+        // candidate again with the key it brings; with the current key such an answer is the resolver's own
+        var keyChecked = false
         for (c in candidates(engine, hint)) {
             currentCoroutineContext().ensureActive()
             val resolver = if (c.resolver.contains("://")) c.resolver else "udp://${c.resolver}"
-            val small = probe(resolver, zone, key, large = false)
-            progress("dns ${c.kind}: ${if (small?.get("ok")?.asBoolean == true) "answers" else small?.get("error")?.asString ?: "no answer"}")
+            var small = probe(resolver, zone, key, large = false)
+            if (small?.get("unclear")?.asBoolean == true && !keyChecked) {
+                keyChecked = true
+                freshKey(node)?.takeIf { it != key }?.let {
+                    key = it
+                    small = probe(resolver, zone, key, large = false)
+                }
+            }
+            progress("dns ${c.kind}: ${describe(small)}")
             if (small?.get("ok")?.asBoolean != true) continue
             val large = probe(resolver, zone, key, large = true)
-            if (large?.get("ok")?.asBoolean == true) full += c else smallOnly += c
+            progress("dns ${c.kind} large: ${if (large?.get("ok")?.asBoolean == true && large.get("large")?.asBoolean != true) "a small answer" else describe(large)}")
+            if (large?.get("ok")?.asBoolean == true && large.get("large")?.asBoolean == true) full += c else smallOnly += c
             if (full.size >= (if (list) MAX_RESOLVERS else 1)) break
         }
         // the network changed meanwhile: what was measured is neither network's
         if (RayChannel.network()?.key != network.key) return null
         val passed = full.ifEmpty { smallOnly }
-        record(node, network, kind, passed, tc = full.isEmpty(), list)
+        record(node, network, kind, passed, smallOnly = full.isEmpty(), list)
         return passed.firstOrNull()
     }
 
@@ -208,6 +220,24 @@ object RayDnsResolvers {
         }
     }
 
+    /** A probe's result for the progress: answered (the EDNS size the node saw), or why not; never an address. */
+    private fun describe(r: JsonObject?): String = when {
+        r == null -> "no answer"
+        r.get("ok")?.asBoolean == true -> "answers" + (r.get("edns")?.asInt?.let { ", edns $it" } ?: "")
+        else -> r.get("error")?.asString ?: "no answer"
+    }
+
+    /** The node's probe key after fetching its subscription anew, or null when the fetch failed. */
+    private suspend fun freshKey(node: RayNode): String? = try {
+        RaySubscription.refresh(node.spa.nodeId, reload = RaySubscription.Reload.LATER)
+        RayNodes.get(node.spa.nodeId)?.dnsProbeKey
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Logs.w("raycontrol ${node.host}: the subscription for a fresh DNS probe key: ${e.message}")
+        null
+    }
+
     private suspend fun probe(resolver: String, zone: String, key: String, large: Boolean): JsonObject? = withContext(Dispatchers.IO) {
         runCatching {
             JsonParser.parseString(Libcore.raycontrolDnsProbe(JsonObject().apply {
@@ -221,17 +251,17 @@ object RayDnsResolvers {
     }
 
     /** Keeps the pick: the first of [passed] (and for a list all of them), or [NONE] when it is empty. */
-    private fun record(node: RayNode, network: ChannelNetwork, kind: String, passed: List<Candidate>, tc: Boolean, list: Boolean) {
+    private fun record(node: RayNode, network: ChannelNetwork, kind: String, passed: List<Candidate>, smallOnly: Boolean, list: Boolean) {
         val c = passed.firstOrNull()
         if (c == null) Logs.w("raycontrol ${node.host}: no resolver on this network answers for $kind, the default stays")
-        else Logs.i("raycontrol ${node.host}: $kind on this network goes through a ${c.kind} resolver${if (tc) " (small answers only)" else ""}")
+        else Logs.i("raycontrol ${node.host}: $kind on this network goes through a ${c.kind} resolver${if (smallOnly) " (small answers only)" else ""}")
         RayChannel.recordDnsPick(node.spa.nodeId, network, kind, JsonObject().apply {
             if (c == null) {
                 addProperty("kind", NONE)
             } else {
                 addProperty("resolver", c.resolver)
                 addProperty("kind", c.kind)
-                addProperty("tc", tc)
+                addProperty("small_only", smallOnly)
                 if (list) add("all", com.google.gson.JsonArray().apply { passed.forEach { add(it.resolver) } })
             }
             addProperty("at", System.currentTimeMillis() / 1000)

@@ -1,6 +1,7 @@
 // Package dnsprobe checks a resolver for a DNS tunnel (raycontrol dnsprobe-v1): one TXT query in the tunnel's zone
 // with a label the node's front answers itself, MAC'd with the subscription's key. 1-2 round trips, no tunnel
-// session: does the resolver bring the zone's queries to the node, and does it pass a large answer.
+// session: does the resolver bring the zone's queries to the node, and does it pass a large answer. The answer is
+// built as dnstt's, its TXT data encrypted: a token under the key, then what the node saw of the resolver.
 package dnsprobe
 
 import (
@@ -17,8 +18,8 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -28,8 +29,11 @@ import (
 const (
 	version   = 1
 	labelSize = 24
-	// EDNS asks for this much: a large answer (~1150 bytes) needs it
+	// EDNS asks for this much: a large answer (~1000 bytes) needs it
 	ednsSize = 1232
+	// the answer's plaintext (§4): token 16, EDNS 2, 0x20 1, the resolver's address 16; a large one zeros to 900
+	smallPlain = 35
+	largePlain = 900
 )
 
 var b32 = base32.StdEncoding.WithPadding(base32.NoPadding)
@@ -51,29 +55,53 @@ func Label(key []byte, zone string, minute uint32, nonce [8]byte, large bool) (s
 	return strings.ToLower(b32.EncodeToString(q)), q
 }
 
-// Answer is the first TXT string the node answers for the label's bytes q (§4).
-func Answer(key, q []byte) string {
+// Token is the first 16 bytes of the answer's plaintext for the label's bytes q (§4), over what the node saw of the
+// resolver (the plaintext's bytes 16-34): a resolver cannot change them unseen.
+func Token(key, q, seen []byte) []byte {
 	mac := hmac.New(sha256.New, key)
 	mac.Write([]byte("dnsprobe-v1 a"))
 	mac.Write(q)
-	return "v1 " + strings.ToLower(b32.EncodeToString(mac.Sum(nil)[:16]))
+	mac.Write(seen)
+	return mac.Sum(nil)[:16]
+}
+
+// Crypt encrypts or decrypts the answer's TXT data for the label's bytes q (§4): XOR with the blocks
+// HMAC-SHA256(Ke, q || uint32_be(i)), Ke = HMAC-SHA256(key, "dnsprobe-v1 e").
+func Crypt(key, q, data []byte) []byte {
+	ke := hmac.New(sha256.New, key)
+	ke.Write([]byte("dnsprobe-v1 e"))
+	stream := hmac.New(sha256.New, ke.Sum(nil))
+	out := make([]byte, len(data))
+	var block []byte
+	for i := range data {
+		if i%sha256.Size == 0 {
+			stream.Reset()
+			stream.Write(q)
+			stream.Write(binary.BigEndian.AppendUint32(nil, uint32(i/sha256.Size)))
+			block = stream.Sum(block[:0])
+		}
+		out[i] = data[i] ^ block[i%sha256.Size]
+	}
+	return out
 }
 
 func normalZone(zone string) string {
 	return strings.ToLower(strings.TrimSuffix(strings.TrimSpace(zone), "."))
 }
 
-// Result of one probe: OK when the node's answer came with a valid MAC; TC when the resolver had no room for a large
-// answer (the tunnel still goes, slower); what the node saw of the resolver (its EDNS size, 0x20, its address).
+// Result of one probe: OK when the node's answer came with a valid token; Large when it was the large one (a large
+// probe answered small: the resolver told the node a smaller EDNS, the tunnel goes slower); what the node saw of the
+// resolver (its EDNS size, 0x20, its address). Unclear: an answer came, not the node's (the resolver answers the zone
+// itself, or the key is stale: §6 has the client refresh the subscription and ask once more).
 type Result struct {
-	OK    bool   `json:"ok"`
-	Large bool   `json:"large"`
-	TC    bool   `json:"tc,omitempty"`
-	RTTMs int64  `json:"rtt_ms"`
-	EDNS  int    `json:"edns,omitempty"`
-	Case  bool   `json:"case,omitempty"`
-	From  string `json:"from,omitempty"`
-	Error string `json:"error,omitempty"`
+	OK      bool   `json:"ok"`
+	Large   bool   `json:"large"`
+	Unclear bool   `json:"unclear,omitempty"`
+	RTTMs   int64  `json:"rtt_ms"`
+	EDNS    int    `json:"edns,omitempty"`
+	Case    bool   `json:"case,omitempty"`
+	From    string `json:"from,omitempty"`
+	Error   string `json:"error,omitempty"`
 }
 
 // Dialer opens the connections of a probe (protected from the app's VPN by the caller).
@@ -81,7 +109,7 @@ type Dialer func(ctx context.Context, network, address string) (net.Conn, error)
 
 // Probe asks resolver once: udp://host[:53] (or a bare address), tls://host[:853] (DoT), https://... (DoH).
 func Probe(ctx context.Context, dial Dialer, resolver, zone string, key []byte, large bool, now time.Time) Result {
-	r := Result{Large: large}
+	var r Result
 	if len(key) != 32 {
 		r.Error = "no probe key"
 		return r
@@ -101,48 +129,76 @@ func Probe(ctx context.Context, dial Dialer, resolver, zone string, key []byte, 
 		r.Error = err.Error()
 		return r
 	}
-	if resp.Truncated && len(resp.Answer) == 0 {
-		// no room for the large answer at the resolver's EDNS: usable, slower
-		r.TC = true
+	if resp.Id != m.Id || len(resp.Question) != 1 || !strings.EqualFold(resp.Question[0].Name, m.Question[0].Name) ||
+		resp.Question[0].Qtype != dns.TypeTXT {
+		r.Error = "an answer to another query"
 		return r
 	}
 	if resp.Rcode != dns.RcodeSuccess {
 		r.Error = "rcode " + dns.RcodeToString[resp.Rcode]
+		// NXDOMAIN is an answer for the zone, not a failure to reach it: the resolver's own, or the tunnel's backend
+		// (a stale key is no probe at the node)
+		r.Unclear = resp.Rcode == dns.RcodeNameError
 		return r
 	}
-	want := Answer(key, q)
 	for _, rr := range resp.Answer {
 		txt, ok := rr.(*dns.TXT)
-		if !ok || len(txt.Txt) == 0 || txt.Txt[0] != want {
+		if !ok {
 			continue
 		}
+		data, err := txtData(txt)
+		if err != nil || (len(data) != smallPlain && len(data) != largePlain) {
+			continue
+		}
+		p := Crypt(key, q, data)
+		if !hmac.Equal(p[:16], Token(key, q, p[16:smallPlain])) {
+			continue
+		}
+		if len(p) == largePlain {
+			if !large || !zeros(p[smallPlain:]) {
+				continue
+			}
+			r.Large = true
+		}
 		r.OK = true
-		if len(txt.Txt) > 1 {
-			r.EDNS, r.Case, r.From = seen(txt.Txt[1])
-		}
-		if large && len(strings.Join(txt.Txt, "")) < 900 {
-			r.OK, r.Error = false, "the large answer came short"
-		}
+		r.EDNS = int(binary.BigEndian.Uint16(p[16:18]))
+		r.Case = p[18] == 1
+		r.From = netip.AddrFrom16([16]byte(p[19:35])).Unmap().String()
 		return r
 	}
-	r.Error = "no answer of the node (the resolver answers the zone itself, or rewrites it)"
+	r.Unclear = true
+	r.Error = "no answer of the node (the resolver answers the zone itself, or the probe key is stale)"
 	return r
 }
 
-// seen parses "seen edns=<N> case=<0|1> from=<address>".
-func seen(s string) (edns int, upper bool, from string) {
-	for _, f := range strings.Fields(s) {
-		k, v, _ := strings.Cut(f, "=")
-		switch k {
-		case "edns":
-			edns, _ = strconv.Atoi(v)
-		case "case":
-			upper = v == "1"
-		case "from":
-			from = v
+// txtData is the TXT record's strings as bytes, joined (dnstt splits its data into 255-byte strings): miekg/dns holds
+// them escaped, packing them again undoes that.
+func txtData(txt *dns.TXT) ([]byte, error) {
+	buf := make([]byte, 65535)
+	off, err := dns.PackRR(txt, buf, 0, nil, false)
+	if err != nil {
+		return nil, err
+	}
+	rdata := buf[off-int(txt.Hdr.Rdlength) : off]
+	var out []byte
+	for len(rdata) > 0 {
+		n := int(rdata[0])
+		if 1+n > len(rdata) {
+			return nil, errors.New("a TXT string past its record")
+		}
+		out = append(out, rdata[1:1+n]...)
+		rdata = rdata[1+n:]
+	}
+	return out, nil
+}
+
+func zeros(b []byte) bool {
+	for _, c := range b {
+		if c != 0 {
+			return false
 		}
 	}
-	return
+	return true
 }
 
 func exchange(ctx context.Context, dial Dialer, resolver string, m *dns.Msg) (*dns.Msg, error) {
