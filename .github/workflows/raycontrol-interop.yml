@@ -304,7 +304,8 @@ jobs:
           nohup /tmp/sing-box run -c /tmp/core-naive.json > /tmp/core-naive.log 2>&1 &
           for i in $(seq 75); do
             [ -n "$(ss -Hltn 'sport = :11090')" ] && [ -n "$(ss -Hltn 'sport = :11091')" ] && [ -n "$(ss -Hltn 'sport = :11092')" ] &&
-              [ -n "$(ss -Hltn 'sport = :11093')" ] && [ -n "$(ss -Hltn 'sport = :11095')" ] && break
+              [ -n "$(ss -Hltn 'sport = :11093')" ] && [ -n "$(ss -Hltn 'sport = :11094')" ] &&
+              [ -n "$(ss -Hltn 'sport = :11095')" ] && break
             sleep 0.2
           done
           fail=0

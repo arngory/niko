@@ -11,6 +11,9 @@ import (
 // ClientHellos to one port, a pattern of its own (review R5). At most maxHandshakes connections to a node wait
 // for its first bytes at a time; the next one, connected already, waits for a slot before it is handed up to send
 // its hello. A slot frees on the node's first bytes, on close, or after handshakeHold.
+//
+// naive (cronet) takes the socket itself (a dup of the TCP fd) and closes this wrapper at once, so its connections
+// are not held here; it carries every stream of the node over one HTTP/2 or QUIC session, without a volley.
 const (
 	maxHandshakes = 3
 	handshakeHold = 10 * time.Second

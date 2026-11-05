@@ -561,25 +561,9 @@ fun buildConfig(
                 // per-profile TLS tweaks, merged into the outbound's tls object
                 val tlsTweaks = mutableMapOf<String, Any>()
                 val outboundType = (currentOutbound as? Outbound)?.type
-                // raycontrol nodes take post-quantum key exchange only: no fallback to classical groups. TLS offers
-                // X25519MLKEM768 alone (Go TLS: Hysteria2, TUIC, XHTTP over HTTP/3; uTLS takes the Chrome fingerprint
-                // and drops its other groups); REALITY requires the hybrid share; naive
-                // (Chromium) offers it by default
                 if (rayNode != null && !proxyEntity.needExternal()) {
-                    val tls = currentOutbound.asMap()["tls"] as? Map<*, *>
-                    if (tls?.get("enabled") == true) {
-                        // only the Chrome fingerprint of our uTLS carries an X25519MLKEM768 share: any other
-                        // (firefox, safari, random, ...) would fail every handshake to the node
-                        val utls = tls["utls"] as? Map<*, *>
-                        if (utls?.get("enabled") == true && utls["fingerprint"] != "chrome") {
-                            Logs.w("raycontrol node ${rayNode.host}: uTLS fingerprint ${utls["fingerprint"]} replaced by chrome (post-quantum key share)")
-                            tlsTweaks["utls"] = mapOf("fingerprint" to "chrome")
-                        }
-                        if ((tls["reality"] as? Map<*, *>)?.get("enabled") == true) {
-                            tlsTweaks["reality"] = mapOf("key_share" to "hybrid")
-                        } else {
-                            tlsTweaks["curve_preferences"] = listOf("X25519MLKEM768")
-                        }
+                    tlsTweaks += nodeTlsTweaks(outboundType, currentOutbound.asMap()["tls"] as? Map<*, *>) { fingerprint ->
+                        Logs.w("raycontrol node ${rayNode.host}: uTLS fingerprint $fingerprint replaced by chrome (post-quantum key share)")
                     }
                 }
                 // fragmentation is only meaningful for TCP-based TLS outbounds
@@ -603,7 +587,10 @@ fun buildConfig(
                     // the pin replaces CA verification; sing-box rejects it next to a custom CA
                     tlsTweaks["certificate"] = emptyList<String>()
                 }
-                if (tlsTweaks.isNotEmpty()) currentOutbound._hack_config_map["tls"] = tlsTweaks
+                if (tlsTweaks.isNotEmpty()) {
+                    currentOutbound._hack_config_map["tls"] =
+                        mergeTls(currentOutbound._hack_config_map["tls"] as? Map<*, *>, tlsTweaks)
+                }
 
                 // Brutal at the rates measured on this network (RayBrutal, setting raycontrolBrutal), each direction
                 // apart; none measured: BBR. The main config only: a test runs as the profile says
@@ -1274,6 +1261,39 @@ fun String.isYggdrasilAddress(): Boolean {
  * The rotating port of a raycontrol UDP service (spa-v2.md §11) for a Hysteria2 row of the node's subscription:
  * the row's key names the service. Null for other profiles, or when the profile hops ports itself.
  */
+/**
+ * What a raycontrol node needs on an outbound's TLS: post-quantum key exchange only, no fallback to classical groups.
+ * TLS offers X25519MLKEM768 alone (Go TLS: Hysteria2, TUIC, XHTTP over HTTP/3; uTLS takes the Chrome fingerprint and
+ * drops its other groups); REALITY requires the hybrid share. naive (Chromium, cronet) offers it by default and takes
+ * none of these settings.
+ */
+internal fun nodeTlsTweaks(outboundType: String?, tls: Map<*, *>?, replacedFingerprint: (Any?) -> Unit = {}): Map<String, Any> {
+    if (outboundType == "naive" || tls?.get("enabled") != true) return emptyMap()
+    val tweaks = mutableMapOf<String, Any>()
+    // only the Chrome fingerprint of our uTLS carries an X25519MLKEM768 share: any other (firefox, safari, random, ...)
+    // would fail every handshake to the node
+    val utls = tls["utls"] as? Map<*, *>
+    if (utls?.get("enabled") == true && utls["fingerprint"] != "chrome") {
+        replacedFingerprint(utls["fingerprint"])
+        tweaks["utls"] = mapOf("fingerprint" to "chrome")
+    }
+    if ((tls["reality"] as? Map<*, *>)?.get("enabled") == true) {
+        tweaks["reality"] = mapOf("key_share" to "hybrid")
+    } else {
+        tweaks["curve_preferences"] = listOf("X25519MLKEM768")
+    }
+    return tweaks
+}
+
+/**
+ * The tweaks over an outbound's own TLS map, when it keeps one among its raw options (naive): a tweak never drops
+ * what the outbound set. A typed outbound has none there, and its TLS object takes the tweaks when it is written out.
+ */
+internal fun mergeTls(own: Map<*, *>?, tweaks: Map<String, Any>): Map<String, Any?> {
+    if (own == null) return tweaks
+    return own.entries.associate { it.key.toString() to it.value } + tweaks
+}
+
 private fun rotatingUdpPorts(node: RayNode, entity: ProxyEntity, bean: AbstractBean): List<Map<String, Any>>? {
     if (bean !is HysteriaBean || bean.serverPorts.contains(',') || bean.serverPorts.contains('-')) return null
     val (owner, key) = RayNodes.ownerOf(entity.id) ?: return null
