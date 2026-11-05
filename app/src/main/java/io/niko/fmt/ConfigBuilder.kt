@@ -135,6 +135,8 @@ fun buildConfig(
     // raycontrol: a removed node's device key leaves this process's core with the next build (running outbounds
     // copied their keys when they started; keys of current nodes stay for builds running in parallel)
     if (!forExport) RayNodes.retainCoreKeys()
+    // what the DNS tunnels of a config that will run take, noted anew below (a network change compares, RayWatchdog)
+    if (notes) io.niko.raycontrol.RayDnsResolvers.clearRunning()
 
     if (proxy.type == TYPE_CONFIG) {
         val bean = proxy.requireBean() as ConfigBean
@@ -772,7 +774,12 @@ fun buildConfig(
                 // country's (RayDnsResolvers)
                 val dnsTunnel = DnsTunnel.of(bean).let { t ->
                     if (!t.enabled || t.resolver.trim() != io.niko.raycontrol.RayDnsResolvers.AUTO) t
-                    else t.copy(resolver = io.niko.raycontrol.RayDnsResolvers.resolverFor(RayNodes.ownerOf(proxyEntity.id)?.first, t.engine))
+                    else {
+                        val owner = RayNodes.ownerOf(proxyEntity.id)?.first
+                        val resolver = io.niko.raycontrol.RayDnsResolvers.resolverFor(owner, t.engine)
+                        if (notes) io.niko.raycontrol.RayDnsResolvers.noteRunning(owner, t.engine, resolver)
+                        t.copy(resolver = resolver)
+                    }
                 }
                 if (dnsTunnel.enabled) {
                     val prefix = "DNS tunnel (${bean.displayName()})"

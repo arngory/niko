@@ -25,9 +25,10 @@ data class DnsTunnel(
         private val DNSTT_KEY = Regex("^[0-9a-fA-F]{64}$")
         private val DNSTT_RESOLVER =
             Regex("^(https://\\S+|(tls|udp)://\\S+|[^\\s/:]+(:\\d+)?|\\[[0-9a-fA-F:]+](:\\d+)?)$")
-        // 8.8.8.8, 1.1.1.1:5353, 192.168.1.0/30, [2001:db8::1]:53
+        // 8.8.8.8, 1.1.1.1:5353, 192.168.1.0/30, [2001:db8::1]:53, 2001:db8::1 (MasterDnsVPN takes [..] only with a
+        // port)
         private val MDV_RESOLVER =
-            Regex("^([0-9.]+(/\\d+)?(:\\d+)?|\\[[0-9a-fA-F:]+](:\\d+)?|[0-9a-fA-F:]+(/\\d+)?)$")
+            Regex("^([0-9.]+(/\\d+)?(:\\d+)?|\\[[0-9a-fA-F:]+]:\\d+|[0-9a-fA-F:]+(/\\d+)?)$")
         private val DOMAIN = Regex("^[A-Za-z0-9.-]+$")
 
         fun of(bean: AbstractBean) = DnsTunnel(

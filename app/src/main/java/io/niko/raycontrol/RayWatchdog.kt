@@ -174,6 +174,8 @@ object RayWatchdog {
         val now = System.currentTimeMillis()
         val key = RayChannel.network()?.key
         val last = key?.let { lastReset[it] } ?: 0L
+        // the running DNS tunnels' resolvers may be the network's before: the next step compares
+        dnsRecheck = true
         if (key == null || now - last >= RESET_PER_NETWORK) {
             key?.let { lastReset[it] = now }
             failures = 0
@@ -185,6 +187,9 @@ object RayWatchdog {
         }
         poke(15_000L)
     }
+
+    @Volatile
+    private var dnsRecheck = false
 
     // network key → when its arrival last started the backoff over
     private val lastReset = java.util.concurrent.ConcurrentHashMap<String, Long>()
@@ -220,6 +225,16 @@ object RayWatchdog {
         if (online != true && !DefaultNetworkListener.fallback) return PERIOD
         // Doze: the device sleeps and so may the channel; a test now would only wake the radio (P1)
         if (SagerNet.power.isDeviceIdleMode) return PERIOD
+        // a DNS tunnel left to the client runs with another network's resolvers (its own, a pick, masterdns's list):
+        // a restart takes this one's before a test blames them
+        if (dnsRecheck) {
+            dnsRecheck = false
+            if (RayDnsResolvers.runningStale()) {
+                Logs.i("raycontrol: the DNS tunnel's resolvers are another network's, restarting with this one's")
+                restart(currentCoroutineContext()[Job])
+                return PERIOD
+            }
+        }
         // stale without an owner: the running row left the subscription; the core still runs it
         val owner = RayNodes.ownerOf(DataStore.currentProfile)
         if (owner == null && !stale) return PERIOD

@@ -62,10 +62,13 @@ object RayDnsResolvers {
         tm?.networkCountryIso.orEmpty().ifEmpty { tm?.simCountryIso.orEmpty() }
     }.getOrDefault("").ifEmpty { Locale.getDefault().country }.lowercase()
 
-    /** The network's own resolvers (UDP 53), and its strict Private DNS host (DoT) when set. */
+    /**
+     * The network's own resolvers (UDP 53), and its strict Private DNS host (DoT) when set. Not a link-local one (a
+     * router's RDNSS fe80::1): the address means nothing without its interface, which the configs do not carry.
+     */
     private fun networkCandidates(): List<Candidate> {
         val link = SagerNet.underlyingNetwork?.let { SagerNet.connectivity.getLinkProperties(it) } ?: return emptyList()
-        val out = link.dnsServers.mapNotNull { it.hostAddress?.substringBefore('%') }
+        val out = link.dnsServers.filterNot { it.isLinkLocalAddress }.mapNotNull { it.hostAddress?.substringBefore('%') }
             .map { Candidate(if (':' in it) "[$it]" else it, "net") }.toMutableList()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             link.privateDnsServerName?.takeIf { it.isNotBlank() }?.let { out += Candidate("tls://$it", "dot") }
@@ -94,10 +97,11 @@ object RayDnsResolvers {
      * ones) but Yandex's, which join them where [fallback] (the tunnel failed on this network without them) or when
      * there are no others. The MasterDnsVPN client checks each at its start and spreads its queries over those that
      * answer, so a dead one costs nothing; it has no order of preference, hence Yandex out of the list, not last in it.
+     * An IPv6 address goes bare: MasterDnsVPN takes [..] only with a port.
      */
     fun masterdnsResolvers(candidates: List<Candidate>, fallback: Boolean): List<Candidate> {
         val primary = candidates.filter { (it.kind == "net" || it.kind == "udp") && it.resolver !in YANDEX }
-            .distinctBy { it.resolver }
+            .map { it.copy(resolver = it.resolver.removeSurrounding("[", "]")) }.distinctBy { it.resolver }
         return if (fallback || primary.isEmpty()) primary + YANDEX.map { Candidate(it, "udp") } else primary
     }
 
@@ -221,7 +225,8 @@ object RayDnsResolvers {
         val bean = node.profileIds?.get(key)?.let { SagerDatabase.proxyDao.getById(it) }?.requireBean() ?: return
         val (engine, zone) = autoTunnel(bean) ?: return
         if (engine != DNSTT) {
-            if (RayChannel.dnsPick(node.spa.nodeId, network, MASTERDNS) != null) return
+            // already, or the core runs another network's list (a restart for this one's is due): not this list's fault
+            if (RayChannel.dnsPick(node.spa.nodeId, network, MASTERDNS) != null || runningStale()) return
             Logs.i("raycontrol ${node.host}: masterdns fails on this network without Yandex's resolvers, they join for a day")
             RayChannel.recordDnsPick(node.spa.nodeId, network, MASTERDNS, JsonObject().apply {
                 addProperty("kind", "udp")
@@ -246,6 +251,25 @@ object RayDnsResolvers {
                 sweeping.remove(sweep)
             }
         }
+    }
+
+    // what the running core's DNS tunnels left to the client took (ConfigBuilder, a config that runs): node id and
+    // engine → their resolvers
+    private val running = java.util.concurrent.ConcurrentHashMap<Pair<String, String>, String>()
+
+    /** A config that will run is built: what its DNS tunnels take is noted anew ([noteRunning]). */
+    fun clearRunning() = running.clear()
+
+    fun noteRunning(node: RayNode?, engine: String, resolver: String) {
+        running[(node?.spa?.nodeId ?: "") to engine] = resolver
+    }
+
+    /**
+     * Whether a DNS tunnel of the running core would take other resolvers on the network now: its config was built
+     * on another (a network's own resolver, a pick, masterdns's list are the network's), and the core wants a restart.
+     */
+    fun runningStale(): Boolean = running.entries.any { (k, resolver) ->
+        resolverFor(k.first.takeIf { it.isNotEmpty() }?.let { RayNodes.get(it) }, k.second) != resolver
     }
 
     /** A probe's result for the progress: answered (the EDNS size the node saw), or why not; never an address. */

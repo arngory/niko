@@ -32,6 +32,11 @@ class RayDnsResolversTest {
         // the tunnel failed here without them: Yandex's join, last
         assertEquals(listOf("192.168.1.1", "195.208.5.1", "62.76.76.62", "77.88.8.8", "77.88.8.1"),
             RayDnsResolvers.masterdnsResolvers(c, fallback = true).map { it.resolver })
+        // an IPv6 resolver of the network goes bare (MasterDnsVPN takes [..] only with a port)
+        assertEquals(listOf("2001:db8::53", "195.208.5.1"), RayDnsResolvers.masterdnsResolvers(
+            listOf(RayDnsResolvers.Candidate("[2001:db8::53]", "net"), RayDnsResolvers.Candidate("195.208.5.1", "udp")),
+            fallback = false,
+        ).map { it.resolver })
         // no others (another country, no network resolver known): Yandex's, as before
         assertEquals(listOf("77.88.8.8", "77.88.8.1"),
             RayDnsResolvers.masterdnsResolvers(listOf(RayDnsResolvers.Candidate("77.88.8.8", "udp")), fallback = false).map { it.resolver })
