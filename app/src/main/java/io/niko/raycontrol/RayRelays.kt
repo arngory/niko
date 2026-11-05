@@ -46,7 +46,10 @@ data class RayRelay(
     }
 }
 
-/** relays[].probe (relay-v1 §9.2): the relay's probe endpoint, pinned; svc names it in an explicit SPA scope. */
+/**
+ * relays[].probe (relay-v1 §9.2): the relay's probe endpoint, pinned. svc is its service id for a knock with an
+ * explicit scope; the client knocks at a relay with an empty scope ("all allowed"), which opens it as well (§9.1).
+ */
 data class RayRelayProbe(
     val v: Int, val port: Int, val pin: String, val udp: Boolean = false, val report: Boolean = false, val svc: Int? = null,
 ) {

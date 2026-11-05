@@ -635,9 +635,14 @@ object RayChannel {
         } ?: candidates
         if (hints != null) Logs.i("raycontrol ${node.host}: no own results on this network, the node's hints first: $order")
         // relay-v1 §9: where the node is reached through its relay, the relay rows go first; elsewhere they are the
-        // last resort
-        val viaFirst = node.relays.isNotEmpty() &&
-                (relayPath(nodeId, network) || hints(nodeId, network)?.viaRelay == true || detectRelay(node, network))
+        // last resort. The network's own finding decides while it holds; on a network never decided the node's
+        // via_relay hint is where to start; otherwise the detector measures (and its finding holds)
+        val viaFirst = node.relays.isNotEmpty() && when (path(nodeId, network)) {
+            PATH_RELAY -> true
+            PATH_DIRECT -> false
+            else -> if (!pathDecided(nodeId, network) && hints(nodeId, network)?.viaRelay == true) true
+            else detectRelay(node, network)
+        }
         val ordered = RayRelays.order(order, viaFirst)
         if (viaFirst) Logs.i("raycontrol ${node.host}: this network reaches the node through its relay: relay rows first")
         var best: Pair<String, ChannelScore>? = null
@@ -653,26 +658,49 @@ object RayChannel {
             // the hints' order: the first that works, without waiting for the rest
             if (hints != null && best != null) break
         }
-        // the path that works here, for the order and the summary's path next time
-        best?.let { (key, _) -> if (node.relays.isNotEmpty()) markRelayPath(nodeId, network, RayRelays.relayOfKey(key) != null) }
+        // the path that works here, for the order and the summary's path; a path that holds is not renewed by working
+        // again, so direct gets its turn when the finding runs out
+        best?.let { (key, _) ->
+            if (node.relays.isNotEmpty()) markPath(nodeId, network, if (RayRelays.relayOfKey(key) != null) PATH_RELAY else PATH_DIRECT)
+        }
         return best?.first
     }
 
-    // the path to the node on a network (relay-v1 §9): "relay" since when, while it holds
-    private const val RELAY_PATH = "_relay_path"
+    // the path to the node on a network (relay-v1 §9): {"path": "relay"|"direct", "at": s}. A relay finding holds a
+    // day, then direct is tried again; a direct one (or nothing answering at all) an hour, so the detector does not
+    // run on every failover
+    private const val PATH = "_path"
+    const val PATH_RELAY = "relay"
+    const val PATH_DIRECT = "direct"
     private const val RELAY_HOLD = 24 * 3600L
+    private const val DIRECT_HOLD = 3600L
 
-    /** The node is reached through its relay on [network] (found in the last day); direct is tried again after. */
-    fun relayPath(nodeId: String, network: ChannelNetwork, now: Long = System.currentTimeMillis() / 1000): Boolean {
-        val at = load().getAsJsonObject(nodeId)?.getAsJsonObject(network.key)?.get(RELAY_PATH)?.asLong ?: return false
-        return now - at < RELAY_HOLD
+    private fun pathState(nodeId: String, network: ChannelNetwork) =
+        load().getAsJsonObject(nodeId)?.getAsJsonObject(network.key)?.getAsJsonObject(PATH)
+
+    /** The path found on [network] while it holds, or null. */
+    fun path(nodeId: String, network: ChannelNetwork, now: Long = System.currentTimeMillis() / 1000): String? {
+        val o = pathState(nodeId, network) ?: return null
+        val path = o.get("path")?.asString ?: return null
+        val hold = if (path == PATH_RELAY) RELAY_HOLD else DIRECT_HOLD
+        return path.takeIf { now - (o.get("at")?.asLong ?: 0) < hold }
     }
 
-    fun markRelayPath(nodeId: String, network: ChannelNetwork, relay: Boolean) {
-        val had = load().getAsJsonObject(nodeId)?.getAsJsonObject(network.key)?.has(RELAY_PATH) == true
-        if (!relay && !had) return
+    /** The node is reached through its relay on [network] (the summary's path). */
+    fun relayPath(nodeId: String, network: ChannelNetwork, now: Long = System.currentTimeMillis() / 1000) =
+        path(nodeId, network, now) == PATH_RELAY
+
+    /** Whether the path on [network] was ever found (a hint is only where to start on a new network). */
+    private fun pathDecided(nodeId: String, network: ChannelNetwork) = pathState(nodeId, network) != null
+
+    /** Records [path] on [network]; the same path that still holds keeps its time. */
+    fun markPath(nodeId: String, network: ChannelNetwork, path: String) {
+        if (path(nodeId, network) == path) return
         edit(nodeId, network) {
-            if (relay) it.addProperty(RELAY_PATH, System.currentTimeMillis() / 1000) else it.remove(RELAY_PATH)
+            it.add(PATH, JsonObject().apply {
+                addProperty("path", path)
+                addProperty("at", System.currentTimeMillis() / 1000)
+            })
         }
     }
 
@@ -684,23 +712,34 @@ object RayChannel {
         val relays = node.relays.filter { it.probe != null }
         if (relays.isEmpty() || node.subscription == null) return false
         val key = RayNodes.deviceKeyHex(node)
+        // the first carrier only (one-off requests add the ClientHello as a last resort) and a short window: a silent
+        // host costs two dial timeouts at most, not one per carrier
         fun answered(request: JsonObject): Boolean = runCatching {
             val out = JsonParser.parseString(Libcore.raycontrolProbe(request.apply {
                 addProperty("down_bytes", 16L shl 10)
-                addProperty("window_ms", 5_000)
+                addProperty("window_ms", 3_000)
+                getAsJsonObject("spa")?.let { spa ->
+                    val first = (spa.get("carriers") as? JsonArray)?.firstOrNull()?.asString ?: "udp"
+                    spa.add("carriers", JsonArray().apply { add(first) })
+                }
             }.toString())).asJsonObject
             out.getAsJsonObject("down")?.let { it.get("ok")?.asBoolean == true || (it.get("status")?.asInt ?: 0) != 0 } == true
         }.getOrDefault(false)
-        if (kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { answered(RayBrutal.request(node)) }) return false
+        if (kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { answered(RayBrutal.request(node)) }) {
+            markPath(node.spa.nodeId, network, PATH_DIRECT)
+            return false
+        }
         for (relay in relays) {
             currentCoroutineContext().ensureActive()
             val request = RayRelays.probeRequest(node, relay, key) ?: continue
             if (kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { answered(request) }) {
                 Logs.i("raycontrol ${node.host}: no answer directly, relay ${relay.id} answers: the relay path on this network")
-                markRelayPath(node.spa.nodeId, network, true)
+                markPath(node.spa.nodeId, network, PATH_RELAY)
                 return true
             }
         }
+        // nothing answers (the network itself is down): the profiles decide, and the detector waits an hour
+        markPath(node.spa.nodeId, network, PATH_DIRECT)
         return false
     }
 }
