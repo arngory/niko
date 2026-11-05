@@ -3,6 +3,7 @@ package dnsprobe
 import (
 	"context"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
@@ -16,7 +17,7 @@ import (
 	"github.com/miekg/dns"
 )
 
-// dnsprobe-v1 §7 vectors (raycontrol e646e21), checked outside Go too
+// dnsprobe-v1 §7 vectors (raycontrol 4d10bd3), checked outside Go too
 func TestVectors(t *testing.T) {
 	key := make([]byte, 32)
 	for i := range key {
@@ -30,19 +31,21 @@ func TestVectors(t *testing.T) {
 	if label != "aeaadoubicqkdivduss2nj2inuqqx7vwla4ifvi" || len(label) != 39 {
 		t.Fatalf("label %s", label)
 	}
-	// the node saw EDNS 1232, case 1, from 198.51.100.7
+	// the node saw EDNS 1232, case 1, from 198.51.100.7; the answer's nonce b0..b7
 	plain := plaintext(key, q, 1232, true, netip.MustParseAddr("198.51.100.7"), false)
-	sealed := Crypt(key, q, plain)
-	if got := hex.EncodeToString(sealed); got != "42c10f1d94c67a0d8a02d86b2d81e9f1e2733f6dbdb92d439b28a37af4894debbcd0a1" {
+	n := []byte{0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7}
+	sealed := Crypt(key, q, n, plain)
+	if got := hex.EncodeToString(append(append([]byte{}, n...), sealed...)); got !=
+		"b0b1b2b3b4b5b6b708ef7fc6424b785eb4b2e7c0d6b7839339c69f34cd0f9e0484c8f8e7ff8479a7990d11" {
 		t.Fatalf("answer %s", got)
 	}
-	if !hmac.Equal(Crypt(key, q, sealed), plain) {
+	if !hmac.Equal(Crypt(key, q, n, sealed), plain) {
 		t.Fatal("decrypting does not give the plaintext back")
 	}
 	// a resolver flipping a bit of what the node saw (the stream is a plain XOR): the token no longer holds
 	tampered := append([]byte{}, sealed...)
 	tampered[17] ^= 1
-	if p := Crypt(key, q, tampered); hmac.Equal(p[:16], Token(key, q, p[16:smallPlain])) {
+	if p := Crypt(key, q, n, tampered); hmac.Equal(p[:16], Token(key, q, p[16:smallPlain])) {
 		t.Fatal("a changed EDNS size passed")
 	}
 }
@@ -116,9 +119,11 @@ func TestProbeUDP(t *testing.T) {
 					if l := int(limit.Load()); l != 0 {
 						size = l
 					}
-					large := q[1] == 1 && size >= 1000
+					large := q[1] == 1 && size >= 1206
 					from := netip.MustParseAddrPort(addr.String()).Addr()
-					resp.Answer = []dns.RR{txt(name, Crypt(key, q, plaintext(key, q, size, false, from, large)))}
+					n := make([]byte, answerNonce)
+					rand.Read(n)
+					resp.Answer = []dns.RR{txt(name, append(n, Crypt(key, q, n, plaintext(key, q, size, false, from, large))...))}
 					resp.SetEdns0(4096, false)
 				}
 			}

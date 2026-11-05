@@ -30,8 +30,8 @@ object DataStore : OnPreferenceDataStoreChangeListener {
         // sniff override destination was removed in sing-box 1.13
         if (trafficSniffing > 1) trafficSniffing = 1
         // the DNS tunnels' resolvers before 1.33.0 defaulted to these; stored as they were, they are the old defaults
-        // and become auto (picked per network, the same defaults until then). Once: the same value set by hand later
-        // stays
+        // and become auto (dnstt's picked per network, the same defaults until then). Once: the same value set by
+        // hand later stays
         if (!configurationStore.getBoolean(Key.MIGRATED_DNS_RESOLVERS_AUTO, false)) {
             if (raycontrolDnsttResolver == "https://common.dot.dns.yandex.net/dns-query") raycontrolDnsttResolver = "auto"
             if (raycontrolMasterDnsResolvers == "77.88.8.8\n77.88.8.1") raycontrolMasterDnsResolvers = "auto"
@@ -112,7 +112,8 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var yggdrasilPeersViaProxy by configurationStore.boolean(Key.YGGDRASIL_PEERS_VIA_PROXY)
     var yggdrasilTlsChrome by configurationStore.boolean(Key.YGGDRASIL_TLS_CHROME) { true }
     // raycontrol links leave the DNS tunnel resolver to the client: these defaults fill it (Yandex, reachable in RU whitelists)
-    // "auto": picked per network (dnsprobe-v1, RayDnsResolvers); a resolver set here is used everywhere
+    // "auto": dnstt's picked per network (dnsprobe-v1, RayDnsResolvers), masterdns's the defaults of before; a
+    // resolver set here is used everywhere
     var raycontrolDnsttResolver by configurationStore.string(Key.RAYCONTROL_DNSTT_RESOLVER) { "auto" }
     var raycontrolMasterDnsResolvers by configurationStore.string(Key.RAYCONTROL_MASTERDNS_RESOLVERS) { "auto" }
     // a node's profile that stops working on this network gives way to its best working one (RayChannel.failover)

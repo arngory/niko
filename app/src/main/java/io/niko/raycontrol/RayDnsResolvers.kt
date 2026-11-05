@@ -12,6 +12,7 @@ import io.niko.fmt.AbstractBean
 import io.niko.fmt.DnsTunnel
 import io.niko.ktx.Logs
 import io.niko.ktx.app
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -23,13 +24,13 @@ import libcore.Libcore
 import java.util.Locale
 
 /**
- * The resolver of a node's DNS tunnel (dnstt, masterdns) when its link leaves it to the client ("auto"): picked per
- * network with dnsprobe-v1 (raycontrol: a label in the tunnel's zone the node's front answers itself, MAC'd with the
+ * The resolver of a node's dnstt tunnel when its link leaves it to the client ("auto"): picked per network with
+ * dnsprobe-v1 (raycontrol: a label in the tunnel's zone the node's front answers itself, MAC'd with the
  * subscription's dns_probe key) and kept for a day. Candidates: the network's own resolvers first, then public
  * resolvers of the country (raycontrol docs/13-dns-resolvers.md; no Google, Cloudflare or Quad9), the node's hint
- * (hints.dns, per tunnel kind) moving its kind forward. masterdns takes UDP resolvers only, and every one that
- * answered (it spreads its queries over the list). No resolver answering is kept too, an hour: a pick of kind
- * [NONE], without a resolver, which leaves the tunnel on the defaults of before.
+ * (hints.dns) moving its kind forward. No resolver answering is kept too, an hour: a pick of kind [NONE], without a
+ * resolver, which leaves the tunnel on the default of before. masterdns zones answer no probe (its answers look
+ * otherwise): its "auto" is the defaults of before.
  */
 object RayDnsResolvers {
 
@@ -38,14 +39,11 @@ object RayDnsResolvers {
     /** The kind of a pick where no candidate answered. */
     const val NONE = "none"
 
-    // masterdns takes at most this many resolvers from the pick
-    private const val MAX_RESOLVERS = 4
-
     /** A resolver to try and its kind for the summary: net, udp, doh or dot (never its address). */
     data class Candidate(val resolver: String, val kind: String)
 
     /** The tunnel kind as raycontrol names it (hints.dns, the services). */
-    fun tunnelKind(engine: String) = if (engine == "masterdnsvpn") "masterdns" else engine
+    fun tunnelKind(engine: String) = if (engine == DnsTunnel.MASTERDNSVPN) "masterdns" else engine
 
     // per country: national or in-country public resolvers over UDP 53, then DoT/DoH where those may pass
     private val COUNTRY = mapOf(
@@ -74,38 +72,32 @@ object RayDnsResolvers {
         return out
     }
 
-    /** The candidates for [engine] on this network, in order; a hinted kind goes first after the network's own. */
-    fun candidates(engine: String, hintKind: String?): List<Candidate> {
+    /** The candidates on this network, in order; a hinted kind goes first after the network's own. */
+    fun candidates(hintKind: String?): List<Candidate> {
         var all = networkCandidates() + COUNTRY[country()].orEmpty()
-        if (engine == "masterdnsvpn") all = all.filter { it.kind == "net" || it.kind == "udp" }
         if (hintKind != null) all = all.sortedBy { if (it.kind == "net") 0 else if (it.kind == hintKind) 1 else 2 }
         return all.distinctBy { it.resolver }
     }
 
     // what "auto" means until a resolver is picked for the network (no probe key: a node before raycontrol v0.11.1,
-    // or not measured yet): the defaults of the releases before, so nothing changes there
+    // or not measured yet), and for masterdns always: the defaults of the releases before
     private const val DNSTT_DEFAULT = "https://common.dot.dns.yandex.net/dns-query"
     private const val MASTERDNS_DEFAULT = "77.88.8.8\n77.88.8.1"
+    private const val DNSTT = DnsTunnel.DNSTT
 
-    /** The network's pick of a resolver for [engine] while it holds; not a pick of [NONE]. */
-    private fun heldPick(node: RayNode?, engine: String): JsonObject? {
+    /** The network's pick of a dnstt resolver for [node]'s tunnel while it holds; not a pick of [NONE]. */
+    private fun heldPick(node: RayNode?): JsonObject? {
         val network = RayChannel.network() ?: return null
         if (node == null) return null
-        return RayChannel.dnsPick(node.spa.nodeId, network, tunnelKind(engine))?.takeIf { it.has("resolver") }
+        return RayChannel.dnsPick(node.spa.nodeId, network, DNSTT)?.takeIf { it.has("resolver") }
     }
 
-    /** The resolver for the tunnel's config: the network's pick while it holds, else the defaults of before. */
+    /** The resolver for the tunnel's config: dnstt the network's pick while it holds, else the defaults of before. */
     fun resolverFor(node: RayNode?, engine: String): String {
-        val picked = heldPick(node, engine)
-        val first = picked?.get("resolver")?.asString
-            ?: return if (engine == "masterdnsvpn") MASTERDNS_DEFAULT else DNSTT_DEFAULT
-        // dnstt takes one resolver, masterdns a list: the candidates that answered the probe, the pick first
-        return when {
-            engine == "masterdnsvpn" -> (listOf(first) + picked.getAsJsonArray("all")?.map { it.asString }.orEmpty())
-                .distinct().take(MAX_RESOLVERS).joinToString("\n") { it.removePrefix("udp://") }
-            first.startsWith("https://") || first.startsWith("tls://") || first.startsWith("udp://") -> first
-            else -> "udp://$first"
-        }
+        if (engine != DNSTT) return MASTERDNS_DEFAULT
+        val first = heldPick(node)?.get("resolver")?.asString ?: return DNSTT_DEFAULT
+        return if (first.startsWith("https://") || first.startsWith("tls://") || first.startsWith("udp://")) first
+        else "udp://$first"
     }
 
     /** The engine and zone of [bean]'s DNS tunnel when its resolver is left to the client, else null. */
@@ -116,6 +108,10 @@ object RayDnsResolvers {
         return tunnel.engine to zone
     }
 
+    /** The zone of [bean]'s dnstt tunnel when its resolver is the client's to pick (and probe), else null. */
+    private fun probedZone(bean: AbstractBean): String? =
+        autoTunnel(bean)?.takeIf { it.first == DNSTT }?.second
+
     /**
      * The kind of the resolver [profile]'s DNS tunnel goes through on this network when the resolver is the client's
      * to pick (what [resolverFor] gives its config now: the pick's kind, else the default's), or null: no such tunnel.
@@ -123,27 +119,24 @@ object RayDnsResolvers {
      */
     fun usedKind(profile: ProxyEntity): String? {
         val (engine, _) = autoTunnel(profile.requireBean()) ?: return null
-        return heldPick(RayNodes.ownerOf(profile.id)?.first, engine)?.get("kind")?.asString
-            ?: if (engine == "masterdnsvpn") "udp" else "doh"
+        if (engine != DNSTT) return "udp"
+        return heldPick(RayNodes.ownerOf(profile.id)?.first)?.get("kind")?.asString ?: "doh"
     }
 
     /**
-     * Probes the candidates for [engine] at [zone] and keeps the first that passes a large answer, else the first that
-     * passes a small one (the large probe answered small, the resolver's EDNS being smaller, or lost: the tunnel goes,
-     * slower); masterdns all that pass, the large ones if any, at most [MAX_RESOLVERS]. Returns the pick, or null when
-     * none answered (kept as a pick of [NONE]).
+     * Probes the candidates for [node]'s dnstt tunnel at [zone] and keeps the first that passes a large answer, else
+     * the first that passes a small one (the large probe answered small, the resolver's EDNS being under 1206, or
+     * lost: the tunnel goes, slower). Returns the pick, or null when none answered (kept as a pick of [NONE]).
      */
-    suspend fun detect(node: RayNode, network: ChannelNetwork, engine: String, zone: String, progress: (String) -> Unit = {}): Candidate? {
+    suspend fun detect(node: RayNode, network: ChannelNetwork, zone: String, progress: (String) -> Unit = {}): Candidate? {
         var key = node.dnsProbeKey ?: return null
-        val kind = tunnelKind(engine)
-        val hint = RayChannel.hints(node.spa.nodeId, network)?.dns?.get(kind)
-        val list = engine == "masterdnsvpn"
-        val full = mutableListOf<Candidate>()
-        val smallOnly = mutableListOf<Candidate>()
+        val hint = RayChannel.hints(node.spa.nodeId, network)?.dns?.get(DNSTT)
+        var full: Candidate? = null
+        var smallOnly: Candidate? = null
         // an answer not the node's may be a stale key (dnsprobe-v1 §6): the subscription anew once, and the same
         // candidate again with the key it brings; with the current key such an answer is the resolver's own
         var keyChecked = false
-        for (c in candidates(engine, hint)) {
+        for (c in candidates(hint)) {
             currentCoroutineContext().ensureActive()
             val resolver = if (c.resolver.contains("://")) c.resolver else "udp://${c.resolver}"
             var small = probe(resolver, zone, key, large = false)
@@ -157,36 +150,32 @@ object RayDnsResolvers {
             progress("dns ${c.kind}: ${describe(small)}")
             if (small?.get("ok")?.asBoolean != true) continue
             val large = probe(resolver, zone, key, large = true)
-            progress("dns ${c.kind} large: ${if (large?.get("ok")?.asBoolean == true && large.get("large")?.asBoolean != true) "a small answer" else describe(large)}")
-            if (large?.get("ok")?.asBoolean == true && large.get("large")?.asBoolean == true) full += c else smallOnly += c
-            if (full.size >= (if (list) MAX_RESOLVERS else 1)) break
+            val passed = large?.get("ok")?.asBoolean == true && large.get("large")?.asBoolean == true
+            progress("dns ${c.kind} large: ${if (large?.get("ok")?.asBoolean == true && !passed) "a small answer" else describe(large)}")
+            if (passed) {
+                full = c
+                break
+            }
+            if (smallOnly == null) smallOnly = c
         }
         // the network changed meanwhile: what was measured is neither network's
         if (RayChannel.network()?.key != network.key) return null
-        val passed = full.ifEmpty { smallOnly }
-        record(node, network, kind, passed, smallOnly = full.isEmpty(), list)
-        return passed.firstOrNull()
+        val pick = full ?: smallOnly
+        record(node, network, pick, smallOnly = full == null)
+        return pick
     }
 
-    /**
-     * Picks the resolver anew for each DNS tunnel kind of [node] whose rows leave it to the client. The node's zone of
-     * each kind is its rows'.
-     */
+    /** Picks the resolver anew for [node]'s dnstt tunnel when its rows leave it to the client (their zone). */
     suspend fun detectForNode(node: RayNode, network: ChannelNetwork, progress: (String) -> Unit = {}) {
         if (node.dnsProbeKey == null) return
-        val zones = LinkedHashMap<String, String>()
-        for (id in node.profileIds.orEmpty().values) {
-            val bean = SagerDatabase.proxyDao.getById(id)?.requireBean() ?: continue
-            val (engine, zone) = autoTunnel(bean) ?: continue
-            zones.putIfAbsent(engine, zone)
-        }
-        for ((engine, zone) in zones) {
-            val pick = detect(node, network, engine, zone, progress)
-            progress("dns ${tunnelKind(engine)}: ${pick?.kind ?: "no resolver answered"}")
-        }
+        val zone = node.profileIds.orEmpty().values.firstNotNullOfOrNull { id ->
+            SagerDatabase.proxyDao.getById(id)?.requireBean()?.let(::probedZone)
+        } ?: return
+        val pick = detect(node, network, zone, progress)
+        progress("dns $DNSTT: ${pick?.kind ?: "no resolver answered"}")
     }
 
-    // a sweep at a time per node and tunnel kind, detached: the failover that starts it does not wait for its probes
+    // a sweep at a time per node, detached: the failover that starts it does not wait for its probes
     private val sweeping = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     private val sweeps = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -194,26 +183,25 @@ object RayDnsResolvers {
     private const val RECHECK = 10 * 60L
 
     /**
-     * The row [key] of [node] failed on [network]. When it is a DNS tunnel whose resolver is the client's, the resolver
-     * is picked anew in the background (the held pick, or the default, may be what stopped), unless one was picked in
-     * the last [RECHECK] or none answered in the last hour. The pick is for the row's next start.
+     * The row [key] of [node] failed on [network]. When it is a dnstt tunnel whose resolver is the client's, the
+     * resolver is picked anew in the background (the held pick, or the default, may be what stopped), unless one was
+     * picked in the last [RECHECK] or none answered in the last hour. The pick is for the row's next start.
      */
     fun recheckAfterFailure(node: RayNode, network: ChannelNetwork, key: String) {
         if (node.dnsProbeKey == null) return
         val bean = node.profileIds?.get(key)?.let { SagerDatabase.proxyDao.getById(it) }?.requireBean() ?: return
-        val (engine, zone) = autoTunnel(bean) ?: return
-        val kind = tunnelKind(engine)
-        RayChannel.dnsPick(node.spa.nodeId, network, kind)?.let { held ->
+        val zone = probedZone(bean) ?: return
+        RayChannel.dnsPick(node.spa.nodeId, network, DNSTT)?.let { held ->
             val age = System.currentTimeMillis() / 1000 - (held.get("at")?.asLong ?: 0)
             if (held.get("kind")?.asString == NONE || age < RECHECK) return
         }
-        val sweep = "${node.spa.nodeId}/$kind"
+        val sweep = node.spa.nodeId
         if (!sweeping.add(sweep)) return
         sweeps.launch {
             try {
-                detect(node, network, engine, zone)
+                detect(node, network, zone)
             } catch (e: Exception) {
-                Logs.w("raycontrol ${node.host}: the $kind resolver: ${e.message}")
+                Logs.w("raycontrol ${node.host}: the dnstt resolver: ${e.message}")
             } finally {
                 sweeping.remove(sweep)
             }
@@ -231,7 +219,7 @@ object RayDnsResolvers {
     private suspend fun freshKey(node: RayNode): String? = try {
         RaySubscription.refresh(node.spa.nodeId, reload = RaySubscription.Reload.LATER)
         RayNodes.get(node.spa.nodeId)?.dnsProbeKey
-    } catch (e: kotlinx.coroutines.CancellationException) {
+    } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
         Logs.w("raycontrol ${node.host}: the subscription for a fresh DNS probe key: ${e.message}")
@@ -250,19 +238,17 @@ object RayDnsResolvers {
         }.getOrNull()
     }
 
-    /** Keeps the pick: the first of [passed] (and for a list all of them), or [NONE] when it is empty. */
-    private fun record(node: RayNode, network: ChannelNetwork, kind: String, passed: List<Candidate>, smallOnly: Boolean, list: Boolean) {
-        val c = passed.firstOrNull()
-        if (c == null) Logs.w("raycontrol ${node.host}: no resolver on this network answers for $kind, the default stays")
-        else Logs.i("raycontrol ${node.host}: $kind on this network goes through a ${c.kind} resolver${if (smallOnly) " (small answers only)" else ""}")
-        RayChannel.recordDnsPick(node.spa.nodeId, network, kind, JsonObject().apply {
+    /** Keeps the pick, or [NONE] when there is none. */
+    private fun record(node: RayNode, network: ChannelNetwork, c: Candidate?, smallOnly: Boolean) {
+        if (c == null) Logs.w("raycontrol ${node.host}: no resolver on this network answers for dnstt, the default stays")
+        else Logs.i("raycontrol ${node.host}: dnstt on this network goes through a ${c.kind} resolver${if (smallOnly) " (small answers only)" else ""}")
+        RayChannel.recordDnsPick(node.spa.nodeId, network, DNSTT, JsonObject().apply {
             if (c == null) {
                 addProperty("kind", NONE)
             } else {
                 addProperty("resolver", c.resolver)
                 addProperty("kind", c.kind)
                 addProperty("small_only", smallOnly)
-                if (list) add("all", com.google.gson.JsonArray().apply { passed.forEach { add(it.resolver) } })
             }
             addProperty("at", System.currentTimeMillis() / 1000)
         })

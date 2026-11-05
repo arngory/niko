@@ -1,7 +1,8 @@
 // Package dnsprobe checks a resolver for a DNS tunnel (raycontrol dnsprobe-v1): one TXT query in the tunnel's zone
 // with a label the node's front answers itself, MAC'd with the subscription's key. 1-2 round trips, no tunnel
 // session: does the resolver bring the zone's queries to the node, and does it pass a large answer. The answer is
-// built as dnstt's, its TXT data encrypted: a token under the key, then what the node saw of the resolver.
+// built as dnstt's, its TXT data an answer nonce and, encrypted with it, a token under the key over what the node saw
+// of the resolver. Only dnstt zones answer probes (masterdns's answers look otherwise).
 package dnsprobe
 
 import (
@@ -29,11 +30,13 @@ import (
 const (
 	version   = 1
 	labelSize = 24
-	// EDNS asks for this much: a large answer (~1000 bytes) needs it
+	// EDNS asks for this much: the node sends a large answer (up to 1232 bytes on the wire) from 1206 on
 	ednsSize = 1232
 	// the answer's plaintext (§4): token 16, EDNS 2, 0x20 1, the resolver's address 16; a large one zeros to 900
 	smallPlain = 35
 	largePlain = 900
+	// the answer's nonce before the ciphertext, new in every answer
+	answerNonce = 8
 )
 
 var b32 = base32.StdEncoding.WithPadding(base32.NoPadding)
@@ -65,9 +68,9 @@ func Token(key, q, seen []byte) []byte {
 	return mac.Sum(nil)[:16]
 }
 
-// Crypt encrypts or decrypts the answer's TXT data for the label's bytes q (§4): XOR with the blocks
-// HMAC-SHA256(Ke, q || uint32_be(i)), Ke = HMAC-SHA256(key, "dnsprobe-v1 e").
-func Crypt(key, q, data []byte) []byte {
+// Crypt encrypts or decrypts the answer's plaintext for the label's bytes q under the answer's nonce n (§4): XOR with
+// the blocks HMAC-SHA256(Ke, q || n || uint32_be(i)), Ke = HMAC-SHA256(key, "dnsprobe-v1 e").
+func Crypt(key, q, n, data []byte) []byte {
 	ke := hmac.New(sha256.New, key)
 	ke.Write([]byte("dnsprobe-v1 e"))
 	stream := hmac.New(sha256.New, ke.Sum(nil))
@@ -77,6 +80,7 @@ func Crypt(key, q, data []byte) []byte {
 		if i%sha256.Size == 0 {
 			stream.Reset()
 			stream.Write(q)
+			stream.Write(n)
 			stream.Write(binary.BigEndian.AppendUint32(nil, uint32(i/sha256.Size)))
 			block = stream.Sum(block[:0])
 		}
@@ -147,10 +151,10 @@ func Probe(ctx context.Context, dial Dialer, resolver, zone string, key []byte, 
 			continue
 		}
 		data, err := txtData(txt)
-		if err != nil || (len(data) != smallPlain && len(data) != largePlain) {
+		if err != nil || (len(data) != answerNonce+smallPlain && len(data) != answerNonce+largePlain) {
 			continue
 		}
-		p := Crypt(key, q, data)
+		p := Crypt(key, q, data[:answerNonce], data[answerNonce:])
 		if !hmac.Equal(p[:16], Token(key, q, p[16:smallPlain])) {
 			continue
 		}
