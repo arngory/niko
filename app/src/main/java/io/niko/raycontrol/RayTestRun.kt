@@ -142,12 +142,15 @@ object RayTestRun {
             append(if (at >= 0) "# the app's log since the run started\n" else "# the app's log, whole: the run's start was trimmed from it\n")
             append(log)
         }
-        lastFile = file(id)
         RayNodes.syncLogRedactions()
+        // written aside and moved in whole: a failed write leaves no file of this id, and the menu no half one
         val file = file(id)
-        file.writeText(report.lines().chunked(2000).joinToString("\n") { chunk ->
+        val part = File(file.path + ".tmp")
+        part.writeText(report.lines().chunked(2000).joinToString("\n") { chunk ->
             runCatching { Libcore.redactLog(chunk.joinToString("\n")) }.getOrDefault("<redaction failed>")
         })
+        check(part.renameTo(file)) { "the run's log could not be saved" }
+        lastFile = file
         return file
     }
 }

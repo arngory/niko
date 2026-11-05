@@ -763,7 +763,7 @@
     <string name="raycontrol_test_run_bad_id">Run id: letters, digits, \'.\', \'-\', \'_\', at most 64</string>
     <string name="raycontrol_test_run_title">Test run %s</string>
     <string name="raycontrol_test_run_running">Run %s…</string>
-    <string name="raycontrol_test_run_done">Done: the log of the run is ready to share</string>
+    <string name="raycontrol_test_run_done">Done: the log of the run is ready to share (also in the node\'s menu: Share the last test run\'s log)</string>
     <string name="raycontrol_test_run_share">Share the run\'s log</string>
     <string name="raycontrol_test_run_share_last">Share the last test run\'s log</string>
     <string name="raycontrol_dnstt_resolver">DNS tunnel resolver (dnstt)</string>

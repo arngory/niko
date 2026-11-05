@@ -8,6 +8,7 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import androidx.core.app.ActivityCompat
+import androidx.lifecycle.withResumed
 import androidx.preference.*
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.niko.Key
@@ -323,9 +324,15 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                 return@runOnDefaultDispatcher
             }
             show(context.getString(R.string.raycontrol_test_run_done))
-            // the share sheet from this screen only: an app in the background may not start one (Android 10+); the
-            // node's menu then offers the last run's log
-            onMainDispatcher { if (isAdded) shareRunLog(file) }
+            // the share sheet once this screen is in front again: an app in the background may not start one (Android
+            // 10+); a screen gone meanwhile leaves the log to the node's menu (the last run's log)
+            onMainDispatcher {
+                if (!isAdded) return@onMainDispatcher
+                try {
+                    lifecycle.withResumed { shareRunLog(file) }
+                } catch (_: Exception) {
+                }
+            }
         }
     }
 
