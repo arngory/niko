@@ -192,10 +192,12 @@ func relayThrough(t *testing.T, relayAddr string, payload raysub.Payload, host s
 	pin, deviceID, deviceKey string, spa knock.SPAv2Options, ed25519, mldsa65, node string, probeInfo *raysub.ProbeInfo,
 	downMbps int, tested map[string]bool) {
 	t.Helper()
-	if len(payload.Relays) == 0 {
-		t.Fatalf("relay %s set, the subscription has no relays", relayAddr)
+	// the relay's address as the subscription gives it: the app dials relays[].host, not an address of its own
+	i := slices.IndexFunc(payload.Relays, func(r raysub.Relay) bool { return r.Host == relayAddr })
+	if i < 0 {
+		t.Fatalf("no relay at %s in the subscription: %+v", relayAddr, payload.Relays)
 	}
-	relay := payload.Relays[0]
+	relay := payload.Relays[i]
 	relaySPA := relay.SPA
 	relaySPA.DeviceKey = deviceKey
 	relaySPA.Relay = &knock.SPARelay{ExitNodeID: spa.NodeID, ID: relay.ID}
@@ -204,7 +206,7 @@ func relayThrough(t *testing.T, relayAddr string, payload raysub.Payload, host s
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	viaSub, err := raysub.Fetch(ctx, raysub.Request{
-		Host: relayAddr, Port: subPort, Pin: pin, DeviceID: deviceID, NodeID: spa.NodeID,
+		Host: relay.Host, Port: subPort, Pin: pin, DeviceID: deviceID, NodeID: spa.NodeID,
 		Ed25519: ed25519, MLDSA65: mldsa65, SPA: relaySPA,
 	})
 	if err != nil {
@@ -223,13 +225,19 @@ func relayThrough(t *testing.T, relayAddr string, payload raysub.Payload, host s
 		if err != nil {
 			t.Fatal(err)
 		}
+		// as RayRelays.viaLink: the relay's host, Hysteria2 on UDP 443 without hopping
 		port := u.Port()
 		if u.Scheme == "hysteria2" || u.Scheme == "hy2" {
 			port = "443"
+			q := u.Query()
+			q.Del("mport")
+			u.RawQuery = q.Encode()
 		}
-		u.Host = net.JoinHostPort(relayAddr, port)
+		u.Host = net.JoinHostPort(relay.Host, port)
 		kind, config := profileConfig(t, u.String(), node, os.Getenv("RAYCONTROL_CA"), deviceKey, downMbps)
-		if config == "" {
+		// a relay forwards the node's 443: REALITY and Hysteria2; a tunnel or the mesh has a path of its own
+		if config == "" || (kind != "reality" && !strings.HasPrefix(kind, "hysteria2")) {
+			t.Logf("relay %s: svc %d (%s) has via but is not measured through a relay", relay.ID, p.Svc, kind)
 			continue
 		}
 		var c map[string]any
