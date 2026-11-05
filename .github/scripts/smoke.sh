@@ -3,7 +3,8 @@
 # changes, and leaves no activity behind (a leak keeps the old ones alive after a GC). Argument: the APK folder.
 set -u
 pkg=io.niko
-apk=$(ls "$1"/*-x86_64.apk | head -1)
+apk=$(ls "$1"/*-x86_64.apk 2>/dev/null | head -1)
+[ -n "$apk" ] || { echo "::error::no signed x86_64 APK in $1"; ls "$1"; exit 1; }
 fail=0
 # root for the forced GC of the leak check: adbd restarts, wait for it
 adb root > /dev/null 2>&1
@@ -34,7 +35,8 @@ for i in 1 2; do
 done
 pid=$(adb shell pidof "$pkg" | tr -d '\r')
 if [ -n "$pid" ] && [ "$rooted" = 0 ]; then
-  echo "no root on this image: the leak check needs a forced GC and is skipped"
+  # the google_apis image always has root: a check that cannot run must not pass
+  echo "::error::no root on the emulator: the leak check needs a forced GC"; fail=1
 elif [ -n "$pid" ]; then
   # SIGUSR1: ART runs a GC (root on the emulator image)
   for i in 1 2 3; do adb shell kill -10 "$pid"; sleep 2; done
