@@ -555,11 +555,13 @@ fun buildConfig(
                 // a profile row through a relay in front of the node (relay-v1 §4): knocked at the relay
                 val rayRelay = if (DnsTunnel.of(bean).enabled || yggPeer != null) null
                 else RayNodes.forRelayHost(bean.serverAddress)
+                // a row of a node's subscription belongs to it whatever its host: naive dials a name of its own (its
+                // SNI, a wildcard name of the node), which is not the node's address, and still needs the node's SPA
                 val rayNode = when {
                     DnsTunnel.of(bean).enabled -> null
                     yggPeer != null -> RayNodes.forHost(yggPeerHost(yggPeer))
                     rayRelay != null -> rayRelay.first
-                    else -> RayNodes.forHost(bean.serverAddress)
+                    else -> RayNodes.forHost(bean.serverAddress) ?: RayNodes.ownerOf(proxyEntity.id)?.first
                 }
 
                 // per-profile TLS tweaks, merged into the outbound's tls object
