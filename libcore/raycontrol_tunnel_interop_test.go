@@ -148,8 +148,11 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 		} else if status, ok := err.(*rayprobe.StatusError); !ok || status.Status != 400 {
 			t.Fatalf("relay path summary directly: want 400, got %v", err)
 		}
+		// once a day per device and network for both paths: after the relay's summary the node says 429
 		if err := rc.Report(reportCtx, summary("direct")); err != nil {
-			t.Fatalf("direct path summary: %v", err)
+			if status, ok := err.(*rayprobe.StatusError); !ok || status.Status != 429 || !tested["relay-report"] {
+				t.Fatalf("direct path summary: %v", err)
+			}
 		}
 		reportCancel()
 		rc.Close()
@@ -240,6 +243,43 @@ func relayThrough(t *testing.T, relayAddr string, payload raysub.Payload, host s
 		t.Fatalf("subscription through the relay: node %s, want %s", viaSub.Payload.NodeID, payload.NodeID)
 	}
 	tested["relay-subscription"] = true
+
+	// R6-c: the relay's own probe endpoint, as the app measures it (RaycontrolProbe with the relay's SPA: K_relay for
+	// the knock and for RC1), and the network's summary through it with path relay
+	if p := relay.Probe; p != nil && p.V == 1 {
+		request := probeRequest{Host: relay.Host, Port: p.Port, Pin: p.Pin, DeviceID: deviceID, SPA: relaySPA,
+			DownBytes: 1 << 20, WindowMs: 30000}
+		if p.UDP {
+			request.EchoCount, request.EchoSize = 20, 1200
+		}
+		if p.Report {
+			svc := strconv.Itoa(int(payload.Profiles[0].Svc))
+			request.Report = json.RawMessage(`{"v":1,"net":"wifi","path":"relay","obs":[{"svc":` + svc + `,"result":"works"}]}`)
+		}
+		raw, _ := json.Marshal(request)
+		out, err := RaycontrolProbe(string(raw))
+		if err != nil {
+			t.Fatalf("relay %s probe: %v", relay.ID, err)
+		}
+		var r probeResult
+		if err = json.Unmarshal([]byte(out), &r); err != nil {
+			t.Fatal(err)
+		}
+		if r.Down == nil || !r.Down.OK || r.Down.Bytes != 1<<20 {
+			t.Fatalf("relay %s probe: down %s", relay.ID, out)
+		}
+		if p.UDP && (r.Echo == nil || !r.Echo.OK || r.Echo.Received == 0) {
+			t.Fatalf("relay %s probe: echo %s", relay.ID, out)
+		}
+		t.Logf("relay %s probe: down %d kbit/s over %s, echo %+v", relay.ID, r.Down.Kbps, r.SPACarrier, r.Echo)
+		tested["relay-probe"] = true
+		if p.Report {
+			if r.ReportStatus != 204 && r.ReportStatus != 200 {
+				t.Fatalf("relay %s: summary through the relay: %d %s", relay.ID, r.ReportStatus, r.ReportError)
+			}
+			tested["relay-report"] = true
+		}
+	}
 
 	for _, p := range payload.Profiles {
 		if !slices.Contains(p.Via, relay.ID) || !slices.Contains(probeInfo.TunnelSvc, p.Svc) {

@@ -204,6 +204,11 @@ jobs:
           for i in $(seq 150); do r grep -q 'snapshot applied' /var/log/rayspa.log 2>/dev/null && break; sleep 0.2; done
           r grep -q 'snapshot applied' /var/log/rayspa.log || { r cat /var/log/rayspa.log; exit 1; }
           r nft list ruleset | grep -cE 'dnat|masquerade' | sed 's/^/  nat rules: /'
+          # R6-c (v0.11.0): the relay's probe endpoint with the same bundle; the exit lists relays[].probe while its
+          # feed is up
+          docker exec -d rc-relay sh -c '/opt/rc/rayd relay -bundle /root/r1.bundle > /var/log/rayd-relay.log 2>&1'
+          for i in $(seq 150); do docker exec rc-node grep -q 'rayd relay up' /var/log/rayd.log && break; sleep 0.2; done
+          docker exec rc-node grep -q 'rayd relay up' /var/log/rayd.log || { r cat /var/log/rayd-relay.log; exit 1; }
 
       - uses: actions/setup-go@v5
         with:
@@ -216,7 +221,7 @@ jobs:
           RAYCONTROL_ADDRESS: ${{ steps.node.outputs.address }}
           RAYCONTROL_CA: /tmp/rccert/root.pem
           RAYCONTROL_RELAY: 203.0.113.3
-          RAYCONTROL_EXPECT: hysteria2-pin,hysteria2-ca,reality,yggdrasil,dnstt-auth,masterdns,relay-subscription,relay-reality,relay-hysteria2-pin,relay-hysteria2-ca,report-path
+          RAYCONTROL_EXPECT: hysteria2-pin,hysteria2-ca,reality,yggdrasil,dnstt-auth,masterdns,relay-subscription,relay-reality,relay-hysteria2-pin,relay-hysteria2-ca,relay-probe,relay-report,report-path
         run: |
           TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
           go test -count=1 -v -timeout 10m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
@@ -226,6 +231,7 @@ jobs:
         run: |
           docker exec rc-node tail -n 120 /var/log/rayd.log || true
           echo "--- relay"; docker exec rc-relay tail -n 60 /var/log/rayspa.log || true
+          echo "--- relay probe (rayd relay)"; docker exec rc-relay tail -n 40 /var/log/rayd-relay.log || true
           docker exec rc-relay nft list ruleset 2>/dev/null | tail -n 60 || true
           docker rm -f rc-node rc-relay > /dev/null 2>&1 || true
 

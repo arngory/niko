@@ -113,6 +113,19 @@ type Relay struct {
 	Host   string             `json:"host"`
 	SubPin string             `json:"sub_pin,omitempty"`
 	SPA    knock.SPAv2Options `json:"spa"`
+	// Probe is the relay's probe-v1 endpoint (relay-v1 §9.2, R6-c); nil: the relay measures nothing
+	Probe *RelayProbe `json:"probe,omitempty"`
+}
+
+// RelayProbe: at Host:Port, pinned, RC1 with K_relay; Svc names it in an explicit knock scope; Report: it takes
+// summaries (path relay).
+type RelayProbe struct {
+	V      int    `json:"v"`
+	Port   int    `json:"port"`
+	Pin    string `json:"pin"`
+	Svc    uint16 `json:"svc"`
+	UDP    bool   `json:"udp"`
+	Report bool   `json:"report"`
 }
 
 type SPAInfo struct {
