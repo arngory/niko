@@ -112,8 +112,8 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var yggdrasilPeersViaProxy by configurationStore.boolean(Key.YGGDRASIL_PEERS_VIA_PROXY)
     var yggdrasilTlsChrome by configurationStore.boolean(Key.YGGDRASIL_TLS_CHROME) { true }
     // raycontrol links leave the DNS tunnel resolver to the client: these defaults fill it (Yandex, reachable in RU whitelists)
-    // "auto": dnstt's picked per network (dnsprobe-v1, RayDnsResolvers), masterdns's the defaults of before; a
-    // resolver set here is used everywhere
+    // "auto": dnstt's picked per network (dnsprobe-v1, RayDnsResolvers), masterdns's the network's own and the
+    // country's, Yandex's as the fallback; a resolver set here is used everywhere
     var raycontrolDnsttResolver by configurationStore.string(Key.RAYCONTROL_DNSTT_RESOLVER) { "auto" }
     var raycontrolMasterDnsResolvers by configurationStore.string(Key.RAYCONTROL_MASTERDNS_RESOLVERS) { "auto" }
     // a node's profile that stops working on this network gives way to its best working one (RayChannel.failover)

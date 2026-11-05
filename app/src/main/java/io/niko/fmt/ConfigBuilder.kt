@@ -768,7 +768,8 @@ fun buildConfig(
 
                 // DNS tunnel (experimental): the entry hop reaches its server through the core's
                 // dnstt or masterdnsvpn outbound; a resolver left to the client ("auto") is for dnstt the one picked
-                // for this network (dnsprobe-v1, RayDnsResolvers), else the defaults of before
+                // for this network (dnsprobe-v1), else the default of before; for masterdns the network's own and the
+                // country's (RayDnsResolvers)
                 val dnsTunnel = DnsTunnel.of(bean).let { t ->
                     if (!t.enabled || t.resolver.trim() != io.niko.raycontrol.RayDnsResolvers.AUTO) t
                     else t.copy(resolver = io.niko.raycontrol.RayDnsResolvers.resolverFor(RayNodes.ownerOf(proxyEntity.id)?.first, t.engine))

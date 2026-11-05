@@ -30,7 +30,8 @@ import java.util.Locale
  * resolvers of the country (raycontrol docs/13-dns-resolvers.md; no Google, Cloudflare or Quad9), the node's hint
  * (hints.dns) moving its kind forward. No resolver answering is kept too, an hour: a pick of kind [NONE], without a
  * resolver, which leaves the tunnel on the default of before. masterdns zones answer no probe (its answers look
- * otherwise): its "auto" is the defaults of before.
+ * otherwise): its "auto" is the network's own and the country's public resolvers, Yandex only as the fallback
+ * ([masterdnsResolvers]).
  */
 object RayDnsResolvers {
 
@@ -79,11 +80,35 @@ object RayDnsResolvers {
         return all.distinctBy { it.resolver }
     }
 
-    // what "auto" means until a resolver is picked for the network (no probe key: a node before raycontrol v0.11.1,
-    // or not measured yet), and for masterdns always: the defaults of the releases before
+    // what dnstt's "auto" means until a resolver is picked for the network (no probe key: a node before raycontrol
+    // v0.11.1, or not measured yet): the default of the releases before
     private const val DNSTT_DEFAULT = "https://common.dot.dns.yandex.net/dns-query"
-    private const val MASTERDNS_DEFAULT = "77.88.8.8\n77.88.8.1"
     private const val DNSTT = DnsTunnel.DNSTT
+    private const val MASTERDNS = "masterdns"
+
+    // Yandex's public resolvers: for masterdns the fallback only, after the network's own and the country's others
+    private val YANDEX = listOf("77.88.8.8", "77.88.8.1")
+
+    /**
+     * masterdns's resolvers for "auto" from [candidates]: those over UDP (the network's own, the country's public
+     * ones) but Yandex's, which join them where [fallback] (the tunnel failed on this network without them) or when
+     * there are no others. The MasterDnsVPN client checks each at its start and spreads its queries over those that
+     * answer, so a dead one costs nothing; it has no order of preference, hence Yandex out of the list, not last in it.
+     */
+    fun masterdnsResolvers(candidates: List<Candidate>, fallback: Boolean): List<Candidate> {
+        val primary = candidates.filter { (it.kind == "net" || it.kind == "udp") && it.resolver !in YANDEX }
+            .distinctBy { it.resolver }
+        return if (fallback || primary.isEmpty()) primary + YANDEX.map { Candidate(it, "udp") } else primary
+    }
+
+    /** Whether Yandex's resolvers joined masterdns's for [node] on this network (its tunnel failed without them). */
+    private fun masterdnsFallback(node: RayNode?): Boolean {
+        val network = RayChannel.network() ?: return false
+        return node != null && RayChannel.dnsPick(node.spa.nodeId, network, MASTERDNS)?.get("fallback")?.asBoolean == true
+    }
+
+    private fun masterdnsFor(node: RayNode?) =
+        masterdnsResolvers(networkCandidates() + COUNTRY[country()].orEmpty(), masterdnsFallback(node))
 
     /** The network's pick of a dnstt resolver for [node]'s tunnel while it holds; not a pick of [NONE]. */
     private fun heldPick(node: RayNode?): JsonObject? {
@@ -92,9 +117,12 @@ object RayDnsResolvers {
         return RayChannel.dnsPick(node.spa.nodeId, network, DNSTT)?.takeIf { it.has("resolver") }
     }
 
-    /** The resolver for the tunnel's config: dnstt the network's pick while it holds, else the defaults of before. */
+    /**
+     * The resolver for the tunnel's config: dnstt the network's pick while it holds, else the default of before;
+     * masterdns its list for this network ([masterdnsResolvers]).
+     */
     fun resolverFor(node: RayNode?, engine: String): String {
-        if (engine != DNSTT) return MASTERDNS_DEFAULT
+        if (engine != DNSTT) return masterdnsFor(node).joinToString("\n") { it.resolver }
         val first = heldPick(node)?.get("resolver")?.asString ?: return DNSTT_DEFAULT
         return if (first.startsWith("https://") || first.startsWith("tls://") || first.startsWith("udp://")) first
         else "udp://$first"
@@ -119,7 +147,8 @@ object RayDnsResolvers {
      */
     fun usedKind(profile: ProxyEntity): String? {
         val (engine, _) = autoTunnel(profile.requireBean()) ?: return null
-        if (engine != DNSTT) return "udp"
+        // masterdns: the kind of the first of its list (the network's own when it has any)
+        if (engine != DNSTT) return masterdnsFor(RayNodes.ownerOf(profile.id)?.first).first().kind
         return heldPick(RayNodes.ownerOf(profile.id)?.first)?.get("kind")?.asString ?: "doh"
     }
 
@@ -185,12 +214,23 @@ object RayDnsResolvers {
     /**
      * The row [key] of [node] failed on [network]. When it is a dnstt tunnel whose resolver is the client's, the
      * resolver is picked anew in the background (the held pick, or the default, may be what stopped), unless one was
-     * picked in the last [RECHECK] or none answered in the last hour. The pick is for the row's next start.
+     * picked in the last [RECHECK] or none answered in the last hour; a masterdns one takes Yandex's resolvers too on
+     * this network for a day. Either is for the row's next start.
      */
     fun recheckAfterFailure(node: RayNode, network: ChannelNetwork, key: String) {
-        if (node.dnsProbeKey == null) return
         val bean = node.profileIds?.get(key)?.let { SagerDatabase.proxyDao.getById(it) }?.requireBean() ?: return
-        val zone = probedZone(bean) ?: return
+        val (engine, zone) = autoTunnel(bean) ?: return
+        if (engine != DNSTT) {
+            if (RayChannel.dnsPick(node.spa.nodeId, network, MASTERDNS) != null) return
+            Logs.i("raycontrol ${node.host}: masterdns fails on this network without Yandex's resolvers, they join for a day")
+            RayChannel.recordDnsPick(node.spa.nodeId, network, MASTERDNS, JsonObject().apply {
+                addProperty("kind", "udp")
+                addProperty("fallback", true)
+                addProperty("at", System.currentTimeMillis() / 1000)
+            })
+            return
+        }
+        if (node.dnsProbeKey == null) return
         RayChannel.dnsPick(node.spa.nodeId, network, DNSTT)?.let { held ->
             val age = System.currentTimeMillis() / 1000 - (held.get("at")?.asLong ?: 0)
             if (held.get("kind")?.asString == NONE || age < RECHECK) return
