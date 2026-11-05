@@ -122,6 +122,40 @@ object RaySubscription {
             }
         }
 
+    /**
+     * The subscription directly, then through the node's relays when the node does not answer (relay-v1 §2: a relay
+     * forwards the subscription port; the pin and both signatures stay the node's). A refusal is the node's answer
+     * and is not asked again elsewhere. Returns the answer and the relay it came through.
+     */
+    private fun fetchDirectOrViaRelay(node: RayNode, request: JsonObject): Pair<String, String?> {
+        try {
+            return Libcore.raycontrolFetchSubscription(request.toString()) to null
+        } catch (e: Exception) {
+            if (refused(e) || node.relays.isEmpty()) throw e
+            for (relay in node.relays) {
+                val via = request.deepCopy().apply {
+                    addProperty("host", relay.host)
+                    add("spa", relay.spa.toJson().apply {
+                        addProperty("device_key", RayNodes.deviceKeyHex(node))
+                        add("relay", JsonObject().apply {
+                            addProperty("exit_node_id", node.spa.nodeId)
+                            addProperty("id", relay.id)
+                        })
+                    })
+                }
+                try {
+                    return Libcore.raycontrolFetchSubscription(via.toString()).also {
+                        Logs.i("raycontrol ${node.host}: subscription through relay ${relay.id} (directly: ${e.message})")
+                    } to relay.id
+                } catch (viaError: Exception) {
+                    if (refused(viaError)) throw viaError
+                    Logs.w("raycontrol ${node.host}: subscription through relay ${relay.id}: ${viaError.message}")
+                }
+            }
+            throw e
+        }
+    }
+
     private suspend fun refreshLocked(nodeId: String, reload: Reload): RaySubscriptionResult {
         val node = RayNodes.get(nodeId) ?: throw Exception("raycontrol node $nodeId was removed")
         val info = node.subscription ?: throw Exception("raycontrol node ${node.host}: its registration has no subscription")
@@ -136,7 +170,8 @@ object RaySubscription {
             addProperty("last_seq", node.subSeq)
             add("spa", node.spaJson().apply { addProperty("device_key", RayNodes.deviceKeyHex(node)) })
         }
-        val result = JsonParser.parseString(Libcore.raycontrolFetchSubscription(request.toString())).asJsonObject
+        val (raw, viaRelay) = fetchDirectOrViaRelay(node, request)
+        val result = JsonParser.parseString(raw).asJsonObject
         val payload = result.getAsJsonObject("payload")
         val now = System.currentTimeMillis() / 1000
         // rotation times are the node's: a device clock off by minutes would switch too early or too late
@@ -149,6 +184,8 @@ object RaySubscription {
         val links = HashMap<String, RayLinks>()
         val kinds = node.services.associate { it.id to it.kind }
         var doh: String? = null
+        // relays in front of the node (relay-v1 §4, a draft): a profile with `via` gets a row through each
+        val relays = RayRelay.listFromJson(payload.get("relays") as? JsonArray)
         profiles.zip(profileKeys(profiles)).forEach { (profile, key) ->
             try {
                 val pair = linksOf(profile, nodeNow)
@@ -164,6 +201,21 @@ object RaySubscription {
                 bean.applyDefaultValues()
                 beans[key] = bean
                 links[key] = pair
+                for (relay in viaOf(profile).mapNotNull { id -> relays.firstOrNull { it.id == id } }) {
+                    val name = "${bean.name} · ${relay.id}"
+                    val via = RayLinks(
+                        name = name,
+                        link = RayRelays.viaLink(pair.link, relay) ?: continue,
+                        next = pair.next?.let { RayRelays.viaLink(it, relay) },
+                        from = pair.from,
+                        nextActive = pair.nextActive,
+                    )
+                    val viaBean = RayRows.parse(via.activeLink)
+                    viaBean.name = name
+                    viaBean.applyDefaultValues()
+                    beans[RayRelays.viaKey(key, relay.id)] = viaBean
+                    links[RayRelays.viaKey(key, relay.id)] = via
+                }
             } catch (e: Exception) {
                 Logs.w("raycontrol subscription: profile ${profile.get("name")}: ${e.message}")
                 skipped++
@@ -180,12 +232,13 @@ object RaySubscription {
         val stored = RayNodesLock.withLock {
             store(nodeId, payload.get("seq").asLong, refreshAt, skew, beans, links, doh)?.also {
                 RayNodes.update(nodeId) { node ->
-                    node.copy(probe = probe, spaCarriers = carriers, failedFetches = 0, failedNetwork = null)
+                    node.copy(probe = probe, spaCarriers = carriers, failedFetches = 0, failedNetwork = null, relays = relays)
                 }
             }
         }
-        // the hints are for the network this subscription was asked from: directly, the node saw its address
-        RayChannel.network()?.let { network ->
+        // the hints are for the network this subscription was asked from: directly, the node saw its address (through
+        // a relay it saw the relay's)
+        if (viaRelay == null) RayChannel.network()?.let { network ->
             RayChannel.recordHints(nodeId, network, (payload.get("hints") as? JsonObject)?.let { RayHints.fromJson(it, now) })
         }
         var restarted = false
@@ -405,6 +458,10 @@ object RaySubscription {
 
     /** rotation (R4): from `next.from` on (the node's clock), the next credential replaces the current one */
     fun currentLink(profile: JsonObject, nodeNow: Long) = linksOf(profile, nodeNow).activeLink
+
+    /** The relays a profile also goes through (its `via`). */
+    fun viaOf(profile: JsonObject): List<String> = (profile.get("via") as? JsonArray)
+        ?.mapNotNull { runCatching { it.asString }.getOrNull()?.takeIf { id -> id.isNotBlank() } }?.distinct().orEmpty()
 
     fun linksOf(profile: JsonObject, nodeNow: Long): RayLinks {
         val next = profile.get("next") as? JsonObject

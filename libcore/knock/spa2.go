@@ -63,6 +63,23 @@ type SPAv2Options struct {
 	// "udp", "tls", "tcp"; none = an older node, all three in that order. The outbound tries only these; one-off
 	// requests try the others last (TryCarriers)
 	Carriers []string `json:"carriers,omitempty"`
+	// Relay: these are the parameters of a relay in front of the node (relay-v1 §3), knocked at with K_relay
+	Relay *SPARelay `json:"relay,omitempty"`
+}
+
+// SPARelay names the relay and the node behind it: K_relay = HKDF-SHA256(device key, the exit's node_id,
+// "raycontrol-relay-v1" || the relay's node_id || relay id). The device key itself opens nothing at a relay.
+type SPARelay struct {
+	ExitNodeID string `json:"exit_node_id"`
+	ID         string `json:"id"`
+}
+
+const relayKeyInfo = "raycontrol-relay-v1"
+
+// RelayKey is K_relay of relay-v1 §3.
+func RelayKey(deviceKey, exitNodeID, relayNodeID []byte, relayID string) ([]byte, error) {
+	info := append(append([]byte(relayKeyInfo), relayNodeID...), relayID...)
+	return hkdf.Key(sha256.New, deviceKey, exitNodeID, string(info), spa2KeySize)
 }
 
 // CarrierOrder is the order to try the carriers in: the node's list (unknown names left out), or UDP, ClientHello,
@@ -200,6 +217,20 @@ func parseSPAv2(o SPAv2Options) (*spa2Params, error) {
 		if err := decodeHexInto(field.dst, field.s, field.name); err != nil {
 			return nil, err
 		}
+	}
+	if o.Relay != nil {
+		var exit [16]byte
+		if err := decodeHexInto(exit[:], o.Relay.ExitNodeID, "relay.exit_node_id"); err != nil {
+			return nil, err
+		}
+		if o.Relay.ID == "" {
+			return nil, E.New("spa_v2: relay without an id")
+		}
+		key, err := RelayKey(p.deviceKey[:], exit[:], p.nodeID[:], o.Relay.ID)
+		if err != nil {
+			return nil, err
+		}
+		copy(p.deviceKey[:], key)
 	}
 	switch {
 	case p.epochLen == 0 || p.slotLen == 0:

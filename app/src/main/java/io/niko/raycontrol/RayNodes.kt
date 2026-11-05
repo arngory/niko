@@ -127,6 +127,8 @@ data class RayNode(
     // fetches of the subscription failed in a row on that network (the backoff of the retries); 0 after a success
     val failedFetches: Int = 0,
     val failedNetwork: String? = null,
+    // relays in front of the node (relay-v1 §4, a draft): profiles of the subscription's `via` go through them
+    val relays: List<RayRelay> = emptyList(),
 ) {
     /** The node's SPA parameters for the core, with the carriers it takes. */
     fun spaJson(): JsonObject = spa.toJson().apply {
@@ -163,6 +165,13 @@ data class RayNode(
         spaCarriers?.let { carriers -> add("spa_carriers", JsonArray().apply { carriers.forEach { add(it) } }) }
         if (failedFetches > 0) addProperty("failed_fetches", failedFetches)
         failedNetwork?.let { addProperty("failed_network", it) }
+        if (relays.isNotEmpty()) add("relays", JsonArray().apply { relays.forEach { add(it.toJson()) } })
+    }
+
+    /** The relay with this address, for a profile row through it. */
+    fun relayAt(address: String?): RayRelay? {
+        val host = address?.trim()?.removePrefix("[")?.removeSuffix("]") ?: return null
+        return relays.firstOrNull { it.host.trim('[', ']').equals(host, ignoreCase = true) }
     }
 
     companion object {
@@ -187,6 +196,7 @@ data class RayNode(
             spaCarriers = (o.get("spa_carriers") as? JsonArray)?.mapNotNull { runCatching { it.asString }.getOrNull() },
             failedFetches = o.get("failed_fetches")?.asInt ?: 0,
             failedNetwork = o.get("failed_network")?.takeIf { it.isJsonPrimitive }?.asString,
+            relays = RayRelay.listFromJson(o.get("relays") as? JsonArray),
         )
     }
 }
@@ -195,18 +205,22 @@ data class RayNode(
  * The knock outbound options for a node: SPA v2 with the device key passed by reference. Scope is empty, so the
  * node opens everything the device is allowed to use.
  */
-fun RayNode.knockOptions(): Map<String, Any> = mapOf(
-    "spa_v2" to mapOf(
-        "node_id" to spa.nodeId,
-        "epoch_len_s" to spa.epochLenS,
-        "slot_len_s" to spa.slotLenS,
-        "port_key" to spa.portKey,
-        "port_base" to spa.portBase,
-        "port_range" to spa.portRange,
-        "len_min" to spa.lenMin,
-        "len_max" to spa.lenMax,
-        "device_key_ref" to keyRef,
-    ) + (spaCarriers?.let { mapOf("carriers" to it) } ?: emptyMap()),
+fun RayNode.knockOptions(relay: RayRelay? = null): Map<String, Any> = mapOf(
+    // through a relay: its SPA, with K_relay out of the same device key (relay-v1 §3)
+    "spa_v2" to (relay?.spa ?: spa).let { p ->
+        mapOf(
+            "node_id" to p.nodeId,
+            "epoch_len_s" to p.epochLenS,
+            "slot_len_s" to p.slotLenS,
+            "port_key" to p.portKey,
+            "port_base" to p.portBase,
+            "port_range" to p.portRange,
+            "len_min" to p.lenMin,
+            "len_max" to p.lenMax,
+            "device_key_ref" to keyRef,
+        )
+    } + (if (relay != null) mapOf("relay" to mapOf("exit_node_id" to spa.nodeId, "id" to relay.id))
+    else spaCarriers?.let { mapOf("carriers" to it) } ?: emptyMap()),
     // a UDP session without replies sends a new packet once
     "silence" to "15s",
 )
@@ -359,6 +373,13 @@ object RayNodes {
 
     fun forHost(address: String?): RayNode? = if (address.isNullOrBlank()) null else list().firstOrNull { it.matchesHost(address) }
 
+    /** The node behind the relay at this address, and the relay (a profile row through a relay, relay-v1 §4). */
+    fun forRelayHost(address: String?): Pair<RayNode, RayRelay>? {
+        if (address.isNullOrBlank()) return null
+        for (node in list()) node.relayAt(address)?.let { return node to it }
+        return null
+    }
+
     /**
      * The names the node serves (its host, the SNI and server names of its profiles, its DoH): a fake QUIC Initial
      * naming one of them would pin the flow to that backend of the node's front (niko-mux-note.md §2).
@@ -377,9 +398,9 @@ object RayNodes {
     }
 
     /** Hands the node's device key to the core and returns the knock outbound options. */
-    fun prepareKnock(node: RayNode): Map<String, Any> {
+    fun prepareKnock(node: RayNode, relay: RayRelay? = null): Map<String, Any> {
         prepareDeviceKey(node)
-        return node.knockOptions()
+        return node.knockOptions(relay)
     }
 
     /**

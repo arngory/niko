@@ -552,9 +552,13 @@ fun buildConfig(
                 // address, the link to the mesh goes to the node itself
                 val yggPeer = bean.yggPeer?.takeIf { it.isNotBlank() && index == profileList.lastIndex && !proxyEntity.needExternal() }
                 // a raycontrol node (imported rcdev1) this hop dials; a DNS tunnel never reaches its address
+                // a profile row through a relay in front of the node (relay-v1 §4): knocked at the relay
+                val rayRelay = if (DnsTunnel.of(bean).enabled || yggPeer != null) null
+                else RayNodes.forRelayHost(bean.serverAddress)
                 val rayNode = when {
                     DnsTunnel.of(bean).enabled -> null
                     yggPeer != null -> RayNodes.forHost(yggPeerHost(yggPeer))
+                    rayRelay != null -> rayRelay.first
                     else -> RayNodes.forHost(bean.serverAddress)
                 }
 
@@ -649,16 +653,22 @@ fun buildConfig(
                     knockHolder = knockOutbound
                     // an export carries only the key reference: the key never leaves the app
                     knockOutbound._hack_config_map.putAll(
-                        rayNode?.let { if (forExport) it.knockOptions() else RayNodes.prepareKnock(it) }
+                        rayNode?.let {
+                            val relay = rayRelay?.second
+                            if (forExport) it.knockOptions(relay) else RayNodes.prepareKnock(it, relay)
+                        }
                             ?: bean.buildKnockOutboundOptions()
                     )
                     // the node's UDP service port rotates (spa-v2.md §11): the knock outbound follows it
-                    rayNode?.let { rotatingUdpPorts(it, proxyEntity, bean) }?.let {
+                    // a relay forwards UDP 443 only (relay-v1 §4): no slot ports through it
+                    rayNode?.takeIf { rayRelay == null }?.let { rotatingUdpPorts(it, proxyEntity, bean) }?.let {
                         knockOutbound._hack_config_map["udp_ports"] = it
                     }
                     // only for the node's TCP 443 profiles (REALITY, naive): with Hysteria2 or a DNS tunnel the node's
                     // TCP 443 may be unreachable (raycontrol niko-r3-reply.md §2)
+                    // not through a relay: the DoH goes to the node's own address, which the relay's SPA does not open
                     if (buildingProxy && entity.id == proxy.id && index == profileList.lastIndex && rayNode?.doh != null &&
+                        rayRelay == null &&
                         (bean is StandardV2RayBean || bean is NaiveBean)
                     ) {
                         nodeDoh = rayNode to knockTag

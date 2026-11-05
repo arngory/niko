@@ -64,6 +64,8 @@ type Profile struct {
 	Name string `json:"name"`
 	Link string `json:"link"`
 	Next *Next  `json:"next,omitempty"`
+	// Via names the relays the profile also goes through (relay-v1 §4): the same link with the relay's host
+	Via []string `json:"via,omitempty"`
 }
 
 // ProbeInfo is the payload's `probe`: the node answers channel probes (probe-v1.md §1), directly and through the
@@ -100,9 +102,19 @@ type Payload struct {
 	Probe    *ProbeInfo `json:"probe,omitempty"`
 	Hints    *Hints     `json:"hints,omitempty"`
 	SPA      *SPAInfo   `json:"spa,omitempty"`
+	// Relays in front of the node (relay-v1 §4, a draft until the format is frozen)
+	Relays []Relay `json:"relays,omitempty"`
 }
 
 // SPAInfo is the subscription's spa (raycontrol v0.10.1): the carriers the node takes, in the order to try them.
+// Relay is a relay in front of the node: its address and its own SPA, knocked at with K_relay (knock.SPARelay).
+type Relay struct {
+	ID     string             `json:"id"`
+	Host   string             `json:"host"`
+	SubPin string             `json:"sub_pin,omitempty"`
+	SPA    knock.SPAv2Options `json:"spa"`
+}
+
 type SPAInfo struct {
 	Carriers []string `json:"carriers,omitempty"`
 }
