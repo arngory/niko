@@ -244,6 +244,30 @@ func relayThrough(t *testing.T, relayAddr string, payload raysub.Payload, host s
 	}
 	tested["relay-subscription"] = true
 
+	// the exit lists the relay's probe while the relay's feed is up (relay-v1 §9.2): a fresh subscription until it
+	// does, then a clear failure rather than a skipped step
+	if relay.Probe == nil && slices.Contains(strings.Split(os.Getenv("RAYCONTROL_EXPECT"), ","), "relay-probe") {
+		waitCtx, waitCancel := context.WithTimeout(context.Background(), 90*time.Second)
+		defer waitCancel()
+		for deadline := time.Now().Add(60 * time.Second); relay.Probe == nil && time.Now().Before(deadline); {
+			time.Sleep(3 * time.Second)
+			again, err := raysub.Fetch(waitCtx, raysub.Request{
+				Host: relay.Host, Port: subPort, Pin: pin, DeviceID: deviceID, NodeID: spa.NodeID,
+				Ed25519: ed25519, MLDSA65: mldsa65, SPA: relaySPA,
+			})
+			if err != nil {
+				continue
+			}
+			viaSub = again
+			if j := slices.IndexFunc(again.Payload.Relays, func(r raysub.Relay) bool { return r.ID == relay.ID }); j >= 0 {
+				relay.Probe = again.Payload.Relays[j].Probe
+			}
+		}
+		if relay.Probe == nil {
+			t.Fatalf("relay %s: the subscription lists no probe for it (rayd relay's feed not up?): %+v", relay.ID, viaSub.Payload.Relays)
+		}
+	}
+
 	// R6-c: the relay's own probe endpoint, as the app measures it (RaycontrolProbe with the relay's SPA: K_relay for
 	// the knock and for RC1), and the network's summary through it with path relay
 	if p := relay.Probe; p != nil && p.V == 1 {

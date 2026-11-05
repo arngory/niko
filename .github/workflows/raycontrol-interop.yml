@@ -204,11 +204,11 @@ jobs:
           for i in $(seq 150); do r grep -q 'snapshot applied' /var/log/rayspa.log 2>/dev/null && break; sleep 0.2; done
           r grep -q 'snapshot applied' /var/log/rayspa.log || { r cat /var/log/rayspa.log; exit 1; }
           r nft list ruleset | grep -cE 'dnat|masquerade' | sed 's/^/  nat rules: /'
-          # R6-c (v0.11.0): the relay's probe endpoint with the same bundle; the exit lists relays[].probe while its
-          # feed is up
+          # R6-c (v0.11.0): the relay's probe endpoint with the same bundle. It logs when it serves; the exit lists
+          # relays[].probe once its feed is up, which the client test waits for in the subscription itself
           docker exec -d rc-relay sh -c '/opt/rc/rayd relay -bundle /root/r1.bundle > /var/log/rayd-relay.log 2>&1'
-          for i in $(seq 150); do docker exec rc-node grep -q 'rayd relay up' /var/log/rayd.log && break; sleep 0.2; done
-          docker exec rc-node grep -q 'rayd relay up' /var/log/rayd.log || { r cat /var/log/rayd-relay.log; exit 1; }
+          for i in $(seq 150); do r grep -q 'relay probe endpoint' /var/log/rayd-relay.log 2>/dev/null && break; sleep 0.2; done
+          r grep -q 'relay probe endpoint' /var/log/rayd-relay.log || { r cat /var/log/rayd-relay.log; exit 1; }
 
       - uses: actions/setup-go@v5
         with:
