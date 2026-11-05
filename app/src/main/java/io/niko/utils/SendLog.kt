@@ -68,7 +68,11 @@ object SendLog {
             val len = file.length()
             val stream = FileInputStream(file)
             if (max in 1 until len) {
-                stream.skip(len - max) // TODO string?
+                stream.skip(len - max)
+                // from the next whole line: the cut may fall inside a line or a UTF-8 character
+                val bytes = stream.use { it.readBytes() }
+                val start = bytes.indexOf('\n'.code.toByte()).let { if (it < 0) 0 else it + 1 }
+                return bytes.copyOfRange(start, bytes.size)
             }
             stream.use { it.readBytes() }
         } catch (e: Exception) {

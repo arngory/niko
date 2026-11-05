@@ -91,7 +91,10 @@ class NativeInterface : BoxPlatformInterface, NikoInterface {
         return PackageCache[packageName] ?: 0
     }
 
-    // TODO: 'getter for connectionInfo: WifiInfo!' is deprecated
+    // the SSID and BSSID for wifi_ssid / wifi_bssid rules. WifiManager.connectionInfo is deprecated for
+    // NetworkCapabilities.transportInfo, which gives the SSID only to a callback with location info: the same
+    // permission, so the old getter stays
+    @Suppress("DEPRECATION")
     override fun wifiState(): String {
         val wifiManager =
             app.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager

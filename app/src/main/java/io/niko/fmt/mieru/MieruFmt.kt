@@ -37,8 +37,14 @@ fun MieruBean.buildMieruConfig(port: Int): String {
     return JSONObject().apply {
         put("activeProfile", "default")
         put("socks5Port", port)
-        // TODO: follow NekoBox logging level.
-        put("loggingLevel", "INFO")
+        // the app's log level (mieru: FATAL, ERROR, WARN, INFO, DEBUG, TRACE)
+        put("loggingLevel", when (io.niko.database.DataStore.logLevel) {
+            0 -> "FATAL"
+            1 -> "WARN"
+            3 -> "DEBUG"
+            4 -> "TRACE"
+            else -> "INFO"
+        })
         put("profiles", JSONArray().apply {
             put(JSONObject().apply {
                 put("profileName", "default")
