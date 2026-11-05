@@ -6,22 +6,26 @@ pkg=io.niko
 apk=$(ls "$1"/*-x86_64.apk 2>/dev/null | head -1)
 [ -n "$apk" ] || { echo "::error::no signed x86_64 APK in $1"; ls "$1"; exit 1; }
 fail=0
-# root for the forced GC of the leak check: adbd restarts, wait for it
-adb root > /dev/null 2>&1
-adb wait-for-device
+# every adb call that waits on the device has a bound: a hung step fails with a reason, not the job's timeout
+echo "== root (for the forced GC of the leak check)"
+timeout 30 adb root || echo "adb root: $?"
 rooted=0
-for i in $(seq 15); do
-  [ "$(adb shell id -u 2>/dev/null | tr -d '\r')" = 0 ] && { rooted=1; break; }
+for i in $(seq 30); do
+  [ "$(timeout 5 adb shell id -u 2>/dev/null | tr -d '\r')" = 0 ] && { rooted=1; break; }
   sleep 1
 done
-adb wait-for-device
-adb install -r -g "$apk" || exit 1
+echo "root: $rooted"
+timeout 60 adb wait-for-device || { echo "::error::the emulator did not come back after adb root"; exit 1; }
+echo "== install $apk"
+timeout 180 adb install -r -g "$apk" || exit 1
 adb logcat -c
-adb shell am start -W -n "$pkg/$pkg.ui.MainActivity" || exit 1
+echo "== start"
+timeout 60 adb shell am start -W -n "$pkg/$pkg.ui.MainActivity" || exit 1
 sleep 8
 pid=$(adb shell pidof "$pkg" | tr -d '\r')
 [ -n "$pid" ] || { echo "the app is not running after the start"; fail=1; }
 
+echo "== rotations"
 # the activity is recreated on each rotation: the old instances must be collectable
 adb shell settings put system accelerometer_rotation 0
 for r in 1 0 1 0 1 0; do
@@ -31,7 +35,7 @@ done
 # back to the launcher and in again, twice
 for i in 1 2; do
   adb shell input keyevent KEYCODE_HOME; sleep 2
-  adb shell am start -W -n "$pkg/$pkg.ui.MainActivity" > /dev/null; sleep 3
+  timeout 60 adb shell am start -W -n "$pkg/$pkg.ui.MainActivity" > /dev/null; sleep 3
 done
 pid=$(adb shell pidof "$pkg" | tr -d '\r')
 if [ -n "$pid" ] && [ "$rooted" = 0 ]; then
@@ -40,7 +44,7 @@ if [ -n "$pid" ] && [ "$rooted" = 0 ]; then
 elif [ -n "$pid" ]; then
   # SIGUSR1: ART runs a GC (root on the emulator image)
   for i in 1 2 3; do adb shell kill -10 "$pid"; sleep 2; done
-  activities=$(adb shell dumpsys meminfo "$pkg" | tr -d '\r' | sed -n 's/.*Activities: *\([0-9]*\).*/\1/p' | head -1)
+  activities=$(timeout 60 adb shell dumpsys meminfo "$pkg" | tr -d '\r' | sed -n 's/.*Activities: *\([0-9]*\).*/\1/p' | head -1)
   echo "activities alive after the GC: ${activities:-?}"
   if [ -z "$activities" ] || [ "$activities" -gt 1 ]; then echo "activities leak (want 1)"; fail=1; fi
 else
