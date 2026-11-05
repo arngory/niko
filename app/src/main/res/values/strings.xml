@@ -757,6 +757,14 @@
         <item>7 days</item>
     </string-array>
     <string name="raycontrol_clock_wrong">The clock of this device differs from the node by %d s: fix the time, SPA works within 30 s.</string>
+    <string name="raycontrol_test_run">Test run</string>
+    <string name="raycontrol_test_run_help">Measures the direct path, the subscription and each profile in turn, every step with this id and a UTC time, and shares the log of the run (node names and keys redacted). Give the node\'s admin the same id: they log the same window.</string>
+    <string name="raycontrol_test_run_start">Start</string>
+    <string name="raycontrol_test_run_bad_id">Run id: letters, digits, \'.\', \'-\', \'_\', at most 64</string>
+    <string name="raycontrol_test_run_title">Test run %s</string>
+    <string name="raycontrol_test_run_running">Run %s…</string>
+    <string name="raycontrol_test_run_done">Done: the log of the run is ready to share</string>
+    <string name="raycontrol_test_run_share">Share the run\'s log</string>
     <string name="raycontrol_dnstt_resolver">DNS tunnel resolver (dnstt)</string>
     <string name="raycontrol_dnstt_resolver_help">Used when a node\'s link leaves the resolver to the client: https://…/dns-query, tls://host or udp://host. Applies to profiles from the next subscription update.</string>
     <string name="raycontrol_masterdns_resolvers">DNS tunnel resolvers (MasterDnsVPN)</string>

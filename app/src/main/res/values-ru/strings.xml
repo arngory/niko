@@ -123,6 +123,14 @@
 <string name="direct_boot_aware">Разрешить переключение на экране блокировки</string>
 <string name="direct_boot_aware_summary">Выбранная вами информация профиля будет менее защищена</string>
 <string name="direct_dns">Прямой DNS</string>
+    <string name="raycontrol_test_run">Тестовый прогон</string>
+    <string name="raycontrol_test_run_help">Проверяет прямой путь, подписку и каждый профиль по очереди. Каждый шаг пишется с этим ID и временем UTC, журнал прогона можно отправить (имена нод и ключи вычищены). Передайте тот же ID админу ноды: он соберёт журнал за то же окно.</string>
+    <string name="raycontrol_test_run_start">Запустить</string>
+    <string name="raycontrol_test_run_bad_id">ID прогона: буквы, цифры, «.», «-», «_», не больше 64</string>
+    <string name="raycontrol_test_run_title">Тестовый прогон %s</string>
+    <string name="raycontrol_test_run_running">Прогон %s…</string>
+    <string name="raycontrol_test_run_done">Готово: журнал прогона можно отправить</string>
+    <string name="raycontrol_test_run_share">Отправить журнал прогона</string>
     <string name="direct_dns_help">local — резолвер самой сети, как у других приложений (с учётом частного DNS). Или сервер: https://…/dns-query, tls://…, 1.1.1.1</string>
     <string name="private_dns_strict">Частный DNS задан как %s: приложения шлют DNS по TLS прямо ему, мимо DNS Niko. Правила по доменам тогда держатся только на сниффинге, а этот резолвер видит все имена. Настройки → Сеть → Частный DNS: «Автоматически» или «Отключено».</string>
 <string name="disable">Отключить</string>

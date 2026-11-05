@@ -250,6 +250,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         }
         if (node.subscription != null) actions += R.string.raycontrol_sub_update to { updateSubscription(node) }
         if (!node.profileIds.isNullOrEmpty()) actions += R.string.raycontrol_channel_check to { checkChannel(node) }
+        if (!node.profileIds.isNullOrEmpty()) actions += R.string.raycontrol_test_run to { testRun(node) }
         // the summary with consent; the node's hints for this network come with the subscription either way
         val hasHints = RayChannel.network()?.let { RayChannel.hints(node.spa.nodeId, it) } != null
         if (DataStore.raycontrolReports || hasHints) actions += R.string.raycontrol_report_show to { showReport(node) }
@@ -271,6 +272,67 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
     }
 
     /** Probes every profile of [node] on this network, one by one, and shows the results as they come. */
+    /** A test run with an id the node's admin logs under too (RayTestRun), then the redacted file to share. */
+    private fun testRun(node: RayNode) {
+        val input = android.widget.EditText(requireContext()).apply {
+            setText(io.niko.raycontrol.RayTestRun.defaultId())
+            setSingleLine()
+        }
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.raycontrol_test_run)
+            .setMessage(R.string.raycontrol_test_run_help)
+            .setView(input)
+            .setPositiveButton(R.string.raycontrol_test_run_start) { _, _ ->
+                val id = input.text.toString().trim()
+                if (!io.niko.raycontrol.RayTestRun.validId(id)) {
+                    snackbar(R.string.raycontrol_test_run_bad_id).show()
+                    return@setPositiveButton
+                }
+                startTestRun(node, id)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun startTestRun(node: RayNode, id: String) {
+        val context = requireContext().applicationContext
+        val lines = mutableListOf(getString(R.string.raycontrol_test_run_running, id))
+        val dialog = MaterialAlertDialogBuilder(requireContext())
+            .setTitle(getString(R.string.raycontrol_test_run_title, id))
+            .setMessage(lines.joinToString("\n"))
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+        runOnDefaultDispatcher {
+            val file = try {
+                io.niko.raycontrol.RayTestRun.run(node, id) { line ->
+                    // the step's name and outcome, the full line goes to the file
+                    lines += line.substringAfter("\"step\":\"").substringBefore('"') +
+                            (Regex("\"error\":\"([^\"]*)\"").find(line)?.groupValues?.get(1)?.let { ": $it" } ?: "")
+                    runOnMainDispatcher { dialog.setMessage(lines.takeLast(20).joinToString("\n")) }
+                }
+            } catch (e: Exception) {
+                lines += e.readableMessage
+                onMainDispatcher { dialog.setMessage(lines.takeLast(20).joinToString("\n")) }
+                return@runOnDefaultDispatcher
+            }
+            onMainDispatcher {
+                lines += context.getString(R.string.raycontrol_test_run_done)
+                dialog.setMessage(lines.takeLast(20).joinToString("\n"))
+                startActivity(
+                    Intent.createChooser(
+                        Intent(Intent.ACTION_SEND).setType("text/x-log")
+                            .setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            .putExtra(
+                                Intent.EXTRA_STREAM, androidx.core.content.FileProvider.getUriForFile(
+                                    context, io.niko.BuildConfig.APPLICATION_ID + ".cache", file
+                                )
+                            ), getString(R.string.raycontrol_test_run_share)
+                    )
+                )
+            }
+        }
+    }
+
     private fun checkChannel(node: RayNode) {
         val network = RayChannel.network() ?: run {
             snackbar(R.string.raycontrol_channel_no_network).show()
