@@ -712,27 +712,28 @@ object RayChannel {
         val relays = node.relays.filter { it.probe != null }
         if (relays.isEmpty() || node.subscription == null) return false
         val key = RayNodes.deviceKeyHex(node)
-        // the first carrier only (one-off requests add the ClientHello as a last resort) and a short window: a silent
-        // host costs two dial timeouts at most, not one per carrier
-        fun answered(request: JsonObject): Boolean = runCatching {
+        // the node's carriers as for any one-off request (a cut list could miss the one this network lets through and
+        // hold a wrong relay finding for a day). An answer is the node's first byte (its HTTP answer: the whole path
+        // works); a 16 KiB download that did not finish in the window does not make it silent. A TLS handshake alone
+        // does not count: a DPI that lets TCP through and drops TLS also ends one, with an error
+        fun answered(request: JsonObject, windowMs: Int): Boolean = runCatching {
             val out = JsonParser.parseString(Libcore.raycontrolProbe(request.apply {
                 addProperty("down_bytes", 16L shl 10)
-                addProperty("window_ms", 3_000)
-                getAsJsonObject("spa")?.let { spa ->
-                    val first = (spa.get("carriers") as? JsonArray)?.firstOrNull()?.asString ?: "udp"
-                    spa.add("carriers", JsonArray().apply { add(first) })
-                }
+                addProperty("window_ms", windowMs)
             }.toString())).asJsonObject
-            out.getAsJsonObject("down")?.let { it.get("ok")?.asBoolean == true || (it.get("status")?.asInt ?: 0) != 0 } == true
+            out.getAsJsonObject("down")?.let { down ->
+                down.get("ok")?.asBoolean == true || (down.get("status")?.asInt ?: 0) != 0 ||
+                        (down.get("first_byte_ms")?.asLong ?: 0) > 0
+            } == true
         }.getOrDefault(false)
-        if (kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { answered(RayBrutal.request(node)) }) {
+        if (kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { answered(RayBrutal.request(node), 5_000) }) {
             markPath(node.spa.nodeId, network, PATH_DIRECT)
             return false
         }
         for (relay in relays) {
             currentCoroutineContext().ensureActive()
             val request = RayRelays.probeRequest(node, relay, key) ?: continue
-            if (kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { answered(request) }) {
+            if (kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { answered(request, 5_000) }) {
                 Logs.i("raycontrol ${node.host}: no answer directly, relay ${relay.id} answers: the relay path on this network")
                 markPath(node.spa.nodeId, network, PATH_RELAY)
                 return true
