@@ -1,3 +1,5 @@
+//go:build unix
+
 package chromecheck
 
 import (
@@ -10,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"syscall"
 	"testing"
 	"time"
 
@@ -73,15 +76,29 @@ func TestChromeLive(t *testing.T) {
 	}
 	l, port := listen(t)
 	got := capture(t, l)
-	profile := t.TempDir()
+	// not t.TempDir: Chrome's helper processes may still write the profile when the test ends, and a failed
+	// removal must not fail the comparison
+	profile, err := os.MkdirTemp("", "chromecheck-")
+	if err != nil {
+		t.Fatal(err)
+	}
 	cmd := exec.Command(chrome, "--no-sandbox", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
 		"--no-proxy-server", "--user-data-dir="+profile, "https://"+captureName+":"+strconv.Itoa(port)+"/")
+	// its own process group: the kill takes the renderer, GPU and crashpad processes too
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		cmd.Process.Kill()
+		syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 		cmd.Wait()
+		for range 10 {
+			if os.RemoveAll(profile) == nil {
+				return
+			}
+			time.Sleep(200 * time.Millisecond)
+		}
+		t.Logf("profile %s left behind", profile)
 	}()
 	var live []byte
 	select {

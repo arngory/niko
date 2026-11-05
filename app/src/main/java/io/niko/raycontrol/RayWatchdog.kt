@@ -179,9 +179,10 @@ object RayWatchdog {
             failures = 0
             recoverAt = 0
             backoff = FIRST_BACKOFF
+            // a subscription that failed on another network is tried here soon; a network that flaps does not
+            // start its backoff over more often either (P2, P7)
+            RaySubscription.networkChanged(key)
         }
-        // a subscription that failed on another network is tried here soon
-        RaySubscription.networkChanged(key)
         poke(15_000L)
     }
 

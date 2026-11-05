@@ -43,6 +43,8 @@ type node struct {
 	reports  [][]byte
 	// datagrams longer than this are lost on the way (a path's MTU); 0: none
 	maxSize int
+	// down answers 429 with Retry-After (another probe of the device runs)
+	busy bool
 }
 
 func newNode(t *testing.T) *node {
@@ -79,6 +81,14 @@ func (n *node) auth(h http.HandlerFunc) http.HandlerFunc {
 }
 
 func (n *node) down(w http.ResponseWriter, r *http.Request) {
+	n.mu.Lock()
+	busy := n.busy
+	n.mu.Unlock()
+	if busy {
+		w.Header().Set("Retry-After", "120")
+		w.WriteHeader(http.StatusTooManyRequests)
+		return
+	}
 	size, _ := strconv.Atoi(r.URL.Query().Get("bytes"))
 	w.Header().Set("Trailer", "Probe-Result")
 	start := time.Now()
@@ -167,6 +177,22 @@ func TestDown(t *testing.T) {
 	}
 	if r.Server["bytes"] != int64(1<<20) || r.Server["rtt_us"] != int64(41250) {
 		t.Fatalf("server result %v", r.Server)
+	}
+}
+
+// a refused down carries the node's Retry-After, so the Brutal measurement waits as long (P4)
+func TestDownRetryAfter(t *testing.T) {
+	n := newNode(t)
+	n.busy = true
+	c := NewClient(n.endpoint(t))
+	defer c.Close()
+	r := c.Down(context.Background(), 1024, probe.Options{})
+	if r.OK || r.Status != 429 || r.RetryAfter != 120 {
+		t.Fatalf("%+v", r)
+	}
+	raw, _ := json.Marshal(r)
+	if !strings.Contains(string(raw), `"retry_after":120`) || !strings.Contains(string(raw), `"status":429`) {
+		t.Fatalf("json %s", raw)
 	}
 }
 

@@ -17,6 +17,8 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptrace"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -55,6 +57,8 @@ type TCPResult struct {
 	StalledAt int64 `json:"stalled_at"`
 	// Trailer holds the trailers of a body read to its end (raycontrol probe-v1: Probe-Result)
 	Trailer map[string]string `json:"trailer,omitempty"`
+	// RetryAfter is the Retry-After (seconds) of an answer other than 200
+	RetryAfter int `json:"retry_after,omitempty"`
 }
 
 // UDPResult of the DNS round trips.
@@ -137,6 +141,7 @@ func Download(ctx context.Context, client *http.Client, req *http.Request, o Opt
 	r.FirstByteMs = firstByte.Load()
 	if resp.StatusCode != http.StatusOK {
 		r.Error = resp.Status
+		r.RetryAfter, _ = strconv.Atoi(strings.TrimSpace(resp.Header.Get("Retry-After")))
 		return r
 	}
 
