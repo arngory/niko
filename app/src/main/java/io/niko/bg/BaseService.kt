@@ -51,7 +51,7 @@ class BaseService {
         val receiver = broadcastReceiver { ctx, intent ->
             when (intent.action) {
                 Intent.ACTION_SHUTDOWN -> service.persistStats()
-                Action.RELOAD -> service.reload()
+                Action.RELOAD -> service.reload(intent.getBooleanExtra(Action.EXTRA_FORCE, false))
                 // Action.SWITCH_WAKE_LOCK -> runOnDefaultDispatcher { service.switchWakeLock() }
                 PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -179,11 +179,11 @@ class BaseService {
         fun onBind(intent: Intent): IBinder? =
             if (intent.action == Action.SERVICE) data.binder else null
 
-        fun reload() {
+        fun reload(force: Boolean = false) {
             if (DataStore.selectedProxy == 0L) {
                 stopRunner(false, (this as Context).getString(R.string.profile_empty))
             }
-            if (canReloadSelector()) {
+            if (!force && canReloadSelector()) {
                 val ent = SagerDatabase.proxyDao.getById(DataStore.selectedProxy)
                 val tag = data.proxy!!.config.profileTagMap[ent?.id] ?: ""
                 if (tag.isNotBlank() && ent != null) {
@@ -333,6 +333,13 @@ class BaseService {
                         // a raycontrol node may be reachable differently here (SPA carrier, port)
                         RayWatchdog.networkChanged()
                     }
+                }
+            }
+            // a cold :bg has no network yet: the first config would miss the network's Brutal rates and Yggdrasil
+            // peers, and the watchdog would restart the core ~20 s later for them (P6). Wait briefly for it.
+            if (SagerNet.underlyingNetwork == null && io.niko.raycontrol.RayNodes.list().isNotEmpty()) {
+                kotlinx.coroutines.withTimeoutOrNull(2_000L) {
+                    while (SagerNet.underlyingNetwork == null) kotlinx.coroutines.delay(50L)
                 }
             }
         }

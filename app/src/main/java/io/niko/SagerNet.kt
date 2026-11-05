@@ -253,8 +253,13 @@ class SagerNet : Application(),
             application, Intent(application, SagerConnection.serviceClass)
         )
 
-        fun reloadService() =
-            application.sendBroadcast(Intent(Action.RELOAD).setPackage(application.packageName))
+        /**
+         * [force]: a new core even where a selector group would only switch its outbound (raycontrol: new
+         * credentials, Brutal rates, Yggdrasil peers live in the config, not in the selector) (P5).
+         */
+        fun reloadService(force: Boolean = false) = application.sendBroadcast(
+            Intent(Action.RELOAD).setPackage(application.packageName).putExtra(Action.EXTRA_FORCE, force)
+        )
 
         fun stopService() =
             application.sendBroadcast(Intent(Action.CLOSE).setPackage(application.packageName))

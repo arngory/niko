@@ -55,19 +55,25 @@ func VersionBox() string {
 	return strings.Join(version, "\n")
 }
 
+// ResetAllConnections closes the connections of the running core: with system, the apps' connections and the
+// outbounds' and endpoints' own (a network change); without, only the apps' connections it routes, so they reconnect
+// over the same outbounds.
 func ResetAllConnections(system bool) {
-	if !system {
-		log.Println("TODO: Reset user connections")
-		return
-	}
 	instance := mainInstance
 	if instance == nil {
-		log.Println("Reset system connections skipped: no active instance")
+		log.Println("Reset connections skipped: no active instance")
 		return
 	}
 	instance.access.Lock()
 	defer instance.access.Unlock()
 	if instance.state != 1 {
+		return
+	}
+	if !system {
+		if manager := service.FromContext[adapter.ConnectionManager](instance.ctx); manager != nil {
+			manager.CloseAll()
+		}
+		log.Println("Reset user connections done")
 		return
 	}
 	// closes tracked connections and notifies endpoints, unlike Router().ResetNetwork()
@@ -79,6 +85,7 @@ type BoxInstance struct {
 	access sync.Mutex
 
 	*box.Box
+	ctx    context.Context
 	cancel context.CancelFunc
 	state  int
 
@@ -126,6 +133,7 @@ func NewSingBoxInstance(config string, localTransport LocalDNSTransport) (b *Box
 
 	b = &BoxInstance{
 		Box:          instance,
+		ctx:          ctx,
 		cancel:       cancel,
 		pauseManager: service.FromContext[pause.Manager](ctx),
 	}

@@ -28,6 +28,15 @@ class RaySubscriptionTest {
 
     private fun pack(json: String) = Rcdev1.PREFIX + json.encodeUtf8().base64Url().trimEnd('=')
 
+    /** A port that stays closed is tried again after 15 min, doubling per failure in a row up to 6 h (P2). */
+    @Test
+    fun retryBackoff() {
+        val noAnswer = Exception("raycontrol subscription: the node did not answer: dial tcp: i/o timeout")
+        assertEquals(listOf(900L, 1800L, 3600L, 7200L, 14400L, 21600L, 21600L, 21600L),
+            (1..8).map { RaySubscription.retryAfter(noAnswer, it) })
+        assertEquals(21600L, RaySubscription.retryAfter(Exception("HTTP 500"), 1))
+    }
+
     @Test
     fun registrationWithSubscription() {
         val sub = Rcdev1.parse(pack(withSub)).subscription!!

@@ -105,13 +105,18 @@ class ConfigBuildResult(
     data class IndexEntity(var chain: LinkedHashMap<Int, ProxyEntity>)
 }
 
+/**
+ * [notes]: the config will run, so raycontrol records what it applies (Brutal rates, Yggdrasil public peers) for
+ * the watchdog; a temporary build to compare with (a selector switch) must not, or the watchdog would take the
+ * running core for one that has them (P5).
+ */
 fun buildConfig(
-    proxy: ProxyEntity, forTest: Boolean = false, forExport: Boolean = false
+    proxy: ProxyEntity, forTest: Boolean = false, forExport: Boolean = false, notes: Boolean = !forTest && !forExport,
 ): ConfigBuildResult {
 
     // raycontrol: a removed node's device key leaves this process's core with the next build (running outbounds
     // copied their keys when they started; keys of current nodes stay for builds running in parallel)
-    if (!forExport) Libcore.spaRetainDeviceKeys(RayNodes.list().joinToString("\n") { it.keyRef })
+    if (!forExport) RayNodes.retainCoreKeys()
 
     if (proxy.type == TYPE_CONFIG) {
         val bean = proxy.requireBean() as ConfigBean
@@ -580,11 +585,16 @@ fun buildConfig(
                 if (!forTest && rayNode != null && bean is HysteriaBean && bean.protocolVersion == 2) {
                     val rates = RayBrutal.ratesFor(rayNode, RayChannel.network())
                     // what this core declares: the watchdog restarts it when the network wants other rates
-                    RayBrutal.noteApplied(rayNode, rates)
+                    if (notes) RayBrutal.noteApplied(rayNode, rates)
                     rates?.let {
                         if (it.upKbps > 0) currentOutbound._hack_config_map["up_mbps"] = RayBrutal.mbps(it.upKbps)
                         if (it.downKbps > 0) currentOutbound._hack_config_map["down_mbps"] = RayBrutal.mbps(it.downKbps)
                     }
+                }
+                // an idle QUIC connection to the node pings every 10 s by default, and the radio never sleeps: 25 s
+                // still holds a mobile NAT binding (around 30 s and more) (P1)
+                if (rayNode != null && bean is HysteriaBean && bean.protocolVersion == 2 && !proxyEntity.needExternal()) {
+                    currentOutbound._hack_config_map["keep_alive_period"] = "25s"
                 }
 
                 // UDP desync of QUIC clients (core common/udpdesync)
@@ -677,7 +687,7 @@ fun buildConfig(
                     if (!forTest && rayNode != null) {
                         val on = yggViaNotes[rayNode.spa.nodeId] == true || viaOn
                         yggViaNotes[rayNode.spa.nodeId] = on
-                        RayChannel.noteYggVia(rayNode.spa.nodeId, on)
+                        if (notes) RayChannel.noteYggVia(rayNode.spa.nodeId, on)
                     }
                     // only the node gets its SPA: the knock outbound knocks at the node's own names (and what they
                     // resolve to) and dials anything else plainly, the public peers among them, by name or address

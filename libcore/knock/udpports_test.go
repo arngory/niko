@@ -120,3 +120,25 @@ func TestNekoUDPPortsRotate(t *testing.T) {
 		t.Fatalf("got %q, %v; want only the node's datagram", buf[:n], err)
 	}
 }
+
+// TestNekoUDPPortsCache: the cached port of a slot is the formula's, also across slots and back.
+func TestNekoUDPPortsCache(t *testing.T) {
+	s := &portSchedule{base: 40000, span: 4096, slotLen: 600}
+	copy(s.key[:], bytes.Repeat([]byte{0x44}, len(s.key)))
+	for _, at := range []int64{0, 599, 600, 1767268800, 1767268800 + 599, 1767268800 + 600, 1767268800} {
+		want := slotPort(s.key[:], s.base, s.span, uint64(at)/s.slotLen)
+		for range 2 {
+			if got := s.port(time.Unix(at, 0)); got != want {
+				t.Fatalf("t=%d: port %d, want %d", at, got, want)
+			}
+		}
+	}
+}
+
+func BenchmarkNekoUDPPortCached(b *testing.B) {
+	s := &portSchedule{base: 40000, span: 4096, slotLen: 600}
+	now := time.Now()
+	for range b.N {
+		s.port(now)
+	}
+}

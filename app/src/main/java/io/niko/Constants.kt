@@ -225,6 +225,9 @@ object Action {
     const val CLOSE = "io.niko.CLOSE"
     const val RELOAD = "io.niko.RELOAD"
 
+    // RELOAD: restart the core even where a selector switch would do (raycontrol, P5)
+    const val EXTRA_FORCE = "io.niko.extra.FORCE"
+
     // const val SWITCH_WAKE_LOCK = "io.niko.SWITCH_WAKELOCK"
     const val RESET_UPSTREAM_CONNECTIONS = "io.niko.RESET_UPSTREAM_CONNECTIONS"
 }

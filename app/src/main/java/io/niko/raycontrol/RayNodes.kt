@@ -124,6 +124,9 @@ data class RayNode(
     // the subscription's spa.carriers (raycontrol v0.10.1): the SPA carriers the node takes, in the order to try
     // them; null = an older node (UDP, ClientHello, bare TCP)
     val spaCarriers: List<String>? = null,
+    // fetches of the subscription failed in a row on that network (the backoff of the retries); 0 after a success
+    val failedFetches: Int = 0,
+    val failedNetwork: String? = null,
 ) {
     /** The node's SPA parameters for the core, with the carriers it takes. */
     fun spaJson(): JsonObject = spa.toJson().apply {
@@ -158,6 +161,8 @@ data class RayNode(
         identityNext?.let { add("identity_next", it.toJson()) }
         probe?.let { add("probe", it.toJson()) }
         spaCarriers?.let { carriers -> add("spa_carriers", JsonArray().apply { carriers.forEach { add(it) } }) }
+        if (failedFetches > 0) addProperty("failed_fetches", failedFetches)
+        failedNetwork?.let { addProperty("failed_network", it) }
     }
 
     companion object {
@@ -180,6 +185,8 @@ data class RayNode(
             identityNext = (o.get("identity_next") as? JsonObject)?.let { RayIdentity.fromJson(it) },
             probe = (o.get("probe") as? JsonObject)?.let { RayProbeInfo.fromJson(it) },
             spaCarriers = (o.get("spa_carriers") as? JsonArray)?.mapNotNull { runCatching { it.asString }.getOrNull() },
+            failedFetches = o.get("failed_fetches")?.asInt ?: 0,
+            failedNetwork = o.get("failed_network")?.takeIf { it.isJsonPrimitive }?.asString,
         )
     }
 }
@@ -234,9 +241,18 @@ object RayNodes {
 
     const val STOPPED = -1L
 
+    /** The last parsed list and the text it came from: a config build asks for it once per hop. */
+    @Volatile
+    private var parsed: Pair<String, List<RayNode>>? = null
+
     fun list(): List<RayNode> {
         val raw = DataStore.configurationStore.getString(Key.RAYCONTROL_NODES, null)
         if (raw.isNullOrBlank()) return emptyList()
+        parsed?.let { (text, nodes) -> if (text == raw) return nodes }
+        return parse(raw).also { parsed = raw to it }
+    }
+
+    private fun parse(raw: String): List<RayNode> {
         return try {
             JsonParser.parseString(raw).asJsonArray.mapNotNull {
                 try {
@@ -307,7 +323,7 @@ object RayNodes {
             RayChannel.forget(nodeId)
             list().filter { it.spa.nodeId != nodeId }.also { save(it) }
         }
-        Libcore.spaRetainDeviceKeys(left.joinToString("\n") { it.keyRef })
+        retainCoreKeys(left)
     }
 
     fun get(nodeId: String) = list().firstOrNull { it.spa.nodeId == nodeId }
@@ -371,6 +387,9 @@ object RayNodes {
      * take it by that reference, so the key itself never is in a config.
      */
     fun prepareDeviceKey(node: RayNode) {
+        // the Keystore unwrap is slow and a build asks once per hop: once per key and process (a new import of the
+        // node wraps its key anew, so a changed key is set again)
+        if (keysInCore[node.keyRef] == node.deviceKeyWrapped) return
         val key = try {
             DeviceKeyVault.unwrap(node.deviceKeyWrapped)
         } catch (e: Exception) {
@@ -378,6 +397,17 @@ object RayNodes {
         }
         Libcore.spaSetDeviceKey(node.keyRef, key.joinToString("") { "%02x".format(it) })
         key.fill(0)
+        keysInCore[node.keyRef] = node.deviceKeyWrapped
+    }
+
+    /** the device keys this process put into its core: reference to the wrapped key it came from */
+    private val keysInCore = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    /** Drops from the core (and from [keysInCore]) the device keys of nodes no longer stored. */
+    fun retainCoreKeys(nodes: List<RayNode> = list()) {
+        val refs = nodes.map { it.keyRef }
+        keysInCore.keys.retainAll(refs.toSet())
+        Libcore.spaRetainDeviceKeys(refs.joinToString("\n"))
     }
 
     private fun hexToBytes(hex: String) = ByteArray(hex.length / 2) { hex.substring(it * 2, it * 2 + 2).toInt(16).toByte() }

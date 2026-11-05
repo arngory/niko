@@ -2,6 +2,7 @@ package io.niko.raycontrol
 
 import android.content.Context
 import android.net.NetworkCapabilities
+import android.os.Build
 import android.telephony.TelephonyManager
 import androidx.core.content.getSystemService
 import com.google.gson.JsonArray
@@ -197,7 +198,14 @@ data class RayHints(
  * The network the device is on, as the probes know it: a hash, never the raw values; [kind] is cellular, wifi,
  * ethernet or other.
  */
-data class ChannelNetwork(val key: String, val mobile: Boolean, val kind: String = if (mobile) "cellular" else "other")
+data class ChannelNetwork(
+    val key: String,
+    val mobile: Boolean,
+    val kind: String = if (mobile) "cellular" else "other",
+    // paid by the byte (a phone's hotspot is Wi-Fi and metered), and roaming: the measurements' size follows these
+    val metered: Boolean = mobile,
+    val roaming: Boolean = false,
+)
 
 /**
  * Measures the channel through the profiles of a raycontrol node and remembers the results per network (only on
@@ -316,7 +324,9 @@ object RayChannel {
             }
         }
         val digest = MessageDigest.getInstance("SHA-256").digest(parts.joinToString("|").toByteArray())
-        return ChannelNetwork(digest.take(8).joinToString("") { "%02x".format(it) }, mobile, kind)
+        val metered = !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+        val roaming = Build.VERSION.SDK_INT >= 28 && !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_ROAMING)
+        return ChannelNetwork(digest.take(8).joinToString("") { "%02x".format(it) }, mobile, kind, metered, roaming)
     }
 
     private fun load(): JsonObject = try {
@@ -391,10 +401,7 @@ object RayChannel {
         )
         // what was measured: no answer at all is a result of the network too (it replaces an older one); a busy node
         // or a UDP session that did not open is not, and leaves the record as it was
-        if (path.spaCarrier == null || !udp || measured) RayNodesLock.withLock {
-            val all = load()
-            val nodeObject = all.getAsJsonObject(node.spa.nodeId) ?: JsonObject().also { all.add(node.spa.nodeId, it) }
-            val onNetwork = nodeObject.getAsJsonObject(network.key) ?: JsonObject().also { nodeObject.add(network.key, it) }
+        if (path.spaCarrier == null || !udp || measured) edit(node.spa.nodeId, network) { onNetwork ->
             onNetwork.add(DIRECT, JsonObject().apply {
                 addProperty("at", System.currentTimeMillis() / 1000)
                 addProperty("spa", path.spaCarrier ?: "none")
@@ -410,7 +417,6 @@ object RayChannel {
                     })
                 }
             })
-            DataStore.configurationStore.putString(Key.RAYCONTROL_CHANNEL, all.toString())
         }
         return path
     }
@@ -426,19 +432,32 @@ object RayChannel {
         }.toMap()
     }
 
-    fun record(nodeId: String, network: ChannelNetwork, profileKey: String, score: ChannelScore) = RayNodesLock.withLock {
+    fun record(nodeId: String, network: ChannelNetwork, profileKey: String, score: ChannelScore) =
+        edit(nodeId, network) { it.add(profileKey, score.toJson()) }
+
+    /**
+     * Changes what is kept for [nodeId] on [network] (results, `_brutal`, `_direct`, `_ygg_via`, `_hints`, `_report`)
+     * under the lock, and keeps the node's [MAX_NETWORKS] most recent networks, whatever part wrote last. Must not
+     * be called under [RayNodesLock] already.
+     */
+    private fun edit(nodeId: String, network: ChannelNetwork, change: (JsonObject) -> Unit) = RayNodesLock.withLock {
         val all = load()
         val node = all.getAsJsonObject(nodeId) ?: JsonObject().also { all.add(nodeId, it) }
         val onNetwork = node.getAsJsonObject(network.key) ?: JsonObject().also { node.add(network.key, it) }
-        onNetwork.add(profileKey, score.toJson())
-        // the networks of the node, the most recent kept
+        change(onNetwork)
+        if (onNetwork.size() == 0) node.remove(network.key)
         if (node.size() > MAX_NETWORKS) {
-            val latest = { o: JsonObject -> o.entrySet().maxOfOrNull { it.value.asJsonObject.get("at").asLong } ?: 0 }
-            node.entrySet().sortedBy { latest(it.value.asJsonObject) }.take(node.size() - MAX_NETWORKS)
+            node.entrySet().sortedBy { (it.value as? JsonObject)?.let(::latest) ?: 0 }.take(node.size() - MAX_NETWORKS)
                 .map { it.key }.forEach { node.remove(it) }
         }
+        if (node.size() == 0) all.remove(nodeId)
         DataStore.configurationStore.putString(Key.RAYCONTROL_CHANNEL, all.toString())
     }
+
+    /** the newest time (unix s) of anything kept for a network; 0 when nothing has one */
+    private fun latest(onNetwork: JsonObject): Long = onNetwork.entrySet().maxOfOrNull { entry ->
+        (entry.value as? JsonObject)?.get("at")?.takeIf { it.isJsonPrimitive }?.let { runCatching { it.asLong }.getOrNull() } ?: 0
+    } ?: 0
 
     /** One line for the user: [name]'s TCP and UDP results. */
     fun describe(context: Context, name: String, score: ChannelScore): String = buildString {
@@ -463,21 +482,21 @@ object RayChannel {
     private const val BRUTAL = "_brutal"
 
     /** The Brutal rates measured for [nodeId] on [network], for a day after the measurement on any network. */
-    fun brutalRates(nodeId: String, network: ChannelNetwork): BrutalRates? {
+    /**
+     * The Brutal rates measured for [nodeId] on [network] within [maxAge] (s): a day is fresh, a measurement up to
+     * [BRUTAL_KEPT] old stays in use until a new one replaces it.
+     */
+    fun brutalRates(nodeId: String, network: ChannelNetwork, maxAge: Long = BRUTAL_FRESH): BrutalRates? {
         val o = load().getAsJsonObject(nodeId)?.getAsJsonObject(network.key)?.getAsJsonObject(BRUTAL) ?: return null
         val rates = runCatching { BrutalRates.fromJson(o) }.getOrNull() ?: return null
-        return rates.takeIf { System.currentTimeMillis() / 1000 - it.at < BRUTAL_FRESH }
+        return rates.takeIf { System.currentTimeMillis() / 1000 - it.at < maxAge }
     }
 
     private const val BRUTAL_FRESH = 24 * 3600L
+    const val BRUTAL_KEPT = 7 * 24 * 3600L
 
-    fun recordBrutal(nodeId: String, network: ChannelNetwork, rates: BrutalRates) = RayNodesLock.withLock {
-        val all = load()
-        val node = all.getAsJsonObject(nodeId) ?: JsonObject().also { all.add(nodeId, it) }
-        val onNetwork = node.getAsJsonObject(network.key) ?: JsonObject().also { node.add(network.key, it) }
-        onNetwork.add(BRUTAL, rates.toJson())
-        DataStore.configurationStore.putString(Key.RAYCONTROL_CHANNEL, all.toString())
-    }
+    fun recordBrutal(nodeId: String, network: ChannelNetwork, rates: BrutalRates) =
+        edit(nodeId, network) { it.add(BRUTAL, rates.toJson()) }
 
     // node ID → the running core has the node's public peers (ConfigBuilder notes it)
     private val yggViaRunning = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
@@ -532,15 +551,11 @@ object RayChannel {
             RayYggPeers.label(it.uri) + if (it.up) " ${it.latencyMs} ms" else " no link" + (it.error?.let { e -> " ($e)" } ?: "")
         })
         if (picked.isEmpty()) return false
-        RayNodesLock.withLock {
-            val all = load()
-            val nodeObject = all.getAsJsonObject(node.spa.nodeId) ?: JsonObject().also { all.add(node.spa.nodeId, it) }
-            val onNetwork = nodeObject.getAsJsonObject(network.key) ?: JsonObject().also { nodeObject.add(network.key, it) }
+        edit(node.spa.nodeId, network) { onNetwork ->
             onNetwork.add(YGG_VIA, JsonObject().apply {
                 addProperty("at", System.currentTimeMillis() / 1000)
                 add("peers", JsonArray().apply { picked.forEach { add(it) } })
             })
-            DataStore.configurationStore.putString(Key.RAYCONTROL_CHANNEL, all.toString())
         }
         return true
     }
@@ -559,19 +574,10 @@ object RayChannel {
     }
 
     /** What the subscription asked on [network] said: its hints, or none (fewer than k reports, or none at all). */
-    fun recordHints(nodeId: String, network: ChannelNetwork, hints: RayHints?) = RayNodesLock.withLock {
-        val all = load()
-        val node = all.getAsJsonObject(nodeId)
-        if (hints == null) {
-            if (node?.getAsJsonObject(network.key)?.remove(HINTS) != null) {
-                DataStore.configurationStore.putString(Key.RAYCONTROL_CHANNEL, all.toString())
-            }
-            return@withLock
-        }
-        val onNode = node ?: JsonObject().also { all.add(nodeId, it) }
-        val onNetwork = onNode.getAsJsonObject(network.key) ?: JsonObject().also { onNode.add(network.key, it) }
-        onNetwork.add(HINTS, hints.toJson())
-        DataStore.configurationStore.putString(Key.RAYCONTROL_CHANNEL, all.toString())
+    fun recordHints(nodeId: String, network: ChannelNetwork, hints: RayHints?) {
+        // nothing to drop: no write at all
+        if (hints == null && load().getAsJsonObject(nodeId)?.getAsJsonObject(network.key)?.has(HINTS) != true) return
+        edit(nodeId, network) { if (hints == null) it.remove(HINTS) else it.add(HINTS, hints.toJson()) }
     }
 
     // the network's summary state (RayReport): the UTC day it was sent on, and the node's answer
@@ -580,13 +586,8 @@ object RayChannel {
     fun reportState(nodeId: String, network: ChannelNetwork): JsonObject? =
         load().getAsJsonObject(nodeId)?.getAsJsonObject(network.key)?.getAsJsonObject(REPORT)
 
-    fun recordReportState(nodeId: String, network: ChannelNetwork, state: JsonObject) = RayNodesLock.withLock {
-        val all = load()
-        val node = all.getAsJsonObject(nodeId) ?: JsonObject().also { all.add(nodeId, it) }
-        val onNetwork = node.getAsJsonObject(network.key) ?: JsonObject().also { node.add(network.key, it) }
-        onNetwork.add(REPORT, state)
-        DataStore.configurationStore.putString(Key.RAYCONTROL_CHANNEL, all.toString())
-    }
+    fun recordReportState(nodeId: String, network: ChannelNetwork, state: JsonObject) =
+        edit(nodeId, network) { it.add(REPORT, state) }
 
     /**
      * Whether [profile] goes over UDP (Hysteria, TUIC, WireGuard, NaiveProxy over QUIC, V2Ray's QUIC transport):

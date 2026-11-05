@@ -163,15 +163,16 @@ func parseResult(s string) map[string]any {
 // UpResult is Up's: what the client sent and the server's answer (bytes and ms between the first and the last
 // byte it got, and its TCP_INFO).
 type UpResult struct {
-	OK       bool           `json:"ok"`
-	Error    string         `json:"error,omitempty"`
-	Status   int            `json:"status,omitempty"`
-	Sent     int64          `json:"sent"`
-	ClientMs int64          `json:"client_ms"`
-	Bytes    int64          `json:"bytes"`
-	Ms       int64          `json:"ms"`
-	Kbps     int64          `json:"kbps"`
-	TCP      map[string]any `json:"tcp,omitempty"`
+	OK         bool           `json:"ok"`
+	Error      string         `json:"error,omitempty"`
+	Status     int            `json:"status,omitempty"`
+	RetryAfter int            `json:"retry_after,omitempty"`
+	Sent       int64          `json:"sent"`
+	ClientMs   int64          `json:"client_ms"`
+	Bytes      int64          `json:"bytes"`
+	Ms         int64          `json:"ms"`
+	Kbps       int64          `json:"kbps"`
+	TCP        map[string]any `json:"tcp,omitempty"`
 }
 
 // Up sends n bytes (probe-v1.md §3); the speed is the server's: bytes over ms.
@@ -203,7 +204,7 @@ func (c *Client) Up(ctx context.Context, n int64, window time.Duration) *UpResul
 	if err != nil {
 		var status *StatusError
 		if errors.As(err, &status) {
-			r.Status = status.Status
+			r.Status, r.RetryAfter = status.Status, status.RetryAfter
 		}
 		r.Error = err.Error()
 		return r

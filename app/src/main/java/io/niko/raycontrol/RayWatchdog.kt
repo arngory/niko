@@ -130,7 +130,7 @@ object RayWatchdog {
         if (caller == null || caller !== job || !caller.isActive) return
         pendingOwn = true
         pendingOwnUntil = System.currentTimeMillis() + 30_000L
-        SagerNet.reloadService()
+        SagerNet.reloadService(force = true)
     }
 
     /**
@@ -165,13 +165,29 @@ object RayWatchdog {
         }
     }
 
-    /** Another network: what failed on the old one says nothing here, test soon and fetch without waiting. */
+    /**
+     * Another network: what failed on the old one says nothing here, test soon and fetch without waiting. A network
+     * that flaps (A, B, A within minutes) starts the backoff over at most once per [RESET_PER_NETWORK] each, or the
+     * recovery (a subscription fetch and test cores) would run every few minutes.
+     */
     fun networkChanged() {
-        failures = 0
-        recoverAt = 0
-        backoff = FIRST_BACKOFF
+        val now = System.currentTimeMillis()
+        val key = RayChannel.network()?.key
+        val last = key?.let { lastReset[it] } ?: 0L
+        if (key == null || now - last >= RESET_PER_NETWORK) {
+            key?.let { lastReset[it] = now }
+            failures = 0
+            recoverAt = 0
+            backoff = FIRST_BACKOFF
+        }
+        // a subscription that failed on another network is tried here soon
+        RaySubscription.networkChanged(key)
         poke(15_000L)
     }
+
+    // network key → when its arrival last started the backoff over
+    private val lastReset = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    private const val RESET_PER_NETWORK = 30 * 60_000L
 
     /** A rotation changed the running row without a restart: restart once the old credential fails. */
     fun markStale() {
@@ -201,6 +217,8 @@ object RayWatchdog {
     private suspend fun step(probe: suspend () -> Boolean): Long {
         // without network callbacks (fallback) the state is unknown: test anyway
         if (online != true && !DefaultNetworkListener.fallback) return PERIOD
+        // Doze: the device sleeps and so may the channel; a test now would only wake the radio (P1)
+        if (SagerNet.power.isDeviceIdleMode) return PERIOD
         // stale without an owner: the running row left the subscription; the core still runs it
         val owner = RayNodes.ownerOf(DataStore.currentProfile)
         if (owner == null && !stale) return PERIOD

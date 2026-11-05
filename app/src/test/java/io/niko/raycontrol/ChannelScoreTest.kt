@@ -89,4 +89,17 @@ class ChannelScoreTest {
         assertEquals(8, RayBrutal.mbps(8500))
         assertEquals(1, RayBrutal.mbps(400))
     }
+
+    /** A difference under 20 % each way is no reason to restart the core (P3); BBR only matches BBR. */
+    @Test
+    fun brutalHysteresis() {
+        val r = BrutalRates(100, 10_000, 5_000)
+        assertTrue(r.closeTo(BrutalRates(200, 11_500, 4_200)))
+        assertFalse(r.closeTo(BrutalRates(200, 13_000, 5_000)))
+        assertFalse(r.closeTo(BrutalRates(200, 10_000, 0)))
+        assertFalse(r.closeTo(null))
+        assertTrue(BrutalRates(100, 0, 0).closeTo(null))
+        assertEquals(r.copy(lowered = 1), BrutalRates.fromJson(r.copy(lowered = 1).toJson()))
+        assertEquals(r, BrutalRates.fromJson(r.toJson()))
+    }
 }

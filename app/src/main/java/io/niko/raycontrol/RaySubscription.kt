@@ -82,8 +82,15 @@ object RaySubscription {
 
     private fun refused(e: Throwable) = e.message?.let { m -> REFUSED.any { m.contains(it) } } == true
 
-    /** a failed fetch is tried again after this: soon when the port stayed closed, rarely otherwise */
-    private fun retryAfter(e: Throwable) = if (e.message?.contains(NO_ANSWER) == true) 15 * 60L else 6 * 3600L
+    /**
+     * A failed fetch is tried again after this: when the port stayed closed, 15 min doubling to 6 h for each failure in
+     * a row on the same network ([failures] counts this one); rarely otherwise. "No answer" is also DNS, the dial
+     * and a clock off: every try is ~45 s under a wakelock, also with the VPN off.
+     */
+    fun retryAfter(e: Throwable, failures: Int): Long =
+        if (e.message?.contains(NO_ANSWER) == true) minOf(15 * 60L shl (failures - 1).coerceIn(0, 5), MAX_RETRY) else MAX_RETRY
+
+    private const val MAX_RETRY = 6 * 3600L
 
     private val locks = ConcurrentHashMap<String, Mutex>()
 
@@ -102,8 +109,13 @@ object RaySubscription {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                val at = if (refused(e)) RayNodes.STOPPED else System.currentTimeMillis() / 1000 + retryAfter(e)
-                RayNodes.update(nodeId) { if (it.subscription == null) it else it.copy(refreshAt = at) }
+                val network = RayChannel.network()?.key
+                RayNodes.update(nodeId) {
+                    if (it.subscription == null) return@update it
+                    val failures = if (it.failedNetwork == network) it.failedFetches + 1 else 1
+                    val at = if (refused(e)) RayNodes.STOPPED else System.currentTimeMillis() / 1000 + retryAfter(e, failures)
+                    it.copy(refreshAt = at, failedFetches = failures, failedNetwork = network)
+                }
                 throw e
             } finally {
                 if (reschedule) schedule()
@@ -167,7 +179,9 @@ object RaySubscription {
             ?.mapNotNull { runCatching { it.asString }.getOrNull() }?.takeIf { it.isNotEmpty() }
         val stored = RayNodesLock.withLock {
             store(nodeId, payload.get("seq").asLong, refreshAt, skew, beans, links, doh)?.also {
-                RayNodes.update(nodeId) { node -> node.copy(probe = probe, spaCarriers = carriers) }
+                RayNodes.update(nodeId) { node ->
+                    node.copy(probe = probe, spaCarriers = carriers, failedFetches = 0, failedNetwork = null)
+                }
             }
         }
         // the hints are for the network this subscription was asked from: directly, the node saw its address
@@ -188,7 +202,7 @@ object RaySubscription {
                 }
                 // a running row that is gone cannot wait: the core runs a profile that no longer exists
                 reload == Reload.NOW || stored.runningGone -> {
-                    SagerNet.reloadService()
+                    SagerNet.reloadService(force = true)
                     restarted = true
                 }
 
@@ -431,6 +445,25 @@ object RaySubscription {
     }
 
     /** Plans the next scheduled fetch for the earliest node due; none due cancels it. */
+    /**
+     * The service saw another network ([network], its key): a fetch that failed on a different one is due within a
+     * minute and its backoff starts over there. Called from the watchdog, which limits how often per network.
+     */
+    fun networkChanged(network: String?) {
+        val now = System.currentTimeMillis() / 1000
+        val due = RayNodes.list().filter {
+            it.subscription != null && it.failedFetches > 0 && it.failedNetwork != network &&
+                    it.refreshAt != RayNodes.STOPPED && it.refreshAt > now + 60
+        }
+        if (due.isEmpty()) return
+        for (node in due) {
+            RayNodes.update(node.spa.nodeId) {
+                if (it.failedFetches == 0 || it.refreshAt == RayNodes.STOPPED) it else it.copy(refreshAt = now + 30 + (0L..30L).random())
+            }
+        }
+        schedule()
+    }
+
     fun schedule(fromWorker: Boolean = false) {
         val at = RayNodes.list().filter { it.subscription != null && it.refreshAt > 0 }.minOfOrNull { it.refreshAt }
         val manager = RemoteWorkManager.getInstance(app)

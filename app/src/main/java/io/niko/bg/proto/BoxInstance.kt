@@ -44,8 +44,11 @@ abstract class BoxInstance(
         return pluginPath.getOrPut(name) { PluginManager.init(name)!! }
     }
 
+    /** whether the config built will run (not a temporary one to compare with): it records what it applies */
+    protected open val runs: Boolean get() = true
+
     protected open fun buildConfig() {
-        config = buildConfig(profile)
+        config = buildConfig(profile, notes = runs)
     }
 
     protected open suspend fun loadConfig() {

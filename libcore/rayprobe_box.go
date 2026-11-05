@@ -80,23 +80,40 @@ func (r *probeRequest) run(ctx context.Context, e *rayprobe.Endpoint) *probeResu
 			out.Link = raw
 		}
 	}
+	// a measuring step the node refused (4xx: another probe running, the day's volume spent) ends the measurement:
+	// the next steps would only spend traffic and the node's patience (P4)
+	refused := func(status int) bool { return status >= 400 && status < 500 }
 	if r.DownBytes > 0 {
 		out.Down = c.Down(ctx, r.DownBytes, probe.Options{WindowMs: int(window.Milliseconds())})
+		if refused(out.Down.Status) {
+			return r.finish(ctx, c, out, window)
+		}
 	}
 	if r.UpBytes > 0 {
 		// past the server's 30 s: on a slow uplink the server stops at its limit and answers what it got
 		out.Up = c.Up(ctx, r.UpBytes, max(window, 35*time.Second))
+		if refused(out.Up.Status) {
+			return r.finish(ctx, c, out, window)
+		}
 	}
 	if r.EchoCount > 0 {
 		echoCtx, cancel := context.WithTimeout(ctx, window)
 		out.Echo = c.Echo(echoCtx, r.EchoCount, r.EchoSize, 20*time.Millisecond)
 		cancel()
+		if refused(out.Echo.Status) {
+			return r.finish(ctx, c, out, window)
+		}
 	}
 	if len(r.MTUSizes) > 0 {
 		// each size within the window: a lost one waits for late echoes, and on a slow path several of them would
 		// spend a shared window before the small sizes that pass
 		out.UDPMTU, out.MTU = c.PathMTU(ctx, r.MTUSizes, 4, window)
 	}
+	return r.finish(ctx, c, out, window)
+}
+
+// finish sends the summary, when asked: it is not a measurement and goes also after a refused step.
+func (r *probeRequest) finish(ctx context.Context, c *rayprobe.Client, out *probeResult, window time.Duration) *probeResult {
 	if len(r.Report) > 0 {
 		reportCtx, cancel := context.WithTimeout(ctx, window)
 		err := c.Report(reportCtx, r.Report)

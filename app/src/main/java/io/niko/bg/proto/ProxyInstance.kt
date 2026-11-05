@@ -34,6 +34,8 @@ class ProxyInstance(profile: ProxyEntity, var service: BaseService.Interface? = 
         if (notTmp && BuildConfig.DEBUG) Logs.d(JavaUtil.gson.toJson(config.trafficMap))
     }
 
+    override val runs: Boolean get() = notTmp
+
     // only use this in temporary instance
     fun buildConfigTmp() {
         notTmp = false

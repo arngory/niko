@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/netip"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	E "github.com/sagernet/sing/common/exceptions"
@@ -30,6 +31,9 @@ type portSchedule struct {
 	base    uint16
 	span    uint16
 	slotLen uint64
+
+	// the port of the last slot asked for: the HMAC runs once a slot, not once a datagram
+	cache atomic.Uint64 // slot << 16 | port, 0 = none
 }
 
 func parseUDPPorts(list []UDPPortSchedule, spa2 *spa2Params) (map[uint16]*portSchedule, error) {
@@ -63,7 +67,14 @@ func slotPort(key []byte, base, span uint16, slot uint64) uint16 {
 }
 
 func (s *portSchedule) port(now time.Time) uint16 {
-	return slotPort(s.key[:], s.base, s.span, uint64(now.Unix())/s.slotLen)
+	slot := uint64(now.Unix()) / s.slotLen
+	// slots are far below 2^48 (unix time / slot length); the cache holds slot+1 to tell slot 0 from none
+	if c := s.cache.Load(); c != 0 && c>>16 == slot+1 {
+		return uint16(c)
+	}
+	port := slotPort(s.key[:], s.base, s.span, slot)
+	s.cache.Store((slot+1)<<16 | uint64(port))
+	return port
 }
 
 // rotatingUDPConn is a connected-looking UDP flow to a service whose port

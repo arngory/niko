@@ -365,5 +365,5 @@ func startTestBox(t *testing.T, config string) *BoxInstance {
 		instance.Close()
 		cancel()
 	})
-	return &BoxInstance{Box: instance, cancel: cancel}
+	return &BoxInstance{Box: instance, ctx: ctx, cancel: cancel}
 }
