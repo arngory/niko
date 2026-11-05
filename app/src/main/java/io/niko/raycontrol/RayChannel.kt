@@ -18,6 +18,8 @@ import io.niko.database.SagerDatabase
 import io.niko.ktx.Logs
 import io.niko.ktx.app
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import java.security.MessageDigest
@@ -716,31 +718,40 @@ object RayChannel {
         // hold a wrong relay finding for a day). An answer is the node's first byte (its HTTP answer: the whole path
         // works); a 16 KiB download that did not finish in the window does not make it silent. A TLS handshake alone
         // does not count: a DPI that lets TCP through and drops TLS also ends one, with an error
-        fun answered(request: JsonObject, windowMs: Int): Boolean = runCatching {
+        fun answered(request: JsonObject): Boolean = runCatching {
             val out = JsonParser.parseString(Libcore.raycontrolProbe(request.apply {
                 addProperty("down_bytes", 16L shl 10)
-                addProperty("window_ms", windowMs)
+                addProperty("window_ms", 3_000)
             }.toString())).asJsonObject
             out.getAsJsonObject("down")?.let { down ->
                 down.get("ok")?.asBoolean == true || (down.get("status")?.asInt ?: 0) != 0 ||
                         (down.get("first_byte_ms")?.asLong ?: 0) > 0
             } == true
         }.getOrDefault(false)
-        if (kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { answered(RayBrutal.request(node), 5_000) }) {
-            markPath(node.spa.nodeId, network, PATH_DIRECT)
-            return false
+        // the node and its relays at once, the whole at most DETECT_TIMEOUT: the profiles wait for this. Direct wins
+        // whenever it answers; a relay only when the node is silent. The probes are native calls that cannot be
+        // cancelled: they run detached, and a late answer is dropped instead of waited for
+        val probes = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO + kotlinx.coroutines.SupervisorJob())
+        val direct = probes.async { answered(RayBrutal.request(node)) }
+        val viaRelays = relays.mapNotNull { relay ->
+            RayRelays.probeRequest(node, relay, key)?.let { request -> relay to probes.async { answered(request) } }
         }
-        for (relay in relays) {
-            currentCoroutineContext().ensureActive()
-            val request = RayRelays.probeRequest(node, relay, key) ?: continue
-            if (kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { answered(request, 5_000) }) {
-                Logs.i("raycontrol ${node.host}: no answer directly, relay ${relay.id} answers: the relay path on this network")
-                markPath(node.spa.nodeId, network, PATH_RELAY)
-                return true
+        val found = try {
+            kotlinx.coroutines.withTimeoutOrNull(DETECT_TIMEOUT) {
+                if (direct.await()) PATH_DIRECT
+                else viaRelays.firstOrNull { (_, answer) -> answer.await() }?.let { (relay, _) ->
+                    Logs.i("raycontrol ${node.host}: no answer directly, relay ${relay.id} answers: the relay path on this network")
+                    PATH_RELAY
+                }
             }
+        } finally {
+            probes.cancel()
         }
-        // nothing answers (the network itself is down): the profiles decide, and the detector waits an hour
-        markPath(node.spa.nodeId, network, PATH_DIRECT)
-        return false
+        // nothing answers (the network itself is down) or no answer in time: the profiles decide, and the detector
+        // waits an hour
+        markPath(node.spa.nodeId, network, found ?: PATH_DIRECT)
+        return found == PATH_RELAY
     }
+
+    private const val DETECT_TIMEOUT = 20_000L
 }

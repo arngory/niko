@@ -131,9 +131,10 @@ func (r *probeRequest) finish(ctx context.Context, c *rayprobe.Client, out *prob
 	return out
 }
 
-// answered: some step got an HTTP answer, so the port was open
+// answered: some step got an HTTP answer, so the port was open; a download that got its first byte and then
+// stalled (a DPI freezing the body) was answered too, and another carrier would only replace that result
 func (o *probeResult) answered() bool {
-	return o.Link != nil || o.Down != nil && (o.Down.OK || o.Down.Status != 0) || o.Up != nil && (o.Up.OK || o.Up.Status != 0) ||
+	return o.Link != nil || o.Down != nil && (o.Down.OK || o.Down.Status != 0 || o.Down.FirstByteMs > 0) || o.Up != nil && (o.Up.OK || o.Up.Status != 0) ||
 		o.Echo != nil && (o.Echo.OK || o.Echo.Status != 0) || o.ReportStatus != 0 || o.UDPMTU > 0
 }
 
