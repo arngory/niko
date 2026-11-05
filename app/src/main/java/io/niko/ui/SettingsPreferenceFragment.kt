@@ -302,23 +302,26 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             .setMessage(lines.joinToString("\n"))
             .setPositiveButton(android.R.string.ok, null)
             .show()
+        // the lines change on the main thread only; the run may outlive this screen (minutes): the app's context
+        // for strings and the share sheet, the dialog only while the screen is there
+        fun show(line: String) = runOnMainDispatcher {
+            lines += line
+            if (isAdded) dialog.setMessage(lines.takeLast(20).joinToString("\n"))
+        }
         runOnDefaultDispatcher {
             val file = try {
                 io.niko.raycontrol.RayTestRun.run(node, id) { line ->
                     // the step's name and outcome, the full line goes to the file
-                    lines += line.substringAfter("\"step\":\"").substringBefore('"') +
-                            (Regex("\"error\":\"([^\"]*)\"").find(line)?.groupValues?.get(1)?.let { ": $it" } ?: "")
-                    runOnMainDispatcher { dialog.setMessage(lines.takeLast(20).joinToString("\n")) }
+                    show(line.substringAfter("\"step\":\"").substringBefore('"') +
+                            (Regex("\"error\":\"([^\"]*)\"").find(line)?.groupValues?.get(1)?.let { ": $it" } ?: ""))
                 }
             } catch (e: Exception) {
-                lines += e.readableMessage
-                onMainDispatcher { dialog.setMessage(lines.takeLast(20).joinToString("\n")) }
+                show(e.readableMessage)
                 return@runOnDefaultDispatcher
             }
+            show(context.getString(R.string.raycontrol_test_run_done))
             onMainDispatcher {
-                lines += context.getString(R.string.raycontrol_test_run_done)
-                dialog.setMessage(lines.takeLast(20).joinToString("\n"))
-                startActivity(
+                context.startActivity(
                     Intent.createChooser(
                         Intent(Intent.ACTION_SEND).setType("text/x-log")
                             .setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -326,8 +329,8 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                                 Intent.EXTRA_STREAM, androidx.core.content.FileProvider.getUriForFile(
                                     context, io.niko.BuildConfig.APPLICATION_ID + ".cache", file
                                 )
-                            ), getString(R.string.raycontrol_test_run_share)
-                    )
+                            ), context.getString(R.string.raycontrol_test_run_share)
+                    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 )
             }
         }

@@ -93,6 +93,13 @@ fun localProxyUsers(isVPN: Boolean): List<User>? {
     }, custom)
 }
 
+/**
+ * The log level of test cores in this process while a test run goes (RayTestRun): never stored, so a killed run or
+ * the service leaves no trace in the settings.
+ */
+@Volatile
+var testLogLevel: Int? = null
+
 /** Whether the local proxy port opens: always in proxy mode; in VPN mode when the user set it up for other apps. */
 fun localProxyWanted(isVPN: Boolean) =
     !isVPN || DataStore.mixedPassword.isNotBlank() || DataStore.localProxyNoAuthInVpn
@@ -239,7 +246,7 @@ fun buildConfig(
         }
 
         log = LogOptions().apply {
-            level = when (DataStore.logLevel) {
+            level = when (if (forTest) testLogLevel ?: DataStore.logLevel else DataStore.logLevel) {
                 0 -> "panic"
                 1 -> "warn"
                 2 -> "info"

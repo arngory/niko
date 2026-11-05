@@ -121,3 +121,9 @@ func sendFdToProtect(fd int, path string) error {
 	}
 	return nil
 }
+
+// SetLogEnable turns the log writer on or off in this process (initCore set it from the log level); a test run
+// turns it on for its window and back after.
+func SetLogEnable(enable bool) {
+	neko_log.LogWriterDisable = !enable
+}

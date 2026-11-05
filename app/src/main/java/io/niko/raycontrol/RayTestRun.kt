@@ -20,6 +20,8 @@ import java.time.format.DateTimeFormatter
  */
 object RayTestRun {
 
+    private val running = java.util.concurrent.atomic.AtomicBoolean(false)
+
     private val day = DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneOffset.UTC)
     private val minute = DateTimeFormatter.ofPattern("HHmm").withZone(ZoneOffset.UTC)
 
@@ -45,10 +47,12 @@ object RayTestRun {
             steps.append(line).append('\n')
             progress(line.toString())
         }
+        check(running.compareAndSet(false, true)) { "a test run is going already" }
         val logFrom = SendLog.getNekoLog(0).size
-        val level = DataStore.logLevel
-        // the test cores of this run log at debug; the running service keeps its level until its next start
-        DataStore.logLevel = maxOf(level, 3)
+        // the test cores of this run log at debug, the log writer on for its window; nothing stored: the settings and
+        // the running service stay as they are
+        io.niko.fmt.testLogLevel = maxOf(DataStore.logLevel, 3)
+        Libcore.setLogEnable(true)
         try {
             val network = RayChannel.network()
             step("start") {
@@ -110,14 +114,21 @@ object RayTestRun {
                 step("end")
             }
         } finally {
-            DataStore.logLevel = level
+            io.niko.fmt.testLogLevel = null
+            Libcore.setLogEnable(DataStore.logLevel > 0)
+            running.set(false)
         }
 
-        val log = SendLog.getNekoLog(0).let { all -> String(all, logFrom.coerceAtMost(all.size), (all.size - logFrom).coerceAtLeast(0)) }
+        // the log grew from where it stood at the start; a log trimmed meanwhile (the service started, a clear) is
+        // taken whole, and the file says so
+        val all = SendLog.getNekoLog(0)
+        val trimmed = all.size < logFrom
+        val log = if (trimmed) String(all) else String(all, logFrom, all.size - logFrom)
         val report = buildString {
             append("# Niko test run ").append(id).append(", ").append(utc()).append('\n')
             append("# steps (JSON lines)\n").append(steps)
-            append("# the app's log since the run started\n").append(log)
+            append(if (trimmed) "# the app's log, whole: it was trimmed during the run\n" else "# the app's log since the run started\n")
+            append(log)
         }
         RayNodes.syncLogRedactions()
         val file = File(File(app.cacheDir, "log").also { it.mkdirs() }, "niko-$id.log")
