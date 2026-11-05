@@ -43,6 +43,8 @@ data class ChannelScore(
     val udpError: String? = null,
     // UDP was probed at all (not: a TCP-only node service, a failover's record of a failed profile)
     val udpMeasured: Boolean = false,
+    // the kind of resolver a DNS tunnel left to the client went through in this probe (dnsprobe-v1), else null
+    val dnsKind: String? = null,
 ) {
 
     /**
@@ -70,6 +72,7 @@ data class ChannelScore(
         addProperty("udp_rtt_ms", udpRttMs)
         udpError?.let { addProperty("udp_error", it) }
         addProperty("udp_measured", udpMeasured)
+        dnsKind?.let { addProperty("dns_kind", it) }
     }
 
     companion object {
@@ -88,6 +91,7 @@ data class ChannelScore(
             udpMeasured = o.get("udp_measured")?.asBoolean ?: (o.get("udp_ok")?.asBoolean == true ||
                 (o.get("udp_loss_pct")?.asDouble ?: 0.0) > 0 ||
                 o.get("udp_error")?.asString.let { it != null && it != NO_ECHO }),
+            dnsKind = o.get("dns_kind")?.takeIf { it.isJsonPrimitive }?.asString,
         )
 
         // a node service that answers no UDP echo
@@ -261,12 +265,14 @@ object RayChannel {
         val nodeRequest = RayNodes.ownerOf(profile.id)?.let { (node, key) ->
             node.probe?.takeIf { it.reachesThrough(key.substringBefore('#').toIntOrNull()) }?.let { probeRequest(node, it, deep, mobile) }
         }
+        // the resolver its DNS tunnel goes through, as the probe's config takes it now (the summary's obs dns)
+        val dnsKind = runCatching { RayDnsResolvers.usedKind(profile) }.getOrNull()
         return try {
             if (nodeRequest != null) {
                 ChannelScore.fromNodeProbe(at, TestInstance(profile, "", 0).doProbeNode(nodeRequest.toString()))
             } else {
                 ChannelScore.fromProbe(at, TestInstance(profile, "", 0).doProbe(options(deep, mobile)))
-            }
+            }?.copy(dnsKind = dnsKind)
         } catch (e: CancellationException) {
             // cancelled, not failed: nothing to record
             throw e
@@ -628,8 +634,9 @@ object RayChannel {
         val nodeId = node.spa.nodeId
         val now = System.currentTimeMillis() / 1000
         record(nodeId, network, failedKey, ChannelScore(now, tcpOk = false, tcpError = "connection test failed"))
-        // the DNS tunnels' resolver for this network, when their rows leave it to the client and none is picked
-        runCatching { RayDnsResolvers.detectForNode(node, network) }.onFailure { if (it is CancellationException) throw it }
+        // a DNS tunnel whose resolver is the client's: its resolver for this network anew, in the background
+        runCatching { RayDnsResolvers.recheckAfterFailure(node, network, failedKey) }
+            .onFailure { Logs.w("raycontrol ${node.host}: the DNS tunnel's resolver: ${it.message}") }
         val known = scores(nodeId, network)
         val fresh = if (network.mobile) FRESH_MOBILE else FRESH_WIFI
         val candidates = node.profileIds.orEmpty().keys
@@ -675,13 +682,16 @@ object RayChannel {
         return best?.first
     }
 
-    // the resolver picked for a DNS tunnel kind on a network (dnsprobe-v1, RayDnsResolvers): held a day
+    // the resolver picked for a DNS tunnel kind on a network (dnsprobe-v1, RayDnsResolvers): held a day; that none
+    // answered, an hour
     private const val DNS_PICK = "_dns_"
     private const val DNS_HOLD = 24 * 3600L
+    private const val DNS_NONE_HOLD = 3600L
 
     fun dnsPick(nodeId: String, network: ChannelNetwork, tunnelKind: String): JsonObject? {
         val o = load().getAsJsonObject(nodeId)?.getAsJsonObject(network.key)?.getAsJsonObject(DNS_PICK + tunnelKind) ?: return null
-        return o.takeIf { System.currentTimeMillis() / 1000 - (it.get("at")?.asLong ?: 0) < DNS_HOLD }
+        val hold = if (o.get("kind")?.asString == RayDnsResolvers.NONE) DNS_NONE_HOLD else DNS_HOLD
+        return o.takeIf { System.currentTimeMillis() / 1000 - (it.get("at")?.asLong ?: 0) < hold }
     }
 
     fun recordDnsPick(nodeId: String, network: ChannelNetwork, tunnelKind: String, pick: JsonObject) =

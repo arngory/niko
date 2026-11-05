@@ -386,9 +386,11 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                 onMainDispatcher { dialog.setMessage(lines.joinToString("\n")) }
             }
             // the DNS tunnels' resolvers on this network, anew (dnsprobe-v1), before their profiles are measured
-            io.niko.raycontrol.RayDnsResolvers.detectForNode(node, network, force = true) { line ->
+            io.niko.raycontrol.RayDnsResolvers.detectForNode(node, network) { line ->
                 lines += line
-                runOnMainDispatcher { dialog.setMessage(lines.joinToString("\n")) }
+                // the text as of this line: the list grows on while the main thread gets to it
+                val text = lines.joinToString("\n")
+                runOnMainDispatcher { dialog.setMessage(text) }
             }
             for ((key, id) in node.profileIds.orEmpty()) {
                 val profile = SagerDatabase.proxyDao.getById(id) ?: continue

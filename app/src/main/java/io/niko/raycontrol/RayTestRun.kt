@@ -96,7 +96,7 @@ object RayTestRun {
                 }
                 val current = RayNodes.get(node.spa.nodeId) ?: node
                 // the DNS tunnels' resolvers on this network, anew (dnsprobe-v1)
-                RayDnsResolvers.detectForNode(current, network, force = true) { line ->
+                RayDnsResolvers.detectForNode(current, network) { line ->
                     step("dns") { addProperty("result", line) }
                 }
                 for ((key, rowId) in current.profileIds.orEmpty()) {

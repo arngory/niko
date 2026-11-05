@@ -29,6 +29,10 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     fun migrateLegacySettings() {
         // sniff override destination was removed in sing-box 1.13
         if (trafficSniffing > 1) trafficSniffing = 1
+        // the DNS tunnels' resolvers before 1.33.0 defaulted to these; stored as they were, they are the old defaults
+        // and become auto (picked per network, the same defaults until then). A value set by hand stays
+        if (raycontrolDnsttResolver == "https://common.dot.dns.yandex.net/dns-query") raycontrolDnsttResolver = "auto"
+        if (raycontrolMasterDnsResolvers == "77.88.8.8\n77.88.8.1") raycontrolMasterDnsResolvers = "auto"
     }
 
     // share service state in main & bg process

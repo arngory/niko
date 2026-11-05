@@ -101,11 +101,11 @@ object RayReport {
                         // not measured: no field (§14.3), not "none"
                         if (s.udpMeasured) addProperty("udp", udpBucket(s))
                         if (s.tcpOk) addProperty("mbps", mbpsBucket(s))
-                        // the resolver kind a DNS tunnel went through here (dnsprobe-v1), never its address; only for a
-                        // tunnel that worked, to a node that declares it
+                        // the resolver kind a DNS tunnel went through in this probe (dnsprobe-v1), never its address;
+                        // only for a tunnel that worked, to a node that declares it
                         val kind = node.services.firstOrNull { it.id == svc }?.kind
                         if ("dns" in node.probe?.report.orEmpty() && (kind == "dnstt" || kind == "masterdns") && s.tcpOk) {
-                            RayDnsResolvers.pickedKind(node.spa.nodeId, network, kind)?.let { addProperty("dns", it) }
+                            s.dnsKind?.let { addProperty("dns", it) }
                         }
                     })
                 }
