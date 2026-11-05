@@ -131,6 +131,30 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 		relayThrough(t, relay, result.Payload, b.Host, b.Sub.Port, b.Sub.Pin, b.DeviceID, b.DeviceKey, b.SPA,
 			b.NodeKeys.Ed25519, b.NodeKeys.MLDSA65, node, probeInfo, downMbps, tested)
 	}
+	// the summary with its path (relay-v1 §9.3, raycontrol v0.10.2): to the node directly only path direct; a relay
+	// network's summary goes through a relay, the node refuses it here (400)
+	if slices.Contains(probeInfo.Report, "path") {
+		rc := rayprobe.NewClient(&rayprobe.Endpoint{
+			Address: net.JoinHostPort(node, strconv.Itoa(b.Sub.Port)), Pin: b.Sub.Pin,
+			DeviceID: b.DeviceID, DeviceKey: deviceKey, Dial: (&net.Dialer{}).DialContext,
+		})
+		reportCtx, reportCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		svc := strconv.Itoa(int(result.Payload.Profiles[0].Svc))
+		summary := func(path string) []byte {
+			return []byte(`{"v":1,"net":"wifi","path":"` + path + `","obs":[{"svc":` + svc + `,"result":"works"}]}`)
+		}
+		if err := rc.Report(reportCtx, summary("relay")); err == nil {
+			t.Fatal("the node took a relay path summary sent to it directly")
+		} else if status, ok := err.(*rayprobe.StatusError); !ok || status.Status != 400 {
+			t.Fatalf("relay path summary directly: want 400, got %v", err)
+		}
+		if err := rc.Report(reportCtx, summary("direct")); err != nil {
+			t.Fatalf("direct path summary: %v", err)
+		}
+		reportCancel()
+		rc.Close()
+		tested["report-path"] = true
+	}
 	for _, kind := range strings.Split(os.Getenv("RAYCONTROL_EXPECT"), ",") {
 		if kind != "" && !tested[kind] {
 			t.Fatalf("no %s profile measured (tested %v, tunnels %v)", kind, tested, probeInfo.TunnelSvc)

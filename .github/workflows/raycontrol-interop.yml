@@ -214,7 +214,7 @@ jobs:
           RAYCONTROL_ADDRESS: ${{ steps.node.outputs.address }}
           RAYCONTROL_CA: /tmp/rccert/root.pem
           RAYCONTROL_RELAY: 203.0.113.3
-          RAYCONTROL_EXPECT: hysteria2-pin,hysteria2-ca,reality,yggdrasil,dnstt-auth,masterdns,relay-subscription,relay-reality,relay-hysteria2-pin,relay-hysteria2-ca
+          RAYCONTROL_EXPECT: hysteria2-pin,hysteria2-ca,reality,yggdrasil,dnstt-auth,masterdns,relay-subscription,relay-reality,relay-hysteria2-pin,relay-hysteria2-ca,report-path
         run: |
           TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
           go test -count=1 -v -timeout 10m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
