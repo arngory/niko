@@ -24,7 +24,6 @@ import io.niko.BuildConfig
 import io.niko.GroupType
 import io.niko.Key
 import io.niko.R
-import io.niko.raycontrol.Rcinv1
 import io.niko.raycontrol.Rcdev1
 import io.niko.raycontrol.RayImport
 import io.niko.SagerNet
