@@ -171,12 +171,51 @@ object RaySubscription {
         // rotation times are the node's: a device clock off by minutes would switch too early or too late
         val skew = result.get("clock_skew_s")?.asLong ?: 0
         val nodeNow = now + skew
-        val profiles = (payload.get("profiles") as? JsonArray ?: JsonArray()).map { it.asJsonObject }
+        val parsed = parse(payload, node.services.associate { it.id to it.kind }, nodeNow)
 
+        // the UI and the scheduled worker (`:bg`) may both get here: one writer across the processes
+        val refreshAt = maxOf(now + 60, nextRefresh(payload, nodeNow) - skew)
+        val stored = RayNodesLock.withLock {
+            store(nodeId, payload.get("seq").asLong, refreshAt, skew, parsed.beans, parsed.links, parsed.doh)?.also {
+                RayNodes.update(nodeId) { node ->
+                    node.copy(
+                        probe = parsed.probe, spaCarriers = parsed.carriers, failedFetches = 0, failedNetwork = null,
+                        relays = parsed.relays, dnsProbeKey = parsed.dnsProbeKey, subUpdatedAt = now,
+                        subExpires = payload.get("expires")?.takeIf { it.isJsonPrimitive }?.asLong?.minus(skew) ?: 0,
+                    )
+                }
+            }
+        }
+        // the hints are for the network this subscription was asked from: directly, the node saw its address (through
+        // a relay it saw the relay's)
+        if (viaRelay == null) RayChannel.network()?.let { network ->
+            RayChannel.recordHints(nodeId, network, parsed.hints?.let { RayHints.fromJson(it, now) })
+        }
+        return finish(stored, reload, parsed, skew, spaOverTcp = result.get("spa_over_tcp")?.asBoolean == true)
+    }
+
+    /** What a subscription's payload gives the node and its rows ([parse]), without the network or the store. */
+    data class Parsed(
+        val beans: LinkedHashMap<String, AbstractBean>,
+        val links: HashMap<String, RayLinks>,
+        val doh: String?,
+        val skipped: Int,
+        val relays: List<RayRelay>,
+        val dnsProbeKey: String?,
+        val probe: RayProbeInfo? = null,
+        val carriers: List<String>? = null,
+        val hints: JsonObject? = null,
+    )
+
+    /**
+     * The rows of [payload] (profile key → bean and its credentials; DoH as the remote DNS; rows through the relays)
+     * and what the node record takes from it; [kinds] are the node's service kinds by id, [nodeNow] the node's clock.
+     */
+    fun parse(payload: JsonObject, kinds: Map<Int, String>, nodeNow: Long): Parsed {
+        val profiles = (payload.get("profiles") as? JsonArray ?: JsonArray()).map { it.asJsonObject }
         var skipped = 0
         val beans = LinkedHashMap<String, AbstractBean>()
         val links = HashMap<String, RayLinks>()
-        val kinds = node.services.associate { it.id to it.kind }
         var doh: String? = null
         // relays in front of the node (relay-v1 §4, a draft): a profile with `via` gets a row through each
         val relays = RayRelay.listFromJson(payload.get("relays") as? JsonArray)
@@ -218,30 +257,16 @@ object RaySubscription {
                 skipped++
             }
         }
-
-        // the UI and the scheduled worker (`:bg`) may both get here: one writer across the processes
-        val refreshAt = maxOf(now + 60, nextRefresh(payload, nodeNow) - skew)
         // probe v1 only: another version is unknown to this client
         val probe = (payload.get("probe") as? JsonObject)?.let { RayProbeInfo.fromJson(it) }?.takeIf { it.v == 1 }
         // the SPA carriers the node takes (v0.10.1); none = an older node, which gets the whole ladder
         val carriers = ((payload.get("spa") as? JsonObject)?.get("carriers") as? JsonArray)
             ?.mapNotNull { runCatching { it.asString }.getOrNull() }?.takeIf { it.isNotEmpty() }
-        val stored = RayNodesLock.withLock {
-            store(nodeId, payload.get("seq").asLong, refreshAt, skew, beans, links, doh)?.also {
-                RayNodes.update(nodeId) { node ->
-                    node.copy(
-                        probe = probe, spaCarriers = carriers, failedFetches = 0, failedNetwork = null, relays = relays,
-                        dnsProbeKey = dnsProbeKey, subUpdatedAt = now,
-                        subExpires = payload.get("expires")?.takeIf { it.isJsonPrimitive }?.asLong?.minus(skew) ?: 0,
-                    )
-                }
-            }
-        }
-        // the hints are for the network this subscription was asked from: directly, the node saw its address (through
-        // a relay it saw the relay's)
-        if (viaRelay == null) RayChannel.network()?.let { network ->
-            RayChannel.recordHints(nodeId, network, (payload.get("hints") as? JsonObject)?.let { RayHints.fromJson(it, now) })
-        }
+        return Parsed(beans, links, doh, skipped, relays, dnsProbeKey, probe, carriers, payload.get("hints") as? JsonObject)
+    }
+
+    /** After the store: the group, the core's restart where the running row changed, the result for the caller. */
+    private suspend fun finish(stored: Stored?, reload: Reload, parsed: Parsed, skew: Long, spaOverTcp: Boolean): RaySubscriptionResult {
         var restarted = false
         if (stored != null) {
             if (stored.groupCreated) GroupManager.iterator { groupAdd(stored.group) }
@@ -264,10 +289,10 @@ object RaySubscription {
             }
         }
         return RaySubscriptionResult(
-            profiles = beans.size,
-            skipped = skipped,
+            profiles = parsed.beans.size,
+            skipped = parsed.skipped,
             clockSkew = skew,
-            spaOverTcp = result.get("spa_over_tcp")?.asBoolean == true,
+            spaOverTcp = spaOverTcp,
             runningChanged = stored?.runningChanged == true,
             restarted = restarted,
         )
