@@ -42,6 +42,20 @@ fun AbstractBean.applyNikoParams(param: (String) -> String?, params: (String) ->
                 param("niko-dnskey")?.let { dnsTunnelKey = it.trim() }
             }
 
+            DnsTunnel.SLIPSTREAM -> {
+                // raycontrol slipstream-v1 §4: niko-dns=slipstream;<resolvers>;<zone>;<service id>,
+                // niko-slip=v1;<pin>;<ALPN>;<SNI>; the bundled client dials the node through the resolvers (several:
+                // a path each)
+                dnsTunnel = DnsTunnel.SLIPSTREAM
+                dnsTunnelResolver = resolver.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+                    .joinToString("\n").ifBlank { DataStore.raycontrolMasterDnsResolvers }
+                dnsTunnelDomain = zone
+                val slip = param("niko-slip")?.split(';')?.map { it.trim() }
+                require(slip != null && slip.size == 4 && slip[0] == "v1") { "niko-slip: want v1;pin;alpn;sni" }
+                dnsTunnelKey = slip[1]
+                dnsTunnelTls = "${slip[2]};${slip[3]}"
+            }
+
             else -> throw IllegalArgumentException("niko-dns: unknown engine $engine")
         }
         // dnsauth-v1 (raycontrol v0.10.0, masterdns since v0.14): the queries carry a tag of the device's key for this
@@ -50,11 +64,13 @@ fun AbstractBean.applyNikoParams(param: (String) -> String?, params: (String) ->
         dnsTunnelAuth = ""
         if (param("niko-dnsauth")?.trim() == "v1") {
             val node = param("niko-node")?.trim()?.lowercase()
-            val svc = param("niko-svc")?.trim()?.toIntOrNull()
+            // slipstream's service id is niko-dns's last field too
+            val svc = (param("niko-svc") ?: last.takeIf { engine == DnsTunnel.SLIPSTREAM })?.trim()?.toIntOrNull()
             require(node != null && NODE_ID.matches(node) && svc != null && svc in 0..0xffff) {
                 "niko-dnsauth: needs niko-node and niko-svc"
             }
-            dnsTunnelAuth = "v1;$node;$svc"
+            // slipstream's front takes dnsauth-v2 only, from its first day (slipstream-v1 §2)
+            dnsTunnelAuth = (if (engine == DnsTunnel.SLIPSTREAM) "v2;" else "v1;") + "$node;$svc"
         }
         // dnszones-v1 (raycontrol v0.14): the spare zones of the same service, in their order, at most 4; a name that
         // is not one, or the main zone again, is left out
@@ -72,7 +88,7 @@ fun AbstractBean.applyNikoParams(param: (String) -> String?, params: (String) ->
                 require(SEAL_KEY.matches(key)) { "niko-dnsseal: the key is 32 bytes in base64url" }
                 dnsTunnelSeal = key
             }
-        } else {
+        } else if (dnsTunnel == DnsTunnel.MASTERDNSVPN) {
             param("niko-mdseal")?.split(';')?.map { it.trim() }?.takeIf { it.firstOrNull() == "v1" }?.let { spec ->
                 dnsTunnelSeal = if ("required" in spec.drop(1)) DnsTunnel.SEAL_REQUIRED else DnsTunnel.SEAL_OPTIONAL
             }

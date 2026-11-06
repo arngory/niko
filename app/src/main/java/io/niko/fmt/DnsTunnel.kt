@@ -27,6 +27,7 @@ fun AbstractBean.keepDnsTunnelOf(old: AbstractBean) {
     dnsTunnelAuth = old.dnsTunnelAuth
     dnsTunnelSeal = old.dnsTunnelSeal
     dnsTunnelSpare = old.dnsTunnelSpare
+    dnsTunnelTls = old.dnsTunnelTls
 }
 
 data class DnsTunnel(
@@ -45,11 +46,25 @@ data class DnsTunnel(
     val seal: String = "",
     /** raycontrol dnszones-v1: the spare zones in their order, comma separated, "" none (the main zone is [domain]) */
     val spare: String = "",
+    /** slipstream's TLS toward its server, "<ALPN>;<SNI>" (the pin of its key is [key]); "" for the others */
+    val tls: String = "",
 ) {
 
     companion object {
         const val DNSTT = "dnstt"
         const val MASTERDNSVPN = "masterdnsvpn"
+        // raycontrol slipstream-v1: QUIC over DNS, the bundled slipstream client (a process of its own)
+        const val SLIPSTREAM = "slipstream"
+        // slipstream's name holds (240 - zone) / 1.6 bytes, less dnsauth's 8, and an Initial needs 129 (slipstream-v1 §3)
+        const val SLIPSTREAM_MAX_ZONE = 20
+        // a path each: the client's multipath adds them up
+        const val MAX_SLIP_RESOLVERS = 4
+        private val SLIP_PIN = Regex("^[A-Za-z0-9_-]{43}$")
+        private val SLIP_ALPN = Regex("^[!-~]{1,255}$")
+        // a name, its last label starting with a letter (an SNI is never an address)
+        private val SLIP_SNI = Regex("^([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)+[A-Za-z]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$")
+        // a resolver the client reaches through the core: an IPv4 or bracketed IPv6 address, a port if not 53
+        private val SLIP_RESOLVER = Regex("^([0-9]{1,3}(\\.[0-9]{1,3}){3}(:\\d{1,5})?|\\[[0-9a-fA-F:]+](:\\d{1,5})?|[0-9a-fA-F:]*:[0-9a-fA-F:]+)$")
         const val SEAL_OPTIONAL = "optional"
         const val SEAL_REQUIRED = "required"
         private val AUTH_VERSIONS = setOf("v1", "v2")
@@ -81,13 +96,21 @@ data class DnsTunnel(
             auth = bean.dnsTunnelAuth.orEmpty(),
             seal = bean.dnsTunnelSeal.orEmpty(),
             spare = bean.dnsTunnelSpare.orEmpty(),
+            tls = bean.dnsTunnelTls.orEmpty(),
         )
     }
 
     val enabled get() = domain.isNotBlank()
 
-    /** dnstt and a masterdnsvpn server in TCP mode forward to one upstream, the profile's address is unused */
-    val ignoresServerAddress get() = engine == DNSTT || fixedUpstream
+    /**
+     * dnstt, slipstream and a masterdnsvpn server in TCP mode forward to one upstream, the profile's address is
+     * unused
+     */
+    val ignoresServerAddress get() = engine == DNSTT || engine == SLIPSTREAM || fixedUpstream
+
+    /** slipstream's ALPN and SNI ([tls]) */
+    val alpn get() = tls.substringBefore(';')
+    val sni get() = tls.substringAfter(';', "")
 
     private val domains get() = domain.split(',', ' ', '\n').map { it.trim() }.filter { it.isNotEmpty() }
 
@@ -136,7 +159,57 @@ data class DnsTunnel(
                 else -> null
             }
 
+            SLIPSTREAM -> when {
+                domains.size != 1 -> "DNS tunnel: slipstream takes one zone"
+                spareZones.isNotEmpty() -> "DNS tunnel: slipstream has no spare zones"
+                domains.first().length > SLIPSTREAM_MAX_ZONE ->
+                    "DNS tunnel: slipstream's zone is $SLIPSTREAM_MAX_ZONE characters at most (a query must hold a packet)"
+                resolvers.isEmpty() -> "DNS tunnel: no resolvers, one IP per line"
+                resolvers.size > MAX_SLIP_RESOLVERS -> "DNS tunnel: slipstream takes $MAX_SLIP_RESOLVERS resolvers at most"
+                resolvers.any { !SLIP_RESOLVER.matches(it) } ->
+                    "DNS tunnel: slipstream resolvers are IP addresses, with an optional :port"
+                !SLIP_PIN.matches(key) -> "DNS tunnel: slipstream's pin is the SHA-256 of the server's key in base64url"
+                !SLIP_ALPN.matches(alpn) -> "DNS tunnel: slipstream's ALPN is missing"
+                !SLIP_SNI.matches(sni) -> "DNS tunnel: slipstream's server name is a name, like cdn.example.net"
+                // the node's front takes dnsauth-v2 only (slipstream-v1 §2)
+                authNode != null && authVersion != 2 -> "DNS tunnel: slipstream signs by dnsauth-v2 only"
+                else -> null
+            }
+
             else -> "DNS tunnel: unknown engine $engine"
+        }
+    }
+
+    /** slipstream's resolvers as host and port (an IPv6 address bare, 53 when none is given) */
+    val slipResolvers: List<Pair<String, Int>>
+        get() = resolvers.map { line ->
+            when {
+                line.startsWith("[") -> line.substringAfter('[').substringBefore(']') to
+                    (line.substringAfter("]:", "").toIntOrNull() ?: 53)
+                line.count { it == ':' } > 1 -> line to 53
+                ':' in line -> line.substringBefore(':') to (line.substringAfter(':').toIntOrNull() ?: 53)
+                else -> line to 53
+            }
+        }
+
+    /**
+     * The slipstream client's arguments: it listens on 127.0.0.1:[localPort] (the hop dials it there), its queries go
+     * to [resolvers] (the core's mapping ports, so they leave through the core's own sockets, outside the VPN), and
+     * [clockOffset] is how far the node's clock is ahead of the device's, for dnsauth's epoch. dnsauth's key goes in
+     * the environment (SLIPSTREAM_DNSAUTH_KEY), never among the arguments, which other processes of the app may read.
+     */
+    fun slipstreamArgs(localPort: Int, resolvers: List<String>, clockOffset: Long): List<String> = buildList {
+        add("--quiet")
+        add("--tcp-listen-host=127.0.0.1")
+        add("--tcp-listen-port=$localPort")
+        add("--domain=${domains.first()}")
+        for (resolver in resolvers) add("--resolver=$resolver")
+        add("--pin=$key")
+        add("--alpn=$alpn")
+        add("--sni=$sni")
+        if (authNode != null) {
+            add("--dnsauth")
+            add("--clock-offset=$clockOffset")
         }
     }
 

@@ -31,6 +31,10 @@ abstract class BoxInstance(
     lateinit var config: ConfigBuildResult
     lateinit var box: BoxInstance
 
+    companion object {
+        const val SLIPSTREAM_SO = "libslipstream.so"
+    }
+
     val pluginPath = hashMapOf<String, PluginManager.InitResult>()
     val pluginConfigs = hashMapOf<Int, Pair<Int, String>>()
     val externalInstances = hashMapOf<Int, AbstractInstance>()
@@ -203,11 +207,22 @@ abstract class BoxInstance(
         }
 
         box.start()
+        // slipstream's clients after the core: their queries go out through its mapping ports
+        for (slip in config.slipstream) {
+            processes.start(listOf(slipstreamPath()) + slip.args, slip.env.toMutableMap())
+        }
         // the core restores the last selector choice from the cache file over the configured
         // default; make the profile that was started the selected one
         if (config.selectorGroupId >= 0) {
             config.profileTagMap[config.mainEntId]?.let { box.selectOutbound(it) }
         }
+    }
+
+    /** The bundled slipstream client (libslipstream.so, raycontrol slipstream-v1), runnable from the app's libraries */
+    private fun slipstreamPath(): String {
+        val file = File(SagerNet.application.applicationInfo.nativeLibraryDir, SLIPSTREAM_SO)
+        if (!file.canExecute()) throw Exception("slipstream: the client is not in this build ($SLIPSTREAM_SO)")
+        return file.absolutePath
     }
 
     @Suppress("EXPERIMENTAL_API_USAGE")

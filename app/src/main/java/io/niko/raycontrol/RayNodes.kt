@@ -420,6 +420,24 @@ object RayNodes {
         updated
     }
 
+    /**
+     * dnsauth's key of [node]'s device for service [serviceId] (dnsauth-v1 §2), as hex, for the slipstream client's
+     * environment; the device key itself stays here.
+     */
+    fun dnsAuthKeyHex(node: RayNode, serviceId: Int): String {
+        val key = try {
+            DeviceKeyVault.unwrap(node.deviceKeyWrapped)
+        } catch (e: Exception) {
+            throw Exception("raycontrol node ${node.host}: the device key cannot be read (import the node again): ${e.message}")
+        }
+        val derived = try {
+            DnsAuthKey.derive(key, node.spa.nodeId, serviceId)
+        } finally {
+            key.fill(0)
+        }
+        return derived.joinToString("") { "%02x".format(it) }.also { derived.fill(0) }
+    }
+
     /** the device key as hex, for the core */
     fun deviceKeyHex(node: RayNode): String {
         val key = DeviceKeyVault.unwrap(node.deviceKeyWrapped)

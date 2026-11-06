@@ -33,7 +33,7 @@ public abstract class AbstractBean extends Serializable {
     public Integer tlsFragment;
     // version 4: SHA-256 of the server's public key, base64, one per line
     public String certPins;
-    // version 5: DNS tunnel the profile dials through, "" off, "dnstt" or "masterdnsvpn"
+    // version 5: DNS tunnel the profile dials through, "" off, "dnstt", "masterdnsvpn" or (version 12) "slipstream"
     public String dnsTunnel;
     public String dnsTunnelResolver; // dnstt: https://host/dns-query, tls://host, udp://host; masterdnsvpn: IPs, one per line
     public String dnsTunnelDomain; // masterdnsvpn may take several, comma separated
@@ -47,6 +47,9 @@ public abstract class AbstractBean extends Serializable {
     public String dnsTunnelSeal;
     // version 11: raycontrol dnszones-v1, the tunnel's spare zones in their order, comma separated, "" none
     public String dnsTunnelSpare;
+    // version 12: slipstream's TLS toward its server, "<ALPN>;<SNI>" (raycontrol slipstream-v1, niko-slip; the pin
+    // is dnsTunnelKey), "" none
+    public String dnsTunnelTls;
     // extraVersion 6: UDP desync of QUIC clients (Hysteria2, TUIC), core common/udpdesync
     public Integer udpPrelude; // fake datagrams before the first real one, 0-8
     public String udpPreludeSni; // the fakes are QUIC Initials naming this server; empty = random bytes
@@ -122,6 +125,7 @@ public abstract class AbstractBean extends Serializable {
         if (dnsTunnelAuth == null) dnsTunnelAuth = "";
         if (dnsTunnelSeal == null) dnsTunnelSeal = "";
         if (dnsTunnelSpare == null) dnsTunnelSpare = "";
+        if (dnsTunnelTls == null) dnsTunnelTls = "";
         if (udpPrelude == null) udpPrelude = 0;
         if (udpPreludeSni == null) udpPreludeSni = "";
         if (udpPreludeTtl == null) udpPreludeTtl = 0;
@@ -138,7 +142,7 @@ public abstract class AbstractBean extends Serializable {
     public void serializeToBuffer(@NonNull ByteBufferOutput output) {
         serialize(output);
 
-        output.writeInt(11);
+        output.writeInt(12);
         if (!serializeWithoutName) {
             output.writeString(name);
         }
@@ -166,6 +170,7 @@ public abstract class AbstractBean extends Serializable {
         output.writeString(dnsTunnelAuth != null ? dnsTunnelAuth : "");
         output.writeString(dnsTunnelSeal != null ? dnsTunnelSeal : "");
         output.writeString(dnsTunnelSpare != null ? dnsTunnelSpare : "");
+        output.writeString(dnsTunnelTls != null ? dnsTunnelTls : "");
     }
 
     @Override
@@ -218,6 +223,9 @@ public abstract class AbstractBean extends Serializable {
         }
         if (extraVersion >= 11) {
             dnsTunnelSpare = input.readString();
+        }
+        if (extraVersion >= 12) {
+            dnsTunnelTls = input.readString();
         }
     }
 

@@ -5,6 +5,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 class DnsTunnelTest {
@@ -243,5 +245,82 @@ class DnsTunnelTest {
         assertEquals(DnsTunnel.of(bean), DnsTunnel.of(copy))
         assertEquals(5, DnsTunnel.of(copy).method)
         assertEquals("tcp", DnsTunnel.of(copy).outboundOptions(null)["mode"])
+    }
+}
+
+class SlipstreamTunnelTest {
+
+    private val node = "44".repeat(16)
+    private val pin = "A".repeat(42) + "Q"
+    private fun bean(extra: Map<String, String> = emptyMap(), drop: Set<String> = emptySet()): SOCKSBean {
+        val params = mapOf(
+            "niko-dns" to "slipstream;1.1.1.1,77.88.8.8:5353,[2001:db8::1]:53;s.example.com;9",
+            "niko-slip" to "v1;$pin;k3x9q2p7m1;cdn.example.net",
+            "niko-dnsauth" to "v1", "niko-node" to node, "niko-svc" to "9",
+        ) - drop + extra
+        return SOCKSBean().apply { initializeDefaultValues(); applyNikoParams({ params[it] }) }
+    }
+
+    /** raycontrol slipstream-v1 §4: niko-dns, niko-slip and niko-dnsauth into the row; dnsauth is v2 from the start */
+    @Test
+    fun theLink() {
+        val bean = bean()
+        assertEquals(DnsTunnel.SLIPSTREAM, bean.dnsTunnel)
+        assertEquals("1.1.1.1\n77.88.8.8:5353\n[2001:db8::1]:53", bean.dnsTunnelResolver)
+        assertEquals(pin, bean.dnsTunnelKey)
+        assertEquals("k3x9q2p7m1;cdn.example.net", bean.dnsTunnelTls)
+        assertEquals("v2;$node;9", bean.dnsTunnelAuth)
+        val tunnel = DnsTunnel.of(bean)
+        assertNull(tunnel.validate())
+        assertEquals(2, tunnel.authVersion)
+        assertTrue(tunnel.ignoresServerAddress)
+        assertEquals(listOf("1.1.1.1" to 53, "77.88.8.8" to 5353, "2001:db8::1" to 53), tunnel.slipResolvers)
+        // the service id from niko-dns's last field when niko-svc is not there
+        assertEquals("v2;$node;9", bean(drop = setOf("niko-svc")).dnsTunnelAuth)
+        // no niko-slip: not a slipstream link
+        try {
+            bean(drop = setOf("niko-slip"))
+            fail("taken without niko-slip")
+        } catch (_: IllegalArgumentException) {
+        }
+    }
+
+    /** the client's arguments: no secret among them, dnsauth with the node's clock */
+    @Test
+    fun theClientsArguments() {
+        val tunnel = DnsTunnel.of(bean())
+        val args = tunnel.slipstreamArgs(7001, listOf("127.0.0.1:7100", "127.0.0.1:7101"), -95)
+        assertEquals(
+            listOf(
+                "--quiet", "--tcp-listen-host=127.0.0.1", "--tcp-listen-port=7001", "--domain=s.example.com",
+                "--resolver=127.0.0.1:7100", "--resolver=127.0.0.1:7101", "--pin=$pin", "--alpn=k3x9q2p7m1",
+                "--sni=cdn.example.net", "--dnsauth", "--clock-offset=-95",
+            ),
+            args,
+        )
+        val open = DnsTunnel.of(bean(drop = setOf("niko-dnsauth")))
+        assertNull(open.authNode)
+        assertFalse(open.slipstreamArgs(7001, listOf("127.0.0.1:7100"), 0).any { it.startsWith("--dnsauth") })
+    }
+
+    /** what a slipstream row may not be */
+    @Test
+    fun whatItRefuses() {
+        val good = DnsTunnel.of(bean())
+        for ((name, tunnel) in listOf(
+            "a zone past 20 characters" to good.copy(domain = "slipstream-zone.example.com"),
+            "two zones" to good.copy(domain = "s.example.com,t.example.com"),
+            "a spare zone" to good.copy(spare = "t.example.com"),
+            "a range for a resolver" to good.copy(resolver = "10.0.0.0/30"),
+            "a name for a resolver" to good.copy(resolver = "dns.example.com"),
+            "five resolvers" to good.copy(resolver = (1..5).joinToString("\n") { "10.0.0.$it" }),
+            "a short pin" to good.copy(key = "abc"),
+            "no ALPN" to good.copy(tls = ";cdn.example.net"),
+            "no SNI" to good.copy(tls = "k3x9q2p7m1;"),
+            "an address for the SNI" to good.copy(tls = "k3x9q2p7m1;1.2.3"),
+            "dnsauth-v1" to good.copy(auth = "v1;$node;9"),
+        )) {
+            assertNotNull(name, tunnel.validate())
+        }
     }
 }

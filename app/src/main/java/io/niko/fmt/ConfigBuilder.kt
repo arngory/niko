@@ -119,8 +119,18 @@ class ConfigBuildResult(
     val selectorGroupId: Long,
     // the device keys of the raycontrol Yggdrasil profiles in this config (their mesh nodes)
     val yggKeys: Set<String> = emptySet(),
+    // the slipstream clients the config's DNS tunnels dial through, processes of their own
+    val slipstream: List<SlipstreamLaunch> = emptyList(),
 ) {
     data class IndexEntity(var chain: LinkedHashMap<Int, ProxyEntity>)
+
+    /**
+     * A slipstream client to run with the config: its arguments (no secret among them) and its environment
+     * (dnsauth's key, SLIPSTREAM_DNSAUTH_KEY, there only).
+     */
+    class SlipstreamLaunch(val args: List<String>, val env: Map<String, String>) {
+        override fun toString() = "SlipstreamLaunch(args=$args, env=${env.keys})"
+    }
 }
 
 /**
@@ -219,6 +229,9 @@ fun buildConfig(
     val useFakeDns = DataStore.enableFakeDns && !forTest
     val needSniff = DataStore.trafficSniffing > 0
     val externalIndexMap = ArrayList<IndexEntity>()
+    // slipstream's clients, and the rules of their mapping ports (above the DNS hijack: their queries go to port 53)
+    val slipstreamLaunches = mutableListOf<ConfigBuildResult.SlipstreamLaunch>()
+    val slipstreamRules = mutableListOf<Rule_DefaultOptions>()
     val ipv6Mode = if (forTest) IPv6Mode.ENABLE else DataStore.ipv6Mode
 
     fun genDomainStrategy(noAsIs: Boolean): String {
@@ -804,28 +817,74 @@ fun buildConfig(
                     if (bean is ConfigBean) throw Exception("$prefix: not supported for custom configs")
                     if (index != profileList.lastIndex) throw Exception("$prefix: only on the first hop of a chain")
                     if (buildingProxy) tunnelledHop = true
-                    val tunnelTag = "$tagOut-dnstunnel"
-                    // libcore's protect server runs with the main instance; a latency test without
-                    // one must not point the tunnel's own sockets at a missing socket
-                    val protectPath = "protect_path".takeIf {
-                        !forTest || File(SagerNet.application.noBackupFilesDir, it).exists()
-                    }
-                    // dnsauth-v1: the node's device key goes into the core by reference, never into the config; the tag's
-                    // epoch is the node's, by the subscription's skew
-                    val authNode = dnsTunnel.authNode?.let { (nodeId, _) ->
-                        RayNodes.get(nodeId)
-                            ?: throw Exception("$prefix: the raycontrol node of this tunnel is not imported (dnsauth)")
-                    }
-                    if (authNode != null && !forExport) RayNodes.prepareDeviceKey(authNode)
-                    outbounds.add(Outbound().apply {
-                        tag = tunnelTag
-                        _hack_config_map.putAll(
-                            dnsTunnel.outboundOptions(protectPath, authNode?.keyRef, authNode?.clockSkew ?: 0)
+                    if (dnsTunnel.engine == DnsTunnel.SLIPSTREAM) {
+                        if (forExport) throw Exception("$prefix: slipstream runs a client of its own, not in an exported config")
+                        // the client's queries leave through the core's own sockets, a mapping port per resolver
+                        // (a path each), so they stay out of the VPN as the plugins' traffic does
+                        val mapped = dnsTunnel.slipResolvers.mapIndexed { i, (host, port) ->
+                            val mappingPort = mkPort()
+                            val mappingTag = "$tagOut-slipstream-$i"
+                            inbounds.add(Inbound_DirectOptions().apply {
+                                type = "direct"
+                                listen = LOCALHOST
+                                listen_port = mappingPort
+                                tag = mappingTag
+                                network = "udp"
+                                override_address = host
+                                override_port = port
+                            })
+                            slipstreamRules += Rule_DefaultOptions().apply {
+                                inbound = listOf(mappingTag)
+                                outbound = TAG_DIRECT
+                            }
+                            "$LOCALHOST:$mappingPort"
+                        }
+                        // dnsauth-v2: the key of the device for the service (K), into the client's environment
+                        val env = mutableMapOf<String, String>()
+                        var clockOffset = 0L
+                        dnsTunnel.authNode?.let { (nodeId, serviceId) ->
+                            val node = RayNodes.get(nodeId)
+                                ?: throw Exception("$prefix: the raycontrol node of this tunnel is not imported (dnsauth)")
+                            env["SLIPSTREAM_DNSAUTH_KEY"] = RayNodes.dnsAuthKeyHex(node, serviceId)
+                            clockOffset = node.clockSkew
+                        }
+                        val localPort = mkPort()
+                        slipstreamLaunches += ConfigBuildResult.SlipstreamLaunch(
+                            dnsTunnel.slipstreamArgs(localPort, mapped, clockOffset), env,
                         )
-                    })
-                    // the tunnel server resolves or ignores the hop's server name
-                    currentOutbound._hack_config_map.remove("domain_resolver")
-                    currentOutbound._hack_config_map["detour"] = tunnelTag
+                        // the hop dials the client; the server forwards each stream to its one upstream. A TLS hop
+                        // that names no server took the server's name, 127.0.0.1 from here: the name goes in
+                        (runCatching { currentOutbound.javaClass.getField("tls").get(currentOutbound) }.getOrNull()
+                            as? OutboundTLSOptions)
+                            ?.takeIf { it.enabled == true && it.server_name.isNullOrBlank() && !bean.serverAddress.isIpAddress() }
+                            ?.server_name = bean.serverAddress
+                        currentOutbound._hack_config_map.remove("domain_resolver")
+                        currentOutbound._hack_config_map["server"] = LOCALHOST
+                        currentOutbound._hack_config_map["server_port"] = localPort
+                    } else {
+                        val tunnelTag = "$tagOut-dnstunnel"
+                        // libcore's protect server runs with the main instance; a latency test without
+                        // one must not point the tunnel's own sockets at a missing socket
+                        val protectPath = "protect_path".takeIf {
+                            !forTest || File(SagerNet.application.noBackupFilesDir, it).exists()
+                        }
+                        // dnsauth-v1: the node's device key goes into the core by reference, never into the config; the tag's
+                        // epoch is the node's, by the subscription's skew
+                        val authNode = dnsTunnel.authNode?.let { (nodeId, _) ->
+                            RayNodes.get(nodeId)
+                                ?: throw Exception("$prefix: the raycontrol node of this tunnel is not imported (dnsauth)")
+                        }
+                        if (authNode != null && !forExport) RayNodes.prepareDeviceKey(authNode)
+                        outbounds.add(Outbound().apply {
+                            tag = tunnelTag
+                            _hack_config_map.putAll(
+                                dnsTunnel.outboundOptions(protectPath, authNode?.keyRef, authNode?.clockSkew ?: 0)
+                            )
+                        })
+                        // the tunnel server resolves or ignores the hop's server name
+                        currentOutbound._hack_config_map.remove("domain_resolver")
+                        currentOutbound._hack_config_map["detour"] = tunnelTag
+                    }
                 }
 
                 // External proxy need a dokodemo-door inbound to forward the traffic
@@ -1294,6 +1353,8 @@ fun buildConfig(
             inbound = yggProfileEndpoints.values.map { it.first }
             action = "reject"
         })
+        // slipstream's queries from its mapping ports go out as they are, above the DNS hijack (port 53)
+        route.rules.addAll(0, slipstreamRules)
 
         dns.strategy = autoDnsDomainStrategy(SingBoxOptionsUtil.domainStrategy(dns.final_))
         dns.rules.filterIsInstance<DNSRule_DefaultOptions>().forEach { rule ->
@@ -1316,6 +1377,7 @@ fun buildConfig(
             tagMap,
             if (buildSelector) group.id else -1L,
             yggProfileEndpoints.keys.toSet(),
+            slipstreamLaunches.toList(),
         )
     }
 

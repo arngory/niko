@@ -137,6 +137,9 @@ object RayDnsResolvers {
      * masterdns its list for this network ([masterdnsResolvers]).
      */
     fun resolverFor(node: RayNode?, engine: String): String {
+        // slipstream: the first of masterdns's list, addresses only (no ranges), a path each
+        if (engine == DnsTunnel.SLIPSTREAM) return masterdnsFor(node).map { it.resolver }.filter { '/' !in it }
+            .take(DnsTunnel.MAX_SLIP_RESOLVERS).joinToString("\n")
         if (engine != DNSTT) return masterdnsFor(node).joinToString("\n") { it.resolver }
         val first = heldPick(node)?.get("resolver")?.asString ?: return DNSTT_DEFAULT
         // https://, tls://, tcp://, udp:// as picked; a bare address is UDP's

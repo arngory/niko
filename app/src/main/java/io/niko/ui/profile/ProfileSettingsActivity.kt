@@ -255,6 +255,16 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
         binding.dnsTunnelEngine.check(if (masterDnsVpn) R.id.dns_tunnel_masterdnsvpn else R.id.dns_tunnel_dnstt)
         showEngine(masterDnsVpn)
         binding.dnsTunnelEngine.setOnCheckedChangeListener { _, id -> showEngine(id == R.id.dns_tunnel_masterdnsvpn) }
+        // a slipstream tunnel comes from its link (raycontrol slipstream-v1) and has no editor here: shown, kept as it is
+        val slipstream = DataStore.serverDnsTunnel == DnsTunnel.SLIPSTREAM
+        if (slipstream) {
+            for (view in listOf(
+                binding.dnsTunnelEngine, binding.dnsTunnelResolver, binding.dnsTunnelDomain, binding.dnsTunnelKey,
+                binding.dnsTunnelMethod, binding.dnsTunnelFixedUpstream,
+            )) view.isEnabled = false
+            for (i in 0 until binding.dnsTunnelEngine.childCount) binding.dnsTunnelEngine.getChildAt(i).isEnabled = false
+            showEngine(false)
+        }
         val dialog = MaterialAlertDialogBuilder(this).setTitle(R.string.connection_tweaks)
             .setView(binding.root)
             .setPositiveButton(android.R.string.ok, null)
@@ -275,7 +285,7 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
                 binding.certPins.error = e.message
                 return@setOnClickListener
             }
-            val tunnel = DnsTunnel(
+            val tunnel = if (slipstream) null else DnsTunnel(
                 engine = if (binding.dnsTunnelEngine.checkedRadioButtonId == R.id.dns_tunnel_masterdnsvpn) {
                     DnsTunnel.MASTERDNSVPN
                 } else {
@@ -287,7 +297,7 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
                 method = binding.dnsTunnelMethod.text.toString().toIntOrNull() ?: -1,
                 fixedUpstream = binding.dnsTunnelFixedUpstream.isChecked,
             )
-            val tunnelError = tunnel.validate()
+            val tunnelError = tunnel?.validate()
             if (tunnelError != null) {
                 binding.dnsTunnelDomain.error = tunnelError
                 return@setOnClickListener
@@ -297,12 +307,14 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
                 binding.udpPreludeSni.error = getString(R.string.udp_prelude_sni_invalid)
                 return@setOnClickListener
             }
-            DataStore.serverDnsTunnel = if (tunnel.enabled) tunnel.engine else ""
-            DataStore.serverDnsTunnelResolver = tunnel.resolver
-            DataStore.serverDnsTunnelDomain = tunnel.domain
-            DataStore.serverDnsTunnelKey = tunnel.key
-            DataStore.serverDnsTunnelMethod = tunnel.method.coerceIn(0, 5)
-            DataStore.serverDnsTunnelFixedUpstream = tunnel.fixedUpstream
+            if (tunnel != null) {
+                DataStore.serverDnsTunnel = if (tunnel.enabled) tunnel.engine else ""
+                DataStore.serverDnsTunnelResolver = tunnel.resolver
+                DataStore.serverDnsTunnelDomain = tunnel.domain
+                DataStore.serverDnsTunnelKey = tunnel.key
+                DataStore.serverDnsTunnelMethod = tunnel.method.coerceIn(0, 5)
+                DataStore.serverDnsTunnelFixedUpstream = tunnel.fixedUpstream
+            }
             DataStore.serverUdpPrelude = binding.udpPrelude.text.toString().toIntOrNull()?.coerceIn(0, 8) ?: 0
             DataStore.serverUdpPreludeSni = preludeSni
             DataStore.serverUdpPreludeTtl = binding.udpPreludeTtl.text.toString().toIntOrNull()?.coerceIn(0, 255) ?: 0
