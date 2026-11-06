@@ -203,6 +203,12 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
         ) {
             dnsTunnelAuth = ""
         }
+        // dnsseal-v1's key is the zone's: another engine, zone or server key is not that zone (a resolver is)
+        if (dnsTunnel != DataStore.serverDnsTunnel || dnsTunnelDomain != DataStore.serverDnsTunnelDomain ||
+            dnsTunnelKey != DataStore.serverDnsTunnelKey
+        ) {
+            dnsTunnelSeal = ""
+        }
         dnsTunnel = DataStore.serverDnsTunnel
         dnsTunnelResolver = DataStore.serverDnsTunnelResolver
         dnsTunnelDomain = DataStore.serverDnsTunnelDomain

@@ -84,6 +84,63 @@ class DnsTunnelTest {
         }
     }
 
+    /** raycontrol dnsseal-v1: the link's niko-dnsseal=v1;<key> gives the outbound its seal; dnstt only. */
+    @Test
+    fun dnsSeal() {
+        val seal = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
+        val params = mapOf("niko-dns" to "dnstt;udp://8.8.8.8;t.example.com;$key", "niko-dnsseal" to "v1;$seal")
+        val bean = SOCKSBean().apply { initializeDefaultValues(); applyNikoParams({ params[it] }) }
+        assertEquals(seal, bean.dnsTunnelSeal)
+        val tunnel = DnsTunnel.of(bean)
+        assertNull(tunnel.validate())
+        assertEquals(mapOf("key" to seal), tunnel.outboundOptions(null)["seal"])
+        // kept through the profile's storage
+        val copy = KryoConverters.deserialize(SOCKSBean(), KryoConverters.serialize(bean))
+        assertEquals(seal, copy.dnsTunnelSeal)
+        // another version: open, as an older client sends it
+        val v2 = SOCKSBean().apply { initializeDefaultValues(); applyNikoParams({ (params + ("niko-dnsseal" to "v2;$seal"))[it] }) }
+        assertEquals("", v2.dnsTunnelSeal)
+        assertFalse(DnsTunnel.of(v2).outboundOptions(null).containsKey("seal"))
+        // masterdns has no seal
+        val mdns = SOCKSBean().apply {
+            initializeDefaultValues()
+            applyNikoParams({ (params + ("niko-dns" to "masterdns;8.8.8.8;v.example.com;5"))[it] })
+        }
+        assertEquals("", mdns.dnsTunnelSeal)
+        // a key that is not 32 bytes is refused, at the link and at the check
+        try {
+            SOCKSBean().apply { initializeDefaultValues(); applyNikoParams({ (params + ("niko-dnsseal" to "v1;short"))[it] }) }
+            org.junit.Assert.fail("accepted a short key")
+        } catch (e: IllegalArgumentException) {
+        }
+        assertNotNull(tunnel.copy(seal = "short").validate())
+    }
+
+    /** A subscription's update: the link's tunnel wins (its seal, its key), the user's resolver stays. */
+    @Test
+    fun updateKeepsWhatIsTheUsers() {
+        val seal = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
+        val old = SOCKSBean().apply {
+            initializeDefaultValues()
+            applyNikoParams({ mapOf("niko-dns" to "dnstt;udp://8.8.8.8;t.example.com;$key")[it] })
+            dnsTunnelResolver = "tcp://195.208.5.1"
+        }
+        // the node turned the seal on and rotated its key: the link's values, the user's resolver
+        val other = "cd".repeat(32)
+        val fresh = SOCKSBean().apply {
+            initializeDefaultValues()
+            applyNikoParams({ mapOf("niko-dns" to "dnstt;udp://8.8.8.8;t.example.com;$other", "niko-dnsseal" to "v1;$seal")[it] })
+        }
+        fresh.keepDnsTunnelOf(old)
+        assertEquals(seal, fresh.dnsTunnelSeal)
+        assertEquals(other, fresh.dnsTunnelKey)
+        assertEquals("tcp://195.208.5.1", fresh.dnsTunnelResolver)
+        // a link without a tunnel: the one the user set stays whole
+        val plain = SOCKSBean().apply { initializeDefaultValues() }
+        plain.keepDnsTunnelOf(old)
+        assertEquals(DnsTunnel.of(old), DnsTunnel.of(plain))
+    }
+
     @Test
     fun beanRoundTrip() {
         val bean = SOCKSBean().apply {

@@ -8,6 +8,26 @@ package io.niko.fmt
  *   (fixed upstream) to its one target.
  * Empty domain = off.
  */
+/**
+ * A subscription's update of this bean (fresh from its link) over [old], the stored row: a DNS tunnel the link gives
+ * (niko-dns) is the node's, its fields as the link has them (a seal turned on, a rotated key, dnsauth), only the
+ * resolver the user picked for the same engine staying; a tunnel the user set on a link without one stays whole.
+ */
+fun AbstractBean.keepDnsTunnelOf(old: AbstractBean) {
+    if (DnsTunnel.of(this).enabled) {
+        if (!old.dnsTunnelResolver.isNullOrBlank() && old.dnsTunnel == dnsTunnel) dnsTunnelResolver = old.dnsTunnelResolver
+        return
+    }
+    dnsTunnel = old.dnsTunnel
+    dnsTunnelResolver = old.dnsTunnelResolver
+    dnsTunnelDomain = old.dnsTunnelDomain
+    dnsTunnelKey = old.dnsTunnelKey
+    dnsTunnelMethod = old.dnsTunnelMethod
+    dnsTunnelFixedUpstream = old.dnsTunnelFixedUpstream
+    dnsTunnelAuth = old.dnsTunnelAuth
+    dnsTunnelSeal = old.dnsTunnelSeal
+}
+
 data class DnsTunnel(
     val engine: String,
     val resolver: String,
@@ -17,12 +37,15 @@ data class DnsTunnel(
     val fixedUpstream: Boolean = false,
     /** raycontrol dnsauth-v1 of a dnstt tunnel: "v1;<node id>;<service id>", "" off */
     val auth: String = "",
+    /** raycontrol dnsseal-v1 of a dnstt tunnel: the zone's key in base64url, "" off */
+    val seal: String = "",
 ) {
 
     companion object {
         const val DNSTT = "dnstt"
         const val MASTERDNSVPN = "masterdnsvpn"
         private val DNSTT_KEY = Regex("^[0-9a-fA-F]{64}$")
+        private val SEAL_KEY = Regex("^[A-Za-z0-9_-]{43}$")
         private val DNSTT_RESOLVER =
             Regex("^(https://\\S+|(tls|tcp|udp)://\\S+|[^\\s/:]+(:\\d+)?|\\[[0-9a-fA-F:]+](:\\d+)?)$")
         // 8.8.8.8, 1.1.1.1:5353, 192.168.1.0/30, [2001:db8::1]:53, 2001:db8::1 ([2001:db8::1] is taken bare: resolvers)
@@ -38,6 +61,7 @@ data class DnsTunnel(
             method = bean.dnsTunnelMethod ?: 2,
             fixedUpstream = bean.dnsTunnelFixedUpstream == true,
             auth = bean.dnsTunnelAuth.orEmpty(),
+            seal = bean.dnsTunnelSeal.orEmpty(),
         )
     }
 
@@ -63,6 +87,7 @@ data class DnsTunnel(
                 resolver.isBlank() -> "DNS tunnel: the resolver is missing"
                 !DNSTT_RESOLVER.matches(resolver) -> "DNS tunnel: the resolver must be https://…, tls://host, tcp://host or udp://host"
                 !DNSTT_KEY.matches(key) -> "DNS tunnel: the public key must be 64 hex digits"
+                seal.isNotEmpty() && !SEAL_KEY.matches(seal) -> "DNS tunnel: the seal key must be 32 bytes in base64url"
                 else -> null
             }
 
@@ -102,6 +127,7 @@ data class DnsTunnel(
             put("domain", domain.trim())
             put("public_key", key.lowercase())
             put("resolver", resolver.trim())
+            if (seal.isNotEmpty()) put("seal", mapOf("key" to seal))
             authNode?.let { (node, svc) ->
                 if (deviceKeyRef != null) {
                     put("auth", mapOf("node_id" to node, "service_id" to svc, "device_key_ref" to deviceKeyRef))

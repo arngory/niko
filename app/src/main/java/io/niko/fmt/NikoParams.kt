@@ -55,6 +55,14 @@ fun AbstractBean.applyNikoParams(param: (String) -> String?, params: (String) ->
             }
             dnsTunnelAuth = "v1;$node;$svc"
         }
+        // dnsseal-v1 (raycontrol v0.13): the framing sealed with the zone's key; another version is unknown here and
+        // the tunnel goes open (a zone in "required" mode answers it nothing)
+        dnsTunnelSeal = ""
+        param("niko-dnsseal")?.trim()?.takeIf { dnsTunnel == DnsTunnel.DNSTT && it.startsWith("v1;") }?.let { spec ->
+            val key = spec.removePrefix("v1;").trim()
+            require(SEAL_KEY.matches(key)) { "niko-dnsseal: the key is 32 bytes in base64url" }
+            dnsTunnelSeal = key
+        }
     }
     param("niko-pin")?.takeIf { it.isNotBlank() }?.let { certPins = it.trim() }
     param("niko-ygg")?.takeIf { it.isNotBlank() }?.let { spec ->
@@ -73,6 +81,9 @@ fun AbstractBean.applyNikoParams(param: (String) -> String?, params: (String) ->
 }
 
 private val NODE_ID = Regex("^[0-9a-f]{32}$")
+
+// dnsseal-v1's key: 32 bytes in base64url without padding
+private val SEAL_KEY = Regex("^[A-Za-z0-9_-]{43}$")
 
 /** The peer schemes yggdrasil-go dials (subscription-v1.md §4). */
 private val YGG_VIA_SCHEMES = listOf("tls", "quic", "wss", "ws", "tcp")

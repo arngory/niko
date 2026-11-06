@@ -530,6 +530,11 @@ func profileConfig(t *testing.T, link, node, ca, deviceKey string, downMbps int)
 				svc, _ := strconv.Atoi(q.Get("niko-svc"))
 				tunnel["auth"] = map[string]any{"node_id": q.Get("niko-node"), "service_id": svc, "device_key": deviceKey}
 			}
+			// dnsseal-v1 (raycontrol v0.13, the node's dnstt with seal=…): the framing sealed with the zone's key
+			if seal, ok := strings.CutPrefix(q.Get("niko-dnsseal"), "v1;"); ok {
+				kind += "-sealed"
+				tunnel["seal"] = map[string]any{"key": seal}
+			}
 		case "masterdns":
 			kind = "masterdns"
 			method, _ := strconv.Atoi(spec[3])

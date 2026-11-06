@@ -8,6 +8,7 @@ import io.niko.R
 import io.niko.bg.SubscriptionUpdater
 import io.niko.database.*
 import io.niko.fmt.AbstractBean
+import io.niko.fmt.keepDnsTunnelOf
 import io.niko.fmt.http.HttpBean
 import io.niko.fmt.hysteria.HysteriaBean
 import io.niko.fmt.hysteria.parseHysteria1Json
@@ -210,13 +211,7 @@ object RawUpdater : GroupUpdater() {
                 bean.knockSilence = existsBean.knockSilence
                 bean.tlsFragment = existsBean.tlsFragment
                 bean.certPins = existsBean.certPins
-                bean.dnsTunnel = existsBean.dnsTunnel
-                bean.dnsTunnelResolver = existsBean.dnsTunnelResolver
-                bean.dnsTunnelDomain = existsBean.dnsTunnelDomain
-                bean.dnsTunnelKey = existsBean.dnsTunnelKey
-                bean.dnsTunnelMethod = existsBean.dnsTunnelMethod
-                bean.dnsTunnelFixedUpstream = existsBean.dnsTunnelFixedUpstream
-                bean.dnsTunnelAuth = existsBean.dnsTunnelAuth
+                bean.keepDnsTunnelOf(existsBean)
                 bean.udpPrelude = existsBean.udpPrelude
                 bean.udpPreludeSni = existsBean.udpPreludeSni
                 bean.udpPreludeTtl = existsBean.udpPreludeTtl
