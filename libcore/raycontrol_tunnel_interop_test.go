@@ -109,7 +109,7 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 		if !slices.Contains(probeInfo.TunnelSvc, p.Svc) {
 			continue
 		}
-		kind, config := profileConfig(t, p.Link, node, os.Getenv("RAYCONTROL_CA"), b.DeviceKey, downMbps)
+		kind, config := profileConfig(t, p.Link, node, "", os.Getenv("RAYCONTROL_CA"), b.DeviceKey, downMbps)
 		if only != nil && !only[kind] {
 			t.Logf("svc %d: %s skipped (RAYCONTROL_ONLY)", p.Svc, kind)
 			continue
@@ -136,28 +136,30 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 		}
 		// a DNS tunnel carries kilobytes, not megabytes, in a window
 		down := int64(1 << 20)
-		if strings.HasPrefix(kind, "dnstt") || kind == "masterdns" {
+		if strings.HasPrefix(kind, "dnstt") || strings.HasPrefix(kind, "masterdns") {
 			down = 64 << 10
 		}
 		probeThrough(t, kind+" "+p.Name, instance, b.Host, b.Sub.Port, b.Sub.Pin, b.DeviceID, b.SPA, probeInfo.Tunnel, p.Svc, down)
 		tested[kind] = true
-		// a sealed dnstt on a node with seal=required (RAYCONTROL_ONLY runs): its key kept for the next run, the
-		// profile unsealed refused, and after a rotation a new key, the one before refused
-		if only != nil && strings.HasSuffix(kind, "-sealed") {
-			refused := func(what, link string) {
-				_, config := profileConfig(t, link, node, os.Getenv("RAYCONTROL_CA"), b.DeviceKey, downMbps)
-				refusing := startTestBox(t, config)
-				// a handshake that gets no answer ends with it (the dnstt client's Close does not wait for it)
-				defer refusing.Close()
-				for deadline := time.Now().Add(15 * time.Second); time.Now().Before(deadline); time.Sleep(3 * time.Second) {
-					out, err := RaycontrolProbeTunnel(refusing, string(warm))
-					var r probeResult
-					if err == nil && json.Unmarshal([]byte(out), &r) == nil && r.Down != nil && r.Down.OK {
-						t.Fatalf("%s %s: %s, and the node answered through it", kind, p.Name, what)
-					}
+		// a profile a node must not answer (RAYCONTROL_ONLY runs): nothing through it in 15 s, through resolver ("" the
+		// node's UDP 53)
+		refused := func(what, link, resolver string) {
+			_, config := profileConfig(t, link, node, resolver, os.Getenv("RAYCONTROL_CA"), b.DeviceKey, downMbps)
+			refusing := startTestBox(t, config)
+			// a handshake that gets no answer ends with it (the dnstt client's Close does not wait for it)
+			defer refusing.Close()
+			for deadline := time.Now().Add(15 * time.Second); time.Now().Before(deadline); time.Sleep(3 * time.Second) {
+				out, err := RaycontrolProbeTunnel(refusing, string(warm))
+				var r probeResult
+				if err == nil && json.Unmarshal([]byte(out), &r) == nil && r.Down != nil && r.Down.OK {
+					t.Fatalf("%s %s: %s, and the node answered through it", kind, p.Name, what)
 				}
-				t.Logf("%s %s: %s, no answer in 15 s, as it must", kind, p.Name, what)
 			}
+			t.Logf("%s %s: %s, no answer in 15 s, as it must", kind, p.Name, what)
+		}
+		// a sealed dnstt on a node with seal=required: its key kept for the next run, the profile unsealed refused,
+		// and after a rotation a new key, the one before refused
+		if only != nil && strings.HasPrefix(kind, "dnstt") && strings.HasSuffix(kind, "-sealed") && os.Getenv("RAYCONTROL_CUT_MAIN") == "" {
 			key := sealKeyOf(t, p.Link)
 			if out := os.Getenv("RAYCONTROL_SEAL_KEY_OUT"); out != "" {
 				if err := os.WriteFile(out, []byte(key), 0o600); err != nil {
@@ -165,7 +167,7 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 				}
 			}
 			if os.Getenv("RAYCONTROL_SEAL_REFUSED") != "" {
-				refused("unsealed", linkWithSeal(t, p.Link, ""))
+				refused("unsealed", linkWithSeal(t, p.Link, ""), "")
 			}
 			if previous := os.Getenv("RAYCONTROL_SEAL_OLD_KEY"); previous != "" {
 				raw, err := os.ReadFile(previous)
@@ -175,9 +177,30 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 				if old := strings.TrimSpace(string(raw)); old == key {
 					t.Fatalf("%s %s: the same seal key after the rotation", kind, p.Name)
 				} else {
-					refused("sealed with the key before the rotation", linkWithSeal(t, p.Link, old))
+					refused("sealed with the key before the rotation", linkWithSeal(t, p.Link, old), "")
 				}
 			}
+		}
+		// masterdns with seal and auth required (raycontrol v0.14.0): the same profile open, or untagged, answered
+		// nothing
+		if only != nil && strings.HasPrefix(kind, "masterdns") && os.Getenv("RAYCONTROL_MDNS_REFUSED") != "" {
+			if kind != "masterdns-auth-sealed" {
+				t.Fatalf("%s %s: want the profile sealed and tagged: %s", kind, p.Name, p.Link)
+			}
+			refused("open", linkWithout(t, p.Link, "niko-mdseal"), "")
+			refused("untagged", linkWithout(t, p.Link, "niko-dnsauth"), "")
+		}
+		// dnstt's spare zone (dnszones-v1, raycontrol v0.14.0), the main zone cut by the network's resolver
+		if only != nil && strings.HasPrefix(kind, "dnstt") && os.Getenv("RAYCONTROL_CUT_MAIN") != "" {
+			spareZoneInterop(t, spareZoneStep{
+				kind: kind, profile: p, node: node, host: b.Host, subPort: b.Sub.Port, subPin: b.Sub.Pin,
+				deviceID: b.DeviceID, spa: b.SPA, deviceKey: deviceKey, probe: probeInfo,
+				dnsProbe: result.Payload.DNSProbe, warm: warm, refused: refused,
+				start: func(link, resolver string) *BoxInstance {
+					_, config := profileConfig(t, link, node, resolver, os.Getenv("RAYCONTROL_CA"), b.DeviceKey, downMbps)
+					return startTestBox(t, config)
+				},
+			})
 		}
 		if strings.HasPrefix(kind, "hysteria2") {
 			hysteriaSvc = append(hysteriaSvc, p.Svc)
@@ -479,7 +502,7 @@ func relayThrough(t *testing.T, relayAddr string, payload raysub.Payload, host s
 			u.RawQuery = q.Encode()
 		}
 		u.Host = net.JoinHostPort(relay.Host, port)
-		kind, config := profileConfig(t, u.String(), node, os.Getenv("RAYCONTROL_CA"), deviceKey, downMbps)
+		kind, config := profileConfig(t, u.String(), node, "", os.Getenv("RAYCONTROL_CA"), deviceKey, downMbps)
 		// a relay forwards the node's 443: REALITY and Hysteria2; a tunnel or the mesh has a path of its own
 		if config == "" || (kind != "reality" && !strings.HasPrefix(kind, "hysteria2")) {
 			t.Logf("relay %s: svc %d (%s) has via but is not measured through a relay", relay.ID, p.Svc, kind)
@@ -518,7 +541,7 @@ func relayThrough(t *testing.T, relayAddr string, payload raysub.Payload, host s
 // own mesh node with the node as its only peer and VLESS to the node's mesh address. The empty config for a kind not
 // measured here (DNS tunnels, naive: a plugin, not the core). The node's names do not resolve here: a peer's host is
 // the node's address.
-func profileConfig(t *testing.T, link, node, ca, deviceKey string, downMbps int) (kind, config string) {
+func profileConfig(t *testing.T, link, node, resolver, ca, deviceKey string, downMbps int) (kind, config string) {
 	t.Helper()
 	u, err := url.Parse(link)
 	if err != nil {
@@ -570,10 +593,13 @@ func profileConfig(t *testing.T, link, node, ca, deviceKey string, downMbps int)
 		}
 	case u.Scheme == "vless" && q.Get("niko-dns") != "":
 		// a DNS tunnel to the inner stage, as the app builds a raycontrol niko-dns profile: the resolver here is the
-		// node's own UDP 53 (the client picks one when the link leaves it empty)
+		// node's own UDP 53 (the client picks one when the link leaves it empty), or the step's
 		spec := strings.Split(q.Get("niko-dns"), ";")
 		if len(spec) != 4 {
 			t.Fatalf("niko-dns %q", q.Get("niko-dns"))
+		}
+		if resolver == "" {
+			resolver = net.JoinHostPort(node, "53")
 		}
 		var tunnel map[string]any
 		switch spec[0] {
@@ -581,7 +607,7 @@ func profileConfig(t *testing.T, link, node, ca, deviceKey string, downMbps int)
 			kind = "dnstt"
 			tunnel = map[string]any{
 				"type": "dnstt", "domain": spec[2], "public_key": strings.ToLower(spec[3]),
-				"resolver": "udp://" + net.JoinHostPort(node, "53"),
+				"resolver": "udp://" + resolver,
 			}
 			// dnsauth-v1 (raycontrol v0.10.0, the node's dnstt with auth=required): queries signed by the device
 			if q.Get("niko-dnsauth") == "v1" {
@@ -598,8 +624,22 @@ func profileConfig(t *testing.T, link, node, ca, deviceKey string, downMbps int)
 			kind = "masterdns"
 			method, _ := strconv.Atoi(spec[3])
 			tunnel = map[string]any{
-				"type": "masterdnsvpn", "domains": []string{spec[2]}, "resolvers": []string{net.JoinHostPort(node, "53")},
+				"type": "masterdnsvpn", "domains": []string{spec[2]}, "resolvers": []string{resolver},
 				"encryption_method": method, "encryption_key": q.Get("niko-dnskey"), "mode": "tcp",
+			}
+			// dnsauth for masterdns (raycontrol v0.14.0): the device's tag in every query, its key as dnstt's
+			if q.Get("niko-dnsauth") == "v1" {
+				kind += "-auth"
+				svc, _ := strconv.Atoi(q.Get("niko-svc"))
+				tunnel["auth"] = map[string]any{"node_id": q.Get("niko-node"), "service_id": svc, "device_key": deviceKey}
+			}
+			// mdseal-v1 (raycontrol v0.14.0): the node's answers sealed with the service's key, in the node's mode
+			if mdseal := strings.Split(q.Get("niko-mdseal"), ";"); mdseal[0] == "v1" {
+				kind += "-sealed"
+				tunnel["seal"] = "optional"
+				if slices.Contains(mdseal[1:], "required") {
+					tunnel["seal"] = "required"
+				}
 			}
 		default:
 			return spec[0], ""

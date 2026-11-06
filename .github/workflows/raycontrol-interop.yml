@@ -237,7 +237,7 @@ jobs:
           RAYCONTROL_ADDRESS: ${{ steps.node.outputs.address }}
           RAYCONTROL_CA: /tmp/rccert/root.pem
           RAYCONTROL_RELAY: 203.0.113.3
-          RAYCONTROL_EXPECT: hysteria2-pin,hysteria2-ca,reality,yggdrasil,dnstt-auth,masterdns,relay-subscription,relay-reality,relay-hysteria2-pin,relay-hysteria2-ca,relay-probe,relay-report,report-path,dnsprobe
+          RAYCONTROL_EXPECT: hysteria2-pin,hysteria2-ca,reality,yggdrasil,dnstt-auth,masterdns-auth-sealed,relay-subscription,relay-reality,relay-hysteria2-pin,relay-hysteria2-ca,relay-probe,relay-report,report-path,dnsprobe
           # the subscription as the app reads it, for the app's fixture (a CI node's throwaway keys)
           RAYCONTROL_PAYLOAD_OUT: /tmp/raycontrol-payload.json
         run: |
@@ -263,6 +263,55 @@ jobs:
           RAYCONTROL_SEAL_KEY_OUT=/tmp/seal-after RAYCONTROL_SEAL_OLD_KEY=/tmp/seal-before \
             go test -count=1 -v -timeout 5m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
           if cmp -s /tmp/seal-before /tmp/seal-after; then echo "the seal key did not change with the rotation"; exit 1; fi
+
+      # mdseal-v1 and dnsauth for masterdns (raycontrol v0.14.0, niko-server v0.11.0): the node's masterdns with seal
+      # and auth required: the profile sealed and tagged goes through, the same profile open or untagged gets no
+      # answer
+      - name: masterdns sealed and tagged, both required
+        working-directory: libcore
+        env:
+          RAYCONTROL_BUNDLE: /tmp/phone.bundle
+          RAYCONTROL_ADDRESS: ${{ steps.node.outputs.address }}
+          RAYCONTROL_CA: /tmp/rccert/root.pem
+          RAYCONTROL_ONLY: masterdns-auth-sealed
+          RAYCONTROL_MDNS_REFUSED: "1"
+        run: |
+          TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
+          docker exec rc-node /opt/rc/rayctl service set mdns seal=required
+          docker exec rc-node /opt/rc/rayctl service set mdns auth=required
+          go test -count=1 -v -timeout 5m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
+
+      # dnszones-v1 (raycontrol v0.14.0): dnstt with a spare zone, the main one cut by the network's resolver, its
+      # queries dropped and then answered SERVFAIL: dnsprobe fails in the main zone and passes in the spare, the tunnel
+      # goes through the spare and not through the main, the node takes the summary's zone. Another device: a summary
+      # is once a day per device and AS
+      - name: dnstt through its spare zone, the main one cut
+        working-directory: libcore
+        env:
+          RAYCONTROL_BUNDLE: /tmp/tablet.bundle
+          RAYCONTROL_ADDRESS: ${{ steps.node.outputs.address }}
+          RAYCONTROL_CA: /tmp/rccert/root.pem
+          RAYCONTROL_ONLY: dnstt-auth-sealed
+        run: |
+          TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
+          docker exec rc-node /opt/rc/rayctl service set dns spare_zones=1
+          docker exec rc-node /opt/rc/rayctl device add alice tablet -o /root/tablet.bundle
+          docker exec rc-node cat /root/tablet.bundle > /tmp/tablet.bundle
+          RAYCONTROL_CUT_MAIN=drop RAYCONTROL_ZONE_REPORT=1 RAYCONTROL_SPARE_OUT=/tmp/spare-zone \
+            go test -count=1 -v -timeout 8m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
+          RAYCONTROL_CUT_MAIN=servfail \
+            go test -count=1 -v -timeout 8m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
+          # the node's own count of the tagged queries in the spare zone (dnszones-v1 §4): rayd reads the backend's
+          # counters every minute
+          spare=$(cat /tmp/spare-zone)
+          for i in $(seq 20); do
+            n=$(docker exec rc-node /opt/rc/rayctl metrics | grep "^raycontrol_dnstt_zone_tagged_total{" | grep "zone=\"$spare\"" | awk '{print $2}')
+            [ -n "$n" ] && [ "${n%.*}" -gt 0 ] && break
+            sleep 6
+          done
+          docker exec rc-node /opt/rc/rayctl metrics | grep -E "^raycontrol_dnstt_(zone_tagged|auth|seal)_total" || true
+          docker exec rc-node /opt/rc/rayctl status | grep -E "dnstt|dns-front|dns-zone" || true
+          [ -n "$n" ] && [ "${n%.*}" -gt 0 ] || { echo "no tagged query counted in the spare zone $spare"; exit 1; }
 
       - name: The subscription as the app reads it
         if: always()
