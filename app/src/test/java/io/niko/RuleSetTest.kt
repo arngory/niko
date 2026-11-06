@@ -130,6 +130,18 @@ class RuleSetFilesTest {
     }
 
     @Test
+    fun localProxyOnlyWhereTheAppGoesThroughIt() {
+        // VPN mode: the app goes through the TUN, the port is closed by default; a service round must not need it
+        org.junit.Assert.assertFalse(RuleSetFiles.mustUseLocalProxy(true, Key.MODE_VPN, true))
+        org.junit.Assert.assertFalse(RuleSetFiles.mustUseLocalProxy(false, Key.MODE_VPN, true))
+        // proxy mode: through the port while the service runs, and a service round even as it stops
+        assertTrue(RuleSetFiles.mustUseLocalProxy(false, Key.MODE_PROXY, true))
+        assertTrue(RuleSetFiles.mustUseLocalProxy(true, Key.MODE_PROXY, false))
+        // the service not running, from the UI: as any app's request
+        org.junit.Assert.assertFalse(RuleSetFiles.mustUseLocalProxy(false, Key.MODE_PROXY, false))
+    }
+
+    @Test
     fun russianPreset() {
         val (blocked, direct) = RoutePresets.russia("blocked", "direct")
         assertEquals(0L, blocked.outbound)

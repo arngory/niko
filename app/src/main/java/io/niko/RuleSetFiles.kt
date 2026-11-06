@@ -3,7 +3,6 @@ package io.niko
 import io.niko.database.DataStore
 import io.niko.database.SagerDatabase
 import io.niko.fmt.LOCAL_PROXY_USER
-import io.niko.fmt.localProxyRequired
 import io.niko.ktx.Logs
 import io.niko.ktx.readableMessage
 import io.niko.utils.Util
@@ -75,18 +74,19 @@ object RuleSetFiles {
 
     /**
      * Downloads the rule-sets of items whose files are missing or older than maxAgeMillis; how many it got. A
-     * cancelled caller stops it between files. proxyOnly: through the local proxy or not at all (the service's rounds,
-     * so none goes around the proxy as the service stops).
+     * cancelled caller stops it between files. serviceRound: the service's own, which stops as the service does and
+     * goes as the service's mode says (see download).
      */
-    suspend fun update(items: Collection<String>, maxAgeMillis: Long, proxyOnly: Boolean = false): Int =
+    suspend fun update(items: Collection<String>, maxAgeMillis: Long, serviceRound: Boolean = false): Int =
         withContext(Dispatchers.IO) {
             var got = 0
             for (item in items.filter(::isItem).distinct()) {
                 ensureActive()
+                if (serviceRound && !DataStore.serviceState.started) break
                 val file = file(item)
                 if (file.isFile && System.currentTimeMillis() - file.lastModified() < maxAgeMillis) continue
                 try {
-                    download(item, file, proxyOnly)
+                    download(item, file, serviceRound)
                     got++
                 } catch (e: Exception) {
                     Logs.w("rule-set ${url(item)}: ${e.readableMessage}")
@@ -95,13 +95,21 @@ object RuleSetFiles {
             got
         }
 
-    private fun download(item: String, file: File, proxyOnly: Boolean) {
+    /**
+     * Whether a download must go through the local proxy's port: in proxy mode while the service runs (never around
+     * it: the device's own address), and the service's own round by its mode alone, so one starting as the service
+     * stops does not go around either. In VPN mode the app's own requests go through the TUN, and the port is closed
+     * unless the user set it up for other apps.
+     */
+    fun mustUseLocalProxy(serviceRound: Boolean, serviceMode: String, started: Boolean) =
+        serviceMode != Key.MODE_VPN && (serviceRound || started)
+
+    private fun download(item: String, file: File, serviceRound: Boolean) {
         val client = Libcore.newHttpClient().apply {
             modernTLS()
             keepAlive()
             trySocks5(DataStore.mixedPort, LOCAL_PROXY_USER, DataStore.localProxyPassword)
-            // proxy mode with the service running: never around it (the device's own address)
-            if (proxyOnly || localProxyRequired()) requireSocks5()
+            if (mustUseLocalProxy(serviceRound, DataStore.serviceMode, DataStore.serviceState.started)) requireSocks5()
         }
         try {
             val response = client.newRequest().apply { setURL(url(item)) }.execute()
@@ -156,7 +164,7 @@ object RuleSetFiles {
                 val interval = DataStore.ruleSetUpdateHours.coerceIn(1, 24 * 30) * 3_600_000L
                 val items = enabledItems()
                 // stale by the next round: what this one fetched is older than the interval by then, less a margin
-                val got = if (items.isEmpty()) 0 else update(items, interval - 600_000L, proxyOnly = true)
+                val got = if (items.isEmpty()) 0 else update(items, interval - 600_000L, serviceRound = true)
                 if (got > 0) Logs.i("rule-sets: $got updated, the core reloads them (a new one takes effect on the next start)")
                 delay(interval)
             }
