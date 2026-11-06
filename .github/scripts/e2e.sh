@@ -45,7 +45,9 @@ fail() { echo "::error::$*"; finish 1; }
 # server saw it from (empty when it did not come); carried: whether the answer carried the token; last: what nc said
 fetch() {
   local body
-  body=$(timeout 40 adb shell "printf 'GET /e2e?$1 HTTP/1.0\r\n\r\n' | nc -w 10 -q 5 $runner $port" 2>&1 | tr -d '\r')
+  # the request's side stays open until the answer has come: a Hysteria2 stream closes whole on a half-close (sing-
+  # quic's clientConn has no CloseWrite), and nc would half-close at the end of its input
+  body=$(timeout 40 adb shell "(printf 'GET /e2e?$1 HTTP/1.0\r\n\r\n'; sleep 3) | nc -w 10 -q 2 $runner $port" 2>&1 | tr -d '\r')
   sleep 1
   from=$(grep -F "\"GET /e2e?$1 " "$weblog" | head -1 | cut -d' ' -f1)
   carried=no
@@ -97,7 +99,7 @@ echo "== the runner's server, directly"
 # the emulator's network comes up a little after the boot
 for i in $(seq 20); do
   fetch "direct-$i-$RANDOM"
-  [ -n "$from" ] && break
+  [ -n "$from" ] && [ "$carried" = yes ] && break
   sleep 3
 done
 [ -n "$from" ] && [ "$from" != "$node" ] && [ "$carried" = yes ] ||
@@ -134,7 +136,7 @@ timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" --el profile "$
   fail "the quick toggle did not start"
 for i in $(seq 20); do
   fetch "vpn-$i-$RANDOM"
-  [ "$from" = "$node" ] && break
+  [ "$from" = "$node" ] && [ "$carried" = yes ] && break
   sleep 3
 done
 [ "$from" = "$node" ] && [ "$carried" = yes ] ||
@@ -145,7 +147,7 @@ echo "== the VPN down again"
 timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" > /dev/null || fail "the quick toggle did not stop"
 for i in $(seq 10); do
   fetch "after-$i-$RANDOM"
-  [ -n "$from" ] && [ "$from" != "$node" ] && break
+  [ -n "$from" ] && [ "$from" != "$node" ] && [ "$carried" = yes ] && break
   sleep 3
 done
 [ -n "$from" ] && [ "$from" != "$node" ] && [ "$carried" = yes ] ||
