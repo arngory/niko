@@ -176,7 +176,7 @@ object RaySubscription {
         // the UI and the scheduled worker (`:bg`) may both get here: one writer across the processes
         val refreshAt = maxOf(now + 60, nextRefresh(payload, nodeNow) - skew)
         val stored = RayNodesLock.withLock {
-            store(nodeId, payload.get("seq").asLong, refreshAt, skew, parsed.beans, parsed.links, parsed.doh)?.also {
+            store(nodeId, payload.get("seq").asLong, refreshAt, skew, parsed.beans, parsed.links, parsed.doh, parsed.name)?.also {
                 RayNodes.update(nodeId) { node ->
                     node.copy(
                         probe = parsed.probe, spaCarriers = parsed.carriers, failedFetches = 0, failedNetwork = null,
@@ -205,6 +205,8 @@ object RaySubscription {
         val probe: RayProbeInfo? = null,
         val carriers: List<String>? = null,
         val hints: JsonObject? = null,
+        // the node's name its admin gave it (raycontrol: the subscription's `name`), shown, null none
+        val name: String? = null,
     )
 
     /**
@@ -262,7 +264,8 @@ object RaySubscription {
         // the SPA carriers the node takes (v0.10.1); none = an older node, which gets the whole ladder
         val carriers = ((payload.get("spa") as? JsonObject)?.get("carriers") as? JsonArray)
             ?.mapNotNull { runCatching { it.asString }.getOrNull() }?.takeIf { it.isNotEmpty() }
-        return Parsed(beans, links, doh, skipped, relays, dnsProbeKey, probe, carriers, payload.get("hints") as? JsonObject)
+        val name = RayNode.nodeName(payload.get("name")?.takeIf { it.isJsonPrimitive }?.asString)
+        return Parsed(beans, links, doh, skipped, relays, dnsProbeKey, probe, carriers, payload.get("hints") as? JsonObject, name)
     }
 
     /** After the store: the group, the core's restart where the running row changed, the result for the caller. */
@@ -270,6 +273,7 @@ object RaySubscription {
         var restarted = false
         if (stored != null) {
             if (stored.groupCreated) GroupManager.iterator { groupAdd(stored.group) }
+            if (stored.groupRenamed) GroupManager.iterator { groupUpdated(stored.group) }
             GroupManager.postReload(stored.group.id)
             // a running row that is gone cannot wait: the core runs a profile that no longer exists
             when {
@@ -298,7 +302,10 @@ object RaySubscription {
         )
     }
 
-    private class Stored(val group: ProxyGroup, val groupCreated: Boolean, val runningChanged: Boolean, val runningGone: Boolean)
+    private class Stored(
+        val group: ProxyGroup, val groupCreated: Boolean, val runningChanged: Boolean, val runningGone: Boolean,
+        val groupRenamed: Boolean = false,
+    )
 
     /**
      * Writes the profiles into the node's group (under [RayNodesLock]): a known key updates its row (the id, the
@@ -313,16 +320,23 @@ object RaySubscription {
      */
     private fun store(
         nodeId: String, seq: Long, refreshAt: Long, skew: Long, beans: Map<String, AbstractBean>, links: Map<String, RayLinks>,
-        doh: String?,
+        doh: String?, name: String?,
     ): Stored? {
         val node = RayNodes.get(nodeId) ?: throw Exception("raycontrol node $nodeId was removed")
         if (seq < node.subSeq) return null
         var group = SagerDatabase.groupDao.getById(node.groupId)
         val groupCreated = group == null
+        val groupName = RayNode.groupName(node.host, name)
+        var groupRenamed = false
         if (group == null) {
-            group = ProxyGroup(name = "raycontrol · ${node.host}", type = GroupType.BASIC).applyDefaultValues()
+            group = ProxyGroup(name = groupName, type = GroupType.BASIC).applyDefaultValues()
             group.userOrder = SagerDatabase.groupDao.nextOrder() ?: 1
             group.id = SagerDatabase.groupDao.createGroup(group)
+        } else if (group.name != groupName && group.name == node.displayName) {
+            // the node was named or renamed: its group follows, unless the user named it themselves
+            group.name = groupName
+            SagerDatabase.groupDao.updateGroup(group)
+            groupRenamed = true
         }
         // a 1.13.0 record (no ids at all; an empty map is a subscription without profiles): that version replaced
         // the whole group, so its rows are this node's, matched by name once
@@ -356,7 +370,7 @@ object RaySubscription {
             RayNodes.update(nodeId) {
                 it.copy(
                     subSeq = seq, groupId = group.id, profileIds = ids + stale, refreshAt = refreshAt,
-                    links = links.filterKeys { k -> k in ids }, clockSkew = skew, doh = doh,
+                    links = links.filterKeys { k -> k in ids }, clockSkew = skew, doh = doh, name = name,
                 )
             }
         }
@@ -374,7 +388,7 @@ object RaySubscription {
         val running = DataStore.currentProfile
         val runningChanged = selected in changed || running in changed
         val runningGone = gone.any { it.id == running || it.id == selected }
-        return Stored(group, groupCreated, runningChanged, runningGone)
+        return Stored(group, groupCreated, runningChanged, runningGone, groupRenamed)
     }
 
     private fun legacyIds(groupId: Long, beans: Map<String, AbstractBean>): Map<String, Long> {

@@ -224,7 +224,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             if (nodes.isEmpty()) return@setOnPreferenceClickListener true
             MaterialAlertDialogBuilder(requireContext())
                 .setTitle(R.string.raycontrol_nodes)
-                .setItems(nodes.map { it.host + " · " + it.services.joinToString { s -> s.name } }.toTypedArray()) { _, which ->
+                .setItems(nodes.map { it.label + " · " + it.services.joinToString { s -> s.name } }.toTypedArray()) { _, which ->
                     showNodeActions(nodes[which])
                 }
                 .setNegativeButton(android.R.string.cancel, null)
@@ -240,7 +240,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         raycontrolNodes.summary = if (nodes.isEmpty()) {
             getString(R.string.raycontrol_nodes_empty)
         } else {
-            nodes.joinToString("\n") { getString(R.string.raycontrol_node_line, it.host, it.deviceId, it.services.size) }
+            nodes.joinToString("\n") { getString(R.string.raycontrol_node_line, it.label, it.deviceId, it.services.size) }
         }
     }
 
@@ -262,7 +262,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         if (DataStore.raycontrolReports || hasHints) actions += R.string.raycontrol_report_show to { showReport(node) }
         actions += R.string.raycontrol_node_remove to { confirmRemove(node) }
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle(node.host)
+            .setTitle(node.label)
             .setItems(actions.map { getString(it.first) }.toTypedArray()) { _, i -> actions[i].second() }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
@@ -377,7 +377,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         val context = requireContext().applicationContext
         val lines = mutableListOf(getString(R.string.raycontrol_channel_checking))
         val dialog = MaterialAlertDialogBuilder(requireContext())
-            .setTitle(getString(R.string.raycontrol_channel_title, node.host))
+            .setTitle(getString(R.string.raycontrol_channel_title, node.label))
             .setMessage(lines.joinToString("\n"))
             .setPositiveButton(android.R.string.ok, null)
             .show()
@@ -496,7 +496,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
 
     private fun confirmRemove(node: RayNode) {
         MaterialAlertDialogBuilder(requireContext())
-            .setMessage(getString(R.string.raycontrol_node_remove_confirm, node.host))
+            .setMessage(getString(R.string.raycontrol_node_remove_confirm, node.label))
             .setPositiveButton(R.string.yes) { _, _ ->
                 RayNodes.remove(node.spa.nodeId)
                 RaySubscription.schedule()

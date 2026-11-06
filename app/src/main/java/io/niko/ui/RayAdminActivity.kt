@@ -78,7 +78,7 @@ class RayAdminActivity : ThemedActivity() {
         setSupportActionBar(findViewById(R.id.toolbar))
         supportActionBar?.apply {
             setTitle(R.string.raycontrol_admin)
-            subtitle = node.host
+            subtitle = node.label
             setDisplayHomeAsUpEnabled(true)
             setHomeAsUpIndicator(R.drawable.ic_navigation_close)
         }

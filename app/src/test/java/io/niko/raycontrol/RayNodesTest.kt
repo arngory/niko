@@ -59,4 +59,20 @@ class RayNodesTest {
         assertTrue(node.matchesHost("[203.0.113.2]"))
         assertFalse(node.matchesHost("198.51.100.20"))
     }
+
+    @Test
+    fun theNodesNameAsItIsShown() {
+        assertEquals("Амстердам 2", RayNode.nodeName("  Амстердам \t 2  "))
+        // a right-to-left override, a zero-width joiner, a line break and a control character go
+        assertEquals("node evil", RayNode.nodeName("node\u202E \u200Devil\n\u0007"))
+        assertEquals("a b", RayNode.nodeName("a\nb"))
+        assertNull(RayNode.nodeName("\u202E\u0000 "))
+        assertNull(RayNode.nodeName(null))
+        // at most 48 characters, emoji counted as one each
+        assertEquals("🙂".repeat(48), RayNode.nodeName("🙂".repeat(60)))
+        assertEquals("x".repeat(48), RayNode.nodeName("x".repeat(100)))
+        // the group: the name, or the address as before
+        assertEquals("Амстердам", RayNode.groupName("203.0.113.2", "Амстердам"))
+        assertEquals("raycontrol · 203.0.113.2", RayNode.groupName("203.0.113.2", null))
+    }
 }

@@ -135,7 +135,15 @@ data class RayNode(
     // the node's card
     val subUpdatedAt: Long = 0,
     val subExpires: Long = 0,
+    // the name the node's admin gave it (the subscription's `name`), null none: what its group and card show
+    val name: String? = null,
 ) {
+    /** What the node is called in the app: its admin's name, else "raycontrol · <host>" as before. */
+    val displayName get() = groupName(host, name)
+
+    /** The node in a line of text: its name and address, or the address alone. */
+    val label get() = name?.let { "$it · $host" } ?: host
+
     /** The node's SPA parameters for the core, with the carriers it takes. */
     fun spaJson(): JsonObject = spa.toJson().apply {
         spaCarriers?.let { carriers -> add("carriers", JsonArray().apply { carriers.forEach { add(it) } }) }
@@ -175,6 +183,7 @@ data class RayNode(
         dnsProbeKey?.let { addProperty("dns_probe_key", it) }
         if (subUpdatedAt > 0) addProperty("sub_updated_at", subUpdatedAt)
         if (subExpires > 0) addProperty("sub_expires", subExpires)
+        name?.let { addProperty("name", it) }
     }
 
     /** The relay with this address, for a profile row through it. */
@@ -209,7 +218,51 @@ data class RayNode(
             dnsProbeKey = o.get("dns_probe_key")?.takeIf { it.isJsonPrimitive }?.asString,
             subUpdatedAt = o.get("sub_updated_at")?.asLong ?: 0,
             subExpires = o.get("sub_expires")?.asLong ?: 0,
+            name = o.get("name")?.takeIf { it.isJsonPrimitive }?.asString?.let(::nodeName),
         )
+
+        /** The group name of the node at [host] called [name] (null: none given). */
+        fun groupName(host: String, name: String?) = name ?: "raycontrol · $host"
+
+        // a name is shown as it is, its length in characters (code points) bounded
+        private const val MAX_NAME = 48
+
+        /**
+         * [raw] as a name to show, or null: none, or nothing left. Control and format characters go (a right-to-left
+         * override would turn the rest around, a line break would split it), whitespace runs become one space, at
+         * most [MAX_NAME] characters stay.
+         */
+        fun nodeName(raw: String?): String? {
+            if (raw == null) return null
+            val out = StringBuilder()
+            var space = false
+            var count = 0
+            var i = 0
+            while (i < raw.length && count < MAX_NAME) {
+                val cp = raw.codePointAt(i)
+                i += Character.charCount(cp)
+                when {
+                    Character.isWhitespace(cp) || Character.isSpaceChar(cp) -> space = out.isNotEmpty()
+                    Character.getType(cp).let {
+                        it == Character.CONTROL.toInt() || it == Character.FORMAT.toInt() ||
+                            it == Character.UNASSIGNED.toInt() || it == Character.PRIVATE_USE.toInt() ||
+                            it == Character.SURROGATE.toInt()
+                    } -> {}
+                    else -> {
+                        if (space) {
+                            out.append(' ')
+                            count++
+                            space = false
+                        }
+                        if (count < MAX_NAME) {
+                            out.appendCodePoint(cp)
+                            count++
+                        }
+                    }
+                }
+            }
+            return out.toString().trim().takeIf { it.isNotEmpty() }
+        }
     }
 }
 
