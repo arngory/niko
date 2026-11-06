@@ -2,8 +2,8 @@
 # The app end to end on an emulator (ci.yml, job e2e), against the CI node: the invite opened as a link registers the
 # device, the subscription brings the node's Hysteria2 profile, the VPN goes up through it, and a request of the
 # emulator's reaches the runner's HTTP server from the node's address, where without the VPN, before and after, it
-# comes from the runner's own. Arguments: the APK folder, the invite file, the server's log, the token it serves, the
-# folder for what the emulator showed (a failure's artifact).
+# comes from one of the runner's own (the emulator's network is the runner's sockets). Arguments: the APK folder, the
+# invite file, the server's log, the token it serves, the folder for what the emulator showed (a failure's artifact).
 set -u
 pkg=io.niko
 apk=$(ls "$1"/*-x86_64.apk 2>/dev/null | head -1)
@@ -14,7 +14,7 @@ secret=$(cat "$4")
 out=$5
 here=$(dirname "$0")
 mkdir -p "$out"
-# raycontrol-interop's addresses: the runner 203.0.113.1, the node .2
+# raycontrol-interop's addresses: the runner 203.0.113.1 (its server), the node .2
 runner=203.0.113.1
 node=203.0.113.2
 port=8080
@@ -90,8 +90,9 @@ adb logcat -c
 
 echo "== the runner's server, directly"
 fetch "direct-$RANDOM"
-[ "$from" = "$runner" ] && [ "$carried" = yes ] ||
-  fail "the emulator's own request: from '${from:-nowhere}', token $carried, want $runner (nc said: $last)"
+[ -n "$from" ] && [ "$from" != "$node" ] && [ "$carried" = yes ] ||
+  fail "the emulator's own request: from '${from:-nowhere}', token $carried, want the runner's own (nc said: $last)"
+echo "directly: the runner's server saw the request from $from"
 
 echo "== the invite, opened as a link"
 timeout 60 adb shell "am start -W -n $pkg/$pkg.ui.MainActivity -a android.intent.action.VIEW -d '$invite'" > /dev/null ||
@@ -124,10 +125,10 @@ echo "== the VPN down again"
 timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" > /dev/null || fail "the quick toggle did not stop"
 for i in $(seq 10); do
   fetch "after-$i-$RANDOM"
-  [ "$from" = "$runner" ] && break
+  [ -n "$from" ] && [ "$from" != "$node" ] && break
   sleep 3
 done
-[ "$from" = "$runner" ] && [ "$carried" = yes ] ||
-  fail "after the VPN: from '${from:-nowhere}', token $carried, want $runner (nc said: $last)"
+[ -n "$from" ] && [ "$from" != "$node" ] && [ "$carried" = yes ] ||
+  fail "after the VPN: from '${from:-nowhere}', token $carried, want the runner's own (nc said: $last)"
 
 finish 0
