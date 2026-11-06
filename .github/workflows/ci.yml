@@ -107,7 +107,8 @@ jobs:
           x /opt/rc/rayctl user add alice -services hy2o > /dev/null
           x /opt/rc/rayctl device invite alice phone -o /root/phone.invite > /dev/null
           x cat /root/phone.invite > /tmp/phone.invite
-          grep -q '^rcinv1:' /tmp/phone.invite || { echo "not an rcinv1 invite"; exit 1; }
+          # raycontrol v0.14 gives the short rcinv2 by default (RCINV2:, upper case for its QR code)
+          grep -qE '^(rcinv1:|RCINV2:)' /tmp/phone.invite || { echo "not an invite: $(head -c 7 /tmp/phone.invite)"; exit 1; }
           for i in $(seq 150); do x test -S /run/niko/hy2o/stats.sock && break; sleep 0.2; done
           x test -S /run/niko/hy2o/stats.sock || { echo "no Hysteria2"; x tail -n 80 /var/log/rayd.log; exit 1; }
           # the perimeter as a node runs it: closed but to SPA, the services' rotating UDP ports to their own
