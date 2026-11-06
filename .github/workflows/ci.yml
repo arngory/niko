@@ -131,7 +131,8 @@ jobs:
           git init -q /tmp/slip && git -C /tmp/slip remote add origin "$REPOSITORY_SLIPSTREAM"
           git -C /tmp/slip fetch -q --depth 1 origin "$COMMIT_SLIPSTREAM"
           git -C /tmp/slip checkout -q FETCH_HEAD && git -C /tmp/slip submodule update -q --init --recursive
-          (cd /tmp/slip && meson setup --buildtype=release --warnlevel=0 build > /dev/null && ninja -C build slipstream-server > /dev/null)
+          (cd /tmp/slip && meson setup --buildtype=release --warnlevel=0 build > /dev/null &&
+            ninja -C build slipstream-server slipstream-client > /dev/null)
           # the VLESS stage the server forwards to, in a box of its own: through the tunnel the runner's server sees
           # 203.0.113.3
           . .github/xray-interop.env
@@ -139,7 +140,7 @@ jobs:
           mkdir -p /tmp/slipbin
           (cd /tmp/xray && CGO_ENABLED=0 GOTOOLCHAIN=auto go build -o /tmp/slipbin/xray ./main)
           uuid=$(cat /proc/sys/kernel/random/uuid)
-          printf '%s' '{"log": {"loglevel": "warning"}, "inbounds": [{"listen": "0.0.0.0", "port": 10443, "protocol": "vless",
+          printf '%s' '{"log": {"loglevel": "info"}, "inbounds": [{"listen": "0.0.0.0", "port": 10443, "protocol": "vless",
             "settings": {"clients": [{"id": "UUID"}], "decryption": "none"}}], "outbounds": [{"protocol": "freedom"}]}' \
             | sed "s/UUID/$uuid/" > /tmp/slipbin/xray.json
           docker run -d --name rc-slip --network rc-net --ip 203.0.113.3 -v /tmp/slipbin:/opt/slip:ro debian:13 \
@@ -161,6 +162,24 @@ jobs:
           sleep 1
           docker ps --filter name=rc-slip --format '{{.Status}}' | grep -q Up || { docker logs rc-slip; exit 1; }
           pgrep -f slipstream-server > /dev/null || { cat /tmp/slip.log; exit 1; }
+          # the same chain from the runner, before the emulator: the fork's client, Xray as the VLESS client, a request
+          # that has to reach the runner's server from the stage
+          nohup /tmp/slip/build/slipstream-client --tcp-listen-port=7700 --resolver=203.0.113.1:5353 --domain=tunnel.test \
+            --pin="$pin" > /tmp/slip-client.log 2>&1 &
+          printf '%s' '{"log": {"loglevel": "warning"}, "inbounds": [{"listen": "127.0.0.1", "port": 1080, "protocol": "socks"}],
+            "outbounds": [{"protocol": "vless", "settings": {"vnext": [{"address": "127.0.0.1", "port": 7700,
+            "users": [{"id": "UUID", "encryption": "none"}]}]}}]}' | sed "s/UUID/$uuid/" > /tmp/slip-vless.json
+          nohup /tmp/slipbin/xray run -c /tmp/slip-vless.json > /tmp/slip-vless.log 2>&1 &
+          for i in $(seq 30); do
+            curl -fsS --max-time 20 --socks5 127.0.0.1:1080 "http://203.0.113.1:8080/e2e?runner-slip-$i" > /dev/null &&
+              grep -q '^203.0.113.3 .*runner-slip' /tmp/www.log && break
+            sleep 2
+          done
+          grep '^203.0.113.3 .*runner-slip' /tmp/www.log || {
+            echo "::error::the slipstream chain does not carry a request from the runner"
+            cat /tmp/slip-client.log /tmp/slip-vless.log; docker logs rc-slip 2>&1 | tail -n 40; exit 1; }
+          pkill -f 'slipstream-client --tcp-listen-port=7700' || true
+          pkill -f 'slip-vless.json' || true
 
       - name: KVM for the emulator
         run: |
@@ -192,6 +211,6 @@ jobs:
           echo "--- the perimeter"; docker exec rc-node tail -n 60 /var/log/rayspa.log || true
           docker exec rc-node nft list ruleset 2>/dev/null | grep -cE 'dnat|redirect' | sed 's/^/  nat rules: /' || true
           echo "--- the runner's server"; cat /tmp/www.log || true
-          echo "--- slipstream's server"; tail -n 40 /tmp/slip.log || true
-          echo "--- its VLESS stage"; docker logs --tail 40 rc-slip 2>&1 || true
+          echo "--- slipstream's server"; tail -n 80 /tmp/slip.log || true
+          echo "--- its VLESS stage"; docker logs rc-slip 2>&1 | grep -v 'accepted udp:\|gstatic\|googleapis\|google.com' | tail -n 120 || true
           docker rm -f rc-node rc-slip > /dev/null 2>&1 || true

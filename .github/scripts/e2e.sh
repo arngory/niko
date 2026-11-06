@@ -47,13 +47,14 @@ finish() {
 }
 fail() { echo "::error::$*"; finish 1; }
 
-# fetch TAG: the emulator asks the runner's server for its token, the request marked with TAG. from: the address the
-# server saw it from (empty when it did not come); carried: whether the answer carried the token; last: what nc said
+# fetch TAG [WAIT]: the emulator asks the runner's server for its token, the request marked with TAG, its side open WAIT
+# seconds (3 by default). from: the address the server saw it from (empty when it did not come); carried: whether the
+# answer carried the token; last: what nc said
 fetch() {
-  local body
+  local body wait=${2:-3}
   # the request's side stays open until the answer has come: a Hysteria2 stream closes whole on a half-close (sing-
   # quic's clientConn has no CloseWrite), and nc would half-close at the end of its input
-  body=$(timeout 40 adb shell "(printf 'GET /e2e?$1 HTTP/1.0\r\n\r\n'; sleep 3) | nc -w 10 -q 2 $runner $port" 2>&1 | tr -d '\r')
+  body=$(timeout 60 adb shell "(printf 'GET /e2e?$1 HTTP/1.0\r\n\r\n'; sleep $wait) | nc -w 20 -q 2 $runner $port" 2>&1 | tr -d '\r')
   sleep 1
   from=$(grep -F "\"GET /e2e?$1 " "$weblog" | head -1 | cut -d' ' -f1)
   carried=no
@@ -173,9 +174,10 @@ done
 echo "the slipstream profile: $id"
 timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" --el profile "$id" > /dev/null ||
   fail "the quick toggle did not start (slipstream)"
-# the client's handshake goes through DNS: a little longer than a direct one
-for i in $(seq 30); do
-  fetch "slip-$i-$RANDOM"
+# the client's handshake goes through DNS, and the tunnel is shared with the emulator's own traffic (Play services
+# and the like): a longer wait for each answer
+for i in $(seq 20); do
+  fetch "slip-$i-$RANDOM" 15
   [ "$from" = "$slip_stage" ] && [ "$carried" = yes ] && break
   sleep 3
 done
