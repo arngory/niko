@@ -32,20 +32,7 @@ jobs:
       - name: A throwaway signature for an unsigned APK
         # without the signing secrets (forks, pull requests from them) the release APK is unsigned and does not
         # install: a key for this emulator only, never the release key
-        run: |
-          bt=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
-          # AGP names an unsigned output ...-x86_64-unsigned.apk
-          apk=$(ls apks/*-x86_64.apk apks/*-x86_64-unsigned.apk 2>/dev/null | head -1)
-          [ -n "$apk" ] || { echo "::error::no x86_64 APK among the build's"; ls apks; exit 1; }
-          if ! "$bt/apksigner" verify "$apk" > /dev/null 2>&1; then
-            signed="${apk%-unsigned.apk}"; signed="${signed%.apk}.apk"
-            keytool -genkeypair -keystore "$RUNNER_TEMP/smoke.jks" -storepass smokekey -keypass smokekey -alias smoke \
-              -keyalg RSA -keysize 2048 -validity 1 -dname CN=smoke -noprompt
-            "$bt/zipalign" -f -p 4 "$apk" "$RUNNER_TEMP/aligned.apk"
-            "$bt/apksigner" sign --ks "$RUNNER_TEMP/smoke.jks" --ks-pass pass:smokekey --out "$signed" "$RUNNER_TEMP/aligned.apk"
-            [ "$signed" = "$apk" ] || rm -f "$apk"
-            echo "the APK was unsigned: signed with a throwaway key for the emulator ($signed)"
-          fi
+        run: bash .github/scripts/emulator-sign.sh apks
       - name: KVM for the emulator
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -60,3 +47,99 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
           script: bash .github/scripts/smoke.sh apks
+
+  # the app end to end (e2e.sh) on an emulator, against a CI node under rayd serve -supervise as raycontrol-interop's:
+  # the invite opened as a link registers the device, the subscription brings the node's Hysteria2 profile, the VPN
+  # goes up through it, and a request of the emulator's reaches the runner's HTTP server from the node's address
+  e2e:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: APKs
+          path: apks
+      - name: A throwaway signature for an unsigned APK
+        run: bash .github/scripts/emulator-sign.sh apks
+
+      - name: Fetch raycontrol
+        run: |
+          . .github/raycontrol.env
+          git clone --filter=blob:none "$REPOSITORY_RAYCONTROL" raycontrol
+          git -C raycontrol checkout -q "$COMMIT_RAYCONTROL"
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: raycontrol/go.mod
+          cache: false
+      - name: Build rayd and rayctl; niko-server
+        run: |
+          mkdir -p /tmp/rcbin
+          (cd raycontrol && CGO_ENABLED=0 go build -o /tmp/rcbin/rayd ./cmd/rayd &&
+            CGO_ENABLED=0 go build -o /tmp/rcbin/rayctl ./cmd/rayctl)
+          . .github/niko-server.env
+          curl -fsSL --retry 3 -o /tmp/rcbin/niko-server "$NIKO_SERVER_RELEASES/download/$NIKO_SERVER_TAG/niko-server-linux-amd64"
+          echo "$NIKO_SERVER_SHA256_AMD64  /tmp/rcbin/niko-server" | sha256sum -c -
+          chmod +x /tmp/rcbin/niko-server
+
+      - name: The node under rayd serve -supervise; the runner's HTTP server
+        run: |
+          # raycontrol-interop's addresses: the runner 203.0.113.1, the node .2
+          docker network create --subnet 203.0.113.0/24 --gateway 203.0.113.1 rc-net > /dev/null
+          docker run -d --name rc-node --network rc-net --ip 203.0.113.2 -v /tmp/rcbin:/opt/rc:ro \
+            debian:13 sleep infinity > /dev/null
+          x() { docker exec rc-node "$@"; }
+          x mkdir -p /var/lib/raycontrol /run/raycontrol
+          x /opt/rc/rayd init -host 203.0.113.2 > /dev/null
+          # no Xray: its services are not used here (rayd says so and starts the others).
+          # NIKO_SERVER_UNSAFE_ANY_DESTINATION: the tunnel may reach the runner on this private network; never on a
+          # real node
+          x sh -c 'NIKO_SERVER_UNSAFE_ANY_DESTINATION=1 nohup /opt/rc/rayd serve -supervise \
+            -niko-server /opt/rc/niko-server -acme-directory "" > /var/log/rayd.log 2>&1 &'
+          for i in $(seq 50); do x test -S /run/raycontrol/rayd.sock && break; sleep 0.2; done
+          # the remote API the app registers through, and one service for its subscription
+          x /opt/rc/rayctl service add api api > /dev/null
+          x /opt/rc/rayctl service add hy2-obfs hy2o > /dev/null
+          x /opt/rc/rayctl user add alice -services hy2o > /dev/null
+          x /opt/rc/rayctl device invite alice phone -o /root/phone.invite > /dev/null
+          x cat /root/phone.invite > /tmp/phone.invite
+          grep -q '^rcinv1:' /tmp/phone.invite || { echo "not an rcinv1 invite"; exit 1; }
+          for i in $(seq 150); do x test -S /run/niko/hy2o/stats.sock && break; sleep 0.2; done
+          x test -S /run/niko/hy2o/stats.sock || { echo "no Hysteria2"; x tail -n 80 /var/log/rayd.log; exit 1; }
+          # the token the server gives; its log says the address each request came from
+          mkdir -p /tmp/www
+          head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n' > /tmp/www/e2e
+          nohup python3 -u -m http.server 8080 --bind 203.0.113.1 --directory /tmp/www > /tmp/www.log 2>&1 &
+          for i in $(seq 50); do curl -fs http://203.0.113.1:8080/e2e > /dev/null && break; sleep 0.2; done
+          curl -fsS http://203.0.113.1:8080/e2e > /dev/null
+
+      - name: KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: The invite, the VPN, a request through it
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          script: bash .github/scripts/e2e.sh apks /tmp/phone.invite /tmp/www.log /tmp/www/e2e /tmp/e2e
+
+      - name: What the emulator showed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e
+          path: /tmp/e2e
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Logs
+        if: always()
+        run: |
+          docker exec rc-node tail -n 120 /var/log/rayd.log || true
+          echo "--- the runner's server"; cat /tmp/www.log || true
+          docker rm -f rc-node > /dev/null 2>&1 || true
