@@ -36,7 +36,7 @@ fun SingBoxOptions.DNSRule_DefaultOptions.makeSingBoxRule(list: List<String>) {
     list.forEach {
         if (it.startsWith("geosite:")) {
             rule_set.plusAssign(it)
-        } else if (isRemoteRuleSet(it)) {
+        } else if (isRemoteRuleSet(it) || RuleSetFiles.isItem(it)) {
             // an IP-only rule-set makes a DNS rule invalid in sing-box 1.14; skip what looks like one
             if (!isIPRuleSetName(it)) rule_set.plusAssign(it)
         } else if (it.startsWith("full:")) {
@@ -101,6 +101,16 @@ fun generateRuleSet(
                 })
             }
 
+            RuleSetFiles.isItem(it) -> {
+                // the app's download (ConfigBuilder leaves out those not downloaded yet)
+                ruleSet.add(RuleSet().apply {
+                    type = "local"
+                    tag = it
+                    format = RuleSetFiles.format(it)
+                    path = RuleSetFiles.file(it).absolutePath
+                })
+            }
+
             it.startsWith("geoip:") -> {
                 ruleSet.add(RuleSet().apply {
                     type = "local"
@@ -134,7 +144,7 @@ fun SingBoxOptions.Rule_DefaultOptions.makeSingBoxRule(list: List<String>, isIP:
         domain_keyword = mutableListOf<String>()
     }
     list.forEach {
-        if (isRemoteRuleSet(it)) {
+        if (isRemoteRuleSet(it) || RuleSetFiles.isItem(it)) {
             rule_set.plusAssign(it)
             return@forEach
         }
@@ -193,3 +203,8 @@ fun SingBoxOptions.Rule_DefaultOptions.checkEmpty(): Boolean {
     if (!_hack_custom_config.isNullOrBlank()) return false
     return true
 }
+
+/** Whether the rule matches by an address at all: a domain, an IP, a rule-set. */
+fun SingBoxOptions.Rule_DefaultOptions.hasAddress(): Boolean =
+    !domain.isNullOrEmpty() || !domain_suffix.isNullOrEmpty() || !domain_keyword.isNullOrEmpty() ||
+        !domain_regex.isNullOrEmpty() || !ip_cidr.isNullOrEmpty() || ip_is_private == true || !rule_set.isNullOrEmpty()

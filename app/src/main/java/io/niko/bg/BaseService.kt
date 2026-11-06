@@ -10,6 +10,7 @@ import androidx.core.content.ContextCompat
 import io.niko.Action
 import io.niko.BootReceiver
 import io.niko.R
+import io.niko.RuleSetFiles
 import io.niko.SagerNet
 import io.niko.aidl.ISagerNetService
 import io.niko.aidl.ISagerNetServiceCallback
@@ -423,6 +424,8 @@ class BaseService {
                     if (data.state != State.Connecting) return@runOnMainDispatcher
                     data.changeState(State.Connected)
                     RayWatchdog.start { probeRunning() }
+                    // the rules' downloaded rule-sets: the stale ones through the proxy, once it has settled
+                    RuleSetFiles.updateSoon()
 
                     lateInit()
                 } catch (_: CancellationException) { // if the job was cancelled, it is canceller's responsibility to call stopRunner

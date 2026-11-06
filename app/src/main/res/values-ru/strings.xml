@@ -620,6 +620,14 @@
     <string name="raycontrol_card_dns_net">резолвер сети</string>
     <string name="raycontrol_card_dns_none">ни один резолвер не ответил</string>
     <string name="raycontrol_card_clock">часы расходятся на %d с</string>
+    <string name="route_preset_ru">Пресет: Россия</string>
+    <string name="route_preset_ru_title">Заблокированное через прокси, российское напрямую</string>
+    <string name="route_preset_ru_message">Добавит два правила:\n• заблокированное в России (списки runetfreedom) идёт через прокси;\n• российские сервисы, домены .ru, .su и .рф и российские IP идут напрямую.\nОстальное идёт как прежде. Списки (около 0,8 МБ) скачиваются сейчас и затем раз в %d ч, при работающем прокси — через него. Повторное добавление заменит правила пресета.</string>
+    <string name="route_preset_ru_add">Добавить</string>
+    <string name="route_preset_ru_blocked">Заблокированное в России — через прокси</string>
+    <string name="route_preset_ru_direct">Российские сервисы — напрямую</string>
+    <string name="route_preset_ru_ready">Списки скачаны</string>
+    <string name="route_preset_ru_partial">Скачано списков: %1$d из %2$d. Правило заработает, когда скачаются его списки (они докачиваются после каждого запуска)</string>
     <string name="raycontrol_group_locked">Группа ноды raycontrol %s: профили приходят с ноды</string>
     <string name="raycontrol_clock_hint">Если нода работает, проверьте время на устройстве: SPA работает, только если часы расходятся с нодой не больше чем на 30 с.</string>
     <string name="raycontrol_sub_reimport">Нода отклонила устройство или её ключи сменились: импортируйте регистрацию (rcdev1) заново. Автообновление для неё остановлено.</string>

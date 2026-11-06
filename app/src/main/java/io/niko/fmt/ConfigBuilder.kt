@@ -956,6 +956,7 @@ fun buildConfig(
                 PackageCache[it]?.takeIf { uid -> uid >= 1000 }
             }.toHashSet().filterNotNull()
             val ruleSets = mutableListOf<RuleSet>()
+            var dropRule = false
 
             val ruleObj = Rule_DefaultOptions().apply {
                 if (uidList.isNotEmpty()) {
@@ -963,13 +964,21 @@ fun buildConfig(
                     user_id = uidList
                 }
                 var domainList: List<String>? = null
+                // a rule-set the app has not downloaded yet is left out; a rule it leaves without any address is
+                // left out whole (its port or app alone would match far more)
+                var missingRuleSet = false
+                fun downloaded(list: List<String>) = RuleSetFiles.withoutMissing(list).let { (kept, missing) ->
+                    if (missing) missingRuleSet = true
+                    kept
+                }
                 if (rule.domains.isNotBlank()) {
-                    domainList = rule.domains.listByLineOrComma()
+                    domainList = downloaded(rule.domains.listByLineOrComma())
                     makeSingBoxRule(domainList, false)
                 }
                 if (rule.ip.isNotBlank()) {
-                    makeSingBoxRule(rule.ip.listByLineOrComma(), true)
+                    makeSingBoxRule(downloaded(rule.ip.listByLineOrComma()), true)
                 }
+                dropRule = missingRuleSet && !hasAddress()
 
                 if (rule_set != null) generateRuleSet(rule_set, ruleSets)
 
@@ -1012,7 +1021,7 @@ fun buildConfig(
                     }
                 }
 
-                when (rule.outbound) {
+                if (!dropRule) when (rule.outbound) {
                     -1L -> {
                         userDNSRuleList += makeDnsRuleObj().apply { server = "dns-direct" }
                     }
@@ -1045,6 +1054,7 @@ fun buildConfig(
 
                 _hack_custom_config = rule.config
             }
+            if (dropRule) continue
 
             if (!ruleObj.checkEmpty()) {
                 if (ruleObj.outbound.isNullOrBlank()) {

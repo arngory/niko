@@ -11,6 +11,9 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.niko.R
+import io.niko.RoutePresets
+import io.niko.RuleSetFiles
+import io.niko.SagerNet
 import io.niko.database.DataStore
 import io.niko.database.ProfileManager
 import io.niko.database.RuleEntity
@@ -118,11 +121,41 @@ class RouteFragment : ToolbarFragment(R.layout.layout_route), Toolbar.OnMenuItem
                     .setNegativeButton(R.string.no, null)
                     .show()
             }
+            R.id.action_route_preset_ru -> {
+                val hours = DataStore.ruleSetUpdateHours.coerceIn(1, 24 * 30)
+                MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.route_preset_ru_title)
+                    .setMessage(getString(R.string.route_preset_ru_message, hours))
+                    .setPositiveButton(R.string.route_preset_ru_add) { _, _ -> addRussiaPreset() }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+            }
             R.id.action_manage_assets -> {
                 startActivity(Intent(requireContext(), AssetsActivity::class.java))
             }
         }
         return true
+    }
+
+    /** The Russian preset's rules (they replace its earlier ones), then their lists, through the proxy if it runs. */
+    private fun addRussiaPreset() {
+        val blocked = getString(R.string.route_preset_ru_blocked)
+        val direct = getString(R.string.route_preset_ru_direct)
+        runOnDefaultDispatcher {
+            val items = RoutePresets.addRussia(blocked, direct)
+            val got = RuleSetFiles.update(items, 0)
+            onMainDispatcher {
+                if (!isAdded) return@onMainDispatcher
+                if (got < items.size) {
+                    snackbar(getString(R.string.route_preset_ru_partial, got, items.size)).show()
+                } else if (DataStore.serviceState.started) {
+                    snackbar(getString(R.string.route_preset_ru_ready)).setAction(R.string.apply) {
+                        SagerNet.reloadService()
+                    }.show()
+                } else {
+                    snackbar(getString(R.string.route_preset_ru_ready)).show()
+                }
+            }
+        }
     }
 
     inner class RuleAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>(), ProfileManager.RuleListener, UndoSnackbarManager.Interface<RuleEntity> {

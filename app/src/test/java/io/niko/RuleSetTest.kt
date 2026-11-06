@@ -5,6 +5,7 @@ import io.niko.SingBoxOptions.RuleSet
 import io.niko.SingBoxOptions.Rule_DefaultOptions
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RuleSetTest {
@@ -48,5 +49,83 @@ class RuleSetTest {
         assertEquals("72h", remote.update_interval)
         assertEquals("source", sets[1].format)
         assertEquals("local", sets[2].type)
+    }
+}
+
+/** Rule-sets the app downloads (srs:) and the Russian preset. */
+class RuleSetFilesTest {
+
+    private val dir = java.nio.file.Files.createTempDirectory("rule-sets").toFile()
+    private val domains = "srs:https://example.com/geosite-ru-blocked.srs"
+    private val ips = "srs:https://example.com/geoip-ru-blocked.srs"
+
+    init {
+        RuleSetFiles.dir = { dir }
+    }
+
+    @Test
+    fun filesByURL() {
+        val file = RuleSetFiles.file(domains)
+        assertEquals(dir, file.parentFile)
+        assertEquals(file, RuleSetFiles.file("srs: https://example.com/geosite-ru-blocked.srs"))
+        org.junit.Assert.assertNotEquals(file, RuleSetFiles.file(ips))
+        assertEquals("source", RuleSetFiles.format("srs:https://example.com/list.json?v=2"))
+        assertEquals("binary", RuleSetFiles.format(domains))
+        assertTrue(RuleSetFiles.file("srs:https://example.com/list.json").name.endsWith(".json"))
+        assertTrue(RuleSetFiles.looksValid("SRS\u0001xx".toByteArray(), "binary"))
+        org.junit.Assert.assertFalse(RuleSetFiles.looksValid("<html>".toByteArray(), "binary"))
+        assertTrue(RuleSetFiles.looksValid("  {\"version\":2".toByteArray(), "source"))
+        org.junit.Assert.assertFalse(RuleSetFiles.looksValid("SRS\u0001".toByteArray(), "source"))
+        assertEquals(listOf(domains, ips), RuleSetFiles.itemsOf(listOf("$domains\ndomain:ru", "$ips,10.0.0.0/8", domains)))
+    }
+
+    @Test
+    fun ruleSetsAsLocalFiles() {
+        val rule = Rule_DefaultOptions()
+        rule.makeSingBoxRule(listOf(domains, "example.org"), false)
+        rule.makeSingBoxRule(listOf(ips), true)
+        assertEquals(listOf(domains, ips), rule.rule_set)
+        val sets = mutableListOf<RuleSet>()
+        generateRuleSet(rule.rule_set, sets, 24)
+        assertEquals("local", sets[0].type)
+        assertEquals(RuleSetFiles.file(domains).absolutePath, sets[0].path)
+        assertEquals("binary", sets[0].format)
+        // a DNS rule takes the domains' rule-set, not the IPs'
+        val dns = DNSRule_DefaultOptions()
+        dns.makeSingBoxRule(listOf(domains, ips))
+        assertEquals(listOf(domains), dns.rule_set)
+    }
+
+    @Test
+    fun missingRuleSetsLeftOut() {
+        RuleSetFiles.file(domains).apply { parentFile?.mkdirs(); writeBytes("SRS\u0001data".toByteArray()) }
+        RuleSetFiles.file(ips).delete()
+        val (kept, missing) = RuleSetFiles.withoutMissing(listOf(domains, ips, "domain:ru"))
+        assertEquals(listOf(domains, "domain:ru"), kept)
+        assertTrue(missing)
+        assertEquals(listOf("domain:ru") to false, RuleSetFiles.withoutMissing(listOf("domain:ru")))
+        // a rule left without any address is left out whole; one with another address keeps it
+        val left = Rule_DefaultOptions().apply { makeSingBoxRule(RuleSetFiles.withoutMissing(listOf(ips)).first, true) }
+        org.junit.Assert.assertFalse(left.hasAddress())
+        val kept2 = Rule_DefaultOptions().apply { makeSingBoxRule(kept, false) }
+        assertTrue(kept2.hasAddress())
+    }
+
+    @Test
+    fun russianPreset() {
+        val (blocked, direct) = RoutePresets.russia("blocked", "direct")
+        assertEquals(0L, blocked.outbound)
+        assertEquals(-1L, direct.outbound)
+        assertTrue(blocked.enabled && direct.enabled)
+        assertEquals(RoutePresets.RU_BLOCKED_DOMAINS, blocked.domains)
+        assertEquals(RoutePresets.RU_BLOCKED_IPS, blocked.ip)
+        assertEquals(listOf(RoutePresets.RU_INSIDE_DOMAINS, "domain:ru", "domain:su", "domain:xn--p1ai"), direct.domains.split("\n"))
+        assertEquals(RoutePresets.RU_IPS, direct.ip)
+        assertTrue(RoutePresets.isRussia(blocked) && RoutePresets.isRussia(direct))
+        org.junit.Assert.assertFalse(RoutePresets.isRussia(io.niko.database.RuleEntity(domains = "geosite:ru")))
+        // every list is a downloaded rule-set of runetfreedom's
+        for (item in RuleSetFiles.itemsOf(listOf(blocked.domains, blocked.ip, direct.domains, direct.ip))) {
+            assertTrue(item, RuleSetFiles.url(item).startsWith("https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-"))
+        }
     }
 }

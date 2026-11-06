@@ -698,6 +698,14 @@
     <string name="raycontrol_card_dns_net">the network\'s resolver</string>
     <string name="raycontrol_card_dns_none">no resolver answered</string>
     <string name="raycontrol_card_clock">clock off by %d s</string>
+    <string name="route_preset_ru">Preset: Russia</string>
+    <string name="route_preset_ru_title">Blocked through the proxy, Russian directly</string>
+    <string name="route_preset_ru_message">Adds two rules:\n• what is blocked in Russia (runetfreedom\'s lists) goes through the proxy;\n• Russian services, the .ru, .su and .рф domains and Russian IPs go directly.\nEverything else goes as before. The lists (about 0.8 MB) are downloaded now and every %d h after, through the proxy while it runs. Adding the preset again replaces its rules.</string>
+    <string name="route_preset_ru_add">Add</string>
+    <string name="route_preset_ru_blocked">Blocked in Russia: through the proxy</string>
+    <string name="route_preset_ru_direct">Russian services: directly</string>
+    <string name="route_preset_ru_ready">Lists downloaded</string>
+    <string name="route_preset_ru_partial">Downloaded %1$d of %2$d lists: a rule works once its lists are here (they are fetched again after each start)</string>
     <string name="raycontrol_group_locked">The group of the raycontrol node %s: its profiles come from the node</string>
     <string name="raycontrol_clock_hint">If the node is up, check the time on this device: SPA works only within 30 s of the node clock.</string>
     <string name="raycontrol_sub_reimport">The node refused this device or its keys changed: import its registration (rcdev1) again. Scheduled updates for it are stopped.</string>
