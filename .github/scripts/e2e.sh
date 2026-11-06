@@ -89,7 +89,12 @@ timeout 20 adb shell appops set "$pkg" ACTIVATE_VPN allow || fail "appops ACTIVA
 adb logcat -c
 
 echo "== the runner's server, directly"
-fetch "direct-$RANDOM"
+# the emulator's network comes up a little after the boot
+for i in $(seq 20); do
+  fetch "direct-$i-$RANDOM"
+  [ -n "$from" ] && break
+  sleep 3
+done
 [ -n "$from" ] && [ "$from" != "$node" ] && [ "$carried" = yes ] ||
   fail "the emulator's own request: from '${from:-nowhere}', token $carried, want the runner's own (nc said: $last)"
 echo "directly: the runner's server saw the request from $from"
