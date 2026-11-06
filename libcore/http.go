@@ -42,6 +42,9 @@ type HTTPClient interface {
 	KeepAlive()
 	// SetTimeout bounds each request whole, its dial and the reading of its body included; 0 none (the default)
 	SetTimeout(milliseconds int32)
+	// SetIdleTimeout bounds each wait without progress: for the answer to begin, then between the reads of its body;
+	// a slow transfer that keeps moving goes on (a download through a DNS tunnel); 0 none (the default)
+	SetIdleTimeout(milliseconds int32)
 	NewRequest() HTTPRequest
 	Close()
 }
@@ -79,6 +82,7 @@ type httpClient struct {
 	// requireSocks5: the service runs in proxy mode, a request never goes direct (it would show the device's
 	// address); a port that does not answer is a core restarting, waited for a few seconds
 	requireSocks5 bool
+	idleTimeout   time.Duration
 }
 
 func NewHttpClient() HTTPClient {
@@ -172,6 +176,32 @@ func (c *httpClient) SetTimeout(milliseconds int32) {
 	c.h1h2Client.Timeout = time.Duration(max(milliseconds, 0)) * time.Millisecond
 }
 
+func (c *httpClient) SetIdleTimeout(milliseconds int32) {
+	c.idleTimeout = time.Duration(max(milliseconds, 0)) * time.Millisecond
+}
+
+// idleBody is a response body whose request is cancelled when no read brings anything for its idle bound
+type idleBody struct {
+	io.ReadCloser
+	timer  *time.Timer
+	idle   time.Duration
+	cancel context.CancelFunc
+}
+
+func (b *idleBody) Read(p []byte) (int, error) {
+	n, err := b.ReadCloser.Read(p)
+	if n > 0 {
+		b.timer.Reset(b.idle)
+	}
+	return n, err
+}
+
+func (b *idleBody) Close() error {
+	b.timer.Stop()
+	b.cancel()
+	return b.ReadCloser.Close()
+}
+
 func (c *httpClient) NewRequest() HTTPRequest {
 	req := &httpRequest{httpClient: c}
 	req.request = http.Request{
@@ -236,13 +266,30 @@ func (r *httpRequest) Execute() (HTTPResponse, error) {
 	if r.tryH3Direct && !r.trySocks5 {
 		return r.doH3Direct()
 	}
-	response, err := r.h1h2Client.Do(&r.request)
+	request := &r.request
+	var idle *idleBody
+	if r.idleTimeout > 0 {
+		// the bound runs from the start: the dial and the wait for the answer count as waits without progress
+		ctx, cancel := context.WithCancel(r.request.Context())
+		idle = &idleBody{timer: time.AfterFunc(r.idleTimeout, cancel), idle: r.idleTimeout, cancel: cancel}
+		request = r.request.WithContext(ctx)
+	}
+	response, err := r.h1h2Client.Do(request)
 	if err != nil {
+		if idle != nil {
+			idle.timer.Stop()
+			idle.cancel()
+		}
 		// trySocks5 && tryH3Direct
 		if r.tryH3Direct && errors.Is(err, errFailConnectSocks5) {
 			return r.doH3Direct()
 		}
 		return nil, err
+	}
+	if idle != nil {
+		idle.ReadCloser = response.Body
+		idle.timer.Reset(r.idleTimeout)
+		response.Body = idle
 	}
 	httpResp := &httpResponse{Response: response}
 	if response.StatusCode != http.StatusOK {

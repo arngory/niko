@@ -33,10 +33,11 @@ object Updates {
      */
     val canInstall get() = enabled && Build.VERSION.SDK_INT >= 24
 
-    // a request's bound, its body read included: the signed list and its signature are small, the APK some tens of MB
-    // through the core at its slowest (a hung transfer through a cut tunnel no longer holds the download for good)
+    // the signed list and its signature are small: a minute for each whole. The APK is some tens of MB, through the
+    // core at its slowest (a DNS tunnel) for longer than any bound: it goes on while it moves, and stops when nothing
+    // comes for two minutes (a hung transfer through a cut tunnel no longer holds the download for good)
     private const val SMALL_TIMEOUT_MS = 60_000
-    private const val APK_TIMEOUT_MS = 20 * 60_000
+    private const val APK_IDLE_TIMEOUT_MS = 2 * 60_000
 
     const val SUMS = "SHA256SUMS"
     const val SIGNATURE = "SHA256SUMS.minisig"
@@ -145,7 +146,8 @@ object Updates {
             if (file.isFile && sha256(file) == hash) return file
             dir.deleteRecursively()
             dir.mkdirs()
-            client.setTimeout(APK_TIMEOUT_MS)
+            client.setTimeout(0)
+            client.setIdleTimeout(APK_IDLE_TIMEOUT_MS)
             client.newRequest().apply { setURL(url) }.execute().writeTo(file.canonicalPath)
             if (sha256(file) != hash) {
                 file.delete()
