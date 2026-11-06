@@ -134,14 +134,16 @@ jobs:
           (cd /tmp/slip && meson setup --buildtype=release --warnlevel=0 build > /dev/null &&
             ninja -C build slipstream-server slipstream-client > /dev/null)
           # the VLESS stage the server forwards to, in a box of its own: through the tunnel the runner's server sees
-          # 203.0.113.3
+          # 203.0.113.3. Xray's freedom blocks private and reserved addresses for a VLESS inbound by default
+          # (finalRules), TEST-NET-3 among them: the test network is let through
           . .github/xray-interop.env
           git clone -q --filter=blob:none "$REPOSITORY_XRAY" /tmp/xray && git -C /tmp/xray checkout -q "$COMMIT_XRAY"
           mkdir -p /tmp/slipbin
           (cd /tmp/xray && CGO_ENABLED=0 GOTOOLCHAIN=auto go build -o /tmp/slipbin/xray ./main)
           uuid=$(cat /proc/sys/kernel/random/uuid)
           printf '%s' '{"log": {"loglevel": "info"}, "inbounds": [{"listen": "0.0.0.0", "port": 10443, "protocol": "vless",
-            "settings": {"clients": [{"id": "UUID"}], "decryption": "none"}}], "outbounds": [{"protocol": "freedom"}]}' \
+            "settings": {"clients": [{"id": "UUID"}], "decryption": "none"}}], "outbounds": [{"protocol": "freedom",
+            "settings": {"finalRules": [{"action": "allow", "ip": ["203.0.113.0/24"]}]}}]}' \
             | sed "s/UUID/$uuid/" > /tmp/slipbin/xray.json
           docker run -d --name rc-slip --network rc-net --ip 203.0.113.3 -v /tmp/slipbin:/opt/slip:ro debian:13 \
             /opt/slip/xray run -c /opt/slip/xray.json > /dev/null
