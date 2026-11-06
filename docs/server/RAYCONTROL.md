@@ -70,7 +70,8 @@ PQ даёт только `inner`.
 | `niko-node` | `node_id` (32 hex) импортированной ноды: профиль получает SPA v2 этой ноды и её адрес |
 | `niko-svc` | ID сервиса из карты `services` пакета регистрации — идёт в scope SPA |
 | `niko-pin` | SHA-256 SPKI сертификата (base64url) — для `hy2-obfs` вместо `pinSHA256` |
-| `niko-dns` | DNS-туннель: `dnstt;<резолвер>;<зона>;<pubkey>` или `masterdns;<резолверы через ,>;<зона>;<метод>` (ключ MasterDnsVPN — отдельно, `niko-dnskey`) |
+| `niko-dns` | DNS-туннель: `dnstt;<резолвер>;<зона>;<pubkey>`, `masterdns;<резолверы через ,>;<зона>;<метод>` (ключ MasterDnsVPN — отдельно, `niko-dnskey`) или `slipstream;<резолверы через ,>;<зона>;<ID сервиса>` (slipstream-v1) |
+| `niko-slip` | slipstream: `v1;<пин, base64url SHA-256 SPKI>;<ALPN>;<SNI>`; клиент — `libslipstream.so` в APK (форк `arngory/slipstream`), K dnsauth-v2 — только в его окружении |
 | `niko-inner` | вторая ступень: ссылка `vless://` к `inner` (base64url), с `encryption=mlkem768x25519plus…` |
 
 Ключ устройства в ссылки не попадает: он только в `rcdev1:` и в Android Keystore.

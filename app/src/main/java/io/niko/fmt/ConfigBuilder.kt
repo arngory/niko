@@ -125,11 +125,12 @@ class ConfigBuildResult(
     data class IndexEntity(var chain: LinkedHashMap<Int, ProxyEntity>)
 
     /**
-     * A slipstream client to run with the config: its arguments (no secret among them) and its environment
-     * (dnsauth's key, SLIPSTREAM_DNSAUTH_KEY, there only).
+     * A slipstream client to run with the config: its arguments (no secret among them), its environment (dnsauth's
+     * key, SLIPSTREAM_DNSAUTH_KEY, there only) and the port it listens on, 127.0.0.1's (one of the app's own
+     * listeners: the mesh never reaches it, S7).
      */
-    class SlipstreamLaunch(val args: List<String>, val env: Map<String, String>) {
-        override fun toString() = "SlipstreamLaunch(args=$args, env=${env.keys})"
+    class SlipstreamLaunch(val args: List<String>, val env: Map<String, String>, val localPort: Int) {
+        override fun toString() = "SlipstreamLaunch(args=$args, env=${env.keys}, localPort=$localPort)"
     }
 }
 
@@ -850,7 +851,7 @@ fun buildConfig(
                         }
                         val localPort = mkPort()
                         slipstreamLaunches += ConfigBuildResult.SlipstreamLaunch(
-                            dnsTunnel.slipstreamArgs(localPort, mapped, clockOffset), env,
+                            dnsTunnel.slipstreamArgs(localPort, mapped, clockOffset), env, localPort,
                         )
                         // the hop dials the client; the server forwards each stream to its one upstream. A TLS hop
                         // that names no server took the server's name, 127.0.0.1 from here: the name goes in
@@ -1286,10 +1287,11 @@ fun buildConfig(
                 val meshRules = mutableListOf<Rule_DefaultOptions>()
                 if (rule.outbound == TAG_DIRECT) {
                     // the mesh arrives at 127.0.0.1: never at this app's own listeners (the local proxy, the Clash
-                    // API, the plugins' SOCKS and forwarding ports), whatever their password (S7)
+                    // API, the plugins' SOCKS and forwarding ports, the slipstream clients'), whatever their
+                    // password (S7)
                     val own = (inbounds.mapNotNull {
                         (it as? Inbound_MixedOptions)?.listen_port ?: (it as? Inbound_DirectOptions)?.listen_port
-                    } + externalIndexMap.flatMap { it.chain.keys } +
+                    } + externalIndexMap.flatMap { it.chain.keys } + slipstreamLaunches.map { it.localPort } +
                             listOfNotNull(9090.takeIf { experimental?.clash_api != null })).distinct()
                     if (own.isNotEmpty()) meshRules += Rule_DefaultOptions().apply {
                         inbound = listOf(TAG_YGGDRASIL)
