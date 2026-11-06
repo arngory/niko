@@ -28,6 +28,7 @@ object RayReport {
     private const val MAX_OBS = 16
 
     // obs[].dns as probe-v1 §6.1 names its values: a resolver kind outside them goes unsaid, not as something else
+    // (tcp where the node takes it)
     private val REPORTED_DNS_KINDS = setOf("net", "udp", "doh", "dot")
 
     /** works / degraded / fails of a probe (degraded: TCP works but stalled, under 1 Mbit/s, or UDP loses > 20 %). */
@@ -108,8 +109,11 @@ object RayReport {
                         // only for a tunnel that worked, to a node that declares it
                         val kind = node.services.firstOrNull { it.id == svc }?.kind
                         if ("dns" in node.probe?.report.orEmpty() && (kind == "dnstt" || kind == "masterdns") && s.tcpOk) {
-                            // the kinds probe-v1 §6.1 names; tcp is not one yet
-                            s.dnsKind?.takeIf { it in REPORTED_DNS_KINDS }?.let { addProperty("dns", it) }
+                            // the kinds probe-v1 §6.1 names; tcp only to a node that lists dns_tcp (raycontrol
+                            // v0.13), as an older one refuses the whole summary for it
+                            s.dnsKind?.takeIf {
+                                it in REPORTED_DNS_KINDS || (it == "tcp" && "dns_tcp" in node.probe?.report.orEmpty())
+                            }?.let { addProperty("dns", it) }
                         }
                     })
                 }
