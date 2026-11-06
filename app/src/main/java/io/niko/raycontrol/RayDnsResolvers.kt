@@ -158,14 +158,40 @@ object RayDnsResolvers {
         autoTunnel(bean)?.takeIf { it.first == DNSTT }?.second
 
     /**
-     * The zone [tunnel] goes through on this network (dnszones-v1 §3): dnstt the zone of the network's pick, masterdns
-     * the one its failures moved to, while either holds; the main one otherwise.
+     * Whether [tunnel]'s zone follows this network's pick (dnszones-v1 §3): masterdns's always (its failures move it),
+     * dnstt's only while its resolver is the client's (the pick was measured through the network's candidates; one set
+     * by hand takes the main zone). [tunnel] as the profile has it: in a config its resolver is already replaced.
      */
-    fun zoneFor(node: RayNode?, tunnel: DnsTunnel): String? {
-        if (tunnel.spareZones.isEmpty() || node == null) return null
-        // dnstt's pick was measured through the network's candidates: a resolver set by hand takes the main zone
-        if (tunnel.engine == DNSTT && tunnel.resolver.trim() != AUTO) return null
-        return pickedZone(node, tunnel).takeIf { it in tunnel.zones }
+    internal fun followsPick(tunnel: DnsTunnel) =
+        tunnel.spareZones.isNotEmpty() && (tunnel.engine != DNSTT || tunnel.resolver.trim() == AUTO)
+
+    /** The zone of the network's pick [picked] ("" none) for [tunnel] as the profile has it; null the main one. */
+    internal fun zoneOf(tunnel: DnsTunnel, picked: String): String? =
+        picked.takeIf { followsPick(tunnel) && it in tunnel.zones }
+
+    /**
+     * The zone [tunnel] (as the profile has it) goes through on this network (dnszones-v1 §3): dnstt the zone of the
+     * network's pick, masterdns the one its failures moved to, while either holds; null, the main one, otherwise.
+     */
+    fun zoneFor(node: RayNode?, tunnel: DnsTunnel): String? =
+        if (node == null || !followsPick(tunnel)) null else zoneOf(tunnel, pickedZone(node, tunnel))
+
+    /**
+     * The DNS tunnel a config of [node]'s row runs, from [original] as the profile has it: its zone ([zoneFor]), and a
+     * resolver left to the client replaced by [resolver] ([resolverFor]).
+     */
+    fun forConfig(original: DnsTunnel, node: RayNode?, resolver: () -> String): DnsTunnel =
+        configTunnel(original, if (node == null || !followsPick(original)) "" else pickedZone(node, original), resolver)
+
+    /**
+     * [forConfig] with the network's pick [picked]: the zone is decided on [original] first, since once replaced the
+     * resolver no longer says whether it was the client's (dnstt's zone would always be the main one).
+     */
+    internal fun configTunnel(original: DnsTunnel, picked: String, resolver: () -> String): DnsTunnel {
+        var tunnel = original
+        if (original.spareZones.isNotEmpty()) tunnel = tunnel.withZone(zoneOf(original, picked) ?: original.zones.first())
+        if (original.resolver.trim() == AUTO) tunnel = tunnel.copy(resolver = resolver())
+        return tunnel
     }
 
     /** the zone of the network's pick for [tunnel], by its main zone, "" none (the main one) */
@@ -256,6 +282,8 @@ object RayDnsResolvers {
         }
         if (RayChannel.network()?.key != network.key) return null
         record(node, network, null, smallOnly = false)
+        // no zone passed either: a spare picked before says nothing now, the tunnel and the summary take the main one
+        RayChannel.recordZonePick(node.spa.nodeId, network, DNSTT, zones.first(), null)
         return null
     }
 
@@ -381,10 +409,13 @@ object RayDnsResolvers {
         running[(node?.spa?.nodeId ?: "") to engine] = resolver
     }
 
-    /** A config that will run takes [tunnel] through a zone of its own (dnszones-v1): the pick it went by is noted. */
+    /**
+     * A config that will run takes [tunnel] (as the profile has it) through a zone of its own (dnszones-v1): the pick
+     * it went by is noted, when its zone follows one ([followsPick]).
+     */
     fun noteRunningZone(node: RayNode?, tunnel: DnsTunnel) {
         val main = tunnel.zones.firstOrNull() ?: return
-        if (tunnel.spareZones.isEmpty()) return
+        if (!followsPick(tunnel)) return
         runningZones[Triple(node?.spa?.nodeId ?: "", tunnel.engine, main)] = pickedZone(node, tunnel)
     }
 

@@ -1,8 +1,11 @@
 package io.niko.raycontrol
 
 import com.google.gson.JsonParser
+import io.niko.fmt.DnsTunnel
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RayDnsResolversTest {
@@ -68,5 +71,36 @@ class RayDnsResolversTest {
         // not a DNS tunnel left to the client, and records before 1.33.0: no kind
         assertNull(ChannelScore.fromJson(ChannelScore(1, tcpOk = true).toJson()).dnsKind)
         assertNull(ChannelScore.fromJson(JsonParser.parseString("""{"at":1,"tcp_ok":true}""").asJsonObject).dnsKind)
+    }
+
+    /**
+     * The review: the config replaced a resolver left to the client before it asked for the zone, so a dnstt tunnel
+     * never took the spare its pick passed in. The zone is decided on the tunnel as the profile has it.
+     */
+    @Test
+    fun theZoneOfAConfigDecidedBeforeTheResolverIsReplaced() {
+        val auto = DnsTunnel(DnsTunnel.DNSTT, "auto", "t.example.com", "key", spare = "s1.example.com,s2.example.com")
+        var asked = 0
+        val picked = { asked++; "https://dns.example/dns-query" }
+        val running = RayDnsResolvers.configTunnel(auto, "s1.example.com", picked)
+        assertEquals("s1.example.com", running.zones.first())
+        assertEquals("https://dns.example/dns-query", running.resolver)
+        assertEquals(1, asked)
+        // no pick on this network, or a pick of a zone the link no longer gives: the main one
+        assertEquals("t.example.com", RayDnsResolvers.configTunnel(auto, "", picked).zones.first())
+        assertEquals("t.example.com", RayDnsResolvers.configTunnel(auto, "gone.example.com", picked).zones.first())
+        // a resolver set by hand: the main zone (the pick was measured through the network's candidates), its own resolver
+        val byHand = auto.copy(resolver = "udp://9.9.9.9:53")
+        assertFalse(RayDnsResolvers.followsPick(byHand))
+        val own = RayDnsResolvers.configTunnel(byHand, "s1.example.com") { error("not asked") }
+        assertEquals("t.example.com", own.zones.first())
+        assertEquals("udp://9.9.9.9:53", own.resolver)
+        // masterdns follows the zone its failures moved to, whatever its resolvers
+        val masterdns = DnsTunnel(DnsTunnel.MASTERDNSVPN, "1.1.1.1:53", "m.example.com", "k", 3, spare = "n.example.com")
+        assertTrue(RayDnsResolvers.followsPick(masterdns))
+        assertEquals("n.example.com", RayDnsResolvers.configTunnel(masterdns, "n.example.com") { error("not asked") }.zones.first())
+        // no spare zones: nothing to follow
+        assertFalse(RayDnsResolvers.followsPick(auto.copy(spare = "")))
+        assertNull(RayDnsResolvers.zoneOf(auto.copy(spare = ""), "s1.example.com"))
     }
 }

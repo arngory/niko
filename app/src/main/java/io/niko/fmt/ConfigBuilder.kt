@@ -772,25 +772,22 @@ fun buildConfig(
                 // dnstt or masterdnsvpn outbound; a resolver left to the client ("auto") is for dnstt the one picked
                 // for this network (dnsprobe-v1), else the default of before; for masterdns the network's own and the
                 // country's (RayDnsResolvers)
+                // dnszones-v1: one zone at a time, the main one unless this network's pick or failures moved it,
+                // decided on the tunnel as the profile has it (RayDnsResolvers.forConfig)
                 val dnsTunnel = DnsTunnel.of(bean).let { t ->
-                    if (!t.enabled || t.resolver.trim() != io.niko.raycontrol.RayDnsResolvers.AUTO) t
-                    else {
-                        val owner = RayNodes.ownerOf(proxyEntity.id)?.first
-                        val resolver = io.niko.raycontrol.RayDnsResolvers.resolverFor(owner, t.engine)
-                        if (notes) {
-                            io.niko.raycontrol.RayDnsResolvers.noteRunning(owner, t.engine, resolver)
-                            // no pick on this network yet: one now, in the background
-                            io.niko.raycontrol.RayDnsResolvers.pickSoon(owner, t)
-                        }
-                        t.copy(resolver = resolver)
-                    }
-                }.let { t ->
-                    // dnszones-v1: one zone at a time, the main one unless this network's pick or failures moved it
-                    if (!t.enabled || t.spareZones.isEmpty()) t
+                    if (!t.enabled) t
                     else {
                         val owner = RayNodes.ownerOf(proxyEntity.id)?.first
                         if (notes) io.niko.raycontrol.RayDnsResolvers.noteRunningZone(owner, t)
-                        t.withZone(io.niko.raycontrol.RayDnsResolvers.zoneFor(owner, t) ?: t.zones.first())
+                        io.niko.raycontrol.RayDnsResolvers.forConfig(t, owner) {
+                            io.niko.raycontrol.RayDnsResolvers.resolverFor(owner, t.engine).also { resolver ->
+                                if (notes) {
+                                    io.niko.raycontrol.RayDnsResolvers.noteRunning(owner, t.engine, resolver)
+                                    // no pick on this network yet: one now, in the background
+                                    io.niko.raycontrol.RayDnsResolvers.pickSoon(owner, t)
+                                }
+                            }
+                        }
                     }
                 }
                 if (dnsTunnel.enabled) {
