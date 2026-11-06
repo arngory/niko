@@ -87,7 +87,18 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 	if err = json.Unmarshal([]byte(appJSON), &result); err != nil {
 		t.Fatalf("subscription JSON: %v", err)
 	}
-	appPayload(t, appJSON)
+	announced := appPayload(t, appJSON)
+	// dnsauth-v2 (raycontrol v0.15): the node's niko-server checks the hint; the tunnels sign by it, as the app does
+	if announced.dnsAuthV2 {
+		interopAuthVersion = 2
+	}
+	t.Logf("subscription: dnsauth v%d, the node's name %q", interopAuthVersion, announced.name)
+	if os.Getenv("RAYCONTROL_DNSAUTH_V2") != "" && !announced.dnsAuthV2 {
+		t.Fatal("the node takes dnsauth-v2 only (auth_hint=required), its subscription does not announce it")
+	}
+	if want := os.Getenv("RAYCONTROL_NODE_NAME"); want != "" && announced.name != want {
+		t.Fatalf("the node's name in the subscription: %q, want %q", announced.name, want)
+	}
 	probeInfo := result.Payload.Probe
 	if probeInfo == nil || probeInfo.Tunnel == "" {
 		t.Fatalf("subscription without probe: %+v", result.Payload)
@@ -157,6 +168,10 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 			}
 			t.Logf("%s %s: %s, no answer in 15 s, as it must", kind, p.Name, what)
 		}
+		// dnsauth-v2 only at the node (auth_hint=required): the same tunnel signed by v1 answered nothing
+		if only == nil && os.Getenv("RAYCONTROL_DNSAUTH_V2") != "" && strings.HasPrefix(kind, "dnstt-auth") {
+			refused("signed by dnsauth-v1", linkWithParam(t, p.Link, "x-dnsauth-version", "1"), "")
+		}
 		// a sealed dnstt on a node with seal=required: its key kept for the next run, the profile unsealed refused,
 		// and after a rotation a new key, the one before refused
 		if only != nil && strings.HasPrefix(kind, "dnstt") && strings.HasSuffix(kind, "-sealed") && os.Getenv("RAYCONTROL_CUT_MAIN") == "" {
@@ -189,6 +204,9 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 			}
 			refused("open", linkWithout(t, p.Link, "niko-mdseal"), "")
 			refused("untagged", linkWithout(t, p.Link, "niko-dnsauth"), "")
+			if os.Getenv("RAYCONTROL_DNSAUTH_V2") != "" {
+				refused("signed by dnsauth-v1", linkWithParam(t, p.Link, "x-dnsauth-version", "1"), "")
+			}
 		}
 		// dnstt's spare zone (dnszones-v1, raycontrol v0.14.0), the main zone cut by the network's resolver
 		if only != nil && strings.HasPrefix(kind, "dnstt") && os.Getenv("RAYCONTROL_CUT_MAIN") != "" {
@@ -308,9 +326,22 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 // appPayload checks the subscription's JSON as the app reads it (RaySubscription) for what a v0.11.1 node sends this
 // device: the probe and what its summary takes, the relays with their probe, the dnstt probe key; and writes it to
 // RAYCONTROL_PAYLOAD_OUT when set (the app's tests take a copy of it as their fixture).
-func appPayload(t *testing.T, appJSON string) {
+// interopAuthVersion is the dnsauth version the tunnels sign by: 2 when the subscription announces it (appPayload)
+var interopAuthVersion = 1
+
+// payloadAnnounced is what the app takes from the payload beyond the profiles: dnsauth-v2, the node's name
+type payloadAnnounced struct {
+	dnsAuthV2 bool
+	name      string
+}
+
+func appPayload(t *testing.T, appJSON string) payloadAnnounced {
 	var app struct {
 		Payload struct {
+			Name    string `json:"name"`
+			DNSAuth *struct {
+				V []int `json:"v"`
+			} `json:"dnsauth"`
 			Probe *struct {
 				V      int      `json:"v"`
 				Report []string `json:"report"`
@@ -344,6 +375,35 @@ func appPayload(t *testing.T, appJSON string) {
 			t.Fatal(err)
 		}
 	}
+	return payloadAnnounced{dnsAuthV2: p.DNSAuth != nil && slices.Contains(p.DNSAuth.V, 2), name: p.Name}
+}
+
+// linkWithParam is link with param set to value (x-…: the test's own, profileConfig reads them)
+func linkWithParam(t *testing.T, link, param, value string) string {
+	t.Helper()
+	u, err := url.Parse(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := u.Query()
+	q.Set(param, value)
+	u.RawQuery = q.Encode()
+	return u.String()
+}
+
+// authOptions is a DNS tunnel's auth block: the device's key for the node and service, by the version the
+// subscription announced (x-dnsauth-version: another, for a refused case)
+func authOptions(q url.Values, deviceKey string) map[string]any {
+	svc, _ := strconv.Atoi(q.Get("niko-svc"))
+	auth := map[string]any{"node_id": q.Get("niko-node"), "service_id": svc, "device_key": deviceKey}
+	version := interopAuthVersion
+	if v, err := strconv.Atoi(q.Get("x-dnsauth-version")); err == nil {
+		version = v
+	}
+	if version == 2 {
+		auth["version"] = 2
+	}
+	return auth
 }
 
 // dnsProbeInterop asks the node's front a small and a large probe in its dnstt zone through RaycontrolDnsProbe, as the
@@ -612,8 +672,7 @@ func profileConfig(t *testing.T, link, node, resolver, ca, deviceKey string, dow
 			// dnsauth-v1 (raycontrol v0.10.0, the node's dnstt with auth=required): queries signed by the device
 			if q.Get("niko-dnsauth") == "v1" {
 				kind = "dnstt-auth"
-				svc, _ := strconv.Atoi(q.Get("niko-svc"))
-				tunnel["auth"] = map[string]any{"node_id": q.Get("niko-node"), "service_id": svc, "device_key": deviceKey}
+				tunnel["auth"] = authOptions(q, deviceKey)
 			}
 			// dnsseal-v1 (raycontrol v0.13, the node's dnstt with seal=…): the framing sealed with the zone's key
 			if seal, ok := strings.CutPrefix(q.Get("niko-dnsseal"), "v1;"); ok {
@@ -630,8 +689,7 @@ func profileConfig(t *testing.T, link, node, resolver, ca, deviceKey string, dow
 			// dnsauth for masterdns (raycontrol v0.14.0): the device's tag in every query, its key as dnstt's
 			if q.Get("niko-dnsauth") == "v1" {
 				kind += "-auth"
-				svc, _ := strconv.Atoi(q.Get("niko-svc"))
-				tunnel["auth"] = map[string]any{"node_id": q.Get("niko-node"), "service_id": svc, "device_key": deviceKey}
+				tunnel["auth"] = authOptions(q, deviceKey)
 			}
 			// mdseal-v1 (raycontrol v0.14.0): the node's answers sealed with the service's key, in the node's mode
 			if mdseal := strings.Split(q.Get("niko-mdseal"), ";"); mdseal[0] == "v1" {

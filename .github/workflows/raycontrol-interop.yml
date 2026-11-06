@@ -26,9 +26,25 @@ on:
       - "buildScript/lib/core/get_source_env.sh"
       - "libcore/box_naive.go"
   workflow_dispatch:
+    inputs:
+      raycontrol:
+        description: "A raycontrol commit to run against instead of .github/raycontrol.env's (a release not out yet)"
+        default: ""
+      niko_server_tag:
+        description: "With it: the niko-server release that commit pins (deploy/versions.env)"
+        default: ""
+      niko_server_sha256:
+        description: "That release's niko-server-linux-amd64 SHA-256"
+        default: ""
 
 permissions:
   contents: read
+
+# a manual run's commit and release, through the environment (never into a script as they are); a push has none
+env:
+  RAYCONTROL_COMMIT_OVERRIDE: ${{ inputs.raycontrol }}
+  NIKO_SERVER_TAG_OVERRIDE: ${{ inputs.niko_server_tag }}
+  NIKO_SERVER_SHA256_OVERRIDE: ${{ inputs.niko_server_sha256 }}
 
 jobs:
   invite:
@@ -40,6 +56,7 @@ jobs:
       - name: Fetch raycontrol and the core
         run: |
           . .github/raycontrol.env
+          COMMIT_RAYCONTROL=${RAYCONTROL_COMMIT_OVERRIDE:-$COMMIT_RAYCONTROL}
           . buildScript/lib/core/get_source_env.sh
           git clone --filter=blob:none "$REPOSITORY_RAYCONTROL" raycontrol
           git -C raycontrol checkout -q "$COMMIT_RAYCONTROL"
@@ -130,6 +147,7 @@ jobs:
       - name: Fetch raycontrol, Xray and the core
         run: |
           . .github/raycontrol.env
+          COMMIT_RAYCONTROL=${RAYCONTROL_COMMIT_OVERRIDE:-$COMMIT_RAYCONTROL}
           . .github/xray-interop.env
           . buildScript/lib/core/get_source_env.sh
           git clone --filter=blob:none "$REPOSITORY_RAYCONTROL" raycontrol
@@ -154,6 +172,8 @@ jobs:
             go run ./test/supervise/testcert -o /tmp/rccert '*.example.test')
           (cd xray && CGO_ENABLED=0 go build -o /tmp/rcbin/xray -trimpath ./main) && /tmp/rcbin/xray version | head -1
           . .github/niko-server.env
+          NIKO_SERVER_TAG=${NIKO_SERVER_TAG_OVERRIDE:-$NIKO_SERVER_TAG}
+          NIKO_SERVER_SHA256_AMD64=${NIKO_SERVER_SHA256_OVERRIDE:-$NIKO_SERVER_SHA256_AMD64}
           curl -fsSL --retry 3 -o /tmp/rcbin/niko-server "$NIKO_SERVER_RELEASES/download/$NIKO_SERVER_TAG/niko-server-linux-amd64"
           echo "$NIKO_SERVER_SHA256_AMD64  /tmp/rcbin/niko-server" | sha256sum -c -
           chmod +x /tmp/rcbin/niko-server
@@ -183,6 +203,14 @@ jobs:
           x /opt/rc/rayctl service add dnstt dns > /dev/null
           # dnsauth-v1 (v0.10.0): unsigned queries are refused, the client signs with the device's key
           x /opt/rc/rayctl service set dns auth=required > /dev/null
+          # dnsauth-v2 (raycontrol v0.15): a node that has it takes the hint only, so a v2 tag that failed would not
+          # pass as an untagged query; and its name in the subscription
+          if x /opt/rc/rayctl service set dns auth_hint=required > /dev/null 2>&1; then
+            echo "RAYCONTROL_DNSAUTH_V2=1" >> "$GITHUB_ENV"
+          fi
+          if x /opt/rc/rayctl node name "Нода interop" > /dev/null 2>&1; then
+            echo "RAYCONTROL_NODE_NAME=Нода interop" >> "$GITHUB_ENV"
+          fi
           x /opt/rc/rayctl service add masterdns mdns > /dev/null
           # the test CA in place of ACME: REALITY's site, Yggdrasil and hy2-masq take the site's certificate
           x /opt/rc/rayctl service cert site -chain /opt/cert/chain.pem -key /opt/cert/key.pem
@@ -279,6 +307,7 @@ jobs:
           TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
           docker exec rc-node /opt/rc/rayctl service set mdns seal=required
           docker exec rc-node /opt/rc/rayctl service set mdns auth=required
+          if [ -n "${RAYCONTROL_DNSAUTH_V2:-}" ]; then docker exec rc-node /opt/rc/rayctl service set mdns auth_hint=required; fi
           go test -count=1 -v -timeout 5m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
 
       # dnszones-v1 (raycontrol v0.14.0): dnstt with a spare zone, the main one cut by the network's resolver, its
@@ -340,6 +369,7 @@ jobs:
       - name: Fetch raycontrol
         run: |
           . .github/raycontrol.env
+          COMMIT_RAYCONTROL=${RAYCONTROL_COMMIT_OVERRIDE:-$COMMIT_RAYCONTROL}
           git clone --filter=blob:none "$REPOSITORY_RAYCONTROL" raycontrol
           git -C raycontrol checkout -q "$COMMIT_RAYCONTROL"
 
@@ -368,7 +398,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           . .github/raycontrol.env
+          COMMIT_RAYCONTROL=${RAYCONTROL_COMMIT_OVERRIDE:-$COMMIT_RAYCONTROL}
           . .github/niko-server.env
+          NIKO_SERVER_TAG=${NIKO_SERVER_TAG_OVERRIDE:-$NIKO_SERVER_TAG}
+          NIKO_SERVER_SHA256_AMD64=${NIKO_SERVER_SHA256_OVERRIDE:-$NIKO_SERVER_SHA256_AMD64}
           sudo apt-get install -y -qq strace > /dev/null
           # rayd naive takes its connections from the node's front (raycontrol niko-mux-note.md §3), as in production
           curl -fsSL --retry 3 -o /tmp/niko-server "$NIKO_SERVER_RELEASES/download/$NIKO_SERVER_TAG/niko-server-linux-amd64"
