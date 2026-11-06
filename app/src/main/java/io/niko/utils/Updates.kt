@@ -27,6 +27,17 @@ object Updates {
     /** Whether this build installs its updates itself: it carries the key its releases are signed with. */
     val enabled get() = BuildConfig.UPDATE_PUBLIC_KEY.isNotBlank()
 
+    /**
+     * Whether it can on this device: Android 7.0 and later, whose installer takes the APK by a content:// address (6.0's
+     * takes file:// only); the release page otherwise.
+     */
+    val canInstall get() = enabled && Build.VERSION.SDK_INT >= 24
+
+    // a request's bound, its body read included: the signed list and its signature are small, the APK some tens of MB
+    // through the core at its slowest (a hung transfer through a cut tunnel no longer holds the download for good)
+    private const val SMALL_TIMEOUT_MS = 60_000
+    private const val APK_TIMEOUT_MS = 20 * 60_000
+
     const val SUMS = "SHA256SUMS"
     const val SIGNATURE = "SHA256SUMS.minisig"
 
@@ -122,6 +133,7 @@ object Updates {
             val assets = assets(release)
             val sumsUrl = assets[SUMS] ?: throw Refused(R.string.update_no_signature, "the release has no $SUMS")
             val signatureUrl = assets[SIGNATURE] ?: throw Refused(R.string.update_no_signature, "the release has no signature")
+            client.setTimeout(SMALL_TIMEOUT_MS)
             val sums = client.newRequest().apply { setURL(sumsUrl) }.execute().content
             val signature = Util.getStringBox(client.newRequest().apply { setURL(signatureUrl) }.execute().contentString)
             val listed = checkedSums(BuildConfig.UPDATE_PUBLIC_KEY, tag, sums, signature, Libcore::minisignVerify)
@@ -133,6 +145,7 @@ object Updates {
             if (file.isFile && sha256(file) == hash) return file
             dir.deleteRecursively()
             dir.mkdirs()
+            client.setTimeout(APK_TIMEOUT_MS)
             client.newRequest().apply { setURL(url) }.execute().writeTo(file.canonicalPath)
             if (sha256(file) != hash) {
                 file.delete()

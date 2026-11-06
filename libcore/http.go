@@ -40,6 +40,8 @@ type HTTPClient interface {
 	RequireSocks5()
 	TryH3Direct()
 	KeepAlive()
+	// SetTimeout bounds each request whole, its dial and the reading of its body included; 0 none (the default)
+	SetTimeout(milliseconds int32)
 	NewRequest() HTTPRequest
 	Close()
 }
@@ -164,6 +166,10 @@ func (c *httpClient) TryH3Direct() {
 func (c *httpClient) KeepAlive() {
 	c.h1h2Transport.ForceAttemptHTTP2 = true
 	c.h1h2Transport.DisableKeepAlives = false
+}
+
+func (c *httpClient) SetTimeout(milliseconds int32) {
+	c.h1h2Client.Timeout = time.Duration(max(milliseconds, 0)) * time.Millisecond
 }
 
 func (c *httpClient) NewRequest() HTTPRequest {

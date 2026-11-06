@@ -303,7 +303,7 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                                 )
                                 .apply {
                                     // the GitHub build: the APK of the release, its signature and hash checked
-                                    if (Updates.enabled && release != null) {
+                                    if (Updates.canInstall && release != null) {
                                         setPositiveButton(R.string.update_install) { _, _ -> installUpdate(release) }
                                         setNeutralButton(R.string.update_release_page) { _, _ -> openPage() }
                                     } else {
