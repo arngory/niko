@@ -32,8 +32,10 @@ class DnsTunnelTest {
     @Test
     fun masterDnsVpn() {
         assertNull(mdv("8.8.8.8\n1.1.1.1:5353\n192.168.1.0/30\n[2001:db8::1]:53\n2001:db8::2").validate())
-        // the core skips [..] without a port
-        assertNotNull(mdv("[2001:db8::1]").validate())
+        // [..] without a port, which the core skipped, goes bare (a profile saved with one still starts)
+        assertNull(mdv("[2001:db8::1]\n8.8.8.8").validate())
+        assertEquals(listOf("2001:db8::1", "8.8.8.8", "[2001:db8::2]:53"),
+            mdv("[2001:db8::1]\n8.8.8.8\n[2001:db8::2]:53").outboundOptions(null)["resolvers"])
         assertNotNull(mdv("").validate())
         assertNotNull(mdv("https://dns.example/dns-query").validate())
         assertNotNull(mdv("8.8.8.8", key = "").validate())
