@@ -29,6 +29,7 @@ import io.niko.databinding.LayoutAboutBinding
 import io.niko.ktx.*
 import io.niko.plugin.PluginManager.loadString
 import io.niko.utils.PackageCache
+import io.niko.utils.Updates
 import io.niko.utils.isNewerVersion
 import io.niko.widget.ListListener
 import libcore.Libcore
@@ -241,15 +242,18 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
             }
         }
 
+        /** The update check's client: through the core when it runs, never around it in proxy mode. */
+        private fun updateClient() = Libcore.newHttpClient().apply {
+            modernTLS()
+            trySocks5(DataStore.mixedPort, LOCAL_PROXY_USER, DataStore.localProxyPassword)
+            // proxy mode with the service running: never around it (the device's own address)
+            if (localProxyRequired()) requireSocks5()
+        }
+
         fun checkUpdate(checkPreview: Boolean) {
             runOnIoDispatcher {
                 try {
-                    val client = Libcore.newHttpClient().apply {
-                        modernTLS()
-                        trySocks5(DataStore.mixedPort, LOCAL_PROXY_USER, DataStore.localProxyPassword)
-                        // proxy mode with the service running: never around it (the device's own address)
-                        if (localProxyRequired()) requireSocks5()
-                    }
+                    val client = updateClient()
                     val content = try {
                         client.newRequest().apply {
                             if (checkPreview) {
@@ -287,6 +291,7 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                         // the user may have left the screen while the request ran
                         val context = context ?: return@runOnMainDispatcher
                         if (haveUpdate) {
+                            val openPage = { context.startActivity(Intent(Intent.ACTION_VIEW, releaseUrl.toUri())) }
                             MaterialAlertDialogBuilder(context)
                                 .setTitle(R.string.update_dialog_title)
                                 .setMessage(
@@ -296,9 +301,14 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                                         releaseName
                                     )
                                 )
-                                .setPositiveButton(R.string.yes) { _, _ ->
-                                    val intent = Intent(Intent.ACTION_VIEW, releaseUrl.toUri())
-                                    context.startActivity(intent)
+                                .apply {
+                                    // the GitHub build: the APK of the release, its signature and hash checked
+                                    if (Updates.enabled && release != null) {
+                                        setPositiveButton(R.string.update_install) { _, _ -> installUpdate(release) }
+                                        setNeutralButton(R.string.update_release_page) { _, _ -> openPage() }
+                                    } else {
+                                        setPositiveButton(R.string.yes) { _, _ -> openPage() }
+                                    }
                                 }
                                 .setNegativeButton(R.string.no, null)
                                 .show()
@@ -315,6 +325,28 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
             }
         }
 
+        /** Downloads the release's APK for this device, checks it against the signed SHA256SUMS and installs it. */
+        private fun installUpdate(release: JSONObject) {
+            Toast.makeText(app, R.string.update_downloading, Toast.LENGTH_SHORT).show()
+            runOnIoDispatcher {
+                val message = try {
+                    val file = Updates.download(app, updateClient(), release)
+                    if (file == null) {
+                        // the download of a tap before still runs
+                        null
+                    } else {
+                        onMainDispatcher { if (Updates.install(app, file)) null else app.getString(R.string.update_allow_install) }
+                    }
+                } catch (e: Updates.Refused) {
+                    Logs.w(e)
+                    app.getString(R.string.update_refused, app.getString(e.reason))
+                } catch (e: Exception) {
+                    Logs.w(e)
+                    e.readableMessage
+                }
+                if (message != null) onMainDispatcher { Toast.makeText(app, message, Toast.LENGTH_LONG).show() }
+            }
+        }
     }
 
 }

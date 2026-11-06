@@ -147,6 +147,21 @@ fun Project.setupAppCommon() {
     }
 }
 
+/**
+ * The minisign public key the app's releases are signed with (niko-update.pub, release.yml): its key line, or empty
+ * without the file, and the build then leaves its updates to the release page.
+ */
+fun Project.updatePublicKey(): String {
+    val file = rootProject.file("niko-update.pub")
+    if (!file.exists()) return ""
+    val lines = file.readLines().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("untrusted comment:") }
+    // base64 of "Ed", the key ID and the Ed25519 key: 42 bytes
+    require(lines.size == 1 && Regex("^RW[A-Za-z0-9+/]{54}$").matches(lines[0])) {
+        "niko-update.pub: not a minisign public key"
+    }
+    return lines[0]
+}
+
 fun Project.setupApp() {
     val pkgName = requireMetadata().getProperty("PACKAGE_NAME")
     val verName = requireMetadata().getProperty("VERSION_NAME")
@@ -157,6 +172,8 @@ fun Project.setupApp() {
             versionCode = verCode
             versionName = verName
             buildConfigField("String", "PRE_VERSION_NAME", "\"\"")
+            // the GitHub build (oss) installs its updates itself, the stores' builds do not
+            buildConfigField("String", "UPDATE_PUBLIC_KEY", "\"\"")
         }
     }
     setupAppCommon()
@@ -197,7 +214,9 @@ fun Project.setupApp() {
 
         flavorDimensions += "vendor"
         productFlavors {
-            create("oss")
+            create("oss") {
+                buildConfigField("String", "UPDATE_PUBLIC_KEY", "\"${updatePublicKey()}\"")
+            }
             create("fdroid")
             create("play")
             create("preview") {

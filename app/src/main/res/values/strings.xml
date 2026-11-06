@@ -619,6 +619,16 @@
     <string name="update_dialog_title">New version available</string>
     <string name="update_dialog_message">Current version: %1$s\nAvailable version: %2$s\nDo you want to download it?</string>
     <string name="check_update_no">Check successful, but no updates.</string>
+    <string name="update_install">Download and install</string>
+    <string name="update_release_page">Release page</string>
+    <string name="update_downloading">Downloading the update…</string>
+    <string name="update_allow_install">Allow Niko to install apps, then install the update again</string>
+    <string name="update_refused">The update is not installed: %s</string>
+    <string name="update_no_signature">the release carries no signature</string>
+    <string name="update_bad_signature">its signature does not hold</string>
+    <string name="update_other_release">its signature is another release\'s</string>
+    <string name="update_no_apk">the release has no APK for this device</string>
+    <string name="update_bad_apk">the downloaded APK is not the signed one</string>
     <string name="reset_settings">Restore default settings</string>
     <string name="reset_settings_message">Restore default settings, but data such as nodes and groups will be retained. To completely clear data, clear application data directly in the system settings.</string>
     <string name="minimize">Minimize</string>

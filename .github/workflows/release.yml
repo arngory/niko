@@ -75,6 +75,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ needs.check.outputs.sha }}
+          # the files at the root come with it in cone mode: niko-update.pub
           sparse-checkout: .github/release-notes
 
       - name: Download APKs
@@ -82,6 +83,35 @@ jobs:
         with:
           name: APKs
           path: apks
+
+      # SHA256SUMS signed with minisign (the secret MINISIGN_SECRET_KEY, a key made with minisign -G -W): the GitHub
+      # build checks it with the public key of niko-update.pub, the trusted comment its tag, before it installs an
+      # update (io.niko.utils.Updates; docs/RELEASE_SIGNING.md §5)
+      - name: Sign SHA256SUMS
+        env:
+          MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
+          TAG: ${{ needs.check.outputs.tag }}
+        run: |
+          if [ -z "$MINISIGN_SECRET_KEY" ]; then
+            if [ -f niko-update.pub ]; then
+              echo "::error::the app checks updates with niko-update.pub, and MINISIGN_SECRET_KEY is not set: it would refuse this release"
+              exit 1
+            fi
+            echo "::warning::MINISIGN_SECRET_KEY is not set: SHA256SUMS goes out unsigned"
+            exit 0
+          fi
+          sudo apt-get install -y -q minisign > /dev/null || { sudo apt-get update -q && sudo apt-get install -y -q minisign; }
+          umask 077
+          printf '%s\n' "$MINISIGN_SECRET_KEY" > "$RUNNER_TEMP/niko-update.key"
+          minisign -S -s "$RUNNER_TEMP/niko-update.key" -m apks/SHA256SUMS -t "niko $TAG" < /dev/null
+          rm -f "$RUNNER_TEMP/niko-update.key"
+          # as the app checks it: the pinned public key, the trusted comment the tag
+          if [ -f niko-update.pub ]; then
+            minisign -V -p niko-update.pub -m apks/SHA256SUMS
+            grep -qxF "trusted comment: niko $TAG" apks/SHA256SUMS.minisig
+          else
+            echo "::warning::no niko-update.pub: the app does not check this signature yet"
+          fi
 
       - name: Create release
         env:
