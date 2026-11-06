@@ -73,16 +73,21 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
-	defer cancel()
-
-	result, err := raysub.Fetch(ctx, raysub.Request{
+	// the subscription as the app takes it: RaycontrolFetchSubscription's JSON, which the app reads (a struct of the
+	// core once dropped fields the app needs on the way); the core's own steps below read its struct
+	request, _ := json.Marshal(raysub.Request{
 		Host: node, Port: b.Sub.Port, Pin: b.Sub.Pin, DeviceID: b.DeviceID, NodeID: b.SPA.NodeID,
 		Ed25519: b.NodeKeys.Ed25519, MLDSA65: b.NodeKeys.MLDSA65, SPA: b.SPA,
 	})
+	appJSON, err := RaycontrolFetchSubscription(string(request))
 	if err != nil {
 		t.Fatalf("subscription: %v", err)
 	}
+	var result raysub.Result
+	if err = json.Unmarshal([]byte(appJSON), &result); err != nil {
+		t.Fatalf("subscription JSON: %v", err)
+	}
+	appPayload(t, appJSON)
 	probeInfo := result.Payload.Probe
 	if probeInfo == nil || probeInfo.Tunnel == "" {
 		t.Fatalf("subscription without probe: %+v", result.Payload)
@@ -216,6 +221,47 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 		}
 	}
 	t.Logf("link: %s", rawLink)
+}
+
+// appPayload checks the subscription's JSON as the app reads it (RaySubscription) for what a v0.11.1 node sends this
+// device: the probe and what its summary takes, the relays with their probe, the dnstt probe key; and writes it to
+// RAYCONTROL_PAYLOAD_OUT when set (the app's tests take a copy of it as their fixture).
+func appPayload(t *testing.T, appJSON string) {
+	var app struct {
+		Payload struct {
+			Probe *struct {
+				V      int      `json:"v"`
+				Report []string `json:"report"`
+			} `json:"probe"`
+			Relays []struct {
+				ID    string          `json:"id"`
+				Probe json.RawMessage `json:"probe"`
+			} `json:"relays"`
+			DNSProbe *struct {
+				V   int    `json:"v"`
+				Key string `json:"key"`
+			} `json:"dns_probe"`
+		} `json:"payload"`
+	}
+	if err := json.Unmarshal([]byte(appJSON), &app); err != nil {
+		t.Fatal(err)
+	}
+	p := app.Payload
+	switch {
+	case p.Probe == nil || p.Probe.V != 1 || !slices.Contains(p.Probe.Report, "dns") || !slices.Contains(p.Probe.Report, "path"):
+		t.Fatalf("the app's payload: probe %+v", p.Probe)
+	case p.DNSProbe == nil || p.DNSProbe.V != 1 || p.DNSProbe.Key == "":
+		t.Fatalf("the app's payload: no dns_probe")
+	}
+	if os.Getenv("RAYCONTROL_RELAY") != "" && (len(p.Relays) == 0 || len(p.Relays[0].Probe) == 0) {
+		// the relay's feed may come up after the first fetch: its probe is checked through the relay below
+		t.Logf("the app's payload: relays %d, the first without its probe yet", len(p.Relays))
+	}
+	if out := os.Getenv("RAYCONTROL_PAYLOAD_OUT"); out != "" {
+		if err := os.WriteFile(out, []byte(appJSON), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 // dnsProbeInterop asks the node's front a small and a large probe in its dnstt zone through RaycontrolDnsProbe, as the

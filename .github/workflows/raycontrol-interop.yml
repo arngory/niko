@@ -18,6 +18,9 @@ on:
       - "libcore/probe/**"
       - "libcore/knock/**"
       - "libcore/rayprobe_box.go"
+      - "libcore/raysub.go"
+      - "libcore/dnsprobe/**"
+      - "libcore/dnsprobe_box.go"
       - "libcore/raycontrol_tunnel_interop_test.go"
       - ".github/xray-interop.env"
       - "buildScript/lib/core/get_source_env.sh"
@@ -222,9 +225,20 @@ jobs:
           RAYCONTROL_CA: /tmp/rccert/root.pem
           RAYCONTROL_RELAY: 203.0.113.3
           RAYCONTROL_EXPECT: hysteria2-pin,hysteria2-ca,reality,yggdrasil,dnstt-auth,masterdns,relay-subscription,relay-reality,relay-hysteria2-pin,relay-hysteria2-ca,relay-probe,relay-report,report-path,dnsprobe
+          # the subscription as the app reads it, for the app's fixture (a CI node's throwaway keys)
+          RAYCONTROL_PAYLOAD_OUT: /tmp/raycontrol-payload.json
         run: |
           TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
           go test -count=1 -v -timeout 10m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
+
+      - name: The subscription as the app reads it
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: raycontrol-payload
+          path: /tmp/raycontrol-payload.json
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Logs
         if: always()
