@@ -8,13 +8,20 @@ import io.niko.ktx.readableMessage
 /** Import of raycontrol packages from any text: the clipboard, a file, a QR code, a link. */
 object RayImport {
 
-    fun matches(text: String) = Rcinv1.matches(text) || Rcdev1.matches(text)
+    fun matches(text: String) = isInvite(text) || Rcdev1.matches(text)
+
+    /** An invite in [text]: rcinv1, or the short rcinv2 (api-v1.md §3a). */
+    fun isInvite(text: String) = Rcinv2.matches(text) || Rcinv1.matches(text)
+
+    /** The invite in [text], either format. Throws IllegalArgumentException with a readable reason. */
+    fun parseInvite(text: String): RayInvite = if (Rcinv2.matches(text)) Rcinv2.parse(text) else Rcinv1.parse(text)
 
     /**
      * The bare token in [text], e.g. to pass a scanned QR code on as a link: the first candidate that parses, so a
      * token wrapped over lines comes out whole.
      */
     fun token(text: String): String {
+        if (Rcinv2.matches(text)) return Rcinv2.token(text)
         val invite = Rcinv1.matches(text)
         val all = if (invite) Rcinv1.candidates(text) else Rcdev1.candidates(text)
         return all.firstOrNull { runCatching { if (invite) Rcinv1.parse(it) else Rcdev1.parse(it) }.isSuccess } ?: all.first()
@@ -27,8 +34,8 @@ object RayImport {
      * device package. Throws IllegalArgumentException for a broken package.
      */
     fun replaceQuestion(context: Context, text: String): String? {
-        val (nodeId, host, deviceId) = if (Rcinv1.matches(text)) {
-            Rcinv1.parse(text).let { Triple(it.spa.nodeId, it.host, null) }
+        val (nodeId, host, deviceId) = if (isInvite(text)) {
+            parseInvite(text).let { Triple(it.spa.nodeId, it.host, null) }
         } else {
             Rcdev1.parse(text).let { Triple(it.spa.nodeId, it.host, it.deviceId) }
         }
@@ -51,8 +58,8 @@ object RayImport {
      * registration when the invite says so, and again after a wrong one. [context] is the application context.
      */
     suspend fun import(context: Context, text: String, askPin: PinAsker, show: suspend (String) -> Unit) {
-        val node = if (Rcinv1.matches(text)) {
-            val invite = Rcinv1.parse(text)
+        val node = if (isInvite(text)) {
+            val invite = parseInvite(text)
             // 6 digits, asked again until they are, or null when the user gives up
             suspend fun pin(left: Int?, wrong: Boolean): String? {
                 while (true) {

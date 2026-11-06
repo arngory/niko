@@ -168,6 +168,9 @@
                 <!-- raycontrol: a one-time invite, imported after a confirmation. Not rcdev1: that package comes
                      from Register now, and by hand only by paste or file (raycontrol niko-r3-reply.md §3) -->
                 <data android:scheme="rcinv1" />
+                <!-- the short invite (api-v1.md §3a); its QR code holds it in upper case, which Android, matching a
+                     scheme as written, takes from Niko's own scanner and a paste, not from another app's link -->
+                <data android:scheme="rcinv2" />
 
             </intent-filter>
 

@@ -169,19 +169,137 @@ object Rcinv1 {
     fun candidates(text: String) = token.candidates(text)
 
     /** Throws IllegalArgumentException with a readable reason. */
-    fun parse(text: String): RayInvite = token.parse(text) { o ->
-        val r = Rcdev1.fields(o, "rcinv1")
-        val api = (o.get("api") as? JsonObject ?: throw IllegalArgumentException("rcinv1: no api")).let {
+    fun parse(text: String): RayInvite = token.parse(text) { o -> fromJson(o, "rcinv1") }
+
+    /** An invite's JSON (api-v1.md §3) to the invite, checked: rcinv1's, and rcinv2's as rcinv1's ([Rcinv2]). */
+    internal fun fromJson(o: JsonObject, name: String): RayInvite {
+        val r = Rcdev1.fields(o, name)
+        val api = (o.get("api") as? JsonObject ?: throw IllegalArgumentException("$name: no api")).let {
             try {
                 RayApiInfo.fromJson(it)
             } catch (e: IllegalArgumentException) {
-                throw IllegalArgumentException("rcinv1: ${e.message}")
+                throw IllegalArgumentException("$name: ${e.message}")
             }
         }
-        RayInvite(
+        return RayInvite(
             r.host, r.spa, r.deviceId, r.deviceKey, r.services, api, o.long("expires"),
             pinRequired = (o.get("pin") as? com.google.gson.JsonPrimitive)?.takeIf { it.isBoolean }?.asBoolean == true,
         )
+    }
+}
+
+/**
+ * The short invite `RCINV2:` (api-v1.md §3a, raycontrol v0.13): rcinv1's invite in a fixed binary layout, base32 in
+ * upper case for the QR code's alphanumeric mode (version 8-9 instead of 17). Read into the rcinv1 JSON and checked
+ * as one, so the two never differ in what they take.
+ */
+object Rcinv2 {
+    const val PREFIX = "RCINV2:"
+    private val token = Regex("""(?<![A-Za-z0-9_-])RCINV2:[A-Za-z2-7]+""", RegexOption.IGNORE_CASE)
+    private val label = Regex("^[A-Za-z0-9-]{1,63}$")
+    private const val ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+
+    fun matches(text: String) = token.containsMatchIn(text)
+
+    /** The bare token in [text], e.g. to pass a scanned QR code on as a link. */
+    fun token(text: String) = token.find(text)?.value ?: text.trim()
+
+    /** Throws IllegalArgumentException with a readable reason. */
+    fun parse(text: String): RayInvite {
+        val found = token.find(text)?.value ?: throw IllegalArgumentException("rcinv2: no invite in the text")
+        val b = java.nio.ByteBuffer.wrap(base32(found.substringAfter(':')))
+        fun need(n: Int) = require(b.remaining() >= n) { "rcinv2: cut short" }
+        fun bytes(n: Int) = ByteArray(n).also { need(n); b.get(it) }
+        fun hex(n: Int) = bytes(n).joinToString("") { "%02x".format(it) }
+        fun u16() = run { need(2); b.short.toInt() and 0xffff }
+        fun u32() = run { need(4); b.int.toLong() and 0xffffffffL }
+        need(2)
+        require(b.get().toInt() == 2) { "rcinv2: unsupported version" }
+        val flags = b.get().toInt() and 0xff
+        require(flags and 0x07.inv() == 0) { "rcinv2: unknown flags" }
+        val host = when ((flags shr 1) and 0x03) {
+            0 -> bytes(4).joinToString(".") { (it.toInt() and 0xff).toString() }
+            1 -> ipv6(bytes(16))
+            2 -> {
+                need(1)
+                val name = String(bytes(b.get().toInt() and 0xff), Charsets.US_ASCII)
+                require(name.length in 1..253 && name.split('.').all { label.matches(it) }) { "rcinv2: invalid host name" }
+                name
+            }
+            else -> throw IllegalArgumentException("rcinv2: unknown kind of host")
+        }
+        val o = JsonObject().apply {
+            addProperty("v", 1)
+            addProperty("host", host)
+            add("spa", JsonObject().apply {
+                addProperty("node_id", hex(16))
+                addProperty("epoch_len_s", u32())
+                addProperty("slot_len_s", u32())
+                addProperty("port_key", hex(32))
+                addProperty("port_base", u16())
+                addProperty("port_range", u16())
+                addProperty("len_min", u16())
+                addProperty("len_max", u16())
+            })
+            addProperty("device_id", hex(8))
+            addProperty("device_key", hex(32))
+            // one service, the API: kind and name are not sent
+            add("services", com.google.gson.JsonArray().apply {
+                add(JsonObject().apply { addProperty("id", u16()); addProperty("kind", "api"); addProperty("name", "api") })
+            })
+            val apiPort = u16()
+            val apiPin = okio.ByteString.of(*bytes(32)).base64Url().trimEnd('=')
+            add("api", JsonObject().apply { addProperty("port", apiPort); addProperty("pin", apiPin) })
+            val expires = u32()
+            require(expires != 0L && apiPort != 0) { "rcinv2: no expiry or no API port" }
+            addProperty("expires", expires)
+            if (flags and 0x01 != 0) addProperty("pin", true)
+        }
+        require(!b.hasRemaining()) { "rcinv2: bytes after its end" }
+        return Rcinv1.fromJson(o, "rcinv2")
+    }
+
+    /** RFC 4648 base32 without padding, either case. */
+    private fun base32(text: String): ByteArray {
+        val out = java.io.ByteArrayOutputStream()
+        var buffer = 0
+        var bits = 0
+        for (c in text.uppercase()) {
+            val v = ALPHABET.indexOf(c)
+            require(v >= 0) { "rcinv2: not base32" }
+            buffer = (buffer shl 5) or v
+            bits += 5
+            if (bits >= 8) {
+                bits -= 8
+                out.write((buffer shr bits) and 0xff)
+            }
+        }
+        // the rest must be the padding bits of the last character, zero
+        require(bits < 5 && buffer and ((1 shl bits) - 1) == 0) { "rcinv2: not base32" }
+        return out.toByteArray()
+    }
+
+    /** An IPv6 address in its short form (the longest run of zero groups as ::). */
+    private fun ipv6(raw: ByteArray): String {
+        val groups = (0 until 8).map { ((raw[2 * it].toInt() and 0xff) shl 8) or (raw[2 * it + 1].toInt() and 0xff) }
+        var bestStart = -1
+        var bestLen = 0
+        var i = 0
+        while (i < 8) {
+            if (groups[i] != 0) {
+                i++
+                continue
+            }
+            var j = i
+            while (j < 8 && groups[j] == 0) j++
+            if (j - i > bestLen && j - i >= 2) {
+                bestStart = i
+                bestLen = j - i
+            }
+            i = j
+        }
+        fun part(from: Int, to: Int) = groups.subList(from, to).joinToString(":") { Integer.toHexString(it) }
+        return if (bestStart < 0) part(0, 8) else part(0, bestStart) + "::" + part(bestStart + bestLen, 8)
     }
 }
 
