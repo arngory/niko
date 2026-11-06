@@ -9,15 +9,15 @@ package io.niko.fmt
  * Empty domain = off.
  */
 /**
- * A subscription's update of this bean (fresh from its link) over [old], the stored row: a DNS tunnel the link gives
- * (niko-dns) is the node's, its fields as the link has them (a seal turned on, a rotated key, dnsauth), only the
- * resolver the user picked for the same engine staying; a tunnel the user set on a link without one stays whole.
+ * A subscription's update of this bean (fresh from its link) over [old], the stored row. A DNS tunnel the link gives
+ * (niko-dns) is the profile itself, its server reached only through it: the link's fields win whole, as in a node's
+ * own subscription (a seal turned on, a rotated key, dnsauth, the link's resolver or, left to the client, the
+ * setting's as it is now, so a changed setting applies from the next update as its help says). An edit of such a
+ * tunnel in the profile, turning it off included, lasts until the next update. A tunnel the user set on a link
+ * without one stays whole.
  */
 fun AbstractBean.keepDnsTunnelOf(old: AbstractBean) {
-    if (DnsTunnel.of(this).enabled) {
-        if (!old.dnsTunnelResolver.isNullOrBlank() && old.dnsTunnel == dnsTunnel) dnsTunnelResolver = old.dnsTunnelResolver
-        return
-    }
+    if (DnsTunnel.of(this).enabled) return
     dnsTunnel = old.dnsTunnel
     dnsTunnelResolver = old.dnsTunnelResolver
     dnsTunnelDomain = old.dnsTunnelDomain

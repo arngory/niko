@@ -116,25 +116,26 @@ class DnsTunnelTest {
         assertNotNull(tunnel.copy(seal = "short").validate())
     }
 
-    /** A subscription's update: the link's tunnel wins (its seal, its key), the user's resolver stays. */
+    /** A subscription's update: a tunnel the link gives wins whole; one the user set on a link without one stays. */
     @Test
     fun updateKeepsWhatIsTheUsers() {
         val seal = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
         val old = SOCKSBean().apply {
             initializeDefaultValues()
             applyNikoParams({ mapOf("niko-dns" to "dnstt;udp://8.8.8.8;t.example.com;$key")[it] })
+            // edited in the profile, or the turned-off tunnel's emptied domain: until the next update
             dnsTunnelResolver = "tcp://195.208.5.1"
         }
-        // the node turned the seal on and rotated its key: the link's values, the user's resolver
+        // the node turned the seal on, rotated its key and moved to another resolver: all as the link has it
         val other = "cd".repeat(32)
         val fresh = SOCKSBean().apply {
             initializeDefaultValues()
-            applyNikoParams({ mapOf("niko-dns" to "dnstt;udp://8.8.8.8;t.example.com;$other", "niko-dnsseal" to "v1;$seal")[it] })
+            applyNikoParams({ mapOf("niko-dns" to "dnstt;tls://dns.node.example;t.example.com;$other", "niko-dnsseal" to "v1;$seal")[it] })
         }
         fresh.keepDnsTunnelOf(old)
         assertEquals(seal, fresh.dnsTunnelSeal)
         assertEquals(other, fresh.dnsTunnelKey)
-        assertEquals("tcp://195.208.5.1", fresh.dnsTunnelResolver)
+        assertEquals("tls://dns.node.example", fresh.dnsTunnelResolver)
         // a link without a tunnel: the one the user set stays whole
         val plain = SOCKSBean().apply { initializeDefaultValues() }
         plain.keepDnsTunnelOf(old)
