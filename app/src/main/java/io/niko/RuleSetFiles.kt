@@ -67,16 +67,17 @@ object RuleSetFiles {
     private fun kindsFile(file: File) = File(file.parentFile, file.name + ".kinds")
 
     /**
-     * What the downloaded rule-set holds: kept from its check at the download, or checked now for a file without one
-     * (downloaded before the check, or the app stopped between the two); null when it can not be told.
+     * What the downloaded rule-set holds: kept from its check at the download, or, with [check], checked now for a
+     * file without one (downloaded before the check, or the app stopped between the two); null when it can not be
+     * told. Without [check] the file is not read: an export builds its config on the UI thread.
      */
-    fun kinds(item: String): Int? {
+    fun kinds(item: String, check: Boolean = true): Int? {
         val file = file(item)
         val kindsFile = kindsFile(file)
         if (kindsFile.isFile && kindsFile.lastModified() >= file.lastModified()) {
             kindsFile.readText().trim().toIntOrNull()?.let { return it }
         }
-        if (!available(item)) return null
+        if (!check || !available(item)) return null
         return try {
             Libcore.checkRuleSet(file.canonicalPath, format(item)).also { kindsFile.writeText(it.toString()) }
         } catch (e: Throwable) {
@@ -92,7 +93,7 @@ object RuleSetFiles {
      */
     fun usableInDns(item: String, forExport: Boolean = false): Boolean {
         if (!fetchable(item) || !forExport && !available(item)) return false
-        val kinds = kinds(item) ?: return !isIPRuleSetName(item)
+        val kinds = kinds(item, check = !forExport) ?: return !isIPRuleSetName(item)
         return kinds and HAS_DOMAIN != 0
     }
 
