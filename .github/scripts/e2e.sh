@@ -24,6 +24,7 @@ hysteria=15
 finish() {
   timeout 30 adb exec-out screencap -p > "$out/screen.png" 2>/dev/null
   timeout 60 adb logcat -d > "$out/logcat.txt" 2>/dev/null
+  timeout 30 adb pull "/data/data/$pkg/cache/neko.log" "$out/neko.log" > /dev/null 2>&1
   { timeout 20 adb shell ip addr; timeout 20 adb shell ip rule; timeout 30 adb shell dumpsys connectivity; } \
     > "$out/network.txt" 2>&1
   status=$1
@@ -32,6 +33,10 @@ finish() {
   fi
   echo "--- the app's warnings and errors"
   grep -E '^[0-9-]+ [0-9:.]+ +[0-9]+ +[0-9]+ [WEF] ' "$out/logcat.txt" | grep -iE "$pkg|niko|libcore|sing-box" | tail -n 60
+  if [ "$status" != 0 ] && [ -s "$out/neko.log" ]; then
+    echo "--- the core's log (its end)"
+    tail -n 80 "$out/neko.log"
+  fi
   exit "$status"
 }
 fail() { echo "::error::$*"; finish 1; }
@@ -113,6 +118,16 @@ for i in $(seq 45); do
 done
 [ -n "$id" ] || fail "no Hysteria2 profile from the node after 90 s"
 echo "the node's Hysteria2 profile: $id"
+
+echo "== the core's log at debug (a failure's artifact)"
+# the app stopped first: its settings are Room's KeyValuePair in configuration.db, the log level a string
+timeout 20 adb shell am force-stop "$pkg"
+if timeout 20 adb shell "command -v sqlite3" > /dev/null 2>&1; then
+  timeout 20 adb shell "sqlite3 /data/data/$pkg/databases/configuration.db \"INSERT OR REPLACE INTO KeyValuePair (key, valueType, value) VALUES ('logLevel', 5, CAST('3' AS BLOB));\"" ||
+    echo "the log level not set: the core logs at its default"
+else
+  echo "no sqlite3 on the emulator: the core logs at its default level"
+fi
 
 echo "== the VPN through it"
 timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" --el profile "$id" > /dev/null ||

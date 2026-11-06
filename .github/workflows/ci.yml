@@ -48,9 +48,10 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
           script: bash .github/scripts/smoke.sh apks
 
-  # the app end to end (e2e.sh) on an emulator, against a CI node under rayd serve -supervise as raycontrol-interop's:
-  # the invite opened as a link registers the device, the subscription brings the node's Hysteria2 profile, the VPN
-  # goes up through it, and a request of the emulator's reaches the runner's HTTP server from the node's address
+  # the app end to end (e2e.sh) on an emulator, against a CI node under rayd serve -supervise as raycontrol-interop's,
+  # behind its perimeter (rayspa: SPA, the rotating UDP ports the app's Hysteria2 takes): the invite opened as a link
+  # registers the device, the subscription brings the node's Hysteria2 profile, the VPN goes up through it, and a
+  # request of the emulator's reaches the runner's HTTP server from the node's address
   e2e:
     needs: build
     runs-on: ubuntu-latest
@@ -73,23 +74,25 @@ jobs:
         with:
           go-version-file: raycontrol/go.mod
           cache: false
-      - name: Build rayd and rayctl; niko-server
+      - name: Build rayd, rayctl and rayspa; niko-server
         run: |
           mkdir -p /tmp/rcbin
           (cd raycontrol && CGO_ENABLED=0 go build -o /tmp/rcbin/rayd ./cmd/rayd &&
-            CGO_ENABLED=0 go build -o /tmp/rcbin/rayctl ./cmd/rayctl)
+            CGO_ENABLED=0 go build -o /tmp/rcbin/rayctl ./cmd/rayctl &&
+            CGO_ENABLED=0 go build -o /tmp/rcbin/rayspa ./cmd/rayspa)
           . .github/niko-server.env
           curl -fsSL --retry 3 -o /tmp/rcbin/niko-server "$NIKO_SERVER_RELEASES/download/$NIKO_SERVER_TAG/niko-server-linux-amd64"
           echo "$NIKO_SERVER_SHA256_AMD64  /tmp/rcbin/niko-server" | sha256sum -c -
           chmod +x /tmp/rcbin/niko-server
 
-      - name: The node under rayd serve -supervise; the runner's HTTP server
+      - name: The node under rayd serve -supervise behind its perimeter; the runner's HTTP server
         run: |
           # raycontrol-interop's addresses: the runner 203.0.113.1, the node .2
           docker network create --subnet 203.0.113.0/24 --gateway 203.0.113.1 rc-net > /dev/null
-          docker run -d --name rc-node --network rc-net --ip 203.0.113.2 -v /tmp/rcbin:/opt/rc:ro \
+          docker run -d --name rc-node --network rc-net --ip 203.0.113.2 --cap-add NET_ADMIN -v /tmp/rcbin:/opt/rc:ro \
             debian:13 sleep infinity > /dev/null
           x() { docker exec rc-node "$@"; }
+          x sh -c 'apt-get update -qq > /dev/null && apt-get install -y -qq nftables > /dev/null'
           x mkdir -p /var/lib/raycontrol /run/raycontrol
           x /opt/rc/rayd init -host 203.0.113.2 > /dev/null
           # no Xray: its services are not used here (rayd says so and starts the others).
@@ -107,6 +110,10 @@ jobs:
           grep -q '^rcinv1:' /tmp/phone.invite || { echo "not an rcinv1 invite"; exit 1; }
           for i in $(seq 150); do x test -S /run/niko/hy2o/stats.sock && break; sleep 0.2; done
           x test -S /run/niko/hy2o/stats.sock || { echo "no Hysteria2"; x tail -n 80 /var/log/rayd.log; exit 1; }
+          # the perimeter as a node runs it: closed but to SPA, the services' rotating UDP ports to their own
+          docker exec -d rc-node sh -c '/opt/rc/rayspa run > /var/log/rayspa.log 2>&1'
+          for i in $(seq 150); do x grep -q 'snapshot applied' /var/log/rayspa.log 2>/dev/null && break; sleep 0.2; done
+          x grep -q 'snapshot applied' /var/log/rayspa.log || { x cat /var/log/rayspa.log; exit 1; }
           # the token the server gives; its log says the address each request came from
           mkdir -p /tmp/www
           head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n' > /tmp/www/e2e
@@ -141,5 +148,7 @@ jobs:
         if: always()
         run: |
           docker exec rc-node tail -n 120 /var/log/rayd.log || true
+          echo "--- the perimeter"; docker exec rc-node tail -n 60 /var/log/rayspa.log || true
+          docker exec rc-node nft list ruleset 2>/dev/null | grep -cE 'dnat|redirect' | sed 's/^/  nat rules: /' || true
           echo "--- the runner's server"; cat /tmp/www.log || true
           docker rm -f rc-node > /dev/null 2>&1 || true
