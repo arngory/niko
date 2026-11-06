@@ -308,7 +308,33 @@ jobs:
           docker exec rc-node /opt/rc/rayctl service set mdns seal=required
           docker exec rc-node /opt/rc/rayctl service set mdns auth=required
           if [ -n "${RAYCONTROL_DNSAUTH_V2:-}" ]; then docker exec rc-node /opt/rc/rayctl service set mdns auth_hint=required; fi
-          go test -count=1 -v -timeout 5m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
+          RAYCONTROL_MDNS_KEY_OUT=/tmp/mdns-key-1 \
+            go test -count=1 -v -timeout 5m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
+
+      # masterdns-key-rotation (raycontrol v0.15.0, niko-server v0.13.0): the service key rotated, the subscription has
+      # the new one at once and the profile goes through with it; the key before still carries for the grace, and
+      # after a rotation with -now it gets no answer. niko-server reads the key file every 5 s
+      - name: masterdns, its service key rotated
+        working-directory: libcore
+        env:
+          RAYCONTROL_BUNDLE: /tmp/phone.bundle
+          RAYCONTROL_ADDRESS: ${{ steps.node.outputs.address }}
+          RAYCONTROL_CA: /tmp/rccert/root.pem
+          RAYCONTROL_ONLY: masterdns-auth-sealed
+        run: |
+          TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
+          if ! docker exec rc-node /opt/rc/rayctl -h 2>&1 | grep -q "masterdns: a new service key"; then
+            echo "::notice::this raycontrol does not rotate a masterdns key (v0.15.0 does)"
+            exit 0
+          fi
+          docker exec rc-node /opt/rc/rayctl service rotate mdns
+          sleep 6
+          RAYCONTROL_MDNS_KEY_OUT=/tmp/mdns-key-2 RAYCONTROL_MDNS_GRACE_KEY=/tmp/mdns-key-1 \
+            go test -count=1 -v -timeout 5m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
+          docker exec rc-node /opt/rc/rayctl service rotate mdns -now
+          sleep 6
+          RAYCONTROL_MDNS_OLD_KEY=/tmp/mdns-key-2 \
+            go test -count=1 -v -timeout 5m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
 
       # dnszones-v1 (raycontrol v0.14.0): dnstt with a spare zone, the main one cut by the network's resolver, its
       # queries dropped and then answered SERVFAIL: dnsprobe fails in the main zone and passes in the spare, the tunnel

@@ -168,6 +168,23 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 			}
 			t.Logf("%s %s: %s, no answer in 15 s, as it must", kind, p.Name, what)
 		}
+		// a profile a node must still answer: through it within 90 s, as the profile itself
+		carries := func(what, link string) {
+			_, config := profileConfig(t, link, node, "", os.Getenv("RAYCONTROL_CA"), b.DeviceKey, downMbps)
+			carrying := startTestBox(t, config)
+			defer carrying.Close()
+			for deadline := time.Now().Add(90 * time.Second); ; time.Sleep(3 * time.Second) {
+				out, err := RaycontrolProbeTunnel(carrying, string(warm))
+				var r probeResult
+				if err == nil && json.Unmarshal([]byte(out), &r) == nil && r.Down != nil && r.Down.OK {
+					break
+				}
+				if time.Now().After(deadline) {
+					t.Fatalf("%s %s: %s, and no answer through it in 90 s: %s %v", kind, p.Name, what, out, err)
+				}
+			}
+			t.Logf("%s %s: %s, it carries, as it must", kind, p.Name, what)
+		}
 		// dnsauth-v2 only at the node (auth_hint=required): the same tunnel signed by v1 answered nothing
 		if only == nil && os.Getenv("RAYCONTROL_DNSAUTH_V2") != "" && strings.HasPrefix(kind, "dnstt-auth") {
 			refused("signed by dnsauth-v1", linkWithParam(t, p.Link, "x-dnsauth-version", "1"), "")
@@ -206,6 +223,35 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 			refused("untagged", linkWithout(t, p.Link, "niko-dnsauth"), "")
 			if os.Getenv("RAYCONTROL_DNSAUTH_V2") != "" {
 				refused("signed by dnsauth-v1", linkWithParam(t, p.Link, "x-dnsauth-version", "1"), "")
+			}
+		}
+		// masterdns-key-rotation (raycontrol v0.15.0, niko-server v0.13.0): the subscription's service key kept for the
+		// next run; after a rotation a new key, the one before carrying for the grace, and refused after -now
+		if only != nil && strings.HasPrefix(kind, "masterdns") {
+			key := linkParam(t, p.Link, "niko-dnskey")
+			if out := os.Getenv("RAYCONTROL_MDNS_KEY_OUT"); out != "" {
+				if err := os.WriteFile(out, []byte(key), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			before := func(env string) string {
+				raw, err := os.ReadFile(os.Getenv(env))
+				if err != nil {
+					t.Fatal(err)
+				}
+				old := strings.TrimSpace(string(raw))
+				if old == key {
+					t.Fatalf("%s %s: the same service key after the rotation", kind, p.Name)
+				}
+				return old
+			}
+			if os.Getenv("RAYCONTROL_MDNS_GRACE_KEY") != "" {
+				carries("with the key before the rotation, in its grace",
+					linkWithParam(t, p.Link, "niko-dnskey", before("RAYCONTROL_MDNS_GRACE_KEY")))
+			}
+			if os.Getenv("RAYCONTROL_MDNS_OLD_KEY") != "" {
+				refused("with the key before a rotation with -now",
+					linkWithParam(t, p.Link, "niko-dnskey", before("RAYCONTROL_MDNS_OLD_KEY")), "")
 			}
 		}
 		// dnstt's spare zone (dnszones-v1, raycontrol v0.14.0), the main zone cut by the network's resolver
@@ -376,6 +422,20 @@ func appPayload(t *testing.T, appJSON string) payloadAnnounced {
 		}
 	}
 	return payloadAnnounced{dnsAuthV2: p.DNSAuth != nil && slices.Contains(p.DNSAuth.V, 2), name: p.Name}
+}
+
+// linkParam is link's param, which must be there
+func linkParam(t *testing.T, link, param string) string {
+	t.Helper()
+	u, err := url.Parse(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	value := u.Query().Get(param)
+	if value == "" {
+		t.Fatalf("no %s in the link of %s", param, u.Fragment)
+	}
+	return value
 }
 
 // linkWithParam is link with param set to value (x-…: the test's own, profileConfig reads them)
