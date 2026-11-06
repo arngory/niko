@@ -627,7 +627,7 @@
     <string name="route_preset_ru_blocked">Заблокированное в России — через прокси</string>
     <string name="route_preset_ru_direct">Российские сервисы — напрямую</string>
     <string name="route_preset_ru_ready">Списки скачаны</string>
-    <string name="route_preset_ru_partial">Скачано списков: %1$d из %2$d. Правило заработает, когда скачаются его списки (они докачиваются после каждого запуска)</string>
+    <string name="route_preset_ru_partial">Скачано списков: %1$d из %2$d. Остальные докачаются, пока работает прокси, и он один раз перезапустится, чтобы их взять</string>
     <string name="raycontrol_group_locked">Группа ноды raycontrol %s: профили приходят с ноды</string>
     <string name="raycontrol_clock_hint">Если нода работает, проверьте время на устройстве: SPA работает, только если часы расходятся с нодой не больше чем на 30 с.</string>
     <string name="raycontrol_sub_reimport">Нода отклонила устройство или её ключи сменились: импортируйте регистрацию (rcdev1) заново. Автообновление для неё остановлено.</string>

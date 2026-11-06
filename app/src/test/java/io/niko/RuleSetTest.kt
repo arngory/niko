@@ -90,10 +90,24 @@ class RuleSetFilesTest {
         assertEquals("local", sets[0].type)
         assertEquals(RuleSetFiles.file(domains).absolutePath, sets[0].path)
         assertEquals("binary", sets[0].format)
-        // a DNS rule takes the domains' rule-set, not the IPs'
+        // a DNS rule takes a downloaded rule-set with domains, not one without (marked at the download), nor one
+        // not downloaded
+        RuleSetFiles.file(domains).apply { parentFile?.mkdirs(); writeBytes("SRS\u0001data".toByteArray()) }
+        val cidrs = "srs:https://example.com/ru-cidr.srs"
+        RuleSetFiles.file(cidrs).writeBytes("SRS\u0001data".toByteArray())
+        java.io.File(RuleSetFiles.file(cidrs).path + ".nodomain").createNewFile()
+        RuleSetFiles.file(ips).delete()
         val dns = DNSRule_DefaultOptions()
-        dns.makeSingBoxRule(listOf(domains, ips))
+        dns.makeSingBoxRule(listOf(domains, cidrs, ips))
         assertEquals(listOf(domains), dns.rule_set)
+        assertTrue(dns.hasDomain())
+        val none = DNSRule_DefaultOptions().apply { makeSingBoxRule(listOf(cidrs)) }
+        org.junit.Assert.assertFalse(none.hasDomain())
+        // an exported config names them by URL, as remote rule-sets
+        val exported = mutableListOf<RuleSet>()
+        generateRuleSet(listOf(domains), exported, 24, forExport = true)
+        assertEquals("remote", exported[0].type)
+        assertEquals("https://example.com/geosite-ru-blocked.srs", exported[0].url)
     }
 
     @Test
@@ -102,8 +116,12 @@ class RuleSetFilesTest {
         RuleSetFiles.file(ips).delete()
         val (kept, missing) = RuleSetFiles.withoutMissing(listOf(domains, ips, "domain:ru"))
         assertEquals(listOf(domains, "domain:ru"), kept)
-        assertTrue(missing)
-        assertEquals(listOf("domain:ru") to false, RuleSetFiles.withoutMissing(listOf("domain:ru")))
+        assertEquals(listOf(ips), missing)
+        assertEquals(listOf("domain:ru") to emptyList<String>(), RuleSetFiles.withoutMissing(listOf("domain:ru")))
+        // only https: a list over http is never fetched, and a file under its name never taken
+        val plain = "srs:http://example.com/geosite-x.srs"
+        RuleSetFiles.file(plain).writeBytes("SRS\u0001data".toByteArray())
+        org.junit.Assert.assertFalse(RuleSetFiles.fetchable(plain) || RuleSetFiles.available(plain))
         // a rule left without any address is left out whole; one with another address keeps it
         val left = Rule_DefaultOptions().apply { makeSingBoxRule(RuleSetFiles.withoutMissing(listOf(ips)).first, true) }
         org.junit.Assert.assertFalse(left.hasAddress())

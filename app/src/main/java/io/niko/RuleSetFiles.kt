@@ -54,7 +54,16 @@ object RuleSetFiles {
         return File(dir(), name + if (format(item) == "source") ".json" else ".srs")
     }
 
-    fun available(item: String) = file(item).let { it.isFile && it.length() > 0 }
+    /** only https: a list fetched in the clear could be any list, one sending all traffic around the proxy */
+    fun fetchable(item: String) = url(item).startsWith("https://", ignoreCase = true)
+
+    fun available(item: String) = fetchable(item) && file(item).let { it.isFile && it.length() > 0 }
+
+    /** the mark of a downloaded rule-set without any domain (IP CIDRs only): a DNS rule leaves it out */
+    private fun noDomainMark(file: File) = File(file.parentFile, file.name + ".nodomain")
+
+    /** whether a DNS rule can use the rule-set: downloaded, with domains (CheckRuleSet said so at the download) */
+    fun usableInDns(item: String) = available(item) && !noDomainMark(file(item)).exists()
 
     /** whether a file begins as a rule-set of its format: the magic "SRS" of a binary one, a JSON object */
     fun looksValid(head: ByteArray, format: String): Boolean = if (format == "binary") {
@@ -63,11 +72,15 @@ object RuleSetFiles {
         head.firstOrNull { !it.toInt().toChar().isWhitespace() } == '{'.code.toByte()
     }
 
-    /** The list without the rule-sets not downloaded yet, and whether it left any out. */
-    fun withoutMissing(list: List<String>): Pair<List<String>, Boolean> {
-        val (kept, missing) = list.partition { !isItem(it) || available(it) }
-        return kept to missing.isNotEmpty()
-    }
+    /** The list without the rule-sets not downloaded yet, and those it left out. */
+    fun withoutMissing(list: List<String>): Pair<List<String>, List<String>> = list.partition { !isItem(it) || available(it) }
+
+    /**
+     * The rule-sets the running config left out, not downloaded when the core started (ConfigBuilder sets them): when
+     * a service round gets one, the core restarts once to take it in.
+     */
+    @Volatile
+    var missingInConfig: Set<String> = emptySet()
 
     /** the rule-sets in a rule's lists */
     fun itemsOf(lists: List<String>) = lists.flatMap { it.listByLineOrComma() }.filter(::isItem).distinct()
@@ -83,6 +96,10 @@ object RuleSetFiles {
             for (item in items.filter(::isItem).distinct()) {
                 ensureActive()
                 if (serviceRound && !DataStore.serviceState.started) break
+                if (!fetchable(item)) {
+                    Logs.w("rule-set ${url(item)}: only https lists are fetched")
+                    continue
+                }
                 val file = file(item)
                 if (file.isFile && System.currentTimeMillis() - file.lastModified() < maxAgeMillis) continue
                 try {
@@ -126,7 +143,11 @@ object RuleSetFiles {
                 check(tmp.length() in 5..MAX_SIZE && looksValid(head.copyOf(maxOf(read, 0)), format(item))) {
                     "not a rule-set (${tmp.length()} bytes)"
                 }
+                // read as the core reads it: a file it can not load (a newer format, say) would fail every start
+                val kinds = Libcore.checkRuleSet(tmp.canonicalPath, format(item))
                 check(tmp.renameTo(file)) { "can not replace ${file.name}" }
+                val mark = noDomainMark(file)
+                if (kinds and Libcore.RuleSetHasDomain == 0) mark.createNewFile() else mark.delete()
             } finally {
                 tmp.delete()
             }
@@ -143,7 +164,10 @@ object RuleSetFiles {
         val used = SagerDatabase.rulesDao.allRules().flatMap { itemsOf(listOf(it.domains, it.ip)) }.map { file(it).name }.toSet()
         val hourAgo = System.currentTimeMillis() - 3_600_000L
         dir().listFiles()?.forEach {
-            val unused = if (it.name.endsWith(".tmp")) it.lastModified() < hourAgo else it.name !in used
+            val unused = when {
+                it.name.endsWith(".tmp") -> it.lastModified() < hourAgo
+                else -> it.name.removeSuffix(".nodomain") !in used
+            }
             if (unused) it.delete()
         }
     }
@@ -165,7 +189,16 @@ object RuleSetFiles {
                 val items = enabledItems()
                 // stale by the next round: what this one fetched is older than the interval by then, less a margin
                 val got = if (items.isEmpty()) 0 else update(items, interval - 600_000L, serviceRound = true)
-                if (got > 0) Logs.i("rule-sets: $got updated, the core reloads them (a new one takes effect on the next start)")
+                if (got > 0) Logs.i("rule-sets: $got updated, the core reloads them")
+                // a list the running config left out is here: one restart takes it in (and lets the preset's direct
+                // rule in once its blocked lists are here); the next build sets what is still missing
+                val arrived = missingInConfig.filter(::available)
+                if (arrived.isNotEmpty() && DataStore.serviceState.started) {
+                    missingInConfig = emptySet()
+                    Logs.i("rule-sets: ${arrived.size} the core started without are here, restarting it")
+                    SagerNet.reloadService(force = true)
+                    return@launch
+                }
                 delay(interval)
             }
         }

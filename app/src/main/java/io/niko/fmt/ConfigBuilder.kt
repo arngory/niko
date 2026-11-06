@@ -941,7 +941,9 @@ fun buildConfig(
         }
 
         // apply user rules
-        val russiaDirectWaits = RoutePresets.russiaDirectWaits(extraRules)
+        // an exported config keeps the rules as they are: the rule-sets go by their URLs
+        val russiaDirectWaits = !forExport && RoutePresets.russiaDirectWaits(extraRules)
+        val missingInConfig = mutableSetOf<String>()
         for (rule in extraRules) {
             if (russiaDirectWaits && RoutePresets.isRussiaDirect(rule)) {
                 Logs.i("routes: ${rule.displayName()} waits for the blocked lists (Russian services go through the proxy meanwhile)")
@@ -972,8 +974,9 @@ fun buildConfig(
                 // a rule-set the app has not downloaded yet is left out; a rule it leaves without any address is
                 // left out whole (its port or app alone would match far more)
                 var missingRuleSet = false
-                fun downloaded(list: List<String>) = RuleSetFiles.withoutMissing(list).let { (kept, missing) ->
-                    if (missing) missingRuleSet = true
+                fun downloaded(list: List<String>) = if (forExport) list else RuleSetFiles.withoutMissing(list).let { (kept, missing) ->
+                    if (missing.isNotEmpty()) missingRuleSet = true
+                    missingInConfig += missing
                     kept
                 }
                 if (rule.domains.isNotBlank()) {
@@ -985,7 +988,7 @@ fun buildConfig(
                 }
                 dropRule = missingRuleSet && !hasAddress()
 
-                if (rule_set != null) generateRuleSet(rule_set, ruleSets)
+                if (rule_set != null) generateRuleSet(rule_set, ruleSets, forExport = forExport)
 
                 if (rule.port.isNotBlank()) {
                     port = mutableListOf<Int>()
@@ -1026,26 +1029,32 @@ fun buildConfig(
                     }
                 }
 
+                // a rule given domains whose DNS rule is left with none (a rule-set not here yet, an IP-only one) has
+                // no DNS rule: with the app alone it would take every name the app looks up
+                fun addDnsRule(dnsRule: DNSRule_DefaultOptions) {
+                    if (rule.domains.isBlank() || dnsRule.hasDomain()) userDNSRuleList += dnsRule
+                }
+
                 if (!dropRule) when (rule.outbound) {
                     -1L -> {
-                        userDNSRuleList += makeDnsRuleObj().apply { server = "dns-direct" }
+                        addDnsRule(makeDnsRuleObj().apply { server = "dns-direct" })
                     }
 
                     0L -> {
-                        if (useFakeDns) userDNSRuleList += makeDnsRuleObj().apply {
+                        if (useFakeDns) addDnsRule(makeDnsRuleObj().apply {
                             server = "dns-fake"
                             inbound = listOf("tun-in")
-                        }
-                        userDNSRuleList += makeDnsRuleObj().apply {
+                        })
+                        addDnsRule(makeDnsRuleObj().apply {
                             server = "dns-remote"
-                        }
+                        })
                     }
 
                     -2L -> {
-                        userDNSRuleList += makeDnsRuleObj().apply {
+                        addDnsRule(makeDnsRuleObj().apply {
                             action = "predefined"
                             rcode = "NOERROR"
-                        }
+                        })
                     }
                 }
 
@@ -1084,6 +1093,8 @@ fun buildConfig(
                 }
             }
         }
+        // the running config: the service restarts the core once a list it left out is downloaded
+        if (notes) RuleSetFiles.missingInConfig = missingInConfig
 
         // 对 rule_set tag 去重
         if (route.rule_set != null) {

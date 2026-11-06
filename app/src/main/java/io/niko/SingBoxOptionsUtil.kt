@@ -36,7 +36,10 @@ fun SingBoxOptions.DNSRule_DefaultOptions.makeSingBoxRule(list: List<String>) {
     list.forEach {
         if (it.startsWith("geosite:")) {
             rule_set.plusAssign(it)
-        } else if (isRemoteRuleSet(it) || RuleSetFiles.isItem(it)) {
+        } else if (RuleSetFiles.isItem(it)) {
+            // a downloaded one by what it holds (an IP-only one in a DNS rule would take every name)
+            if (RuleSetFiles.usableInDns(it)) rule_set.plusAssign(it)
+        } else if (isRemoteRuleSet(it)) {
             // an IP-only rule-set makes a DNS rule invalid in sing-box 1.14; skip what looks like one
             if (!isIPRuleSetName(it)) rule_set.plusAssign(it)
         } else if (it.startsWith("full:")) {
@@ -86,9 +89,21 @@ fun generateRuleSet(
     ruleSetString: List<String>,
     ruleSet: MutableList<RuleSet>,
     updateHours: Int = DataStore.ruleSetUpdateHours,
+    forExport: Boolean = false,
 ) {
     ruleSetString.forEach {
         when {
+            // an exported config names a downloaded rule-set by its URL: this device's file means nothing elsewhere
+            forExport && RuleSetFiles.isItem(it) -> {
+                ruleSet.add(RuleSet().apply {
+                    type = "remote"
+                    tag = it
+                    format = RuleSetFiles.format(it)
+                    url = RuleSetFiles.url(it)
+                    update_interval = "${updateHours.coerceIn(1, 24 * 30)}h"
+                })
+            }
+
             isRemoteRuleSet(it) -> {
                 val url = it.removePrefix(REMOTE_RULE_SET_PREFIX)
                 ruleSet.add(RuleSet().apply {
@@ -208,3 +223,8 @@ fun SingBoxOptions.Rule_DefaultOptions.checkEmpty(): Boolean {
 fun SingBoxOptions.Rule_DefaultOptions.hasAddress(): Boolean =
     !domain.isNullOrEmpty() || !domain_suffix.isNullOrEmpty() || !domain_keyword.isNullOrEmpty() ||
         !domain_regex.isNullOrEmpty() || !ip_cidr.isNullOrEmpty() || ip_is_private == true || !rule_set.isNullOrEmpty()
+
+/** Whether the DNS rule matches by a name at all: a domain, a rule-set. */
+fun SingBoxOptions.DNSRule_DefaultOptions.hasDomain(): Boolean =
+    !domain.isNullOrEmpty() || !domain_suffix.isNullOrEmpty() || !domain_keyword.isNullOrEmpty() ||
+        !domain_regex.isNullOrEmpty() || !rule_set.isNullOrEmpty()

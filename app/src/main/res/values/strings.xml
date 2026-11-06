@@ -705,7 +705,7 @@
     <string name="route_preset_ru_blocked">Blocked in Russia: through the proxy</string>
     <string name="route_preset_ru_direct">Russian services: directly</string>
     <string name="route_preset_ru_ready">Lists downloaded</string>
-    <string name="route_preset_ru_partial">Downloaded %1$d of %2$d lists: a rule works once its lists are here (they are fetched again after each start)</string>
+    <string name="route_preset_ru_partial">Downloaded %1$d of %2$d lists: the rest are fetched while the proxy runs, and it restarts once to take them in</string>
     <string name="raycontrol_group_locked">The group of the raycontrol node %s: its profiles come from the node</string>
     <string name="raycontrol_clock_hint">If the node is up, check the time on this device: SPA works only within 30 s of the node clock.</string>
     <string name="raycontrol_sub_reimport">The node refused this device or its keys changed: import its registration (rcdev1) again. Scheduled updates for it are stopped.</string>
