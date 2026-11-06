@@ -44,10 +44,11 @@ fun AbstractBean.applyNikoParams(param: (String) -> String?, params: (String) ->
 
             else -> throw IllegalArgumentException("niko-dns: unknown engine $engine")
         }
-        // dnsauth-v1 (raycontrol v0.10.0): the queries carry a tag of the device's key for this node and service;
-        // another version is unknown here and the tunnel goes without (a node in "required" mode refuses it)
+        // dnsauth-v1 (raycontrol v0.10.0, masterdns since v0.14): the queries carry a tag of the device's key for this
+        // node and service; another version is unknown here and the tunnel goes without (a node in "required" mode
+        // refuses it)
         dnsTunnelAuth = ""
-        if (dnsTunnel == DnsTunnel.DNSTT && param("niko-dnsauth")?.trim() == "v1") {
+        if (param("niko-dnsauth")?.trim() == "v1") {
             val node = param("niko-node")?.trim()?.lowercase()
             val svc = param("niko-svc")?.trim()?.toIntOrNull()
             require(node != null && NODE_ID.matches(node) && svc != null && svc in 0..0xffff) {
@@ -55,13 +56,20 @@ fun AbstractBean.applyNikoParams(param: (String) -> String?, params: (String) ->
             }
             dnsTunnelAuth = "v1;$node;$svc"
         }
-        // dnsseal-v1 (raycontrol v0.13): the framing sealed with the zone's key; another version is unknown here and
-        // the tunnel goes open (a zone in "required" mode answers it nothing)
+        // dnsseal-v1 (raycontrol v0.13): dnstt's framing sealed with the zone's key; mdseal-v1 (v0.14): masterdns's
+        // answers sealed with its key (niko-dnskey), the node's mode with it. Another version is unknown here and the
+        // tunnel goes open (a node in "required" mode answers it nothing)
         dnsTunnelSeal = ""
-        param("niko-dnsseal")?.trim()?.takeIf { dnsTunnel == DnsTunnel.DNSTT && it.startsWith("v1;") }?.let { spec ->
-            val key = spec.removePrefix("v1;").trim()
-            require(SEAL_KEY.matches(key)) { "niko-dnsseal: the key is 32 bytes in base64url" }
-            dnsTunnelSeal = key
+        if (dnsTunnel == DnsTunnel.DNSTT) {
+            param("niko-dnsseal")?.trim()?.takeIf { it.startsWith("v1;") }?.let { spec ->
+                val key = spec.removePrefix("v1;").trim()
+                require(SEAL_KEY.matches(key)) { "niko-dnsseal: the key is 32 bytes in base64url" }
+                dnsTunnelSeal = key
+            }
+        } else {
+            param("niko-mdseal")?.split(';')?.map { it.trim() }?.takeIf { it.firstOrNull() == "v1" }?.let { spec ->
+                dnsTunnelSeal = if ("required" in spec.drop(1)) DnsTunnel.SEAL_REQUIRED else DnsTunnel.SEAL_OPTIONAL
+            }
         }
     }
     param("niko-pin")?.takeIf { it.isNotBlank() }?.let { certPins = it.trim() }

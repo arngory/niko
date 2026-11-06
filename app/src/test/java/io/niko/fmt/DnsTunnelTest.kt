@@ -70,9 +70,9 @@ class DnsTunnelTest {
         assertEquals(mapOf("node_id" to node, "service_id" to 3, "device_key_ref" to "raycontrol:$node:dev"), auth)
         // no key reference, no auth block (the device key is never in the config)
         assertFalse(tunnel.outboundOptions(null).containsKey("auth"))
-        // only dnstt signs
-        assertNull(tunnel.copy(engine = DnsTunnel.MASTERDNSVPN).authNode)
-        // another version, or masterdnsvpn: off
+        // the subscription's skew: the tag's epoch is the node's
+        assertEquals(-95L, (tunnel.outboundOptions(null, "raycontrol:$node:dev", -95)["auth"] as Map<*, *>)["clock_skew"])
+        // another version: off
         val other = SOCKSBean().apply { initializeDefaultValues(); applyNikoParams({ (params + ("niko-dnsauth" to "v2"))[it] }) }
         assertEquals("", other.dnsTunnelAuth)
         assertNull(DnsTunnel.of(other).authNode)
@@ -114,6 +114,43 @@ class DnsTunnelTest {
         } catch (e: IllegalArgumentException) {
         }
         assertNotNull(tunnel.copy(seal = "short").validate())
+    }
+
+    /**
+     * raycontrol v0.14 for masterdns: mdseal-v1 by niko-mdseal=v1[;required] (the key is niko-dnskey), dnsauth by
+     * niko-dnsauth=v1 as dnstt's, AES-GCM only.
+     */
+    @Test
+    fun masterDnsSealAndAuth() {
+        val node = "44".repeat(16)
+        val params = mapOf(
+            "niko-dns" to "masterdns;8.8.8.8;v.example.com;5", "niko-dnskey" to "0123456789abcdef0123456789abcdef",
+            "niko-mdseal" to "v1", "niko-dnsauth" to "v1", "niko-node" to node, "niko-svc" to "8",
+        )
+        fun bean(params: Map<String, String>) = SOCKSBean().apply { initializeDefaultValues(); applyNikoParams({ params[it] }) }
+        val optional = DnsTunnel.of(bean(params))
+        assertNull(optional.validate())
+        assertEquals(DnsTunnel.SEAL_OPTIONAL, optional.seal)
+        val options = optional.outboundOptions("protect_path", "raycontrol:$node:dev", 30)
+        assertEquals("optional", options["seal"])
+        assertEquals(
+            mapOf("node_id" to node, "service_id" to 8, "device_key_ref" to "raycontrol:$node:dev", "clock_skew" to 30L),
+            options["auth"],
+        )
+        assertEquals(DnsTunnel.SEAL_REQUIRED, DnsTunnel.of(bean(params + ("niko-mdseal" to "v1;required"))).seal)
+        // another version, or the dnstt seal's parameter: open
+        assertEquals("", DnsTunnel.of(bean(params + ("niko-mdseal" to "v2"))).seal)
+        assertEquals("", DnsTunnel.of(bean(params - "niko-mdseal" + ("niko-dnsseal" to "v1;" + "A".repeat(43)))).seal)
+        assertFalse(DnsTunnel.of(bean(params - "niko-mdseal")).outboundOptions(null).containsKey("seal"))
+        // a tag under a cipher that does not authenticate the query, a seal without a key: refused at the check
+        assertNotNull(optional.copy(method = 2).validate())
+        assertNotNull(optional.copy(key = "").validate())
+        assertNotNull(optional.copy(seal = "always").validate())
+        assertNull(optional.copy(auth = "", method = 2).validate())
+        // kept through the profile's storage
+        val stored = KryoConverters.deserialize(SOCKSBean(), KryoConverters.serialize(bean(params + ("niko-mdseal" to "v1;required"))))
+        assertEquals(DnsTunnel.SEAL_REQUIRED, stored.dnsTunnelSeal)
+        assertEquals("v1;$node;8", stored.dnsTunnelAuth)
     }
 
     /** A subscription's update: a tunnel the link gives wins whole; one the user set on a link without one stays. */

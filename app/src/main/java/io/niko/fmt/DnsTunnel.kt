@@ -37,13 +37,18 @@ data class DnsTunnel(
     val fixedUpstream: Boolean = false,
     /** raycontrol dnsauth-v1 of a dnstt tunnel: "v1;<node id>;<service id>", "" off */
     val auth: String = "",
-    /** raycontrol dnsseal-v1 of a dnstt tunnel: the zone's key in base64url, "" off */
+    /**
+     * raycontrol dnsseal-v1 of a dnstt tunnel: the zone's key in base64url; mdseal-v1 of a masterdns one: the node's
+     * mode, [SEAL_OPTIONAL] or [SEAL_REQUIRED] (the key is [key]); "" off
+     */
     val seal: String = "",
 ) {
 
     companion object {
         const val DNSTT = "dnstt"
         const val MASTERDNSVPN = "masterdnsvpn"
+        const val SEAL_OPTIONAL = "optional"
+        const val SEAL_REQUIRED = "required"
         private val DNSTT_KEY = Regex("^[0-9a-fA-F]{64}$")
         private val SEAL_KEY = Regex("^[A-Za-z0-9_-]{43}$")
         private val DNSTT_RESOLVER =
@@ -96,6 +101,10 @@ data class DnsTunnel(
                 resolvers.any { !MDV_RESOLVER.matches(it) } -> "DNS tunnel: MasterDnsVPN resolvers are IPs (or IP/prefix), with an optional :port"
                 method !in 0..5 -> "DNS tunnel: the encryption method is 0-5"
                 method != 0 && key.isBlank() -> "DNS tunnel: the key is missing"
+                seal.isNotEmpty() && seal != SEAL_OPTIONAL && seal != SEAL_REQUIRED -> "DNS tunnel: unknown seal mode $seal"
+                seal.isNotEmpty() && (method == 0 || key.isBlank()) -> "DNS tunnel: the seal needs the key"
+                // a tag under a cipher that does not authenticate the query says nothing (dnsauth-masterdns §3)
+                authNode != null && method !in 3..5 -> "DNS tunnel: dnsauth needs encryption method 3-5"
                 else -> null
             }
 
@@ -103,35 +112,46 @@ data class DnsTunnel(
         }
     }
 
-    /** The node id and the service id of dnsauth-v1 (dnstt only), or null when it is off. */
+    /** The node id and the service id of dnsauth-v1 (dnstt, masterdns since raycontrol v0.14), or null when it is off. */
     val authNode: Pair<String, Int>?
-        get() = auth.split(';').takeIf { engine == DNSTT && it.size == 3 && it[0] == "v1" }?.let { (_, node, svc) ->
+        get() = auth.split(';').takeIf { it.size == 3 && it[0] == "v1" }?.let { (_, node, svc) ->
             svc.toIntOrNull()?.let { node to it }
         }
 
-    /** The core outbound; [deviceKeyRef]: the reference of the node's device key (dnsauth-v1). */
-    fun outboundOptions(protectPath: String?, deviceKeyRef: String? = null): Map<String, Any> = when (engine) {
-        MASTERDNSVPN -> buildMap {
-            put("type", MASTERDNSVPN)
-            put("domains", domains)
-            put("resolvers", resolvers)
-            put("encryption_method", method)
-            if (key.isNotBlank()) put("encryption_key", key)
-            put("mode", if (fixedUpstream) "tcp" else "socks5")
-            // its own sockets must stay outside the VPN
-            if (protectPath != null) put("protect_path", protectPath)
+    /**
+     * The core outbound; [deviceKeyRef]: the reference of the node's device key (dnsauth-v1), [clockSkew]: how many
+     * seconds the node's clock is ahead of the device's (the subscription's), the tag's epoch being the node's.
+     */
+    fun outboundOptions(protectPath: String?, deviceKeyRef: String? = null, clockSkew: Long = 0): Map<String, Any> {
+        val authOptions = authNode?.takeIf { deviceKeyRef != null }?.let { (node, svc) ->
+            buildMap {
+                put("node_id", node)
+                put("service_id", svc)
+                put("device_key_ref", deviceKeyRef!!)
+                if (clockSkew != 0L) put("clock_skew", clockSkew)
+            }
         }
+        return when (engine) {
+            MASTERDNSVPN -> buildMap {
+                put("type", MASTERDNSVPN)
+                put("domains", domains)
+                put("resolvers", resolvers)
+                put("encryption_method", method)
+                if (key.isNotBlank()) put("encryption_key", key)
+                put("mode", if (fixedUpstream) "tcp" else "socks5")
+                // its own sockets must stay outside the VPN
+                if (protectPath != null) put("protect_path", protectPath)
+                if (seal.isNotEmpty()) put("seal", seal)
+                authOptions?.let { put("auth", it) }
+            }
 
-        else -> buildMap {
-            put("type", DNSTT)
-            put("domain", domain.trim())
-            put("public_key", key.lowercase())
-            put("resolver", resolver.trim())
-            if (seal.isNotEmpty()) put("seal", mapOf("key" to seal))
-            authNode?.let { (node, svc) ->
-                if (deviceKeyRef != null) {
-                    put("auth", mapOf("node_id" to node, "service_id" to svc, "device_key_ref" to deviceKeyRef))
-                }
+            else -> buildMap {
+                put("type", DNSTT)
+                put("domain", domain.trim())
+                put("public_key", key.lowercase())
+                put("resolver", resolver.trim())
+                if (seal.isNotEmpty()) put("seal", mapOf("key" to seal))
+                authOptions?.let { put("auth", it) }
             }
         }
     }
