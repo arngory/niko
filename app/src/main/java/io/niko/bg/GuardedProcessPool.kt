@@ -27,7 +27,9 @@ class GuardedProcessPool(private val onFatal: suspend (IOException) -> Unit) : C
 
     private inner class Guard(
         private val cmd: List<String>,
-        private val env: Map<String, String> = mapOf()
+        private val env: Map<String, String> = mapOf(),
+        // an exit code that starting the process again cannot mend: the error to stop on, null to restart
+        private val fatalExit: ((Int) -> String?)? = null,
     ) {
         private lateinit var process: Process
 
@@ -60,6 +62,7 @@ class GuardedProcessPool(private val onFatal: suspend (IOException) -> Unit) : C
                     val startTime = SystemClock.elapsedRealtime()
                     val exitCode = exitChannel.receive()
                     running = false
+                    fatalExit?.invoke(exitCode)?.let { throw IOException(it) }
                     when {
                         SystemClock.elapsedRealtime() - startTime < 1000 -> throw IOException(
                             "$cmdName exits too fast (exit code: $exitCode)"
@@ -106,10 +109,11 @@ class GuardedProcessPool(private val onFatal: suspend (IOException) -> Unit) : C
     fun start(
         cmd: List<String>,
         env: MutableMap<String, String> = mutableMapOf(),
-        onRestartCallback: (suspend () -> Unit)? = null
+        onRestartCallback: (suspend () -> Unit)? = null,
+        fatalExit: ((Int) -> String?)? = null,
     ) {
         Logs.i("start process: ${Commandline.toString(cmd)}")
-        Guard(cmd, env).apply {
+        Guard(cmd, env, fatalExit).apply {
             start() // if start fails, IOException will be thrown directly
             launch { looper(onRestartCallback) }
         }

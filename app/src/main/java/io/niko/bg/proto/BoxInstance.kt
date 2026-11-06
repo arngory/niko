@@ -33,6 +33,9 @@ abstract class BoxInstance(
 
     companion object {
         const val SLIPSTREAM_SO = "libslipstream.so"
+        // the client's exit codes (arngory/slipstream docs/usage.md): 2, a failed handshake, is restarted
+        const val SLIPSTREAM_EXIT_ARGUMENTS = 1
+        const val SLIPSTREAM_EXIT_PIN = 3
     }
 
     val pluginPath = hashMapOf<String, PluginManager.InitResult>()
@@ -209,7 +212,15 @@ abstract class BoxInstance(
         box.start()
         // slipstream's clients after the core: their queries go out through its mapping ports
         for (slip in config.slipstream) {
-            processes.start(listOf(slipstreamPath()) + slip.args, slip.env.toMutableMap())
+            // the client ends when its server goes silent (120 s) or its handshake does not finish (30 s, exit 2):
+            // started again, it reconnects. A wrong key or arguments stay so: the service stops with the reason
+            processes.start(listOf(slipstreamPath()) + slip.args, slip.env.toMutableMap(), fatalExit = { code ->
+                when (code) {
+                    SLIPSTREAM_EXIT_ARGUMENTS -> "slipstream: the client refused its arguments (see the log)"
+                    SLIPSTREAM_EXIT_PIN -> "slipstream: the server's key is not the pinned one"
+                    else -> null
+                }
+            })
         }
         // the core restores the last selector choice from the cache file over the configured
         // default; make the profile that was started the selected one
