@@ -141,6 +141,18 @@ class RuleSetFilesTest {
         assertEquals(RoutePresets.RU_IPS, direct.ip)
         assertTrue(RoutePresets.isRussia(blocked) && RoutePresets.isRussia(direct))
         org.junit.Assert.assertFalse(RoutePresets.isRussia(io.niko.database.RuleEntity(domains = "geosite:ru")))
+        // a rule of the user's naming one of the lists is not the preset's: it is not replaced, nor held back
+        val own = io.niko.database.RuleEntity(ip = RoutePresets.RU_IPS, outbound = -2)
+        org.junit.Assert.assertFalse(RoutePresets.isRussia(own) || RoutePresets.isRussiaDirect(own))
+        val ads = io.niko.database.RuleEntity(
+            domains = "srs:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geosite/geosite-category-ads-all.srs",
+            outbound = -2,
+        )
+        org.junit.Assert.assertFalse(RoutePresets.isRussia(ads))
+        // the preset's direct rule sent elsewhere by the user is replaced on adding again, but not held back
+        val moved = direct.copy(outbound = 5)
+        assertTrue(RoutePresets.isRussia(moved))
+        org.junit.Assert.assertFalse(RoutePresets.isRussiaDirect(moved))
         // every list is a downloaded rule-set of runetfreedom's
         for (item in RuleSetFiles.itemsOf(listOf(blocked.domains, blocked.ip, direct.domains, direct.ip))) {
             assertTrue(item, RuleSetFiles.url(item).startsWith("https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-"))

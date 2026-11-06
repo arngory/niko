@@ -943,7 +943,10 @@ fun buildConfig(
         // apply user rules
         val russiaDirectWaits = RoutePresets.russiaDirectWaits(extraRules)
         for (rule in extraRules) {
-            if (russiaDirectWaits && RoutePresets.isRussiaDirect(rule)) continue
+            if (russiaDirectWaits && RoutePresets.isRussiaDirect(rule)) {
+                Logs.i("routes: ${rule.displayName()} waits for the blocked lists (Russian services go through the proxy meanwhile)")
+                continue
+            }
             if (rule.packages.isNotEmpty()) {
                 PackageCache.awaitLoadSync()
             }

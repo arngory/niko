@@ -13,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import libcore.Libcore
@@ -72,29 +73,35 @@ object RuleSetFiles {
     /** the rule-sets in a rule's lists */
     fun itemsOf(lists: List<String>) = lists.flatMap { it.listByLineOrComma() }.filter(::isItem).distinct()
 
-    /** Downloads the rule-sets of items whose files are missing or older than maxAgeMillis; how many it got. */
-    suspend fun update(items: Collection<String>, maxAgeMillis: Long): Int = withContext(Dispatchers.IO) {
-        var got = 0
-        for (item in items.filter(::isItem).distinct()) {
-            val file = file(item)
-            if (file.isFile && System.currentTimeMillis() - file.lastModified() < maxAgeMillis) continue
-            try {
-                download(item, file)
-                got++
-            } catch (e: Exception) {
-                Logs.w("rule-set ${url(item)}: ${e.readableMessage}")
+    /**
+     * Downloads the rule-sets of items whose files are missing or older than maxAgeMillis; how many it got. A
+     * cancelled caller stops it between files. proxyOnly: through the local proxy or not at all (the service's rounds,
+     * so none goes around the proxy as the service stops).
+     */
+    suspend fun update(items: Collection<String>, maxAgeMillis: Long, proxyOnly: Boolean = false): Int =
+        withContext(Dispatchers.IO) {
+            var got = 0
+            for (item in items.filter(::isItem).distinct()) {
+                ensureActive()
+                val file = file(item)
+                if (file.isFile && System.currentTimeMillis() - file.lastModified() < maxAgeMillis) continue
+                try {
+                    download(item, file, proxyOnly)
+                    got++
+                } catch (e: Exception) {
+                    Logs.w("rule-set ${url(item)}: ${e.readableMessage}")
+                }
             }
+            got
         }
-        got
-    }
 
-    private fun download(item: String, file: File) {
+    private fun download(item: String, file: File, proxyOnly: Boolean) {
         val client = Libcore.newHttpClient().apply {
             modernTLS()
             keepAlive()
             trySocks5(DataStore.mixedPort, LOCAL_PROXY_USER, DataStore.localProxyPassword)
             // proxy mode with the service running: never around it (the device's own address)
-            if (localProxyRequired()) requireSocks5()
+            if (proxyOnly || localProxyRequired()) requireSocks5()
         }
         try {
             val response = client.newRequest().apply { setURL(url(item)) }.execute()
@@ -149,7 +156,7 @@ object RuleSetFiles {
                 val interval = DataStore.ruleSetUpdateHours.coerceIn(1, 24 * 30) * 3_600_000L
                 val items = enabledItems()
                 // stale by the next round: what this one fetched is older than the interval by then, less a margin
-                val got = if (items.isEmpty()) 0 else update(items, interval - 600_000L)
+                val got = if (items.isEmpty()) 0 else update(items, interval - 600_000L, proxyOnly = true)
                 if (got > 0) Logs.i("rule-sets: $got updated, the core reloads them (a new one takes effect on the next start)")
                 delay(interval)
             }

@@ -34,14 +34,19 @@ object RoutePresets {
         ),
     )
 
-    /** whether a rule is the Russian preset's (by its lists): adding the preset again replaces it */
-    fun isRussia(rule: RuleEntity) = RUNETFREEDOM in rule.domains || RUNETFREEDOM in rule.ip
+    /** the preset's rule for what is blocked: both its lists */
+    fun isRussiaBlocked(rule: RuleEntity) = RU_BLOCKED_DOMAINS in rule.domains && RU_BLOCKED_IPS in rule.ip
 
-    /** the preset's rule that sends what is blocked through the proxy */
-    fun isRussiaBlocked(rule: RuleEntity) = RU_BLOCKED_DOMAINS in rule.domains || RU_BLOCKED_IPS in rule.ip
+    private fun hasRussiaDirectLists(rule: RuleEntity) = RU_INSIDE_DOMAINS in rule.domains && RU_IPS in rule.ip
 
-    /** the preset's rule that sends Russian services directly */
-    fun isRussiaDirect(rule: RuleEntity) = RU_INSIDE_DOMAINS in rule.domains || RU_IPS in rule.ip
+    /** the preset's rule that sends Russian services directly: both its lists, and directly */
+    fun isRussiaDirect(rule: RuleEntity) = hasRussiaDirectLists(rule) && rule.outbound == -1L
+
+    /**
+     * whether a rule is the Russian preset's (by both lists of either rule): adding the preset again replaces it; a
+     * rule of the user's that names one of runetfreedom's lists stays
+     */
+    fun isRussia(rule: RuleEntity) = isRussiaBlocked(rule) || hasRussiaDirectLists(rule)
 
     /**
      * Whether the preset's direct rule waits: its blocked rule is on, but not all of that rule's lists are here. Alone,
