@@ -23,6 +23,12 @@ object RayApi {
     fun code(e: Throwable): String? =
         e.message?.substringAfter("raycontrol api: ", "")?.substringBefore(':')?.trim()?.takeIf { it.isNotEmpty() && it.all { c -> c.isLowerCase() || c == '_' } }
 
+    // the core's message for Register refused for its PIN (rayapi.Error): the tries the invite has left
+    private val PIN_LEFT = Regex("raycontrol api: permission_denied: pin tries left (\\d+)")
+
+    /** The tries an invite has left when Register refused for its PIN (permission_denied, api-v1.md §4), or null. */
+    fun pinLeft(e: Throwable): Int? = e.message?.let { PIN_LEFT.find(it) }?.groupValues?.get(1)?.toIntOrNull()
+
     private fun now() = System.currentTimeMillis() / 1000
 
     private fun spaJson(spa: RaySpaParams, keyHex: String) = spa.toJson().apply { addProperty("device_key", keyHex) }
@@ -73,7 +79,7 @@ object RayApi {
      * Registers this device with an invite (api-v1.md §4): a new client key, SPA with the invite's key, then
      * `Register`; the answer is this device's own rcdev1 package. Returns the node and the device's role.
      */
-    fun register(invite: RayInvite): Pair<RayNode, String> {
+    fun register(invite: RayInvite, pin: String? = null): Pair<RayNode, String> {
         // the node checks the expiry too; this only saves a pointless try
         if (invite.expires in 1 until now() - 120) throw Exception("raycontrol invite for ${invite.host}: expired")
         val request = JsonObject().apply {
@@ -81,6 +87,8 @@ object RayApi {
             add("spa", spaJson(invite.spa, invite.inviteKey))
             addProperty("device_id", invite.inviteId)
             add("api", invite.api.toJson())
+            // the PIN goes to the core only, which sends its proof (HMAC with the invite key), never the PIN
+            pin?.let { addProperty("pin_code", it) }
         }
         val answer = JsonParser.parseString(Libcore.raycontrolRegister(request.toString())).asJsonObject
         val registration = Rcdev1.parse(answer.get("bundle").asString)

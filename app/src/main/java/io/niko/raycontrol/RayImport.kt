@@ -39,22 +39,46 @@ object RayImport {
         else context.getString(R.string.raycontrol_import_moved, known.host, host)
     }
 
+    /** Asks the user for an invite's PIN: the host, the tries left (null: unknown), whether the last one was wrong. */
+    fun interface PinAsker {
+        suspend fun ask(host: String, left: Int?, wrong: Boolean): String?
+    }
+
     /**
      * Imports the invite (`rcinv1:`, registers this device) or the device package (`rcdev1:`) found in [text], then
      * fetches the node's subscription. [show] gets each line for the user as it comes: the registration and the
-     * fetch take seconds. [context] is the application context.
+     * fetch take seconds. [askPin] asks for the PIN of an invite that needs one (api-v1.md §3, §4): before the
+     * registration when the invite says so, and again after a wrong one. [context] is the application context.
      */
-    suspend fun import(context: Context, text: String, show: suspend (String) -> Unit) {
+    suspend fun import(context: Context, text: String, askPin: PinAsker, show: suspend (String) -> Unit) {
         val node = if (Rcinv1.matches(text)) {
             val invite = Rcinv1.parse(text)
-            show(context.getString(R.string.raycontrol_invite_registering, invite.host))
-            val (node, role) = try {
-                RayApi.register(invite)
-            } catch (e: Exception) {
-                Logs.w(e)
-                show(failure(context, e))
-                return
+            // 6 digits, asked again until they are, or null when the user gives up
+            suspend fun pin(left: Int?, wrong: Boolean): String? {
+                while (true) {
+                    val pin = askPin.ask(invite.host, left, wrong)?.trim() ?: return null
+                    if (pin.length == 6 && pin.all { it in '0'..'9' }) return pin
+                    show(context.getString(R.string.raycontrol_invite_pin_format))
+                }
             }
+            var pin: String? = null
+            if (invite.pinRequired) {
+                pin = pin(null, wrong = false) ?: return show(context.getString(R.string.raycontrol_invite_pin_cancelled))
+            }
+            var registered: Pair<RayNode, String>? = null
+            while (registered == null) {
+                show(context.getString(R.string.raycontrol_invite_registering, invite.host))
+                try {
+                    registered = RayApi.register(invite, pin)
+                } catch (e: Exception) {
+                    Logs.w(e)
+                    // the node asks for the PIN (none sent, or a wrong one): it tells how many tries are left
+                    val left = RayApi.pinLeft(e) ?: return show(failure(context, e))
+                    if (left <= 0) return show(context.getString(R.string.raycontrol_invite_pin_withdrawn))
+                    pin = pin(left, wrong = pin != null) ?: return show(context.getString(R.string.raycontrol_invite_pin_cancelled))
+                }
+            }
+            val (node, role) = registered
             show(context.getString(R.string.raycontrol_invite_registered, node.host, role))
             node
         } else {

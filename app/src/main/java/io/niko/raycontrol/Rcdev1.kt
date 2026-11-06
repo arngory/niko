@@ -154,6 +154,8 @@ data class RayInvite(
     val services: List<RayService>,
     val api: RayApiInfo,
     val expires: Long,
+    // the invite needs a PIN too, told by another channel (api-v1.md §3, raycontrol v0.13)
+    val pinRequired: Boolean = false,
 ) {
     override fun toString() = "RayInvite(host=$host, node=${spa.nodeId}, invite=$inviteId)"
 }
@@ -176,7 +178,10 @@ object Rcinv1 {
                 throw IllegalArgumentException("rcinv1: ${e.message}")
             }
         }
-        RayInvite(r.host, r.spa, r.deviceId, r.deviceKey, r.services, api, o.long("expires"))
+        RayInvite(
+            r.host, r.spa, r.deviceId, r.deviceKey, r.services, api, o.long("expires"),
+            pinRequired = (o.get("pin") as? com.google.gson.JsonPrimitive)?.takeIf { it.isBoolean }?.asBoolean == true,
+        )
     }
 }
 

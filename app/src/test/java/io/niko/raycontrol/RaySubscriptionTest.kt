@@ -191,6 +191,17 @@ class RaySubscriptionTest {
         assertEquals(1767312000, parsed.expires)
         // the key stays out of logs
         assertTrue(!parsed.toString().contains("11".repeat(32)))
+        // a PIN only where the invite says so (api-v1.md §3)
+        assertTrue(!parsed.pinRequired)
+        val withPin = invite.replace(""""expires": 1767312000""", """"expires": 1767312000, "pin": true""")
+        assertTrue(Rcinv1.parse(Rcinv1.PREFIX + withPin.encodeUtf8().base64Url().trimEnd('=')).pinRequired)
+        // what the core says when Register refused for the PIN (rayapi.Error), and what it says otherwise
+        val refused = Exception("raycontrol api: permission_denied: pin tries left 4: the invite needs its PIN")
+        assertEquals("permission_denied", RayApi.code(refused))
+        assertEquals(4, RayApi.pinLeft(refused))
+        assertEquals(0, RayApi.pinLeft(Exception("raycontrol api: permission_denied: pin tries left 0")))
+        assertEquals(null, RayApi.pinLeft(Exception("raycontrol api: permission_denied: not an admin")))
+        assertEquals(null, RayApi.pinLeft(Exception("raycontrol api: not_found")))
         for (bad in listOf(invite.replace(""", "api": {"port": 48213, "pin": "$apiPin"}""", ""),
             invite.replace(apiPin, "short"), invite.replace("48213", "0"), invite.replace(""", "expires": 1767312000""", ""))) {
             try {

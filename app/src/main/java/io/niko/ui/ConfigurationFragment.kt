@@ -383,7 +383,9 @@ class ConfigurationFragment @JvmOverloads constructor(
         val question = RayImport.replaceQuestion(app, text)
         if (question != null && !onMainDispatcher { confirm(question) }) return true
         // the registration and the fetch take seconds: the fragment may be gone by then
-        RayImport.import(app, text) { message -> onMainDispatcher { if (isAdded) snackbar(message).show() } }
+        RayImport.import(app, text, { host, left, wrong ->
+            onMainDispatcher { if (isAdded) Dialogs.askPin(requireContext(), host, left, wrong) else null }
+        }) { message -> onMainDispatcher { if (isAdded) snackbar(message).show() } }
         return true
     }
 

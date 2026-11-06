@@ -34,10 +34,13 @@ import (
 	"time"
 
 	"libcore/knock"
+
+	"google.golang.org/protobuf/encoding/protowire"
 )
 
 const (
 	registerLabel = "raycontrol-register-v1"
+	pinLabel      = "raycontrol-invite-pin-v1"
 	rotateLabel   = "raycontrol-rotate-v1"
 	maxBody       = 8 << 20
 
@@ -74,13 +77,87 @@ type Endpoint struct {
 type Error struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
+	Details []struct {
+		Type  string          `json:"type"`
+		Value string          `json:"value"` // base64 of the protobuf message
+		Debug json.RawMessage `json:"debug"`
+	} `json:"details,omitempty"`
+	// PinLeft: the tries an invite has left (api-v1.md §4, the PinTries
+	// detail of Register's permission_denied); nil without one
+	PinLeft *int `json:"-"`
 }
 
+// The message the app reads: the code first (RayApi.code), then the PIN tries if any (RayApi.pinLeft).
 func (e *Error) Error() string {
-	if e.Message == "" {
-		return "raycontrol api: " + e.Code
+	s := "raycontrol api: " + e.Code
+	if e.PinLeft != nil {
+		s += ": pin tries left " + strconv.Itoa(*e.PinLeft)
 	}
-	return "raycontrol api: " + e.Code + ": " + e.Message
+	if e.Message != "" {
+		s += ": " + e.Message
+	}
+	return s
+}
+
+// pinTries reads a PinTries detail (message PinTries { int32 left = 1; }):
+// its value, else the debug JSON connect may add; nil without one.
+func (e *Error) pinTries() *int {
+	for _, d := range e.Details {
+		if strings.TrimPrefix(d.Type, "type.googleapis.com/") != "raycontrol.device.v1.PinTries" {
+			continue
+		}
+		if raw, ok := decodeBase64(d.Value); ok {
+			if left, ok := protoInt32Field1(raw); ok {
+				return &left
+			}
+		}
+		var debug struct {
+			Left *int `json:"left"`
+		}
+		if json.Unmarshal(d.Debug, &debug) == nil && debug.Left != nil {
+			return debug.Left
+		}
+	}
+	return nil
+}
+
+// decodeBase64 takes the standard or the URL alphabet, with or without padding (connect's details).
+func decodeBase64(s string) ([]byte, bool) {
+	s = strings.TrimRight(s, "=")
+	for _, enc := range []*base64.Encoding{base64.RawStdEncoding, base64.RawURLEncoding} {
+		if raw, err := enc.DecodeString(s); err == nil {
+			return raw, true
+		}
+	}
+	return nil, false
+}
+
+// protoInt32Field1 is field 1 (an int32 varint) of a protobuf message; proto3 leaves out a zero, so a message without
+// it is 0. False for a message that does not parse.
+func protoInt32Field1(raw []byte) (int, bool) {
+	value := 0
+	for len(raw) > 0 {
+		number, wire, n := protowire.ConsumeTag(raw)
+		if n < 0 {
+			return 0, false
+		}
+		raw = raw[n:]
+		if number == 1 && wire == protowire.VarintType {
+			v, n := protowire.ConsumeVarint(raw)
+			if n < 0 {
+				return 0, false
+			}
+			value = int(int32(v))
+			raw = raw[n:]
+			continue
+		}
+		n = protowire.ConsumeFieldValue(number, wire, raw)
+		if n < 0 {
+			return 0, false
+		}
+		raw = raw[n:]
+	}
+	return value, true
 }
 
 // ErrNoAnswer: the API port stayed closed after SPA over UDP and TCP.
@@ -319,6 +396,7 @@ func (e *Endpoint) post(ctx context.Context, client *http.Client, method string,
 		if json.Unmarshal(answer, apiErr) != nil || apiErr.Code == "" {
 			apiErr = &Error{Code: "http_" + strconv.Itoa(response.StatusCode)}
 		}
+		apiErr.PinLeft = apiErr.pinTries()
 		return nil, apiErr
 	}
 	return answer, nil
@@ -333,6 +411,8 @@ type Invite struct {
 		Port int    `json:"port"`
 		Pin  string `json:"pin"`
 	} `json:"api"`
+	// the PIN the user entered for an invite that needs one (api-v1.md §3); not part of rcinv1
+	PinCode string `json:"pin_code,omitempty"`
 }
 
 // Registered is the outcome of Register: the device's own rcdev1 package and
@@ -355,28 +435,60 @@ func RegisterMAC(inviteKey []byte, minute int64, pin string) []byte {
 	return mac.Sum(nil)
 }
 
+// PinProof = HMAC-SHA256(invite key, "raycontrol-invite-pin-v1" || PIN as
+// ASCII digits) (api-v1.md §4): what an invite that needs a PIN takes.
+func PinProof(inviteKey []byte, pin string) []byte {
+	mac := hmac.New(sha256.New, inviteKey)
+	mac.Write([]byte(pinLabel))
+	mac.Write([]byte(pin))
+	return mac.Sum(nil)
+}
+
+// ErrPinFormat: the PIN of an invite is 6 digits.
+var ErrPinFormat = errors.New("raycontrol api: the PIN is 6 digits")
+
+func validPin(pin string) bool {
+	if len(pin) != 6 {
+		return false
+	}
+	for _, c := range pin {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
+}
+
 // Register turns an invite into a device with a new client certificate
-// (api-v1.md §4). The node refuses anything wrong with not_found.
+// (api-v1.md §4). The node refuses anything wrong with not_found; a PIN
+// missing or wrong with permission_denied and the tries left (Error.PinLeft).
 func Register(ctx context.Context, invite Invite, control func(network, address string, conn syscall.RawConn) error) (*Registered, error) {
 	inviteKey, err := hex.DecodeString(invite.SPA.DeviceKey)
 	if err != nil || len(inviteKey) != 32 {
 		return nil, errors.New("raycontrol api: bad invite key")
+	}
+	if invite.PinCode != "" && !validPin(invite.PinCode) {
+		return nil, ErrPinFormat
 	}
 	identity, err := NewIdentity()
 	if err != nil {
 		return nil, err
 	}
 	endpoint := Endpoint{Host: invite.Host, Port: invite.API.Port, Pin: invite.API.Pin, Identity: identity, SPA: invite.SPA, Control: control}
-	return register(ctx, endpoint, invite.InviteID, inviteKey, time.Now())
+	return register(ctx, endpoint, invite.InviteID, inviteKey, invite.PinCode, time.Now())
 }
 
-func register(ctx context.Context, e Endpoint, inviteID string, inviteKey []byte, now time.Time) (*Registered, error) {
+func register(ctx context.Context, e Endpoint, inviteID string, inviteKey []byte, pinCode string, now time.Time) (*Registered, error) {
 	minute := now.Unix() / 60
-	body, _ := json.Marshal(map[string]any{
+	request := map[string]any{
 		"inviteId": inviteID,
 		"minute":   strconv.FormatInt(minute, 10),
 		"mac":      RegisterMAC(inviteKey, minute, e.Identity.Pin),
-	})
+	}
+	if pinCode != "" {
+		request["pinProof"] = PinProof(inviteKey, pinCode)
+	}
+	body, _ := json.Marshal(request)
 	answer, err := Call(ctx, e, DeviceService+"Register", body)
 	if err != nil {
 		return nil, err

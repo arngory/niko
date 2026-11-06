@@ -628,6 +628,12 @@
     <string name="raycontrol_import_moved">Здесь ваша нода raycontrol %1$s указана с другим адресом, %2$s, и ваша регистрация на ней заменяется: другой ключ, текущий и доступ администратора теряются. Принимайте, только если администратор перенёс ноду.</string>
     <string name="raycontrol_invite_registering">Регистрация устройства на %s…</string>
     <string name="raycontrol_invite_registered">Устройство зарегистрировано на %1$s (роль: %2$s).</string>
+    <string name="raycontrol_invite_pin_title">PIN для %s</string>
+    <string name="raycontrol_invite_pin_message">Приглашению нужен PIN: 6 цифр, которые администратор сообщил отдельно от приглашения.</string>
+    <string name="raycontrol_invite_pin_wrong">Неверный PIN: осталось попыток: %d.</string>
+    <string name="raycontrol_invite_pin_format">PIN — это 6 цифр.</string>
+    <string name="raycontrol_invite_pin_cancelled">Регистрация отменена: приглашению нужен PIN.</string>
+    <string name="raycontrol_invite_pin_withdrawn">Неверный PIN, попыток не осталось: приглашение отозвано. Попросите у администратора новое.</string>
     <string name="raycontrol_invite_refused">Нода отклонила приглашение: оно использовано, истекло или отозвано, либо часы устройства расходятся больше чем на 2 минуты. Если приглашение свежее, его мог использовать кто-то другой — сообщите администратору.</string>
     <string name="raycontrol_invite_failed">Регистрация не удалась: %s</string>
     <string name="raycontrol_link_confirm">Импортировать ноду raycontrol %s по этой ссылке? Принимайте ссылки только от своего администратора.</string>

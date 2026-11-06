@@ -706,6 +706,12 @@
     <string name="raycontrol_import_moved">This names your raycontrol node %1$s with another address, %2$s, and replaces your registration there: another key, and the current one with its admin access is lost. Only accept it if your administrator moved the node.</string>
     <string name="raycontrol_invite_registering">Registering this device at %s…</string>
     <string name="raycontrol_invite_registered">Registered at %1$s (role: %2$s).</string>
+    <string name="raycontrol_invite_pin_title">PIN for %s</string>
+    <string name="raycontrol_invite_pin_message">The invite needs its PIN: 6 digits the administrator gave you apart from it.</string>
+    <string name="raycontrol_invite_pin_wrong">Wrong PIN: %d tries left.</string>
+    <string name="raycontrol_invite_pin_format">The PIN is 6 digits.</string>
+    <string name="raycontrol_invite_pin_cancelled">Registration cancelled: the invite needs its PIN.</string>
+    <string name="raycontrol_invite_pin_withdrawn">Wrong PIN and no tries left: the invite is withdrawn. Ask the administrator for a new one.</string>
     <string name="raycontrol_invite_refused">The node refused the invite: it is used, expired or revoked, or the clock of this device is off by more than 2 minutes. If the invite was fresh, someone else may have used it: tell the administrator.</string>
     <string name="raycontrol_invite_failed">Registration failed: %s</string>
     <string name="raycontrol_link_confirm">Import the raycontrol node %s from this link? Only accept links from your administrator.</string>

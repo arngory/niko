@@ -174,7 +174,9 @@ class MainActivity : ThemedActivity(),
                 .setMessage(question)
                 .setPositiveButton(R.string.yes) { _, _ ->
                     runOnDefaultDispatcher {
-                        RayImport.import(app, text) { message -> onMainDispatcher { snackbar(message).show() } }
+                        RayImport.import(app, text, { host, left, wrong ->
+                            onMainDispatcher { if (isFinishing) null else Dialogs.askPin(this@MainActivity, host, left, wrong) }
+                        }) { message -> onMainDispatcher { snackbar(message).show() } }
                     }
                 }
                 .setNegativeButton(android.R.string.cancel, null)
