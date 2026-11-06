@@ -27,6 +27,9 @@ object RayReport {
     private const val RECENT = 24 * 3600L
     private const val MAX_OBS = 16
 
+    // obs[].dns as probe-v1 §6.1 names its values: a resolver kind outside them goes unsaid, not as something else
+    private val REPORTED_DNS_KINDS = setOf("net", "udp", "doh", "dot")
+
     /** works / degraded / fails of a probe (degraded: TCP works but stalled, under 1 Mbit/s, or UDP loses > 20 %). */
     fun result(s: ChannelScore): String = when {
         !s.tcpOk -> "fails"
@@ -105,7 +108,8 @@ object RayReport {
                         // only for a tunnel that worked, to a node that declares it
                         val kind = node.services.firstOrNull { it.id == svc }?.kind
                         if ("dns" in node.probe?.report.orEmpty() && (kind == "dnstt" || kind == "masterdns") && s.tcpOk) {
-                            s.dnsKind?.let { addProperty("dns", it) }
+                            // the kinds probe-v1 §6.1 names; tcp is not one yet
+                            s.dnsKind?.takeIf { it in REPORTED_DNS_KINDS }?.let { addProperty("dns", it) }
                         }
                     })
                 }

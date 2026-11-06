@@ -78,9 +78,17 @@ object RayDnsResolvers {
 
     /** The candidates on this network, in order; a hinted kind goes first after the network's own. */
     fun candidates(hintKind: String?): List<Candidate> {
-        var all = networkCandidates() + COUNTRY[country()].orEmpty()
+        var all = withTcp(networkCandidates() + COUNTRY[country()].orEmpty())
         if (hintKind != null) all = all.sortedBy { if (it.kind == "net") 0 else if (it.kind == hintKind) 1 else 2 }
         return all.distinctBy { it.resolver }
+    }
+
+    /**
+     * Each resolver on UDP 53 (the network's own, the public ones) followed by itself on TCP 53, of kind "tcp": a
+     * network that redirects UDP 53 to its own resolver may leave TCP 53 alone. The order of the resolvers stays.
+     */
+    fun withTcp(candidates: List<Candidate>): List<Candidate> = candidates.flatMap { c ->
+        if (c.kind == "net" || c.kind == "udp") listOf(c, Candidate("tcp://${c.resolver}", TCP)) else listOf(c)
     }
 
     // what dnstt's "auto" means until a resolver is picked for the network (no probe key: a node before raycontrol
@@ -88,6 +96,9 @@ object RayDnsResolvers {
     private const val DNSTT_DEFAULT = "https://common.dot.dns.yandex.net/dns-query"
     private const val DNSTT = DnsTunnel.DNSTT
     private const val MASTERDNS = "masterdns"
+
+    /** The kind of a resolver reached on TCP 53 (dnstt only). */
+    const val TCP = "tcp"
 
     // Yandex's public resolvers: for masterdns the fallback only, after the network's own and the country's others
     private val YANDEX = listOf("77.88.8.8", "77.88.8.1")
@@ -128,8 +139,8 @@ object RayDnsResolvers {
     fun resolverFor(node: RayNode?, engine: String): String {
         if (engine != DNSTT) return masterdnsFor(node).joinToString("\n") { it.resolver }
         val first = heldPick(node)?.get("resolver")?.asString ?: return DNSTT_DEFAULT
-        return if (first.startsWith("https://") || first.startsWith("tls://") || first.startsWith("udp://")) first
-        else "udp://$first"
+        // https://, tls://, tcp://, udp:// as picked; a bare address is UDP's
+        return if ("://" in first) first else "udp://$first"
     }
 
     /** The engine and zone of [bean]'s DNS tunnel when its resolver is left to the client, else null. */

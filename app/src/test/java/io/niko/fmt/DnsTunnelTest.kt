@@ -22,6 +22,7 @@ class DnsTunnelTest {
         assertNull(dnstt("https://dns.example/dns-query", "t.example.com", key).validate())
         assertNull(dnstt("udp://8.8.8.8", "t.example.com", key).validate())
         assertNull(dnstt("8.8.8.8:53", "t.example.com", key).validate())
+        assertNull(dnstt("tcp://195.208.5.1", "t.example.com", key).validate())
         assertNotNull(dnstt("", "t.example.com", key).validate())
         assertNotNull(dnstt("ftp://x", "t.example.com", key).validate())
         assertNotNull(dnstt("udp://8.8.8.8", "t.example.com", "abc").validate())

@@ -24,7 +24,7 @@ data class DnsTunnel(
         const val MASTERDNSVPN = "masterdnsvpn"
         private val DNSTT_KEY = Regex("^[0-9a-fA-F]{64}$")
         private val DNSTT_RESOLVER =
-            Regex("^(https://\\S+|(tls|udp)://\\S+|[^\\s/:]+(:\\d+)?|\\[[0-9a-fA-F:]+](:\\d+)?)$")
+            Regex("^(https://\\S+|(tls|tcp|udp)://\\S+|[^\\s/:]+(:\\d+)?|\\[[0-9a-fA-F:]+](:\\d+)?)$")
         // 8.8.8.8, 1.1.1.1:5353, 192.168.1.0/30, [2001:db8::1]:53, 2001:db8::1 ([2001:db8::1] is taken bare: resolvers)
         private val MDV_RESOLVER =
             Regex("^([0-9.]+(/\\d+)?(:\\d+)?|\\[[0-9a-fA-F:]+](:\\d+)?|[0-9a-fA-F:]+(/\\d+)?)$")
@@ -61,7 +61,7 @@ data class DnsTunnel(
             DNSTT -> when {
                 domains.size != 1 -> "DNS tunnel: dnstt takes one domain"
                 resolver.isBlank() -> "DNS tunnel: the resolver is missing"
-                !DNSTT_RESOLVER.matches(resolver) -> "DNS tunnel: the resolver must be https://…, tls://host or udp://host"
+                !DNSTT_RESOLVER.matches(resolver) -> "DNS tunnel: the resolver must be https://…, tls://host, tcp://host or udp://host"
                 !DNSTT_KEY.matches(key) -> "DNS tunnel: the public key must be 64 hex digits"
                 else -> null
             }

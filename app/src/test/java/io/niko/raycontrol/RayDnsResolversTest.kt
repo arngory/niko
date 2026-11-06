@@ -19,6 +19,23 @@ class RayDnsResolversTest {
     }
 
     @Test
+    fun eachUdpResolverAlsoOnTcp() {
+        val c = listOf(
+            RayDnsResolvers.Candidate("192.168.1.1", "net"), RayDnsResolvers.Candidate("195.208.5.1", "udp"),
+            RayDnsResolvers.Candidate("[2001:db8::53]", "net"), RayDnsResolvers.Candidate("tls://dns.example", "dot"),
+        )
+        assertEquals(
+            listOf("192.168.1.1", "tcp://192.168.1.1", "195.208.5.1", "tcp://195.208.5.1", "[2001:db8::53]",
+                "tcp://[2001:db8::53]", "tls://dns.example"),
+            RayDnsResolvers.withTcp(c).map { it.resolver },
+        )
+        assertEquals(RayDnsResolvers.TCP, RayDnsResolvers.withTcp(c)[1].kind)
+        // masterdns takes UDP only: the TCP ones are not its
+        assertEquals(listOf("192.168.1.1", "195.208.5.1", "2001:db8::53"),
+            RayDnsResolvers.masterdnsResolvers(RayDnsResolvers.withTcp(c), fallback = false).map { it.resolver })
+    }
+
+    @Test
     fun masterdnsTakesYandexOnlyAsTheFallback() {
         val c = listOf(
             RayDnsResolvers.Candidate("192.168.1.1", "net"), RayDnsResolvers.Candidate("tls://dns.example", "dot"),
