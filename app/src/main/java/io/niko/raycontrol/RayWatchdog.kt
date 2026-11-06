@@ -191,6 +191,12 @@ object RayWatchdog {
     @Volatile
     private var dnsRecheck = false
 
+    /** A DNS tunnel's resolver was picked anew on this network: the next step compares with what the core runs. */
+    fun dnsChanged() {
+        dnsRecheck = true
+        poke(5_000L)
+    }
+
     // network key → when its arrival last started the backoff over
     private val lastReset = java.util.concurrent.ConcurrentHashMap<String, Long>()
     private const val RESET_PER_NETWORK = 30 * 60_000L

@@ -208,9 +208,36 @@ object RayDnsResolvers {
         progress("dns $DNSTT: ${pick?.kind ?: "no resolver answered"}")
     }
 
-    // a sweep at a time per node, detached: the failover that starts it does not wait for its probes
+    // a sweep at a time per node, detached: the failover or the start that asks for it does not wait for its probes
     private val sweeping = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     private val sweeps = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    private fun sweepInBackground(node: RayNode, network: ChannelNetwork, zone: String) {
+        val sweep = node.spa.nodeId
+        if (!sweeping.add(sweep)) return
+        sweeps.launch {
+            try {
+                detect(node, network, zone)
+            } catch (e: Exception) {
+                Logs.w("raycontrol ${node.host}: the dnstt resolver: ${e.message}")
+            } finally {
+                sweeping.remove(sweep)
+            }
+        }
+    }
+
+    /**
+     * A config that runs takes [tunnel]'s default resolver for dnstt because no pick holds on this network (the
+     * default is Yandex's, the last of the candidates): the pick is made now in the background, and the core restarts
+     * with it when it differs (RayWatchdog). Not within the hour after none answered.
+     */
+    fun pickSoon(node: RayNode?, tunnel: DnsTunnel) {
+        if (node?.dnsProbeKey == null || tunnel.engine != DNSTT || tunnel.resolver.trim() != AUTO) return
+        val network = RayChannel.network() ?: return
+        if (RayChannel.dnsPick(node.spa.nodeId, network, DNSTT) != null) return
+        val zone = tunnel.domain.split(',', ' ', '\n').map { it.trim() }.firstOrNull { it.isNotEmpty() } ?: return
+        sweepInBackground(node, network, zone)
+    }
 
     // a pick younger than this is not redone when its tunnel fails: a resolver that answered minutes ago is not why
     private const val RECHECK = 10 * 60L
@@ -240,17 +267,7 @@ object RayDnsResolvers {
             val age = System.currentTimeMillis() / 1000 - (held.get("at")?.asLong ?: 0)
             if (held.get("kind")?.asString == NONE || age < RECHECK) return
         }
-        val sweep = node.spa.nodeId
-        if (!sweeping.add(sweep)) return
-        sweeps.launch {
-            try {
-                detect(node, network, zone)
-            } catch (e: Exception) {
-                Logs.w("raycontrol ${node.host}: the dnstt resolver: ${e.message}")
-            } finally {
-                sweeping.remove(sweep)
-            }
-        }
+        sweepInBackground(node, network, zone)
     }
 
     // what the running core's DNS tunnels left to the client took (ConfigBuilder, a config that runs): node id and
@@ -316,5 +333,7 @@ object RayDnsResolvers {
             }
             addProperty("at", System.currentTimeMillis() / 1000)
         })
+        // the running core may have taken another resolver for this tunnel: the watchdog compares and restarts
+        RayWatchdog.dnsChanged()
     }
 }

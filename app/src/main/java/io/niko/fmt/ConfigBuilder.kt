@@ -777,7 +777,11 @@ fun buildConfig(
                     else {
                         val owner = RayNodes.ownerOf(proxyEntity.id)?.first
                         val resolver = io.niko.raycontrol.RayDnsResolvers.resolverFor(owner, t.engine)
-                        if (notes) io.niko.raycontrol.RayDnsResolvers.noteRunning(owner, t.engine, resolver)
+                        if (notes) {
+                            io.niko.raycontrol.RayDnsResolvers.noteRunning(owner, t.engine, resolver)
+                            // no pick on this network yet: one now, in the background
+                            io.niko.raycontrol.RayDnsResolvers.pickSoon(owner, t)
+                        }
                         t.copy(resolver = resolver)
                     }
                 }
