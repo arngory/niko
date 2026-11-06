@@ -941,7 +941,9 @@ fun buildConfig(
         }
 
         // apply user rules
+        val russiaDirectWaits = RoutePresets.russiaDirectWaits(extraRules)
         for (rule in extraRules) {
+            if (russiaDirectWaits && RoutePresets.isRussiaDirect(rule)) continue
             if (rule.packages.isNotEmpty()) {
                 PackageCache.awaitLoadSync()
             }

@@ -256,6 +256,7 @@ class BaseService {
 
         fun killProcesses() {
             RayWatchdog.stop()
+            RuleSetFiles.stop()
             data.proxy?.close()
             wakeLock?.apply {
                 release()

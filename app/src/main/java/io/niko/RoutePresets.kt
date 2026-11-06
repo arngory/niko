@@ -20,6 +20,8 @@ object RoutePresets {
     /**
      * The Russian preset's rules in their order. The blocked first: a blocked site under .ru, or a service that a
      * Russian address of its CDN serves (YouTube from a cache in a Russian network), still goes through the proxy.
+     * They go after the rules there are (blocking ads and QUIC stays first); a rule the user put above them comes
+     * first, as the dialog says. The direct rule waits for the blocked rule's lists (russiaDirectWaits).
      */
     fun russia(blockedName: String, directName: String) = listOf(
         RuleEntity(name = blockedName, domains = RU_BLOCKED_DOMAINS, ip = RU_BLOCKED_IPS, outbound = 0, enabled = true),
@@ -34,6 +36,20 @@ object RoutePresets {
 
     /** whether a rule is the Russian preset's (by its lists): adding the preset again replaces it */
     fun isRussia(rule: RuleEntity) = RUNETFREEDOM in rule.domains || RUNETFREEDOM in rule.ip
+
+    /** the preset's rule that sends what is blocked through the proxy */
+    fun isRussiaBlocked(rule: RuleEntity) = RU_BLOCKED_DOMAINS in rule.domains || RU_BLOCKED_IPS in rule.ip
+
+    /** the preset's rule that sends Russian services directly */
+    fun isRussiaDirect(rule: RuleEntity) = RU_INSIDE_DOMAINS in rule.domains || RU_IPS in rule.ip
+
+    /**
+     * Whether the preset's direct rule waits: its blocked rule is on, but not all of that rule's lists are here. Alone,
+     * the direct rule would send what is blocked under .ru, or served from a Russian address, around the proxy.
+     */
+    fun russiaDirectWaits(enabled: List<RuleEntity>) =
+        RuleSetFiles.itemsOf(enabled.filter(::isRussiaBlocked).flatMap { listOf(it.domains, it.ip) })
+            .any { !RuleSetFiles.available(it) }
 
     /** Replaces the Russian preset's rules; the rule-sets to download. */
     suspend fun addRussia(blockedName: String, directName: String): List<String> {

@@ -112,6 +112,24 @@ class RuleSetFilesTest {
     }
 
     @Test
+    fun russianDirectWaitsForTheBlockedLists() {
+        val (blocked, direct) = RoutePresets.russia("blocked", "direct")
+        assertTrue(RoutePresets.isRussiaBlocked(blocked) && !RoutePresets.isRussiaBlocked(direct))
+        assertTrue(RoutePresets.isRussiaDirect(direct) && !RoutePresets.isRussiaDirect(blocked))
+        val lists = listOf(RoutePresets.RU_BLOCKED_DOMAINS, RoutePresets.RU_BLOCKED_IPS)
+        lists.forEach { RuleSetFiles.file(it).delete() }
+        // the blocked rule on, its lists not here: the direct one waits (alone it would send blocked .ru sites directly)
+        assertTrue(RoutePresets.russiaDirectWaits(listOf(blocked, direct)))
+        RuleSetFiles.file(lists[0]).apply { parentFile?.mkdirs(); writeBytes("SRS\u0001data".toByteArray()) }
+        assertTrue(RoutePresets.russiaDirectWaits(listOf(blocked, direct)))
+        RuleSetFiles.file(lists[1]).writeBytes("SRS\u0001data".toByteArray())
+        org.junit.Assert.assertFalse(RoutePresets.russiaDirectWaits(listOf(blocked, direct)))
+        // the blocked rule turned off (not among the enabled): the user's choice, the direct one goes
+        lists.forEach { RuleSetFiles.file(it).delete() }
+        org.junit.Assert.assertFalse(RoutePresets.russiaDirectWaits(listOf(direct)))
+    }
+
+    @Test
     fun russianPreset() {
         val (blocked, direct) = RoutePresets.russia("blocked", "direct")
         assertEquals(0L, blocked.outbound)

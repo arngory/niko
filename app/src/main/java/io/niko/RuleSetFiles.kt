@@ -6,6 +6,7 @@ import io.niko.fmt.LOCAL_PROXY_USER
 import io.niko.fmt.localProxyRequired
 import io.niko.ktx.Logs
 import io.niko.ktx.readableMessage
+import io.niko.utils.Util
 import io.niko.utils.listByLineOrComma
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,8 +26,8 @@ import java.util.UUID
  * A remote rule-set (`rule-set:`) is downloaded by the core as it starts, and sing-box does not start when that first
  * download fails: through a DNS tunnel a list of 500 KB can take a minute. One of these is left out of the config
  * until its file is here (a rule it leaves without any address is left out whole), and the core reloads a file when
- * the app replaces it. The app fetches them through the proxy when it runs (as the route assets), after each start
- * those older than the rule-set update interval.
+ * the app replaces it. The app fetches them through the proxy when it runs (as the route assets): those older than
+ * the rule-set update interval after each start, and then every interval while the service runs.
  */
 object RuleSetFiles {
 
@@ -97,6 +98,9 @@ object RuleSetFiles {
         }
         try {
             val response = client.newRequest().apply { setURL(url(item)) }.execute()
+            // refused before a byte is saved when the server says it is larger (libcore bounds any body anyway)
+            val length = Util.getStringBox(response.getHeader("Content-Length")).toLongOrNull()
+            check(length == null || length <= MAX_SIZE) { "rule-set of $length bytes" }
             file.parentFile?.mkdirs()
             // the UI's process and the service's may fetch the same file at once: each writes its own
             val tmp = File(file.parentFile, "${file.name}.${UUID.randomUUID()}.tmp")
@@ -132,17 +136,29 @@ object RuleSetFiles {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var job: Job? = null
 
-    /** After the core starts: the enabled rules' rule-sets that are missing or stale, once the proxy has settled. */
+    /**
+     * While the core runs: the enabled rules' rule-sets that are missing or stale, once the proxy has settled after
+     * the start and then every rule-set update interval (the core reloads a file the app replaces). stop() ends it.
+     */
     fun updateSoon() {
-        if (job?.isActive == true) return
+        job?.cancel()
         job = scope.launch {
             delay(20_000)
-            removeUnused()
-            val items = enabledItems()
-            if (items.isEmpty()) return@launch
-            val hours = DataStore.ruleSetUpdateHours.coerceIn(1, 24 * 30)
-            val got = update(items, hours * 3_600_000L)
-            if (got > 0) Logs.i("rule-sets: $got updated, the core reloads them (a new one takes effect on the next start)")
+            while (true) {
+                removeUnused()
+                val interval = DataStore.ruleSetUpdateHours.coerceIn(1, 24 * 30) * 3_600_000L
+                val items = enabledItems()
+                // stale by the next round: what this one fetched is older than the interval by then, less a margin
+                val got = if (items.isEmpty()) 0 else update(items, interval - 600_000L)
+                if (got > 0) Logs.i("rule-sets: $got updated, the core reloads them (a new one takes effect on the next start)")
+                delay(interval)
+            }
         }
+    }
+
+    /** The service stops: no more updates until the next start. */
+    fun stop() {
+        job?.cancel()
+        job = null
     }
 }

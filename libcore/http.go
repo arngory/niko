@@ -407,13 +407,26 @@ func (h *httpResponse) getContentString() (string, error) {
 	return string(content), nil
 }
 
+// maxWriteSize bounds what WriteTo saves: a body that never ends (a broken mirror, a captive portal on a list's URL)
+// fills no more of the storage than this, and the file is removed. The largest legitimate download (the route
+// assets) is a few tens of MB.
+var maxWriteSize int64 = 256 << 20
+
 func (h *httpResponse) WriteTo(path string) error {
 	defer h.Body.Close()
 	file, err := os.Create(path)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
-	_, err = io.Copy(file, h.Body)
+	n, err := io.Copy(file, io.LimitReader(h.Body, maxWriteSize+1))
+	if closeErr := file.Close(); err == nil {
+		err = closeErr
+	}
+	if err == nil && n > maxWriteSize {
+		err = fmt.Errorf("response larger than %d bytes", maxWriteSize)
+	}
+	if err != nil {
+		os.Remove(path)
+	}
 	return err
 }
