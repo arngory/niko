@@ -59,11 +59,42 @@ object RuleSetFiles {
 
     fun available(item: String) = fetchable(item) && file(item).let { it.isFile && it.length() > 0 }
 
-    /** the mark of a downloaded rule-set without any domain (IP CIDRs only): a DNS rule leaves it out */
-    private fun noDomainMark(file: File) = File(file.parentFile, file.name + ".nodomain")
+    /** what a rule-set holds, as libcore's CheckRuleSet says (RuleSetHasDomain, RuleSetHasIP) */
+    const val HAS_DOMAIN = 1
+    const val HAS_IP = 2
 
-    /** whether a DNS rule can use the rule-set: downloaded, with domains (CheckRuleSet said so at the download) */
-    fun usableInDns(item: String) = available(item) && !noDomainMark(file(item)).exists()
+    /** what CheckRuleSet found in a downloaded file, kept beside it; older than the file is not about it */
+    private fun kindsFile(file: File) = File(file.parentFile, file.name + ".kinds")
+
+    /**
+     * What the downloaded rule-set holds: kept from its check at the download, or checked now for a file without one
+     * (downloaded before the check, or the app stopped between the two); null when it can not be told.
+     */
+    fun kinds(item: String): Int? {
+        val file = file(item)
+        val kindsFile = kindsFile(file)
+        if (kindsFile.isFile && kindsFile.lastModified() >= file.lastModified()) {
+            kindsFile.readText().trim().toIntOrNull()?.let { return it }
+        }
+        if (!available(item)) return null
+        return try {
+            Libcore.checkRuleSet(file.canonicalPath, format(item)).also { kindsFile.writeText(it.toString()) }
+        } catch (e: Throwable) {
+            // not loadable (the next round replaces it), or no core here (tests)
+            null
+        }
+    }
+
+    /**
+     * Whether a DNS rule can use the rule-set: one with domains. An IP-only one would take every name in the DNS rule
+     * (an address filter in sing-box 1.14's legacy DNS). By what the file holds, by its name when that is not known
+     * (an export of one not downloaded here).
+     */
+    fun usableInDns(item: String, forExport: Boolean = false): Boolean {
+        if (!fetchable(item) || !forExport && !available(item)) return false
+        val kinds = kinds(item) ?: return !isIPRuleSetName(item)
+        return kinds and HAS_DOMAIN != 0
+    }
 
     /** whether a file begins as a rule-set of its format: the magic "SRS" of a binary one, a JSON object */
     fun looksValid(head: ByteArray, format: String): Boolean = if (format == "binary") {
@@ -146,8 +177,8 @@ object RuleSetFiles {
                 // read as the core reads it: a file it can not load (a newer format, say) would fail every start
                 val kinds = Libcore.checkRuleSet(tmp.canonicalPath, format(item))
                 check(tmp.renameTo(file)) { "can not replace ${file.name}" }
-                val mark = noDomainMark(file)
-                if (kinds and Libcore.RuleSetHasDomain == 0) mark.createNewFile() else mark.delete()
+                // after the file: a kinds file older than it is not taken
+                kindsFile(file).writeText(kinds.toString())
             } finally {
                 tmp.delete()
             }
@@ -166,7 +197,7 @@ object RuleSetFiles {
         dir().listFiles()?.forEach {
             val unused = when {
                 it.name.endsWith(".tmp") -> it.lastModified() < hourAgo
-                else -> it.name.removeSuffix(".nodomain") !in used
+                else -> it.name.removeSuffix(".kinds") !in used
             }
             if (unused) it.delete()
         }

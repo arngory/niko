@@ -90,12 +90,16 @@ class RuleSetFilesTest {
         assertEquals("local", sets[0].type)
         assertEquals(RuleSetFiles.file(domains).absolutePath, sets[0].path)
         assertEquals("binary", sets[0].format)
-        // a DNS rule takes a downloaded rule-set with domains, not one without (marked at the download), nor one
-        // not downloaded
-        RuleSetFiles.file(domains).apply { parentFile?.mkdirs(); writeBytes("SRS\u0001data".toByteArray()) }
+        // a DNS rule takes a downloaded rule-set with domains (by what its check found, kept beside it), not one of IP
+        // CIDRs only whatever its name, nor one not downloaded
+        fun download(item: String, kinds: Int?) {
+            RuleSetFiles.file(item).apply { parentFile?.mkdirs(); writeBytes("SRS\u0001data".toByteArray()) }
+            val kindsFile = java.io.File(RuleSetFiles.file(item).path + ".kinds")
+            if (kinds == null) kindsFile.delete() else kindsFile.writeText(kinds.toString())
+        }
+        download(domains, RuleSetFiles.HAS_DOMAIN)
         val cidrs = "srs:https://example.com/ru-cidr.srs"
-        RuleSetFiles.file(cidrs).writeBytes("SRS\u0001data".toByteArray())
-        java.io.File(RuleSetFiles.file(cidrs).path + ".nodomain").createNewFile()
+        download(cidrs, RuleSetFiles.HAS_IP)
         RuleSetFiles.file(ips).delete()
         val dns = DNSRule_DefaultOptions()
         dns.makeSingBoxRule(listOf(domains, cidrs, ips))
@@ -103,11 +107,27 @@ class RuleSetFilesTest {
         assertTrue(dns.hasDomain())
         val none = DNSRule_DefaultOptions().apply { makeSingBoxRule(listOf(cidrs)) }
         org.junit.Assert.assertFalse(none.hasDomain())
-        // an exported config names them by URL, as remote rule-sets
+        // a file whose kinds are not known (no check here, as before it) goes by its name
+        val unknownIP = "srs:https://example.com/geoip-x.srs"
+        download(unknownIP, null)
+        download("srs:https://example.com/geosite-x.srs", null)
+        org.junit.Assert.assertFalse(RuleSetFiles.usableInDns(unknownIP))
+        assertTrue(RuleSetFiles.usableInDns("srs:https://example.com/geosite-x.srs"))
+        // a kinds file older than its file is not about it
+        val stale = java.io.File(RuleSetFiles.file(cidrs).path + ".kinds")
+        stale.setLastModified(RuleSetFiles.file(cidrs).lastModified() - 60_000)
+        assertEquals(null, RuleSetFiles.kinds(cidrs))
+        download(cidrs, RuleSetFiles.HAS_IP)
+        // an exported config names them by URL, as remote rule-sets (those over https only); its DNS rule by what is
+        // known here, else by the name, whether downloaded here or not
         val exported = mutableListOf<RuleSet>()
-        generateRuleSet(listOf(domains), exported, 24, forExport = true)
+        generateRuleSet(listOf(domains, "srs:http://example.com/geosite-x.srs"), exported, 24, forExport = true)
+        assertEquals(1, exported.size)
         assertEquals("remote", exported[0].type)
         assertEquals("https://example.com/geosite-ru-blocked.srs", exported[0].url)
+        val notHere = "srs:https://example.com/geosite-not-here.srs"
+        val exportedDns = DNSRule_DefaultOptions().apply { makeSingBoxRule(listOf(notHere, cidrs, ips), forExport = true) }
+        assertEquals(listOf(notHere), exportedDns.rule_set)
     }
 
     @Test

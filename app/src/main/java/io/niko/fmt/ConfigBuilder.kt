@@ -974,10 +974,16 @@ fun buildConfig(
                 // a rule-set the app has not downloaded yet is left out; a rule it leaves without any address is
                 // left out whole (its port or app alone would match far more)
                 var missingRuleSet = false
-                fun downloaded(list: List<String>) = if (forExport) list else RuleSetFiles.withoutMissing(list).let { (kept, missing) ->
+                fun downloaded(list: List<String>): List<String> {
+                    // an export: those the app would fetch (https), by their URLs; the running config: those here
+                    val (kept, missing) = if (forExport) {
+                        list.partition { !RuleSetFiles.isItem(it) || RuleSetFiles.fetchable(it) }
+                    } else {
+                        RuleSetFiles.withoutMissing(list)
+                    }
                     if (missing.isNotEmpty()) missingRuleSet = true
-                    missingInConfig += missing
-                    kept
+                    if (!forExport) missingInConfig += missing
+                    return kept
                 }
                 if (rule.domains.isNotBlank()) {
                     domainList = downloaded(rule.domains.listByLineOrComma())
@@ -1025,7 +1031,7 @@ fun buildConfig(
                 fun makeDnsRuleObj(): DNSRule_DefaultOptions {
                     return DNSRule_DefaultOptions().apply {
                         if (uidList.isNotEmpty()) user_id = uidList
-                        domainList?.let { makeSingBoxRule(it) }
+                        domainList?.let { makeSingBoxRule(it, forExport) }
                     }
                 }
 

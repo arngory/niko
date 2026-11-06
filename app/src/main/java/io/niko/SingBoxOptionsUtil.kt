@@ -27,7 +27,7 @@ object SingBoxOptionsUtil {
 
 }
 
-fun SingBoxOptions.DNSRule_DefaultOptions.makeSingBoxRule(list: List<String>) {
+fun SingBoxOptions.DNSRule_DefaultOptions.makeSingBoxRule(list: List<String>, forExport: Boolean = false) {
     rule_set = mutableListOf<String>()
     domain = mutableListOf<String>()
     domain_suffix = mutableListOf<String>()
@@ -38,7 +38,7 @@ fun SingBoxOptions.DNSRule_DefaultOptions.makeSingBoxRule(list: List<String>) {
             rule_set.plusAssign(it)
         } else if (RuleSetFiles.isItem(it)) {
             // a downloaded one by what it holds (an IP-only one in a DNS rule would take every name)
-            if (RuleSetFiles.usableInDns(it)) rule_set.plusAssign(it)
+            if (RuleSetFiles.usableInDns(it, forExport)) rule_set.plusAssign(it)
         } else if (isRemoteRuleSet(it)) {
             // an IP-only rule-set makes a DNS rule invalid in sing-box 1.14; skip what looks like one
             if (!isIPRuleSetName(it)) rule_set.plusAssign(it)
@@ -94,7 +94,8 @@ fun generateRuleSet(
     ruleSetString.forEach {
         when {
             // an exported config names a downloaded rule-set by its URL: this device's file means nothing elsewhere
-            forExport && RuleSetFiles.isItem(it) -> {
+            // (ConfigBuilder leaves out those not over https, as the app fetches them)
+            forExport && RuleSetFiles.isItem(it) -> if (RuleSetFiles.fetchable(it)) {
                 ruleSet.add(RuleSet().apply {
                     type = "remote"
                     tag = it
