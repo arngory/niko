@@ -227,6 +227,10 @@ fun Project.setupApp() {
                 )
             }
         }
+        // the install permission with the update key only: a build without it has nothing to install
+        if (updatePublicKey().isNotEmpty()) {
+            sourceSets.getByName("oss").manifest.srcFile("src/updates/AndroidManifest.xml")
+        }
 
         applicationVariants.all {
             outputs.all {

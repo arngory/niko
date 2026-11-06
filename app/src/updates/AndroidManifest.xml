@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- the GitHub build installs its own updates, their signature and hash checked (io.niko.utils.Updates); the stores'
-     builds leave that to the store -->
+<!-- the GitHub build installs its own updates, their signature and hash checked (io.niko.utils.Updates): the oss
+     flavor takes this manifest only with the key it checks them with (niko-update.pub, Helpers.kt); the stores' builds
+     leave updates to the store -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />

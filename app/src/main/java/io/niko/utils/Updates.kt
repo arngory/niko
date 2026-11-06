@@ -48,9 +48,13 @@ object Updates {
         sums.entries.firstOrNull { (name, _) -> name.startsWith("Niko-") && name.endsWith("-$abi.apk") }?.toPair()
     }
 
-    private val assetUrl = Regex("^https://github\\.com/${Regex.escape(RELEASE_REPO)}/releases/download/[^/?#]+/[^/?#]+$")
+    // the owner's releases, whatever the repository's name: after a rename the API answers with the new one (as the
+    // release page's check in AboutFragment); the trust is the signature's, not the address's
+    private val assetUrl = Regex(
+        "^https://github\\.com/${Regex.escape(RELEASE_REPO.substringBefore('/'))}/[A-Za-z0-9._-]+/releases/download/[^/?#]+/[^/?#]+$"
+    )
 
-    /** A release's assets by name (the GitHub API's release object), only those under this app's releases. */
+    /** A release's assets by name (the GitHub API's release object), only those under the owner's releases. */
     fun assets(release: JSONObject): Map<String, String> {
         val list = release.optJSONArray("assets") ?: return emptyMap()
         return (0 until list.length()).mapNotNull { i ->

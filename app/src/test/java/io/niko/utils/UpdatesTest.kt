@@ -54,14 +54,16 @@ class UpdatesTest {
                 .put(asset("SHA256SUMS", "https://github.com/arngory/niko/releases/download/v1.36.0/SHA256SUMS"))
                 .put(asset("SHA256SUMS.minisig", "https://github.com/arngory/niko/releases/download/v1.36.0/SHA256SUMS.minisig"))
                 .put(asset("Niko-1.36.0-arm64-v8a.apk", "https://github.com/arngory/niko/releases/download/v1.36.0/Niko-1.36.0-arm64-v8a.apk"))
-                // another repository, another host, a query, plain HTTP: left out
+                // the repository renamed: the API answers with its new name
+                .put(asset("Niko-1.36.0-armeabi-v7a.apk", "https://github.com/arngory/niko-app/releases/download/v1.36.0/Niko-1.36.0-armeabi-v7a.apk"))
+                // another owner, another host, a query, plain HTTP: left out
                 .put(asset("Niko-1.36.0-x86.apk", "https://github.com/someone/niko/releases/download/v1.36.0/Niko-1.36.0-x86.apk"))
                 .put(asset("Niko-1.36.0-x86_64.apk", "https://example.com/arngory/niko/releases/download/v1.36.0/Niko-1.36.0-x86_64.apk"))
-                .put(asset("Niko-1.36.0-armeabi-v7a.apk", "https://github.com/arngory/niko/releases/download/v1.36.0/x.apk?y=1"))
+                .put(asset("query", "https://github.com/arngory/niko/releases/download/v1.36.0/x.apk?y=1"))
                 .put(asset("plain", "http://github.com/arngory/niko/releases/download/v1.36.0/plain"))
         )
         assertEquals(
-            setOf("SHA256SUMS", "SHA256SUMS.minisig", "Niko-1.36.0-arm64-v8a.apk"),
+            setOf("SHA256SUMS", "SHA256SUMS.minisig", "Niko-1.36.0-arm64-v8a.apk", "Niko-1.36.0-armeabi-v7a.apk"),
             Updates.assets(release).keys,
         )
         assertEquals(emptyMap<String, String>(), Updates.assets(JSONObject()))
