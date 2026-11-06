@@ -122,6 +122,46 @@ jobs:
           for i in $(seq 50); do curl -fs http://203.0.113.1:8080/e2e > /dev/null && break; sleep 0.2; done
           curl -fsS http://203.0.113.1:8080/e2e > /dev/null
 
+      - name: A slipstream server on the runner, its VLESS stage behind it
+        run: |
+          # the bundled client's own fork, its server as it is (its test key, ALPN picoquic_sample): the app's row
+          # through the client (mapping ports, the process, the rules above the DNS hijack), no node needed
+          . buildScript/lib/slipstream/env.sh
+          sudo apt-get update -qq > /dev/null && sudo apt-get install -y -qq cmake ninja-build pkg-config libssl-dev meson > /dev/null
+          git init -q /tmp/slip && git -C /tmp/slip remote add origin "$REPOSITORY_SLIPSTREAM"
+          git -C /tmp/slip fetch -q --depth 1 origin "$COMMIT_SLIPSTREAM"
+          git -C /tmp/slip checkout -q FETCH_HEAD && git -C /tmp/slip submodule update -q --init --recursive
+          (cd /tmp/slip && meson setup --buildtype=release --warnlevel=0 build > /dev/null && ninja -C build slipstream-server > /dev/null)
+          # the VLESS stage the server forwards to, in a box of its own: through the tunnel the runner's server sees
+          # 203.0.113.3
+          . .github/xray-interop.env
+          git clone -q --filter=blob:none "$REPOSITORY_XRAY" /tmp/xray && git -C /tmp/xray checkout -q "$COMMIT_XRAY"
+          mkdir -p /tmp/slipbin
+          (cd /tmp/xray && CGO_ENABLED=0 GOTOOLCHAIN=auto go build -o /tmp/slipbin/xray ./main)
+          uuid=$(cat /proc/sys/kernel/random/uuid)
+          printf '%s' '{"log": {"loglevel": "warning"}, "inbounds": [{"listen": "0.0.0.0", "port": 10443, "protocol": "vless",
+            "settings": {"clients": [{"id": "UUID"}], "decryption": "none"}}], "outbounds": [{"protocol": "freedom"}]}' \
+            | sed "s/UUID/$uuid/" > /tmp/slipbin/xray.json
+          docker run -d --name rc-slip --network rc-net --ip 203.0.113.3 -v /tmp/slipbin:/opt/slip:ro debian:13 \
+            /opt/slip/xray run -c /opt/slip/xray.json > /dev/null
+          nohup /tmp/slip/build/slipstream-server --dns-listen-address=203.0.113.1 --dns-listen-port=5353 \
+            --target-address=203.0.113.3:10443 --domain=tunnel.test \
+            --cert=/tmp/slip/certs/cert.pem --key=/tmp/slip/certs/key.pem > /tmp/slip.log 2>&1 &
+          pin=$(openssl x509 -in /tmp/slip/certs/cert.pem -pubkey -noout | openssl pkey -pubin -outform der \
+            | openssl dgst -sha256 -binary | basenc --base64url | tr -d '=')
+          python3 -I -c '
+          import sys, urllib.parse
+          uuid, pin = sys.argv[1:]
+          query = urllib.parse.urlencode({"encryption": "none", "security": "none", "type": "tcp",
+              "niko-dns": "slipstream;203.0.113.1:5353;tunnel.test;1",
+              "niko-slip": "v1;%s;picoquic_sample;test.example.com" % pin}, quote_via=urllib.parse.quote)
+          print("vless://%s@203.0.113.3:10443?%s#e2e-slipstream" % (uuid, query))
+          ' "$uuid" "$pin" > /tmp/slip.link
+          grep -q '^vless://' /tmp/slip.link
+          sleep 1
+          docker ps --filter name=rc-slip --format '{{.Status}}' | grep -q Up || { docker logs rc-slip; exit 1; }
+          pgrep -f slipstream-server > /dev/null || { cat /tmp/slip.log; exit 1; }
+
       - name: KVM for the emulator
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -135,7 +175,7 @@ jobs:
           target: google_apis
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
-          script: bash .github/scripts/e2e.sh apks /tmp/phone.invite /tmp/www.log /tmp/www/e2e /tmp/e2e
+          script: bash .github/scripts/e2e.sh apks /tmp/phone.invite /tmp/www.log /tmp/www/e2e /tmp/e2e /tmp/slip.link
 
       - name: What the emulator showed
         if: failure()
@@ -152,4 +192,6 @@ jobs:
           echo "--- the perimeter"; docker exec rc-node tail -n 60 /var/log/rayspa.log || true
           docker exec rc-node nft list ruleset 2>/dev/null | grep -cE 'dnat|redirect' | sed 's/^/  nat rules: /' || true
           echo "--- the runner's server"; cat /tmp/www.log || true
-          docker rm -f rc-node > /dev/null 2>&1 || true
+          echo "--- slipstream's server"; tail -n 40 /tmp/slip.log || true
+          echo "--- its VLESS stage"; docker logs --tail 40 rc-slip 2>&1 || true
+          docker rm -f rc-node rc-slip > /dev/null 2>&1 || true

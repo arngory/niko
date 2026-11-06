@@ -2,8 +2,10 @@
 # The app end to end on an emulator (ci.yml, job e2e), against the CI node: the invite opened as a link registers the
 # device, the subscription brings the node's Hysteria2 profile, the VPN goes up through it, and a request of the
 # emulator's reaches the runner's HTTP server from the node's address, where without the VPN, before and after, it
-# comes from one of the runner's own (the emulator's network is the runner's sockets). Arguments: the APK folder, the
-# invite file, the server's log, the token it serves, the folder for what the emulator showed (a failure's artifact).
+# comes from one of the runner's own (the emulator's network is the runner's sockets). Then a slipstream row: the VPN
+# through the bundled client to the runner's slipstream server, whose VLESS stage (203.0.113.3) the request comes from.
+# Arguments: the APK folder, the invite file, the server's log, the token it serves, the folder for what the emulator
+# showed (a failure's artifact), the slipstream link.
 set -u
 pkg=io.niko
 apk=$(ls "$1"/*-x86_64.apk 2>/dev/null | head -1)
@@ -12,21 +14,25 @@ invite=$(cat "$2")
 weblog=$3
 secret=$(cat "$4")
 out=$5
+slip_link=$(cat "$6")
 here=$(dirname "$0")
 mkdir -p "$out"
 # raycontrol-interop's addresses: the runner 203.0.113.1 (its server), the node .2
 runner=203.0.113.1
 node=203.0.113.2
+# slipstream's VLESS stage (ci.yml)
+slip_stage=203.0.113.3
 port=8080
-# ProxyEntity.TYPE_HYSTERIA
+# ProxyEntity.TYPE_HYSTERIA, TYPE_VMESS (VLESS rows too)
 hysteria=15
+vless=4
 
 finish() {
   timeout 30 adb exec-out screencap -p > "$out/screen.png" 2>/dev/null
   timeout 60 adb logcat -d > "$out/logcat.txt" 2>/dev/null
   timeout 30 adb pull "/data/data/$pkg/cache/neko.log" "$out/neko.log" > /dev/null 2>&1
-  { timeout 20 adb shell ip addr; timeout 20 adb shell ip rule; timeout 30 adb shell dumpsys connectivity; } \
-    > "$out/network.txt" 2>&1
+  { timeout 20 adb shell ip addr; timeout 20 adb shell ip rule; timeout 30 adb shell dumpsys connectivity;
+    timeout 20 adb shell ps -A -o PID,USER,ARGS; } > "$out/network.txt" 2>&1
   status=$1
   if grep -E "FATAL EXCEPTION|ANR in $pkg" -A 20 "$out/logcat.txt" | grep -B2 -A20 "$pkg"; then
     echo "::error::the app crashed or did not answer"; status=1
@@ -152,5 +158,31 @@ for i in $(seq 10); do
 done
 [ -n "$from" ] && [ "$from" != "$node" ] && [ "$carried" = yes ] ||
   fail "after the VPN: from '${from:-nowhere}', token $carried, want the runner's own (nc said: $last)"
+
+echo "== slipstream: the link, the VPN through the bundled client"
+timeout 60 adb shell "am start -W -n $pkg/$pkg.ui.MainActivity -a android.intent.action.VIEW -d '$slip_link'" > /dev/null ||
+  fail "the slipstream link did not open the app"
+tap "Import profile" || fail "no question to import the slipstream link on the screen"
+id=
+for i in $(seq 20); do
+  id=$(profile "$vless")
+  [ -n "$id" ] && break
+  sleep 2
+done
+[ -n "$id" ] || fail "no VLESS profile from the slipstream link"
+echo "the slipstream profile: $id"
+timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" --el profile "$id" > /dev/null ||
+  fail "the quick toggle did not start (slipstream)"
+# the client's handshake goes through DNS: a little longer than a direct one
+for i in $(seq 30); do
+  fetch "slip-$i-$RANDOM"
+  [ "$from" = "$slip_stage" ] && [ "$carried" = yes ] && break
+  sleep 3
+done
+timeout 20 adb shell "ps -A -o PID,USER,ARGS | grep [l]ibslipstream" || echo "no slipstream client process"
+[ "$from" = "$slip_stage" ] && [ "$carried" = yes ] ||
+  fail "through slipstream: from '${from:-nowhere}', token $carried, want its stage $slip_stage (nc said: $last)"
+echo "through slipstream: the runner's server saw the request from $from"
+timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" > /dev/null || fail "the quick toggle did not stop (slipstream)"
 
 finish 0
