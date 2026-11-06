@@ -176,6 +176,8 @@ jobs:
           NIKO_SERVER_SHA256_AMD64=${NIKO_SERVER_SHA256_OVERRIDE:-$NIKO_SERVER_SHA256_AMD64}
           curl -fsSL --retry 3 -o /tmp/rcbin/niko-server "$NIKO_SERVER_RELEASES/download/$NIKO_SERVER_TAG/niko-server-linux-amd64"
           echo "$NIKO_SERVER_SHA256_AMD64  /tmp/rcbin/niko-server" | sha256sum -c -
+          # the release the node runs, for the steps that need a version of it
+          echo "NIKO_SERVER_RUNNING=$NIKO_SERVER_TAG" >> "$GITHUB_ENV"
           chmod +x /tmp/rcbin/niko-server
           chmod 0644 /tmp/rccert/*.pem
 
@@ -326,6 +328,12 @@ jobs:
           if ! docker exec rc-node /opt/rc/rayctl -h 2>&1 | grep -q "masterdns: a new service key"; then
             echo "::notice::this raycontrol does not rotate a masterdns key (v0.15.0 does)"
             exit 0
+          fi
+          # the backend rereads its key file, the previous key kept for the grace, from niko-server v0.13.0: an older
+          # one with this raycontrol is a pin out of step (raycontrol's deploy/versions.env has the release it needs)
+          if [ "$(printf '%s\n' v0.13.0 "$NIKO_SERVER_RUNNING" | sort -V | head -1)" != v0.13.0 ]; then
+            echo "::error::raycontrol rotates masterdns keys, niko-server $NIKO_SERVER_RUNNING does not reread them (v0.13.0 does): .github/niko-server.env, or the run's niko_server_tag, behind raycontrol"
+            exit 1
           fi
           docker exec rc-node /opt/rc/rayctl service rotate mdns
           sleep 6
