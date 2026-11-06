@@ -44,6 +44,8 @@ public abstract class AbstractBean extends Serializable {
     public String dnsTunnelAuth;
     // version 10: raycontrol dnsseal-v1 of a dnstt tunnel, the zone's key K in base64url, "" off
     public String dnsTunnelSeal;
+    // version 11: raycontrol dnszones-v1, the tunnel's spare zones in their order, comma separated, "" none
+    public String dnsTunnelSpare;
     // extraVersion 6: UDP desync of QUIC clients (Hysteria2, TUIC), core common/udpdesync
     public Integer udpPrelude; // fake datagrams before the first real one, 0-8
     public String udpPreludeSni; // the fakes are QUIC Initials naming this server; empty = random bytes
@@ -118,6 +120,7 @@ public abstract class AbstractBean extends Serializable {
         if (dnsTunnelFixedUpstream == null) dnsTunnelFixedUpstream = false;
         if (dnsTunnelAuth == null) dnsTunnelAuth = "";
         if (dnsTunnelSeal == null) dnsTunnelSeal = "";
+        if (dnsTunnelSpare == null) dnsTunnelSpare = "";
         if (udpPrelude == null) udpPrelude = 0;
         if (udpPreludeSni == null) udpPreludeSni = "";
         if (udpPreludeTtl == null) udpPreludeTtl = 0;
@@ -134,7 +137,7 @@ public abstract class AbstractBean extends Serializable {
     public void serializeToBuffer(@NonNull ByteBufferOutput output) {
         serialize(output);
 
-        output.writeInt(10);
+        output.writeInt(11);
         if (!serializeWithoutName) {
             output.writeString(name);
         }
@@ -161,6 +164,7 @@ public abstract class AbstractBean extends Serializable {
         output.writeString(yggVia != null ? yggVia : "");
         output.writeString(dnsTunnelAuth != null ? dnsTunnelAuth : "");
         output.writeString(dnsTunnelSeal != null ? dnsTunnelSeal : "");
+        output.writeString(dnsTunnelSpare != null ? dnsTunnelSpare : "");
     }
 
     @Override
@@ -210,6 +214,9 @@ public abstract class AbstractBean extends Serializable {
         }
         if (extraVersion >= 10) {
             dnsTunnelSeal = input.readString();
+        }
+        if (extraVersion >= 11) {
+            dnsTunnelSpare = input.readString();
         }
     }
 

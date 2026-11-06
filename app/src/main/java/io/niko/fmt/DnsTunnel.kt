@@ -26,6 +26,7 @@ fun AbstractBean.keepDnsTunnelOf(old: AbstractBean) {
     dnsTunnelFixedUpstream = old.dnsTunnelFixedUpstream
     dnsTunnelAuth = old.dnsTunnelAuth
     dnsTunnelSeal = old.dnsTunnelSeal
+    dnsTunnelSpare = old.dnsTunnelSpare
 }
 
 data class DnsTunnel(
@@ -42,6 +43,8 @@ data class DnsTunnel(
      * mode, [SEAL_OPTIONAL] or [SEAL_REQUIRED] (the key is [key]); "" off
      */
     val seal: String = "",
+    /** raycontrol dnszones-v1: the spare zones in their order, comma separated, "" none (the main zone is [domain]) */
+    val spare: String = "",
 ) {
 
     companion object {
@@ -67,6 +70,7 @@ data class DnsTunnel(
             fixedUpstream = bean.dnsTunnelFixedUpstream == true,
             auth = bean.dnsTunnelAuth.orEmpty(),
             seal = bean.dnsTunnelSeal.orEmpty(),
+            spare = bean.dnsTunnelSpare.orEmpty(),
         )
     }
 
@@ -76,6 +80,19 @@ data class DnsTunnel(
     val ignoresServerAddress get() = engine == DNSTT || fixedUpstream
 
     private val domains get() = domain.split(',', ' ', '\n').map { it.trim() }.filter { it.isNotEmpty() }
+
+    /** The spare zones (dnszones-v1), in their order */
+    val spareZones get() = spare.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+
+    /**
+     * The zones the tunnel may go through on a network: the main one (the first of [domain]) and its spares, in their
+     * order (dnszones-v1 §3); one zone goes into the config at a time.
+     */
+    val zones get() = listOfNotNull(domains.firstOrNull()) + spareZones
+
+    /** This tunnel through [zone], one of its [zones] (the main one otherwise) */
+    fun withZone(zone: String?): DnsTunnel =
+        if (zone == null || zone == domains.firstOrNull() || zone !in spareZones) this else copy(domain = zone)
     // MasterDnsVPN takes an IPv6 address in brackets only with a port (it skipped "[2001:db8::1]"): such a line goes
     // bare, a profile saved with one included
     private val resolvers
@@ -86,6 +103,7 @@ data class DnsTunnel(
     fun validate(): String? {
         if (!enabled) return null
         if (domains.any { !DOMAIN.matches(it) }) return "DNS tunnel: the domain is a name, like t.example.com"
+        if (spareZones.any { !DOMAIN.matches(it) }) return "DNS tunnel: a spare zone is a name, like t2.example.com"
         return when (engine) {
             DNSTT -> when {
                 domains.size != 1 -> "DNS tunnel: dnstt takes one domain"

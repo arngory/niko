@@ -62,6 +62,9 @@ class RayDnsResolversTest {
     @Test
     fun scoreKeepsTheResolverKindItWentThrough() {
         assertEquals("doh", ChannelScore.fromJson(ChannelScore(1, tcpOk = true, dnsKind = "doh").toJson()).dnsKind)
+        // and the number of the zone (dnszones-v1), none for a record before it
+        assertEquals(2, ChannelScore.fromJson(ChannelScore(1, tcpOk = true, dnsZone = 2).toJson()).dnsZone)
+        assertEquals(null, ChannelScore.fromJson(ChannelScore(1, tcpOk = true).toJson()).dnsZone)
         // not a DNS tunnel left to the client, and records before 1.33.0: no kind
         assertNull(ChannelScore.fromJson(ChannelScore(1, tcpOk = true).toJson()).dnsKind)
         assertNull(ChannelScore.fromJson(JsonParser.parseString("""{"at":1,"tcp_ok":true}""").asJsonObject).dnsKind)

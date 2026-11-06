@@ -121,6 +121,8 @@ object RayTestRun {
                     step("dns_pick") {
                         addProperty("engine", io.niko.fmt.DnsTunnel.DNSTT)
                         pick.kind?.let { addProperty("kind", it) }
+                        // a spare zone (dnszones-v1): the main one is cut on this network
+                        if (pick.zone > 0) addProperty("zone", pick.zone)
                     }
                 }
                 for ((key, rowId) in current.profileIds.orEmpty()) {

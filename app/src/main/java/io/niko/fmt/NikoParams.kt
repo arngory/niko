@@ -56,6 +56,12 @@ fun AbstractBean.applyNikoParams(param: (String) -> String?, params: (String) ->
             }
             dnsTunnelAuth = "v1;$node;$svc"
         }
+        // dnszones-v1 (raycontrol v0.14): the spare zones of the same service, in their order, at most 4; a name that
+        // is not one, or the main zone again, is left out
+        val main = dnsTunnelDomain.split(',', ' ', '\n').map { it.trim().lowercase() }.firstOrNull { it.isNotEmpty() }
+        dnsTunnelSpare = param("niko-dns-spare").orEmpty().split(',').map { it.trim().lowercase() }
+            .filter { it.isNotEmpty() && DNS_ZONE.matches(it) && it != main }.distinct().take(MAX_SPARE_ZONES)
+            .joinToString(",")
         // dnsseal-v1 (raycontrol v0.13): dnstt's framing sealed with the zone's key; mdseal-v1 (v0.14): masterdns's
         // answers sealed with its key (niko-dnskey), the node's mode with it. Another version is unknown here and the
         // tunnel goes open (a node in "required" mode answers it nothing)
@@ -89,6 +95,10 @@ fun AbstractBean.applyNikoParams(param: (String) -> String?, params: (String) ->
 }
 
 private val NODE_ID = Regex("^[0-9a-f]{32}$")
+
+// a DNS zone as the tunnel's own is checked (DnsTunnel.DOMAIN): letters, digits, dots and hyphens
+private val DNS_ZONE = Regex("^[a-z0-9.-]+$")
+private const val MAX_SPARE_ZONES = 4
 
 // dnsseal-v1's key: 32 bytes in base64url without padding
 private val SEAL_KEY = Regex("^[A-Za-z0-9_-]{43}$")

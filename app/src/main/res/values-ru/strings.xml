@@ -155,6 +155,7 @@
     <string name="raycontrol_findings_udp_blocked">UDP от ноды в этой сети не возвращается: Hysteria2, TUIC и WireGuard здесь не заработают</string>
     <string name="raycontrol_findings_udp_small">UDP проходит здесь датаграммами не больше %d байт, а QUIC (Hysteria2, TUIC) нужно 1200</string>
     <string name="raycontrol_findings_dns_none">Ни один резолвер в этой сети не пропускает DNS-туннель ноды</string>
+    <string name="raycontrol_findings_dns_spare">Основная зона DNS-туннеля ноды в этой сети отрезана: туннель идёт через запасную зону %d</string>
     <string name="raycontrol_findings_share">Отправьте журнал админу ноды: в нём каждый шаг со временем</string>
     <string name="direct_dns_help">local — резолвер самой сети, как у других приложений (с учётом частного DNS). Или сервер: https://…/dns-query, tls://…, 1.1.1.1</string>
     <string name="private_dns_strict">Частный DNS задан как %s: приложения шлют DNS по TLS прямо ему, мимо DNS Niko. Правила по доменам тогда держатся только на сниффинге, а этот резолвер видит все имена. Настройки → Сеть → Частный DNS: «Автоматически» или «Отключено».</string>

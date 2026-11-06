@@ -114,6 +114,11 @@ object RayReport {
                             s.dnsKind?.takeIf {
                                 it in REPORTED_DNS_KINDS || (it == "tcp" && "dns_tcp" in node.probe?.report.orEmpty())
                             }?.let { addProperty("dns", it) }
+                            // the zone of the tunnel that worked, its number (dnszones-v1 §3: 0 the main one, names
+                            // never), dnstt only, to a node that lists dns_zone
+                            if (kind == "dnstt" && "dns_zone" in node.probe?.report.orEmpty()) {
+                                s.dnsZone?.let { addProperty("zone", it) }
+                            }
                         }
                     })
                 }

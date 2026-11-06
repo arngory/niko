@@ -784,6 +784,14 @@ fun buildConfig(
                         }
                         t.copy(resolver = resolver)
                     }
+                }.let { t ->
+                    // dnszones-v1: one zone at a time, the main one unless this network's pick or failures moved it
+                    if (!t.enabled || t.spareZones.isEmpty()) t
+                    else {
+                        val owner = RayNodes.ownerOf(proxyEntity.id)?.first
+                        if (notes) io.niko.raycontrol.RayDnsResolvers.noteRunningZone(owner, t)
+                        t.withZone(io.niko.raycontrol.RayDnsResolvers.zoneFor(owner, t) ?: t.zones.first())
+                    }
                 }
                 if (dnsTunnel.enabled) {
                     val prefix = "DNS tunnel (${bean.displayName()})"

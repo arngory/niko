@@ -45,6 +45,8 @@ data class ChannelScore(
     val udpMeasured: Boolean = false,
     // the kind of resolver a DNS tunnel left to the client went through in this probe (dnsprobe-v1), else null
     val dnsKind: String? = null,
+    // the number of the zone a dnstt tunnel went through in this probe, 0 the main one (dnszones-v1), else null
+    val dnsZone: Int? = null,
 ) {
 
     /**
@@ -73,6 +75,7 @@ data class ChannelScore(
         udpError?.let { addProperty("udp_error", it) }
         addProperty("udp_measured", udpMeasured)
         dnsKind?.let { addProperty("dns_kind", it) }
+        dnsZone?.let { addProperty("dns_zone", it) }
     }
 
     companion object {
@@ -92,6 +95,7 @@ data class ChannelScore(
                 (o.get("udp_loss_pct")?.asDouble ?: 0.0) > 0 ||
                 o.get("udp_error")?.asString.let { it != null && it != NO_ECHO }),
             dnsKind = o.get("dns_kind")?.takeIf { it.isJsonPrimitive }?.asString,
+            dnsZone = o.get("dns_zone")?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isNumber }?.asInt,
         )
 
         // a node service that answers no UDP echo
@@ -267,12 +271,13 @@ object RayChannel {
         }
         // the resolver its DNS tunnel goes through, as the probe's config takes it now (the summary's obs dns)
         val dnsKind = runCatching { RayDnsResolvers.usedKind(profile) }.getOrNull()
+        val dnsZone = runCatching { RayDnsResolvers.usedZone(profile) }.getOrNull()
         return try {
             if (nodeRequest != null) {
                 ChannelScore.fromNodeProbe(at, TestInstance(profile, "", 0).doProbeNode(nodeRequest.toString()))
             } else {
                 ChannelScore.fromProbe(at, TestInstance(profile, "", 0).doProbe(options(deep, mobile)))
-            }?.copy(dnsKind = dnsKind)
+            }?.copy(dnsKind = dnsKind, dnsZone = dnsZone)
         } catch (e: CancellationException) {
             // cancelled, not failed: nothing to record
             throw e

@@ -86,6 +86,9 @@ object RayTestFindings {
         /** no resolver here passes the node's dnstt tunnel */
         DNS_NONE,
 
+        /** the main zone of the node's dnstt tunnel is cut here, its spare zone [Finding.number] passes (dnszones-v1) */
+        DNS_SPARE,
+
         /** the relay's profiles work, the direct ones do not */
         RELAY_ONLY,
 
@@ -150,7 +153,10 @@ object RayTestFindings {
                     if (kotlin.math.abs(skew) > CLOCK_SKEW_S) notes += Finding(Note.CLOCK, number = skew)
                 }
 
-                "dns_pick" -> if (step.string("kind") == null) notes += Finding(Note.DNS_NONE)
+                "dns_pick" -> when {
+                    step.string("kind") == null -> notes += Finding(Note.DNS_NONE)
+                    (step.long("zone") ?: 0) > 0 -> notes += Finding(Note.DNS_SPARE, number = step.long("zone") ?: 0)
+                }
                 "profile_start" -> step.string("key")?.let { started[it] = step }
                 "profile" -> {
                     val key = step.string("key") ?: continue

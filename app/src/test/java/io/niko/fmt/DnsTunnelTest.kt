@@ -153,6 +153,44 @@ class DnsTunnelTest {
         assertEquals("v1;$node;8", stored.dnsTunnelAuth)
     }
 
+    /**
+     * raycontrol dnszones-v1: niko-dns-spare gives the spare zones in their order, at most 4, a name that is not one or
+     * the main zone again left out; one zone goes into the outbound at a time.
+     */
+    @Test
+    fun spareZones() {
+        val params = mapOf(
+            "niko-dns" to "dnstt;auto;t.example.com;$key",
+            "niko-dns-spare" to "T2.Example.com, t3.example.com,t.example.com,bad_name.example.com,t3.example.com,t4.example.com,t5.example.com,t6.example.com",
+        )
+        val bean = SOCKSBean().apply { initializeDefaultValues(); applyNikoParams({ params[it] }) }
+        assertEquals("t2.example.com,t3.example.com,t4.example.com,t5.example.com", bean.dnsTunnelSpare)
+        val tunnel = DnsTunnel.of(bean)
+        assertEquals(listOf("t.example.com", "t2.example.com", "t3.example.com", "t4.example.com", "t5.example.com"), tunnel.zones)
+        assertNull(tunnel.validate())
+        // a zone of its own: the outbound goes through it alone; the main one or another's leaves the tunnel as it was
+        assertEquals("t3.example.com", tunnel.withZone("t3.example.com").outboundOptions(null)["domain"])
+        assertEquals("t.example.com", tunnel.withZone("t.example.com").outboundOptions(null)["domain"])
+        assertEquals("t.example.com", tunnel.withZone("other.example.org").outboundOptions(null)["domain"])
+        assertEquals("t.example.com", tunnel.withZone(null).outboundOptions(null)["domain"])
+        // masterdns: its DOMAINS one zone too
+        val mdns = DnsTunnel.of(SOCKSBean().apply {
+            initializeDefaultValues()
+            applyNikoParams({ (params + ("niko-dns" to "masterdns;8.8.8.8;v.example.com;5") + ("niko-dnskey" to "k"))[it] })
+        })
+        assertEquals(listOf("t2.example.com"), mdns.withZone("t2.example.com").outboundOptions(null)["domains"])
+        assertEquals(listOf("v.example.com"), mdns.outboundOptions(null)["domains"])
+        // none given: none; a bad one set by hand: refused at the check
+        assertEquals("", SOCKSBean().apply { initializeDefaultValues(); applyNikoParams({ (params - "niko-dns-spare")[it] }) }.dnsTunnelSpare)
+        assertNotNull(tunnel.copy(spare = "t2.example.com,https://x").validate())
+        // kept through the profile's storage, and through a subscription's update that gives none
+        val stored = KryoConverters.deserialize(SOCKSBean(), KryoConverters.serialize(bean))
+        assertEquals(bean.dnsTunnelSpare, stored.dnsTunnelSpare)
+        val updated = SOCKSBean().apply { initializeDefaultValues() }
+        updated.keepDnsTunnelOf(bean)
+        assertEquals(bean.dnsTunnelSpare, updated.dnsTunnelSpare)
+    }
+
     /** A subscription's update: a tunnel the link gives wins whole; one the user set on a link without one stays. */
     @Test
     fun updateKeepsWhatIsTheUsers() {

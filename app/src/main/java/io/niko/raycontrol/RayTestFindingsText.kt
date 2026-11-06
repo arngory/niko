@@ -41,6 +41,7 @@ object RayTestFindingsText {
                 Note.UDP_BLOCKED -> context.getString(R.string.raycontrol_findings_udp_blocked)
                 Note.UDP_SMALL -> context.getString(R.string.raycontrol_findings_udp_small, finding.number.toInt())
                 Note.DNS_NONE -> context.getString(R.string.raycontrol_findings_dns_none)
+                Note.DNS_SPARE -> context.getString(R.string.raycontrol_findings_dns_spare, finding.number.toInt())
             }
         }
         for ((cause, profiles) in result.byCause) {

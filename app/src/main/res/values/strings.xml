@@ -816,6 +816,7 @@
     <string name="raycontrol_findings_udp_blocked">No UDP comes back from the node on this network: Hysteria2, TUIC and WireGuard will not work here</string>
     <string name="raycontrol_findings_udp_small">UDP passes datagrams of at most %d bytes here, and QUIC (Hysteria2, TUIC) needs 1200</string>
     <string name="raycontrol_findings_dns_none">No resolver on this network passes the node\'s DNS tunnel</string>
+    <string name="raycontrol_findings_dns_spare">The main zone of the node\'s DNS tunnel is cut on this network: the tunnel goes through its spare zone %d</string>
     <string name="raycontrol_findings_share">Share the log with the node\'s admin: it holds every step with its time</string>
     <string name="raycontrol_dnstt_resolver">DNS tunnel resolver (dnstt)</string>
     <string name="raycontrol_dnstt_resolver_help">Used when a node\'s link leaves the resolver to the client. auto: picked per network (the network\'s own resolver, then public ones of the country, each on UDP and TCP 53, checked with the node\'s probe); or https://…/dns-query, tls://host, tcp://host or udp://host for every network. Applies to profiles from the next subscription update.</string>

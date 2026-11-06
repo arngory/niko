@@ -143,6 +143,13 @@ class RayTestFindingsTest {
     }
 
     @Test
+    fun aSpareZone() {
+        val result = RayTestFindings.of(steps("""{"run":"r","step":"dns_pick","engine":"dnstt","kind":"doh","zone":2}"""))
+        assertEquals(listOf(RayTestFindings.Finding(Note.DNS_SPARE, number = 2)), result.notes)
+        assertTrue(RayTestFindings.of(steps("""{"run":"r","step":"dns_pick","engine":"dnstt","kind":"doh"}""")).notes.isEmpty())
+    }
+
+    @Test
     fun noNetwork() {
         val result = RayTestFindings.of(
             steps("""{"run":"r","step":"start","net":"none","profiles":2}""", """{"run":"r","step":"end","error":"no network"}""")
