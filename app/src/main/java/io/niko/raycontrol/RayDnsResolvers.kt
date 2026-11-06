@@ -209,14 +209,21 @@ object RayDnsResolvers {
         return pick
     }
 
-    /** Picks the resolver anew for [node]'s dnstt tunnel when its rows leave it to the client (their zone). */
-    suspend fun detectForNode(node: RayNode, network: ChannelNetwork, progress: (String) -> Unit = {}) {
-        if (node.dnsProbeKey == null) return
+    /** What [detectForNode] picked: [kind] null when no resolver answered. */
+    data class NodePick(val kind: String?)
+
+    /**
+     * Picks the resolver anew for [node]'s dnstt tunnel when its rows leave it to the client (their zone); null when
+     * none does (or the node gives no key to probe with).
+     */
+    suspend fun detectForNode(node: RayNode, network: ChannelNetwork, progress: (String) -> Unit = {}): NodePick? {
+        if (node.dnsProbeKey == null) return null
         val zone = node.profileIds.orEmpty().values.firstNotNullOfOrNull { id ->
             SagerDatabase.proxyDao.getById(id)?.requireBean()?.let(::probedZone)
-        } ?: return
+        } ?: return null
         val pick = detect(node, network, zone, progress)
         progress("dns $DNSTT: ${pick?.kind ?: "no resolver answered"}")
+        return NodePick(pick?.kind)
     }
 
     // a sweep at a time per node, detached: the failover or the start that asks for it does not wait for its probes

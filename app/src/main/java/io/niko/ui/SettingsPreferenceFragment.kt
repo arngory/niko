@@ -252,8 +252,10 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         if (node.subscription != null) actions += R.string.raycontrol_sub_update to { updateSubscription(node) }
         if (!node.profileIds.isNullOrEmpty()) actions += R.string.raycontrol_channel_check to { checkChannel(node) }
         if (!node.profileIds.isNullOrEmpty()) actions += R.string.raycontrol_test_run to { testRun(node) }
-        io.niko.raycontrol.RayTestRun.lastFile?.takeIf { it.exists() }?.let { file ->
-            actions += R.string.raycontrol_test_run_share_last to { shareRunLog(file) }
+        io.niko.raycontrol.RayTestRun.lastFindings?.let { findings ->
+            actions += R.string.raycontrol_test_run_last to {
+                showFindings(findings, io.niko.raycontrol.RayTestRun.lastFile?.takeIf { it.exists() })
+            }
         }
         // the summary with consent; the node's hints for this network come with the subscription either way
         val hasHints = RayChannel.network()?.let { RayChannel.hints(node.spa.nodeId, it) } != null
@@ -275,8 +277,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         }
     }
 
-    /** Probes every profile of [node] on this network, one by one, and shows the results as they come. */
-    /** A test run with an id the node's admin logs under too (RayTestRun), then the redacted file to share. */
+    /** A test run with an id the node's admin logs under too (RayTestRun), then what it found and its file to share. */
     private fun testRun(node: RayNode) {
         val input = android.widget.EditText(requireContext()).apply {
             setText(io.niko.raycontrol.RayTestRun.defaultId())
@@ -313,7 +314,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             if (isAdded) dialog.setMessage(lines.takeLast(20).joinToString("\n"))
         }
         runOnDefaultDispatcher {
-            val file = try {
+            val outcome = try {
                 io.niko.raycontrol.RayTestRun.run(node, id) { line ->
                     // the step's name and outcome, the full line goes to the file
                     show(line.substringAfter("\"step\":\"").substringBefore('"') +
@@ -323,16 +324,32 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                 show(e.readableMessage)
                 return@runOnDefaultDispatcher
             }
-            show(context.getString(R.string.raycontrol_test_run_done))
-            // the share sheet once this screen is in front again: an app in the background may not start one (Android
-            // 10+); a screen gone meanwhile leaves the log to the node's menu (the last run's log)
+            // what it found in place of the steps, once this screen is in front again; a screen gone meanwhile leaves
+            // them and the log to the node's menu (the last test run)
             onMainDispatcher {
                 if (!isAdded) return@onMainDispatcher
                 try {
-                    lifecycle.withResumed { shareRunLog(file) }
+                    lifecycle.withResumed {
+                        dialog.dismiss()
+                        showFindings(outcome.findings, outcome.file)
+                    }
                 } catch (_: Exception) {
                 }
             }
+        }
+    }
+
+    /** What a test run found, and its log to share (a button that leaves the findings open). */
+    private fun showFindings(findings: io.niko.raycontrol.RayTestFindings.Result, file: java.io.File?) {
+        val context = context ?: return
+        val dialog = MaterialAlertDialogBuilder(context)
+            .setTitle(R.string.raycontrol_findings_title)
+            .setMessage(io.niko.raycontrol.RayTestFindingsText.text(context, findings))
+            .setPositiveButton(android.R.string.ok, null)
+            .apply { if (file != null) setNeutralButton(R.string.raycontrol_test_run_share, null) }
+            .show()
+        if (file != null) {
+            dialog.getButton(android.content.DialogInterface.BUTTON_NEUTRAL)?.setOnClickListener { shareRunLog(file) }
         }
     }
 
@@ -351,6 +368,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         )
     }
 
+    /** Probes every profile of [node] on this network, one by one, and shows the results as they come. */
     private fun checkChannel(node: RayNode) {
         val network = RayChannel.network() ?: run {
             snackbar(R.string.raycontrol_channel_no_network).show()

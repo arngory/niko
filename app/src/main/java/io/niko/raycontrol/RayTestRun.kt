@@ -31,6 +31,23 @@ object RayTestRun {
     var lastFile: File? = null
         private set
 
+    /** What the last run found, to show later when the screen was gone at its end (with the names the file redacts). */
+    @Volatile
+    var lastFindings: RayTestFindings.Result? = null
+        private set
+
+    /** A run's redacted file to share and what it found. */
+    class Outcome(val file: File, val findings: RayTestFindings.Result)
+
+    /** how [profile]'s traffic reaches its node, for the findings: through DNS resolvers, over UDP or over TCP */
+    private fun carrierOf(profile: io.niko.database.ProxyEntity): String = when {
+        io.niko.fmt.DnsTunnel.of(profile.requireBean()).enabled -> "dns"
+        profile.type == io.niko.database.ProxyEntity.TYPE_HYSTERIA || profile.type == io.niko.database.ProxyEntity.TYPE_TUIC ||
+                profile.type == io.niko.database.ProxyEntity.TYPE_WG -> "udp"
+
+        else -> "tcp"
+    }
+
     private fun file(id: String) = File(File(app.cacheDir, "log").also { it.mkdirs() }, "niko-$id.log")
 
     private val day = DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneOffset.UTC)
@@ -44,10 +61,11 @@ object RayTestRun {
 
     fun utc(at: Instant = Instant.now()): String = DateTimeFormatter.ISO_INSTANT.format(at.truncatedTo(java.time.temporal.ChronoUnit.MILLIS))
 
-    /** Runs the steps, telling [progress] each one, and returns the redacted file to share. */
-    suspend fun run(node: RayNode, id: String, progress: (String) -> Unit): File {
+    /** Runs the steps, telling [progress] each one, and returns the redacted file to share with what the run found. */
+    suspend fun run(node: RayNode, id: String, progress: (String) -> Unit): Outcome {
         require(validId(id)) { "run id: letters, digits, '.', '-', '_' only" }
         val steps = StringBuilder()
+        val stepLines = mutableListOf<JsonObject>()
         fun step(name: String, fields: JsonObject.() -> Unit = {}) {
             val line = JsonObject().apply {
                 addProperty("run", id)
@@ -56,6 +74,7 @@ object RayTestRun {
                 fields()
             }
             steps.append(line).append('\n')
+            stepLines += line
             progress(line.toString())
         }
         check(running.compareAndSet(false, true)) { "a test run is going already" }
@@ -98,6 +117,11 @@ object RayTestRun {
                 // the DNS tunnels' resolvers on this network, anew (dnsprobe-v1)
                 RayDnsResolvers.detectForNode(current, network) { line ->
                     step("dns") { addProperty("result", line) }
+                }?.let { pick ->
+                    step("dns_pick") {
+                        addProperty("engine", io.niko.fmt.DnsTunnel.DNSTT)
+                        pick.kind?.let { addProperty("kind", it) }
+                    }
                 }
                 for ((key, rowId) in current.profileIds.orEmpty()) {
                     val profile = SagerDatabase.proxyDao.getById(rowId) ?: continue
@@ -105,6 +129,7 @@ object RayTestRun {
                         addProperty("key", key)
                         addProperty("name", profile.displayName())
                         addProperty("type", profile.displayType())
+                        addProperty("carrier", carrierOf(profile))
                         RayRelays.relayOfKey(key)?.let { addProperty("relay", it) }
                     }
                     val score = RayChannel.probe(profile, deep = true, mobile = network.mobile)
@@ -140,9 +165,11 @@ object RayTestRun {
         val all = String(SendLog.getNekoLog(0))
         val at = all.lastIndexOf(MARKER)
         val log = if (at >= 0) all.substring(all.lastIndexOf('\n', at) + 1) else all
+        val findings = RayTestFindings.of(stepLines)
         val report = buildString {
             append("# Niko test run ").append(id).append(", ").append(utc()).append('\n')
             append("# steps (JSON lines)\n").append(steps)
+            append("# what the app found on them\n").append(RayTestFindings.summary(id, findings)).append('\n')
             append(if (at >= 0) "# the app's log since the run started\n" else "# the app's log, whole: the run's start was trimmed from it\n")
             append(log)
         }
@@ -155,6 +182,7 @@ object RayTestRun {
         })
         check(part.renameTo(file)) { "the run's log could not be saved" }
         lastFile = file
-        return file
+        lastFindings = findings
+        return Outcome(file, findings)
     }
 }
