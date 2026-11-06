@@ -52,6 +52,16 @@ data class DnsTunnel(
         const val MASTERDNSVPN = "masterdnsvpn"
         const val SEAL_OPTIONAL = "optional"
         const val SEAL_REQUIRED = "required"
+        private val AUTH_VERSIONS = setOf("v1", "v2")
+
+        /**
+         * A row signed by dnsauth-v1 ("v1;node;svc", what a link's niko-dnsauth=v1 gives) signed by v2 instead, when
+         * [v2] (the node's subscription announces dnsauth.v 2: its niko-server checks the hint); else as it is.
+         */
+        fun signWithHint(bean: AbstractBean, v2: Boolean) {
+            val auth = bean.dnsTunnelAuth.orEmpty()
+            if (v2 && auth.startsWith("v1;")) bean.dnsTunnelAuth = "v2;" + auth.removePrefix("v1;")
+        }
         private val DNSTT_KEY = Regex("^[0-9a-fA-F]{64}$")
         private val SEAL_KEY = Regex("^[A-Za-z0-9_-]{43}$")
         private val DNSTT_RESOLVER =
@@ -130,11 +140,18 @@ data class DnsTunnel(
         }
     }
 
-    /** The node id and the service id of dnsauth-v1 (dnstt, masterdns since raycontrol v0.14), or null when it is off. */
+    /**
+     * The node id and the service id of dnsauth (dnstt, masterdns since raycontrol v0.14), or null when it is off:
+     * "v1;…" signs by dnsauth-v1, "v2;…" by dnsauth-v2 (the hint, when the node's subscription announces it).
+     */
     val authNode: Pair<String, Int>?
-        get() = auth.split(';').takeIf { it.size == 3 && it[0] == "v1" }?.let { (_, node, svc) ->
+        get() = auth.split(';').takeIf { it.size == 3 && it[0] in AUTH_VERSIONS }?.let { (_, node, svc) ->
             svc.toIntOrNull()?.let { node to it }
         }
+
+    /** dnsauth's version, 2 for "v2;…", else 1 (when [authNode] is on). */
+    val authVersion: Int
+        get() = if (auth.startsWith("v2;")) 2 else 1
 
     /**
      * The core outbound; [deviceKeyRef]: the reference of the node's device key (dnsauth-v1), [clockSkew]: how many
@@ -147,6 +164,8 @@ data class DnsTunnel(
                 put("service_id", svc)
                 put("device_key_ref", deviceKeyRef!!)
                 if (clockSkew != 0L) put("clock_skew", clockSkew)
+                // dnsauth-v2: hint || tag in the same 8 bytes (raycontrol docs/spec/dnsauth-v2.md); v1 sends none
+                if (authVersion == 2) put("version", 2)
             }
         }
         return when (engine) {

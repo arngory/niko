@@ -76,4 +76,35 @@ class RaySubscriptionPayloadTest {
         for (key in listOf("3#via-r1", "4#via-r1", "9#via-r1")) assertEquals(relayHost, parsed.beans.getValue(key).serverAddress)
         assertEquals("443", (parsed.beans.getValue("4#via-r1") as HysteriaBean).serverPorts)
     }
+
+    /** dnsauth-v2: the subscription's dnsauth.v with 2 signs the node's DNS tunnels by the hint; without it, by v1. */
+    @Test
+    fun theHintWhenTheSubscriptionAnnouncesIt() {
+        fun auths(p: JsonObject) = RaySubscription.parse(withAuto(p), emptyMap(), p.get("time").asLong).beans
+            .filterKeys { it == "7" || it == "8" }.mapValues { (_, bean) -> DnsTunnel.of(bean) }
+        val signed = auths(payload).filterValues { it.authNode != null }
+        assertTrue("the fixture's dnstt row signs", "7" in signed)
+        for ((key, tunnel) in signed) {
+            assertEquals(key, 1, tunnel.authVersion)
+            assertTrue(key, tunnel.auth.startsWith("v1;"))
+        }
+        val announced = payload.deepCopy().apply {
+            add("dnsauth", JsonParser.parseString("""{"v":[1,2]}"""))
+        }
+        for ((key, tunnel) in auths(announced)) {
+            if (key !in signed) {
+                // a row that does not sign stays so
+                assertEquals(key, "", tunnel.auth)
+                continue
+            }
+            assertEquals(key, 2, tunnel.authVersion)
+            assertEquals(key, signed.getValue(key).authNode, tunnel.authNode)
+            assertEquals(key, 2, (tunnel.outboundOptions(null, "raycontrol:x:dev")["auth"] as Map<*, *>)["version"])
+        }
+        // v1 alone, or a field this client cannot read: v1
+        for (field in listOf("""{"v":[1]}""", """{"v":"2"}""", """[2]""")) {
+            val other = payload.deepCopy().apply { add("dnsauth", JsonParser.parseString(field)) }
+            for ((key, tunnel) in auths(other)) assertEquals("$field $key", 1, tunnel.authVersion)
+        }
+    }
 }

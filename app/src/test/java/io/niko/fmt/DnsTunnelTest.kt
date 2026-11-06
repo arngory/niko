@@ -72,6 +72,17 @@ class DnsTunnelTest {
         assertFalse(tunnel.outboundOptions(null).containsKey("auth"))
         // the subscription's skew: the tag's epoch is the node's
         assertEquals(-95L, (tunnel.outboundOptions(null, "raycontrol:$node:dev", -95)["auth"] as Map<*, *>)["clock_skew"])
+        // v1 sends no version; the subscription's dnsauth.v 2 makes the row v2, the core's auth version 2
+        assertEquals(1, tunnel.authVersion)
+        DnsTunnel.signWithHint(bean, false)
+        assertEquals("v1;$node;3", bean.dnsTunnelAuth)
+        DnsTunnel.signWithHint(bean, true)
+        assertEquals("v2;$node;3", bean.dnsTunnelAuth)
+        val v2 = DnsTunnel.of(bean)
+        assertEquals(node to 3, v2.authNode)
+        assertEquals(2, (v2.outboundOptions(null, "raycontrol:$node:dev")["auth"] as Map<*, *>)["version"])
+        DnsTunnel.signWithHint(bean, true)
+        assertEquals("v2;$node;3", bean.dnsTunnelAuth)
         // another version: off
         val other = SOCKSBean().apply { initializeDefaultValues(); applyNikoParams({ (params + ("niko-dnsauth" to "v2"))[it] }) }
         assertEquals("", other.dnsTunnelAuth)

@@ -40,7 +40,8 @@ public abstract class AbstractBean extends Serializable {
     public String dnsTunnelKey; // dnstt: the server's public key; masterdnsvpn: the shared key
     public Integer dnsTunnelMethod; // masterdnsvpn DATA_ENCRYPTION_METHOD, 0-5
     public Boolean dnsTunnelFixedUpstream; // masterdnsvpn server in TCP mode instead of SOCKS5
-    // version 9: raycontrol dnsauth-v1 of a dnstt tunnel, "v1;<node id>;<service id>", "" off
+    // version 9: raycontrol dnsauth of a dnstt tunnel, "v1;<node id>;<service id>", "" off; "v2;…" signs by
+    // dnsauth-v2 (the node's subscription announces it)
     public String dnsTunnelAuth;
     // version 10: raycontrol dnsseal-v1 of a dnstt tunnel, the zone's key K in base64url, "" off
     public String dnsTunnelSeal;

@@ -20,6 +20,7 @@ import io.niko.database.ProxyEntity
 import io.niko.database.ProxyGroup
 import io.niko.database.SagerDatabase
 import io.niko.fmt.AbstractBean
+import io.niko.fmt.DnsTunnel
 import io.niko.ktx.Logs
 import io.niko.ktx.app
 import io.niko.ktx.applyDefaultValues
@@ -221,6 +222,10 @@ object RaySubscription {
         var doh: String? = null
         // relays in front of the node (relay-v1 §4, a draft): a profile with `via` gets a row through each
         val relays = RayRelay.listFromJson(payload.get("relays") as? JsonArray)
+        // dnsauth-v2 (raycontrol v0.15): the node's niko-server checks the hint; its links still say niko-dnsauth=v1
+        // ("sign"), which old clients take as v1
+        val dnsAuthV2 = ((payload.get("dnsauth") as? JsonObject)?.get("v") as? JsonArray)
+            ?.any { runCatching { it.asInt }.getOrNull() == 2 } == true
         // dnsprobe-v1: the key that probes the resolvers of the node's DNS tunnels (only for a user with one)
         val dnsProbeKey = (payload.get("dns_probe") as? JsonObject)?.takeIf { it.get("v")?.asInt == 1 }
             ?.get("key")?.takeIf { it.isJsonPrimitive }?.asString
@@ -237,6 +242,7 @@ object RaySubscription {
                 val bean = RayRows.parse(pair.activeLink)
                 if (pair.name.isNotBlank()) bean.name = pair.name
                 bean.applyDefaultValues()
+                DnsTunnel.signWithHint(bean, dnsAuthV2)
                 beans[key] = bean
                 links[key] = pair
                 for (relay in viaOf(profile).mapNotNull { id -> relays.firstOrNull { it.id == id } }) {
@@ -251,6 +257,7 @@ object RaySubscription {
                     val viaBean = RayRows.parse(via.activeLink)
                     viaBean.name = name
                     viaBean.applyDefaultValues()
+                    DnsTunnel.signWithHint(viaBean, dnsAuthV2)
                     beans[RayRelays.viaKey(key, relay.id)] = viaBean
                     links[RayRelays.viaKey(key, relay.id)] = via
                 }
