@@ -231,7 +231,8 @@ object RaySubscription {
                 RayNodes.update(nodeId) { node ->
                     node.copy(
                         probe = probe, spaCarriers = carriers, failedFetches = 0, failedNetwork = null, relays = relays,
-                        dnsProbeKey = dnsProbeKey,
+                        dnsProbeKey = dnsProbeKey, subUpdatedAt = now,
+                        subExpires = payload.get("expires")?.takeIf { it.isJsonPrimitive }?.asLong?.minus(skew) ?: 0,
                     )
                 }
             }

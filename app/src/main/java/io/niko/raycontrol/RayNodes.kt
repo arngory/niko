@@ -131,6 +131,10 @@ data class RayNode(
     val relays: List<RayRelay> = emptyList(),
     // the subscription's dns_probe key (dnsprobe-v1): probes the resolvers of the node's DNS tunnels, base64url
     val dnsProbeKey: String? = null,
+    // when the last subscription was taken, and until when it holds (this device's clock, unix s; 0 = unknown):
+    // the node's card
+    val subUpdatedAt: Long = 0,
+    val subExpires: Long = 0,
 ) {
     /** The node's SPA parameters for the core, with the carriers it takes. */
     fun spaJson(): JsonObject = spa.toJson().apply {
@@ -169,6 +173,8 @@ data class RayNode(
         failedNetwork?.let { addProperty("failed_network", it) }
         if (relays.isNotEmpty()) add("relays", JsonArray().apply { relays.forEach { add(it.toJson()) } })
         dnsProbeKey?.let { addProperty("dns_probe_key", it) }
+        if (subUpdatedAt > 0) addProperty("sub_updated_at", subUpdatedAt)
+        if (subExpires > 0) addProperty("sub_expires", subExpires)
     }
 
     /** The relay with this address, for a profile row through it. */
@@ -201,6 +207,8 @@ data class RayNode(
             failedNetwork = o.get("failed_network")?.takeIf { it.isJsonPrimitive }?.asString,
             relays = RayRelay.listFromJson(o.get("relays") as? JsonArray),
             dnsProbeKey = o.get("dns_probe_key")?.takeIf { it.isJsonPrimitive }?.asString,
+            subUpdatedAt = o.get("sub_updated_at")?.asLong ?: 0,
+            subExpires = o.get("sub_expires")?.asLong ?: 0,
         )
     }
 }

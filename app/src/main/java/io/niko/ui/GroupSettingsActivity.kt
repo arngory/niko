@@ -132,6 +132,12 @@ class GroupSettingsActivity(
         }
 
         val groupType = findPreference<SimpleMenuPreference>(Key.GROUP_TYPE)!!
+        // a raycontrol node's group: its rows come from the node, a URL subscription in its place would replace them
+        rayHost?.let { host ->
+            groupType.isEnabled = false
+            groupType.summaryProvider = null
+            groupType.summary = getString(R.string.raycontrol_group_locked, host)
+        }
         val groupSubscription = findPreference<PreferenceCategory>(Key.GROUP_SUBSCRIPTION)!!
         val subscriptionUpdate = findPreference<PreferenceCategory>(Key.SUBSCRIPTION_UPDATE)!!
 
@@ -228,6 +234,7 @@ class GroupSettingsActivity(
                         return@runOnDefaultDispatcher
                     }
                     entity.init()
+                    rayHost = io.niko.raycontrol.RayNodes.list().firstOrNull { it.groupId == editingId }?.host
                 }
 
                 onMainDispatcher {
@@ -243,6 +250,10 @@ class GroupSettingsActivity(
         }
 
     }
+
+    // the raycontrol node this group belongs to (its host), or null; set before the preferences are made
+    @Volatile
+    private var rayHost: String? = null
 
     suspend fun saveAndExit() {
 
@@ -262,6 +273,8 @@ class GroupSettingsActivity(
                 entity.subscription?.subscriptionUserinfo = ""
                 entity.subscription?.announce = ""
             }
+            // a raycontrol node's group stays basic, whatever the screen holds
+            if (rayHost != null) DataStore.groupType = GroupType.BASIC
             GroupManager.updateGroup(entity.apply { serialize() })
         }
 

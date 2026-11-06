@@ -16,7 +16,8 @@ class RayNodesTest {
     private val node = RayNode(
         host = "203.0.113.2", spa = spa, deviceId = "dev-1", deviceKeyWrapped = "w",
         services = listOf(RayService(3, "reality", "reality")), spaCarriers = listOf("udp", "tls"),
-        failedFetches = 2, failedNetwork = "wifi:abc", relays = listOf(relay),
+        failedFetches = 2, failedNetwork = "wifi:abc", relays = listOf(relay), subUpdatedAt = 1_700_000_000,
+        subExpires = 1_700_259_200,
     )
 
     @Test

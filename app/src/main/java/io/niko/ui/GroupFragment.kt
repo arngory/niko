@@ -24,6 +24,10 @@ import io.niko.fmt.toUniversalLink
 import io.niko.group.parseSubscriptionUserinfo
 import io.niko.group.GroupUpdater
 import io.niko.ktx.*
+import io.niko.raycontrol.RayNode
+import io.niko.raycontrol.RayNodeCard
+import io.niko.raycontrol.RayNodes
+import io.niko.raycontrol.RaySubscription
 import io.niko.widget.ListListener
 import io.niko.widget.QRCodeDialog
 import io.niko.widget.UndoSnackbarManager
@@ -121,6 +125,9 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
                             .forEach {
                                 GroupUpdater.startUpdate(it, true)
                             }
+                        // raycontrol nodes too: their subscriptions come from the nodes
+                        RayNodes.list().filter { it.subscription != null && it.groupId != 0L }
+                            .forEach { updateRayNode(it, it.groupId) }
                     }
                     .setNegativeButton(R.string.no, null)
                     .show()
@@ -312,6 +319,22 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
         undoManager.flush()
     }
 
+    /** A raycontrol node's group: its subscription anew from the node, the card's progress meanwhile. */
+    private fun updateRayNode(node: RayNode, groupId: Long) {
+        if (!GroupUpdater.updating.add(groupId)) return
+        val context = requireContext().applicationContext
+        runOnDefaultDispatcher {
+            GroupManager.postReload(groupId)
+            val message = try {
+                RaySubscription.refreshForUser(context, node)
+            } finally {
+                GroupUpdater.updating.remove(groupId)
+                GroupManager.postReload(groupId)
+            }
+            onMainDispatcher { if (isAdded) snackbar(message).show() }
+        }
+    }
+
     inner class GroupHolder(binding: LayoutGroupItemBinding) :
         RecyclerView.ViewHolder(binding.root),
         PopupMenu.OnMenuItemClickListener {
@@ -377,8 +400,12 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
         }
 
 
+        // the raycontrol node whose rows this group holds, if one (found off the main thread below)
+        private var rayNode: RayNode? = null
+
         fun bind(group: ProxyGroup) {
             proxyGroup = group
+            rayNode = null
 
             itemView.setOnClickListener { }
 
@@ -393,7 +420,7 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
             }
 
             updateButton.setOnClickListener {
-                GroupUpdater.startUpdate(proxyGroup, true)
+                rayNode?.let { updateRayNode(it, proxyGroup.id) } ?: GroupUpdater.startUpdate(proxyGroup, true)
             }
 
             optionsButton.setOnClickListener {
@@ -477,6 +504,9 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
 
             runOnDefaultDispatcher {
                 val size = SagerDatabase.proxyDao.countByGroup(group.id)
+                // a raycontrol node's group (a basic one, its rows the node's): Update and its lines
+                val node = if (group.type == GroupType.BASIC) RayNodes.list().firstOrNull { it.groupId == group.id } else null
+                val card = node?.let { RayNodeCard.lines(app, it, size) }
                 onMainDispatcher {
                     @Suppress("DEPRECATION") when (group.type) {
                         GroupType.BASIC -> {
@@ -499,6 +529,17 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
                                 )
                             }
 
+                        }
+                    }
+                    // the holder may show another group by now
+                    if (node != null && card != null && proxyGroup.id == group.id) {
+                        rayNode = node
+                        updateButton.isInvisible = node.subscription == null || group.id in GroupUpdater.updating
+                        groupStatus.text = card.first
+                        if (card.second.isNotEmpty()) {
+                            groupTraffic.isVisible = true
+                            groupTraffic.text = card.second
+                            groupStatus.setPadding(0)
                         }
                     }
                 }
