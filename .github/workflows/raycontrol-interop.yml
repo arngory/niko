@@ -82,6 +82,18 @@ jobs:
           rc service add hy2-obfs hy2-obfs
           rc user add interop
           rc device invite interop phone -role admin -o /tmp/rc/invite
+          # invites with a PIN (api-v1 §4, v0.13.0): rcinv1, the short rcinv2 (§3a), one to withdraw by wrong
+          # tries; the PIN goes to rayctl's output only, never into the file
+          mkdir -p /tmp/rc/pin
+          rc device invite interop pin1 -pin -o /tmp/rc/pin/pin.invite > /tmp/rc/pin/pin.out
+          rc device invite interop pin2 -pin -format rcinv2 -o /tmp/rc/pin/v2.invite > /tmp/rc/pin/v2.out
+          rc device invite interop pin3 -pin -o /tmp/rc/pin/gone.invite > /tmp/rc/pin/gone.out
+          grep -q '^RCINV2:' /tmp/rc/pin/v2.invite
+          for f in pin v2 gone; do
+            pin=$(sed -n 's/^PIN \([0-9]\{3\}\) \([0-9]\{3\}\):.*/\1\2/p' /tmp/rc/pin/$f.out)
+            [ -n "$pin" ] || { echo "no PIN shown for $f"; cat /tmp/rc/pin/$f.out; exit 1; }
+            if grep -q "$pin" /tmp/rc/pin/$f.invite; then echo "the PIN in $f's file"; exit 1; fi
+          done
           rc service list
           # the API listener follows the change
           sleep 2
@@ -95,6 +107,7 @@ jobs:
         working-directory: libcore
         env:
           RAYCONTROL_INVITE_FILE: /tmp/rc/invite
+          RAYCONTROL_PIN_DIR: /tmp/rc/pin
           RAYCONTROL_HINTS: "1"
         run: go test -count=1 -v -ldflags=-checklinkname=0 -run TestRaycontrolInterop ./rayapi
 
@@ -230,6 +243,22 @@ jobs:
         run: |
           TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
           go test -count=1 -v -timeout 10m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
+
+      # dnsseal-v1 (v0.13.0): the node's dnstt sealed, unsealed queries refused; then its key rotated at once (the old
+      # one refused), which the client takes from its next subscription
+      - name: dnstt sealed, then its key rotated
+        working-directory: libcore
+        env:
+          RAYCONTROL_BUNDLE: /tmp/phone.bundle
+          RAYCONTROL_ADDRESS: ${{ steps.node.outputs.address }}
+          RAYCONTROL_CA: /tmp/rccert/root.pem
+          RAYCONTROL_ONLY: dnstt-auth-sealed
+        run: |
+          TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
+          docker exec rc-node /opt/rc/rayctl service set dns seal=required
+          go test -count=1 -v -timeout 5m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
+          docker exec rc-node /opt/rc/rayctl service rotate dns -now
+          go test -count=1 -v -timeout 5m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
 
       - name: The subscription as the app reads it
         if: always()

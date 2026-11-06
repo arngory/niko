@@ -96,11 +96,23 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 	const downMbps = 50
 	tested := map[string]bool{}
 	var hysteriaSvc []uint16
+	// RAYCONTROL_ONLY: a later step on the same node (a service changed by rayctl) measures only these kinds, and
+	// no more than that (the relay, the summaries, dnsprobe ran in the first)
+	var only map[string]bool
+	if list := os.Getenv("RAYCONTROL_ONLY"); list != "" {
+		only = map[string]bool{}
+		for _, kind := range strings.Split(list, ",") {
+			only[kind] = true
+		}
+	}
 	for _, p := range result.Payload.Profiles {
 		if !slices.Contains(probeInfo.TunnelSvc, p.Svc) {
 			continue
 		}
 		kind, config := profileConfig(t, p.Link, node, os.Getenv("RAYCONTROL_CA"), b.DeviceKey, downMbps)
+		if only != nil && !only[kind] {
+			continue
+		}
 		if config == "" {
 			t.Logf("svc %d: %s not measured here", p.Svc, kind)
 			continue
@@ -131,6 +143,14 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 		if strings.HasPrefix(kind, "hysteria2") {
 			hysteriaSvc = append(hysteriaSvc, p.Svc)
 		}
+	}
+	if only != nil {
+		for kind := range only {
+			if !tested[kind] {
+				t.Fatalf("no %s profile measured (tested %v, tunnels %v)", kind, tested, probeInfo.TunnelSvc)
+			}
+		}
+		return
 	}
 	// dnsprobe-v1 (raycontrol v0.11.1): the key comes to a user with a dnstt profile
 	if dp := result.Payload.DNSProbe; dp != nil && dp.V == 1 {

@@ -1,13 +1,18 @@
 package rayapi
 
 import (
+	"bytes"
 	"context"
+	"encoding/base32"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"os"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -28,31 +33,7 @@ func TestRaycontrolInterop(t *testing.T) {
 	if path == "" {
 		t.Skip("RAYCONTROL_INVITE_FILE not set (raycontrol-interop.yml sets it)")
 	}
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	code := strings.TrimSpace(string(raw))
-	body, err := base64.RawURLEncoding.DecodeString(strings.TrimPrefix(code, "rcinv1:"))
-	if err != nil {
-		t.Fatalf("invite: %v", err)
-	}
-	var invite Invite
-	var fields struct {
-		DeviceKey string `json:"device_key"`
-		Expires   int64  `json:"expires"`
-	}
-	if err = json.Unmarshal(body, &invite); err != nil {
-		t.Fatal(err)
-	}
-	if err = json.Unmarshal(body, &fields); err != nil {
-		t.Fatal(err)
-	}
-	// rcinv1 keeps the key next to spa, as rcdev1 does (spa-v2.md §8)
-	invite.SPA.DeviceKey = fields.DeviceKey
-	if invite.API.Port == 0 || invite.API.Pin == "" || fields.Expires < time.Now().Unix() {
-		t.Fatalf("invite without api or expired: %+v", invite.API)
-	}
+	invite := readInvite(t, path)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -407,4 +388,198 @@ func checkHints(ctx context.Context, t *testing.T, admin Endpoint, first *Regist
 	if net.ParseIP(b.Host).IsLoopback() && result.Payload.Hints != nil {
 		t.Fatalf("subscription from the node's own address carries hints: %+v", *result.Payload.Hints)
 	}
+}
+
+// readInvite reads an invite file of rayctl device invite -o: rcinv1, or the short RCINV2: (api-v1 §3a), read into the
+// same fields as the app's Rcinv2 reads it.
+func readInvite(t *testing.T, path string) Invite {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code := strings.TrimSpace(string(raw))
+	var body []byte
+	if rest, ok := strings.CutPrefix(code, "RCINV2:"); ok {
+		if body, err = rcinv2JSON(rest); err != nil {
+			t.Fatalf("rcinv2 invite: %v", err)
+		}
+	} else if body, err = base64.RawURLEncoding.DecodeString(strings.TrimPrefix(code, "rcinv1:")); err != nil {
+		t.Fatalf("invite: %v", err)
+	}
+	var invite Invite
+	var fields struct {
+		DeviceKey string `json:"device_key"`
+		Expires   int64  `json:"expires"`
+	}
+	if err = json.Unmarshal(body, &invite); err != nil {
+		t.Fatal(err)
+	}
+	if err = json.Unmarshal(body, &fields); err != nil {
+		t.Fatal(err)
+	}
+	// rcinv1 keeps the key next to spa, as rcdev1 does (spa-v2.md §8)
+	invite.SPA.DeviceKey = fields.DeviceKey
+	if invite.API.Port == 0 || invite.API.Pin == "" || fields.Expires < time.Now().Unix() {
+		t.Fatalf("invite without api or expired: %+v", invite.API)
+	}
+	return invite
+}
+
+// rcinv2JSON is the rcinv1 body of a short invite (api-v1 §3a), field by field as the app's Rcinv2 reads it: version
+// 2, flags (bit 0 PIN, bits 1-2 the host's kind), the host, the SPA parameters, the device, the API service and port,
+// the API's pin, the expiry.
+func rcinv2JSON(encoded string) ([]byte, error) {
+	b, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(strings.ToUpper(encoded))
+	if err != nil {
+		return nil, err
+	}
+	take := func(n int) ([]byte, error) {
+		if len(b) < n {
+			return nil, errors.New("cut short")
+		}
+		v := b[:n]
+		b = b[n:]
+		return v, nil
+	}
+	head, err := take(2)
+	if err != nil || head[0] != 2 || head[1]&^0x07 != 0 {
+		return nil, fmt.Errorf("version or flags % x", head)
+	}
+	var host string
+	switch (head[1] >> 1) & 0x03 {
+	case 0, 1:
+		size := 4
+		if (head[1]>>1)&0x03 == 1 {
+			size = 16
+		}
+		addr, err := take(size)
+		if err != nil {
+			return nil, err
+		}
+		host = net.IP(addr).String()
+	case 2:
+		n, err := take(1)
+		if err != nil {
+			return nil, err
+		}
+		name, err := take(int(n[0]))
+		if err != nil {
+			return nil, err
+		}
+		host = string(name)
+	default:
+		return nil, errors.New("unknown kind of host")
+	}
+	var fixed struct {
+		NodeID                              [16]byte
+		Epoch, Slot                         uint32
+		PortKey                             [32]byte
+		PortBase, PortRange, LenMin, LenMax uint16
+		DeviceID                            [8]byte
+		DeviceKey                           [32]byte
+		ServiceID, APIPort                  uint16
+		APIPin                              [32]byte
+		Expires                             uint32
+	}
+	if err = binary.Read(bytes.NewReader(b), binary.BigEndian, &fixed); err != nil {
+		return nil, err
+	}
+	if len(b) != binary.Size(fixed) {
+		return nil, fmt.Errorf("%d bytes past its end", len(b)-binary.Size(fixed))
+	}
+	invite := map[string]any{
+		"v": 1, "host": host,
+		"spa": map[string]any{
+			"node_id": hex.EncodeToString(fixed.NodeID[:]), "epoch_len_s": fixed.Epoch, "slot_len_s": fixed.Slot,
+			"port_key": hex.EncodeToString(fixed.PortKey[:]), "port_base": fixed.PortBase, "port_range": fixed.PortRange,
+			"len_min": fixed.LenMin, "len_max": fixed.LenMax,
+		},
+		"device_id": hex.EncodeToString(fixed.DeviceID[:]), "device_key": hex.EncodeToString(fixed.DeviceKey[:]),
+		"services": []map[string]any{{"id": fixed.ServiceID, "kind": "api", "name": "api"}},
+		"api":      map[string]any{"port": fixed.APIPort, "pin": base64.RawURLEncoding.EncodeToString(fixed.APIPin[:])},
+		"expires":  fixed.Expires,
+	}
+	if head[1]&0x01 != 0 {
+		invite["pin"] = true
+	}
+	return json.Marshal(invite)
+}
+
+// pinOf is the PIN and its tries in rayctl device invite -pin's output ("PIN 123 456: ... 5 wrong tries withdraw it").
+func pinOf(t *testing.T, path string) (string, int) {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := regexp.MustCompile(`PIN (\d{3}) (\d{3}):.*?(\d+) wrong tries`).FindStringSubmatch(string(raw))
+	if m == nil {
+		t.Fatalf("no PIN in %s: %s", path, raw)
+	}
+	tries, _ := strconv.Atoi(m[3])
+	return m[1] + m[2], tries
+}
+
+// TestRaycontrolInteropPin registers by invites with a PIN (api-v1 §4) through a real rayd, run by
+// .github/workflows/raycontrol-interop.yml: RAYCONTROL_PIN_DIR holds invites of rayctl device invite -pin -o (rcinv1,
+// pin.invite; rcinv2, v2.invite; one to withdraw, gone.invite) and rayctl's output with each PIN (*.out).
+func TestRaycontrolInteropPin(t *testing.T) {
+	dir := os.Getenv("RAYCONTROL_PIN_DIR")
+	if dir == "" {
+		t.Skip("RAYCONTROL_PIN_DIR not set (raycontrol-interop.yml sets it)")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	register := func(invite Invite, pin string) (*Registered, *Error) {
+		invite.PinCode = pin
+		registered, err := Register(ctx, invite, nil)
+		if err == nil {
+			return registered, nil
+		}
+		var apiErr *Error
+		if !errors.As(err, &apiErr) {
+			t.Fatalf("Register: %v", err)
+		}
+		return nil, apiErr
+	}
+	wrong := func(pin string) string {
+		return pin[:5] + string('0'+(pin[5]-'0'+1)%10)
+	}
+
+	// rcinv1 with a PIN: none (no try lost), a wrong one (a try lost), the right one
+	invite := readInvite(t, dir+"/pin.invite")
+	pin, tries := pinOf(t, dir+"/pin.out")
+	if _, e := register(invite, ""); e == nil || e.Code != "permission_denied" {
+		t.Fatalf("no PIN: %+v", e)
+	}
+	if _, e := register(invite, wrong(pin)); e == nil || e.Code != "permission_denied" || e.PinLeft == nil || *e.PinLeft != tries-1 {
+		t.Fatalf("a wrong PIN: %+v (want %d tries left)", e, tries-1)
+	}
+	registered, e := register(invite, pin)
+	if e != nil || !strings.HasPrefix(registered.Bundle, "rcdev1:") {
+		t.Fatalf("the right PIN: %+v", e)
+	}
+	t.Logf("rcinv1 with a PIN: registered %s after a wrong try (%d of %d left)", registered.DeviceID, tries-1, tries)
+
+	// rcinv2, the short form, with a PIN
+	invite = readInvite(t, dir+"/v2.invite")
+	pin, _ = pinOf(t, dir+"/v2.out")
+	if registered, e = register(invite, pin); e != nil || !strings.HasPrefix(registered.Bundle, "rcdev1:") {
+		t.Fatalf("rcinv2: %+v", e)
+	}
+	t.Logf("rcinv2 with a PIN: registered %s", registered.DeviceID)
+
+	// every try wrong: the last says none is left, and the invite is gone then, the right PIN too
+	invite = readInvite(t, dir+"/gone.invite")
+	pin, tries = pinOf(t, dir+"/gone.out")
+	for left := tries - 1; left >= 0; left-- {
+		if _, e = register(invite, wrong(pin)); e == nil || e.PinLeft == nil || *e.PinLeft != left {
+			t.Fatalf("wrong try, %d to be left: %+v", left, e)
+		}
+	}
+	if _, e = register(invite, pin); e == nil || e.Code != "not_found" {
+		t.Fatalf("a withdrawn invite: %+v", e)
+	}
+	t.Logf("withdrawn after %d wrong tries", tries)
 }
