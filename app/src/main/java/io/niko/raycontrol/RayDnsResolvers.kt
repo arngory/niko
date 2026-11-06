@@ -163,11 +163,20 @@ object RayDnsResolvers {
      */
     fun zoneFor(node: RayNode?, tunnel: DnsTunnel): String? {
         if (tunnel.spareZones.isEmpty() || node == null) return null
-        val network = RayChannel.network() ?: return null
-        val engine = if (tunnel.engine == DNSTT) DNSTT else MASTERDNS
-        return RayChannel.dnsPick(node.spa.nodeId, network, engine)?.get("zone")?.asString
-            ?.takeIf { it in tunnel.zones }
+        // dnstt's pick was measured through the network's candidates: a resolver set by hand takes the main zone
+        if (tunnel.engine == DNSTT && tunnel.resolver.trim() != AUTO) return null
+        return pickedZone(node, tunnel).takeIf { it in tunnel.zones }
     }
+
+    /** the zone of the network's pick for [tunnel], by its main zone, "" none (the main one) */
+    private fun pickedZone(node: RayNode?, tunnel: DnsTunnel): String {
+        val network = RayChannel.network() ?: return ""
+        val main = tunnel.zones.firstOrNull() ?: return ""
+        if (node == null) return ""
+        return RayChannel.zonePick(node.spa.nodeId, network, kindOf(tunnel.engine), main).orEmpty()
+    }
+
+    private fun kindOf(engine: String) = if (engine == DNSTT) DNSTT else MASTERDNS
 
     /**
      * The number of the zone [profile]'s dnstt tunnel goes through on this network in its [DnsTunnel.zones], 0 the main
@@ -240,11 +249,13 @@ object RayDnsResolvers {
             // the network changed meanwhile: what was measured is neither network's
             if (RayChannel.network()?.key != network.key) return null
             val pick = full ?: smallOnly ?: continue
-            record(node, network, pick, smallOnly = full == null, zone = zone.takeIf { index > 0 })
+            record(node, network, pick, smallOnly = full == null)
+            // the zone it passed in, for this tunnel's service (by its main zone); the main one forgets a spare
+            RayChannel.recordZonePick(node.spa.nodeId, network, DNSTT, zones.first(), zone)
             return pick
         }
         if (RayChannel.network()?.key != network.key) return null
-        record(node, network, null, smallOnly = false, zone = null)
+        record(node, network, null, smallOnly = false)
         return null
     }
 
@@ -262,7 +273,7 @@ object RayDnsResolvers {
         } ?: return null
         val pick = detect(node, network, zones, progress)
         progress("dns $DNSTT: ${pick?.kind ?: "no resolver answered"}")
-        val zone = RayChannel.dnsPick(node.spa.nodeId, network, DNSTT)?.get("zone")?.asString
+        val zone = if (pick == null) null else RayChannel.zonePick(node.spa.nodeId, network, DNSTT, zones.first())
         return NodePick(pick?.kind, zone?.let { zones.indexOf(it) }?.takeIf { it > 0 } ?: 0)
     }
 
@@ -342,15 +353,12 @@ object RayDnsResolvers {
             })
             return
         }
-        val zones = tunnel.zones
-        val current = zones.indexOf(held?.get("zone")?.asString ?: zones.firstOrNull()).coerceAtLeast(0)
+        // this service's zones only, by its main zone: another masterdns service of the node keeps its own
+        val zones = tunnel.zones.takeIf { it.size > 1 } ?: return
+        val current = zones.indexOf(pickedZone(node, tunnel).ifEmpty { zones.first() }).coerceAtLeast(0)
         if (current + 1 >= zones.size) return
         Logs.i("raycontrol ${node.host}: masterdns fails on this network in zone $current, the spare zone ${current + 1} for a day")
-        RayChannel.recordDnsPick(node.spa.nodeId, network, MASTERDNS, (held?.deepCopy() ?: JsonObject()).apply {
-            if (!has("kind")) addProperty("kind", "udp")
-            addProperty("zone", zones[current + 1])
-            addProperty("at", now)
-        })
+        RayChannel.recordZonePick(node.spa.nodeId, network, MASTERDNS, zones.first(), zones[current + 1])
         RayWatchdog.dnsChanged()
     }
 
@@ -358,9 +366,10 @@ object RayDnsResolvers {
     // engine → their resolvers
     private val running = java.util.concurrent.ConcurrentHashMap<Pair<String, String>, String>()
 
-    // what the running core's DNS tunnels with spare zones took: node id and engine → the zone of the pick they were
-    // built with ("" none), as it was, so a pick of a zone the subscription no longer gives restarts nothing again
-    private val runningZones = java.util.concurrent.ConcurrentHashMap<Pair<String, String>, String>()
+    // what the running core's DNS tunnels with spare zones took: node id, engine and main zone → the zone of the pick
+    // they were built with ("" none), as it was, so a pick of a zone the subscription no longer gives restarts nothing
+    // again
+    private val runningZones = java.util.concurrent.ConcurrentHashMap<Triple<String, String, String>, String>()
 
     /** A config that will run is built: what its DNS tunnels take is noted anew ([noteRunning]). */
     fun clearRunning() {
@@ -374,16 +383,9 @@ object RayDnsResolvers {
 
     /** A config that will run takes [tunnel] through a zone of its own (dnszones-v1): the pick it went by is noted. */
     fun noteRunningZone(node: RayNode?, tunnel: DnsTunnel) {
+        val main = tunnel.zones.firstOrNull() ?: return
         if (tunnel.spareZones.isEmpty()) return
-        runningZones[(node?.spa?.nodeId ?: "") to tunnel.engine] = pickedZone(node, tunnel.engine)
-    }
-
-    /** the zone of the network's pick for [engine]'s tunnel of [node], "" none */
-    private fun pickedZone(node: RayNode?, engine: String): String {
-        val network = RayChannel.network() ?: return ""
-        if (node == null) return ""
-        val kind = if (engine == DNSTT) DNSTT else MASTERDNS
-        return RayChannel.dnsPick(node.spa.nodeId, network, kind)?.get("zone")?.asString.orEmpty()
+        runningZones[Triple(node?.spa?.nodeId ?: "", tunnel.engine, main)] = pickedZone(node, tunnel)
     }
 
     /**
@@ -394,7 +396,11 @@ object RayDnsResolvers {
     fun runningStale(): Boolean = running.entries.any { (k, resolver) ->
         resolverFor(k.first.takeIf { it.isNotEmpty() }?.let { RayNodes.get(it) }, k.second) != resolver
     } || runningZones.entries.any { (k, zone) ->
-        pickedZone(k.first.takeIf { it.isNotEmpty() }?.let { RayNodes.get(it) }, k.second) != zone
+        val node = k.first.takeIf { it.isNotEmpty() }?.let { RayNodes.get(it) }
+        val network = RayChannel.network()
+        val now = if (node == null || network == null) "" else
+            RayChannel.zonePick(node.spa.nodeId, network, kindOf(k.second), k.third).orEmpty()
+        now != zone
     }
 
     /** A probe's result for the progress: answered (the EDNS size the node saw), or why not; never an address. */
@@ -427,10 +433,10 @@ object RayDnsResolvers {
         }.getOrNull()
     }
 
-    /** Keeps the pick, or [NONE] when there is none; [zone]: the spare zone it is in, null the main one. */
-    private fun record(node: RayNode, network: ChannelNetwork, c: Candidate?, smallOnly: Boolean, zone: String?) {
+    /** Keeps the pick, or [NONE] when there is none. */
+    private fun record(node: RayNode, network: ChannelNetwork, c: Candidate?, smallOnly: Boolean) {
         if (c == null) Logs.w("raycontrol ${node.host}: no resolver on this network answers for dnstt, the default stays")
-        else Logs.i("raycontrol ${node.host}: dnstt on this network goes through a ${c.kind} resolver${if (smallOnly) " (small answers only)" else ""}${if (zone != null) " in a spare zone" else ""}")
+        else Logs.i("raycontrol ${node.host}: dnstt on this network goes through a ${c.kind} resolver${if (smallOnly) " (small answers only)" else ""}")
         RayChannel.recordDnsPick(node.spa.nodeId, network, DNSTT, JsonObject().apply {
             if (c == null) {
                 addProperty("kind", NONE)
@@ -438,7 +444,6 @@ object RayDnsResolvers {
                 addProperty("resolver", c.resolver)
                 addProperty("kind", c.kind)
                 addProperty("small_only", smallOnly)
-                zone?.let { addProperty("zone", it) }
             }
             addProperty("at", System.currentTimeMillis() / 1000)
         })

@@ -702,6 +702,33 @@ object RayChannel {
     fun recordDnsPick(nodeId: String, network: ChannelNetwork, tunnelKind: String, pick: JsonObject) =
         edit(nodeId, network) { it.add(DNS_PICK + tunnelKind, pick) }
 
+    // the zone a DNS tunnel goes through on a network (dnszones-v1), by its service's main zone (no zone is two
+    // services', §4): {main: {"zone", "at"}}, held a day like a pick; none kept for the main zone itself
+    private const val DNS_ZONE = "_zone_"
+
+    /** The zone [tunnelKind]'s tunnel of main zone [main] goes through on [network] while it holds, else null. */
+    fun zonePick(nodeId: String, network: ChannelNetwork, tunnelKind: String, main: String): String? {
+        val o = load().getAsJsonObject(nodeId)?.getAsJsonObject(network.key)?.getAsJsonObject(DNS_ZONE + tunnelKind)
+            ?.getAsJsonObject(main) ?: return null
+        return o.get("zone")?.asString?.takeIf { System.currentTimeMillis() / 1000 - (o.get("at")?.asLong ?: 0) < DNS_HOLD }
+    }
+
+    /** Keeps the zone of the tunnel of main zone [main] on [network]; the main one, or null, forgets it. */
+    fun recordZonePick(nodeId: String, network: ChannelNetwork, tunnelKind: String, main: String, zone: String?) =
+        edit(nodeId, network) { onNetwork ->
+            val zones = onNetwork.getAsJsonObject(DNS_ZONE + tunnelKind)
+                ?: JsonObject().also { onNetwork.add(DNS_ZONE + tunnelKind, it) }
+            if (zone == null || zone == main) {
+                zones.remove(main)
+            } else {
+                zones.add(main, JsonObject().apply {
+                    addProperty("zone", zone)
+                    addProperty("at", System.currentTimeMillis() / 1000)
+                })
+            }
+            if (zones.size() == 0) onNetwork.remove(DNS_ZONE + tunnelKind)
+        }
+
     // the path to the node on a network (relay-v1 §9): {"path": "relay"|"direct", "at": s}. A relay finding holds a
     // day, then direct is tried again; a direct one (or nothing answering at all) an hour, so the detector does not
     // run on every failover
