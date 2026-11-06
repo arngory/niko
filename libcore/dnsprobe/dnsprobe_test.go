@@ -84,6 +84,7 @@ func TestProbeUDP(t *testing.T) {
 	key := make([]byte, 32)
 	key[0] = 7
 	var limit atomic.Int32 // the EDNS the front takes the resolver to have, 0: the query's
+	var pad atomic.Bool    // a sealed zone (dnsseal-v1): the answer padded to a multiple of 64
 	pc, err := net.ListenPacket("udp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -123,7 +124,13 @@ func TestProbeUDP(t *testing.T) {
 					from := netip.MustParseAddrPort(addr.String()).Addr()
 					n := make([]byte, answerNonce)
 					rand.Read(n)
-					resp.Answer = []dns.RR{txt(name, append(n, Crypt(key, q, n, plaintext(key, q, size, false, from, large))...))}
+					data := append(n, Crypt(key, q, n, plaintext(key, q, size, false, from, large))...)
+					if pad.Load() {
+						filler := make([]byte, (64-len(data)%64)%64)
+						rand.Read(filler)
+						data = append(data, filler...)
+					}
+					resp.Answer = []dns.RR{txt(name, data)}
 					resp.SetEdns0(4096, false)
 				}
 			}
@@ -151,6 +158,15 @@ func TestProbeUDP(t *testing.T) {
 		t.Fatalf("large at 512 %+v", r)
 	}
 	limit.Store(0)
+	// padded past the plaintext (a sealed zone): the first 43 and 908 bytes are read, the rest left
+	pad.Store(true)
+	if r := Probe(ctx, dial, addr, "t.example.com", key, false, time.Now()); !r.OK || r.Large {
+		t.Fatalf("small, padded %+v", r)
+	}
+	if r := Probe(ctx, dial, addr, "t.example.com", key, true, time.Now()); !r.OK || !r.Large {
+		t.Fatalf("large, padded %+v", r)
+	}
+	pad.Store(false)
 	// another key (a stale one, as the node sees it): not a probe there, the backend's empty answer
 	other := make([]byte, 32)
 	if r := Probe(ctx, dial, addr, "t.example.com", other, false, time.Now()); r.OK || !r.Unclear {

@@ -151,15 +151,21 @@ func Probe(ctx context.Context, dial Dialer, resolver, zone string, key []byte, 
 			continue
 		}
 		data, err := txtData(txt)
-		if err != nil || (len(data) != answerNonce+smallPlain && len(data) != answerNonce+largePlain) {
+		if err != nil || len(data) < answerNonce+smallPlain {
 			continue
 		}
-		p := Crypt(key, q, data[:answerNonce], data[answerNonce:])
+		// the plaintext is the first 35 bytes, or 900 for a large answer; a sealed zone (dnsseal-v1) pads the answer
+		// past it, as dnstt's answers there are padded
+		plain := smallPlain
+		if large && len(data) >= answerNonce+largePlain {
+			plain = largePlain
+		}
+		p := Crypt(key, q, data[:answerNonce], data[answerNonce:answerNonce+plain])
 		if !hmac.Equal(p[:16], Token(key, q, p[16:smallPlain])) {
 			continue
 		}
-		if len(p) == largePlain {
-			if !large || !zeros(p[smallPlain:]) {
+		if plain == largePlain {
+			if !zeros(p[smallPlain:]) {
 				continue
 			}
 			r.Large = true
