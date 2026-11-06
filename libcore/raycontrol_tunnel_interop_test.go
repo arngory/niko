@@ -111,6 +111,7 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 		}
 		kind, config := profileConfig(t, p.Link, node, os.Getenv("RAYCONTROL_CA"), b.DeviceKey, downMbps)
 		if only != nil && !only[kind] {
+			t.Logf("svc %d: %s skipped (RAYCONTROL_ONLY)", p.Svc, kind)
 			continue
 		}
 		if config == "" {
@@ -140,6 +141,44 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 		}
 		probeThrough(t, kind+" "+p.Name, instance, b.Host, b.Sub.Port, b.Sub.Pin, b.DeviceID, b.SPA, probeInfo.Tunnel, p.Svc, down)
 		tested[kind] = true
+		// a sealed dnstt on a node with seal=required (RAYCONTROL_ONLY runs): its key kept for the next run, the
+		// profile unsealed refused, and after a rotation a new key, the one before refused
+		if only != nil && strings.HasSuffix(kind, "-sealed") {
+			refused := func(what, link string) {
+				_, config := profileConfig(t, link, node, os.Getenv("RAYCONTROL_CA"), b.DeviceKey, downMbps)
+				refusing := startTestBox(t, config)
+				// a handshake that gets no answer ends with it (the dnstt client's Close does not wait for it)
+				defer refusing.Close()
+				for deadline := time.Now().Add(15 * time.Second); time.Now().Before(deadline); time.Sleep(3 * time.Second) {
+					out, err := RaycontrolProbeTunnel(refusing, string(warm))
+					var r probeResult
+					if err == nil && json.Unmarshal([]byte(out), &r) == nil && r.Down != nil && r.Down.OK {
+						t.Fatalf("%s %s: %s, and the node answered through it", kind, p.Name, what)
+					}
+				}
+				t.Logf("%s %s: %s, no answer in 15 s, as it must", kind, p.Name, what)
+			}
+			key := sealKeyOf(t, p.Link)
+			if out := os.Getenv("RAYCONTROL_SEAL_KEY_OUT"); out != "" {
+				if err := os.WriteFile(out, []byte(key), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if os.Getenv("RAYCONTROL_SEAL_REFUSED") != "" {
+				refused("unsealed", linkWithSeal(t, p.Link, ""))
+			}
+			if previous := os.Getenv("RAYCONTROL_SEAL_OLD_KEY"); previous != "" {
+				raw, err := os.ReadFile(previous)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if old := strings.TrimSpace(string(raw)); old == key {
+					t.Fatalf("%s %s: the same seal key after the rotation", kind, p.Name)
+				} else {
+					refused("sealed with the key before the rotation", linkWithSeal(t, p.Link, old))
+				}
+			}
+		}
 		if strings.HasPrefix(kind, "hysteria2") {
 			hysteriaSvc = append(hysteriaSvc, p.Svc)
 		}
@@ -664,4 +703,35 @@ func startTestBox(t *testing.T, config string) *BoxInstance {
 		cancel()
 	})
 	return &BoxInstance{Box: instance, ctx: ctx, cancel: cancel}
+}
+
+// sealKeyOf is the dnsseal-v1 key of a dnstt link (niko-dnsseal=v1;<key>).
+func sealKeyOf(t *testing.T, link string) string {
+	t.Helper()
+	u, err := url.Parse(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, ok := strings.CutPrefix(u.Query().Get("niko-dnsseal"), "v1;")
+	if !ok || key == "" {
+		t.Fatalf("no seal key in %s", u.Redacted())
+	}
+	return key
+}
+
+// linkWithSeal is a dnstt link with another seal key, or without its seal ("").
+func linkWithSeal(t *testing.T, link, key string) string {
+	t.Helper()
+	u, err := url.Parse(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := u.Query()
+	if key == "" {
+		q.Del("niko-dnsseal")
+	} else {
+		q.Set("niko-dnsseal", "v1;"+key)
+	}
+	u.RawQuery = q.Encode()
+	return u.String()
 }

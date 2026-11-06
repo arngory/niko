@@ -244,8 +244,9 @@ jobs:
           TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
           go test -count=1 -v -timeout 10m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
 
-      # dnsseal-v1 (v0.13.0): the node's dnstt sealed, unsealed queries refused; then its key rotated at once (the old
-      # one refused), which the client takes from its next subscription
+      # dnsseal-v1 (v0.13.0): the node's dnstt with seal=required: the sealed profile goes through, the same profile
+      # unsealed gets no answer; then its key rotated at once: the client takes the new key from its next
+      # subscription, and the key before gets no answer
       - name: dnstt sealed, then its key rotated
         working-directory: libcore
         env:
@@ -256,9 +257,12 @@ jobs:
         run: |
           TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
           docker exec rc-node /opt/rc/rayctl service set dns seal=required
-          go test -count=1 -v -timeout 5m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
+          RAYCONTROL_SEAL_KEY_OUT=/tmp/seal-before RAYCONTROL_SEAL_REFUSED=1 \
+            go test -count=1 -v -timeout 5m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
           docker exec rc-node /opt/rc/rayctl service rotate dns -now
-          go test -count=1 -v -timeout 5m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
+          RAYCONTROL_SEAL_KEY_OUT=/tmp/seal-after RAYCONTROL_SEAL_OLD_KEY=/tmp/seal-before \
+            go test -count=1 -v -timeout 5m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
+          if cmp -s /tmp/seal-before /tmp/seal-after; then echo "the seal key did not change with the rotation"; exit 1; fi
 
       - name: The subscription as the app reads it
         if: always()
