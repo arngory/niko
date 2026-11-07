@@ -79,6 +79,7 @@
 <string name="update_install">Скачать и установить</string>
 <string name="update_release_page">Страница релиза</string>
 <string name="update_downloading">Скачиваю обновление…</string>
+<string name="update_from_node">Обновление придёт с ноды %s и будет проверено подписью релиза.</string>
 <string name="update_via_profile">GitHub напрямую не отвечает — через «%s»</string>
 <string name="update_allow_install">Разрешите Niko устанавливать приложения и установите обновление ещё раз</string>
 <string name="update_refused">Обновление не установлено: %s</string>

@@ -181,6 +181,37 @@ object Updates {
     }
 
     /**
+     * The APK of [tag] for this device from a raycontrol node's mirror (app-update-v1), within [oneDownload]: the
+     * release's SHA256SUMS and its signature checked as GitHub's, then the APK against them. [file] writes a file of the
+     * release to a path; with the file's sha256 in quotes it goes on from a part already there (a download through a
+     * slow tunnel that broke). The node is trusted for nothing.
+     */
+    fun downloadFromMirror(context: Context, tag: String, file: (name: String, out: File, etag: String) -> Unit): File {
+        val dir = File(context.cacheDir, "update").apply { mkdirs() }
+        val sumsFile = File(dir, "$tag.$SUMS")
+        val signatureFile = File(dir, "$tag.$SIGNATURE")
+        file(SUMS, sumsFile, "")
+        file(SIGNATURE, signatureFile, "")
+        val listed = checkedSums(
+            BuildConfig.UPDATE_PUBLIC_KEY, tag, sumsFile.readBytes(), signatureFile.readText(), Libcore::minisignVerify
+        )
+        val (name, hash) = apkFor(listed, abis(context))
+            ?: throw Refused(R.string.update_no_apk, "no APK for ${abis(context)}")
+        val apk = File(dir, name)
+        if (apk.isFile && sha256(apk) == hash) return apk
+        val part = File(dir, "$name.part")
+        // other releases' files go; this one's part stays
+        dir.listFiles()?.forEach { if (it != part && it != sumsFile && it != signatureFile) it.deleteRecursively() }
+        file(name, part, "\"$hash\"")
+        if (sha256(part) != hash) {
+            part.delete()
+            throw Refused(R.string.update_bad_apk, "the downloaded $name is not the signed one")
+        }
+        if (!part.renameTo(apk)) throw Exception("the downloaded $name could not be kept")
+        return apk
+    }
+
+    /**
      * Hands [file] to the system's installer; false when the user has to allow this app to install apps first (the
      * settings page opened for it).
      */

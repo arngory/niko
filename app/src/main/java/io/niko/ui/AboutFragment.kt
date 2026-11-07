@@ -42,6 +42,12 @@ import io.niko.bg.proto.TestInstance
 import io.niko.database.DataStore
 import io.niko.database.ProxyEntity
 import io.niko.database.SagerDatabase
+import io.niko.raycontrol.RayAppMirror
+import kotlinx.coroutines.CancellationException
+import io.niko.raycontrol.RayAppRelease
+import io.niko.raycontrol.RayNode
+import io.niko.raycontrol.RayNodes
+import io.niko.raycontrol.RaySubscription
 import libcore.HTTPClient
 import io.niko.utils.Util
 import org.json.JSONArray
@@ -298,20 +304,32 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
         fun checkUpdate(checkPreview: Boolean) {
             runOnIoDispatcher {
                 try {
-                    val (content, way) = firstWay { client ->
-                        try {
-                            client.newRequest().apply {
-                                if (checkPreview) {
-                                    // pre-releases are published from v* tags with a suffix, e.g. v1.5.1-beta.1
-                                    setURL("https://api.github.com/repos/$RELEASE_REPO/releases?per_page=20")
-                                } else {
-                                    setURL("https://api.github.com/repos/$RELEASE_REPO/releases/latest")
-                                }
-                            }.execute().let { Util.getStringBox(it.contentString) }
-                        } catch (e: Exception) {
-                            // no release published yet
-                            if (e.message?.startsWith("HTTP 404") == true) null else throw e
+                    // the check is GitHub's; where it is not reached at all, a raycontrol node's newest release
+                    // (app-update-v1), whose signature the install checks
+                    val (content, way) = try {
+                        firstWay { client ->
+                            try {
+                                client.newRequest().apply {
+                                    if (checkPreview) {
+                                        // pre-releases are published from v* tags with a suffix, e.g. v1.5.1-beta.1
+                                        setURL("https://api.github.com/repos/$RELEASE_REPO/releases?per_page=20")
+                                    } else {
+                                        setURL("https://api.github.com/repos/$RELEASE_REPO/releases/latest")
+                                    }
+                                }.execute().let { Util.getStringBox(it.contentString) }
+                            } catch (e: Exception) {
+                                // no release published yet
+                                if (e.message?.startsWith("HTTP 404") == true) null else throw e
+                            }
                         }
+                    } catch (e: Exception) {
+                        val fromNode = if (Updates.canInstall && Updates.unreached(e)) {
+                            RayAppMirror.newest(RayNodes.list(), checkPreview, BuildConfig.VERSION_NAME)
+                        } else null
+                        if (fromNode == null) throw e
+                        Logs.w("update: GitHub not reached (${e.message}): ${fromNode.second.tag} of the node ${fromNode.first.host}")
+                        onMainDispatcher { offerFromNode(fromNode.first, fromNode.second) }
+                        return@runOnIoDispatcher
                     }
                     val release = when {
                         content == null -> null
@@ -350,7 +368,12 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                                 .apply {
                                     // the GitHub build: the APK of the release, its signature and hash checked
                                     if (Updates.canInstall && release != null) {
-                                        setPositiveButton(R.string.update_install) { _, _ -> installUpdate(release, way) }
+                                        // the files from a node that holds this very release, GitHub behind it
+                                        val mirror = RayAppMirror.holding(RayNodes.list(), releaseTag)
+                                        setPositiveButton(R.string.update_install) { _, _ ->
+                                            if (mirror != null) installFromNode(mirror.spa.nodeId, releaseTag, release, way)
+                                            else installUpdate(release, way)
+                                        }
                                         setNeutralButton(R.string.update_release_page) { _, _ -> openPage() }
                                     } else {
                                         setPositiveButton(R.string.yes) { _, _ -> openPage() }
@@ -371,15 +394,61 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
             }
         }
 
+        /** The update [release] that [node] holds: from its mirror, the release page beside it. */
+        private fun offerFromNode(node: RayNode, release: RayAppRelease) {
+            val context = context ?: return
+            MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.update_dialog_title)
+                .setMessage(
+                    context.getString(R.string.update_dialog_message, SagerNet.appVersionNameForDisplay, release.tag) +
+                            "\n\n" + context.getString(R.string.update_from_node, node.name ?: node.host)
+                )
+                .setPositiveButton(R.string.update_install) { _, _ -> installFromNode(node.spa.nodeId, release.tag, null, null) }
+                .setNeutralButton(R.string.update_release_page) { _, _ ->
+                    context.startActivity(
+                        Intent(Intent.ACTION_VIEW, "https://github.com/$RELEASE_REPO/releases/tag/${release.tag}".toUri())
+                    )
+                }
+                .setNegativeButton(R.string.no, null)
+                .show()
+        }
+
+        /**
+         * Downloads the release [tag]'s APK for this device from the node's mirror, checks it and installs it; where the
+         * node does not give it whole and signed, from GitHub's [github] release the way its check went ([way]), when
+         * the check reached GitHub.
+         */
+        private fun installFromNode(nodeId: String, tag: String, github: JSONObject?, way: ProxyEntity?) = installWith {
+            try {
+                val node = RayNodes.get(nodeId) ?: throw Exception("raycontrol node $nodeId was removed")
+                Updates.downloadFromMirror(app, tag) { name, out, etag -> RaySubscription.appFile(node, tag, name, out, etag) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // the files refused, or not held after all: the node is not asked for this release again
+                if (e is Updates.Refused || e.message?.contains(RaySubscription.APP_NOT_HELD) == true) {
+                    RayAppMirror.failed(nodeId, tag)
+                }
+                if (github == null) throw e
+                Logs.w("update: from the node: ${e.message}; from GitHub")
+                viaWay(way) { client -> Updates.download(app, client, github) }
+            }
+        }
+
         /**
          * Downloads the release's APK for this device, the way its check went ([way]), checks it against the signed
          * SHA256SUMS and installs it.
          */
-        private fun installUpdate(release: JSONObject, way: ProxyEntity?) {
+        private fun installUpdate(release: JSONObject, way: ProxyEntity?) = installWith {
+            viaWay(way) { client -> Updates.download(app, client, release) }
+        }
+
+        /** [download] (one at a time: a second tap waits for the first), then the installer, or why not. */
+        private fun installWith(download: suspend () -> java.io.File) {
             Toast.makeText(app, R.string.update_downloading, Toast.LENGTH_SHORT).show()
             runOnIoDispatcher {
                 val message = try {
-                    val file = Updates.oneDownload { viaWay(way) { client -> Updates.download(app, client, release) } }
+                    val file = Updates.oneDownload { download() }
                     if (file == null) {
                         // the download of a tap before still runs
                         null

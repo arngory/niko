@@ -35,6 +35,8 @@ type node struct {
 	sawCurve tls.CurveID
 	// the payload's JSON as sent, in place of payload's
 	rawPayload []byte
+	// app-update-v1's files, behind the same auth (app_test.go)
+	app http.Handler
 }
 
 const nodeID = "33333333333333333333333333333333"
@@ -57,8 +59,13 @@ func newNode(t *testing.T) *node {
 	n.server = httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		key, _ := hex.DecodeString(deviceKey)
 		minute := time.Now().Unix() / 60
-		if r.URL.Path != "/sub/v1" || r.Header.Get("X-Raycontrol-Device") != "0123456789abcdef" ||
-			r.Header.Get("Authorization") != authToken(key, minute) {
+		authorized := r.Header.Get("X-Raycontrol-Device") == "0123456789abcdef" &&
+			r.Header.Get("Authorization") == authToken(key, minute)
+		if n.app != nil && authorized && strings.HasPrefix(r.URL.Path, "/app/v1/") {
+			n.app.ServeHTTP(w, r)
+			return
+		}
+		if r.URL.Path != "/sub/v1" || !authorized {
 			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}

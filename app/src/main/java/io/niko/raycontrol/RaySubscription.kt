@@ -128,44 +128,71 @@ object RaySubscription {
      * forwards the subscription port; the pin and both signatures stay the node's). A refusal is the node's answer
      * and is not asked again elsewhere. Returns the answer and the relay it came through.
      */
-    private fun fetchDirectOrViaRelay(node: RayNode, request: JsonObject): Pair<String, String?> {
+    private fun fetchDirectOrViaRelay(node: RayNode, request: JsonObject): Pair<String, String?> =
+        directOrViaRelay(node, request, "subscription", ::refused) { Libcore.raycontrolFetchSubscription(it.toString()) }
+
+    /**
+     * [call] with [request] to the node, then through each of its relays (the request's host and SPA the relay's) while
+     * the node does not answer; [answered] tells the node's own answer, which is not asked again elsewhere. Returns
+     * the result and the relay it came through, [what] names it in the log.
+     */
+    private fun <T> directOrViaRelay(
+        node: RayNode, request: JsonObject, what: String, answered: (Throwable) -> Boolean, call: (JsonObject) -> T,
+    ): Pair<T, String?> {
         try {
-            return Libcore.raycontrolFetchSubscription(request.toString()) to null
+            return call(request) to null
         } catch (e: Exception) {
-            if (refused(e) || node.relays.isEmpty()) throw e
+            if (answered(e) || node.relays.isEmpty()) throw e
             for (relay in node.relays) {
                 val via = request.deepCopy().apply {
                     addProperty("host", relay.host)
                     add("spa", relay.spaJson(node, RayNodes.deviceKeyHex(node)))
                 }
                 try {
-                    return Libcore.raycontrolFetchSubscription(via.toString()).also {
-                        Logs.i("raycontrol ${node.host}: subscription through relay ${relay.id} (directly: ${e.message})")
+                    return call(via).also {
+                        Logs.i("raycontrol ${node.host}: $what through relay ${relay.id} (directly: ${e.message})")
                     } to relay.id
                 } catch (viaError: Exception) {
-                    if (refused(viaError)) throw viaError
-                    Logs.w("raycontrol ${node.host}: subscription through relay ${relay.id}: ${viaError.message}")
+                    if (answered(viaError)) throw viaError
+                    Logs.w("raycontrol ${node.host}: $what through relay ${relay.id}: ${viaError.message}")
                 }
             }
             throw e
         }
     }
 
+    /** The subscription request to [node] (raysub.Request): its port, pin, signatures and this device's SPA. */
+    private fun request(node: RayNode, info: RaySubscriptionInfo) = JsonObject().apply {
+        addProperty("host", node.host)
+        addProperty("port", info.port)
+        addProperty("pin", info.pin)
+        addProperty("device_id", node.deviceId)
+        addProperty("node_id", node.spa.nodeId)
+        addProperty("ed25519", info.ed25519)
+        addProperty("mldsa65", info.mldsa65)
+        addProperty("last_seq", node.subSeq)
+        add("spa", node.spaJson().apply { addProperty("device_key", RayNodes.deviceKeyHex(node)) })
+    }
+
+    /**
+     * The file [name] of the app's release [tag] from [node]'s mirror (app-update-v1) into [out], on the
+     * subscription's way (directly, then through the node's relays); [etag] (the file's sha256 in quotes) goes on from a
+     * part already in [out]. The node's 404 (it does not hold the file) is its answer, not asked through a relay.
+     */
+    fun appFile(node: RayNode, tag: String, name: String, out: java.io.File, etag: String) {
+        val info = node.subscription ?: throw Exception("raycontrol node ${node.host}: its registration has no subscription")
+        directOrViaRelay(node, request(node, info), "the update's $name", { e -> refused(e) || e.message?.contains(APP_NOT_HELD) == true }) {
+            Libcore.raycontrolAppFile(it.toString(), tag, name, out.canonicalPath, etag)
+        }
+    }
+
+    // libcore raysub.ErrAppNotHeld
+    const val APP_NOT_HELD = "the node does not hold this file"
+
     private suspend fun refreshLocked(nodeId: String, reload: Reload): RaySubscriptionResult {
         val node = RayNodes.get(nodeId) ?: throw Exception("raycontrol node $nodeId was removed")
         val info = node.subscription ?: throw Exception("raycontrol node ${node.host}: its registration has no subscription")
-        val request = JsonObject().apply {
-            addProperty("host", node.host)
-            addProperty("port", info.port)
-            addProperty("pin", info.pin)
-            addProperty("device_id", node.deviceId)
-            addProperty("node_id", node.spa.nodeId)
-            addProperty("ed25519", info.ed25519)
-            addProperty("mldsa65", info.mldsa65)
-            addProperty("last_seq", node.subSeq)
-            add("spa", node.spaJson().apply { addProperty("device_key", RayNodes.deviceKeyHex(node)) })
-        }
-        val (raw, viaRelay) = fetchDirectOrViaRelay(node, request)
+        val (raw, viaRelay) = fetchDirectOrViaRelay(node, request(node, info))
         val result = JsonParser.parseString(raw).asJsonObject
         val payload = result.getAsJsonObject("payload")
         val now = System.currentTimeMillis() / 1000
@@ -182,6 +209,7 @@ object RaySubscription {
                     node.copy(
                         probe = parsed.probe, spaCarriers = parsed.carriers, failedFetches = 0, failedNetwork = null,
                         relays = parsed.relays, dnsProbeKey = parsed.dnsProbeKey, subUpdatedAt = now,
+                        appReleases = parsed.appReleases,
                         subExpires = payload.get("expires")?.takeIf { it.isJsonPrimitive }?.asLong?.minus(skew) ?: 0,
                     )
                 }
@@ -208,6 +236,8 @@ object RaySubscription {
         val hints: JsonObject? = null,
         // the node's name its admin gave it (raycontrol: the subscription's `name`), shown, null none
         val name: String? = null,
+        // the app's releases the node holds (app-update-v1)
+        val appReleases: List<RayAppRelease> = emptyList(),
     )
 
     /**
@@ -272,7 +302,10 @@ object RaySubscription {
         val carriers = ((payload.get("spa") as? JsonObject)?.get("carriers") as? JsonArray)
             ?.mapNotNull { runCatching { it.asString }.getOrNull() }?.takeIf { it.isNotEmpty() }
         val name = RayNode.nodeName(payload.get("name")?.takeIf { it.isJsonPrimitive }?.asString)
-        return Parsed(beans, links, doh, skipped, relays, dnsProbeKey, probe, carriers, payload.get("hints") as? JsonObject, name)
+        return Parsed(
+            beans, links, doh, skipped, relays, dnsProbeKey, probe, carriers, payload.get("hints") as? JsonObject, name,
+            RayAppRelease.listFromPayload(payload),
+        )
     }
 
     /** After the store: the group, the core's restart where the running row changed, the result for the caller. */

@@ -34,6 +34,21 @@ func RaycontrolFetchSubscription(requestJSON string) (string, error) {
 	return string(raw), err
 }
 
+// RaycontrolAppFile writes the file name of the app's release tag, as the node of the subscription request
+// (raysub.Request as JSON, the subscription's) holds it (app-update-v1), to outPath. With etag (the file's sha256 in
+// quotes, from the release's signed SHA256SUMS) a part already in outPath is gone on from. A transfer goes on while it
+// moves, for two hours at most. Its sockets are protected from the app's own VPN when the service runs.
+func RaycontrolAppFile(requestJSON, tag, name, outPath, etag string) error {
+	var request raysub.Request
+	if err := json.Unmarshal([]byte(requestJSON), &request); err != nil {
+		return err
+	}
+	request.Control = protectControl()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Hour)
+	defer cancel()
+	return raysub.AppFile(ctx, request, "niko", tag, name, outPath, etag)
+}
+
 // RaycontrolRegister turns an invite (rayapi.Invite as JSON) into a device
 // with a new client certificate and returns rayapi.Registered as JSON.
 func RaycontrolRegister(inviteJSON string) (string, error) {

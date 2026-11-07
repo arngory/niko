@@ -137,6 +137,8 @@ data class RayNode(
     val subExpires: Long = 0,
     // the name the node's admin gave it (the subscription's `name`), null none: what its group and card show
     val name: String? = null,
+    // the app's releases the node holds whole (app-update-v1: the subscription's app.niko), the update's mirror
+    val appReleases: List<RayAppRelease> = emptyList(),
 ) {
     /** What the node is called in the app: its admin's name, else "raycontrol · <host>" as before. */
     val displayName get() = groupName(host, name)
@@ -184,6 +186,7 @@ data class RayNode(
         if (subUpdatedAt > 0) addProperty("sub_updated_at", subUpdatedAt)
         if (subExpires > 0) addProperty("sub_expires", subExpires)
         name?.let { addProperty("name", it) }
+        if (appReleases.isNotEmpty()) add("app_releases", JsonArray().apply { appReleases.forEach { add(it.toJson()) } })
     }
 
     /** The relay with this address, for a profile row through it. */
@@ -219,6 +222,7 @@ data class RayNode(
             subUpdatedAt = o.get("sub_updated_at")?.asLong ?: 0,
             subExpires = o.get("sub_expires")?.asLong ?: 0,
             name = o.get("name")?.takeIf { it.isJsonPrimitive }?.asString?.let(::nodeName),
+            appReleases = RayAppRelease.listFromJson(o.get("app_releases") as? JsonArray),
         )
 
         /** The group name of the node at [host] called [name] (null: none given). */
