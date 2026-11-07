@@ -124,15 +124,21 @@ jobs:
 
       - name: A slipstream server on the runner, its VLESS stage behind it
         run: |
-          # the bundled client's own fork, its server as it is (its test key, ALPN picoquic_sample): the app's row
-          # through the client (mapping ports, the process, the rules above the DNS hijack), no node needed
+          # the server as raycontrol ships it (its release, the fork's test key, ALPN picoquic_sample): the app's row
+          # through the client (mapping ports, the process, the rules above the DNS hijack), no node needed; the
+          # bundled client's fork at the app's pin for the runner's own check
           . buildScript/lib/slipstream/env.sh
           sudo apt-get update -qq > /dev/null && sudo apt-get install -y -qq cmake ninja-build pkg-config libssl-dev meson > /dev/null
           git init -q /tmp/slip && git -C /tmp/slip remote add origin "$REPOSITORY_SLIPSTREAM"
           git -C /tmp/slip fetch -q --depth 1 origin "$COMMIT_SLIPSTREAM"
           git -C /tmp/slip checkout -q FETCH_HEAD && git -C /tmp/slip submodule update -q --init --recursive
           (cd /tmp/slip && meson setup --buildtype=release --warnlevel=0 build > /dev/null &&
-            ninja -C build slipstream-server slipstream-client > /dev/null)
+            ninja -C build slipstream-client > /dev/null)
+          . .github/slipstream-server.env
+          curl -fsSL --retry 3 -o /tmp/slip/slipstream-server \
+            "$SLIPSTREAM_SERVER_RELEASES/download/$SLIPSTREAM_SERVER_TAG/slipstream-server-linux-amd64"
+          echo "$SLIPSTREAM_SERVER_SHA256_AMD64  /tmp/slip/slipstream-server" | sha256sum -c -
+          chmod +x /tmp/slip/slipstream-server
           # the VLESS stage the server forwards to, in a box of its own: through the tunnel the runner's server sees
           # 203.0.113.3. Xray's freedom blocks private and reserved addresses for a VLESS inbound by default
           # (finalRules), TEST-NET-3 among them: the test network is let through
@@ -147,8 +153,8 @@ jobs:
             | sed "s/UUID/$uuid/" > /tmp/slipbin/xray.json
           docker run -d --name rc-slip --network rc-net --ip 203.0.113.3 -v /tmp/slipbin:/opt/slip:ro debian:13 \
             /opt/slip/xray run -c /opt/slip/xray.json > /dev/null
-          nohup /tmp/slip/build/slipstream-server --dns-listen-address=203.0.113.1 --dns-listen-port=5353 \
-            --target-address=203.0.113.3:10443 --domain=tunnel.test \
+          nohup /tmp/slip/slipstream-server --dns-listen-address=203.0.113.1 --dns-listen-port=5353 \
+            --target-address=203.0.113.3:10443 --domain=tunnel.test --alpn=picoquic_sample \
             --cert=/tmp/slip/certs/cert.pem --key=/tmp/slip/certs/key.pem > /tmp/slip.log 2>&1 &
           pin=$(openssl x509 -in /tmp/slip/certs/cert.pem -pubkey -noout | openssl pkey -pubin -outform der \
             | openssl dgst -sha256 -binary | basenc --base64url | tr -d '=')
