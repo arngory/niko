@@ -414,17 +414,29 @@ func appPayload(t *testing.T, appJSON string) payloadAnnounced {
 				V   int    `json:"v"`
 				Key string `json:"key"`
 			} `json:"dns_probe"`
+			Profiles []struct {
+				Link string `json:"link"`
+			} `json:"profiles"`
 		} `json:"payload"`
 	}
 	if err := json.Unmarshal([]byte(appJSON), &app); err != nil {
 		t.Fatal(err)
 	}
 	p := app.Payload
+	// dnsprobe-v1's key comes to a user with a dnstt profile, and only to one (the client probes dnstt's zones alone)
+	dnstt := slices.ContainsFunc(p.Profiles, func(profile struct {
+		Link string `json:"link"`
+	}) bool {
+		u, err := url.Parse(profile.Link)
+		return err == nil && strings.HasPrefix(u.Query().Get("niko-dns"), "dnstt;")
+	})
 	switch {
 	case p.Probe == nil || p.Probe.V != 1 || !slices.Contains(p.Probe.Report, "dns") || !slices.Contains(p.Probe.Report, "path"):
 		t.Fatalf("the app's payload: probe %+v", p.Probe)
-	case p.DNSProbe == nil || p.DNSProbe.V != 1 || p.DNSProbe.Key == "":
+	case dnstt && (p.DNSProbe == nil || p.DNSProbe.V != 1 || p.DNSProbe.Key == ""):
 		t.Fatalf("the app's payload: no dns_probe")
+	case !dnstt && p.DNSProbe != nil:
+		t.Fatalf("the app's payload: dns_probe for a user without dnstt")
 	}
 	if os.Getenv("RAYCONTROL_RELAY") != "" && (len(p.Relays) == 0 || len(p.Relays[0].Probe) == 0) {
 		// the relay's feed may come up after the first fetch: its probe is checked through the relay below
