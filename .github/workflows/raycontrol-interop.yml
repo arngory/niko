@@ -24,6 +24,7 @@ on:
       - "libcore/dnsprobe/**"
       - "libcore/dnsprobe_box.go"
       - "libcore/raycontrol_tunnel_interop_test.go"
+      - "libcore/raycontrol_app_interop_test.go"
       - ".github/xray-interop.env"
       - "buildScript/lib/core/get_source_env.sh"
       - "libcore/box_naive.go"
@@ -208,8 +209,18 @@ jobs:
             slip="-slipstream-server /opt/rc/slipstream-server"
             echo "RAYCONTROL_SLIPSTREAM=1" >> "$GITHUB_ENV"
           fi
+          # a rayd with the app's mirror (app-update-v1, v0.18.0): releases from a GitHub of the test's own on the runner
+          # (203.0.113.1:8091), signed by a key of the test's own, made here (rayd takes both at its start)
+          app=
+          if /tmp/rcbin/rayctl -h 2>&1 | grep -q "app-mirror"; then
+            sudo apt-get install -y -qq minisign > /dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq minisign > /dev/null; }
+            mkdir -p /tmp/appkey && rm -f /tmp/appkey/test.pub /tmp/appkey/test.key
+            minisign -G -W -p /tmp/appkey/test.pub -s /tmp/appkey/test.key > /dev/null
+            app="RAYCONTROL_UNSAFE_APP_MIRROR_API=http://203.0.113.1:8091 RAYCONTROL_UNSAFE_APP_MIRROR_KEY=$(sed -n 2p /tmp/appkey/test.pub)"
+            echo "RAYCONTROL_APP_MIRROR=1" >> "$GITHUB_ENV"
+          fi
           # NIKO_SERVER_UNSAFE_ANY_DESTINATION: the tunnels may reach this private network; never on a real node
-          x sh -c 'NIKO_SERVER_UNSAFE_ANY_DESTINATION=1 nohup /opt/rc/rayd serve -supervise \
+          x sh -c 'NIKO_SERVER_UNSAFE_ANY_DESTINATION=1 '"$app"' nohup /opt/rc/rayd serve -supervise \
             -xray /opt/rc/xray -niko-server /opt/rc/niko-server '"$slip"' -acme-directory "" > /var/log/rayd.log 2>&1 &'
           for i in $(seq 50); do x test -S /run/raycontrol/rayd.sock && break; sleep 0.2; done
           x /opt/rc/rayctl service add reality reality > /dev/null
@@ -423,6 +434,50 @@ jobs:
           docker exec rc-node /opt/rc/rayctl metrics | grep -E "^raycontrol_dnstt_(zone_tagged|auth|seal)_total" || true
           docker exec rc-node /opt/rc/rayctl status | grep -E "dnstt|dns-front|dns-zone" || true
           [ -n "$n" ] && [ "${n%.*}" -gt 0 ] || { echo "no tagged query counted in the spare zone $spare"; exit 1; }
+
+      # app-update-v1 (raycontrol v0.18.0): the node's mirror of the app's releases, from a GitHub of the test's own
+      # on the runner, a release signed by the test's key: the subscription names it, its files come the app's way
+      # (RaycontrolAppFile: SPA, the pin, RC1), signed for "niko <tag>", the APK as SHA256SUMS says; a download cut
+      # short goes on from its part, another file's part is replaced whole, a name or a release not held is the 404
+      - name: The app's release from the node's mirror
+        working-directory: libcore
+        env:
+          RAYCONTROL_BUNDLE: /tmp/phone.bundle
+          RAYCONTROL_ADDRESS: ${{ steps.node.outputs.address }}
+          RAYCONTROL_APP_TAG: v9.9.9
+        run: |
+          if [ -z "${RAYCONTROL_APP_MIRROR:-}" ]; then
+            echo "::notice::this rayd has no mirror of the app's releases (v0.18.0 does)"
+            exit 0
+          fi
+          TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
+          # the release: four APKs of random bytes (the app checks hashes, not what an APK holds), the list signed
+          rel=/tmp/apprel/www
+          mkdir -p "$rel/dl" "$rel/repos/arngory/niko"
+          for abi in arm64-v8a armeabi-v7a x86 x86_64; do
+            head -c $((3 << 20)) /dev/urandom > "$rel/dl/Niko-9.9.9-$abi.apk"
+          done
+          (cd "$rel/dl" && sha256sum Niko-9.9.9-*.apk > SHA256SUMS)
+          minisign -S -s /tmp/appkey/test.key -m "$rel/dl/SHA256SUMS" -t "niko $RAYCONTROL_APP_TAG" < /dev/null > /dev/null
+          python3 -I - "$rel" "$RAYCONTROL_APP_TAG" <<'PY'
+          import json, os, sys
+          rel, tag = sys.argv[1:]
+          names = sorted(os.listdir(os.path.join(rel, "dl")))
+          assets = [{"name": n, "size": os.path.getsize(os.path.join(rel, "dl", n)),
+                     "browser_download_url": "http://203.0.113.1:8091/dl/" + n} for n in names]
+          with open(os.path.join(rel, "repos/arngory/niko/releases"), "w") as f:
+              json.dump([{"tag_name": tag, "draft": False, "prerelease": "-" in tag, "assets": assets}], f)
+          PY
+          nohup python3 -I -m http.server 8091 --bind 203.0.113.1 --directory "$rel" > /tmp/apprel.log 2>&1 &
+          sleep 1
+          docker exec rc-node /opt/rc/rayctl app-mirror on
+          for i in $(seq 60); do
+            docker exec rc-node /opt/rc/rayctl app-mirror | grep -q "$RAYCONTROL_APP_TAG" && break
+            sleep 2
+          done
+          docker exec rc-node /opt/rc/rayctl app-mirror
+          RAYCONTROL_APP_KEY=$(sed -n 2p /tmp/appkey/test.pub) \
+            go test -count=1 -v -timeout 5m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolAppMirror .
 
       - name: The subscription as the app reads it
         if: always()
