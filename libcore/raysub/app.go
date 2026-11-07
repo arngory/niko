@@ -69,6 +69,7 @@ func AppFile(ctx context.Context, r Request, app, tag, name, out, etag string) e
 		if err := r.knock(ctx, carriers[i], now()); err != nil {
 			return err
 		}
+		before := fileSize(out)
 		err := r.appGet(ctx, client, url, deviceKey, now(), out, etag)
 		if err == nil {
 			return nil
@@ -95,10 +96,23 @@ func AppFile(ctx context.Context, r Request, app, tag, name, out, etag string) e
 		case errors.Is(err, ErrAppNotHeld), errors.Is(err, errPin), errors.As(err, &status), ctx.Err() != nil:
 			// the node answered (or the caller gave up): another knock changes nothing
 			return err
+		case etag != "" && fileSize(out) > before:
+			// cut short after some of it came (the node ends a download at 15 min, or one that stalls a minute): the
+			// rest the same way, as long as each try brings more; ctx bounds the whole
+			continue
 		}
 		i++
 	}
 	return fmt.Errorf("%w: %v", ErrNoAnswer, lastErr)
+}
+
+// fileSize is the size of the file at path, 0 when there is none.
+func fileSize(path string) int64 {
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0
+	}
+	return info.Size()
 }
 
 func decodeDeviceKey(text string) ([]byte, error) {

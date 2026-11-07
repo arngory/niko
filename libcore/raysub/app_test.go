@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -193,5 +194,56 @@ func TestNekoAppFileNames(t *testing.T) {
 		if err := AppFile(context.Background(), n.request, c[0], c[1], c[2], out, ""); err == nil || errors.Is(err, ErrAppNotHeld) {
 			t.Fatalf("%q asked: %v", c, err)
 		}
+	}
+}
+
+func TestNekoAppFileCutOverAndOver(t *testing.T) {
+	// a node that ends every answer after 20 KB (as one ends a download at 15 min): more cuts than carriers, each
+	// bringing more, the whole in the end
+	content := randomBytes(300 << 10)
+	sum := sha256.Sum256(content)
+	etag := `"` + hex.EncodeToString(sum[:]) + `"`
+	var cuts atomic.Int32
+	n, out := appNode(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("ETag", etag)
+		start := int64(0)
+		if spec, ok := strings.CutPrefix(r.Header.Get("Range"), "bytes="); ok && r.Header.Get("If-Range") == etag {
+			start, _ = strconv.ParseInt(strings.TrimSuffix(spec, "-"), 10, 64)
+		}
+		rest := content[start:]
+		if start > 0 {
+			w.Header().Set("Content-Range", "bytes "+strconv.FormatInt(start, 10)+"-"+strconv.Itoa(len(content)-1)+"/"+strconv.Itoa(len(content)))
+		}
+		w.Header().Set("Content-Length", strconv.Itoa(len(rest)))
+		if start > 0 {
+			w.WriteHeader(http.StatusPartialContent)
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
+		if len(rest) > 20<<10 {
+			w.Write(rest[:20<<10])
+			cuts.Add(1)
+			panic(http.ErrAbortHandler)
+		}
+		w.Write(rest)
+	}))
+	if err := AppFile(context.Background(), n.request, "niko", "v1.38.0", "f.apk", out, etag); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := os.ReadFile(out)
+	if !bytes.Equal(got, content) {
+		t.Fatalf("%d bytes, want the whole", len(got))
+	}
+	if c := cuts.Load(); c < 10 {
+		t.Fatalf("%d cuts, want more than the carriers", c)
+	}
+	// without an etag a part is not gone on from: no endless start over (the carriers bound it)
+	os.Remove(out)
+	cuts.Store(0)
+	if err := AppFile(context.Background(), n.request, "niko", "v1.38.0", "f.apk", out, ""); err == nil {
+		t.Fatal("whole without an etag from a node that cuts every answer")
+	}
+	if c := cuts.Load(); c > 5 {
+		t.Fatalf("%d tries without an etag, want the carriers' few", c)
 	}
 }
