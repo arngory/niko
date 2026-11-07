@@ -38,7 +38,11 @@ import io.niko.plugin.Plugins
 import androidx.core.net.toUri
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.niko.SagerNet
+import io.niko.bg.proto.TestInstance
 import io.niko.database.DataStore
+import io.niko.database.ProxyEntity
+import io.niko.database.SagerDatabase
+import libcore.HTTPClient
 import io.niko.utils.Util
 import org.json.JSONArray
 import org.json.JSONObject
@@ -245,27 +249,69 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
         /** The update check's client: through the core when it runs, never around it in proxy mode. */
         private fun updateClient() = Libcore.newHttpClient().apply {
             modernTLS()
+            setTimeout(if (DataStore.serviceState.started) Updates.CHECK_TIMEOUT_MS else Updates.CHECK_DIRECT_TIMEOUT_MS)
             trySocks5(DataStore.mixedPort, LOCAL_PROXY_USER, DataStore.localProxyPassword)
             // proxy mode with the service running: never around it (the device's own address)
             if (localProxyRequired()) requireSocks5()
         }
 
+        /**
+         * [block] through [profile]'s own core (a test instance, the service off), or with [updateClient] for null:
+         * through the running core, or direct.
+         */
+        private suspend fun <T> viaWay(profile: ProxyEntity?, block: (HTTPClient) -> T): T {
+            if (profile == null) return block(updateClient())
+            return TestInstance(profile, "", 0).through { box ->
+                block(Libcore.newHttpClient().apply {
+                    modernTLS()
+                    setTimeout(Updates.CHECK_TIMEOUT_MS)
+                    useInstance(box)
+                })
+            }
+        }
+
+        /**
+         * [block] the first way that reaches GitHub, and that way: through the running core, or direct while the service
+         * is off (null); where GitHub is not reached so with the service off, through the selected profile in a core of
+         * its own (GitHub blocked on the network, the VPN not on).
+         */
+        private suspend fun <T> firstWay(block: (HTTPClient) -> T): Pair<T, ProxyEntity?> {
+            try {
+                return block(updateClient()) to null
+            } catch (e: Exception) {
+                if (DataStore.serviceState.started || !Updates.unreached(e)) throw e
+                val profile = SagerDatabase.proxyDao.getById(DataStore.selectedProxy) ?: throw e
+                Logs.w("update: GitHub not reached directly (${e.message}): through ${profile.displayName()}")
+                onMainDispatcher {
+                    Toast.makeText(app, app.getString(R.string.update_via_profile, profile.displayName()), Toast.LENGTH_SHORT)
+                        .show()
+                }
+                return try {
+                    viaWay(profile, block) to profile
+                } catch (through: Exception) {
+                    if (!Updates.unreached(through)) throw through
+                    throw Exception("${e.readableMessage}; ${profile.displayName()}: ${through.readableMessage}")
+                }
+            }
+        }
+
         fun checkUpdate(checkPreview: Boolean) {
             runOnIoDispatcher {
                 try {
-                    val client = updateClient()
-                    val content = try {
-                        client.newRequest().apply {
-                            if (checkPreview) {
-                                // pre-releases are published from v* tags with a suffix, e.g. v1.5.1-beta.1
-                                setURL("https://api.github.com/repos/$RELEASE_REPO/releases?per_page=20")
-                            } else {
-                                setURL("https://api.github.com/repos/$RELEASE_REPO/releases/latest")
-                            }
-                        }.execute().let { Util.getStringBox(it.contentString) }
-                    } catch (e: Exception) {
-                        // no release published yet
-                        if (e.message?.startsWith("HTTP 404") == true) null else throw e
+                    val (content, way) = firstWay { client ->
+                        try {
+                            client.newRequest().apply {
+                                if (checkPreview) {
+                                    // pre-releases are published from v* tags with a suffix, e.g. v1.5.1-beta.1
+                                    setURL("https://api.github.com/repos/$RELEASE_REPO/releases?per_page=20")
+                                } else {
+                                    setURL("https://api.github.com/repos/$RELEASE_REPO/releases/latest")
+                                }
+                            }.execute().let { Util.getStringBox(it.contentString) }
+                        } catch (e: Exception) {
+                            // no release published yet
+                            if (e.message?.startsWith("HTTP 404") == true) null else throw e
+                        }
                     }
                     val release = when {
                         content == null -> null
@@ -304,7 +350,7 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                                 .apply {
                                     // the GitHub build: the APK of the release, its signature and hash checked
                                     if (Updates.canInstall && release != null) {
-                                        setPositiveButton(R.string.update_install) { _, _ -> installUpdate(release) }
+                                        setPositiveButton(R.string.update_install) { _, _ -> installUpdate(release, way) }
                                         setNeutralButton(R.string.update_release_page) { _, _ -> openPage() }
                                     } else {
                                         setPositiveButton(R.string.yes) { _, _ -> openPage() }
@@ -325,12 +371,15 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
             }
         }
 
-        /** Downloads the release's APK for this device, checks it against the signed SHA256SUMS and installs it. */
-        private fun installUpdate(release: JSONObject) {
+        /**
+         * Downloads the release's APK for this device, the way its check went ([way]), checks it against the signed
+         * SHA256SUMS and installs it.
+         */
+        private fun installUpdate(release: JSONObject, way: ProxyEntity?) {
             Toast.makeText(app, R.string.update_downloading, Toast.LENGTH_SHORT).show()
             runOnIoDispatcher {
                 val message = try {
-                    val file = Updates.download(app, updateClient(), release)
+                    val file = Updates.oneDownload { viaWay(way) { client -> Updates.download(app, client, release) } }
                     if (file == null) {
                         // the download of a tap before still runs
                         null

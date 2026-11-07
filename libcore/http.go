@@ -24,6 +24,7 @@ import (
 
 	"github.com/sagernet/quic-go"
 	"github.com/sagernet/quic-go/http3"
+	"github.com/sagernet/sing-box/boxapi"
 	"github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/protocol/socks"
 	"github.com/sagernet/sing/protocol/socks/socks5"
@@ -39,6 +40,9 @@ type HTTPClient interface {
 	TrySocks5(port int32, username string, password string)
 	RequireSocks5()
 	TryH3Direct()
+	// UseInstance sends every request through the default outbound of i, a test instance of a profile: the app's
+	// update through a profile while the service does not run
+	UseInstance(i *BoxInstance)
 	KeepAlive()
 	// SetTimeout bounds each request whole, its dial and the reading of its body included; 0 none (the default)
 	SetTimeout(milliseconds int32)
@@ -165,6 +169,19 @@ func (c *httpClient) RequireSocks5() {
 
 func (c *httpClient) TryH3Direct() {
 	c.tryH3Direct = true
+}
+
+func (c *httpClient) UseInstance(i *BoxInstance) {
+	c.h1h2Transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		if i == nil || i.Box == nil {
+			return nil, errors.New("no instance")
+		}
+		return boxapi.DialContext(ctx, i.Box, nil, network, addr)
+	}
+	// through the instance alone: neither the local SOCKS port nor a direct HTTP/3
+	c.trySocks5 = false
+	c.requireSocks5 = false
+	c.tryH3Direct = false
 }
 
 func (c *httpClient) KeepAlive() {

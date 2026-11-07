@@ -93,4 +93,15 @@ class UpdatesTest {
         refused(R.string.update_bad_signature, { _, _, _ -> throw Exception("minisign: the signature does not hold") })
         refused(R.string.update_no_apk, { _, _, _ -> "niko v1.36.0" }, "nothing\n".toByteArray())
     }
+
+    @Test
+    fun anotherWayOnlyWhereGitHubWasNotReached() {
+        // a dial, a reset, a TLS error, a rate limit: GitHub not reached from here, another way may reach it
+        assertEquals(true, Updates.unreached(Exception("dial tcp 140.82.121.6:443: i/o timeout")))
+        assertEquals(true, Updates.unreached(Exception("read: connection reset by peer")))
+        assertEquals(true, Updates.unreached(Exception("HTTP 403: rate limit exceeded")))
+        // GitHub answered: no such release, or the release's files refused by the app's own checks
+        assertEquals(false, Updates.unreached(Exception("HTTP 404: Not Found")))
+        assertEquals(false, Updates.unreached(Updates.Refused(R.string.update_bad_apk, "the downloaded APK is not the signed one")))
+    }
 }

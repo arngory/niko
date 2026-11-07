@@ -6,6 +6,7 @@ import io.niko.database.ProxyEntity
 import io.niko.fmt.buildConfig
 import io.niko.ktx.Logs
 import io.niko.ktx.runOnDefaultDispatcher
+import io.niko.ktx.runOnIoDispatcher
 import io.niko.ktx.tryResume
 import io.niko.ktx.tryResumeWithException
 import kotlinx.coroutines.delay
@@ -25,8 +26,15 @@ class TestInstance(profile: ProxyEntity, val link: String, private val timeout: 
     /** A raycontrol node's channel probe (probe-v1) through this profile's tunnel, at the probe name. */
     suspend fun doProbeNode(request: String): String = withBox { Libcore.raycontrolProbeTunnel(it, request) }
 
-    // cancellable: the caller goes on at once; a test already running ends within its own limits and closes the box
-    private suspend fun <T> withBox(test: (libcore.BoxInstance) -> T): T {
+    /**
+     * [block] with this profile's core (its plugins too), which it reaches the net through (the default outbound,
+     * HTTPClient.useInstance); the core closed after it: the app's update through a profile while the service is off.
+     */
+    suspend fun <T> through(block: (libcore.BoxInstance) -> T): T = withBox(io = true, block)
+
+    // cancellable: the caller goes on at once; a test already running ends within its own limits and closes the box.
+    // [io]: a long blocking transfer (an update's download) on the IO pool, not on one of Default's few threads
+    private suspend fun <T> withBox(io: Boolean = false, test: (libcore.BoxInstance) -> T): T {
         return suspendCancellableCoroutine { cancellable ->
             // the app's tryResume (ignores a second resume), not CancellableContinuation's internal one
             val c: Continuation<T> = cancellable
@@ -34,7 +42,9 @@ class TestInstance(profile: ProxyEntity, val link: String, private val timeout: 
                 Logs.w(it)
                 c.tryResumeWithException(it)
             }
-            runOnDefaultDispatcher {
+            val launchOn: (suspend kotlinx.coroutines.CoroutineScope.() -> Unit) -> Unit =
+                if (io) { block -> runOnIoDispatcher(block) } else { block -> runOnDefaultDispatcher(block) }
+            launchOn {
                 use {
                     try {
                         init()

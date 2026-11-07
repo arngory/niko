@@ -39,11 +39,24 @@ object Updates {
     private const val SMALL_TIMEOUT_MS = 60_000
     private const val APK_IDLE_TIMEOUT_MS = 2 * 60_000
 
+    /**
+     * The release check's bound: through a core (the service's, or a profile's) a minute, as the signed list; direct, the
+     * service off, 20 s, so a handshake dropped on the way (no reset) goes on to the profile soon
+     */
+    const val CHECK_TIMEOUT_MS = SMALL_TIMEOUT_MS
+    const val CHECK_DIRECT_TIMEOUT_MS = 20_000
+
     const val SUMS = "SHA256SUMS"
     const val SIGNATURE = "SHA256SUMS.minisig"
 
     /** An update not installed: [reason] says why to the user, [detail] to the log. */
     class Refused(val reason: Int, detail: String) : Exception(detail)
+
+    /**
+     * Whether [e] says GitHub was not reached, so another way may reach it: not a refusal of the release's files, and
+     * not GitHub's own 404 (no such release).
+     */
+    fun unreached(e: Exception): Boolean = e !is Refused && e.message?.startsWith("HTTP 404") != true
 
     /** The trusted comment of a release's signature: the tag it was signed for. */
     fun trustedComment(tag: String) = "niko $tag"
@@ -123,40 +136,48 @@ object Updates {
     private val downloading = AtomicBoolean()
 
     /**
-     * The APK of [release] for this device, its signature and hash checked; through [client] (the update check's:
-     * through the core when it runs). One at a time: null while another runs. A verified APK already in the cache is
-     * not downloaded again (the user allowed the installs in between).
+     * [block] unless a download already runs (a tap before): null then. One at a time, whichever way it goes, and
+     * claimed before the way is set up (a profile's core and its plugins are not started for a second tap).
      */
-    fun download(context: Context, client: HTTPClient, release: JSONObject): File? {
+    suspend fun <T> oneDownload(block: suspend () -> T): T? {
         if (!downloading.compareAndSet(false, true)) return null
         try {
-            val tag = release.optString("tag_name")
-            val assets = assets(release)
-            val sumsUrl = assets[SUMS] ?: throw Refused(R.string.update_no_signature, "the release has no $SUMS")
-            val signatureUrl = assets[SIGNATURE] ?: throw Refused(R.string.update_no_signature, "the release has no signature")
-            client.setTimeout(SMALL_TIMEOUT_MS)
-            val sums = client.newRequest().apply { setURL(sumsUrl) }.execute().content
-            val signature = Util.getStringBox(client.newRequest().apply { setURL(signatureUrl) }.execute().contentString)
-            val listed = checkedSums(BuildConfig.UPDATE_PUBLIC_KEY, tag, sums, signature, Libcore::minisignVerify)
-            val (name, hash) = apkFor(listed, abis(context))
-                ?: throw Refused(R.string.update_no_apk, "no APK for ${abis(context)}")
-            val url = assets[name] ?: throw Refused(R.string.update_no_apk, "the release lists $name but has no such file")
-            val dir = File(context.cacheDir, "update")
-            val file = File(dir, name)
-            if (file.isFile && sha256(file) == hash) return file
-            dir.deleteRecursively()
-            dir.mkdirs()
-            client.setTimeout(0)
-            client.setIdleTimeout(APK_IDLE_TIMEOUT_MS)
-            client.newRequest().apply { setURL(url) }.execute().writeTo(file.canonicalPath)
-            if (sha256(file) != hash) {
-                file.delete()
-                throw Refused(R.string.update_bad_apk, "the downloaded $name is not the signed one")
-            }
-            return file
+            return block()
         } finally {
             downloading.set(false)
         }
+    }
+
+    /**
+     * The APK of [release] for this device, its signature and hash checked; through [client] (the way the update check
+     * went), within [oneDownload]. A verified APK already in the cache is not downloaded again (the user allowed the
+     * installs in between).
+     */
+    fun download(context: Context, client: HTTPClient, release: JSONObject): File {
+        val tag = release.optString("tag_name")
+        val assets = assets(release)
+        val sumsUrl = assets[SUMS] ?: throw Refused(R.string.update_no_signature, "the release has no $SUMS")
+        val signatureUrl = assets[SIGNATURE] ?: throw Refused(R.string.update_no_signature, "the release has no signature")
+        client.setTimeout(SMALL_TIMEOUT_MS)
+        val sums = client.newRequest().apply { setURL(sumsUrl) }.execute().content
+        val signature = Util.getStringBox(client.newRequest().apply { setURL(signatureUrl) }.execute().contentString)
+        val listed = checkedSums(BuildConfig.UPDATE_PUBLIC_KEY, tag, sums, signature, Libcore::minisignVerify)
+        val (name, hash) = apkFor(listed, abis(context))
+            ?: throw Refused(R.string.update_no_apk, "no APK for ${abis(context)}")
+        val url = assets[name] ?: throw Refused(R.string.update_no_apk, "the release lists $name but has no such file")
+        val dir = File(context.cacheDir, "update")
+        val file = File(dir, name)
+        if (file.isFile && sha256(file) == hash) return file
+        dir.deleteRecursively()
+        dir.mkdirs()
+        client.setTimeout(0)
+        client.setIdleTimeout(APK_IDLE_TIMEOUT_MS)
+        client.newRequest().apply { setURL(url) }.execute().writeTo(file.canonicalPath)
+        if (sha256(file) != hash) {
+            file.delete()
+            throw Refused(R.string.update_bad_apk, "the downloaded $name is not the signed one")
+        }
+        return file
     }
 
     /**

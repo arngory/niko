@@ -622,6 +622,7 @@
     <string name="update_install">Download and install</string>
     <string name="update_release_page">Release page</string>
     <string name="update_downloading">Downloading the update…</string>
+    <string name="update_via_profile">GitHub is not reached directly: through “%s”</string>
     <string name="update_allow_install">Allow Niko to install apps, then install the update again</string>
     <string name="update_refused">The update is not installed: %s</string>
     <string name="update_no_signature">the release carries no signature</string>
