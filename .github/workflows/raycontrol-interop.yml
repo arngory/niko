@@ -181,12 +181,6 @@ jobs:
           # the release the node runs, for the steps that need a version of it
           echo "NIKO_SERVER_RUNNING=$NIKO_SERVER_TAG" >> "$GITHUB_ENV"
           chmod +x /tmp/rcbin/niko-server
-          # the slipstream server raycontrol ships (v0.16.0 runs it under -supervise)
-          . .github/slipstream-server.env
-          curl -fsSL --retry 3 -o /tmp/rcbin/slipstream-server \
-            "$SLIPSTREAM_SERVER_RELEASES/download/$SLIPSTREAM_SERVER_TAG/slipstream-server-linux-amd64"
-          echo "$SLIPSTREAM_SERVER_SHA256_AMD64  /tmp/rcbin/slipstream-server" | sha256sum -c -
-          chmod +x /tmp/rcbin/slipstream-server
           chmod 0644 /tmp/rccert/*.pem
 
       - name: The node under rayd serve -supervise
@@ -202,9 +196,15 @@ jobs:
           x() { docker exec rc-node "$@"; }
           x mkdir -p /var/lib/raycontrol /run/raycontrol
           x /opt/rc/rayd init -host "$ip" -domain example.test > /dev/null
-          # a rayd with the slipstream service (v0.16.0) runs the released server
+          # a rayd with the slipstream service (v0.16.0) runs the released server raycontrol ships, fetched only for
+          # it (/tmp/rcbin is the container's /opt/rc, bound: the file shows there)
           slip=
           if x /opt/rc/rayd serve -h 2>&1 | grep -q -- "-slipstream-server"; then
+            . .github/slipstream-server.env
+            curl -fsSL --retry 3 -o /tmp/rcbin/slipstream-server \
+              "$SLIPSTREAM_SERVER_RELEASES/download/$SLIPSTREAM_SERVER_TAG/slipstream-server-linux-amd64"
+            echo "$SLIPSTREAM_SERVER_SHA256_AMD64  /tmp/rcbin/slipstream-server" | sha256sum -c -
+            chmod +x /tmp/rcbin/slipstream-server
             slip="-slipstream-server /opt/rc/slipstream-server"
             echo "RAYCONTROL_SLIPSTREAM=1" >> "$GITHUB_ENV"
           fi
