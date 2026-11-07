@@ -11,6 +11,8 @@ on:
       - ".github/workflows/raycontrol-interop.yml"
       - ".github/raycontrol.env"
       - ".github/niko-server.env"
+      - ".github/slipstream-server.env"
+      - "buildScript/lib/slipstream/env.sh"
       - ".github/scripts/netlog-errors.py"
       - "libcore/rayapi/**"
       - "libcore/rayprobe/**"
@@ -179,6 +181,12 @@ jobs:
           # the release the node runs, for the steps that need a version of it
           echo "NIKO_SERVER_RUNNING=$NIKO_SERVER_TAG" >> "$GITHUB_ENV"
           chmod +x /tmp/rcbin/niko-server
+          # the slipstream server raycontrol ships (v0.16.0 runs it under -supervise)
+          . .github/slipstream-server.env
+          curl -fsSL --retry 3 -o /tmp/rcbin/slipstream-server \
+            "$SLIPSTREAM_SERVER_RELEASES/download/$SLIPSTREAM_SERVER_TAG/slipstream-server-linux-amd64"
+          echo "$SLIPSTREAM_SERVER_SHA256_AMD64  /tmp/rcbin/slipstream-server" | sha256sum -c -
+          chmod +x /tmp/rcbin/slipstream-server
           chmod 0644 /tmp/rccert/*.pem
 
       - name: The node under rayd serve -supervise
@@ -194,9 +202,15 @@ jobs:
           x() { docker exec rc-node "$@"; }
           x mkdir -p /var/lib/raycontrol /run/raycontrol
           x /opt/rc/rayd init -host "$ip" -domain example.test > /dev/null
+          # a rayd with the slipstream service (v0.16.0) runs the released server
+          slip=
+          if x /opt/rc/rayd serve -h 2>&1 | grep -q -- "-slipstream-server"; then
+            slip="-slipstream-server /opt/rc/slipstream-server"
+            echo "RAYCONTROL_SLIPSTREAM=1" >> "$GITHUB_ENV"
+          fi
           # NIKO_SERVER_UNSAFE_ANY_DESTINATION: the tunnels may reach this private network; never on a real node
           x sh -c 'NIKO_SERVER_UNSAFE_ANY_DESTINATION=1 nohup /opt/rc/rayd serve -supervise \
-            -xray /opt/rc/xray -niko-server /opt/rc/niko-server -acme-directory "" > /var/log/rayd.log 2>&1 &'
+            -xray /opt/rc/xray -niko-server /opt/rc/niko-server '"$slip"' -acme-directory "" > /var/log/rayd.log 2>&1 &'
           for i in $(seq 50); do x test -S /run/raycontrol/rayd.sock && break; sleep 0.2; done
           x /opt/rc/rayctl service add reality reality > /dev/null
           x /opt/rc/rayctl service add hy2-obfs hy2o > /dev/null
@@ -342,6 +356,40 @@ jobs:
           docker exec rc-node /opt/rc/rayctl service rotate mdns -now
           sleep 6
           RAYCONTROL_MDNS_OLD_KEY=/tmp/mdns-key-2 \
+            go test -count=1 -v -timeout 5m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
+
+      # slipstream-v1 (raycontrol v0.16.0, slipstream-server v0.1.0): the node's slipstream service through the bundled
+      # client's linux build at the app's pin, with the arguments the app gives it (its resolver, niko-slip's pin, ALPN
+      # and SNI, --dnsauth with K in its environment): the row goes through; without the device's tag, or with another
+      # pin, nothing. A user of its own, so the other steps' subscription stays as it was
+      - name: slipstream through the app's client
+        working-directory: libcore
+        env:
+          RAYCONTROL_BUNDLE: /tmp/slip.bundle
+          RAYCONTROL_ADDRESS: ${{ steps.node.outputs.address }}
+          RAYCONTROL_CA: /tmp/rccert/root.pem
+          RAYCONTROL_ONLY: slipstream-auth
+          RAYCONTROL_SLIPSTREAM_CLIENT: /tmp/slipc/build/slipstream-client
+          RAYCONTROL_SLIP_REFUSED: "1"
+        run: |
+          if [ -z "${RAYCONTROL_SLIPSTREAM:-}" ]; then
+            echo "::notice::this rayd has no slipstream service (v0.16.0 does)"
+            exit 0
+          fi
+          TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
+          . ../buildScript/lib/slipstream/env.sh
+          sudo apt-get update -qq > /dev/null && sudo apt-get install -y -qq cmake ninja-build pkg-config libssl-dev meson > /dev/null
+          git init -q /tmp/slipc && git -C /tmp/slipc remote add origin "$REPOSITORY_SLIPSTREAM"
+          git -C /tmp/slipc fetch -q --depth 1 origin "$COMMIT_SLIPSTREAM"
+          git -C /tmp/slipc checkout -q FETCH_HEAD && git -C /tmp/slipc submodule update -q --init --recursive
+          (cd /tmp/slipc && meson setup --buildtype=release --warnlevel=0 build > /dev/null &&
+            ninja -C build slipstream-client > /dev/null)
+          docker exec rc-node /opt/rc/rayctl service add slipstream slip
+          docker exec rc-node /opt/rc/rayctl user add bob -services slip > /dev/null
+          docker exec rc-node /opt/rc/rayctl device add bob phone -o /root/bob.bundle
+          docker exec rc-node cat /root/bob.bundle > /tmp/slip.bundle
+          # dnsauth.v goes by a user's dnstt and masterdns (slipstream signs by v2 always): bob's has none
+          RAYCONTROL_DNSAUTH_V2= \
             go test -count=1 -v -timeout 5m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
 
       # dnszones-v1 (raycontrol v0.14.0): dnstt with a spare zone, the main one cut by the network's resolver, its

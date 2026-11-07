@@ -1,6 +1,8 @@
 package libcore
 
 import (
+	"bytes"
+	"cmp"
 	"context"
 	"encoding/base64"
 	"encoding/hex"
@@ -8,6 +10,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"os/exec"
 	"slices"
 	"strconv"
 	"strings"
@@ -22,6 +25,7 @@ import (
 	box "github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/adapter/certificate"
 	"github.com/sagernet/sing-box/option"
+	dnsttTransport "github.com/sagernet/sing-box/transport/dnstt"
 )
 
 // TestRaycontrolTunnelInterop: a node under rayd serve -supervise, the data plane as a node runs it (Xray for REALITY
@@ -147,7 +151,7 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 		}
 		// a DNS tunnel carries kilobytes, not megabytes, in a window
 		down := int64(1 << 20)
-		if strings.HasPrefix(kind, "dnstt") || strings.HasPrefix(kind, "masterdns") {
+		if strings.HasPrefix(kind, "dnstt") || strings.HasPrefix(kind, "masterdns") || strings.HasPrefix(kind, "slipstream") {
 			down = 64 << 10
 		}
 		probeThrough(t, kind+" "+p.Name, instance, b.Host, b.Sub.Port, b.Sub.Pin, b.DeviceID, b.SPA, probeInfo.Tunnel, p.Svc, down)
@@ -253,6 +257,16 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 				refused("with the key before a rotation with -now",
 					linkWithParam(t, p.Link, "niko-dnskey", before("RAYCONTROL_MDNS_OLD_KEY")), "")
 			}
+		}
+		// slipstream-v1 (raycontrol v0.16.0): the node's front takes only queries tagged by the device's key, the
+		// client only the node's key: the row without dnsauth, or with another pin, gets nothing through
+		if only != nil && strings.HasPrefix(kind, "slipstream") && os.Getenv("RAYCONTROL_SLIP_REFUSED") != "" {
+			refused("untagged", linkWithout(t, p.Link, "niko-dnsauth"), "")
+			slip := strings.Split(linkParam(t, p.Link, "niko-slip"), ";")
+			other := []byte(slip[1])
+			other[0] = map[bool]byte{true: 'B', false: 'A'}[other[0] == 'A']
+			slip[1] = string(other)
+			refused("with another pin", linkWithParam(t, p.Link, "niko-slip", strings.Join(slip, ";")), "")
 		}
 		// dnstt's spare zone (dnszones-v1, raycontrol v0.14.0), the main zone cut by the network's resolver
 		if only != nil && strings.HasPrefix(kind, "dnstt") && os.Getenv("RAYCONTROL_CUT_MAIN") != "" {
@@ -759,14 +773,31 @@ func profileConfig(t *testing.T, link, node, resolver, ca, deviceKey string, dow
 					tunnel["seal"] = "required"
 				}
 			}
+		case "slipstream":
+			// slipstream-v1 (raycontrol v0.16.0): the bundled client's linux build, as the app runs it
+			kind = "slipstream"
+			if q.Get("niko-dnsauth") == "v1" {
+				kind += "-auth"
+			}
+			client := os.Getenv("RAYCONTROL_SLIPSTREAM_CLIENT")
+			if client == "" {
+				return kind, ""
+			}
+			listen := startSlipstreamClient(t, client, q, spec, resolver, deviceKey)
+			outbound = map[string]any{
+				"type": "vless", "server": "127.0.0.1", "server_port": listen, "uuid": u.User.Username(),
+				"encryption": q.Get("encryption"),
+			}
 		default:
 			return spec[0], ""
 		}
-		tunnel["tag"] = "tunnel"
-		extra = append(extra, tunnel)
-		outbound = map[string]any{
-			"type": "vless", "server": u.Hostname(), "server_port": port, "uuid": u.User.Username(),
-			"encryption": q.Get("encryption"), "detour": "tunnel",
+		if tunnel != nil {
+			tunnel["tag"] = "tunnel"
+			extra = append(extra, tunnel)
+			outbound = map[string]any{
+				"type": "vless", "server": u.Hostname(), "server_port": port, "uuid": u.User.Username(),
+				"encryption": q.Get("encryption"), "detour": "tunnel",
+			}
 		}
 	case u.Scheme == "vless" && q.Get("niko-ygg") != "":
 		kind = "yggdrasil"
@@ -861,6 +892,59 @@ func startTestBox(t *testing.T, config string) *BoxInstance {
 		cancel()
 	})
 	return &BoxInstance{Box: instance, ctx: ctx, cancel: cancel}
+}
+
+// startSlipstreamClient runs the slipstream client at client for a niko-dns=slipstream link, with the arguments the
+// app gives it (DnsTunnel.slipstreamArgs): its one resolver, the pin, ALPN and SNI of niko-slip, and with
+// niko-dnsauth=v1 --dnsauth and K in its environment (dnsauth-v1 §2, as the app derives it); it is killed when the
+// test ends. Its TCP port on 127.0.0.1, which the VLESS hop dials.
+func startSlipstreamClient(t *testing.T, client string, q url.Values, spec []string, resolver, deviceKey string) int {
+	t.Helper()
+	slip := strings.Split(q.Get("niko-slip"), ";")
+	if len(slip) != 4 || slip[0] != "v1" {
+		t.Fatalf("niko-slip %q", q.Get("niko-slip"))
+	}
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	listen := l.Addr().(*net.TCPAddr).Port
+	l.Close()
+	args := []string{"--quiet", "--tcp-listen-host=127.0.0.1", "--tcp-listen-port=" + strconv.Itoa(listen),
+		"--domain=" + spec[2], "--resolver=" + resolver, "--pin=" + slip[1], "--alpn=" + slip[2], "--sni=" + slip[3]}
+	env := os.Environ()
+	if q.Get("niko-dnsauth") == "v1" {
+		svc, err := strconv.Atoi(cmp.Or(q.Get("niko-svc"), spec[3]))
+		if err != nil || svc < 0 || svc > 0xffff {
+			t.Fatalf("slipstream: the service id %q", cmp.Or(q.Get("niko-svc"), spec[3]))
+		}
+		device, err := hex.DecodeString(deviceKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		key, err := dnsttTransport.AuthKey(device, strings.ToLower(q.Get("niko-node")), uint16(svc))
+		if err != nil {
+			t.Fatal(err)
+		}
+		// the node's clock is the runner's
+		args = append(args, "--dnsauth", "--clock-offset=0")
+		env = append(env, "SLIPSTREAM_DNSAUTH_KEY="+hex.EncodeToString(key))
+	}
+	var stderr bytes.Buffer
+	cmd := exec.Command(client, args...)
+	cmd.Env = env
+	cmd.Stderr = &stderr
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		if t.Failed() && stderr.Len() > 0 {
+			t.Logf("slipstream client on %d: %s", listen, stderr.String())
+		}
+	})
+	return listen
 }
 
 // sealKeyOf is the dnsseal-v1 key of a dnstt link (niko-dnsseal=v1;<key>).
