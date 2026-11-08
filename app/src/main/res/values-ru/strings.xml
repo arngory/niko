@@ -67,6 +67,8 @@
 <string name="bottomsheet_drag_handle_content_description">Маркер перемещения</string>
 <string name="bypass_apps">Обход</string>
 <string name="bypass_lan_in_core">Обход LAN в ядре</string>
+    <string name="refuse_quic_over_streams">QUIC → TCP на потоковых профилях (эксперимент)</string>
+    <string name="refuse_quic_over_streams_summary">Если профиль несёт UDP внутри TCP-потока (REALITY и другие VLESS поверх TCP, naive, DNS-туннели, Yggdrasil), QUIC отвергается и браузеры сразу идут по TCP: QUIC внутри TCP медленнее самого TCP. Профили со своим UDP (Hysteria2, WireGuard) его сохраняют, как и всё, что идёт напрямую. Своё правило маршрутизации (протокол quic → блок) отвергает QUIC везде.</string>
 <string name="cag_dns">Настройки DNS</string>
 <string name="cag_misc">Прочие настройки</string>
 <string name="cag_route">Настройки маршрута</string>

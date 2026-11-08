@@ -170,6 +170,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         trafficSniffing.onPreferenceChangeListener = reloadListener
         bypassLan.onPreferenceChangeListener = reloadListener
         bypassLanInCore.onPreferenceChangeListener = reloadListener
+        findPreference<SwitchPreference>(Key.REFUSE_QUIC_OVER_STREAMS)?.onPreferenceChangeListener = reloadListener
         tlsFragmentBypass.onPreferenceChangeListener = reloadListener
         findPreference<Preference>(Key.RULE_SET_UPDATE_HOURS)!!.onPreferenceChangeListener = reloadListener
         mtu.onPreferenceChangeListener = reloadListener

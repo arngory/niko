@@ -989,6 +989,10 @@ fun buildConfig(
         } else {
             route.final_ = buildChain(0, proxy)
         }
+        // a single profile (not a group, whose members differ) that carries UDP inside a stream: QUIC refused, so
+        // browsers go to TCP at once instead of QUIC inside TCP
+        val refuseQuic = !forTest && !buildSelector && !buildAuto && DataStore.refuseQuicOverStreams &&
+                udpRidesAStream(proxy.resolveChain())
         buildingProxy = false
         // Yggdrasil peers through the proxy, unless the proxy itself needs the mesh
         if (yggdrasil && !forTest && DataStore.yggdrasilPeersViaProxy) {
@@ -1336,6 +1340,13 @@ fun buildConfig(
             route.rules.add(Rule_DefaultOptions().apply {
                 ip_cidr = listOf("224.0.0.0/3", "ff00::/8")
                 source_ip_cidr = listOf("224.0.0.0/3", "ff00::/8")
+                action = "reject"
+            })
+            // QUIC that would go to the proxy (after the user's rules: what they send direct keeps it), refused with
+            // an ICMP unreachable: by the sniffed protocol, else UDP 443 (a WireGuard on 443 then goes too)
+            if (refuseQuic) route.rules.add(Rule_DefaultOptions().apply {
+                network = listOf("udp")
+                if (needSniff) protocol = listOf("quic") else port = listOf(443)
                 action = "reject"
             })
             // FakeDNS obj

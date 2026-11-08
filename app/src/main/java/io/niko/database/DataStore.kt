@@ -146,6 +146,8 @@ object DataStore : OnPreferenceDataStoreChangeListener {
 
     var bypassLan by configurationStore.boolean(Key.BYPASS_LAN)
     var bypassLanInCore by configurationStore.boolean(Key.BYPASS_LAN_IN_CORE)
+    // an experiment, off unless turned on: a rule of the user's (protocol quic → block) does the same everywhere
+    var refuseQuicOverStreams by configurationStore.boolean(Key.REFUSE_QUIC_OVER_STREAMS)
     var tlsFragmentBypass by configurationStore.stringToInt(Key.TLS_FRAGMENT_BYPASS)
     var ruleSetUpdateHours by configurationStore.stringToInt(Key.RULE_SET_UPDATE_HOURS) { 24 }
 

@@ -109,6 +109,11 @@
         <SwitchPreference
             app:key="bypassLanInCore"
             app:title="@string/bypass_lan_in_core" />
+        <SwitchPreference
+            app:defaultValue="false"
+            app:key="refuseQuicOverStreams"
+            app:summary="@string/refuse_quic_over_streams_summary"
+            app:title="@string/refuse_quic_over_streams" />
         <io.niko.ui.SimpleMenuPreference
             app:defaultValue="0"
             app:entries="@array/tls_fragment_values"
