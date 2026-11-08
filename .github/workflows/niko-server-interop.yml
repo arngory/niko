@@ -227,7 +227,9 @@ jobs:
             grep -q "remote error: destination not allowed" /tmp/client.log && echo "the node's reason reached the client" ||
               { echo "no 'remote error: destination not allowed' in the client's log"; fail=1; }
           else
-            echo "honest connect: niko-server $tag answers with the destination's first bytes (from v0.14.1 at once), not checked"
+            # a server that answers only with the destination's first bytes (a node rolled back under links that
+            # still say niko-ack=1): the dial gives way after 4 s, TLS (the client speaks first) still goes through
+            probe "Hysteria2 hy2-masq, honest connect on niko-server $tag (no niko-ack): gives way" 11085
           fi
           # the node answers no foreign names
           dig +short +tries=1 +time=3 @127.0.0.1 -p 5353 example.org A > /tmp/dig.out 2>&1 || true
