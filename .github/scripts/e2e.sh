@@ -150,6 +150,31 @@ done
   fail "through the VPN: from '${from:-nowhere}', token $carried, want the node's $node (nc said: $last)"
 echo "through the tunnel: the runner's server saw the request from $from"
 
+echo "== Private DNS with the VPN on (a diagnosis for now: what the system resolves, the resolver's state)"
+# resolved NAME: the address ping got for NAME through the system's resolver (what every app gets), empty: none
+resolved() {
+  timeout 15 adb shell "ping -c 1 -W 3 $1" 2>&1 | tr -d '\r' | sed -n 's/^PING [^ ]* (\([^)]*\)).*/\1/p' | head -1
+}
+# a real name for each mode, not asked before in it (the resolver's cache), that a real resolver answers too
+for pair in off:example.com opportunistic:example.org hostname:example.net; do
+  mode=${pair%%:*}
+  name=${pair#*:}
+  timeout 20 adb shell settings put global private_dns_mode "$mode"
+  [ "$mode" = hostname ] && timeout 20 adb shell settings put global private_dns_specifier dns.google
+  got=
+  for i in $(seq 6); do
+    sleep 5
+    got=$(resolved "$name")
+    [ -n "$got" ] && break
+  done
+  echo "private DNS $mode: $name resolves to '${got:-nothing}'"
+  { echo "=== $mode"; timeout 30 adb shell dumpsys dnsresolver; } >> "$out/dnsresolver.txt" 2>&1
+  timeout 30 adb shell dumpsys dnsresolver 2>&1 | tr -d '\r' | grep -iE "private dns|validat|dot|doh|mode" | head -n 20
+done
+timeout 20 adb shell settings put global private_dns_mode off
+timeout 30 adb pull "/data/data/$pkg/cache/neko.log" "$out/neko-pdns.log" > /dev/null 2>&1
+grep -E ":853|dns.google" "$out/neko-pdns.log" | tail -n 30
+
 echo "== the VPN down again"
 timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" > /dev/null || fail "the quick toggle did not stop"
 for i in $(seq 10); do
