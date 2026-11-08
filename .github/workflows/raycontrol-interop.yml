@@ -14,6 +14,7 @@ on:
       - ".github/slipstream-server.env"
       - "buildScript/lib/slipstream/env.sh"
       - ".github/scripts/netlog-errors.py"
+      - ".github/scripts/udp-dns-probe.py"
       - "libcore/rayapi/**"
       - "libcore/rayprobe/**"
       - "libcore/raysub/**"
@@ -591,21 +592,30 @@ jobs:
           # naive-quic (naive+quic:// in raycontrol's links): the same name and credentials over UDP 443 of the front
           SSL_CERT_FILE=/tmp/ca.crt nohup /tmp/naive --listen=socks://127.0.0.1:11092 --proxy="quic://niko:${pw}@naive.test:18446" \
             --host-resolver-rules="MAP naive.test 127.0.0.1" --log > /tmp/naive-quic.log 2>&1 &
-          # the core's naive outbound, as the app builds it (fmt/naive/NaiveFmt.kt): h2, a wrong password, QUIC
+          # the core's naive outbound, as the app builds it (fmt/naive/NaiveFmt.kt): h2, a wrong password, QUIC;
+          # and UDP over TCP v2 (uot=2 in raycontrol's links, udp_over_tcp: true as ConfigBuilder writes it): a DNS
+          # query to 11096 goes to 1.1.1.1:53 through rayd naive, and to 11097 through naive without it (dropped)
           tls='{"enabled": true, "server_name": "naive.test", "certificate_path": "/tmp/ca.crt"}'
           jq -n --arg pw "$pw" --argjson tls "$tls" '{log: {level: "debug"},
             inbounds: [{type: "socks", tag: "h2", listen: "127.0.0.1", listen_port: 11093},
                        {type: "socks", tag: "wrong", listen: "127.0.0.1", listen_port: 11094},
-                       {type: "socks", tag: "quic", listen: "127.0.0.1", listen_port: 11095}],
+                       {type: "socks", tag: "quic", listen: "127.0.0.1", listen_port: 11095},
+                       {type: "direct", tag: "uot", listen: "127.0.0.1", listen_port: 11096, network: "udp",
+                        override_address: "1.1.1.1", override_port: 53},
+                       {type: "direct", tag: "no-uot", listen: "127.0.0.1", listen_port: 11097, network: "udp",
+                        override_address: "1.1.1.1", override_port: 53}],
             outbounds: [{type: "naive", tag: "naive", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw, tls: $tls},
                         {type: "naive", tag: "naive-wrong", server: "127.0.0.1", server_port: 18446, username: "niko", password: "wrong", tls: $tls},
-                        {type: "naive", tag: "naive-quic", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw, quic: true, tls: $tls}],
-            route: {rules: [{inbound: ["wrong"], outbound: "naive-wrong"}, {inbound: ["quic"], outbound: "naive-quic"}], final: "naive"}}' > /tmp/core-naive.json
+                        {type: "naive", tag: "naive-quic", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw, quic: true, tls: $tls},
+                        {type: "naive", tag: "naive-uot", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw,
+                         udp_over_tcp: true, tls: $tls}],
+            route: {rules: [{inbound: ["wrong"], outbound: "naive-wrong"}, {inbound: ["quic"], outbound: "naive-quic"},
+                            {inbound: ["uot"], outbound: "naive-uot"}], final: "naive"}}' > /tmp/core-naive.json
           nohup /tmp/sing-box run -c /tmp/core-naive.json > /tmp/core-naive.log 2>&1 &
           for i in $(seq 75); do
             [ -n "$(ss -Hltn 'sport = :11090')" ] && [ -n "$(ss -Hltn 'sport = :11091')" ] && [ -n "$(ss -Hltn 'sport = :11092')" ] &&
               [ -n "$(ss -Hltn 'sport = :11093')" ] && [ -n "$(ss -Hltn 'sport = :11094')" ] &&
-              [ -n "$(ss -Hltn 'sport = :11095')" ] && break
+              [ -n "$(ss -Hltn 'sport = :11095')" ] && [ -n "$(ss -Hlun 'sport = :11096')" ] && break
             sleep 0.2
           done
           fail=0
@@ -628,6 +638,13 @@ jobs:
           check "core naive outbound (cronet, h2) -> rayd naive" 11093 204
           check "core naive outbound, wrong password (must fail)" 11094 000
           check "core naive outbound over QUIC -> front UDP -> rayd naive" 11095 204
+          udp() { got=$(python3 -I .github/scripts/udp-dns-probe.py "$2"); echo "$1: $got (want $3)"; [ "$got" = "$3" ] || fail=1; }
+          if [ -f raycontrol/internal/naive/uot.go ]; then
+            udp "core naive outbound, UDP over TCP v2 -> rayd naive -> 1.1.1.1:53" 11096 answer
+          else
+            echo "UDP over TCP: raycontrol $(git -C raycontrol rev-parse --short HEAD) has no UoT in rayd naive (since v0.20.0), not checked"
+          fi
+          udp "core naive outbound without UDP over TCP (UDP must not pass)" 11097 timeout
           # curl sees only that the tunnel failed (a 404, a reset and a hang all read 000): the CONNECT's own answer
           # comes from the clients' net logs. naive writes them in batches of 15 events, so a few more tries push
           # the first ones out; a CONNECT counts only with an answer to every request of its source
