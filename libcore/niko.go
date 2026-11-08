@@ -139,6 +139,8 @@ func LogMarker(text string) {
 // ClearFakeIPCache removes FakeDNS's addresses and the names they stand for from the core's cache file at path:
 // kept for a restart of the core under a running VPN, they are a record of the names asked. No core may have the
 // file open (the service calls it when the VPN stops, or before a fresh start).
-func ClearFakeIPCache(path string) error {
+func ClearFakeIPCache(path string) (err error) {
+	// a panic would cross gomobile and end the process, at every start: an error instead
+	defer device.DeferPanicToError("ClearFakeIPCache", func(e error) { err = e })
 	return cachefile.ClearFakeIP(path)
 }
