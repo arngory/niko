@@ -582,6 +582,8 @@
     <string name="refuse_quic_over_streams_summary">Where the profile carries UDP inside a TCP stream (VLESS/VMess/Trojan on any transport, REALITY among them, naive, DNS tunnels, Yggdrasil), QUIC is refused and browsers use TCP at once: QUIC inside TCP is slower than TCP itself. Profiles with UDP of their own (Hysteria2, WireGuard) keep it, and so does what goes direct. A routing rule of your own (protocol quic → block) refuses it everywhere instead.</string>
     <string name="honest_connect">Honest connect on Hysteria2 (experiment)</string>
     <string name="honest_connect_summary">An app\'s connection opens only once the node has reached the destination: a refused or unreachable one fails at once, with the reason in the log, instead of opening and ending empty. Each new connection waits one round trip to the node more. Only Hysteria2 of raycontrol nodes from v0.21.0 (their links say niko-ack=1).</string>
+    <string name="icmp_through_node">Ping through the node (experiment)</string>
+    <string name="icmp_through_node_summary">On naive of raycontrol nodes that allow it (icmp=1), the node pings for the app: ping shows the real round trip and traceroute the hops behind the node. Off, a ping through a proxy is answered on the phone at once and says nothing about the path.</string>
     <string name="need_restart">Restart APP to apply changes</string>
     <string name="use_selector">Use selector</string>
     <string name="front_proxy">Front proxy</string>

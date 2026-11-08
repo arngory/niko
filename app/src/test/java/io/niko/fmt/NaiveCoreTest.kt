@@ -51,6 +51,19 @@ class NaiveCoreTest {
     }
 
     @Test
+    fun pingThroughTheNodeOnlyWhereTheLinkSaysSo() {
+        val bean = parseNaive("naive+https://u:p@198.51.100.1:443?uot=2&icmp=1#n")
+        assertEquals(true, bean.nikoIcmp)
+        // kept through the store (bean version 4)
+        assertEquals(true, KryoConverters.deserialize(io.niko.fmt.naive.NaiveBean(), KryoConverters.serialize(bean)).nikoIcmp)
+        for (link in listOf("naive+https://u:p@198.51.100.1:443#n", "naive+https://u:p@198.51.100.1:443?icmp=on#n")) {
+            val other = parseNaive(link)
+            assertFalse(link, other.nikoIcmp)
+            assertFalse(link, KryoConverters.deserialize(io.niko.fmt.naive.NaiveBean(), KryoConverters.serialize(other)).nikoIcmp)
+        }
+    }
+
+    @Test
     fun headers() {
         assertEquals(mapOf("X-A" to "1", "X-B" to "two: parts"), naiveHeaders("X-A: 1\nX-B: two: parts\n\nbad"))
     }

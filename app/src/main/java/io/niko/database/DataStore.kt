@@ -149,6 +149,7 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     // an experiment, off unless turned on: a rule of the user's (protocol quic → block) does the same everywhere
     var refuseQuicOverStreams by configurationStore.boolean(Key.REFUSE_QUIC_OVER_STREAMS)
     var honestConnect by configurationStore.boolean(Key.HONEST_CONNECT)
+    var icmpThroughNode by configurationStore.boolean(Key.ICMP_THROUGH_NODE)
     var tlsFragmentBypass by configurationStore.stringToInt(Key.TLS_FRAGMENT_BYPASS)
     var ruleSetUpdateHours by configurationStore.stringToInt(Key.RULE_SET_UPDATE_HOURS) { 24 }
 

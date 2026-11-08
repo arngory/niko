@@ -26,6 +26,8 @@ fun parseNaive(link: String): NaiveBean {
         // the tunnel to its magic name and closes it, so every UDP flow would end in EOF
         // v2 only, what the core speaks: a "1" may mean v1, which a v1 server would close on every flow
         sUoT = url.queryParameter("uot") == "2"
+        // the node pings for the app (raycontrol icmp-v1), where its service allows it
+        nikoIcmp = url.queryParameter("icmp") == "1"
         name = url.fragment
         initializeDefaultValues()
     }

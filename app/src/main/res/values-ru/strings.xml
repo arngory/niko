@@ -71,6 +71,8 @@
     <string name="refuse_quic_over_streams_summary">Если профиль несёт UDP внутри TCP-потока (VLESS/VMess/Trojan на любом транспорте, включая REALITY, naive, DNS-туннели, Yggdrasil), QUIC отвергается и браузеры сразу идут по TCP: QUIC внутри TCP медленнее самого TCP. Профили со своим UDP (Hysteria2, WireGuard) его сохраняют, как и всё, что идёт напрямую. Своё правило маршрутизации (протокол quic → блок) отвергает QUIC везде.</string>
     <string name="honest_connect">Честный connect на Hysteria2 (эксперимент)</string>
     <string name="honest_connect_summary">Соединение приложения открывается, только когда нода дошла до назначения: отказ или недоступный адрес сразу дают ошибку (причина — в журнале), а не открытое и тут же пустое соединение. Каждое новое соединение ждёт на один круг до ноды дольше. Только Hysteria2 нод raycontrol с v0.21.0 (в их ссылках niko-ack=1).</string>
+    <string name="icmp_through_node">Ping через ноду (эксперимент)</string>
+    <string name="icmp_through_node_summary">На naive нод raycontrol, которые это разрешают (icmp=1), нода пингует за приложение: ping показывает настоящую задержку, traceroute — хопы за нодой. Выключено — ping через прокси отвечает сам телефон мгновенно и ничего не говорит о пути.</string>
 <string name="cag_dns">Настройки DNS</string>
 <string name="cag_misc">Прочие настройки</string>
 <string name="cag_route">Настройки маршрута</string>

@@ -656,6 +656,14 @@ fun buildConfig(
                 ) {
                     currentOutbound._hack_config_map["await_dial"] = true
                 }
+                // ping and traceroute through the node (experiment, off by default): the core's naive carries the
+                // app's echo to the node, which pings for it (raycontrol icmp-v1); only where the link says the
+                // node does (icmp=1). A field of the core fork's: not in an export
+                if (!forExport && DataStore.icmpThroughNode && bean is NaiveBean && bean.nikoIcmp == true &&
+                    !proxyEntity.needExternal()
+                ) {
+                    currentOutbound._hack_config_map["icmp"] = true
+                }
 
                 // UDP desync of QUIC clients (core common/udpdesync)
                 if (!proxyEntity.needExternal() && outboundType in UDP_DESYNC_TYPES &&
