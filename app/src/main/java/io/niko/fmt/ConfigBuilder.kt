@@ -1172,6 +1172,9 @@ fun buildConfig(
                         1 -> ruleObj._hack_config_map["tls_record_fragment"] = true
                         2 -> ruleObj._hack_config_map["tls_fragment"] = true
                     }
+                    // its QUIC refused before it takes it into the proxy (refuseQuic): otherwise only what reaches
+                    // the final outbound would be, and the user's lists to the proxy are what the setting is for
+                    if (refuseQuic && ruleObj.outbound == TAG_PROXY) quicRefusalBefore(ruleObj, needSniff)?.let(route.rules::add)
                     route.rules.add(ruleObj)
                     route.rule_set.addAll(ruleSets)
                 }
@@ -1342,13 +1345,10 @@ fun buildConfig(
                 source_ip_cidr = listOf("224.0.0.0/3", "ff00::/8")
                 action = "reject"
             })
-            // QUIC that would go to the proxy (after the user's rules: what they send direct keeps it), refused with
-            // an ICMP unreachable: by the sniffed protocol, else UDP 443 (a WireGuard on 443 then goes too)
-            if (refuseQuic) route.rules.add(Rule_DefaultOptions().apply {
-                network = listOf("udp")
-                if (needSniff) protocol = listOf("quic") else port = listOf(443)
-                action = "reject"
-            })
+            // QUIC that would reach the final outbound, the proxy, refused with an ICMP unreachable (the user's rules
+            // to the proxy got a copy of their own above them; what they send elsewhere keeps it): by the sniffed
+            // protocol, else UDP 443 (a WireGuard on 443 then goes too)
+            if (refuseQuic) route.rules.add(quicRefusal(needSniff))
             // FakeDNS obj
             if (useFakeDns) {
                 dns.servers.add(DNSServerOptions().apply {
