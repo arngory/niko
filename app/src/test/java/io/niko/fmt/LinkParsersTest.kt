@@ -1,5 +1,6 @@
 package io.niko.fmt
 
+import io.niko.fmt.hysteria.HysteriaBean
 import io.niko.fmt.hysteria.hopPortsToSingboxList
 import io.niko.fmt.hysteria.parseHysteria2
 import io.niko.fmt.v2ray.VMessBean
@@ -25,6 +26,20 @@ class LinkParsersTest {
         assertEquals("secret", bean.obfuscation)
         assertTrue(bean.allowInsecure)
         assertEquals("Name", bean.name)
+    }
+
+    @Test
+    fun hysteria2NikoAck() {
+        // raycontrol from v0.21.0: the node answers right after its dial; kept through the store (bean version 9)
+        val bean = parseHysteria2("hy2://pw@203.0.113.2:443/?sni=h2.test&niko-ack=1#node").apply { initializeDefaultValues() }
+        assertTrue(bean.nikoAck)
+        val stored = KryoConverters.deserialize(HysteriaBean(), KryoConverters.serialize(bean))
+        assertTrue(stored.nikoAck)
+        for (link in listOf("hy2://pw@203.0.113.2:443/?niko-ack=0", "hy2://pw@203.0.113.2:443/?niko-ack=true", "hy2://pw@203.0.113.2:443/")) {
+            val other = parseHysteria2(link).apply { initializeDefaultValues() }
+            assertFalse(link, other.nikoAck)
+            assertFalse(link, KryoConverters.deserialize(HysteriaBean(), KryoConverters.serialize(other)).nikoAck)
+        }
     }
 
     @Test

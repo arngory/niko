@@ -115,6 +115,8 @@ fun parseHysteria2(url: String): HysteriaBean {
         // (certificate_public_key_sha256), so it can not be carried over. A raycontrol hy2-obfs link carries the
         // key pin as niko-pin (its certificate is self-signed, its name not in DNS)
         applyNikoParams({ link.queryParameter(it) })
+        // the server answers right after its dial (niko-server v0.14.1): the dial may wait for it
+        nikoAck = link.queryParameter("niko-ack") == "1"
     }
 }
 

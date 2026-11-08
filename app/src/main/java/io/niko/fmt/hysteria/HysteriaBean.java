@@ -33,6 +33,9 @@ public class HysteriaBean extends AbstractBean {
     public Integer hopInterval;
     // version 8, Hysteria2: the hop interval is random between hopInterval and this, 0 = fixed
     public Integer hopIntervalMax;
+    // version 9, Hysteria2: the server answers a TCP request right after its dial (niko-ack=1, niko-server v0.14.1):
+    // the dial can wait for it (Settings → honest connect)
+    public Boolean nikoAck;
 
     // HY1
 
@@ -80,12 +83,13 @@ public class HysteriaBean extends AbstractBean {
         if (disableMtuDiscovery == null) disableMtuDiscovery = false;
         if (hopInterval == null) hopInterval = 10;
         if (hopIntervalMax == null) hopIntervalMax = 0;
+        if (nikoAck == null) nikoAck = false;
         if (serverPorts == null) serverPorts = "443";
     }
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(8);
+        output.writeInt(9);
         super.serialize(output);
 
         output.writeInt(protocolVersion);
@@ -108,6 +112,7 @@ public class HysteriaBean extends AbstractBean {
         output.writeInt(hopInterval);
         output.writeString(serverPorts);
         output.writeInt(hopIntervalMax != null ? hopIntervalMax : 0);
+        output.writeBoolean(nikoAck != null && nikoAck);
     }
 
     @Override
@@ -154,6 +159,9 @@ public class HysteriaBean extends AbstractBean {
         }
         if (version >= 8) {
             hopIntervalMax = input.readInt();
+        }
+        if (version >= 9) {
+            nikoAck = input.readBoolean();
         }
     }
 

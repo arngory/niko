@@ -647,6 +647,15 @@ fun buildConfig(
                     currentOutbound._hack_config_map["keep_alive_period"] = "25s"
                     currentOutbound._hack_config_map["idle_timeout"] = "60s"
                 }
+                // honest connect (experiment, off by default): an app's TCP connection opens only once the node has
+                // reached the destination, so a refusal or a dead host fails it at once instead of a connection that
+                // ends empty; only where the link says the server answers right after its dial (niko-ack=1). A field
+                // of the core fork's: not in an export
+                if (!forExport && DataStore.honestConnect && bean is HysteriaBean && bean.protocolVersion == 2 &&
+                    bean.nikoAck == true && !proxyEntity.needExternal()
+                ) {
+                    currentOutbound._hack_config_map["await_dial"] = true
+                }
 
                 // UDP desync of QUIC clients (core common/udpdesync)
                 if (!proxyEntity.needExternal() && outboundType in UDP_DESYNC_TYPES &&

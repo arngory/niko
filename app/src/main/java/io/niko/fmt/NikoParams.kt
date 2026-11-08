@@ -12,7 +12,9 @@ import io.niko.ktx.isIpAddress
  * - niko-ygg: `<peer>;<seed>`, a Yggdrasil profile: the VLESS server is the node's mesh address, reached through a
  *   mesh node of the device's own (the ed25519 seed, 64 hex digits) whose only peer is the node
  *   (`tls://<name>:443?key=<node key>&sni=<name>`);
- * - niko-ygg-via (repeated): the node's public peers, used only when the direct peer does not connect.
+ * - niko-ygg-via (repeated): the node's public peers, used only when the direct peer does not connect;
+ * - niko-ack=1 (Hysteria2): the server answers a TCP request right after its dial (niko-server v0.14.1), so the dial
+ *   may wait for it (HysteriaFmt, Settings → honest connect).
  * niko-node and niko-svc tie the profile to an imported node: its SPA follows the server address already.
  */
 fun AbstractBean.applyNikoParams(param: (String) -> String?) = applyNikoParams(param) { listOfNotNull(param(it)) }

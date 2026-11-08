@@ -16,6 +16,13 @@ on:
       - "buildScript/lib/core/get_source_env.sh"
       - ".github/scripts/ygg-address.py"
   workflow_dispatch:
+    inputs:
+      niko_server_tag:
+        description: "A niko-server release to run against instead of .github/niko-server.env's (one raycontrol has not pinned yet)"
+        default: ""
+      niko_server_sha256:
+        description: "Its niko-server-linux-amd64 SHA-256 (needed with the tag)"
+        default: ""
 
 permissions:
   contents: read
@@ -28,10 +35,19 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Fetch sources and the niko-server release
+        env:
+          NIKO_SERVER_TAG_OVERRIDE: ${{ inputs.niko_server_tag }}
+          NIKO_SERVER_SHA256_OVERRIDE: ${{ inputs.niko_server_sha256 }}
         run: |
           . buildScript/lib/core/get_source_env.sh
           . .github/xray-interop.env
           . .github/niko-server.env
+          if [ -n "$NIKO_SERVER_TAG_OVERRIDE" ]; then
+            [[ "$NIKO_SERVER_TAG_OVERRIDE" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] && [[ "$NIKO_SERVER_SHA256_OVERRIDE" =~ ^[0-9a-f]{64}$ ]] ||
+              { echo "the override needs a vX.Y.Z tag and its SHA-256"; exit 1; }
+            NIKO_SERVER_TAG=$NIKO_SERVER_TAG_OVERRIDE; NIKO_SERVER_SHA256_AMD64=$NIKO_SERVER_SHA256_OVERRIDE
+          fi
+          echo "$NIKO_SERVER_TAG" > /tmp/niko-server.tag
           git clone --filter=blob:none "$REPOSITORY_SING_BOX" core
           git -C core checkout -q "$COMMIT_SING_BOX"
           git clone --filter=blob:none "$REPOSITORY_XRAY" xray
@@ -160,7 +176,8 @@ jobs:
               {type: "mixed", tag: "in-mdns", listen: "127.0.0.1", listen_port: 11081},
               {type: "mixed", tag: "in-masq", listen: "127.0.0.1", listen_port: 11082},
               {type: "mixed", tag: "in-obfs", listen: "127.0.0.1", listen_port: 11083},
-              {type: "mixed", tag: "in-ygg", listen: "127.0.0.1", listen_port: 11084}],
+              {type: "mixed", tag: "in-ygg", listen: "127.0.0.1", listen_port: 11084},
+              {type: "mixed", tag: "in-await", listen: "127.0.0.1", listen_port: 11085}],
             endpoints: [
               {type: "yggdrasil", tag: "ygg", private_key: $seed, node_info_privacy: true,
                peers: ["tls://127.0.0.1:18443?key=" + $nodepub + "&sni=ygg.test"]}],
@@ -171,10 +188,10 @@ jobs:
               {type: "dnstt", tag: "dnstt", domain: "t.example.com", public_key: $pub, resolver: "udp://127.0.0.1:5353"},
               {type: "masterdnsvpn", tag: "mdns", domains: ["v.example.com"], resolvers: ["127.0.0.1:5353"],
                encryption_method: 5, encryption_key: $key, mode: "tcp"},
-              $masq, $obfs],
+              $masq, $obfs, ($masq + {tag: "hy2-await", await_dial: true})],
             route: {rules: [{inbound: ["in-dnstt"], outbound: "inner-dnstt"}, {inbound: ["in-mdns"], outbound: "inner-mdns"},
                             {inbound: ["in-masq"], outbound: "hy2-masq"}, {inbound: ["in-obfs"], outbound: "hy2-obfs"},
-                            {inbound: ["in-ygg"], outbound: "inner-ygg"}]}}' > /tmp/client.json
+                            {inbound: ["in-ygg"], outbound: "inner-ygg"}, {inbound: ["in-await"], outbound: "hy2-await"}]}}' > /tmp/client.json
           /tmp/sing-box check -c /tmp/client.json
           nohup /tmp/sing-box run -c /tmp/client.json > /tmp/client.log 2>&1 &
           sleep 3
@@ -192,6 +209,26 @@ jobs:
           probe "Hysteria2 hy2-masq through udpmux (by name)" 11082
           probe "Hysteria2 hy2-obfs through udpmux (by salamander)" 11083
           probe "Yggdrasil through tcpmux → inner (VLESS ML-KEM-768)" 11084
+          # honest connect (await_dial, niko-ack=1 in raycontrol's links): niko-server from v0.14.1 answers right
+          # after its dial. A destination that speaks second (TLS) still works; one the node refuses fails the dial
+          # itself (SOCKS failure, curl 97), where the plain client gets "connected" and then nothing (52 or 56)
+          tag=$(cat /tmp/niko-server.tag)
+          if [ "$(printf '%s\nv0.14.1\n' "$tag" | sort -V | head -1)" = v0.14.1 ]; then
+            probe "Hysteria2 hy2-masq, honest connect" 11085
+            refused() {
+              local rc=0
+              curl -s -m 30 -o /dev/null -x "socks5h://127.0.0.1:$1" http://10.0.0.1/ 2>/dev/null || rc=$?
+              echo "$rc"
+            }
+            rc=$(refused 11085); echo "a destination the node refuses, honest connect: curl exit $rc (want 97, the dial failed)"
+            [ "$rc" = 97 ] || fail=1
+            rc=$(refused 11082); echo "the same without it: curl exit $rc (want an error after a connect: not 97)"
+            [ "$rc" != 97 ] && [ "$rc" != 0 ] || fail=1
+            grep -q "remote error: destination not allowed" /tmp/client.log && echo "the node's reason reached the client" ||
+              { echo "no 'remote error: destination not allowed' in the client's log"; fail=1; }
+          else
+            echo "honest connect: niko-server $tag answers with the destination's first bytes (from v0.14.1 at once), not checked"
+          fi
           # the node answers no foreign names
           dig +short +tries=1 +time=3 @127.0.0.1 -p 5353 example.org A > /tmp/dig.out 2>&1 || true
           dig +tries=1 +time=3 @127.0.0.1 -p 5353 example.org A | grep -q "status: REFUSED" && echo "foreign name: REFUSED" || { echo "foreign name not refused"; fail=1; }

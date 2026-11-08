@@ -114,6 +114,11 @@
             app:key="refuseQuicOverStreams"
             app:summary="@string/refuse_quic_over_streams_summary"
             app:title="@string/refuse_quic_over_streams" />
+        <SwitchPreference
+            app:defaultValue="false"
+            app:key="honestConnect"
+            app:summary="@string/honest_connect_summary"
+            app:title="@string/honest_connect" />
         <io.niko.ui.SimpleMenuPreference
             app:defaultValue="0"
             app:entries="@array/tls_fragment_values"
