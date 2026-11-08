@@ -37,6 +37,8 @@ import io.niko.ktx.runOnDefaultDispatcher
 import io.niko.raycontrol.RayApi
 import io.niko.raycontrol.RayNode
 import io.niko.raycontrol.RayNodes
+import io.niko.raycontrol.RaySubscription
+import io.niko.utils.isNewerVersion
 import java.text.DateFormat
 import java.util.Date
 
@@ -51,7 +53,8 @@ class RayAdminActivity : ThemedActivity() {
         private const val STATUS = 0
         private const val USERS = 1
         private const val SERVICES = 2
-        private const val AUDIT = 3
+        private const val NETWORK = 3
+        private const val AUDIT = 4
         private const val MENU_ADD = 1
     }
 
@@ -87,7 +90,7 @@ class RayAdminActivity : ThemedActivity() {
         binding.refreshLayout.setColorSchemeColors(getColorAttr(R.attr.primaryOrTextPrimary))
         binding.refreshLayout.setOnRefreshListener { load() }
         for (title in listOf(R.string.raycontrol_admin_status, R.string.raycontrol_admin_users,
-            R.string.raycontrol_admin_services, R.string.raycontrol_admin_audit)) {
+            R.string.raycontrol_admin_services, R.string.raycontrol_admin_network, R.string.raycontrol_admin_audit)) {
             binding.tabs.addTab(binding.tabs.newTab().setText(title))
         }
         binding.tabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
@@ -168,7 +171,15 @@ class RayAdminActivity : ThemedActivity() {
         STATUS -> loadStatus()
         USERS -> loadUsers()
         SERVICES -> loadServices()
+        NETWORK -> loadNetwork()
         else -> loadAudit()
+    }
+
+    /** [call], or null where the node does not have the method yet (an older raycontrol): its row is left out. */
+    private fun <T> optional(call: () -> T): T? = try {
+        call()
+    } catch (e: Exception) {
+        if (RayApi.unimplemented(e)) null else throw e
     }
 
     private fun show(rows: List<Row>) {
@@ -177,13 +188,35 @@ class RayAdminActivity : ThemedActivity() {
 
     // ---- status
 
+    private class StatusData(
+        val status: JsonObject, val self: JsonObject, val access: JsonObject,
+        val mirror: JsonObject?, val summary: JsonObject?,
+    )
+
     private fun loadStatus(): Unit = api({
-        Triple(call("GetStatus"), RayApi.call(current(), RayApi.DEVICE + "GetSelf"), call("GetAdminAccess"))
-    }) { (status, self, access) ->
+        StatusData(
+            call("GetStatus"), RayApi.call(current(), RayApi.DEVICE + "GetSelf"), call("GetAdminAccess"),
+            // raycontrol v0.18.0 and v0.11.0: not on an older node
+            optional { call("GetAppMirror") }, optional { call("GetSummary") },
+        )
+    }) { data ->
+        val status = data.status
+        val self = data.self
+        val access = data.access
+        val extra = mutableListOf<Row>()
+        // the node's name (raycontrol v0.15.0: GetStatus has it); clients show it in place of the address
+        if (status.has("name") || status.s("version").let { it.isNotEmpty() && isNewerVersion(it, "0.14.99") }) {
+            val name = status.s("name")
+            extra += Row(getString(R.string.raycontrol_admin_node_name),
+                name.ifEmpty { getString(R.string.raycontrol_admin_node_name_none) }) { editNodeName(name) }
+        }
+        data.mirror?.let { mirror -> extra += Row(getString(R.string.raycontrol_admin_mirror), mirrorSummary(mirror)) { mirrorActions(mirror) } }
+        data.summary?.let { summary -> extra += Row(getString(R.string.raycontrol_admin_summary), summarySummary(summary)) { summaryActions(summary) } }
         show(listOf(
             Row(getString(R.string.raycontrol_admin_this_device),
                 "${self.s("user")}/${self.s("name")} · ${self.s("role")}"),
             Row(getString(R.string.raycontrol_admin_node), "${status.s("host")} · ${status.s("version")}\n${status.s("nodeId")}"),
+        ) + extra + listOf(
             Row(getString(R.string.raycontrol_admin_counts, status.l("users"), status.l("services"), status.l("activeDevices"))),
             Row(getString(R.string.raycontrol_admin_spa_ports), status.strs("spaPorts").joinToString(", ")),
             Row(getString(R.string.raycontrol_admin_metrics), getString(R.string.raycontrol_admin_metrics_summary)) { showMetrics() },
@@ -192,6 +225,74 @@ class RayAdminActivity : ThemedActivity() {
                 editAdminAccess(access.strs("cidrs"))
             },
         ))
+    }
+
+    /** The node's name (SetNodeName): clients show it in place of its address; empty takes it away. */
+    private fun editNodeName(current: String) {
+        val input = editText(getString(R.string.raycontrol_admin_node_name), current)
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.raycontrol_admin_node_name)
+            .setMessage(R.string.raycontrol_admin_node_name_help)
+            .setView(padded(input))
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                api({ call("SetNodeName", body("name" to input.text.toString().trim())) }) { answer ->
+                    snackbar(getString(R.string.raycontrol_admin_node_name_set,
+                        answer.s("name").ifEmpty { getString(R.string.raycontrol_admin_node_name_none) })).show()
+                    loadStatus()
+                    // this device's own group takes the name with its next subscription: now
+                    runOnDefaultDispatcher { runCatching { RaySubscription.refresh(node.spa.nodeId) } }
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    // ---- the app's releases on the node (app-update-v1)
+
+    private fun mirrorSummary(mirror: JsonObject): String {
+        if (!mirror.b("enabled")) return getString(R.string.raycontrol_admin_mirror_off)
+        val held = mirror.arr("releases").joinToString(", ") { r ->
+            "${r.s("tag")} (${Formatter.formatFileSize(this, r.l("bytes"))})"
+        }.ifEmpty { getString(R.string.raycontrol_admin_mirror_empty) }
+        val parts = mutableListOf(getString(R.string.raycontrol_admin_mirror_on, held))
+        parts += getString(R.string.raycontrol_admin_mirror_checked, date(mirror.l("checked")))
+        mirror.s("error").takeIf { it.isNotBlank() }?.let { parts += getString(R.string.raycontrol_admin_mirror_error, it) }
+        return parts.joinToString("\n")
+    }
+
+    private fun mirrorActions(mirror: JsonObject) {
+        val on = mirror.b("enabled")
+        confirm(getString(if (on) R.string.raycontrol_admin_mirror_turn_off else R.string.raycontrol_admin_mirror_turn_on)) {
+            api({ call("SetAppMirror", body("enabled" to !on)) }) { loadStatus() }
+        }
+    }
+
+    // ---- client summaries (probe-v1 §6)
+
+    private fun summarySummary(summary: JsonObject): String {
+        if (!summary.b("enabled")) return getString(R.string.raycontrol_admin_summary_off)
+        return getString(R.string.raycontrol_admin_summary_on, summary.arr("networks").size, summary.l("otherReports"),
+            summary.l("days").takeIf { it > 0 } ?: 7)
+    }
+
+    private fun summaryActions(summary: JsonObject) {
+        val on = summary.b("enabled")
+        val actions = mutableListOf<Pair<Int, () -> Unit>>(
+            (if (on) R.string.disable else R.string.enable) to {
+                api({ call("SetSummary", body("enabled" to if (on) "off" else "on")) }) { loadStatus() }
+            },
+        )
+        if (on) actions += R.string.raycontrol_admin_summary_networks to {
+            val text = summary.arr("networks").joinToString("\n") { n ->
+                "AS${n.l("asn")} ${n.s("name")} ${n.s("country")}: ${n.l("reports")}"
+            }.ifEmpty { getString(R.string.raycontrol_admin_empty) }
+            textDialog(getString(R.string.raycontrol_admin_summary_networks), text)
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.raycontrol_admin_summary)
+            .setItems(actions.map { getString(it.first) }.toTypedArray()) { _, i -> actions[i].second() }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun showMetrics(): Unit = api({ call("GetMetrics").s("text") }) { text ->
@@ -414,7 +515,12 @@ class RayAdminActivity : ThemedActivity() {
                 api({ call("SetServiceEnabled", body("name" to name, "enabled" to !enabled)) }) { loadServices() }
             },
         )
-        if (service.s("kind").contains("reality")) actions += R.string.raycontrol_admin_rotate to { rotate(name) }
+        val kind = service.s("kind")
+        if (optionsOf(service).isNotEmpty()) actions += R.string.raycontrol_admin_options to { serviceOptions(service) }
+        if (kind.contains("reality")) actions += R.string.raycontrol_admin_rotate to { rotate(name) }
+        // dnstt's seal key (dnsseal-v1 §8), masterdns's service key (masterdns-key-rotation §2): a new one at once
+        if (kind == "dnstt") actions += R.string.raycontrol_admin_rotate_seal to { rotateKey(name, R.string.raycontrol_admin_rotate_seal) }
+        if (kind == "masterdns") actions += R.string.raycontrol_admin_rotate_service to { rotateKey(name, R.string.raycontrol_admin_rotate_service) }
         actions += R.string.delete to { confirm(getString(R.string.raycontrol_admin_delete_service, name)) {
             api({ call("DeleteService", body("name" to name)) }) { loadServices() }
         } }
@@ -439,6 +545,103 @@ class RayAdminActivity : ThemedActivity() {
             .show()
     }
 
+    /**
+     * A key that switches at once (a dnstt seal key, a masterdns service key): the previous one accepted for the
+     * credential grace, so clients that have not fetched their subscription go on; or not at all (a leaked key).
+     */
+    private fun rotateKey(name: String, title: Int) {
+        val options = arrayOf(getString(R.string.raycontrol_admin_rotate_key_grace), getString(R.string.raycontrol_admin_rotate_key_now))
+        MaterialAlertDialogBuilder(this)
+            .setTitle(title)
+            .setItems(options) { _, i ->
+                api({ call("RotateService", body("name" to name, "now" to (i == 1))) }) { answer ->
+                    val until = answer.l("prevUntil")
+                    snackbar(if (until > 0) getString(R.string.raycontrol_admin_rotate_key_until, date(until))
+                    else getString(R.string.raycontrol_admin_rotate_key_gone)).show()
+                    loadServices()
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    /** A setting of a service that may change after its creation (SetServiceOption): its key, what it takes. */
+    private class Option(val key: String, val title: Int, val values: List<String>?, val current: String)
+
+    private fun optionsOf(service: JsonObject): List<Option> {
+        val settings = runCatching { com.google.gson.JsonParser.parseString(service.s("settingsJson")).asJsonObject }
+            .getOrNull() ?: JsonObject()
+        // the setting as kept (a list: its size, spare_zones's count), "—" where the node keeps its default
+        fun now(key: String) = settings.get(key)?.let {
+            when {
+                it.isJsonArray -> it.asJsonArray.size().toString()
+                it.isJsonPrimitive -> it.asString
+                else -> null
+            }
+        } ?: "—"
+        val modes = listOf("off", "optional", "required")
+        val onOff = listOf("true", "false")
+        return when (service.s("kind")) {
+            "dnstt", "masterdns" -> listOf(
+                Option("auth", R.string.raycontrol_admin_option_auth, modes, now("auth")),
+                Option("auth_hint", R.string.raycontrol_admin_option_auth_hint, modes, now("auth_hint")),
+                Option("seal", R.string.raycontrol_admin_option_seal, modes, now("seal")),
+                Option("spare_zones", R.string.raycontrol_admin_option_spare_zones, null, now("spare_zones")),
+            )
+            "slipstream" -> listOf(
+                Option("max_connections", R.string.raycontrol_admin_option_max_connections, null, now("max_connections")),
+                Option("device_connections", R.string.raycontrol_admin_option_device_connections, null, now("device_connections")),
+            )
+            "site" -> listOf(Option("answer", R.string.raycontrol_admin_option_answer, listOf("404", "403", "silent", "pages"), now("answer")))
+            "reality" -> listOf(
+                Option("rotate_sni", R.string.raycontrol_admin_option_rotate_sni, onOff, now("rotate_sni")),
+                Option("open", R.string.raycontrol_admin_option_open, onOff, now("open")),
+            )
+            "hy2-masq", "hy2-obfs" -> listOf(
+                Option("up_mbps", R.string.raycontrol_admin_option_up_mbps, null, now("up_mbps")),
+                Option("down_mbps", R.string.raycontrol_admin_option_down_mbps, null, now("down_mbps")),
+            )
+            else -> emptyList()
+        }
+    }
+
+    /** The service's settings: each with its value now; the node checks what it takes and says why not. */
+    private fun serviceOptions(service: JsonObject) {
+        val name = service.s("name")
+        val options = optionsOf(service)
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.raycontrol_admin_options_of, name))
+            .setItems(options.map { "${getString(it.title)}: ${it.current}" }.toTypedArray()) { _, i ->
+                val option = options[i]
+                val set = { value: String ->
+                    api({ call("SetServiceOption", body("name" to name, "key" to option.key, "value" to value)) }) {
+                        snackbar(getString(R.string.raycontrol_admin_option_set, option.key, value)).show()
+                        loadServices()
+                    }
+                }
+                if (option.values != null) {
+                    MaterialAlertDialogBuilder(this)
+                        .setTitle(option.title)
+                        .setSingleChoiceItems(option.values.toTypedArray(), option.values.indexOf(option.current)) { dialog, which ->
+                            dialog.dismiss()
+                            set(option.values[which])
+                        }
+                        .setNegativeButton(android.R.string.cancel, null)
+                        .show()
+                } else {
+                    val input = editText(getString(option.title), option.current.takeIf { it != "—" } ?: "0", number = true)
+                    MaterialAlertDialogBuilder(this)
+                        .setTitle(option.title)
+                        .setView(padded(input))
+                        .setPositiveButton(android.R.string.ok) { _, _ -> set(input.text.toString().trim()) }
+                        .setNegativeButton(android.R.string.cancel, null)
+                        .show()
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
     private fun createService() {
         if (kinds.isEmpty()) return loadServices()
         var kind = 0
@@ -456,6 +659,116 @@ class RayAdminActivity : ThemedActivity() {
                     }
                     .setNegativeButton(android.R.string.cancel, null)
                     .show()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    // ---- network: the node's DNS (its zone at the provider, the tunnels' zones) and its relays
+
+    private fun loadNetwork(): Unit = api({ optional { call("GetDNS") } to optional { call("ListRelays").arr("relays") } }) { (dns, relays) ->
+        val rows = mutableListOf<Row>()
+        dns?.getAsJsonObject("status")?.let { status ->
+            val provider = status.s("provider")
+            val summary = if (provider.isEmpty()) getString(R.string.raycontrol_admin_dns_none) else {
+                val parts = mutableListOf("$provider · ${status.s("zone")}",
+                    getString(R.string.raycontrol_admin_dns_records, status.arr("records").size))
+                status.strs("problems").forEach { parts += "⚠ $it" }
+                parts.joinToString("\n")
+            }
+            rows += Row(getString(R.string.raycontrol_admin_dns), summary) { dnsActions(provider.isNotEmpty()) }
+        } ?: run { if (dns == null) rows += Row(getString(R.string.raycontrol_admin_dns), getString(R.string.raycontrol_admin_dns_none)) { dnsActions(false) } }
+        rows += Row(getString(R.string.raycontrol_admin_dns_check), getString(R.string.raycontrol_admin_dns_check_summary)) { checkZones() }
+        relays?.forEach { r ->
+            val probe = r.l("probePort").takeIf { it > 0 }?.let { " · probe $it" }.orEmpty()
+            rows += Row(getString(R.string.raycontrol_admin_relay, r.s("name")), "${r.s("address")} · ${date(r.l("createdAt"))}$probe") {
+                relayAccess(r.s("name"))
+            }
+        }
+        // AddRelay, RemoveRelay and a relay's bundle are root's on the node only (api-v1 §5)
+        rows += Row(getString(R.string.raycontrol_admin_relays_root))
+        show(rows)
+    }
+
+    private fun dnsActions(configured: Boolean) {
+        val actions = mutableListOf<Pair<Int, () -> Unit>>()
+        if (configured) actions += R.string.raycontrol_admin_dns_sync to {
+            api({ call("SyncDNS").getAsJsonObject("status") ?: JsonObject() }) { status ->
+                val text = (status.strs("changes") + status.strs("problems").map { "⚠ $it" })
+                    .ifEmpty { listOf(getString(R.string.raycontrol_admin_dns_in_sync)) }.joinToString("\n")
+                textDialog(getString(R.string.raycontrol_admin_dns_sync), text)
+                loadNetwork()
+            }
+        }
+        actions += R.string.raycontrol_admin_dns_token to { dnsToken() }
+        if (configured) actions += R.string.raycontrol_admin_dns_remove to {
+            confirm(getString(R.string.raycontrol_admin_dns_remove_confirm)) {
+                api({ call("RemoveDNS", body("keepRecords" to false)) }) { loadNetwork() }
+            }
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.raycontrol_admin_dns)
+            .setItems(actions.map { getString(it.first) }.toTypedArray()) { _, i -> actions[i].second() }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    /** The provider's API token (Cloudflare): kept by rayd, never shown again. */
+    private fun dnsToken() {
+        val input = editText(getString(R.string.raycontrol_admin_dns_token_hint)).apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.raycontrol_admin_dns_token)
+            .setMessage(R.string.raycontrol_admin_dns_token_help)
+            .setView(padded(input))
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                api({ call("SetDNSProvider", body("provider" to "cloudflare", "token" to input.text.toString().trim())) }) { loadNetwork() }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    /** The tunnels' zones from the node (CheckDNSZones now): the delegation, the front and backend, the resolvers. */
+    private fun checkZones(): Unit = api({ call("CheckDNSZones", body("now" to true)) }) { answer ->
+        val zones = answer.arr("zones")
+        val text = zones.joinToString("\n\n") { z ->
+            val lines = mutableListOf("${z.s("zone")} (${z.s("service")}, ${z.s("kind")}): ${z.s("state")}")
+            z.s("summary").takeIf { it.isNotBlank() }?.let { lines += it }
+            z.s("error").takeIf { it.isNotBlank() }?.let { lines += "⚠ $it" }
+            for (step in listOf("parent", "front", "backend")) {
+                z.getAsJsonObject(step)?.let { st ->
+                    val fix = st.s("fix").takeIf { it.isNotBlank() }?.let { " → $it" }.orEmpty()
+                    lines += "  $step: ${st.s("state")} ${st.s("detail")}$fix"
+                }
+            }
+            z.arr("resolvers").forEach { r ->
+                val worst = listOf("soa", "small", "large").mapNotNull { r.getAsJsonObject(it)?.s("state") }
+                    .firstOrNull { it == "fail" } ?: listOf("soa", "small", "large").mapNotNull { r.getAsJsonObject(it)?.s("state") }
+                    .firstOrNull { it == "warn" } ?: "ok"
+                lines += "  ${r.s("resolver")} ${r.s("network")}: $worst"
+            }
+            lines.joinToString("\n")
+        }.ifEmpty { getString(R.string.raycontrol_admin_empty) }
+        val head = getString(R.string.raycontrol_admin_dns_checked, date(answer.l("checkedAt"))) +
+                if (answer.b("limited")) "\n" + getString(R.string.raycontrol_admin_dns_check_limited) else ""
+        textDialog(getString(R.string.raycontrol_admin_dns_check), head + "\n\n" + text)
+    }
+
+    /** A relay host's SSH: its port and the addresses that reach it without SPA (SetRelayAccess; empty keeps). */
+    private fun relayAccess(name: String) {
+        val port = editText(getString(R.string.raycontrol_admin_relay_ssh_port), number = true)
+        val admin = editText(getString(R.string.raycontrol_admin_access_hint), multiLine = true)
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.raycontrol_admin_relay, name))
+            .setMessage(R.string.raycontrol_admin_relay_access_help)
+            .setView(padded(port, admin))
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val cidrs = admin.text.split('\n', ',', ' ').map { it.trim() }.filter { it.isNotEmpty() }
+                api({
+                    call("SetRelayAccess", body("name" to name, "sshPort" to (port.text.toString().toIntOrNull() ?: 0),
+                        "admin" to cidrs))
+                }) { loadNetwork() }
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()

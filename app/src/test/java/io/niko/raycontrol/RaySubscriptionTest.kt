@@ -223,6 +223,12 @@ class RaySubscriptionTest {
         assertEquals("not_found", RayApi.code(Exception("raycontrol api: not_found")))
         assertEquals("unauthenticated", RayApi.code(Exception("go error: raycontrol api: unauthenticated: device revoked")))
         assertNull(RayApi.code(Exception("raycontrol api: the node did not answer: dial tcp")))
+        // a method an older node does not have: Connect's code, or the bare 404 of its service handler
+        assertTrue(RayApi.unimplemented(Exception("raycontrol api: unimplemented: no GetAppMirror")))
+        assertTrue(RayApi.unimplemented(Exception("raycontrol api: http_404")))
+        assertTrue(!RayApi.unimplemented(Exception("raycontrol api: http_403")))
+        assertTrue(!RayApi.unimplemented(Exception("raycontrol api: not_found: no such user")))
+        assertTrue(!RayApi.unimplemented(Exception("raycontrol api: the node did not answer: http_404")))
     }
 }
 

@@ -23,6 +23,13 @@ object RayApi {
     fun code(e: Throwable): String? =
         e.message?.substringAfter("raycontrol api: ", "")?.substringBefore(':')?.trim()?.takeIf { it.isNotEmpty() && it.all { c -> c.isLowerCase() || c == '_' } }
 
+    /**
+     * A method the node does not have (an older raycontrol): Connect's unimplemented, or the bare 404 its service
+     * handler gives a path it does not route (the core's http_404).
+     */
+    fun unimplemented(e: Throwable): Boolean =
+        code(e) == "unimplemented" || e.message?.substringAfter("raycontrol api: ", "")?.substringBefore(':')?.trim() == "http_404"
+
     // the core's message for Register refused for its PIN (rayapi.Error): the tries the invite has left
     private val PIN_LEFT = Regex("raycontrol api: permission_denied: pin tries left (\\d+)")
 

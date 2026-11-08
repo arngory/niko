@@ -358,6 +358,11 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
             }
 
             when (item.itemId) {
+                R.id.action_ray_admin -> rayNode?.let { node ->
+                    startActivity(Intent(requireContext(), RayAdminActivity::class.java)
+                        .putExtra(RayAdminActivity.EXTRA_NODE, node.spa.nodeId))
+                }
+
                 R.id.action_universal_qr -> {
                     QRCodeDialog(
                         proxyGroup.toUniversalLink(), proxyGroup.displayName()
@@ -432,6 +437,8 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
                 if (proxyGroup.type != GroupType.SUBSCRIPTION) {
                     popup.menu.removeItem(R.id.action_share_subscription)
                 }
+                // a raycontrol node this device is an admin of: its admin panel
+                popup.menu.findItem(R.id.action_ray_admin).isVisible = rayNode?.isAdmin == true
                 popup.setOnMenuItemClickListener(this)
                 popup.show()
             }
@@ -535,7 +542,7 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
                     if (node != null && card != null && proxyGroup.id == group.id) {
                         rayNode = node
                         updateButton.isInvisible = node.subscription == null || group.id in GroupUpdater.updating
-                        groupStatus.text = card.first
+                        groupStatus.text = if (node.isAdmin) getString(R.string.raycontrol_admin_mark, card.first) else card.first
                         if (card.second.isNotEmpty()) {
                             groupTraffic.isVisible = true
                             groupTraffic.text = card.second
