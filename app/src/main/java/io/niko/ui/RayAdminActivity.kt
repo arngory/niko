@@ -353,6 +353,8 @@ class RayAdminActivity : ThemedActivity() {
                 }
                 delay(7_000L)
             }
+            // no outcome is not a failure: the node turns a run without one into failed only after an hour
+            if (isActive) text.text = getString(R.string.raycontrol_admin_update_no_outcome)
         }
         dialog.setOnDismissListener { job.cancel() }
         dialog.show()

@@ -833,6 +833,7 @@
     <string name="raycontrol_admin_update_waiting">Обновление запрошено, ждём ноду…</string>
     <string name="raycontrol_admin_update_unreachable">Нода перезапускается и пока недоступна (обычно минута-другая); спрашиваем снова…</string>
     <string name="raycontrol_admin_update_close">Закрыть (обновление продолжится)</string>
+    <string name="raycontrol_admin_update_no_outcome">Итога пока нет. Нода может ещё обновляться: загляните на вкладку статуса позже, там видно состояние обновления.</string>
     <string-array name="raycontrol_admin_ttls">
         <item>1 час</item>
         <item>1 сутки</item>

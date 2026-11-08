@@ -886,6 +886,7 @@
     <string name="raycontrol_admin_update_waiting">The update is asked for; waiting for the node…</string>
     <string name="raycontrol_admin_update_unreachable">The node is restarting and out of reach for now (a minute or two is usual); asking again…</string>
     <string name="raycontrol_admin_update_close">Close (the update goes on)</string>
+    <string name="raycontrol_admin_update_no_outcome">No outcome yet. The node may still be updating: look at the status tab later, it shows the update\'s state.</string>
     <string-array name="raycontrol_admin_ttls">
         <item>1 hour</item>
         <item>1 day</item>
