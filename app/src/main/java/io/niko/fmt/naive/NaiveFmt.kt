@@ -22,6 +22,9 @@ fun parseNaive(link: String): NaiveBean {
         certificates = url.queryParameter("cert")
         extraHeaders = url.queryParameter("extra-headers")?.unUrlSafe()?.replace("\r\n", "\n")
         insecureConcurrency = url.queryParameter("insecure-concurrency")?.toIntOrNull()
+        // UDP over TCP (sing-box's UoT v2), only where the link says the server takes it: a server without it answers
+        // the tunnel to its magic name and closes it, so every UDP flow would end in EOF
+        sUoT = url.queryParameter("uot")?.lowercase() in setOf("2", "true", "1")
         name = url.fragment
         initializeDefaultValues()
     }
@@ -51,6 +54,7 @@ fun NaiveBean.toUri(proxyOnly: Boolean = false): String {
         if (insecureConcurrency > 0) {
             builder.addQueryParameter("insecure-concurrency", "$insecureConcurrency")
         }
+        if (sUoT == true) builder.addQueryParameter("uot", "2")
     }
     return builder.toLink(if (proxyOnly) proto else "naive+$proto", false)
 }

@@ -57,8 +57,11 @@ func InitCore(process, cachePath, internalAssets, externalAssets string,
 	externalAssetsPath = externalAssets
 	internalAssetsPath = internalAssets
 
-	// Set up log
-	if maxLogSizeKb < 50 {
+	// Set up log: 512 KB unless set (the log is cut to its last part at the service's start, and 50 KB, the
+	// old default, kept less than one Go crash trace)
+	if maxLogSizeKb <= 0 {
+		maxLogSizeKb = 512
+	} else if maxLogSizeKb < 50 {
 		maxLogSizeKb = 50
 	}
 	neko_log.LogWriterDisable = !logEnable
@@ -66,6 +69,7 @@ func InitCore(process, cachePath, internalAssets, externalAssets string,
 	neko_log.SetupLog(int(maxLogSizeKb)*1024, filepath.Join(cachePath, "neko.log"))
 	// every line of the log without secrets (redact.go)
 	log.SetOutput(redactingWriter{neko_log.LogWriter})
+	setCrashOutput(cachePath, isBgProcess)
 
 	// nekoutils
 	nekoutils.Selector_OnProxySelected = intfNiko.Selector_OnProxySelected
@@ -87,6 +91,34 @@ func InitCore(process, cachePath, internalAssets, externalAssets string,
 			extractAssets()
 		}
 	}()
+}
+
+// CrashFile is where a Go crash of the process goes (debug.SetCrashOutput), besides stderr (neko.log): the log is cut
+// to its last part at the next start, which loses the head of a long trace, the panic's message with it.
+func CrashFile(cachePath string, bg bool) string {
+	name := "go-crash.log"
+	if bg {
+		name = "go-crash-bg.log"
+	}
+	return filepath.Join(cachePath, name)
+}
+
+// setCrashOutput appends this process's crashes to its crash file; one past 2 MB moves to .old first (the last crash
+// is what matters, at its whole length).
+func setCrashOutput(cachePath string, bg bool) {
+	path := CrashFile(cachePath, bg)
+	if info, err := os.Stat(path); err == nil && info.Size() > 2<<20 {
+		_ = os.Rename(path, path+".old")
+	}
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o600)
+	if err != nil {
+		log.Println("crash output:", err)
+		return
+	}
+	defer f.Close()
+	if err := debug.SetCrashOutput(f, debug.CrashOptions{}); err != nil {
+		log.Println("crash output:", err)
+	}
 }
 
 func sendFdToProtect(fd int, path string) error {

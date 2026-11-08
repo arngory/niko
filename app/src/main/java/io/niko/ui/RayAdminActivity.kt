@@ -125,6 +125,12 @@ class RayAdminActivity : ThemedActivity() {
         return true
     }
 
+    // the close (X) on the toolbar: no parent activity is declared, so nothing handled it
+    override fun onSupportNavigateUp(): Boolean {
+        finish()
+        return true
+    }
+
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         if (item.itemId == MENU_ADD) {
             if (tab == USERS) createUser() else if (tab == SERVICES) createService()

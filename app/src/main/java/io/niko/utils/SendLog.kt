@@ -36,6 +36,14 @@ object SendLog {
         report.append(runCatching { io.niko.raycontrol.RayDiagnostics.dump() }.getOrElse { "raycontrol: ${it.message}\n" })
         report.append("\n")
         report.append(String(getNekoLog(0)))
+        // the core's crashes, each at its whole length (libcore setCrashOutput): the log keeps only its last part
+        for (name in listOf("go-crash-bg.log", "go-crash.log", "go-crash-bg.log.old", "go-crash.log.old")) {
+            val crash = File(SagerNet.application.cacheDir, name)
+            if (crash.length() > 0) {
+                report.append("\n\n==== $name (${crash.length()} bytes, ${java.util.Date(crash.lastModified())})\n")
+                report.append(runCatching { crash.readText() }.getOrElse { it.toString() })
+            }
+        }
         // the whole export without secrets and node addresses, logcat and old log lines too (libcore redact.go);
         // the nodes as stored now, also those the service process added
         io.niko.raycontrol.RayNodes.syncLogRedactions()

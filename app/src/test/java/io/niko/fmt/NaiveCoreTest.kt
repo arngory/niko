@@ -39,6 +39,15 @@ class NaiveCoreTest {
     }
 
     @Test
+    fun udpOverTcpOnlyWhereTheLinkSaysSo() {
+        // a server without UoT (a raycontrol node so far) closes the tunnel to the magic name: off unless the link
+        // says the server takes it
+        assertFalse(parseNaive("naive+https://u:p@198.51.100.1:443#n").sUoT)
+        assertEquals(true, parseNaive("naive+https://u:p@198.51.100.1:443?uot=2#n").sUoT)
+        assertFalse(parseNaive("naive+https://u:p@198.51.100.1:443?uot=0#n").sUoT)
+    }
+
+    @Test
     fun headers() {
         assertEquals(mapOf("X-A" to "1", "X-B" to "two: parts"), naiveHeaders("X-A: 1\nX-B: two: parts\n\nbad"))
     }

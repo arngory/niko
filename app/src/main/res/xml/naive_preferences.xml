@@ -64,6 +64,7 @@
     <PreferenceCategory app:title="sing-box server">
         <SwitchPreference
             app:key="sUoT"
+            app:summary="@string/naive_uot_summary"
             app:title="UDP over TCP" />
     </PreferenceCategory>
 </PreferenceScreen>
