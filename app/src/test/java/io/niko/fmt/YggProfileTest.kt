@@ -68,4 +68,20 @@ class YggProfileTest {
         direct.parseDuckSoft("https://uuid@[200:1234::1]:31337?type=raw&niko-ygg=$ygg".toHttpUrl())
         assertEquals("", direct.yggVia)
     }
+
+    @Test
+    fun peerDialledAtTheNode() {
+        // the subscription's peer names the service (raycontrol sub.go: the service's random name), the node is known
+        // by its address: dialled there, the name kept as the TLS name
+        assertEquals("tls://203.0.113.2:443?key=$nodeKey&sni=node.example", yggPeerAtNode(peer, "203.0.113.2"))
+        assertEquals("tls://[2001:db8::2]:443?key=$nodeKey&sni=node.example", yggPeerAtNode(peer, "2001:db8::2"))
+        // no sni: the name becomes it
+        assertEquals("tls://203.0.113.2:443?key=$nodeKey&sni=node.example",
+            yggPeerAtNode("tls://node.example:443?key=$nodeKey", "203.0.113.2"))
+        // already the node, or at an address: as it is
+        assertEquals(peer, yggPeerAtNode(peer, "node.example"))
+        val atAddress = "tls://198.51.100.9:443?key=$nodeKey&sni=node.example"
+        assertEquals(atAddress, yggPeerAtNode(atAddress, "203.0.113.2"))
+        assertEquals("203.0.113.2", yggPeerHost(yggPeerAtNode(peer, "203.0.113.2")))
+    }
 }

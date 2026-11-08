@@ -184,7 +184,12 @@ data class ProxyEntity(
         TYPE_SOCKS -> socksBean!!.protocolName()
         TYPE_HTTP -> if (httpBean!!.isTLS()) "HTTPS" else "HTTP"
         TYPE_SS -> "Shadowsocks"
-        TYPE_VMESS -> if (vmessBean!!.isVLESS) "VLESS" else "VMess"
+        // a VLESS whose server is in the Yggdrasil mesh: the profile goes through Yggdrasil (its own mesh node with
+        // the node as the peer, or the app's), VLESS is the proxy inside it
+        TYPE_VMESS -> vmessBean!!.let { b ->
+            val name = if (b.isVLESS) "VLESS" else "VMess"
+            if (!b.yggPeer.isNullOrBlank() || b.serverAddress?.isYggdrasilAddress() == true) "Yggdrasil · $name" else name
+        }
         TYPE_TROJAN -> "Trojan"
         TYPE_TROJAN_GO -> "Trojan-Go"
         TYPE_MIERU -> "Mieru"

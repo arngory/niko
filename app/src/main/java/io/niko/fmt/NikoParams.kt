@@ -139,6 +139,24 @@ fun parseYggParam(spec: String): Pair<String, String> {
 /** The host a Yggdrasil profile's peer link dials: the node itself. */
 fun yggPeerHost(peer: String): String? = runCatching { java.net.URI(peer).host }.getOrNull()
 
+/**
+ * A raycontrol Yggdrasil peer dialled at the node's own [address], its name kept as the TLS name: the subscription
+ * gives the service's name (a random name under the node's domain), which the node's front routes by but which the
+ * phone would look up in the clear and which resolves only with the zone's wildcard record. The node's address is
+ * also what its SPA opens. A peer already at an address, or one this cannot parse, is left as it is.
+ */
+fun yggPeerAtNode(peer: String, address: String): String {
+    val uri = runCatching { java.net.URI(peer) }.getOrNull() ?: return peer
+    val name = uri.host?.trim('[', ']') ?: return peer
+    val node = address.trim().trim('[', ']')
+    if (node.isEmpty() || name.equals(node, ignoreCase = true) || name.isIpAddress()) return peer
+    val query = uri.rawQuery.orEmpty()
+    val hasSni = query.split('&').any { it.startsWith("sni=") }
+    val newQuery = if (hasSni) query else listOf(query, "sni=$name").filter { it.isNotEmpty() }.joinToString("&")
+    val host = if (node.contains(':')) "[$node]" else node
+    return "${uri.scheme}://$host:${uri.port}${uri.rawPath.orEmpty()}" + (if (newQuery.isNotEmpty()) "?$newQuery" else "")
+}
+
 /** A latency test or probe of a Yggdrasil profile whose key the running connection uses: not run. */
 class YggInUseException(name: String) :
     Exception("$name: its Yggdrasil key is in use by the running connection; a second link would disturb it")

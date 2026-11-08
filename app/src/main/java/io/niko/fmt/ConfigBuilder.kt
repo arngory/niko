@@ -574,7 +574,13 @@ fun buildConfig(
 
                 // a raycontrol Yggdrasil profile (niko-ygg) as the entry hop: the VLESS server is the node's mesh
                 // address, the link to the mesh goes to the node itself
-                val yggPeer = bean.yggPeer?.takeIf { it.isNotBlank() && index == profileList.lastIndex && !proxyEntity.needExternal() }
+                val yggPeerAsGiven = bean.yggPeer?.takeIf { it.isNotBlank() && index == profileList.lastIndex && !proxyEntity.needExternal() }
+                // the row's node: its peer names the service, not the node, so the row's owner when the name is not a
+                // node's host (without it the link went out with no SPA, to a port closed until a knock). The peer is
+                // dialled at the node's address with its name as the TLS name: SPA opens that address, and the name
+                // is not looked up in the clear
+                val yggNode = yggPeerAsGiven?.let { RayNodes.forHost(yggPeerHost(it)) ?: RayNodes.ownerOf(proxyEntity.id)?.first }
+                val yggPeer = yggPeerAsGiven?.let { peer -> yggNode?.let { yggPeerAtNode(peer, it.host) } ?: peer }
                 // a raycontrol node (imported rcdev1) this hop dials; a DNS tunnel never reaches its address
                 // a profile row through a relay in front of the node (relay-v1 §4): knocked at the relay
                 val rayRelay = if (DnsTunnel.of(bean).enabled || yggPeer != null) null
@@ -583,7 +589,7 @@ fun buildConfig(
                 // SNI, a wildcard name of the node), which is not the node's address, and still needs the node's SPA
                 val rayNode = when {
                     DnsTunnel.of(bean).enabled -> null
-                    yggPeer != null -> RayNodes.forHost(yggPeerHost(yggPeer))
+                    yggPeer != null -> yggNode
                     rayRelay != null -> rayRelay.first
                     else -> RayNodes.forHost(bean.serverAddress) ?: RayNodes.ownerOf(proxyEntity.id)?.first
                 }
