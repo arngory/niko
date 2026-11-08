@@ -680,20 +680,33 @@ jobs:
             for i in $(seq 50); do ip link show nikotun > /dev/null 2>&1 && break; sleep 0.2; done
             sleep 1
             nobody() { sudo -u nobody "$@" 2>&1 || true; }
-            out=$(nobody ping -n -c 3 -W 5 1.1.1.1); echo "$out" | sed 's/^/    /'
-            echo "$out" | grep -q "bytes from 1.1.1.1" && echo "ping through the node: answered" ||
+            # the runner's ICMP does not leave Azure: a network of its own behind the node instead, a router
+            # (192.0.2.254) and a host behind it (198.51.100.2), test addresses the node takes for public
+            ns() { sudo ip netns exec "$@"; }
+            sudo ip netns add rtr; sudo ip netns add far
+            sudo ip link add vr0 type veth peer name vr1 netns rtr
+            sudo ip link add vf0 netns rtr type veth peer name vf1 netns far
+            sudo ip addr add 192.0.2.1/24 dev vr0; sudo ip link set vr0 up
+            ns rtr ip addr add 192.0.2.254/24 dev vr1; ns rtr ip addr add 198.51.100.254/24 dev vf0
+            ns rtr ip link set vr1 up; ns rtr ip link set vf0 up; ns rtr ip link set lo up
+            ns rtr sysctl -q -w net.ipv4.ip_forward=1
+            ns far ip addr add 198.51.100.2/24 dev vf1; ns far ip link set vf1 up; ns far ip link set lo up
+            ns far ip route add default via 198.51.100.254
+            sudo ip route add 198.51.100.0/24 via 192.0.2.254
+            out=$(nobody ping -n -c 3 -W 5 198.51.100.2); echo "$out" | sed 's/^/    /'
+            echo "$out" | grep -q "bytes from 198.51.100.2" && echo "ping through the node: answered" ||
               { echo "ping through the node: no answer"; fail=1; }
-            # TTL 1 dies at the first router behind the node (silent when it is private): never an answer from the
-            # destination, as the phone's own stack would give
-            out=$(nobody ping -n -c 2 -W 5 -t 1 1.1.1.1); echo "$out" | sed 's/^/    /'
-            echo "$out" | grep -q "bytes from 1.1.1.1" && { echo "TTL 1 answered by the destination: not through the node"; fail=1; } ||
-              echo "TTL 1: no answer from the destination (the node's path)"
+            # TTL 1 dies at the router behind the node: time exceeded from it, where the phone's own stack would
+            # answer from the destination
+            out=$(nobody ping -n -c 2 -W 5 -t 1 198.51.100.2); echo "$out" | sed 's/^/    /'
+            echo "$out" | grep -q "From 192.0.2.254.*Time to live exceeded" && echo "TTL 1: time exceeded from the router" ||
+              { echo "TTL 1: no time exceeded from the router"; fail=1; }
             # a destination the node does not ping: administratively prohibited, at once
             out=$(nobody ping -n -c 1 -W 5 10.0.0.1); echo "$out" | sed 's/^/    /'
             echo "$out" | grep -qi "filtered\|prohibited" && echo "a private destination: prohibited" ||
               { echo "a private destination: not refused"; fail=1; }
             # longer than the node carries, with DF: too big at 1480
-            out=$(nobody ping -n -c 2 -W 5 -M do -s 1473 1.1.1.1); echo "$out" | sed 's/^/    /'
+            out=$(nobody ping -n -c 2 -W 5 -M do -s 1473 198.51.100.2); echo "$out" | sed 's/^/    /'
             echo "$out" | grep -q "mtu = 1480\|mtu=1480" && echo "too big: 1480" ||
               { echo "too big: no MTU 1480"; fail=1; }
           else
