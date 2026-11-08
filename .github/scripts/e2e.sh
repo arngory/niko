@@ -150,30 +150,58 @@ done
   fail "through the VPN: from '${from:-nowhere}', token $carried, want the node's $node (nc said: $last)"
 echo "through the tunnel: the runner's server saw the request from $from"
 
-echo "== Private DNS with the VPN on (a diagnosis for now: what the system resolves, the resolver's state)"
+echo "== Private DNS with the VPN on (a diagnosis for now): each mode, then strict across a restart of the core"
 # resolved NAME: the address ping got for NAME through the system's resolver (what every app gets), empty: none
 resolved() {
   timeout 15 adb shell "ping -c 1 -W 3 $1" 2>&1 | tr -d '\r' | sed -n 's/^PING [^ ]* (\([^)]*\)).*/\1/p' | head -1
 }
-# a real name for each mode, not asked before in it (the resolver's cache), that a real resolver answers too
-for pair in off:example.com opportunistic:example.org hostname:example.net; do
-  mode=${pair%%:*}
-  name=${pair#*:}
-  timeout 20 adb shell settings put global private_dns_mode "$mode"
-  [ "$mode" = hostname ] && timeout 20 adb shell settings put global private_dns_specifier dns.google
+# the VPN's network in ConnectivityService (network{N}): a restart of the core may keep it, a handover in place;
+# and its interface's index, new with each tun the service makes
+vpn_net() {
+  echo "$(timeout 30 adb shell dumpsys connectivity 2>/dev/null | tr -d '\r' | grep -m1 'ni{VPN' | grep -oE 'network\{[0-9]+\}' | head -1)" \
+    "$(timeout 20 adb shell ip -o link 2>/dev/null | tr -d '\r' | grep -oE '^[0-9]+: tun[0-9]+' | head -1)"
+}
+# wait_resolved NAME TRIES: resolved, tried every 5 s; took: the seconds it took
+wait_resolved() {
   got=
-  for i in $(seq 6); do
+  took=0
+  for i in $(seq "$2"); do
     sleep 5
-    got=$(resolved "$name")
+    took=$((i * 5))
+    got=$(resolved "$1")
     [ -n "$got" ] && break
   done
-  echo "private DNS $mode: $name resolves to '${got:-nothing}'"
-  { echo "=== $mode"; timeout 30 adb shell dumpsys dnsresolver; } >> "$out/dnsresolver.txt" 2>&1
-  timeout 30 adb shell dumpsys dnsresolver 2>&1 | tr -d '\r' | grep -iE "private dns|validat|dot|doh|mode" | head -n 20
+}
+# pdns MODE NAME [HOST]: the mode set (HOST for hostname), then a real name not asked before (the resolver's cache)
+pdns() {
+  timeout 20 adb shell settings put global private_dns_mode "$1"
+  [ -n "${3:-}" ] && timeout 20 adb shell settings put global private_dns_specifier "$3"
+  wait_resolved "$2" 6
+  echo "private DNS $1${3:+ $3}: $2 resolves to '${got:-nothing}'"
+  { echo "=== $1 ${3:-} $2"; timeout 30 adb shell dumpsys dnsresolver; } >> "$out/dnsresolver.txt" 2>&1
+}
+pdns off example.com
+pdns opportunistic example.org
+# dns.google is the remote DNS's own name: the core resolves it for real. Any other host gets FakeDNS's address
+pdns hostname example.net dns.google
+pdns hostname www.iana.org one.one.one.one
+# the core restarted under the same VPN (a profile's change does it): the system keeps the address it resolved the
+# Private DNS host to, which only the core that gave it knew
+net_before=$(vpn_net)
+timeout 20 adb shell am broadcast -a "$pkg.RELOAD" -p "$pkg" --ez "$pkg.extra.FORCE" true > /dev/null
+sleep 3
+for i in $(seq 20); do
+  fetch "reload-$i-$RANDOM"
+  [ "$from" = "$node" ] && [ "$carried" = yes ] && break
+  sleep 3
 done
+echo "the core restarted: the tunnel from '${from:-nowhere}', the VPN's network ${net_before:-?} then $(vpn_net)"
+wait_resolved github.com 12
+echo "private DNS hostname one.one.one.one after the restart: github.com resolves to '${got:-nothing}' (${took} s)"
+{ echo "=== after the restart"; timeout 30 adb shell dumpsys dnsresolver; } >> "$out/dnsresolver.txt" 2>&1
 timeout 20 adb shell settings put global private_dns_mode off
 timeout 30 adb pull "/data/data/$pkg/cache/neko.log" "$out/neko-pdns.log" > /dev/null 2>&1
-grep -E ":853|dns.google" "$out/neko-pdns.log" | tail -n 30
+grep -E ":853|missing fakeip|one\.one\.one\.one" "$out/neko-pdns.log" | tail -n 30
 
 echo "== the VPN down again"
 timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" > /dev/null || fail "the quick toggle did not stop"
