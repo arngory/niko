@@ -533,7 +533,7 @@ jobs:
           cd /tmp/sing-box-src
           # cronet's static library links with clang and lld: the system ld refuses its objects
           CC=clang CXX=clang++ CGO_LDFLAGS=-fuse-ld=lld CGO_ENABLED=1 GOTOOLCHAIN=auto go build -o /tmp/sing-box \
-            -ldflags=-checklinkname=0 -tags=with_naive_outbound,badlinkname,tfogo_checklinkname0 ./cmd/sing-box
+            -ldflags=-checklinkname=0 -tags=with_naive_outbound,with_gvisor,badlinkname,tfogo_checklinkname0 ./cmd/sing-box
           /tmp/sing-box version | head -1
 
       - name: NaiveProxy client and the niko-server front
@@ -572,8 +572,16 @@ jobs:
           uid=$(id -u); mkdir -p /tmp/run/naive && chmod 0710 /tmp/run/naive
           # rayd naive logs a failed dial to the destination at debug only. strace shows its dials: Go connects
           # non-blocking (EINPROGRESS), the outcome is the SO_ERROR of the getsockopt that follows
+          # icmp-v1 (raycontrol v0.21.0): rayd naive pings for the client from ICMP datagram sockets, which the
+          # runner's group must be allowed
+          icmp=""
+          if grep -q 'fs.Bool("icmp"' "$GITHUB_WORKSPACE/raycontrol/cmd/rayd/main.go"; then
+            icmp=-icmp
+            echo "RAYD_ICMP=1" >> "$GITHUB_ENV"
+            sudo sysctl -q -w net.ipv4.ping_group_range="0 2147483647"
+          fi
           nohup strace -f -tt -e trace=connect,getsockopt -o /tmp/rayd-naive.strace \
-            /tmp/rayd naive -users users.json -chain leaf.crt -key leaf.key -front-uid "$uid" \
+            /tmp/rayd naive -users users.json -chain leaf.crt -key leaf.key -front-uid "$uid" $icmp \
               -socket /tmp/run/naive/fd.sock -quic-socket /tmp/run/naive/packet.sock > /tmp/naive-server.log 2>&1 &
           for i in $(seq 50); do [ -S /tmp/run/naive/fd.sock ] && [ -S /tmp/run/naive/packet.sock ] && break; sleep 0.2; done
           jq -n --arg uid "$uid" '{schema: 1, role: "front", log: {level: "info"},
@@ -659,12 +667,44 @@ jobs:
           sleep 1
           python3 .github/scripts/netlog-errors.py --connect 200 /tmp/naive-net.json || fail=1
           python3 .github/scripts/netlog-errors.py --connect 404 /tmp/naive-wrong-net.json || fail=1
+          # ping through the node (icmp-v1, the core's naive `icmp`): a TUN of the core's takes only nobody's traffic;
+          # nobody's ping goes into it, the naive outbound carries the echo to rayd naive, which pings for it
+          if [ -n "${RAYD_ICMP:-}" ]; then
+            jq -n --arg pw "$pw" --argjson tls "$tls" '{log: {level: "debug"},
+              inbounds: [{type: "tun", tag: "tun-in", interface_name: "nikotun", address: ["172.19.0.1/30"], mtu: 9000,
+                          auto_route: true, include_uid: [65534], stack: "gvisor"}],
+              outbounds: [{type: "naive", tag: "naive-icmp", server: "127.0.0.1", server_port: 18446, username: "niko",
+                           password: $pw, icmp: true, tls: $tls}],
+              route: {final: "naive-icmp", auto_detect_interface: true}}' > /tmp/core-icmp.json
+            sudo nohup /tmp/sing-box run -c /tmp/core-icmp.json > /tmp/core-icmp.log 2>&1 &
+            for i in $(seq 50); do ip link show nikotun > /dev/null 2>&1 && break; sleep 0.2; done
+            sleep 1
+            nobody() { sudo -u nobody "$@" 2>&1 || true; }
+            out=$(nobody ping -n -c 3 -W 5 1.1.1.1); echo "$out" | sed 's/^/    /'
+            echo "$out" | grep -q "bytes from 1.1.1.1" && echo "ping through the node: answered" ||
+              { echo "ping through the node: no answer"; fail=1; }
+            # TTL 1 dies at the first router behind the node (silent when it is private): never an answer from the
+            # destination, as the phone's own stack would give
+            out=$(nobody ping -n -c 2 -W 5 -t 1 1.1.1.1); echo "$out" | sed 's/^/    /'
+            echo "$out" | grep -q "bytes from 1.1.1.1" && { echo "TTL 1 answered by the destination: not through the node"; fail=1; } ||
+              echo "TTL 1: no answer from the destination (the node's path)"
+            # a destination the node does not ping: administratively prohibited, at once
+            out=$(nobody ping -n -c 1 -W 5 10.0.0.1); echo "$out" | sed 's/^/    /'
+            echo "$out" | grep -qi "filtered\|prohibited" && echo "a private destination: prohibited" ||
+              { echo "a private destination: not refused"; fail=1; }
+            # longer than the node carries, with DF: too big at 1480
+            out=$(nobody ping -n -c 2 -W 5 -M do -s 1473 1.1.1.1); echo "$out" | sed 's/^/    /'
+            echo "$out" | grep -q "mtu = 1480\|mtu=1480" && echo "too big: 1480" ||
+              { echo "too big: no MTU 1480"; fail=1; }
+          else
+            echo "ping through the node: raycontrol $(git -C raycontrol rev-parse --short HEAD) has no icmp-v1 (from v0.21.0), not checked"
+          fi
           exit $fail
 
       - name: Logs
         if: always()
         run: |
-          for f in front naive-server naive-client naive-wrong naive-quic core-naive; do echo "--- $f"; tail -n 30 /tmp/$f.log 2>/dev/null || true; done
+          for f in front naive-server naive-client naive-wrong naive-quic core-naive core-icmp; do echo "--- $f"; tail -n 30 /tmp/$f.log 2>/dev/null || true; done
           # the client's network errors (certificate, TLS, proxy): the --log output has none of them. naive writes
           # its net log in batches of 15 events and never at exit: a few more tries push the last ones out
           for i in 1 2 3 4; do curl -s -m 5 -o /dev/null -x socks5h://127.0.0.1:11090 https://www.gstatic.com/generate_204 || true; done
@@ -673,4 +713,4 @@ jobs:
           python3 .github/scripts/netlog-errors.py /tmp/naive-net.json 'TUNNEL|RST_STREAM|GOAWAY|HTTP2_STREAM_ERROR|SEND_REQUEST_HEADERS|READ_RESPONSE_HEADERS|NAIVE|HTTP2_SESSION_RECV_DATA|HTTP2_SESSION_SEND_DATA|RECV_RST|STREAM_CLOSE' || true
           echo "--- rayd naive dials (strace: connect, then SO_ERROR)"
           grep -E 'connect\(|SO_ERROR' /tmp/rayd-naive.strace | grep -v 'AF_UNIX' | tail -n 30 || true
-          pkill -x rayd || true; pkill -x naive || true; pkill -x niko-server || true; pkill -x sing-box || true
+          pkill -x rayd || true; pkill -x naive || true; pkill -x niko-server || true; sudo pkill -x sing-box || true
