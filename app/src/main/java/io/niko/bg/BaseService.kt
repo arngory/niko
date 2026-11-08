@@ -146,12 +146,11 @@ class BaseService {
         }
 
         override fun urlTest(): Int {
-            if (data?.proxy?.box == null) {
-                error("core not started")
-            }
+            // a core not built yet has no box (lateinit): an exception Binder cannot carry would end this process
+            val box = data?.proxy?.takeIf { it.isInitialized() }?.box ?: error("core not started")
             try {
                 return Libcore.urlTest(
-                    data!!.proxy!!.box, DataStore.connectionTestURL, 3000
+                    box, DataStore.connectionTestURL, 3000
                 )
             } catch (e: Exception) {
                 error(Protocols.genFriendlyMsg(e.readableMessage))
@@ -184,15 +183,26 @@ class BaseService {
             if (intent.action == Action.SERVICE) data.binder else null
 
         fun reload(force: Boolean = false) {
+            // the broadcast receiver runs this on the main thread: an exception here would end the process
+            try {
+                reloadOrRestart(force)
+            } catch (e: Exception) {
+                Logs.w(e)
+                if (data.state.canStop) stopRunner(true)
+            }
+        }
+
+        private fun reloadOrRestart(force: Boolean) {
             if (DataStore.selectedProxy == 0L) {
                 stopRunner(false, (this as Context).getString(R.string.profile_empty))
             }
             if (!force && canReloadSelector()) {
+                val proxy = data.proxy!!
                 val ent = SagerDatabase.proxyDao.getById(DataStore.selectedProxy)
-                val tag = data.proxy!!.config.profileTagMap[ent?.id] ?: ""
+                val tag = proxy.config.profileTagMap[ent?.id] ?: ""
                 if (tag.isNotBlank() && ent != null) {
                     // select from GUI
-                    data.proxy!!.box.selectOutbound(tag)
+                    proxy.box.selectOutbound(tag)
                     // or select from webui
                     // => selector_OnProxySelected
                 }
@@ -220,14 +230,16 @@ class BaseService {
         }
 
         fun canReloadSelector(): Boolean {
-            if ((data.proxy?.config?.selectorGroupId ?: -1L) < 0) return false
+            // only a core that runs: one still starting has no config yet (lateinit), or a selector that is still
+            // filling its outbounds, and a selection then races it (a Go map read and write at once ends the process)
+            if (data.state != State.Connected) return false
+            val proxy = data.proxy?.takeIf { it.isInitialized() } ?: return false
+            if (proxy.config.selectorGroupId < 0) return false
             val ent = SagerDatabase.proxyDao.getById(DataStore.selectedProxy) ?: return false
             val tmpBox = ProxyInstance(ent)
-            tmpBox.buildConfigTmp()
-            if (tmpBox.lastSelectorGroupId == data.proxy?.lastSelectorGroupId) {
-                return true
-            }
-            return false
+            // a group that no longer builds (a key, a pin, a tunnel's settings): a restart, which reports it
+            if (runCatching { tmpBox.buildConfigTmp() }.onFailure { Logs.w(it) }.isFailure) return false
+            return tmpBox.lastSelectorGroupId == proxy.lastSelectorGroupId
         }
 
         suspend fun startProcesses() {

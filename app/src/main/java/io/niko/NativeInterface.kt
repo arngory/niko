@@ -122,7 +122,9 @@ class NativeInterface : BoxPlatformInterface, NikoInterface {
         Libcore.resetAllConnections(true)
         DataStore.baseService?.apply {
             runOnDefaultDispatcher {
-                val id = data.proxy!!.config.profileTagMap
+                // the core may have stopped or been replaced since: nothing to show then
+                val config = data.proxy?.takeIf { it.isInitialized() }?.config ?: return@runOnDefaultDispatcher
+                val id = config.profileTagMap
                     .filterValues { it == tag }.keys.firstOrNull() ?: -1
                 val ent = SagerDatabase.proxyDao.getById(id) ?: return@runOnDefaultDispatcher
                 // traffic & title

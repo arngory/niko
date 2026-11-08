@@ -21,12 +21,19 @@ class TrafficLooper
     private val idMap = mutableMapOf<Long, TrafficUpdater.TrafficLooperData>() // id to 1 data
     private val tagMap = mutableMapOf<String, TrafficUpdater.TrafficLooperData>() // tag to 1 data
 
-    suspend fun stop() {
+    /** The loop stops at once; the last counts are posted by [finalPost]. */
+    fun cancel() {
         job?.cancel()
-        // finally traffic post
+    }
+
+    /**
+     * The last traffic counts of the core whose profiles are [trafficMap] (its own, not whatever core runs by now),
+     * into the database and to the UI.
+     */
+    suspend fun finalPost(trafficMap: Map<String, List<io.niko.database.ProxyEntity>>?) {
         if (!DataStore.profileTrafficStatistics) return
         val traffic = mutableMapOf<Long, TrafficData>()
-        data.proxy?.config?.trafficMap?.forEach { (_, ents) ->
+        trafficMap?.forEach { (_, ents) ->
             for (ent in ents) {
                 val item = idMap[ent.id] ?: return@forEach
                 ent.rx = item.rx
