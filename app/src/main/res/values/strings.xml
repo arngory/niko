@@ -480,7 +480,7 @@
     <string name="pcap" translatable="false">Pcap</string>
     <string name="pcap_notice">Pcap files will be saved to %s</string>
     <string name="naive_insecure_concurrency">Insecure Concurrency</string>
-    <string name="naive_uot_summary">UDP (WireGuard and WARP, games, QUIC) carried in a TCP stream of the tunnel, sing-box\'s UDP-over-TCP v2. Only for a server that takes it (sing-box\'s naive inbound); a raycontrol node does not yet, there every UDP flow would end in EOF. Off, naive carries TCP only.</string>
+    <string name="naive_uot_summary">UDP (WireGuard and WARP, games, QUIC) carried in a TCP stream of the tunnel, sing-box\'s UDP-over-TCP v2. Only for a server that takes it: sing-box\'s naive inbound, a raycontrol node from v0.20.0 (its links turn it on with uot=2); elsewhere every UDP flow ends in EOF. Off, naive carries TCP only.</string>
     <string name="naive_insecure_concurrency_summary">Use N concurrent tunnel connections to be more
         robust under bad network conditions. More connections make the tunneling easier to detect
         and less secure. This project strives for the strongest security against traffic analysis.
