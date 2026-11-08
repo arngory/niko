@@ -1347,8 +1347,10 @@ fun buildConfig(
                 })
                 // the host of strict Private DNS resolved for real, above every rule that would give it a fake
                 // address: the system keeps what it got for the VPN's network and sends every app's DNS there, and a
-                // fake address holds only while the core that gave it remembers it
-                PrivateDns.strictHost()?.let { host ->
+                // fake address holds only while the core that gave it remembers it. Not in an exported config: the
+                // host may name this install's account (a NextDNS profile's ID); sing-box matches the rule's domain
+                // as written against the lower-case name asked
+                if (!forExport) PrivateDns.strictHost()?.lowercase()?.trimEnd('.')?.takeIf { it.isNotEmpty() }?.let { host ->
                     dns.rules.add(0, DNSRule_DefaultOptions().apply {
                         domain = listOf(host)
                         server = "dns-remote"

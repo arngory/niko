@@ -198,19 +198,23 @@ for i in $(seq 20); do
 done
 [ "$from" = "$node" ] && [ "$carried" = yes ] ||
   fail "after a restart of the core: from '${from:-nowhere}', token $carried, want the node's $node (nc said: $last)"
-echo "the core restarted: the tunnel from $from, the VPN's network ${net_before:-?} then $(vpn_net)"
+net_after=$(vpn_net)
+echo "the core restarted: the tunnel from $from, the VPN's network ${net_before:-?} then $net_after"
 wait_resolved github.com 12
 echo "private DNS hostname one.one.one.one after the restart: github.com resolves to '${got:-nothing}' (${took} s)"
 { echo "=== after the restart"; timeout 30 adb shell dumpsys dnsresolver; } >> "$out/dnsresolver.txt" 2>&1
 [ -n "$got" ] || fail "private DNS hostname one.one.one.one after a restart of the core: github.com not resolved"
-# the addresses the system has for the host on the VPN's network: real ones, not FakeDNS's (198.18.0.0/15)
-netid=$(vpn_net | grep -oE 'network\{[0-9]+\}' | grep -oE '[0-9]+')
+# the addresses the system has for the host on the VPN's network: on a new network resolved again, through the
+# restarted core, whose config has the host: real ones, not FakeDNS's (198.18.0.0/15). Where the network stayed (a
+# handover in place) the system keeps what the core before gave it, and store_fakeip is what keeps it working
+netid=$(grep -oE 'network\{[0-9]+\}' <<< "$net_after" | grep -oE '[0-9]+')
+id_before=$(grep -oE 'network\{[0-9]+\}' <<< "$net_before" | grep -oE '[0-9]+')
 servers=$(timeout 30 adb shell dumpsys dnsresolver 2>/dev/null | tr -d '\r' |
   awk -v id="${netid:-none}" '/NetId: /{on = ($0 ~ ("NetId: " id "$"))} on && /name\{one\.one\.one\.one\}/')
 echo "the VPN's network $netid, its Private DNS servers:"
 echo "${servers:-  (none listed)}"
-if grep -qE '(^|[^0-9.])198\.1[89]\.' <<< "$servers"; then
-  fail "the strict Private DNS host has FakeDNS's address on the VPN's network after a restart of the core"
+if [ -n "$netid" ] && [ "$netid" != "$id_before" ] && grep -qE '(^|[^0-9.])198\.1[89]\.' <<< "$servers"; then
+  fail "the strict Private DNS host has FakeDNS's address on the VPN's new network after a restart of the core"
 fi
 [ -n "$servers" ] || echo "::warning::no Private DNS servers of the VPN's network in dumpsys dnsresolver (its format?)"
 timeout 20 adb shell settings put global private_dns_mode off

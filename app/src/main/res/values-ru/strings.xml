@@ -795,6 +795,22 @@
     <string name="raycontrol_admin_relay_ssh_port">Порт SSH (пусто: не менять)</string>
     <string name="raycontrol_admin_relay_access_help">SSH хоста релея: порт и адреса, которым он открыт без SPA. Пустое поле оставляет как есть.</string>
     <string name="raycontrol_admin_relays_root">Добавлять и удалять релеи и выпускать их бандлы может только root на ноде (rayctl).</string>
+    <string name="raycontrol_admin_users_help">Пользователь получает ноду на устройстве по приглашению: нажмите на пользователя → «Пригласить устройство»</string>
+    <string name="raycontrol_admin_user_create">Создать</string>
+    <string name="raycontrol_admin_user_no_services">На ноде пока нет сервисов: добавьте их на вкладке «Сервисы», затем выдайте пользователю</string>
+    <string name="raycontrol_admin_user_name_required">Нужно имя пользователя</string>
+    <string name="raycontrol_admin_invite_help">Одно приглашение — одно устройство пользователя %s: в Niko на нём «Добавить профиль» → «Отсканировать QR-код» или откройте приглашение как ссылку. Устройство зарегистрируется само и будет обновлять подписку пользователя.</string>
+    <string name="raycontrol_admin_invite_help_created">Пользователь %s создан. К ноде он подключается через свои устройства: пригласите первое сейчас или позже из меню пользователя. Одно приглашение — одно устройство: в Niko на нём «Добавить профиль» → «Отсканировать QR-код» или откройте приглашение как ссылку.</string>
+    <string name="raycontrol_admin_invite_create">Создать приглашение</string>
+    <string name="raycontrol_admin_role_user">Пользователь: подключается через ноду</string>
+    <string name="raycontrol_admin_role_admin">Админ: ещё и управляет нодой с этого устройства</string>
+    <string name="raycontrol_admin_invite_pin">Ещё и PIN (6 цифр, сообщается отдельно)</string>
+    <string name="raycontrol_admin_invite_pin_is">PIN: %s. Сообщите его не тем каналом, что приглашение (звонком, лично); больше он не покажется.</string>
+    <string name="raycontrol_admin_links">Ссылки для других приложений</string>
+    <string name="raycontrol_admin_links_help">В этих ссылках ключи пользователя %s: отдавайте их только ему. Приложения кроме Niko не делают SPA-стук, поэтому им доступны только сервисы, открытые для всех; устройства с Niko получают подписку по приглашению.</string>
+    <string name="raycontrol_admin_option_confirm">%1$s у %2$s: %3$s → %4$s? Применится сразу: клиенты, которые не умеют новое значение, потеряют сервис.</string>
+    <string name="raycontrol_admin_rotate_key_now_confirm">Отвергнуть старый ключ сразу? Все клиенты сервиса потеряют его до обновления подписки.</string>
+    <string name="raycontrol_admin_dns_check_last">Последняя проверка %1$s: %2$s</string>
     <string-array name="raycontrol_admin_ttls">
         <item>1 час</item>
         <item>1 сутки</item>

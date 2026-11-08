@@ -11,9 +11,13 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.WindowManager
 import android.view.ViewGroup
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.RadioButton
+import android.widget.RadioGroup
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -320,7 +324,9 @@ class RayAdminActivity : ThemedActivity() {
     private fun loadUsers(): Unit = api({ call("ListUsers").arr("users") to call("ListServices") }) { (users, list) ->
         services = list.arr("services")
         kinds = list.strs("kinds")
-        show(users.map { u ->
+        // how a user gets the node, and the way to make one, above the users
+        show(listOf(Row("＋ " + getString(R.string.raycontrol_admin_user_new), getString(R.string.raycontrol_admin_users_help)) { createUser() }) +
+            users.map { u ->
             val title = u.s("name") + if (u.b("enabled")) "" else " · " + getString(R.string.raycontrol_admin_disabled)
             val parts = mutableListOf(u.strs("services").joinToString(", ").ifEmpty { getString(R.string.raycontrol_admin_no_services) })
             parts += u.l("expiresAt").let { if (it == 0L) getString(R.string.raycontrol_admin_no_expiry) else getString(R.string.raycontrol_admin_expires, date(it)) }
@@ -334,14 +340,15 @@ class RayAdminActivity : ThemedActivity() {
         val name = user.s("name")
         val enabled = user.b("enabled")
         val actions = listOf<Pair<Int, () -> Unit>>(
-            R.string.raycontrol_admin_devices to { showDevices(name) },
             R.string.raycontrol_admin_invite to { invite(name) },
-            (if (enabled) R.string.disable else R.string.enable) to {
-                api({ call("SetUserEnabled", body("name" to name, "enabled" to !enabled)) }) { loadUsers() }
-            },
+            R.string.raycontrol_admin_devices to { showDevices(name) },
             R.string.raycontrol_admin_user_services to { chooseServices(user.strs("services")) { chosen ->
                 api({ call("SetUserServices", body("name" to name, "services" to chosen)) }) { loadUsers() }
             } },
+            R.string.raycontrol_admin_links to { exportLinks(name) },
+            (if (enabled) R.string.disable else R.string.enable) to {
+                api({ call("SetUserEnabled", body("name" to name, "enabled" to !enabled)) }) { loadUsers() }
+            },
             R.string.delete to { confirm(getString(R.string.raycontrol_admin_delete_user, name)) {
                 api({ call("DeleteUser", body("name" to name)) }) { loadUsers() }
             } },
@@ -353,24 +360,39 @@ class RayAdminActivity : ThemedActivity() {
             .show()
     }
 
+    /** A user in one form: their limits and the node's services they get (the enabled ones ticked), then a device's invite. */
     private fun createUser() {
         val name = editText(getString(R.string.raycontrol_admin_user_name))
         val days = editText(getString(R.string.raycontrol_admin_user_days), "0", number = true)
         val gb = editText(getString(R.string.raycontrol_admin_user_gb), "0", number = true)
         val note = editText(getString(R.string.raycontrol_admin_user_note))
+        val boxes = services.map { s ->
+            CheckBox(this).apply {
+                text = "${s.s("name")} (${s.s("kind")})"
+                isChecked = s.b("enabled")
+                tag = s.s("name")
+            }
+        }
+        val header = TextView(this).apply {
+            setText(if (boxes.isEmpty()) R.string.raycontrol_admin_user_no_services else R.string.raycontrol_admin_user_services)
+            setPadding(0, 24, 0, 0)
+        }
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.raycontrol_admin_user_new)
-            .setView(padded(name, days, gb, note))
-            .setPositiveButton(android.R.string.ok) { _, _ ->
+            .setView(ScrollView(this).apply { addView(padded(name, days, gb, note, header, *boxes.toTypedArray())) })
+            .setPositiveButton(R.string.raycontrol_admin_user_create) { _, _ ->
                 val userName = name.text.toString().trim()
-                if (userName.isEmpty()) return@setPositiveButton
+                if (userName.isEmpty()) return@setPositiveButton snackbar(R.string.raycontrol_admin_user_name_required).show()
                 val expires = days.text.toString().toLongOrNull()?.takeIf { it > 0 }?.let { System.currentTimeMillis() / 1000 + it * 86400 } ?: 0L
                 val limit = gb.text.toString().toLongOrNull()?.takeIf { it > 0 }?.let { it * 1_000_000_000L } ?: 0L
-                chooseServices(emptyList()) { chosen ->
-                    api({
-                        call("CreateUser", body("name" to userName, "expiresAt" to expires.toString(),
-                            "trafficLimitBytes" to limit.toString(), "note" to note.text.toString().trim(), "services" to chosen))
-                    }) { loadUsers() }
+                val chosen = boxes.filter { it.isChecked }.map { it.tag as String }
+                api({
+                    call("CreateUser", body("name" to userName, "expiresAt" to expires.toString(),
+                        "trafficLimitBytes" to limit.toString(), "note" to note.text.toString().trim(), "services" to chosen))
+                }) {
+                    loadUsers()
+                    // a user reaches the node through their devices: the first one's invite now
+                    invite(userName, created = true)
                 }
             }
             .setNegativeButton(android.R.string.cancel, null)
@@ -417,41 +439,91 @@ class RayAdminActivity : ThemedActivity() {
             api({ call("RevokeDevice", body("id" to id)) }) { showDevices(user) }
         }
 
-    private fun invite(user: String) {
+    /**
+     * One device's invite for [user] in one form: its name, its role, how long the invite holds, and a PIN told by
+     * another channel. The short RCINV2 code where the node gives one: a smaller QR.
+     */
+    private fun invite(user: String, created: Boolean = false) {
+        val help = TextView(this).apply {
+            text = getString(if (created) R.string.raycontrol_admin_invite_help_created else R.string.raycontrol_admin_invite_help, user)
+            setPadding(0, 0, 0, 16)
+        }
         val name = editText(getString(R.string.raycontrol_admin_device_name), "phone")
         val roles = arrayOf("user", "admin")
+        val role = radios(getString(R.string.raycontrol_admin_invite_role),
+            listOf(getString(R.string.raycontrol_admin_role_user), getString(R.string.raycontrol_admin_role_admin)), 0)
         val ttls = longArrayOf(3600, 86400, 7 * 86400)
-        var role = 0
-        var ttl = 1
+        val ttl = radios(getString(R.string.raycontrol_admin_invite_ttl), resources.getStringArray(R.array.raycontrol_admin_ttls).toList(), 1)
+        val pin = CheckBox(this).apply { setText(R.string.raycontrol_admin_invite_pin) }
         MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.raycontrol_admin_invite_for, user))
-            .setView(padded(name))
-            .setPositiveButton(R.string.raycontrol_admin_next) { _, _ ->
+            .setView(ScrollView(this).apply { addView(padded(help, name, role.first, role.second, ttl.first, ttl.second, pin)) })
+            .setPositiveButton(R.string.raycontrol_admin_invite_create) { _, _ ->
                 val deviceName = name.text.toString().trim().ifEmpty { "phone" }
-                MaterialAlertDialogBuilder(this)
-                    .setTitle(R.string.raycontrol_admin_invite_role)
-                    .setSingleChoiceItems(roles, role) { _, i -> role = i }
-                    .setPositiveButton(R.string.raycontrol_admin_next) { _, _ ->
-                        MaterialAlertDialogBuilder(this)
-                            .setTitle(R.string.raycontrol_admin_invite_ttl)
-                            .setSingleChoiceItems(resources.getStringArray(R.array.raycontrol_admin_ttls), ttl) { _, i -> ttl = i }
-                            .setPositiveButton(android.R.string.ok) { _, _ ->
-                                api({
-                                    call("CreateInvite", body("user" to user, "name" to deviceName, "role" to roles[role],
-                                        "ttlSeconds" to ttls[ttl].toString()))
-                                }) { answer ->
-                                    val code = answer.s("inviteCode")
-                                    val expires = answer.getAsJsonObject("invite")?.l("expiresAt") ?: 0L
-                                    showInvite(code, getString(R.string.raycontrol_admin_invite_created, user, deviceName, date(expires)))
-                                }
-                            }
-                            .setNegativeButton(android.R.string.cancel, null)
-                            .show()
-                    }
-                    .setNegativeButton(android.R.string.cancel, null)
-                    .show()
+                val request = body("user" to user, "name" to deviceName, "role" to roles[role.second.selected()],
+                    "ttlSeconds" to ttls[ttl.second.selected()].toString())
+                // only when asked: a node before the PIN (api-v1 §3) refuses a field it does not know
+                if (pin.isChecked) request.addProperty("pin", true)
+                api({ call("CreateInvite", request) }) { answer ->
+                    val code = answer.s("inviteCodeShort").ifEmpty { answer.s("inviteCode") }
+                    val expires = answer.getAsJsonObject("invite")?.l("expiresAt") ?: 0L
+                    var message = getString(R.string.raycontrol_admin_invite_created, user, deviceName, date(expires))
+                    answer.s("pin").takeIf { it.isNotEmpty() }?.let { message += "\n\n" + getString(R.string.raycontrol_admin_invite_pin_is, it) }
+                    showInvite(code, message)
+                }
             }
             .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    /** A titled group of choices, [checked] picked. */
+    private fun radios(title: String, labels: List<String>, checked: Int): Pair<TextView, RadioGroup> {
+        val label = TextView(this).apply {
+            text = title
+            setPadding(0, 24, 0, 0)
+        }
+        val group = RadioGroup(this).apply {
+            labels.forEachIndexed { i, text ->
+                addView(RadioButton(this@RayAdminActivity).apply {
+                    id = android.view.View.generateViewId()
+                    this.text = text
+                    isChecked = i == checked
+                })
+            }
+        }
+        return label to group
+    }
+
+    private fun RadioGroup.selected() = (0 until childCount).firstOrNull { (getChildAt(it) as RadioButton).isChecked } ?: 0
+
+    /**
+     * The user's profiles as links (ExportUser), for apps other than Niko: they hold the user's keys, and such an app
+     * does not knock, so it reaches only what is open to everyone. Audited by the node.
+     */
+    private fun exportLinks(user: String): Unit = api({ call("ExportUser", body("name" to user)).arr("profiles") }) { profiles ->
+        val links = profiles.mapNotNull { p -> p.s("link").takeIf { it.isNotBlank() } }
+        if (links.isEmpty()) return@api snackbar(R.string.raycontrol_admin_empty).show()
+        val text = links.joinToString("\n")
+        val view = TextView(this).apply {
+            this.text = getString(R.string.raycontrol_admin_links_help, user) + "\n\n" +
+                profiles.joinToString("\n\n") { p -> "${p.s("service")}:\n${p.s("link")}" }
+            setTextIsSelectable(true)
+            textSize = 12f
+        }
+        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.raycontrol_admin_links)
+            .setView(ScrollView(this).apply { addView(padded(view)) })
+            .setOnDismissListener { window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
+            .setPositiveButton(R.string.share) { _, _ ->
+                startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text), getString(R.string.share)))
+            }
+            .setNeutralButton(R.string.action_copy) { _, _ ->
+                if (SagerNet.trySetPrimaryClip(text, sensitive = true)) snackbar(R.string.copy_success).show()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+            .apply { window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE) }
             .show()
     }
 
@@ -554,15 +626,18 @@ class RayAdminActivity : ThemedActivity() {
         MaterialAlertDialogBuilder(this)
             .setTitle(title)
             .setItems(options) { _, i ->
-                api({ call("RotateService", body("name" to name, "now" to (i == 1))) }) { answer ->
-                    val until = answer.l("prevUntil")
-                    snackbar(if (until > 0) getString(R.string.raycontrol_admin_rotate_key_until, date(until))
-                    else getString(R.string.raycontrol_admin_rotate_key_gone)).show()
-                    loadServices()
-                }
+                if (i == 1) confirm(getString(R.string.raycontrol_admin_rotate_key_now_confirm)) { rotateKeyNow(name, true) }
+                else rotateKeyNow(name, false)
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
+    }
+
+    private fun rotateKeyNow(name: String, now: Boolean): Unit = api({ call("RotateService", body("name" to name, "now" to now)) }) { answer ->
+        val until = answer.l("prevUntil")
+        snackbar(if (until > 0) getString(R.string.raycontrol_admin_rotate_key_until, date(until))
+        else getString(R.string.raycontrol_admin_rotate_key_gone)).show()
+        loadServices()
     }
 
     /**
@@ -624,10 +699,13 @@ class RayAdminActivity : ThemedActivity() {
             .setTitle(getString(R.string.raycontrol_admin_options_of, name))
             .setItems(options.map { "${getString(it.title)}: ${it.current}" }.toTypedArray()) { _, i ->
                 val option = options[i]
+                // applied at once (rayd renders and restarts the service): asked first, a wrong tap may cut its clients
                 val set = { value: String ->
-                    api({ call("SetServiceOption", body("name" to name, "key" to option.key, "value" to value)) }) {
-                        snackbar(getString(R.string.raycontrol_admin_option_set, option.key, value)).show()
-                        loadServices()
+                    confirm(getString(R.string.raycontrol_admin_option_confirm, getString(option.title), name, option.current, value)) {
+                        api({ call("SetServiceOption", body("name" to name, "key" to option.key, "value" to value)) }) {
+                            snackbar(getString(R.string.raycontrol_admin_option_set, option.key, value)).show()
+                            loadServices()
+                        }
                     }
                 }
                 if (option.values != null) {
@@ -678,7 +756,11 @@ class RayAdminActivity : ThemedActivity() {
 
     // ---- network: the node's DNS (its zone at the provider, the tunnels' zones) and its relays
 
-    private fun loadNetwork(): Unit = api({ optional { call("GetDNS") } to optional { call("ListRelays").arr("relays") } }) { (dns, relays) ->
+    private fun loadNetwork(): Unit = api({
+        Triple(optional { call("GetDNS") }, optional { call("ListRelays").arr("relays") },
+            // the last periodic check (now=false runs none); raycontrol v0.13.0, and a rayd that checks zones
+            runCatching { optional { call("CheckDNSZones") } }.getOrNull())
+    }) { (dns, relays, zones) ->
         val rows = mutableListOf<Row>()
         dns?.getAsJsonObject("status")?.let { status ->
             val provider = status.s("provider")
@@ -690,7 +772,14 @@ class RayAdminActivity : ThemedActivity() {
             }
             rows += Row(getString(R.string.raycontrol_admin_dns), summary) { dnsActions(provider.isNotEmpty()) }
         } ?: run { if (dns == null) rows += Row(getString(R.string.raycontrol_admin_dns), getString(R.string.raycontrol_admin_dns_none)) { dnsActions(false) } }
-        rows += Row(getString(R.string.raycontrol_admin_dns_check), getString(R.string.raycontrol_admin_dns_check_summary)) { checkZones() }
+        zones?.let { last ->
+            val checked = last.l("checkedAt")
+            val states = last.arr("zones").groupingBy { it.s("state").ifEmpty { "?" } }.eachCount()
+                .entries.joinToString(", ") { "${it.key} ${it.value}" }
+            val summary = if (checked == 0L) getString(R.string.raycontrol_admin_dns_check_summary)
+            else getString(R.string.raycontrol_admin_dns_check_last, date(checked), states.ifEmpty { "—" })
+            rows += Row(getString(R.string.raycontrol_admin_dns_check), summary) { checkZones() }
+        }
         relays?.forEach { r ->
             val probe = r.l("probePort").takeIf { it > 0 }?.let { " · probe $it" }.orEmpty()
             rows += Row(getString(R.string.raycontrol_admin_relay, r.s("name")), "${r.s("address")} · ${date(r.l("createdAt"))}$probe") {

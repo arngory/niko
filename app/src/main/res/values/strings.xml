@@ -848,6 +848,22 @@
     <string name="raycontrol_admin_relay_ssh_port">SSH port (empty: keep it)</string>
     <string name="raycontrol_admin_relay_access_help">The relay host\'s SSH: its port and the addresses that reach it without SPA. An empty field keeps what is set.</string>
     <string name="raycontrol_admin_relays_root">Relays are added and removed, and their bundles issued, by root on the node (rayctl).</string>
+    <string name="raycontrol_admin_users_help">A user gets the node on a device through an invite: tap the user, then Invite a device</string>
+    <string name="raycontrol_admin_user_create">Create</string>
+    <string name="raycontrol_admin_user_no_services">No services on the node yet: add them on the Services tab, then give them to the user</string>
+    <string name="raycontrol_admin_user_name_required">A user needs a name</string>
+    <string name="raycontrol_admin_invite_help">One invite, one device of %s: in Niko on that device, Add Profile → Scan QR code, or open the invite as a link. The device registers itself and keeps the user\'s subscription up to date.</string>
+    <string name="raycontrol_admin_invite_help_created">%s is created. A user reaches the node through their devices: invite the first one now, or later from the user\'s menu. One invite, one device: in Niko on it, Add Profile → Scan QR code, or open the invite as a link.</string>
+    <string name="raycontrol_admin_invite_create">Create the invite</string>
+    <string name="raycontrol_admin_role_user">User: connects through the node</string>
+    <string name="raycontrol_admin_role_admin">Admin: also manages the node from that device</string>
+    <string name="raycontrol_admin_invite_pin">Ask for a PIN as well (6 digits, told by another channel)</string>
+    <string name="raycontrol_admin_invite_pin_is">PIN: %s. Tell it by another channel than the invite (a call, in person); it is not shown again.</string>
+    <string name="raycontrol_admin_links">Links for other apps</string>
+    <string name="raycontrol_admin_links_help">These links hold %s\'s keys: give them to that person only. Apps other than Niko do not knock (SPA), so they reach only the services open to everyone; Niko devices get the subscription through an invite.</string>
+    <string name="raycontrol_admin_option_confirm">%1$s of %2$s: %3$s → %4$s? It applies at once: clients that cannot use the new value lose the service.</string>
+    <string name="raycontrol_admin_rotate_key_now_confirm">Refuse the old key at once? Every client of the service loses it until it updates its subscription.</string>
+    <string name="raycontrol_admin_dns_check_last">Last check %1$s: %2$s</string>
     <string-array name="raycontrol_admin_ttls">
         <item>1 hour</item>
         <item>1 day</item>
