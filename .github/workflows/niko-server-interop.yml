@@ -31,6 +31,12 @@ jobs:
   integration:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        # pinned: the release raycontrol pins; legacy: one before niko-ack (a node rolled back under links that still
+        # say niko-ack=1), where honest connect must give way
+        server: [pinned, legacy]
     steps:
       - uses: actions/checkout@v4
 
@@ -38,11 +44,14 @@ jobs:
         env:
           NIKO_SERVER_TAG_OVERRIDE: ${{ inputs.niko_server_tag }}
           NIKO_SERVER_SHA256_OVERRIDE: ${{ inputs.niko_server_sha256 }}
+          SERVER: ${{ matrix.server }}
         run: |
           . buildScript/lib/core/get_source_env.sh
           . .github/xray-interop.env
           . .github/niko-server.env
-          if [ -n "$NIKO_SERVER_TAG_OVERRIDE" ]; then
+          if [ "$SERVER" = legacy ]; then
+            NIKO_SERVER_TAG=$NIKO_SERVER_LEGACY_TAG; NIKO_SERVER_SHA256_AMD64=$NIKO_SERVER_LEGACY_SHA256_AMD64
+          elif [ -n "$NIKO_SERVER_TAG_OVERRIDE" ]; then
             [[ "$NIKO_SERVER_TAG_OVERRIDE" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] && [[ "$NIKO_SERVER_SHA256_OVERRIDE" =~ ^[0-9a-f]{64}$ ]] ||
               { echo "the override needs a vX.Y.Z tag and its SHA-256"; exit 1; }
             NIKO_SERVER_TAG=$NIKO_SERVER_TAG_OVERRIDE; NIKO_SERVER_SHA256_AMD64=$NIKO_SERVER_SHA256_OVERRIDE
