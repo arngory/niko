@@ -685,8 +685,7 @@ func relayThrough(t *testing.T, relayAddr string, payload raysub.Payload, host s
 // raycontrol profile: Hysteria2 with the key pin (niko-pin) or the site's certificate, X25519MLKEM768 only, Brutal
 // at downMbps; VLESS over REALITY with Vision, ML-KEM-768 encryption and the ML-DSA-65 key; Yggdrasil as the device's
 // own mesh node with the node as its only peer and VLESS to the node's mesh address. The empty config for a kind not
-// measured here (DNS tunnels, naive: a plugin, not the core). The node's names do not resolve here: a peer's host is
-// the node's address.
+// measured here (DNS tunnels, naive: a plugin, not the core). The peer's host is the node's address (v0.19.1).
 func profileConfig(t *testing.T, link, node, resolver, ca, deviceKey string, downMbps int) (kind, config string) {
 	t.Helper()
 	u, err := url.Parse(link)
@@ -820,6 +819,12 @@ func profileConfig(t *testing.T, link, node, resolver, ca, deviceKey string, dow
 		peer, err := url.Parse(spec[0])
 		if err != nil {
 			t.Fatal(err)
+		}
+		// raycontrol v0.19.1: the peer is dialled at the node's address, the service's name only its TLS name; a
+		// name here would have to resolve and the app's knock would not reach it (the app dials the node either way,
+		// yggPeerAtNode, but an older app does not)
+		if peer.Hostname() != node || peer.Query().Get("sni") == "" {
+			t.Errorf("the Yggdrasil peer %s: want the node's address %s with its name as sni", peer.Redacted(), node)
 		}
 		peer.Host = net.JoinHostPort(node, peer.Port())
 		endpoints = []any{map[string]any{
