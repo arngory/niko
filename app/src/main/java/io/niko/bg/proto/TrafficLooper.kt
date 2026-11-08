@@ -21,17 +21,14 @@ class TrafficLooper
     private val idMap = mutableMapOf<Long, TrafficUpdater.TrafficLooperData>() // id to 1 data
     private val tagMap = mutableMapOf<String, TrafficUpdater.TrafficLooperData>() // tag to 1 data
 
-    /** The loop stops at once; the last counts are posted by [finalPost]. */
-    fun cancel() {
-        job?.cancel()
-    }
-
     /**
-     * The last traffic counts of the core whose profiles are [trafficMap] (its own, not whatever core runs by now),
-     * into the database and to the UI.
+     * Stops the loop (waited for: it may still be filling the counts) and writes the last counts of the core whose
+     * profiles are [trafficMap] (its own, not whatever core runs by then) to the database, so a restart reads them;
+     * returns them for [postFinal]. Takes no binder lock.
      */
-    suspend fun finalPost(trafficMap: Map<String, List<io.niko.database.ProxyEntity>>?) {
-        if (!DataStore.profileTrafficStatistics) return
+    suspend fun stopAndSave(trafficMap: Map<String, List<io.niko.database.ProxyEntity>>?): Map<Long, TrafficData> {
+        job?.cancelAndJoin()
+        if (!DataStore.profileTrafficStatistics) return emptyMap()
         val traffic = mutableMapOf<Long, TrafficData>()
         trafficMap?.forEach { (_, ents) ->
             for (ent in ents) {
@@ -46,6 +43,12 @@ class TrafficLooper
                 )
             }
         }
+        return traffic
+    }
+
+    /** The last counts to the UI: the binder's broadcast lock, never waited for on the main thread. */
+    suspend fun postFinal(traffic: Map<Long, TrafficData>) {
+        if (traffic.isEmpty()) return
         data.binder.broadcast { b ->
             for (t in traffic) {
                 b.cbTrafficUpdate(t.value)

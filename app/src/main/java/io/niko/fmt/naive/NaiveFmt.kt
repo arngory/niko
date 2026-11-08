@@ -24,7 +24,8 @@ fun parseNaive(link: String): NaiveBean {
         insecureConcurrency = url.queryParameter("insecure-concurrency")?.toIntOrNull()
         // UDP over TCP (sing-box's UoT v2), only where the link says the server takes it: a server without it answers
         // the tunnel to its magic name and closes it, so every UDP flow would end in EOF
-        sUoT = url.queryParameter("uot")?.lowercase() in setOf("2", "true", "1")
+        // v2 only, what the core speaks: a "1" may mean v1, which a v1 server would close on every flow
+        sUoT = url.queryParameter("uot") == "2"
         name = url.fragment
         initializeDefaultValues()
     }

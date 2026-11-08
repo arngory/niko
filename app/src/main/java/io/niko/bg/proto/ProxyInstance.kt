@@ -9,6 +9,7 @@ import io.niko.raycontrol.RayNodes
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.launch
 import io.niko.utils.JavaUtil
 
@@ -69,12 +70,13 @@ class ProxyInstance(profile: ProxyEntity, var service: BaseService.Interface? = 
     override fun close() {
         super.close()
         io.niko.fmt.setRunningYggKeys(emptySet())
-        // the loop stops now; its last post waits for the binder's broadcast lock, which a coroutine of the main
-        // thread may hold or be handed next: never waited for on this (main) thread, or neither could go on
+        // the loop stops and its last counts reach the database before this returns (a restart reads the profiles
+        // next); the post to the UI waits for the binder's broadcast lock, which a coroutine of the main thread may
+        // hold or be handed next: never waited for on this (main) thread, or neither could go on
         val stopped = looper ?: return
         looper = null
-        stopped.cancel()
         val trafficMap = if (isInitialized()) config.trafficMap else null
-        GlobalScope.launch(Dispatchers.IO) { stopped.finalPost(trafficMap) }
+        val traffic = runBlocking { stopped.stopAndSave(trafficMap) }
+        GlobalScope.launch(Dispatchers.IO) { stopped.postFinal(traffic) }
     }
 }

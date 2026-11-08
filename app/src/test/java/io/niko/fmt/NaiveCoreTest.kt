@@ -45,6 +45,9 @@ class NaiveCoreTest {
         assertFalse(parseNaive("naive+https://u:p@198.51.100.1:443#n").sUoT)
         assertEquals(true, parseNaive("naive+https://u:p@198.51.100.1:443?uot=2#n").sUoT)
         assertFalse(parseNaive("naive+https://u:p@198.51.100.1:443?uot=0#n").sUoT)
+        // v1 or a bare flag: the core speaks v2 only
+        assertFalse(parseNaive("naive+https://u:p@198.51.100.1:443?uot=1#n").sUoT)
+        assertFalse(parseNaive("naive+https://u:p@198.51.100.1:443?uot=true#n").sUoT)
     }
 
     @Test
