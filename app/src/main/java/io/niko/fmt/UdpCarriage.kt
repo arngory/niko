@@ -46,17 +46,25 @@ fun quicRefusal(sniffed: Boolean) = Rule_DefaultOptions().apply {
 
 /**
  * A copy of the user's [rule] to the proxy that refuses its QUIC, to go just before it: the rule would take QUIC into
- * the proxy ahead of the refusal at the end. Null where a copy would not mean "this rule's QUIC": an inverted rule
- * (the added conditions would invert too), one for TCP only or for another sniffed protocol, and without sniffing one
- * with ports of its own (UDP 443 is the only sign of QUIC then).
+ * the proxy ahead of the refusal at the end. Null where a copy would not mean "this rule's QUIC": a rule with JSON of
+ * its own (it may invert the rule, make it logical, give it route options or other networks, none of which a reject
+ * takes or keeps its meaning in), an inverted or logical one (the added conditions would invert or not fit), one for
+ * TCP only or for another sniffed protocol, and without sniffing one with ports of its own (UDP 443 is the only sign of
+ * QUIC then). Without a copy the rule's QUIC goes into the proxy, as with the switch off.
  */
 fun quicRefusalBefore(rule: Rule_DefaultOptions, sniffed: Boolean): Rule_DefaultOptions? {
-    if (rule.invert == true) return null
-    if (!rule.network.isNullOrEmpty() && "udp" !in rule.network) return null
-    if (!rule.protocol.isNullOrEmpty() && "quic" !in rule.protocol) return null
-    if (!sniffed && (!rule.port.isNullOrEmpty() || !rule.port_range.isNullOrEmpty())) return null
-    // the rule as it goes to the core (its typed fields, its extra keys, the user's own JSON), its outbound out
+    if (!rule._hack_custom_config.isNullOrBlank()) return null
+    // the rule as it goes to the core (its typed fields and extra keys), checked as the core reads it
     val match = rule.asMap().toMutableMap()
+    fun values(key: String): List<String>? = when (val v = match[key]) {
+        null -> null
+        is List<*> -> v.map { it.toString() }
+        else -> listOf(v.toString())
+    }
+    if (match["invert"] == true || (match["type"] ?: "default") != "default") return null
+    values("network")?.let { if (it.isNotEmpty() && "udp" !in it) return null }
+    values("protocol")?.let { if (it.isNotEmpty() && "quic" !in it) return null }
+    if (!sniffed && (!values("port").isNullOrEmpty() || !values("port_range").isNullOrEmpty())) return null
     for (key in listOf("outbound", "action", "network", "protocol", "tls_fragment", "tls_record_fragment")) match.remove(key)
     return quicRefusal(sniffed).also { refusal ->
         val own = refusal.asMap()

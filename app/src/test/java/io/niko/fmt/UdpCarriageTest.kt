@@ -60,6 +60,23 @@ class UdpCarriageTest {
         assertNull(quicRefusalBefore(io.niko.SingBoxOptions.Rule_DefaultOptions().apply { network = listOf("tcp"); outbound = "proxy" }, true))
         assertNull(quicRefusalBefore(io.niko.SingBoxOptions.Rule_DefaultOptions().apply { protocol = listOf("tls"); outbound = "proxy" }, true))
         assertNull(quicRefusalBefore(io.niko.SingBoxOptions.Rule_DefaultOptions().apply { port = listOf(8443); outbound = "proxy" }, false))
+        // a rule with JSON of its own: inverted, logical, with route options or another network, a copy could mean
+        // anything (refuse all but QUIC, or a config the core does not start with): none, its QUIC goes as switched off
+        for (json in listOf(
+            """{"invert": true}""",
+            """{"type": "logical", "mode": "or", "rules": [{"domain_suffix": ["ru"]}]}""",
+            """{"udp_timeout": "5m"}""",
+            """{"network": "tcp"}""",
+        )) {
+            val own = io.niko.SingBoxOptions.Rule_DefaultOptions().apply {
+                domain_suffix = listOf("ru"); outbound = "proxy"; _hack_custom_config = json
+            }
+            assertNull(json, quicRefusalBefore(own, true))
+        }
+        // inverted or logical by the keys the app put in, as the core reads the rule
+        assertNull(quicRefusalBefore(io.niko.SingBoxOptions.Rule_DefaultOptions().apply {
+            domain_suffix = listOf("ru"); outbound = "proxy"; _hack_config_map["invert"] = true
+        }, true))
         // the rule at the end: never a silent drop
         assertEquals(true, quicRefusal(true).asMap()["no_drop"])
     }
