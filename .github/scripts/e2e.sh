@@ -223,8 +223,9 @@ grep -E ":853|missing fakeip|one\.one\.one\.one" "$out/neko-pdns.log" | tail -n 
 
 echo "== FakeDNS's names in the core's cache file: there while the VPN runs, gone once it stops"
 canary="niko-e2e-$RANDOM$RANDOM.example.com"
-got=$(resolved "$canary")
-echo "a name of its own: $canary resolves to '${got:-nothing}'"
+# tried for a while: Private DNS was just turned off, and the system's resolver takes a moment to follow
+wait_resolved "$canary" 6
+echo "a name of its own: $canary resolves to '${got:-nothing}' (${took} s)"
 # in_cache: yes or no, whether the cache file pulled holds the name; nofile when none came
 in_cache() {
   rm -f "$out/cache.db"
