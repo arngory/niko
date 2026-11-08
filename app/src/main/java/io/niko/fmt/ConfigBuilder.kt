@@ -33,6 +33,7 @@ import io.niko.raycontrol.RayNodes
 import io.niko.raycontrol.knockOptions
 import io.niko.ktx.isIpAddress
 import io.niko.ktx.mkPort
+import io.niko.utils.PrivateDns
 import io.niko.utils.PackageCache
 import io.niko.*
 import io.niko.SingBoxOptions.*
@@ -1175,12 +1176,16 @@ fun buildConfig(
         }
 
         // remote rule-sets live in the cache file across restarts: without it every start downloads
-        // them again, and sing-box refuses to start when that first download fails
-        if (!forTest && route.rule_set?.any { it.type == "remote" } == true) {
+        // them again, and sing-box refuses to start when that first download fails. FakeDNS's addresses too: the
+        // system keeps the ones it was given for the VPN's network, which a restart of the core under the same VPN
+        // keeps (a handover in place), the strict Private DNS host's above all; a core that forgot them refuses
+        // them ("missing fakeip record") or gives them to other names, and with the strict mode no app resolves
+        if (!forTest && (useFakeDns || route.rule_set?.any { it.type == "remote" } == true)) {
             if (experimental == null) experimental = ExperimentalOptions()
             experimental.cache_file = CacheFile().apply {
                 enabled = true
                 path = "cache.db" // relative to the core's no_backup working directory
+                if (useFakeDns) store_fakeip = true
             }
         }
 
@@ -1340,6 +1345,15 @@ fun buildConfig(
                     server = "dns-fake"
                     disable_cache = true
                 })
+                // the host of strict Private DNS resolved for real, above every rule that would give it a fake
+                // address: the system keeps what it got for the VPN's network and sends every app's DNS there, and a
+                // fake address holds only while the core that gave it remembers it
+                PrivateDns.strictHost()?.let { host ->
+                    dns.rules.add(0, DNSRule_DefaultOptions().apply {
+                        domain = listOf(host)
+                        server = "dns-remote"
+                    })
+                }
             }
             // force bypass (always top DNS rule)
             if (domainListDNSDirectForce.isNotEmpty()) {

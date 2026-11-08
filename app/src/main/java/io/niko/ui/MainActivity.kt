@@ -8,7 +8,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.RemoteException
-import android.net.NetworkCapabilities
 import android.view.KeyEvent
 import android.view.MenuItem
 import androidx.core.net.toUri
@@ -53,6 +52,7 @@ import io.niko.ktx.onMainDispatcher
 import io.niko.ktx.parseProxies
 import io.niko.ktx.readableMessage
 import io.niko.ktx.runOnDefaultDispatcher
+import io.niko.utils.PrivateDns
 import io.niko.utils.Util
 
 class MainActivity : ThemedActivity(),
@@ -444,14 +444,8 @@ class MainActivity : ThemedActivity(),
      * underlying network's setting is the one in force.
      */
     private fun warnStrictPrivateDns() {
-        if (privateDnsWarned || Build.VERSION.SDK_INT < Build.VERSION_CODES.P || DataStore.serviceMode != Key.MODE_VPN) return
-        val cm = SagerNet.connectivity
-        @Suppress("DEPRECATION")
-        val host = cm.allNetworks.asSequence().filter { network ->
-            cm.getNetworkCapabilities(network)?.let {
-                !it.hasTransport(NetworkCapabilities.TRANSPORT_VPN) && it.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            } == true
-        }.mapNotNull { cm.getLinkProperties(it)?.privateDnsServerName }.firstOrNull() ?: return
+        if (privateDnsWarned || DataStore.serviceMode != Key.MODE_VPN) return
+        val host = PrivateDns.strictHost() ?: return
         privateDnsWarned = true
         snackbar(getString(R.string.private_dns_strict, host)).show()
     }

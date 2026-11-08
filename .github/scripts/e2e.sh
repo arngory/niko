@@ -150,7 +150,7 @@ done
   fail "through the VPN: from '${from:-nowhere}', token $carried, want the node's $node (nc said: $last)"
 echo "through the tunnel: the runner's server saw the request from $from"
 
-echo "== Private DNS with the VPN on (a diagnosis for now): each mode, then strict across a restart of the core"
+echo "== Private DNS with the VPN on: each mode, then strict across a restart of the core"
 # resolved NAME: the address ping got for NAME through the system's resolver (what every app gets), empty: none
 resolved() {
   timeout 15 adb shell "ping -c 1 -W 3 $1" 2>&1 | tr -d '\r' | sed -n 's/^PING [^ ]* (\([^)]*\)).*/\1/p' | head -1
@@ -179,14 +179,15 @@ pdns() {
   wait_resolved "$2" 6
   echo "private DNS $1${3:+ $3}: $2 resolves to '${got:-nothing}'"
   { echo "=== $1 ${3:-} $2"; timeout 30 adb shell dumpsys dnsresolver; } >> "$out/dnsresolver.txt" 2>&1
+  [ -n "$got" ] || fail "private DNS $1${3:+ $3} with the VPN on: $2 not resolved (the system's resolver, every app's)"
 }
 pdns off example.com
 pdns opportunistic example.org
 # dns.google is the remote DNS's own name: the core resolves it for real. Any other host gets FakeDNS's address
 pdns hostname example.net dns.google
 pdns hostname www.iana.org one.one.one.one
-# the core restarted under the same VPN (a profile's change does it): the system keeps the address it resolved the
-# Private DNS host to, which only the core that gave it knew
+# the core restarted (a profile's change does it), now with the strict host in its config: the host resolved for
+# real (above FakeDNS), and where the VPN's network stays (a handover in place) the system keeps the address it had
 net_before=$(vpn_net)
 timeout 20 adb shell am broadcast -a "$pkg.RELOAD" -p "$pkg" --ez "$pkg.extra.FORCE" true > /dev/null
 sleep 3
@@ -195,10 +196,23 @@ for i in $(seq 20); do
   [ "$from" = "$node" ] && [ "$carried" = yes ] && break
   sleep 3
 done
-echo "the core restarted: the tunnel from '${from:-nowhere}', the VPN's network ${net_before:-?} then $(vpn_net)"
+[ "$from" = "$node" ] && [ "$carried" = yes ] ||
+  fail "after a restart of the core: from '${from:-nowhere}', token $carried, want the node's $node (nc said: $last)"
+echo "the core restarted: the tunnel from $from, the VPN's network ${net_before:-?} then $(vpn_net)"
 wait_resolved github.com 12
 echo "private DNS hostname one.one.one.one after the restart: github.com resolves to '${got:-nothing}' (${took} s)"
 { echo "=== after the restart"; timeout 30 adb shell dumpsys dnsresolver; } >> "$out/dnsresolver.txt" 2>&1
+[ -n "$got" ] || fail "private DNS hostname one.one.one.one after a restart of the core: github.com not resolved"
+# the addresses the system has for the host on the VPN's network: real ones, not FakeDNS's (198.18.0.0/15)
+netid=$(vpn_net | grep -oE 'network\{[0-9]+\}' | grep -oE '[0-9]+')
+servers=$(timeout 30 adb shell dumpsys dnsresolver 2>/dev/null | tr -d '\r' |
+  awk -v id="${netid:-none}" '/NetId: /{on = ($0 ~ ("NetId: " id "$"))} on && /name\{one\.one\.one\.one\}/')
+echo "the VPN's network $netid, its Private DNS servers:"
+echo "${servers:-  (none listed)}"
+if grep -qE '(^|[^0-9.])198\.1[89]\.' <<< "$servers"; then
+  fail "the strict Private DNS host has FakeDNS's address on the VPN's network after a restart of the core"
+fi
+[ -n "$servers" ] || echo "::warning::no Private DNS servers of the VPN's network in dumpsys dnsresolver (its format?)"
 timeout 20 adb shell settings put global private_dns_mode off
 timeout 30 adb pull "/data/data/$pkg/cache/neko.log" "$out/neko-pdns.log" > /dev/null 2>&1
 grep -E ":853|missing fakeip|one\.one\.one\.one" "$out/neko-pdns.log" | tail -n 30
