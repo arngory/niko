@@ -90,6 +90,37 @@ data class RayProbeInfo(
     }
 }
 
+/**
+ * The subscription's `traffic` (traffic-limit-v1 §4, raycontrol v0.22.0), only for a user with a limit: bytes used
+ * since the period began, the limit, the next reset (unix s, 0: none, until the admin raises it). Whether it is used
+ * up is the node's word ([exhausted]), never this client's sum.
+ */
+data class RayTraffic(val used: Long, val limit: Long, val since: Long, val reset: Long, val exhausted: Boolean) {
+    /** Near the limit (90 %): the card warns. */
+    val nearLimit get() = !exhausted && limit > 0 && used >= limit / 10 * 9
+
+    fun toJson() = JsonObject().apply {
+        addProperty("v", 1)
+        addProperty("used", used)
+        addProperty("limit", limit)
+        addProperty("since", since)
+        addProperty("reset", reset)
+        if (exhausted) addProperty("exhausted", true)
+    }
+
+    companion object {
+        /** `traffic` of version 1, else null: another version is unknown to this client. */
+        fun fromJson(o: JsonObject?): RayTraffic? {
+            if (o == null || runCatching { o.get("v")?.asInt }.getOrNull() != 1) return null
+            fun long(name: String) = runCatching { o.get(name)?.asLong }.getOrNull()?.takeIf { it >= 0 } ?: 0L
+            return RayTraffic(
+                used = long("used"), limit = long("limit"), since = long("since"), reset = long("reset"),
+                exhausted = runCatching { o.get("exhausted")?.asBoolean }.getOrNull() == true,
+            )
+        }
+    }
+}
+
 /** An imported raycontrol node: SPA v2 parameters and this device's wrapped key. */
 data class RayNode(
     val host: String,
@@ -141,6 +172,8 @@ data class RayNode(
     val appReleases: List<RayAppRelease> = emptyList(),
     // what the node's owner tells its users (the subscription's `note`, raycontrol v0.21.0), null none: the card
     val note: String? = null,
+    // the user's traffic and limit (the subscription's `traffic`, raycontrol v0.22.0), null none: the card
+    val traffic: RayTraffic? = null,
 ) {
     /** What the node is called in the app: its admin's name, else "raycontrol · <host>" as before. */
     val displayName get() = groupName(host, name)
@@ -190,6 +223,7 @@ data class RayNode(
         name?.let { addProperty("name", it) }
         if (appReleases.isNotEmpty()) add("app_releases", JsonArray().apply { appReleases.forEach { add(it.toJson()) } })
         note?.let { addProperty("note", it) }
+        traffic?.let { add("traffic", it.toJson()) }
     }
 
     /** The relay with this address, for a profile row through it. */
@@ -227,6 +261,7 @@ data class RayNode(
             name = o.get("name")?.takeIf { it.isJsonPrimitive }?.asString?.let(::nodeName),
             appReleases = RayAppRelease.listFromJson(o.get("app_releases") as? JsonArray),
             note = o.get("note")?.takeIf { it.isJsonPrimitive }?.asString?.let(::nodeNote),
+            traffic = RayTraffic.fromJson(o.get("traffic") as? JsonObject),
         )
 
         /** The group name of the node at [host] called [name] (null: none given). */

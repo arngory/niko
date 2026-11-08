@@ -18,13 +18,14 @@ class RayNodesTest {
         services = listOf(RayService(3, "reality", "reality")), spaCarriers = listOf("udp", "tls"),
         failedFetches = 2, failedNetwork = "wifi:abc", relays = listOf(relay), subUpdatedAt = 1_700_000_000,
         subExpires = 1_700_259_200, note = "До 100 ГБ в месяц 🙂",
+        traffic = RayTraffic(used = 12_884_901_888, limit = 53_687_091_200, since = 1_767_225_600, reset = 1_769_904_000, exhausted = false),
     )
 
     @Test
     fun jsonRoundTrip() {
         // every field the store keeps comes back, relays and the fetch backoff included
         assertEquals(node, RayNode.fromJson(node.toJson()))
-        val bare = node.copy(relays = emptyList(), failedFetches = 0, failedNetwork = null, spaCarriers = null, note = null)
+        val bare = node.copy(relays = emptyList(), failedFetches = 0, failedNetwork = null, spaCarriers = null, note = null, traffic = null)
         assertEquals(bare, RayNode.fromJson(bare.toJson()))
         assertFalse(bare.toJson().has("relays"))
         assertFalse(bare.toJson().has("note"))
@@ -123,5 +124,28 @@ class RayNodesTest {
         // the card: in an isolate, none without a note
         assertEquals("\u2068До 100 ГБ в месяц 🙂\u2069", RayNodeCard.note(node))
         assertNull(RayNodeCard.note(node.copy(note = null)))
+    }
+
+    @Test
+    fun theUsersTraffic() {
+        fun parse(json: String) = RayTraffic.fromJson(com.google.gson.JsonParser.parseString(json).asJsonObject)
+        val traffic = parse("""{"v": 1, "used": 12884901888, "limit": 53687091200, "since": 1767225600, "reset": 1769904000}""")!!
+        assertFalse(traffic.exhausted)
+        assertFalse(traffic.nearLimit)
+        assertEquals(traffic, RayTraffic.fromJson(traffic.toJson()))
+        assertTrue(parse("""{"v": 1, "used": 49000000000, "limit": 50000000000, "since": 1, "reset": 0}""")!!.nearLimit)
+        // used up is the node's word, and then there is nothing "near" about it
+        val exhausted = parse("""{"v": 1, "used": 1, "limit": 50, "since": 1, "reset": 0, "exhausted": true}""")!!
+        assertTrue(exhausted.exhausted)
+        assertFalse(exhausted.nearLimit)
+        assertEquals(exhausted, RayTraffic.fromJson(exhausted.toJson()))
+        // another version is unknown; nonsense numbers read as none
+        assertNull(parse("""{"v": 2, "used": 1, "limit": 2}"""))
+        assertNull(RayTraffic.fromJson(null))
+        assertEquals(0L, parse("""{"v": 1, "used": -5, "limit": "x"}""")!!.used)
+        // the card: its fact, after a failing fetch, before the rest
+        val facts = RayNodeCard.facts(node.copy(traffic = exhausted, relays = emptyList()), 1_700_000_000, null, null)
+        assertEquals(listOf(RayNodeCard.Fact.Failing(2), RayNodeCard.Fact.Traffic(exhausted)), facts.take(2))
+        assertEquals(RayNodeCard.Fact.Traffic(exhausted), RayNodeCard.facts(node.copy(traffic = exhausted, failedFetches = 0), 1_700_000_000, null, null).first())
     }
 }

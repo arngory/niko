@@ -652,6 +652,11 @@
     <string name="raycontrol_sub_failed">Подписка не обновлена: %s</string>
     <string name="raycontrol_card_status">Профилей: %1$d · обновлена %2$s</string>
     <string name="raycontrol_card_status_never">Профилей: %1$d · ещё не обновлялась</string>
+    <string name="raycontrol_card_traffic">%1$s из %2$s</string>
+    <string name="raycontrol_card_traffic_reset">%1$s из %2$s, сброс %3$s</string>
+    <string name="raycontrol_card_traffic_near">почти исчерпан: %1$s</string>
+    <string name="raycontrol_card_traffic_exhausted">трафик исчерпан до %1$s</string>
+    <string name="raycontrol_card_traffic_exhausted_admin">трафик исчерпан, пока администратор не поднимет лимит</string>
     <string name="raycontrol_card_refused">нода отклонила это устройство, импортируйте его заново</string>
     <string name="raycontrol_card_failing">обновление не проходит (%d раз подряд)</string>
     <string name="raycontrol_card_expires">действует до %s</string>

@@ -1,6 +1,7 @@
 package io.niko.raycontrol
 
 import android.content.Context
+import android.text.format.Formatter
 import io.niko.R
 import java.text.DateFormat
 import java.util.Date
@@ -20,6 +21,7 @@ object RayNodeCard {
         data class Path(val relay: Boolean) : Fact()
         data class Dnstt(val kind: String) : Fact()
         data class Clock(val skew: Long) : Fact()
+        data class Traffic(val traffic: RayTraffic) : Fact()
     }
 
     // a skew the card mentions: SPA v2 fails at 30 s
@@ -31,6 +33,8 @@ object RayNodeCard {
             node.refreshAt == RayNodes.STOPPED -> add(Fact.Refused)
             node.failedFetches > 0 -> add(Fact.Failing(node.failedFetches))
         }
+        // the user's traffic: what is used of the limit, or used up; after what keeps the subscription from coming
+        node.traffic?.let { add(Fact.Traffic(it)) }
         if (node.subExpires > 0) add(Fact.Expires(node.subExpires, node.subExpires <= now))
         // the path only for a node with relays: without one it is always direct
         if (relay != null && node.relays.isNotEmpty()) add(Fact.Path(relay))
@@ -70,9 +74,24 @@ object RayNodeCard {
                 is Fact.Path -> context.getString(if (fact.relay) R.string.raycontrol_card_path_relay else R.string.raycontrol_card_path_direct)
                 is Fact.Dnstt -> context.getString(R.string.raycontrol_card_dnstt, kindName(context, fact.kind))
                 is Fact.Clock -> context.getString(R.string.raycontrol_card_clock, fact.skew)
+                is Fact.Traffic -> traffic(context, fact.traffic)
             }
         }
         return status to listOfNotNull(note(node), info.takeIf { it.isNotEmpty() }).joinToString("\n")
+    }
+
+    private fun traffic(context: Context, traffic: RayTraffic): String {
+        val day = DateFormat.getDateInstance(DateFormat.MEDIUM)
+        val reset = traffic.reset.takeIf { it > 0 }?.let { day.format(Date(it * 1000)) }
+        if (traffic.exhausted) {
+            return if (reset != null) context.getString(R.string.raycontrol_card_traffic_exhausted, reset)
+            else context.getString(R.string.raycontrol_card_traffic_exhausted_admin)
+        }
+        val used = Formatter.formatShortFileSize(context, traffic.used)
+        val limit = Formatter.formatShortFileSize(context, traffic.limit)
+        val line = if (reset != null) context.getString(R.string.raycontrol_card_traffic_reset, used, limit, reset)
+        else context.getString(R.string.raycontrol_card_traffic, used, limit)
+        return if (traffic.nearLimit) context.getString(R.string.raycontrol_card_traffic_near, line) else line
     }
 
     private fun kindName(context: Context, kind: String) = when (kind) {

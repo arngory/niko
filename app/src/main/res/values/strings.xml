@@ -705,6 +705,11 @@
     <string name="raycontrol_sub_failed">Subscription not updated: %s</string>
     <string name="raycontrol_card_status">%1$d profiles · updated %2$s</string>
     <string name="raycontrol_card_status_never">%1$d profiles · not updated yet</string>
+    <string name="raycontrol_card_traffic">%1$s of %2$s</string>
+    <string name="raycontrol_card_traffic_reset">%1$s of %2$s, resets %3$s</string>
+    <string name="raycontrol_card_traffic_near">almost used up: %1$s</string>
+    <string name="raycontrol_card_traffic_exhausted">traffic used up until %1$s</string>
+    <string name="raycontrol_card_traffic_exhausted_admin">traffic used up until the admin raises the limit</string>
     <string name="raycontrol_card_refused">the node refused this device, import it again</string>
     <string name="raycontrol_card_failing">updates fail (%d in a row)</string>
     <string name="raycontrol_card_expires">valid till %s</string>

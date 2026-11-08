@@ -203,14 +203,35 @@ object RaySubscription {
 
         // the UI and the scheduled worker (`:bg`) may both get here: one writer across the processes
         val refreshAt = maxOf(now + 60, nextRefresh(payload, nodeNow) - skew)
+        val subExpires = payload.get("expires")?.takeIf { it.isJsonPrimitive }?.asLong?.minus(skew) ?: 0
+        // the user's traffic is used up (traffic-limit-v1 §4): the node answers with no profiles until the reset,
+        // the rows and the selection stay as they are for then; only what the card shows and the next fetch change
+        // (the answer expires by the reset, within an hour)
+        if (parsed.traffic?.exhausted == true) {
+            val seq = payload.get("seq").asLong
+            RayNodesLock.withLock {
+                RayNodes.update(nodeId) { node ->
+                    if (seq < node.subSeq) node
+                    else node.copy(
+                        subSeq = seq, refreshAt = refreshAt, clockSkew = skew, failedFetches = 0, failedNetwork = null,
+                        subUpdatedAt = now, subExpires = subExpires, traffic = parsed.traffic, note = parsed.note,
+                    )
+                }
+            }
+            RayNodes.get(nodeId)?.groupId?.takeIf { it > 0 }?.let { GroupManager.postReload(it) }
+            return RaySubscriptionResult(
+                profiles = 0, skipped = 0, clockSkew = skew,
+                spaOverTcp = result.get("spa_over_tcp")?.asBoolean == true, runningChanged = false, restarted = false,
+            )
+        }
         val stored = RayNodesLock.withLock {
             store(nodeId, payload.get("seq").asLong, refreshAt, skew, parsed.beans, parsed.links, parsed.doh, parsed.name)?.also {
                 RayNodes.update(nodeId) { node ->
                     node.copy(
                         probe = parsed.probe, spaCarriers = parsed.carriers, failedFetches = 0, failedNetwork = null,
                         relays = parsed.relays, dnsProbeKey = parsed.dnsProbeKey, subUpdatedAt = now,
-                        appReleases = parsed.appReleases, note = parsed.note,
-                        subExpires = payload.get("expires")?.takeIf { it.isJsonPrimitive }?.asLong?.minus(skew) ?: 0,
+                        appReleases = parsed.appReleases, note = parsed.note, traffic = parsed.traffic,
+                        subExpires = subExpires,
                     )
                 }
             }
@@ -240,6 +261,8 @@ object RaySubscription {
         val appReleases: List<RayAppRelease> = emptyList(),
         // what the node's owner tells its users (raycontrol v0.21.0 `note`), shown on the card, null none
         val note: String? = null,
+        // the user's traffic and limit (raycontrol v0.22.0 `traffic`), null none
+        val traffic: RayTraffic? = null,
     )
 
     /**
@@ -308,6 +331,7 @@ object RaySubscription {
             beans, links, doh, skipped, relays, dnsProbeKey, probe, carriers, payload.get("hints") as? JsonObject, name,
             RayAppRelease.listFromPayload(payload),
             RayNode.nodeNote(payload.get("note")?.takeIf { it.isJsonPrimitive }?.asString),
+            RayTraffic.fromJson(payload.get("traffic") as? JsonObject),
         )
     }
 
