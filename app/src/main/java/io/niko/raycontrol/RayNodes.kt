@@ -251,11 +251,7 @@ data class RayNode(
                 i += Character.charCount(cp)
                 when {
                     Character.isWhitespace(cp) || Character.isSpaceChar(cp) -> space = out.isNotEmpty()
-                    Character.getType(cp).let {
-                        it == Character.CONTROL.toInt() || it == Character.FORMAT.toInt() ||
-                            it == Character.UNASSIGNED.toInt() || it == Character.PRIVATE_USE.toInt() ||
-                            it == Character.SURROGATE.toInt()
-                    } -> {}
+                    dropped(cp) -> {}
                     else -> {
                         if (space) {
                             out.append(' ')
@@ -292,7 +288,7 @@ data class RayNode(
          * after U+1F3F4 up to their U+E007F; a mark only on a character, at most [MAX_MARKS] on one. More than
          * [MAX_NOTE] characters end in "…": the note is never cut short without a sign.
          */
-        fun nodeNote(raw: String?): String? {
+        fun nodeNote(raw: String?, max: Int = MAX_NOTE): String? {
             if (raw == null) return null
             val out = StringBuilder()
             var count = 0
@@ -301,9 +297,13 @@ data class RayNode(
             var joiner = 0
             // marks on the last character; -1 none can go on (the start, after a space or a joiner)
             var marks = -1
+            // where the last character with what holds to it (marks, a joined one, a skin tone, a flag's other half,
+            // tags) began: a cut goes back to it, never into the middle of one
+            var boundary = 0
+            var regional = 0
             var cut = false
             fun put(cp: Int): Boolean {
-                if (count >= MAX_NOTE) {
+                if (count >= max) {
                     cut = true
                     return false
                 }
@@ -315,19 +315,22 @@ data class RayNode(
             while (i < raw.length && !cut) {
                 val cp = raw.codePointAt(i)
                 i += Character.charCount(cp)
-                val type = Character.getType(cp)
                 when {
                     Character.isWhitespace(cp) || Character.isSpaceChar(cp) -> {
                         space = out.isNotEmpty()
                         joiner = 0
                         marks = -1
+                        regional = 0
                     }
                     cp == 0x200C || cp == 0x200D -> if (marks >= 0 && !space && joiner == 0) joiner = cp
                     isMark(cp) -> if (marks in 0 until MAX_MARKS && joiner == 0 && !space && put(cp)) marks++
-                    type == Character.CONTROL.toInt() || type == Character.FORMAT.toInt() ||
-                        type == Character.UNASSIGNED.toInt() || type == Character.PRIVATE_USE.toInt() ||
-                        type == Character.SURROGATE.toInt() -> {}
+                    dropped(cp) -> {}
                     else -> {
+                        regional = if (cp in 0x1F1E6..0x1F1FF) regional + 1 else 0
+                        // a new character, unless it holds to the last: joined to it, a skin tone, the second of a
+                        // flag's two letters
+                        val holds = joiner != 0 || cp in 0x1F3FB..0x1F3FF || (regional > 0 && regional % 2 == 0)
+                        if (!holds) boundary = out.length
                         if (space) {
                             if (!put(' '.code)) break
                             space = false
@@ -345,7 +348,7 @@ data class RayNode(
                             if (j > i && j < raw.length && raw.codePointAt(j) == 0xE007F) {
                                 val end = j + Character.charCount(0xE007F)
                                 val tags = raw.substring(i, end)
-                                if (count + tags.codePointCount(0, tags.length) > MAX_NOTE) {
+                                if (count + tags.codePointCount(0, tags.length) > max) {
                                     cut = true
                                     break
                                 }
@@ -357,9 +360,21 @@ data class RayNode(
                     }
                 }
             }
+            if (cut) out.setLength(boundary)
             val text = out.toString().trim()
             if (text.isEmpty()) return null
             return if (cut) "$text…" else text
+        }
+
+        /**
+         * A character a name or a note leaves out: control, format (bidi controls, invisible ones, tags), private use,
+         * surrogates; unassigned ones too, but not where emoji are added (U+1F000-U+1FAFF): the node takes newer emoji
+         * than an older Android knows, and those cannot turn text around or break a line.
+         */
+        private fun dropped(cp: Int) = when (Character.getType(cp).toByte()) {
+            Character.CONTROL, Character.FORMAT, Character.PRIVATE_USE, Character.SURROGATE -> true
+            Character.UNASSIGNED -> cp !in 0x1F000..0x1FAFF
+            else -> false
         }
     }
 }

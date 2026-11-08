@@ -239,6 +239,11 @@ jobs:
           if x /opt/rc/rayctl node name "Нода interop" > /dev/null 2>&1; then
             echo "RAYCONTROL_NODE_NAME=Нода interop" >> "$GITHUB_ENV"
           fi
+          # the node's note (v0.21.0): emoji with a joiner, a flag and right-to-left text, kept as typed
+          note='Лимит 100 ГБ 👨‍👩‍👧 🇷🇺 · مرحبا'
+          if x /opt/rc/rayctl node note "$note" > /dev/null 2>&1; then
+            echo "RAYCONTROL_NODE_NOTE=$note" >> "$GITHUB_ENV"
+          fi
           x /opt/rc/rayctl service add masterdns mdns > /dev/null
           # the test CA in place of ACME: REALITY's site, Yggdrasil and hy2-masq take the site's certificate
           x /opt/rc/rayctl service cert site -chain /opt/cert/chain.pem -key /opt/cert/key.pem

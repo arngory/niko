@@ -805,6 +805,7 @@
     <string name="raycontrol_admin_node_note_none">none</string>
     <string name="raycontrol_admin_node_note_help">Clients show it with the node as plain text after their next subscription update: limits, rules. One line of at most 200 characters (an emoji may take several); empty removes it.</string>
     <string name="raycontrol_admin_node_note_set">Note: %s</string>
+    <string name="raycontrol_admin_node_note_too_long">%1$d characters: the node takes at most %2$d</string>
     <string name="raycontrol_admin_mirror">App releases on the node</string>
     <string name="raycontrol_admin_mirror_off">Off: devices update from GitHub only</string>
     <string name="raycontrol_admin_mirror_empty">none yet</string>

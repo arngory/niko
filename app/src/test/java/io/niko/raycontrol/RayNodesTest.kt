@@ -106,6 +106,20 @@ class RayNodesTest {
         assertEquals("x".repeat(200), RayNode.nodeNote("x".repeat(200) + " \u200B"))
         assertEquals("x".repeat(200) + "…", RayNode.nodeNote("x".repeat(201)))
         assertEquals("🙂".repeat(200) + "…", RayNode.nodeNote("🙂".repeat(250)))
+        // a cut never leaves half a character: a flag without its tags or its other letter, a joined pair without
+        // its second, a letter without its mark; a space before it goes too
+        val englandFlag = "🏴\uDB40\uDC67\uDB40\uDC62\uDB40\uDC65\uDB40\uDC6E\uDB40\uDC67\uDB40\uDC7F"
+        for (tail in listOf(englandFlag, "👨\u200D👩", "🇷🇺", "e\u0301", " y")) {
+            assertEquals(tail, "x".repeat(199) + "…", RayNode.nodeNote("x".repeat(199) + tail + "z"))
+        }
+        assertEquals("x".repeat(198) + "…", RayNode.nodeNote("x".repeat(198) + "👨\u200D👩"))
+        assertEquals("x".repeat(198) + "🇷🇺…", RayNode.nodeNote("x".repeat(198) + "🇷🇺🇺🇦"))
+        // the whole note, uncut, for the admin's own check of its length
+        assertEquals("x".repeat(250), RayNode.nodeNote("x".repeat(250), Int.MAX_VALUE))
+        // emoji newer than the device's tables stay (U+1FAFF unassigned yet); other unassigned characters go
+        assertEquals("a\uD83E\uDEFF", RayNode.nodeNote("a\uD83E\uDEFF"))
+        assertEquals("ab", RayNode.nodeNote("a\u0378b"))
+        assertEquals("a\uD83E\uDEFF", RayNode.nodeName("a\uD83E\uDEFF"))
         // the card: in an isolate, none without a note
         assertEquals("\u2068До 100 ГБ в месяц 🙂\u2069", RayNodeCard.note(node))
         assertNull(RayNodeCard.note(node.copy(note = null)))

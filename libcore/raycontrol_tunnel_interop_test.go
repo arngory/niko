@@ -103,6 +103,10 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 	if want := os.Getenv("RAYCONTROL_NODE_NAME"); want != "" && announced.name != want {
 		t.Fatalf("the node's name in the subscription: %q, want %q", announced.name, want)
 	}
+	// the node's note (raycontrol v0.21.0): as the node keeps it; the app cleans it the same (RayNodesTest)
+	if want := os.Getenv("RAYCONTROL_NODE_NOTE"); want != "" && announced.note != want {
+		t.Fatalf("the node's note in the subscription: %q, want %q", announced.note, want)
+	}
 	probeInfo := result.Payload.Probe
 	if probeInfo == nil || probeInfo.Tunnel == "" {
 		t.Fatalf("subscription without probe: %+v", result.Payload)
@@ -389,16 +393,18 @@ func TestRaycontrolTunnelInterop(t *testing.T) {
 // interopAuthVersion is the dnsauth version the tunnels sign by: 2 when the subscription announces it (appPayload)
 var interopAuthVersion = 1
 
-// payloadAnnounced is what the app takes from the payload beyond the profiles: dnsauth-v2, the node's name
+// payloadAnnounced is what the app takes from the payload beyond the profiles: dnsauth-v2, the node's name and note
 type payloadAnnounced struct {
 	dnsAuthV2 bool
 	name      string
+	note      string
 }
 
 func appPayload(t *testing.T, appJSON string) payloadAnnounced {
 	var app struct {
 		Payload struct {
 			Name    string `json:"name"`
+			Note    string `json:"note"`
 			DNSAuth *struct {
 				V []int `json:"v"`
 			} `json:"dnsauth"`
@@ -447,7 +453,7 @@ func appPayload(t *testing.T, appJSON string) payloadAnnounced {
 			t.Fatal(err)
 		}
 	}
-	return payloadAnnounced{dnsAuthV2: p.DNSAuth != nil && slices.Contains(p.DNSAuth.V, 2), name: p.Name}
+	return payloadAnnounced{dnsAuthV2: p.DNSAuth != nil && slices.Contains(p.DNSAuth.V, 2), name: p.Name, note: p.Note}
 }
 
 // linkParam is link's param, which must be there

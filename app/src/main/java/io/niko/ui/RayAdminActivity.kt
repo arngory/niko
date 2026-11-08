@@ -142,7 +142,7 @@ class RayAdminActivity : ThemedActivity() {
     // ---- calls
 
     /** Runs [call] off the main thread with the refresh indicator; errors go to a snackbar. */
-    private fun <T> api(call: () -> T, done: (T) -> Unit) {
+    private fun <T> api(call: () -> T, failed: (Throwable) -> Unit = {}, done: (T) -> Unit) {
         binding.refreshLayout.isRefreshing = true
         runOnDefaultDispatcher {
             val result = try {
@@ -154,7 +154,10 @@ class RayAdminActivity : ThemedActivity() {
             onMainDispatcher {
                 if (isFinishing || isDestroyed) return@onMainDispatcher
                 binding.refreshLayout.isRefreshing = false
-                result.onSuccess(done).onFailure { snackbar(failure(it)).show() }
+                result.onSuccess(done).onFailure {
+                    snackbar(failure(it)).show()
+                    failed(it)
+                }
             }
         }
     }
@@ -276,18 +279,28 @@ class RayAdminActivity : ThemedActivity() {
         RayNode.nodeNote(note)?.let { "\u2068$it\u2069" } ?: getString(R.string.raycontrol_admin_node_note_none)
 
     /**
-     * The note for the node's users (SetNodeNote): one line of plain text, the node bounds it and refuses what it does
-     * not take; empty takes it away. Line breaks typed in become spaces.
+     * The note for the node's users (SetNodeNote): one line of plain text, empty takes it away. What is typed is
+     * cleaned as clients show a note (line breaks become spaces; invisible and direction characters, stray joiners and
+     * marks go), so the node does not refuse it for them; longer than the node takes, or refused, the dialog comes
+     * back with the text.
      */
-    private fun editNodeNote(current: String) {
+    private fun editNodeNote(current: String, error: String? = null) {
         val input = editText(getString(R.string.raycontrol_admin_node_note), current, multiLine = true)
+        input.error = error
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.raycontrol_admin_node_note)
             .setMessage(R.string.raycontrol_admin_node_note_help)
             .setView(padded(input))
             .setPositiveButton(android.R.string.ok) { _, _ ->
-                val note = input.text.toString().replace(Regex("\\s+"), " ").trim()
-                api({ call("SetNodeNote", body("note" to note)) }) { answer ->
+                val typed = input.text.toString()
+                // cleaned whole: a note longer than the node takes is not cut here, it comes back to be shortened
+                val note = RayNode.nodeNote(typed, Int.MAX_VALUE).orEmpty()
+                val length = note.codePointCount(0, note.length)
+                if (length > RayNode.MAX_NOTE) {
+                    editNodeNote(typed, getString(R.string.raycontrol_admin_node_note_too_long, length, RayNode.MAX_NOTE))
+                    return@setPositiveButton
+                }
+                api({ call("SetNodeNote", body("note" to note)) }, failed = { editNodeNote(typed) }) { answer ->
                     snackbar(getString(R.string.raycontrol_admin_node_note_set, noteShown(answer.s("note")))).show()
                     loadStatus()
                     // this device's own card takes the note with its next subscription: now
