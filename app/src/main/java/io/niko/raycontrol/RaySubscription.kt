@@ -209,7 +209,7 @@ object RaySubscription {
                     node.copy(
                         probe = parsed.probe, spaCarriers = parsed.carriers, failedFetches = 0, failedNetwork = null,
                         relays = parsed.relays, dnsProbeKey = parsed.dnsProbeKey, subUpdatedAt = now,
-                        appReleases = parsed.appReleases,
+                        appReleases = parsed.appReleases, note = parsed.note,
                         subExpires = payload.get("expires")?.takeIf { it.isJsonPrimitive }?.asLong?.minus(skew) ?: 0,
                     )
                 }
@@ -238,6 +238,8 @@ object RaySubscription {
         val name: String? = null,
         // the app's releases the node holds (app-update-v1)
         val appReleases: List<RayAppRelease> = emptyList(),
+        // what the node's owner tells its users (raycontrol v0.21.0 `note`), shown on the card, null none
+        val note: String? = null,
     )
 
     /**
@@ -305,6 +307,7 @@ object RaySubscription {
         return Parsed(
             beans, links, doh, skipped, relays, dnsProbeKey, probe, carriers, payload.get("hints") as? JsonObject, name,
             RayAppRelease.listFromPayload(payload),
+            RayNode.nodeNote(payload.get("note")?.takeIf { it.isJsonPrimitive }?.asString),
         )
     }
 

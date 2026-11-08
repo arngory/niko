@@ -139,6 +139,8 @@ data class RayNode(
     val name: String? = null,
     // the app's releases the node holds whole (app-update-v1: the subscription's app.niko), the update's mirror
     val appReleases: List<RayAppRelease> = emptyList(),
+    // what the node's owner tells its users (the subscription's `note`, raycontrol v0.21.0), null none: the card
+    val note: String? = null,
 ) {
     /** What the node is called in the app: its admin's name, else "raycontrol · <host>" as before. */
     val displayName get() = groupName(host, name)
@@ -187,6 +189,7 @@ data class RayNode(
         if (subExpires > 0) addProperty("sub_expires", subExpires)
         name?.let { addProperty("name", it) }
         if (appReleases.isNotEmpty()) add("app_releases", JsonArray().apply { appReleases.forEach { add(it.toJson()) } })
+        note?.let { addProperty("note", it) }
     }
 
     /** The relay with this address, for a profile row through it. */
@@ -223,6 +226,7 @@ data class RayNode(
             subExpires = o.get("sub_expires")?.asLong ?: 0,
             name = o.get("name")?.takeIf { it.isJsonPrimitive }?.asString?.let(::nodeName),
             appReleases = RayAppRelease.listFromJson(o.get("app_releases") as? JsonArray),
+            note = o.get("note")?.takeIf { it.isJsonPrimitive }?.asString?.let(::nodeNote),
         )
 
         /** The group name of the node at [host] called [name] (null: none given). */
@@ -266,6 +270,96 @@ data class RayNode(
                 }
             }
             return out.toString().trim().takeIf { it.isNotEmpty() }
+        }
+
+        // the node's note: one line, its length in characters (code points) bounded as the node bounds it
+        const val MAX_NOTE = 200
+
+        // marks on one character the note keeps: the node takes no more (a stack of them runs over the card's lines)
+        private const val MAX_MARKS = 4
+
+        private fun isMark(cp: Int) = Character.getType(cp).let {
+            it == Character.NON_SPACING_MARK.toInt() || it == Character.ENCLOSING_MARK.toInt() ||
+                it == Character.COMBINING_SPACING_MARK.toInt()
+        }
+
+        private fun isTag(cp: Int) = cp in 0xE0020..0xE007E
+
+        /**
+         * [raw] as the node's note to show, or null: none, or nothing left. The name's rules (control, format,
+         * private use and unassigned characters go, whitespace runs and line breaks become one space) and what emoji
+         * and scripts need: a zero-width joiner or non-joiner between two characters, the tags of a subdivision flag
+         * after U+1F3F4 up to their U+E007F; a mark only on a character, at most [MAX_MARKS] on one. More than
+         * [MAX_NOTE] characters end in "…": the note is never cut short without a sign.
+         */
+        fun nodeNote(raw: String?): String? {
+            if (raw == null) return null
+            val out = StringBuilder()
+            var count = 0
+            var space = false
+            // a joiner waits for the character after it: before a space, a mark or the end it goes
+            var joiner = 0
+            // marks on the last character; -1 none can go on (the start, after a space or a joiner)
+            var marks = -1
+            var cut = false
+            fun put(cp: Int): Boolean {
+                if (count >= MAX_NOTE) {
+                    cut = true
+                    return false
+                }
+                out.appendCodePoint(cp)
+                count++
+                return true
+            }
+            var i = 0
+            while (i < raw.length && !cut) {
+                val cp = raw.codePointAt(i)
+                i += Character.charCount(cp)
+                val type = Character.getType(cp)
+                when {
+                    Character.isWhitespace(cp) || Character.isSpaceChar(cp) -> {
+                        space = out.isNotEmpty()
+                        joiner = 0
+                        marks = -1
+                    }
+                    cp == 0x200C || cp == 0x200D -> if (marks >= 0 && !space && joiner == 0) joiner = cp
+                    isMark(cp) -> if (marks in 0 until MAX_MARKS && joiner == 0 && !space && put(cp)) marks++
+                    type == Character.CONTROL.toInt() || type == Character.FORMAT.toInt() ||
+                        type == Character.UNASSIGNED.toInt() || type == Character.PRIVATE_USE.toInt() ||
+                        type == Character.SURROGATE.toInt() -> {}
+                    else -> {
+                        if (space) {
+                            if (!put(' '.code)) break
+                            space = false
+                        }
+                        if (joiner != 0) {
+                            if (!put(joiner)) break
+                            joiner = 0
+                        }
+                        if (!put(cp)) break
+                        marks = 0
+                        // a subdivision flag: U+1F3F4, its tags and their end, whole or without the tags
+                        if (cp == 0x1F3F4) {
+                            var j = i
+                            while (j < raw.length && isTag(raw.codePointAt(j))) j += Character.charCount(raw.codePointAt(j))
+                            if (j > i && j < raw.length && raw.codePointAt(j) == 0xE007F) {
+                                val end = j + Character.charCount(0xE007F)
+                                val tags = raw.substring(i, end)
+                                if (count + tags.codePointCount(0, tags.length) > MAX_NOTE) {
+                                    cut = true
+                                    break
+                                }
+                                out.append(tags)
+                                count += tags.codePointCount(0, tags.length)
+                                i = end
+                            }
+                        }
+                    }
+                }
+            }
+            val text = out.toString().trim()
+            if (text.isEmpty()) return null
+            return if (cut) "$text…" else text
         }
     }
 }

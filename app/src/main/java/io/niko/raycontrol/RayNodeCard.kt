@@ -38,7 +38,16 @@ object RayNodeCard {
         if (abs(node.clockSkew) > CLOCK_OFF) add(Fact.Clock(node.clockSkew))
     }
 
-    /** The status line (profiles, last update) and the line of facts, empty when there are none. */
+    /**
+     * The node's note as the card shows it: plain text (no links, no markup: a TextView without autoLink) in an
+     * isolate, so a right-to-left note keeps its own order and leaves the lines around it theirs. It wraps.
+     */
+    fun note(node: RayNode) = node.note?.let { "\u2068$it\u2069" }
+
+    /**
+     * The status line (profiles, last update) and the lines under it: the node's note and the line of facts, empty
+     * when there are none.
+     */
     fun lines(context: Context, node: RayNode, profiles: Long): Pair<String, String> {
         val now = System.currentTimeMillis() / 1000
         val format = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
@@ -63,7 +72,7 @@ object RayNodeCard {
                 is Fact.Clock -> context.getString(R.string.raycontrol_card_clock, fact.skew)
             }
         }
-        return status to info
+        return status to listOfNotNull(note(node), info.takeIf { it.isNotEmpty() }).joinToString("\n")
     }
 
     private fun kindName(context: Context, kind: String) = when (kind) {

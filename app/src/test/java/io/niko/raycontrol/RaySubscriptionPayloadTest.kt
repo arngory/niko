@@ -6,6 +6,7 @@ import io.niko.fmt.DnsTunnel
 import io.niko.fmt.hysteria.HysteriaBean
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -58,6 +59,18 @@ class RaySubscriptionPayloadTest {
         assertEquals(listOf("udp", "tls", "tcp"), parsed.carriers)
         // dnsprobe-v1: the key for the dnstt user
         assertNotNull(parsed.dnsProbeKey)
+        // a node before v0.21.0 has no note
+        assertNull(parsed.note)
+    }
+
+    @Test
+    fun theNodesNote() {
+        val noted = withAuto(payload).apply { addProperty("note", "Лимит 100 ГБ\u202E\n😀") }
+        assertEquals("Лимит 100 ГБ 😀", RaySubscription.parse(noted, emptyMap(), payload.get("time").asLong).note)
+        noted.addProperty("note", 5)
+        assertEquals("5", RaySubscription.parse(noted, emptyMap(), payload.get("time").asLong).note)
+        noted.add("note", JsonObject())
+        assertNull(RaySubscription.parse(noted, emptyMap(), payload.get("time").asLong).note)
     }
 
     @Test

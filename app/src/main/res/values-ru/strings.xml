@@ -746,6 +746,10 @@
     <string name="raycontrol_admin_node_name_none">нет (клиенты показывают адрес)</string>
     <string name="raycontrol_admin_node_name_help">Клиенты показывают его вместо адреса ноды после следующего обновления подписки. Не больше 48 символов; пустое убирает имя.</string>
     <string name="raycontrol_admin_node_name_set">Имя ноды: %s</string>
+    <string name="raycontrol_admin_node_note">Описание для пользователей</string>
+    <string name="raycontrol_admin_node_note_none">нет</string>
+    <string name="raycontrol_admin_node_note_help">Клиенты показывают его у ноды простым текстом после следующего обновления подписки: лимиты, правила. Одна строка до 200 символов (эмодзи может занять несколько); пустое убирает описание.</string>
+    <string name="raycontrol_admin_node_note_set">Описание: %s</string>
     <string name="raycontrol_admin_mirror">Релизы приложения на ноде</string>
     <string name="raycontrol_admin_mirror_off">Выключено: устройства обновляются только с GitHub</string>
     <string name="raycontrol_admin_mirror_empty">пока нет</string>

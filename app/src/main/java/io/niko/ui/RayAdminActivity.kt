@@ -228,6 +228,11 @@ class RayAdminActivity : ThemedActivity() {
             extra += Row(getString(R.string.raycontrol_admin_node_name),
                 name.ifEmpty { getString(R.string.raycontrol_admin_node_name_none) }) { editNodeName(name) }
         }
+        // the note for the node's users (raycontrol v0.21.0): GetStatus leaves it out while there is none
+        if (status.has("note") || status.s("version").let { it.isNotEmpty() && isNewerVersion(it, "0.20.99") }) {
+            val note = status.s("note")
+            extra += Row(getString(R.string.raycontrol_admin_node_note), noteShown(note)) { editNodeNote(note) }
+        }
         data.update?.let { update -> extra += Row(getString(R.string.raycontrol_admin_update), updateSummary(update)) { updateActions(update) } }
         data.mirror?.let { mirror -> extra += Row(getString(R.string.raycontrol_admin_mirror), mirrorSummary(mirror)) { mirrorActions(mirror) } }
         data.summary?.let { summary -> extra += Row(getString(R.string.raycontrol_admin_summary), summarySummary(summary)) { summaryActions(summary) } }
@@ -259,6 +264,33 @@ class RayAdminActivity : ThemedActivity() {
                         answer.s("name").ifEmpty { getString(R.string.raycontrol_admin_node_name_none) })).show()
                     loadStatus()
                     // this device's own group takes the name with its next subscription: now
+                    runOnDefaultDispatcher { runCatching { RaySubscription.refresh(node.spa.nodeId) } }
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    /** A note as clients show it: cleaned, in an isolate; "none" for none. */
+    private fun noteShown(note: String) =
+        RayNode.nodeNote(note)?.let { "\u2068$it\u2069" } ?: getString(R.string.raycontrol_admin_node_note_none)
+
+    /**
+     * The note for the node's users (SetNodeNote): one line of plain text, the node bounds it and refuses what it does
+     * not take; empty takes it away. Line breaks typed in become spaces.
+     */
+    private fun editNodeNote(current: String) {
+        val input = editText(getString(R.string.raycontrol_admin_node_note), current, multiLine = true)
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.raycontrol_admin_node_note)
+            .setMessage(R.string.raycontrol_admin_node_note_help)
+            .setView(padded(input))
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val note = input.text.toString().replace(Regex("\\s+"), " ").trim()
+                api({ call("SetNodeNote", body("note" to note)) }) { answer ->
+                    snackbar(getString(R.string.raycontrol_admin_node_note_set, noteShown(answer.s("note")))).show()
+                    loadStatus()
+                    // this device's own card takes the note with its next subscription: now
                     runOnDefaultDispatcher { runCatching { RaySubscription.refresh(node.spa.nodeId) } }
                 }
             }

@@ -799,6 +799,10 @@
     <string name="raycontrol_admin_node_name_none">none (clients show its address)</string>
     <string name="raycontrol_admin_node_name_help">Clients show it in place of the node\'s address after their next subscription update. At most 48 characters; empty removes it.</string>
     <string name="raycontrol_admin_node_name_set">Node name: %s</string>
+    <string name="raycontrol_admin_node_note">Note for users</string>
+    <string name="raycontrol_admin_node_note_none">none</string>
+    <string name="raycontrol_admin_node_note_help">Clients show it with the node as plain text after their next subscription update: limits, rules. One line of at most 200 characters (an emoji may take several); empty removes it.</string>
+    <string name="raycontrol_admin_node_note_set">Note: %s</string>
     <string name="raycontrol_admin_mirror">App releases on the node</string>
     <string name="raycontrol_admin_mirror_off">Off: devices update from GitHub only</string>
     <string name="raycontrol_admin_mirror_empty">none yet</string>

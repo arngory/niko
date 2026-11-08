@@ -17,16 +17,17 @@ class RayNodesTest {
         host = "203.0.113.2", spa = spa, deviceId = "dev-1", deviceKeyWrapped = "w",
         services = listOf(RayService(3, "reality", "reality")), spaCarriers = listOf("udp", "tls"),
         failedFetches = 2, failedNetwork = "wifi:abc", relays = listOf(relay), subUpdatedAt = 1_700_000_000,
-        subExpires = 1_700_259_200,
+        subExpires = 1_700_259_200, note = "До 100 ГБ в месяц 🙂",
     )
 
     @Test
     fun jsonRoundTrip() {
         // every field the store keeps comes back, relays and the fetch backoff included
         assertEquals(node, RayNode.fromJson(node.toJson()))
-        val bare = node.copy(relays = emptyList(), failedFetches = 0, failedNetwork = null, spaCarriers = null)
+        val bare = node.copy(relays = emptyList(), failedFetches = 0, failedNetwork = null, spaCarriers = null, note = null)
         assertEquals(bare, RayNode.fromJson(bare.toJson()))
         assertFalse(bare.toJson().has("relays"))
+        assertFalse(bare.toJson().has("note"))
     }
 
     @Test
@@ -74,5 +75,39 @@ class RayNodesTest {
         // the group: the name, or the address as before
         assertEquals("Амстердам", RayNode.groupName("203.0.113.2", "Амстердам"))
         assertEquals("raycontrol · 203.0.113.2", RayNode.groupName("203.0.113.2", null))
+    }
+
+    @Test
+    fun theNodesNoteAsItIsShown() {
+        assertNull(RayNode.nodeNote(null))
+        assertNull(RayNode.nodeNote(" \u202E\u200D\n"))
+        // one line: line breaks, tabs and the line separator become one space
+        assertEquals("Лимит 100 ГБ. Правила: без торрентов", RayNode.nodeNote(" Лимит 100 ГБ.\n\tПравила:\u2028без торрентов "))
+        // the joiners of emoji and of Persian stay; a family, a heart on fire, a keycap, a skin tone
+        for (text in listOf("👨\u200D👩\u200D👧", "❤\uFE0F\u200D🔥", "1\uFE0F\u20E3", "👍🏽", "می\u200Cخواهم", "🇷🇺")) {
+            assertEquals(text, RayNode.nodeNote(text))
+        }
+        // a joiner not between two characters goes: at the start, before a space, at the end, a second one
+        assertEquals("a b", RayNode.nodeNote("\u200Da\u200D b\u200C"))
+        assertEquals("a\u200Db", RayNode.nodeNote("a\u200D\u200Db"))
+        // the flag of England: its tags up to U+E007F; tags without their end or without the flag go
+        val england = "🏴\uDB40\uDC67\uDB40\uDC62\uDB40\uDC65\uDB40\uDC6E\uDB40\uDC67\uDB40\uDC7F"
+        assertEquals("$england!", RayNode.nodeNote("$england!"))
+        assertEquals("🏴x", RayNode.nodeNote("🏴\uDB40\uDC67\uDB40\uDC62x"))
+        assertEquals("ax", RayNode.nodeNote("a\uDB40\uDC67\uDB40\uDC7Fx"))
+        // bidi overrides and isolates, zero-width space, BOM, private use go: the card puts the note in its own isolate
+        assertEquals("evil", RayNode.nodeNote("\u202Eev\u2066il\u200B\uFEFF\uE000"))
+        // a mark only on a character, at most four on one
+        assertEquals("a b\u0301", RayNode.nodeNote("\u0301a \u0301b\u0301"))
+        assertEquals("e" + "\u0301".repeat(4) + "x", RayNode.nodeNote("e" + "\u0301".repeat(9) + "x"))
+        assertEquals("Tiếng Việt", RayNode.nodeNote("Tiếng Việt"))
+        // 200 characters whole; more end in "…", never cut without a sign
+        assertEquals("x".repeat(200), RayNode.nodeNote("x".repeat(200)))
+        assertEquals("x".repeat(200), RayNode.nodeNote("x".repeat(200) + " \u200B"))
+        assertEquals("x".repeat(200) + "…", RayNode.nodeNote("x".repeat(201)))
+        assertEquals("🙂".repeat(200) + "…", RayNode.nodeNote("🙂".repeat(250)))
+        // the card: in an isolate, none without a note
+        assertEquals("\u2068До 100 ГБ в месяц 🙂\u2069", RayNodeCard.note(node))
+        assertNull(RayNodeCard.note(node.copy(note = null)))
     }
 }
