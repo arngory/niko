@@ -864,6 +864,28 @@
     <string name="raycontrol_admin_option_confirm">%1$s of %2$s: %3$s → %4$s? It applies at once: clients that cannot use the new value lose the service.</string>
     <string name="raycontrol_admin_rotate_key_now_confirm">Refuse the old key at once? Every client of the service loses it until it updates its subscription.</string>
     <string name="raycontrol_admin_dns_check_last">Last check %1$s: %2$s</string>
+    <string name="raycontrol_admin_update">Node update</string>
+    <string name="raycontrol_admin_update_current">Version %s</string>
+    <string name="raycontrol_admin_update_available">Version %1$s; release %2$s is out</string>
+    <string name="raycontrol_admin_update_remote_on">Updates by request: on</string>
+    <string name="raycontrol_admin_update_remote_off">Updates by request: off (root turns them on on the node)</string>
+    <string name="raycontrol_admin_update_auto">Patch releases on their own, %1$s (%2$s)</string>
+    <string name="raycontrol_admin_update_held">Held back after a failed update: %s</string>
+    <string name="raycontrol_admin_update_requested">Update to %1$s asked by %2$s, waiting for the node</string>
+    <string name="raycontrol_admin_update_running">Updating %1$s → %2$s</string>
+    <string name="raycontrol_admin_update_done">Updated %1$s → %2$s, %3$s</string>
+    <string name="raycontrol_admin_update_rolled_back">The update to %1$s rolled back, %2$s runs again</string>
+    <string name="raycontrol_admin_update_failed">The update to %s failed</string>
+    <string name="raycontrol_admin_update_remote_help">Updates by request are off on this node. Root turns them on there: rayctl update remote on. Until then the node updates only by rayctl update on it.</string>
+    <string name="raycontrol_admin_update_to">Update to %s</string>
+    <string name="raycontrol_admin_update_latest">Update to the latest release</string>
+    <string name="raycontrol_admin_update_version">Update to a version…</string>
+    <string name="raycontrol_admin_update_version_hint">vX.Y.Z, newer than the node</string>
+    <string name="raycontrol_admin_update_version_bad">A version is written vX.Y.Z</string>
+    <string name="raycontrol_admin_update_confirm">Update the node to %s? rayd, its API and the tunnels restart: connections through the node drop for a minute or two. An update that fails rolls back to the version running now.</string>
+    <string name="raycontrol_admin_update_waiting">The update is asked for; waiting for the node…</string>
+    <string name="raycontrol_admin_update_unreachable">The node is restarting and out of reach for now (a minute or two is usual); asking again…</string>
+    <string name="raycontrol_admin_update_close">Close (the update goes on)</string>
     <string-array name="raycontrol_admin_ttls">
         <item>1 hour</item>
         <item>1 day</item>

@@ -19,6 +19,7 @@ import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
@@ -43,6 +44,11 @@ import io.niko.raycontrol.RayNode
 import io.niko.raycontrol.RayNodes
 import io.niko.raycontrol.RaySubscription
 import io.niko.utils.isNewerVersion
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.DateFormat
 import java.util.Date
 
@@ -194,7 +200,7 @@ class RayAdminActivity : ThemedActivity() {
 
     private class StatusData(
         val status: JsonObject, val self: JsonObject, val access: JsonObject,
-        val mirror: JsonObject?, val summary: JsonObject?,
+        val mirror: JsonObject?, val summary: JsonObject?, val update: JsonObject?,
     )
 
     private fun loadStatus(): Unit = api({
@@ -202,6 +208,8 @@ class RayAdminActivity : ThemedActivity() {
             call("GetStatus"), RayApi.call(current(), RayApi.DEVICE + "GetSelf"), call("GetAdminAccess"),
             // raycontrol v0.18.0 and v0.11.0: not on an older node
             optional { call("GetAppMirror") }, optional { call("GetSummary") },
+            // raycontrol v0.19.0 (node-update-v1)
+            optional { call("GetUpdateStatus") },
         )
     }) { data ->
         val status = data.status
@@ -214,6 +222,7 @@ class RayAdminActivity : ThemedActivity() {
             extra += Row(getString(R.string.raycontrol_admin_node_name),
                 name.ifEmpty { getString(R.string.raycontrol_admin_node_name_none) }) { editNodeName(name) }
         }
+        data.update?.let { update -> extra += Row(getString(R.string.raycontrol_admin_update), updateSummary(update)) { updateActions(update) } }
         data.mirror?.let { mirror -> extra += Row(getString(R.string.raycontrol_admin_mirror), mirrorSummary(mirror)) { mirrorActions(mirror) } }
         data.summary?.let { summary -> extra += Row(getString(R.string.raycontrol_admin_summary), summarySummary(summary)) { summaryActions(summary) } }
         show(listOf(
@@ -249,6 +258,104 @@ class RayAdminActivity : ThemedActivity() {
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
+    }
+
+    // ---- the node's update by request (raycontrol node-update-v1): a signed release, while root allows it
+
+    private fun updateSummary(update: JsonObject): String {
+        val installed = update.s("installed")
+        val latest = update.s("latest")
+        val parts = mutableListOf(
+            if (latest.isNotEmpty() && isNewerVersion(latest, installed)) getString(R.string.raycontrol_admin_update_available, installed, latest)
+            else getString(R.string.raycontrol_admin_update_current, installed),
+            getString(if (update.s("remote") == "on") R.string.raycontrol_admin_update_remote_on else R.string.raycontrol_admin_update_remote_off),
+        )
+        if (update.s("auto") == "patch") parts += getString(R.string.raycontrol_admin_update_auto, update.s("window"), update.s("timezone"))
+        update.getAsJsonObject("status")?.let { updateState(it) }?.let { parts += it }
+        update.strs("held").takeIf { it.isNotEmpty() }?.let { parts += getString(R.string.raycontrol_admin_update_held, it.joinToString(", ")) }
+        return parts.joinToString("\n")
+    }
+
+    /** The last update in a line; null before any (idle). */
+    private fun updateState(status: JsonObject): String? {
+        val state = status.s("state").ifEmpty { "idle" }
+        val release = status.s("release").ifEmpty { status.s("target") }
+        val line = when (state) {
+            "idle" -> return null
+            "requested" -> getString(R.string.raycontrol_admin_update_requested, release, status.s("by"))
+            "running" -> getString(R.string.raycontrol_admin_update_running, status.s("from"), release)
+            "done" -> getString(R.string.raycontrol_admin_update_done, status.s("from"), status.s("to"), date(status.l("endedAt")))
+            "rolled_back" -> getString(R.string.raycontrol_admin_update_rolled_back, release, status.s("from"))
+            "failed" -> getString(R.string.raycontrol_admin_update_failed, release)
+            else -> state
+        }
+        val error = status.s("error").takeIf { it.isNotBlank() && state in setOf("rolled_back", "failed") }
+        return if (error != null) "$line: $error" else line
+    }
+
+    private fun updateActions(update: JsonObject) {
+        if (update.s("remote") != "on") return textDialog(getString(R.string.raycontrol_admin_update), getString(R.string.raycontrol_admin_update_remote_help))
+        if (update.getAsJsonObject("status")?.s("state") in setOf("requested", "running")) return watchUpdate()
+        val installed = update.s("installed")
+        val latest = update.s("latest")
+        val actions = mutableListOf<Pair<String, () -> Unit>>(
+            if (latest.isNotEmpty() && isNewerVersion(latest, installed)) getString(R.string.raycontrol_admin_update_to, latest) to { startUpdate(latest) }
+            else getString(R.string.raycontrol_admin_update_latest) to { startUpdate("latest") },
+            getString(R.string.raycontrol_admin_update_version) to {
+                val input = editText(getString(R.string.raycontrol_admin_update_version_hint))
+                MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.raycontrol_admin_update_version)
+                    .setView(padded(input))
+                    .setPositiveButton(android.R.string.ok) { _, _ ->
+                        val version = input.text.toString().trim().let { if (it.startsWith("v")) it else "v$it" }
+                        if (Regex("v[0-9]+\\.[0-9]+\\.[0-9]+").matches(version)) startUpdate(version)
+                        else snackbar(R.string.raycontrol_admin_update_version_bad).show()
+                    }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+            },
+        )
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.raycontrol_admin_update)
+            .setItems(actions.map { it.first }.toTypedArray()) { _, i -> actions[i].second() }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    /** StartUpdate answers at once; the update runs after it, rayd and its API restarting on the way. */
+    private fun startUpdate(version: String) = confirm(getString(R.string.raycontrol_admin_update_confirm, version)) {
+        api({ call("StartUpdate", body("version" to version)) }) { watchUpdate() }
+    }
+
+    /**
+     * The update as it goes (GetUpdateStatus every 7 s, node-update-v1 §2), until it ends or 20 min have gone. The
+     * node is out of reach while rayd, its API and the data plane restart: asked again. Closing leaves it running.
+     */
+    private fun watchUpdate() {
+        val text = TextView(this).apply { setText(R.string.raycontrol_admin_update_waiting) }
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.raycontrol_admin_update)
+            .setView(padded(text))
+            .setNegativeButton(R.string.raycontrol_admin_update_close, null)
+            .create()
+        val job = lifecycleScope.launch {
+            val until = System.currentTimeMillis() + 20 * 60_000L
+            while (isActive && System.currentTimeMillis() < until) {
+                val answer = withContext(Dispatchers.IO) { runCatching { call("GetUpdateStatus") } }
+                val status = answer.getOrNull()?.getAsJsonObject("status")
+                text.text = when {
+                    status != null -> updateState(status) ?: getString(R.string.raycontrol_admin_update_waiting)
+                    else -> getString(R.string.raycontrol_admin_update_unreachable)
+                }
+                if (status?.s("state") in setOf("done", "rolled_back", "failed")) {
+                    if (tab == STATUS) loadStatus()
+                    return@launch
+                }
+                delay(7_000L)
+            }
+        }
+        dialog.setOnDismissListener { job.cancel() }
+        dialog.show()
     }
 
     // ---- the app's releases on the node (app-update-v1)

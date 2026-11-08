@@ -811,6 +811,28 @@
     <string name="raycontrol_admin_option_confirm">%1$s у %2$s: %3$s → %4$s? Применится сразу: клиенты, которые не умеют новое значение, потеряют сервис.</string>
     <string name="raycontrol_admin_rotate_key_now_confirm">Отвергнуть старый ключ сразу? Все клиенты сервиса потеряют его до обновления подписки.</string>
     <string name="raycontrol_admin_dns_check_last">Последняя проверка %1$s: %2$s</string>
+    <string name="raycontrol_admin_update">Обновление ноды</string>
+    <string name="raycontrol_admin_update_current">Версия %s</string>
+    <string name="raycontrol_admin_update_available">Версия %1$s; вышел релиз %2$s</string>
+    <string name="raycontrol_admin_update_remote_on">Обновление по запросу: включено</string>
+    <string name="raycontrol_admin_update_remote_off">Обновление по запросу: выключено (включает root на ноде)</string>
+    <string name="raycontrol_admin_update_auto">Патч-релизы сами, %1$s (%2$s)</string>
+    <string name="raycontrol_admin_update_held">Отложены после неудачного обновления: %s</string>
+    <string name="raycontrol_admin_update_requested">Обновление до %1$s запросил %2$s, ждём ноду</string>
+    <string name="raycontrol_admin_update_running">Идёт обновление %1$s → %2$s</string>
+    <string name="raycontrol_admin_update_done">Обновлено %1$s → %2$s, %3$s</string>
+    <string name="raycontrol_admin_update_rolled_back">Обновление до %1$s откатилось, снова работает %2$s</string>
+    <string name="raycontrol_admin_update_failed">Обновление до %s не удалось</string>
+    <string name="raycontrol_admin_update_remote_help">На этой ноде обновление по запросу выключено. Его включает root на самой ноде: rayctl update remote on. До тех пор нода обновляется только командой rayctl update на ней.</string>
+    <string name="raycontrol_admin_update_to">Обновить до %s</string>
+    <string name="raycontrol_admin_update_latest">Обновить до последнего релиза</string>
+    <string name="raycontrol_admin_update_version">Обновить до версии…</string>
+    <string name="raycontrol_admin_update_version_hint">vX.Y.Z, новее ноды</string>
+    <string name="raycontrol_admin_update_version_bad">Версия пишется как vX.Y.Z</string>
+    <string name="raycontrol_admin_update_confirm">Обновить ноду до %s? Перезапустятся rayd, его API и туннели: соединения через ноду пропадут на минуту-другую. Неудачное обновление откатывается к версии, что работает сейчас.</string>
+    <string name="raycontrol_admin_update_waiting">Обновление запрошено, ждём ноду…</string>
+    <string name="raycontrol_admin_update_unreachable">Нода перезапускается и пока недоступна (обычно минута-другая); спрашиваем снова…</string>
+    <string name="raycontrol_admin_update_close">Закрыть (обновление продолжится)</string>
     <string-array name="raycontrol_admin_ttls">
         <item>1 час</item>
         <item>1 сутки</item>
