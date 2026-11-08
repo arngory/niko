@@ -565,8 +565,11 @@ class RayAdminActivity : ThemedActivity() {
             .show()
     }
 
-    /** A setting of a service that may change after its creation (SetServiceOption): its key, what it takes. */
-    private class Option(val key: String, val title: Int, val values: List<String>?, val current: String)
+    /**
+     * A setting of a service that may change after its creation (SetServiceOption): its key, what it takes (values to
+     * pick from, else a number, or text when [text]).
+     */
+    private class Option(val key: String, val title: Int, val values: List<String>?, val current: String, val text: Boolean = false)
 
     private fun optionsOf(service: JsonObject): List<Option> {
         val settings = runCatching { com.google.gson.JsonParser.parseString(service.s("settingsJson")).asJsonObject }
@@ -579,6 +582,8 @@ class RayAdminActivity : ThemedActivity() {
                 else -> null
             }
         } ?: "—"
+        fun list(key: String) = settings.get(key)?.takeIf { it.isJsonArray }?.asJsonArray
+            ?.mapNotNull { e -> e.takeIf { it.isJsonPrimitive }?.asString } ?: emptyList()
         val modes = listOf("off", "optional", "required")
         val onOff = listOf("true", "false")
         return when (service.s("kind")) {
@@ -587,6 +592,9 @@ class RayAdminActivity : ThemedActivity() {
                 Option("auth_hint", R.string.raycontrol_admin_option_auth_hint, modes, now("auth_hint")),
                 Option("seal", R.string.raycontrol_admin_option_seal, modes, now("seal")),
                 Option("spare_zones", R.string.raycontrol_admin_option_spare_zones, null, now("spare_zones")),
+            ) + listOfNotNull(
+                // a spare zone made the main one (dnszones-v1 §5): clients have it already; the main one leaves
+                list("spare_zones").takeIf { it.isNotEmpty() }?.let { Option("zone", R.string.raycontrol_admin_option_zone, it, now("zone")) },
             )
             "slipstream" -> listOf(
                 Option("max_connections", R.string.raycontrol_admin_option_max_connections, null, now("max_connections")),
@@ -600,6 +608,9 @@ class RayAdminActivity : ThemedActivity() {
             "hy2-masq", "hy2-obfs" -> listOf(
                 Option("up_mbps", R.string.raycontrol_admin_option_up_mbps, null, now("up_mbps")),
                 Option("down_mbps", R.string.raycontrol_admin_option_down_mbps, null, now("down_mbps")),
+            )
+            "yggdrasil" -> listOf(
+                Option("peers", R.string.raycontrol_admin_option_peers, null, list("peers").joinToString(", ").ifEmpty { "—" }, text = true),
             )
             else -> emptyList()
         }
@@ -629,7 +640,8 @@ class RayAdminActivity : ThemedActivity() {
                         .setNegativeButton(android.R.string.cancel, null)
                         .show()
                 } else {
-                    val input = editText(getString(option.title), option.current.takeIf { it != "—" } ?: "0", number = true)
+                    val input = if (option.text) editText(getString(option.title), option.current.takeIf { it != "—" } ?: "")
+                    else editText(getString(option.title), option.current.takeIf { it != "—" } ?: "0", number = true)
                     MaterialAlertDialogBuilder(this)
                         .setTitle(option.title)
                         .setView(padded(input))

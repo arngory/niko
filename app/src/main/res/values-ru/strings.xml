@@ -762,6 +762,8 @@
     <string name="raycontrol_admin_option_auth_hint">Подсказка ключа (dnsauth-v2)</string>
     <string name="raycontrol_admin_option_seal">Запечатывание ответов</string>
     <string name="raycontrol_admin_option_spare_zones">Запасные зоны</string>
+    <string name="raycontrol_admin_option_zone">Главная зона (из запасных)</string>
+    <string name="raycontrol_admin_option_peers">Публичные пиры (tls://хост:порт, …; none: нет)</string>
     <string name="raycontrol_admin_option_max_connections">Соединений всего (0: по умолчанию)</string>
     <string name="raycontrol_admin_option_device_connections">Соединений на устройство (0: по умолчанию)</string>
     <string name="raycontrol_admin_option_answer">Ответ чужим</string>
@@ -788,7 +790,7 @@
     <string name="raycontrol_admin_dns_token_hint">API-токен Cloudflare</string>
     <string name="raycontrol_admin_dns_token_help">Токен Cloudflare с правами Zone.DNS:Edit и Zone.Zone:Read на зону ноды. Нода хранит его и больше не показывает.</string>
     <string name="raycontrol_admin_dns_remove">Убрать провайдера</string>
-    <string name="raycontrol_admin_dns_remove_confirm">Убрать DNS-провайдера и записи ноды из зоны?</string>
+    <string name="raycontrol_admin_dns_remove_confirm">Убрать DNS-провайдера и записи ноды из зоны? Вместе с ними уйдут делегирование зон туннелей и имена ноды: туннели и сертификат перестанут резолвиться, пока записи не заведут снова.</string>
     <string name="raycontrol_admin_relay">Релей %s</string>
     <string name="raycontrol_admin_relay_ssh_port">Порт SSH (пусто: не менять)</string>
     <string name="raycontrol_admin_relay_access_help">SSH хоста релея: порт и адреса, которым он открыт без SPA. Пустое поле оставляет как есть.</string>

@@ -815,6 +815,8 @@
     <string name="raycontrol_admin_option_auth_hint">Key hint (dnsauth-v2)</string>
     <string name="raycontrol_admin_option_seal">Answer seal</string>
     <string name="raycontrol_admin_option_spare_zones">Spare zones</string>
+    <string name="raycontrol_admin_option_zone">Main zone (from the spare ones)</string>
+    <string name="raycontrol_admin_option_peers">Public peers (tls://host:port, …; none: off)</string>
     <string name="raycontrol_admin_option_max_connections">Connections in all (0: the default)</string>
     <string name="raycontrol_admin_option_device_connections">Connections per device (0: the default)</string>
     <string name="raycontrol_admin_option_answer">Answer to strangers</string>
@@ -841,7 +843,7 @@
     <string name="raycontrol_admin_dns_token_hint">Cloudflare API token</string>
     <string name="raycontrol_admin_dns_token_help">A Cloudflare token with Zone.DNS:Edit and Zone.Zone:Read on the node\'s zone. The node keeps it and never shows it again.</string>
     <string name="raycontrol_admin_dns_remove">Remove the provider</string>
-    <string name="raycontrol_admin_dns_remove_confirm">Remove the DNS provider and the node\'s records from the zone?</string>
+    <string name="raycontrol_admin_dns_remove_confirm">Remove the DNS provider and the node\'s records from the zone? The tunnels\' delegation and the node\'s names go with them: the tunnels and the certificate stop resolving until the records are made again.</string>
     <string name="raycontrol_admin_relay">Relay %s</string>
     <string name="raycontrol_admin_relay_ssh_port">SSH port (empty: keep it)</string>
     <string name="raycontrol_admin_relay_access_help">The relay host\'s SSH: its port and the addresses that reach it without SPA. An empty field keeps what is set.</string>
