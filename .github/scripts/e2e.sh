@@ -221,6 +221,24 @@ timeout 20 adb shell settings put global private_dns_mode off
 timeout 30 adb pull "/data/data/$pkg/cache/neko.log" "$out/neko-pdns.log" > /dev/null 2>&1
 grep -E ":853|missing fakeip|one\.one\.one\.one" "$out/neko-pdns.log" | tail -n 30
 
+echo "== FakeDNS's names in the core's cache file: there while the VPN runs, gone once it stops"
+canary="niko-e2e-$RANDOM$RANDOM.example.com"
+got=$(resolved "$canary")
+echo "a name of its own: $canary resolves to '${got:-nothing}'"
+# in_cache: yes or no, whether the cache file pulled holds the name; nofile when none came
+in_cache() {
+  rm -f "$out/cache.db"
+  timeout 30 adb pull "/data/data/$pkg/no_backup/cache.db" "$out/cache.db" > /dev/null 2>&1
+  if [ ! -s "$out/cache.db" ]; then echo nofile; elif grep -qaF "$canary" "$out/cache.db"; then echo yes; else echo no; fi
+}
+cached=no
+for i in $(seq 5); do
+  cached=$(in_cache)
+  [ "$cached" = yes ] && break
+  sleep 2
+done
+[ "$cached" = yes ] || fail "FakeDNS's name $canary not in the core's cache file while the VPN runs ($cached): store_fakeip"
+
 echo "== the VPN down again"
 timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" > /dev/null || fail "the quick toggle did not stop"
 for i in $(seq 10); do
@@ -230,6 +248,13 @@ for i in $(seq 10); do
 done
 [ -n "$from" ] && [ "$from" != "$node" ] && [ "$carried" = yes ] ||
   fail "after the VPN: from '${from:-nowhere}', token $carried, want the runner's own (nc said: $last)"
+for i in $(seq 10); do
+  cached=$(in_cache)
+  [ "$cached" = no ] && break
+  sleep 2
+done
+[ "$cached" = no ] || fail "after the VPN stopped, FakeDNS's name $canary in the core's cache file ($cached)"
+echo "the VPN stopped: $canary is out of the core's cache file"
 
 echo "== slipstream: the link, the VPN through the bundled client"
 timeout 60 adb shell "am start -W -n $pkg/$pkg.ui.MainActivity -a android.intent.action.VIEW -d '$slip_link'" > /dev/null ||

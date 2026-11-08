@@ -13,6 +13,7 @@ import (
 
 	"github.com/matsuridayo/libneko/neko_common"
 	"github.com/matsuridayo/libneko/neko_log"
+	"github.com/sagernet/sing-box/experimental/cachefile"
 	"github.com/sagernet/sing-box/nekoutils"
 	"github.com/sagernet/sing-box/option"
 	"golang.org/x/sys/unix"
@@ -133,4 +134,11 @@ func SetLogEnable(enable bool) {
 // was trimmed to meanwhile.
 func LogMarker(text string) {
 	log.Println(text)
+}
+
+// ClearFakeIPCache removes FakeDNS's addresses and the names they stand for from the core's cache file at path:
+// kept for a restart of the core under a running VPN, they are a record of the names asked. No core may have the
+// file open (the service calls it when the VPN stops, or before a fresh start).
+func ClearFakeIPCache(path string) error {
+	return cachefile.ClearFakeIP(path)
 }

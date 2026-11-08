@@ -81,6 +81,9 @@ class BaseService {
         }
         var closeReceiverRegistered = false
 
+        // the next start is stopRunner's restart (a reload under the running VPN), not a fresh one
+        var restarting = false
+
         val binder = Binder(this)
         var connectingJob: Job? = null
 
@@ -299,13 +302,23 @@ class BaseService {
                     data.proxy = null
                 }
 
+                // the VPN stops: FakeDNS's names asked leave the core's cache file (kept for a restart only)
+                if (!restart) withContext(Dispatchers.IO) { clearFakeIPCache() }
                 // change the state
                 data.changeState(State.Stopped, msg)
+                data.restarting = restart
                 // stop the service if nothing has bound to it
                 if (restart) startRunner() else {
                     stopSelf()
                 }
             }
+        }
+
+        /** FakeDNS's addresses and the names asked, out of the core's cache file (no core has it open). */
+        fun clearFakeIPCache() {
+            runCatching {
+                Libcore.clearFakeIPCache(java.io.File(SagerNet.application.noBackupFilesDir, "cache.db").absolutePath)
+            }.onFailure { Logs.w(it) }
         }
 
         fun persistStats() {
@@ -412,6 +425,10 @@ class BaseService {
                     data.notification = createNotification(ServiceNotification.genTitle(profile))
 
                     Executable.killAll()    // clean up old processes
+                    // a fresh start (a run that ended without a stop, the process killed): the last run's FakeDNS names
+                    // are of a VPN that is gone; a restart under the running VPN keeps them for the system's addresses
+                    if (!data.restarting) withContext(Dispatchers.IO) { clearFakeIPCache() }
+                    data.restarting = false
                     preInit()
                     proxy.init()
                     DataStore.currentProfile = profile.id
