@@ -23,7 +23,6 @@ import io.niko.fmt.socks.toUri
 import io.niko.fmt.ssh.SSHBean
 import io.niko.fmt.trojan.TrojanBean
 import io.niko.fmt.trojan_go.TrojanGoBean
-import io.niko.fmt.trojan_go.needsPlugin
 import io.niko.fmt.trojan_go.buildTrojanGoConfig
 import io.niko.fmt.trojan_go.toUri
 import io.niko.fmt.tuic.TuicBean
@@ -311,9 +310,9 @@ data class ProxyEntity(
 
     fun needExternal(): Boolean {
         return when (type) {
-            // the core's Trojan (WebSocket included); the plugin only for Trojan-Go's own Shadowsocks layer
-            TYPE_TROJAN_GO -> trojanGoBean!!.needsPlugin()
-            TYPE_MIERU -> true
+            // the core's Trojan with Trojan-Go's own layers, the core's Mieru: no plugin
+            TYPE_TROJAN_GO -> false
+            TYPE_MIERU -> false
             // the core's naive outbound (cronet): no plugin
             TYPE_NAIVE -> false
             TYPE_HYSTERIA -> !hysteriaBean!!.canUseSingBox()

@@ -34,6 +34,10 @@ public class MieruBean extends AbstractBean {
     public String username;
     public String password;
     public Integer mtu;
+    // version 1: what a mierus:// link carries besides (pkg/appctl/url.go), as mieru names them; "" the default
+    public String multiplexing;
+    public String handshakeMode;
+    public String trafficPattern;
 
     @Override
     public void initializeDefaultValues() {
@@ -42,11 +46,14 @@ public class MieruBean extends AbstractBean {
         if (username == null) username = "";
         if (password == null) password = "";
         if (mtu == null) mtu = 1400;
+        if (multiplexing == null) multiplexing = "";
+        if (handshakeMode == null) handshakeMode = "";
+        if (trafficPattern == null) trafficPattern = "";
     }
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(0);
+        output.writeInt(1);
         super.serialize(output);
         output.writeString(protocol);
         output.writeString(username);
@@ -54,6 +61,9 @@ public class MieruBean extends AbstractBean {
         if (protocol.equals("UDP")) {
             output.writeInt(mtu);
         }
+        output.writeString(multiplexing);
+        output.writeString(handshakeMode);
+        output.writeString(trafficPattern);
     }
 
     @Override
@@ -65,6 +75,11 @@ public class MieruBean extends AbstractBean {
         password = input.readString();
         if (protocol.equals("UDP")) {
             mtu = input.readInt();
+        }
+        if (version >= 1) {
+            multiplexing = input.readString();
+            handshakeMode = input.readString();
+            trafficPattern = input.readString();
         }
     }
 

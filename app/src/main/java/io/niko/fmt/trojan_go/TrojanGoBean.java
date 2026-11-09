@@ -89,9 +89,13 @@ public class TrojanGoBean extends AbstractBean {
 
     public Boolean allowInsecure;
 
+    // Trojan-Go's mux: a client-side choice, not in its links (version 2)
+    public Boolean mux;
+
     @Override
     public void initializeDefaultValues() {
         super.initializeDefaultValues();
+        if (mux == null) mux = false;
 
         if (password == null) password = "";
         if (sni == null) sni = "";
@@ -105,7 +109,7 @@ public class TrojanGoBean extends AbstractBean {
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(1);
+        output.writeInt(2);
         super.serialize(output);
         output.writeString(password);
         output.writeString(sni);
@@ -121,6 +125,7 @@ public class TrojanGoBean extends AbstractBean {
         output.writeString(encryption);
         output.writeString(plugin);
         output.writeBoolean(allowInsecure);
+        output.writeBoolean(mux);
     }
 
     @Override
@@ -143,6 +148,9 @@ public class TrojanGoBean extends AbstractBean {
         plugin = input.readString();
         if (version >= 1) {
             allowInsecure = input.readBoolean();
+        }
+        if (version >= 2) {
+            mux = input.readBoolean();
         }
     }
 

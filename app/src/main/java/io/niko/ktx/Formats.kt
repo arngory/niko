@@ -175,6 +175,13 @@ suspend fun parseProxies(text: String): List<AbstractBean> {
             }.onFailure {
                 Logs.w(it)
             }
+        } else if (startsWith("mierus://")) {
+            Logs.d("Try parse mieru link")
+            runCatching {
+                entities.add(io.niko.fmt.mieru.parseMieru(this))
+            }.onFailure {
+                Logs.w(it)
+            }
         } else if (startsWith("ss://")) {
             Logs.d("Try parse shadowsocks link")
             runCatching {

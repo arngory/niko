@@ -26,6 +26,7 @@ class TrojanGoSettingsActivity : ProfileSettingsActivity<TrojanGoBean>() {
         DataStore.serverNetwork = type
         DataStore.serverHost = host
         DataStore.serverPath = path
+        DataStore.profileCacheStore.putBoolean("trojanGoMux", mux == true)
         if (encryption.startsWith("ss;")) {
             DataStore.serverEncryption = "ss"
             DataStore.serverMethod = encryption.substringAfter(";").substringBefore(":")
@@ -45,6 +46,7 @@ class TrojanGoSettingsActivity : ProfileSettingsActivity<TrojanGoBean>() {
         type = DataStore.serverNetwork
         host = DataStore.serverHost
         path = DataStore.serverPath
+        mux = DataStore.profileCacheStore.getBoolean("trojanGoMux", false)
         encryption = when (val security = DataStore.serverEncryption) {
             "ss" -> {
                 "ss;" + DataStore.serverMethod + ":" + DataStore.serverPassword1

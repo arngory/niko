@@ -531,6 +531,9 @@ fun buildConfig(
                         is io.niko.fmt.trojan_go.TrojanGoBean ->
                             io.niko.fmt.trojan_go.buildSingBoxOutboundTrojanGoBean(bean)
 
+                        is io.niko.fmt.mieru.MieruBean ->
+                            io.niko.fmt.mieru.buildSingBoxOutboundMieruBean(bean)
+
                         else -> throw IllegalStateException("can't reach")
                     }
 

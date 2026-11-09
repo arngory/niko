@@ -160,19 +160,26 @@ fun JSONObject.parseTrojanGo(): TrojanGoBean {
         }
     }
 }
-/**
- * Trojan-Go's Shadowsocks layer inside TLS (`encryption=ss;method:password`): the one part of it the core's Trojan
- * does not speak. Without it a Trojan-Go server is a Trojan server (its mux is optional, the server takes plain
- * streams too), and the core's outbound carries the profile, no plugin.
- */
-fun TrojanGoBean.needsPlugin(): Boolean = encryption.orEmpty().let { it.isNotBlank() && it != "none" }
+/** Trojan-Go's `encryption=ss;METHOD:PASSWORD` as the core's option, null for none. */
+fun TrojanGoBean.shadowsocksLayer(): Map<String, String>? {
+    val spec = encryption.orEmpty().trim()
+    if (spec.isEmpty() || spec == "none") return null
+    require(spec.startsWith("ss;")) { "Trojan-Go encryption $spec: only ss;method:password" }
+    val methodAndPassword = spec.removePrefix("ss;")
+    val method = methodAndPassword.substringBefore(':')
+    val password = methodAndPassword.substringAfter(':', "")
+    require(password.isNotEmpty()) { "Trojan-Go encryption: no Shadowsocks password" }
+    return mapOf("method" to method.ifEmpty { "aes-128-gcm" }, "password" to password)
+}
 
 /** The core's Trojan outbound for a Trojan-Go profile: TLS to the server, WebSocket for type=ws. */
 fun buildSingBoxOutboundTrojanGoBean(
     bean: TrojanGoBean, globalInsecure: Boolean = DataStore.globalAllowInsecure,
 ): io.niko.SingBoxOptions.Outbound_TrojanOptions {
-    if (bean.needsPlugin()) throw Exception("Trojan-Go with its Shadowsocks layer (encryption=ss) needs the Trojan-Go plugin")
     return io.niko.SingBoxOptions.Outbound_TrojanOptions().apply {
+        // Trojan-Go's own layers, in the core (neko): the Shadowsocks AEAD inside TLS, the smux of many streams
+        bean.shadowsocksLayer()?.let { _hack_config_map["trojan_go_shadowsocks"] = it }
+        if (bean.mux == true) _hack_config_map["trojan_go_mux"] = true
         type = "trojan"
         server = bean.serverAddress
         server_port = bean.serverPort

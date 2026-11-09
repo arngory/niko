@@ -26,6 +26,8 @@ require (
 	golang.org/x/crypto v0.58.0
 )
 
+require github.com/enfein/mieru/v3 v3.39.0 // indirect
+
 require (
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/Arceliar/ironwood v0.0.0-20261023231900-0712eccbb962 // indirect

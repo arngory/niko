@@ -33,6 +33,10 @@
             app:key="serverAllowInsecure"
             app:summary="@string/allow_insecure_sum"
             app:title="@string/allow_insecure" />
+        <SwitchPreference
+            app:key="trojanGoMux"
+            app:summary="@string/trojan_go_mux_sum"
+            app:title="@string/enable_mux" />
         <io.niko.ui.SimpleMenuPreference
             app:defaultValue="none"
             app:entries="@array/trojan_go_networks_entry"
