@@ -1059,7 +1059,9 @@ fun buildConfig(
         // neighbours' flows come in, the rest are dropped before a handshake (none at all without a LAN)
         endpoints.filterIsInstance<Outbound>().filter { endpoint -> yggProfileEndpoints.values.any { it.first == endpoint.tag } }.forEach { endpoint ->
             endpoint._hack_config_map["debug_privacy"] = true
-            endpoint._hack_config_map["inbound_sources"] = lanEndpoints[endpoint.tag].orEmpty().distinct().map { "$it/128" }
+            // a flag of its own: the core's parser drops an empty list, which would let every flow in
+            endpoint._hack_config_map["inbound_listed"] = true
+            lanEndpoints[endpoint.tag]?.let { neighbours -> endpoint._hack_config_map["inbound_sources"] = neighbours.distinct().map { "$it/128" } }
         }
         // the apps reach the devices' addresses over IPv6, also with IPv6 off (the VPN takes IPv6, RayLanNet.running)
         if (lanEndpoints.isNotEmpty() && ipv6Mode == IPv6Mode.DISABLE) inbounds.filterIsInstance<Inbound_TunOptions>().forEach { tun ->

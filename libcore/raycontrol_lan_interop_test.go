@@ -146,6 +146,7 @@ func (d *lanDevice) config(t *testing.T, result raysub.Result, svc uint16, allow
 			for _, a := range allowed {
 				sources = append(sources, a+"/128")
 			}
+			endpoint["inbound_listed"] = true
 			endpoint["inbound_sources"] = sources
 		}
 		c["outbounds"] = append(c["outbounds"].([]any), map[string]any{"type": "direct", "tag": "direct"})
