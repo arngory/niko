@@ -1050,7 +1050,10 @@ fun buildConfig(
             lanEndpoints.getOrPut(tag) { mutableListOf() } += neighbours
             lanEndpointOf[node.spa.nodeId] = tag
         }
-        val lanNames = RayLanNet.names(lanNodes.filter { it.spa.nodeId in lanEndpointOf }, lanNow)
+        // the names over every shown LAN, as the node card and the store see them (a clash of two nodes' labels
+        // resolved the same way whether or not a node has neighbours here), kept for the nodes the config carries
+        val lanCarried = lanNodes.filter { it.spa.nodeId in lanEndpointOf }.flatMap { RayLanNet.neighbours(it, lanNow) }.toSet()
+        val lanNames = RayLanNet.names(lanNodes, lanNow).filterValues { it in lanCarried }
         if (notes) {
             RayLanNet.running = lanEndpoints.isNotEmpty()
             RayLanNet.noteRunning(RayNodes.list(), lanNow)
@@ -1474,7 +1477,7 @@ fun buildConfig(
                     outbound = tag
                 }
             } + byNode.mapNotNull { node ->
-                val suffixes = RayLanNet.suffixes(RayLanNet.names(byNode, lanNow).filterValues { it in RayLanNet.neighbours(node, lanNow) })
+                val suffixes = RayLanNet.suffixes(lanNames.filterValues { it in RayLanNet.neighbours(node, lanNow) })
                 if (suffixes.isEmpty()) null else Rule_DefaultOptions().apply {
                     domain_suffix = suffixes
                     outbound = lanEndpointOf.getValue(node.spa.nodeId)

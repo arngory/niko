@@ -208,7 +208,12 @@ object RaySubscription {
 
         // the UI and the scheduled worker (`:bg`) may both get here: one writer across the processes
         // with the LAN shown, sooner: a revoked device leaves the others' lists, an `on` not taken yet is asked again
-        val refreshAt = minOf(maxOf(now + 60, nextRefresh(payload, nodeNow) - skew), RayLanNet.refreshBy(node, parsed.lan, now))
+        // the addresses this answer keeps, for when the next fetch is due (one expiring) as for the store
+        val lanPrevious = RayLanNet.previous(node, parsed.lan, now)
+        val refreshAt = minOf(
+            maxOf(now + 60, nextRefresh(payload, nodeNow) - skew),
+            RayLanNet.refreshBy(node.copy(lanPrevious = lanPrevious), parsed.lan, now),
+        )
         val subExpires = payload.get("expires")?.takeIf { it.isJsonPrimitive }?.asLong?.minus(skew) ?: 0
         // the user's traffic is used up (traffic-limit-v1 §4): the node answers with no profiles until the reset,
         // the rows and the selection stay as they are for then; only what the card shows and the next fetch change

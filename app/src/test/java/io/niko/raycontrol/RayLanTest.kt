@@ -109,6 +109,11 @@ class RayLanTest {
         assertTrue("nas.ams.niko.internal" in names)
         assertTrue("nas.ams-f0f1.niko.internal" in names)
         assertEquals(4, names.size)
+        // a node where this device has no other devices still takes part in the clash: the other node's names stay
+        // as they were, so a name does not change when a device joins elsewhere (the config keeps the carried ones)
+        val alone = node(lan = lan.copy(devices = listOf(lan.devices[0])))
+        val other2 = node(nodeId = "f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff")
+        assertEquals(setOf("work-laptop.ams-f0f1.niko.internal", "nas.ams-f0f1.niko.internal"), RayLanNet.names(listOf(alone, other2), 0).keys)
     }
 
     @Test
