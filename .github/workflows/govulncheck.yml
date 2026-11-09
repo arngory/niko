@@ -1,0 +1,44 @@
+name: govulncheck
+
+# Known vulnerabilities in the Go code that ships in the APK: libcore with the core fork (sing-box and what it pulls
+# in: yggdrasil-go, masterdns, the QUIC and TLS stacks) at the commits the build pins. Only what the code calls is
+# reported (govulncheck's default), so a finding is one to act on. Weekly, on a push that changes the Go side, and
+# by hand.
+on:
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+  push:
+    paths:
+      - "libcore/**"
+      - "buildScript/lib/core/get_source_env.sh"
+      - ".github/workflows/govulncheck.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  govulncheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Fetch the core
+        run: |
+          . buildScript/lib/core/get_source_env.sh
+          # libcore/go.mod replaces the core with ../../sing-box and ../../libneko
+          git clone --filter=blob:none "$REPOSITORY_SING_BOX" ../sing-box
+          git -C ../sing-box checkout -q "$COMMIT_SING_BOX"
+          git clone --filter=blob:none "$REPOSITORY_LIBNEKO" ../libneko
+          git -C ../libneko checkout -q "$COMMIT_LIBNEKO"
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: libcore/go.mod
+          cache: false
+      - name: govulncheck (libcore and the core it links)
+        working-directory: libcore
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+          TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
+          # the Linux build of the same code: the analysis needs no Android toolchain, and libcore is the same Go
+          "$(go env GOPATH)/bin/govulncheck" -tags "$TAGS" ./...

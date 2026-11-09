@@ -57,7 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Fetch raycontrol and the core
         run: |
@@ -72,7 +72,7 @@ jobs:
           git clone --filter=blob:none "$REPOSITORY_LIBNEKO" ../libneko
           git -C ../libneko checkout -q "$COMMIT_LIBNEKO"
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: raycontrol/go.mod
           cache: false
@@ -122,7 +122,7 @@ jobs:
           sleep 2
           grep -q "remote api" /tmp/rayd.log && grep "remote api" /tmp/rayd.log | tail -2
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: libcore/go.mod
           cache: false
@@ -149,7 +149,7 @@ jobs:
     # the LAN step alone may take ten minutes (mesh paths through the node, the backend restarted twice)
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Fetch raycontrol, Xray and the core
         run: |
@@ -166,7 +166,7 @@ jobs:
           git clone --filter=blob:none "$REPOSITORY_LIBNEKO" ../libneko
           git -C ../libneko checkout -q "$COMMIT_LIBNEKO"
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: raycontrol/go.mod
           cache: false
@@ -290,7 +290,7 @@ jobs:
           for i in $(seq 150); do r grep -q 'relay probe endpoint' /var/log/rayd-relay.log 2>/dev/null && break; sleep 0.2; done
           r grep -q 'relay probe endpoint' /var/log/rayd-relay.log || { r cat /var/log/rayd-relay.log; exit 1; }
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: libcore/go.mod
           cache: false
@@ -541,7 +541,7 @@ jobs:
 
       - name: The subscription as the app reads it
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: raycontrol-payload
           path: /tmp/raycontrol-payload.json
@@ -561,7 +561,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Fetch raycontrol
         run: |
@@ -570,7 +570,7 @@ jobs:
           git clone --filter=blob:none "$REPOSITORY_RAYCONTROL" raycontrol
           git -C raycontrol checkout -q "$COMMIT_RAYCONTROL"
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: raycontrol/go.mod
           cache: false

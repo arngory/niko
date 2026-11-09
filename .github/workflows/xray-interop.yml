@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Fetch sources
         run: |
@@ -34,7 +34,7 @@ jobs:
           git -C xray checkout -q "$COMMIT_XRAY"
           git -C xray log --oneline -1
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: xray/go.mod
           cache: false
@@ -42,7 +42,7 @@ jobs:
         working-directory: xray
         run: CGO_ENABLED=0 go build -o /tmp/xray -trimpath ./main && /tmp/xray version | head -1
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: core/go.mod
           cache: false
