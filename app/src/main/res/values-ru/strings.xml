@@ -840,6 +840,7 @@
     <string name="raycontrol_admin_links_help">В этих ссылках ключи пользователя %s: отдавайте их только ему. Приложения кроме Niko не делают SPA-стук, поэтому им доступны только сервисы, открытые для всех; устройства с Niko получают подписку по приглашению.</string>
     <string name="raycontrol_admin_option_confirm">%1$s у %2$s: %3$s → %4$s? Применится сразу: клиенты, которые не умеют новое значение, потеряют сервис.</string>
     <string name="raycontrol_admin_rotate_key_now_confirm">Отвергнуть старый ключ сразу? Все клиенты сервиса потеряют его до обновления подписки.</string>
+    <string name="raycontrol_admin_rotate_key_in_grace">Предыдущая ротация ещё в периоде grace: прежний ключ принимается до %1$s. Новая ротация сейчас сразу его отбросит, и клиенты, которые с тех пор не обновили подписку, потеряют туннель до обновления. Всё равно сменить ключ?</string>
     <string name="raycontrol_admin_dns_check_last">Последняя проверка %1$s: %2$s</string>
     <string name="raycontrol_admin_update">Обновление ноды</string>
     <string name="raycontrol_admin_update_current">Версия %s</string>

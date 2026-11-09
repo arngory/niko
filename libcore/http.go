@@ -320,6 +320,19 @@ type requestFunc func() (response *http.Response, err error)
 func (r *httpRequest) doH3Direct() (HTTPResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	// the requests themselves, their bodies included, end with the client's timeout (2 min unless set): the losers
+	// and a body that goes quiet hold no goroutine and no socket for good (neko)
+	overall := r.h1h2Client.Timeout
+	if overall <= 0 {
+		overall = 2 * time.Minute
+	}
+	requestCtx, requestCancel := context.WithTimeout(context.Background(), overall)
+	won := false
+	defer func() {
+		if !won {
+			requestCancel()
+		}
+	}()
 
 	successCh := make(chan *http.Response, 1)
 	var finalErr error
@@ -330,7 +343,7 @@ func (r *httpRequest) doH3Direct() (HTTPResponse, error) {
 	funcs := []requestFunc{
 		// Http(s) With Ech
 		func() (response *http.Response, err error) {
-			request := r.request.Clone(context.Background())
+			request := r.request.Clone(requestCtx)
 			echClient := &http.Client{
 				Transport: &http.Transport{
 					DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -353,7 +366,7 @@ func (r *httpRequest) doH3Direct() (HTTPResponse, error) {
 		},
 		// H3 HTTPS
 		func() (response *http.Response, err error) {
-			request := r.request.Clone(context.Background())
+			request := r.request.Clone(requestCtx)
 			h3Client := &http.Client{
 				Transport: &http3.Transport{
 					TLSClientConfig: r.tls.Clone(),
@@ -424,10 +437,27 @@ func (r *httpRequest) doH3Direct() (HTTPResponse, error) {
 
 	select {
 	case result := <-successCh:
+		won = true
+		// the winner's body ends with requestCtx; the context is let go with it
+		result.Body = &cancelBody{ReadCloser: result.Body, cancel: requestCancel}
 		return &httpResponse{Response: result}, nil
 	case <-ctx.Done():
+		mu.Lock()
+		defer mu.Unlock()
 		return nil, finalErr
 	}
+}
+
+// cancelBody releases its request's context when the body is closed (neko).
+type cancelBody struct {
+	io.ReadCloser
+	cancel context.CancelFunc
+}
+
+func (b *cancelBody) Close() error {
+	err := b.ReadCloser.Close()
+	b.cancel()
+	return err
 }
 
 type httpResponse struct {
@@ -439,10 +469,13 @@ type httpResponse struct {
 }
 
 func (h *httpResponse) errorString() string {
-	content, err := h.getContentString()
+	// an error's body: its first bytes are all it shows
+	head, err := io.ReadAll(io.LimitReader(h.Body, 4096))
+	h.Body.Close()
 	if err != nil {
 		return fmt.Sprint("HTTP ", h.Status)
 	}
+	content := string(head)
 	if len(content) > 100 {
 		content = content[:100] + " ..."
 	}
@@ -453,10 +486,19 @@ func (h *httpResponse) GetHeader(key string) *StringBox {
 	return wrapString(h.Header.Get(key))
 }
 
+// maxContent bounds a body read whole into memory (subscriptions, the update's manifest): a server or a captive
+// portal sending without end would take the process down (neko)
+const maxContent = 16 << 20
+
+var errContentTooLarge = errors.New("the answer is larger than 16 MiB")
+
 func (h *httpResponse) GetContent() ([]byte, error) {
 	h.getContentOnce.Do(func() {
 		defer h.Body.Close()
-		h.content, h.contentError = io.ReadAll(h.Body)
+		h.content, h.contentError = io.ReadAll(io.LimitReader(h.Body, maxContent+1))
+		if h.contentError == nil && len(h.content) > maxContent {
+			h.content, h.contentError = nil, errContentTooLarge
+		}
 	})
 	return h.content, h.contentError
 }

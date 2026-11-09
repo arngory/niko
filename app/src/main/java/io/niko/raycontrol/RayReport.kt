@@ -134,6 +134,10 @@ object RayReport {
 
     private const val DAY = 24 * 3600L
 
+    /** This device's moment of the day for [node]'s summary: 0…6 h after 00:00 UTC, the same every day. */
+    private fun reportOffset(node: RayNode): Long =
+        ((node.deviceId + node.spa.nodeId).hashCode().toLong() and 0x7fffffff) % (6 * 3600L)
+
     // a summary that got no answer goes again after this
     private const val RETRY = 3600L
 
@@ -156,6 +160,9 @@ object RayReport {
         val state = RayChannel.reportState(nodeId, network)
         if (state?.get("day")?.asLong == today && (state.get("status")?.asInt ?: 0) != 0) return null
         if ((state?.get("retry_at")?.asLong ?: 0) > now) return null
+        // the day starts at one moment for every device (UTC): each sends from its own hour of the first six, the same
+        // for this device and node every day
+        if (state?.get("day")?.asLong != today && now % DAY < reportOffset(node)) return null
         val report = build(node, network, now) ?: return null
         // a network that reaches the node through a relay reports to the relay (relay-v1 §9.3): the node would see the
         // relay's address there, and the relay passes the client's network on; none that takes reports: nothing due
@@ -184,7 +191,7 @@ object RayReport {
             addProperty("at", now)
             addProperty("day", today)
             addProperty("status", if (final) status else 0)
-            if (!final) addProperty("retry_at", now + RETRY)
+            if (!final) addProperty("retry_at", now + Jitter.around(RETRY))
         })
         val outcome = when (status) {
             200, 204 -> Outcome.SENT

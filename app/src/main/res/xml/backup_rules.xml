@@ -36,8 +36,7 @@
         <include
             domain="database"
             path="sager_net.db" />
-        <include
-            domain="device_database"
-            path="configuration.db" />
+        <!-- not the settings: this install's keys (the mesh key, the raycontrol nodes, wrapped by this device's
+             Keystore) stay on it -->
     </device-transfer>
 </data-extraction-rules>

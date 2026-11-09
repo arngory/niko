@@ -307,6 +307,8 @@ class AssetsActivity : ThemedActivity() {
             trySocks5(DataStore.mixedPort, LOCAL_PROXY_USER, DataStore.localProxyPassword)
             // proxy mode with the service running: never around it (the device's own address)
             if (localProxyRequired()) requireSocks5()
+            setTimeout(120_000)
+            setIdleTimeout(30_000)
         }
 
         try {

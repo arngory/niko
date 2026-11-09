@@ -247,3 +247,10 @@ func TestNekoAppFileCutOverAndOver(t *testing.T) {
 		t.Fatalf("%d tries without an etag, want the carriers' few", c)
 	}
 }
+
+// A node is trusted for nothing: a file larger than a release's file can be is dropped, not written on.
+func TestNekoAppFileTooLarge(t *testing.T) {
+	if appMaxSize("https://n/app/v1/niko/v1.0.0/Niko-1.0.0-x86.apk") != 256<<20 || appMaxSize("https://n/app/v1/niko/v1.0.0/SHA256SUMS") != 64<<10 {
+		t.Fatal("limits")
+	}
+}

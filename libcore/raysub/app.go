@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"os"
@@ -26,6 +27,8 @@ var (
 	// ErrAppNotHeld: the node does not hold this file (its mirror off or not filled yet, the release gone, or the
 	// device unknown to it: 404, as /sub/v1's).
 	ErrAppNotHeld = errors.New("raycontrol app mirror: the node does not hold this file")
+	// ErrAppTooLarge: more came than such a file holds (the node is trusted for nothing): what came is dropped
+	ErrAppTooLarge = errors.New("raycontrol app mirror: the file is larger than a release's file can be")
 
 	errAppRange = errors.New("raycontrol app mirror: the part kept is not of this file")
 )
@@ -86,14 +89,15 @@ func AppFile(ctx context.Context, r Request, app, tag, name, out, etag string) e
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			case <-time.After(time.Duration(wait)):
+			// the node's Retry-After plus up to half of it again: the devices it turned away come back spread (neko)
+			case <-time.After(time.Duration(wait) + time.Duration(rand.Int64N(int64(wait)/2+1))):
 			}
 			continue
 		case errors.Is(err, errAppRange) && !restarted:
 			// out was cut to nothing: the whole, once, the same way
 			restarted = true
 			continue
-		case errors.Is(err, ErrAppNotHeld), errors.Is(err, errPin), errors.As(err, &status), ctx.Err() != nil:
+		case errors.Is(err, ErrAppNotHeld), errors.Is(err, ErrAppTooLarge), errors.Is(err, errPin), errors.As(err, &status), ctx.Err() != nil:
 			// the node answered (or the caller gave up): another knock changes nothing
 			return err
 		case etag != "" && fileSize(out) > before:
@@ -104,6 +108,15 @@ func AppFile(ctx context.Context, r Request, app, tag, name, out, etag string) e
 		i++
 	}
 	return fmt.Errorf("%w: %v", ErrNoAnswer, lastErr)
+}
+
+// appMaxSize is the most a release's file may hold: the signed list and its signature are small, an APK is not
+// (neko: a node is trusted for nothing, and the list is read whole into memory after).
+func appMaxSize(url string) int64 {
+	if strings.HasSuffix(url, ".apk") {
+		return 256 << 20
+	}
+	return 64 << 10
 }
 
 // fileSize is the size of the file at path, 0 when there is none.
@@ -199,6 +212,10 @@ func (r *Request) appGet(ctx context.Context, client *http.Client, url string, d
 				return err
 			}
 			got += int64(n)
+			if have+got > appMaxSize(url) {
+				_ = f.Truncate(0)
+				return ErrAppTooLarge
+			}
 		}
 		if err == io.EOF {
 			break

@@ -161,7 +161,7 @@ object RayWatchdog {
         online = available
         when {
             before == false && available -> networkChanged()
-            before == null && available -> poke(15_000L)
+            before == null && available -> poke(15_000L + Jitter.upTo(15_000L))
         }
     }
 
@@ -185,7 +185,7 @@ object RayWatchdog {
             // start its backoff over more often either (P2, P7)
             RaySubscription.networkChanged(key)
         }
-        poke(15_000L)
+        poke(15_000L + Jitter.upTo(15_000L))
     }
 
     @Volatile
@@ -206,7 +206,7 @@ object RayWatchdog {
         if (!stale) staleSince = System.currentTimeMillis()
         stale = true
         fastUntil = System.currentTimeMillis() + 3 * 60_000L
-        poke(15_000L)
+        poke(15_000L + Jitter.upTo(15_000L))
     }
 
     private suspend fun loop(probe: suspend () -> Boolean) {
@@ -295,7 +295,8 @@ object RayWatchdog {
         val (node, key) = owner ?: return PERIOD
         if (failures < 2) return 15_000L
         if (now < recoverAt) return minOf(PERIOD, recoverAt - now)
-        recoverAt = now + backoff
+        // each device at its own step: a NAT's devices recovering together do not fetch together
+        recoverAt = now + Jitter.around(backoff)
         backoff = minOf(backoff * 2, 60 * 60_000L)
         recover(node, key)
         return 60_000L

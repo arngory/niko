@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 8.1 and older ignore the backup rules' flags and would send the databases (profile passwords, keys)
+         to the cloud unencrypted: no backup there at all; the app's own backup works everywhere -->
+    <bool name="allow_backup">false</bool>
+</resources>

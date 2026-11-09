@@ -159,6 +159,10 @@ object RuleSetFiles {
             keepAlive()
             trySocks5(DataStore.mixedPort, LOCAL_PROXY_USER, DataStore.localProxyPassword)
             if (mustUseLocalProxy(serviceRound, DataStore.serviceMode, DataStore.serviceState.started)) requireSocks5()
+            // a server that answers and then goes quiet would hold the update loop for good: bounded overall and
+            // between reads
+            setTimeout(120_000)
+            setIdleTimeout(30_000)
         }
         try {
             val response = client.newRequest().apply { setURL(url(item)) }.execute()

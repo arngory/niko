@@ -17,7 +17,7 @@ var (
 	// "key": "value" in JSON, the core's config and the app's dumps
 	redactJSON = regexp.MustCompile(`(?i)"(password|uuid|private_key|pre_shared_key|psk|secret|token|auth_str|auth|` +
 		`obfs_password|encryption_key|device_key|device_key_ref|seed|public_key_seed|private_key_hex|key_hex|` +
-		`server_password|users_password|credentials?)"(\s*:\s*)"[^"]*"`)
+		`server_password|users_password|credentials?|port_key|short_id|dns_probe_key|probe_key|key)"(\s*:\s*)"[^"]*"`)
 	// user:password@ in URLs and share links
 	redactUserinfo = regexp.MustCompile(`([a-z][a-z0-9+.\-]*://)[^/@\s"']+@`)
 	// secret query parameters of share links (niko-ygg carries the device's mesh seed after ';')

@@ -1059,7 +1059,7 @@ fun buildConfig(
         val lanNames = RayLanNet.names(lanNodes, lanNow).filterValues { it in lanCarried }
         if (notes) {
             RayLanNet.running = lanEndpoints.isNotEmpty()
-            RayLanNet.noteRunning(RayNodes.list(), lanNow)
+            RayLanNet.noteRunning(lanNodes, lanNow)
         }
         // the mesh nodes of raycontrol rows: no answers about their peers to the mesh (DebugPrivacy); only the
         // neighbours' flows come in, the rest are dropped before a handshake (none at all without a LAN)

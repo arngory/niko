@@ -114,7 +114,8 @@ object RaySubscription {
                 RayNodes.update(nodeId) {
                     if (it.subscription == null) return@update it
                     val failures = if (it.failedNetwork == network) it.failedFetches + 1 else 1
-                    val at = if (refused(e)) RayNodes.STOPPED else System.currentTimeMillis() / 1000 + retryAfter(e, failures)
+                    // each device at its own step of the backoff: not all of a node's at once after its restart
+                    val at = if (refused(e)) RayNodes.STOPPED else System.currentTimeMillis() / 1000 + Jitter.around(retryAfter(e, failures))
                     // the node no longer knows this device (404): its LAN goes with it (lan-v1 §5)
                     if (refused(e)) it.copy(refreshAt = at, failedFetches = failures, failedNetwork = network, lan = null, lanPrevious = null)
                     else it.copy(refreshAt = at, failedFetches = failures, failedNetwork = network)
@@ -210,10 +211,14 @@ object RaySubscription {
         // with the LAN shown, sooner: a revoked device leaves the others' lists, an `on` not taken yet is asked again
         // the addresses this answer keeps, for when the next fetch is due (one expiring) as for the store
         val lanPrevious = RayLanNet.previous(node, parsed.lan, now)
-        val refreshAt = minOf(
+        val planned = minOf(
             maxOf(now + 60, nextRefresh(payload, nodeNow) - skew),
             RayLanNet.refreshBy(node.copy(lanPrevious = lanPrevious), parsed.lan, now),
         )
+        // a moment every device of the node shares (a rotation's `from`, a LAN device's switch, the clock skew
+        // corrected to the second): each fetches within 15 min after it, not all in one second. The credentials of
+        // `next` are stored already and switch at `from` without a fetch; the minute's retry stays a minute
+        val refreshAt = if (planned > now + 120) planned + Jitter.upTo(15 * 60) else planned
         val subExpires = payload.get("expires")?.takeIf { it.isJsonPrimitive }?.asLong?.minus(skew) ?: 0
         // the user's traffic is used up (traffic-limit-v1 §4): the node answers with no profiles until the reset,
         // the rows and the selection stay as they are for then; only what the card shows and the next fetch change

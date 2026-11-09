@@ -73,6 +73,9 @@ object RawUpdater : GroupUpdater() {
                 when (DataStore.appTLSVersion) {
                     "1.3" -> restrictedTLS()
                 }
+                // a panel that answers and then goes quiet would hold the update worker past its own stop
+                setTimeout(120_000)
+                setIdleTimeout(30_000)
             }.newRequest().apply {
                 if (DataStore.allowInsecureOnRequest) {
                     allowInsecure()

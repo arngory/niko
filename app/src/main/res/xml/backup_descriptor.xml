@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Android 11 and older: only a device-to-device transfer (Android 9+) carries the databases.
-     Android 8.1 and older ignore requireFlags; those devices still back them up to the cloud. -->
+<!-- Android 9 to 11: only a device-to-device transfer carries the profiles. Android 8.1 and older ignore
+     requireFlags: backup is off there (allow_backup). The settings stay on the device: they hold this install's
+     keys (the mesh key, the raycontrol nodes, whose device keys are wrapped by this device's Keystore and cannot be
+     opened on another; the API secrets), which another device must not take over. -->
 <full-backup-content xmlns:tools="http://schemas.android.com/tools"
                      tools:ignore="FullBackupContent">
     <include domain="database" path="sager_net.db" requireFlags="deviceToDeviceTransfer"/>
-    <!-- No device storage yet in Android 6.0 -->
-    <include domain="database" path="configuration.db" requireFlags="deviceToDeviceTransfer"/>
-    <include domain="device_database" path="configuration.db" requireFlags="deviceToDeviceTransfer"/>
 </full-backup-content>

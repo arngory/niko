@@ -58,7 +58,7 @@
 
     <application
         android:name="io.niko.SagerNet"
-        android:allowBackup="true"
+        android:allowBackup="@bool/allow_backup"
         android:autoRevokePermissions="allowed"
         android:banner="@mipmap/ic_launcher"
         android:dataExtractionRules="@xml/backup_rules"

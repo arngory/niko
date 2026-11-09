@@ -892,6 +892,7 @@
     <string name="raycontrol_admin_links_help">These links hold %s\'s keys: give them to that person only. Apps other than Niko do not knock (SPA), so they reach only the services open to everyone; Niko devices get the subscription through an invite.</string>
     <string name="raycontrol_admin_option_confirm">%1$s of %2$s: %3$s → %4$s? It applies at once: clients that cannot use the new value lose the service.</string>
     <string name="raycontrol_admin_rotate_key_now_confirm">Refuse the old key at once? Every client of the service loses it until it updates its subscription.</string>
+    <string name="raycontrol_admin_rotate_key_in_grace">The previous rotation is still in its grace: the key before it is accepted until %1$s. Rotating again now drops that key at once, and clients that have not fetched their subscription since lose the tunnel until they do. Rotate anyway?</string>
     <string name="raycontrol_admin_dns_check_last">Last check %1$s: %2$s</string>
     <string name="raycontrol_admin_update">Node update</string>
     <string name="raycontrol_admin_update_current">Version %s</string>

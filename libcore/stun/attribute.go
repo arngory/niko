@@ -66,6 +66,11 @@ func newChangeReqAttribute(changeIP bool, changePort bool) *attribute {
 //
 //             Figure 6: Format of XOR-MAPPED-ADDRESS Attribute
 func (v *attribute) xorAddr(transID []byte) *Host {
+	// the address as long as its family says, else nothing: a longer one ran past the 16 bytes (neko: a hostile
+	// server's answer took the app down)
+	if !v.addrLength() {
+		return nil
+	}
 	xorIP := make([]byte, 16)
 	for i := 0; i < len(v.value)-4; i++ {
 		xorIP[i] = v.value[i+4] ^ transID[i]
@@ -92,6 +97,9 @@ func (v *attribute) xorAddr(transID []byte) *Host {
 //
 //               Figure 5: Format of MAPPED-ADDRESS Attribute
 func (v *attribute) rawAddr() *Host {
+	if !v.addrLength() {
+		return nil
+	}
 	host := new(Host)
 	host.family = uint16(v.value[1])
 	host.port = binary.BigEndian.Uint16(v.value[2:4])
@@ -101,4 +109,18 @@ func (v *attribute) rawAddr() *Host {
 	}
 	host.ip = net.IP(v.value[4:]).String()
 	return host
+}
+
+// addrLength: the attribute holds a whole address of its family, 8 bytes for IPv4 and 20 for IPv6 (neko).
+func (v *attribute) addrLength() bool {
+	if len(v.value) < 4 {
+		return false
+	}
+	switch uint16(v.value[1]) {
+	case attributeFamilyIPv4:
+		return len(v.value) == 8
+	case attributeFamilyIPV6:
+		return len(v.value) == 20
+	}
+	return false
 }

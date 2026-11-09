@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 9+: only a device-to-device transfer carries the profiles (backup_descriptor, backup_rules) -->
+    <bool name="allow_backup">true</bool>
+</resources>

@@ -130,7 +130,7 @@ object RayBrutal {
                     Logs.i("raycontrol ${node.host}: Brutal on this network: down ${m.rates.downKbps} kbit/s, up ${m.rates.upKbps} kbit/s")
                 }
                 // the node's Retry-After when longer than an hour (the day's volume spent)
-                is Measurement.Later -> retryAt[network.key] = now + max(RETRY, m.retryAfter)
+                is Measurement.Later -> max(RETRY, m.retryAfter).let { wait -> retryAt[network.key] = now + wait + Jitter.upTo(wait / 2) }
             }
         }
         val wanted = ratesFor(node, network)

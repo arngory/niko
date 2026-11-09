@@ -9,11 +9,11 @@ func TestRedactLog(t *testing.T) {
 	SetLogRedactions("node.example.org\n198.51.100.7")
 	defer SetLogRedactions("")
 	in := `{"type":"vless","server":"node.example.org","uuid":"11111111-2222","password": "hunter2","private_key":"abc",` +
-		`"secret":"s3cr3t","encryption_key":"k"} dial tcp 198.51.100.7:443 vless://uuid@Node.Example.org:443?pbk=PUB&sid=01&sni=x ` +
+		`"secret":"s3cr3t","encryption_key":"k","port_key":"PK1","short_id":"SID1","dns_probe_key":"DPK1"} dial tcp 198.51.100.7:443 vless://uuid@Node.Example.org:443?pbk=PUB&sid=01&sni=x ` +
 		`hysteria2://pw@1.2.3.4:443/?obfs-password=OB&niko-ygg=tls%3A%2F%2Fa%3Bseed#n`
 	out := RedactLog(in)
 	for _, leak := range []string{"11111111-2222", "hunter2", `"abc"`, "s3cr3t", `"k"`, "node.example.org", "Node.Example.org",
-		"198.51.100.7", "uuid@", "pw@", "PUB", "OB&", "seed"} {
+		"198.51.100.7", "uuid@", "pw@", "PUB", "OB&", "seed", "PK1", "SID1", "DPK1"} {
 		if strings.Contains(out, leak) {
 			t.Fatalf("%q left in %s", leak, out)
 		}

@@ -162,6 +162,9 @@ class RayAdminActivity : ThemedActivity() {
         }
     }
 
+    // rayapi.ErrAnswerLost: sent once, not again, and it may have taken effect
+    private fun lost(e: Throwable) = e.message?.contains("answer was lost") == true
+
     private fun failure(e: Throwable): String = when {
         RayApi.code(e) == "permission_denied" -> getString(R.string.raycontrol_admin_denied)
         RayApi.code(e) == "unauthenticated" -> getString(R.string.raycontrol_admin_unauthenticated)
@@ -375,7 +378,11 @@ class RayAdminActivity : ThemedActivity() {
 
     /** StartUpdate answers at once; the update runs after it, rayd and its API restarting on the way. */
     private fun startUpdate(version: String) = confirm(getString(R.string.raycontrol_admin_update_confirm, version)) {
-        api({ call("StartUpdate", body("version" to version)) }) { watchUpdate() }
+        // an answer lost while rayd restarts, or "an update is requested already" on a second tap: the update may be
+        // under way, and its status only reads
+        api({ call("StartUpdate", body("version" to version)) }, failed = { e ->
+            if (lost(e) || RayApi.code(e) == "failed_precondition") watchUpdate()
+        }) { watchUpdate() }
     }
 
     /**
@@ -549,6 +556,12 @@ class RayAdminActivity : ThemedActivity() {
                 api({
                     call("CreateUser", body("name" to userName, "expiresAt" to expires.toString(),
                         "trafficLimitBytes" to limit.toString(), "note" to note.text.toString().trim(), "services" to chosen))
+                }, failed = { e ->
+                    // created with its answer lost, or a second tap: the user is there, the first device's invite next
+                    if (lost(e) || RayApi.code(e) == "already_exists") {
+                        loadUsers()
+                        invite(userName, created = true)
+                    }
                 }) {
                     loadUsers()
                     // a user reaches the node through their devices: the first one's invite now
@@ -751,8 +764,8 @@ class RayAdminActivity : ThemedActivity() {
         if (optionsOf(service).isNotEmpty()) actions += R.string.raycontrol_admin_options to { serviceOptions(service) }
         if (kind.contains("reality")) actions += R.string.raycontrol_admin_rotate to { rotate(name) }
         // dnstt's seal key (dnsseal-v1 §8), masterdns's service key (masterdns-key-rotation §2): a new one at once
-        if (kind == "dnstt") actions += R.string.raycontrol_admin_rotate_seal to { rotateKey(name, R.string.raycontrol_admin_rotate_seal) }
-        if (kind == "masterdns") actions += R.string.raycontrol_admin_rotate_service to { rotateKey(name, R.string.raycontrol_admin_rotate_service) }
+        if (kind == "dnstt") actions += R.string.raycontrol_admin_rotate_seal to { rotateKey(service, "seal_prev_until", R.string.raycontrol_admin_rotate_seal) }
+        if (kind == "masterdns") actions += R.string.raycontrol_admin_rotate_service to { rotateKey(service, "key_prev_until", R.string.raycontrol_admin_rotate_service) }
         actions += R.string.delete to { confirm(getString(R.string.raycontrol_admin_delete_service, name)) {
             api({ call("DeleteService", body("name" to name)) }) { loadServices() }
         } }
@@ -781,19 +794,33 @@ class RayAdminActivity : ThemedActivity() {
      * A key that switches at once (a dnstt seal key, a masterdns service key): the previous one accepted for the
      * credential grace, so clients that have not fetched their subscription go on; or not at all (a leaked key).
      */
-    private fun rotateKey(name: String, title: Int) {
+    private fun rotateKey(service: JsonObject, prevUntilKey: String, title: Int) {
+        val name = service.s("name")
+        // a rotation still in its grace (the previous key accepted until then): a second one drops that key, which the
+        // clients that have not fetched since still use, as a rotation "now" would. Asked first, as a retry after an
+        // answer that was lost would do it unasked
+        val prevUntil = runCatching {
+            com.google.gson.JsonParser.parseString(service.s("settingsJson")).asJsonObject.get(prevUntilKey)?.asLong
+        }.getOrNull() ?: 0L
+        val inGrace = prevUntil > System.currentTimeMillis() / 1000
         val options = arrayOf(getString(R.string.raycontrol_admin_rotate_key_grace), getString(R.string.raycontrol_admin_rotate_key_now))
         MaterialAlertDialogBuilder(this)
             .setTitle(title)
             .setItems(options) { _, i ->
-                if (i == 1) confirm(getString(R.string.raycontrol_admin_rotate_key_now_confirm)) { rotateKeyNow(name, true) }
-                else rotateKeyNow(name, false)
+                when {
+                    i == 1 -> confirm(getString(R.string.raycontrol_admin_rotate_key_now_confirm)) { rotateKeyNow(name, true) }
+                    inGrace -> confirm(getString(R.string.raycontrol_admin_rotate_key_in_grace, date(prevUntil))) { rotateKeyNow(name, false) }
+                    else -> rotateKeyNow(name, false)
+                }
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
     }
 
-    private fun rotateKeyNow(name: String, now: Boolean): Unit = api({ call("RotateService", body("name" to name, "now" to now)) }) { answer ->
+    private fun rotateKeyNow(name: String, now: Boolean): Unit = api({ call("RotateService", body("name" to name, "now" to now)) }, failed = { e ->
+        // it may have rotated: the list shows the rotation (the grace above guards a second one), never a retry here
+        if (lost(e)) loadServices()
+    }) { answer ->
         val until = answer.l("prevUntil")
         snackbar(if (until > 0) getString(R.string.raycontrol_admin_rotate_key_until, date(until))
         else getString(R.string.raycontrol_admin_rotate_key_gone)).show()
