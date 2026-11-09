@@ -2,6 +2,8 @@ package io.niko.raycontrol
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import io.niko.Key
+import io.niko.database.DataStore
 import io.niko.ktx.Logs
 import libcore.Libcore
 import okio.ByteString.Companion.decodeBase64
@@ -97,7 +99,27 @@ object RayApi {
             // the PIN goes to the core only, which sends its proof (HMAC with the invite key), never the PIN
             pin?.let { addProperty("pin_code", it) }
         }
-        val answer = JsonParser.parseString(Libcore.raycontrolRegister(request.toString())).asJsonObject
+        // the client key is made and kept before the first try: a retry after an answer that was lost sends the same,
+        // and the node answers it the same package within its window, instead of "the invite is used"
+        val pending = pendingIdentity(invite.inviteId)
+        val pendingKey = DeviceKeyVault.unwrap(pending.keyWrapped)
+        try {
+            request.add("identity", JsonObject().apply {
+                addProperty("cert", pending.cert)
+                addProperty("key", pendingKey.toByteString().base64())
+                addProperty("pin", pending.pin)
+            })
+        } finally {
+            pendingKey.fill(0)
+        }
+        val answer = try {
+            JsonParser.parseString(Libcore.raycontrolRegister(request.toString())).asJsonObject
+        } catch (e: Exception) {
+            // refused (used, expired, revoked): the key is of no further use
+            if (code(e) == "not_found") forgetPending(invite.inviteId)
+            throw e
+        }
+        forgetPending(invite.inviteId)
         val registration = Rcdev1.parse(answer.get("bundle").asString)
         // the channel is pinned to the invite's node; its package may name a new address (a moved node): that is kept
         if (registration.spa.nodeId != invite.spa.nodeId) {
@@ -116,6 +138,42 @@ object RayApi {
             registration, RayIdentity(identity.get("cert").asString, wrapped, identity.get("pin").asString, now())
         )
         return node to (answer.get("role")?.asString ?: "user")
+    }
+
+    // how long a kept registration key is sent again: the node's window for answering a retry the same (15 min)
+    private const val REGISTER_RETRY_S = 15 * 60L
+
+    /** The client key for registering with the invite [inviteId]: the one kept within the window, else a new one, kept. */
+    private fun pendingIdentity(inviteId: String): RayIdentity = RayNodesLock.withLock {
+        val kept = pendingRegistrations().filterValues { now() - it.createdAt < REGISTER_RETRY_S }
+        kept[inviteId] ?: run {
+            val made = JsonParser.parseString(Libcore.raycontrolNewIdentity()).asJsonObject
+            val key = made.get("key").asString.decodeBase64()?.toByteArray()
+                ?: throw Exception("raycontrol: the core returned no client key")
+            val wrapped = try {
+                DeviceKeyVault.wrap(key)
+            } finally {
+                key.fill(0)
+            }
+            RayIdentity(made.get("cert").asString, wrapped, made.get("pin").asString, now()).also {
+                savePendingRegistrations(kept + (inviteId to it))
+            }
+        }
+    }
+
+    private fun forgetPending(inviteId: String) = RayNodesLock.withLock {
+        savePendingRegistrations(pendingRegistrations() - inviteId)
+    }
+
+    private fun pendingRegistrations(): Map<String, RayIdentity> = runCatching {
+        val raw = DataStore.configurationStore.getString(Key.RAYCONTROL_PENDING_REGISTER, null)
+        if (raw.isNullOrBlank()) emptyMap()
+        else JsonParser.parseString(raw).asJsonObject.entrySet().associate { it.key to RayIdentity.fromJson(it.value.asJsonObject) }
+    }.getOrDefault(emptyMap())
+
+    private fun savePendingRegistrations(map: Map<String, RayIdentity>) {
+        DataStore.configurationStore.putString(Key.RAYCONTROL_PENDING_REGISTER,
+            JsonObject().apply { map.forEach { (k, v) -> add(k, v.toJson()) } }.toString())
     }
 
     /**

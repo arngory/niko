@@ -413,6 +413,10 @@ type Invite struct {
 	} `json:"api"`
 	// the PIN the user entered for an invite that needs one (api-v1.md §3); not part of rcinv1
 	PinCode string `json:"pin_code,omitempty"`
+	// Identity is the client key the device registers with, made and kept by the app before the first try: a retry
+	// after an answer that was lost sends the same, and the node answers it the same package (its window, 15 min)
+	// instead of "the invite is used". Nil: a new one (neko)
+	Identity *Identity `json:"identity,omitempty"`
 }
 
 // Registered is the outcome of Register: the device's own rcdev1 package and
@@ -470,8 +474,13 @@ func Register(ctx context.Context, invite Invite, control func(network, address 
 	if invite.PinCode != "" && !validPin(invite.PinCode) {
 		return nil, ErrPinFormat
 	}
-	identity, err := NewIdentity()
-	if err != nil {
+	var identity Identity
+	if invite.Identity != nil {
+		identity = *invite.Identity
+		if identity.Cert == "" || identity.Key == "" || identity.Pin == "" {
+			return nil, errors.New("raycontrol api: the registration's client key is incomplete")
+		}
+	} else if identity, err = NewIdentity(); err != nil {
 		return nil, err
 	}
 	endpoint := Endpoint{Host: invite.Host, Port: invite.API.Port, Pin: invite.API.Pin, Identity: identity, SPA: invite.SPA, Control: control}

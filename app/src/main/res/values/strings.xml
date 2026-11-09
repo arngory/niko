@@ -745,7 +745,7 @@
     <string name="raycontrol_group_locked">The group of the raycontrol node %s: its profiles come from the node</string>
     <string name="raycontrol_clock_hint">If the node is up, check the time on this device: SPA works only within 30 s of the node clock.</string>
     <string name="raycontrol_sub_reimport">The node refused this device or its keys changed: import its registration (rcdev1) again. Scheduled updates for it are stopped.</string>
-    <string name="raycontrol_invite_lost">The node got the registration but its answer was lost: the invite may now be used by this device without its key here. Ask the administrator whether the device appeared; if it did, revoke it and send a new invite.</string>
+    <string name="raycontrol_invite_lost">The node got the registration but its answer was lost. Open the same invite again within 15 minutes: this device asks with the same key, and a node that supports it answers the same registration. Later, or if the node refuses, ask the administrator whether the device appeared; if it did, revoke it and send a new invite.</string>
     <string name="raycontrol_import_replace">This replaces your registration at the raycontrol node %s: this device gets another key and loses the current one (and its admin access). Only accept a package or invite from your administrator.</string>
     <string name="raycontrol_import_moved">This names your raycontrol node %1$s with another address, %2$s, and replaces your registration there: another key, and the current one with its admin access is lost. Only accept it if your administrator moved the node.</string>
     <string name="raycontrol_invite_registering">Registering this device at %s…</string>

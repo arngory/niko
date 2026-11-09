@@ -189,6 +189,7 @@ object Key {
     const val YGGDRASIL_INBOUND_PORTS = "yggdrasilInboundPorts"
     const val LAN_INBOUND_PORTS = "lanInboundPorts"
     const val LAN_RUNNING = "lanRunning"
+    const val RAYCONTROL_PENDING_REGISTER = "raycontrolPendingRegister"
     const val PLUGIN_TRUST = "pluginTrust"
     const val YGGDRASIL_PEERS_VIA_PROXY = "yggdrasilPeersViaProxy"
     const val YGGDRASIL_TLS_CHROME = "yggdrasilTlsChrome"
