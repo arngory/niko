@@ -162,6 +162,7 @@
     <string name="raycontrol_findings_name">%1$s: имя ноды в этой сети не разрешается</string>
     <string name="raycontrol_findings_unreachable">%1$s: из этой сети нет маршрута к ноде</string>
     <string name="raycontrol_findings_busy">%1$s: нода была занята другой проверкой: запустите прогон через минуту</string>
+    <string name="raycontrol_findings_limit">%1$s: нода отказала — у вас открыто слишком много соединений (лимит соединений ноды); пройдёт, когда они закроются, иначе вопрос к админу ноды</string>
     <string name="raycontrol_findings_http">%1$s: нода ответила на проверку %2$s</string>
     <string name="raycontrol_findings_other">%1$s: %2$s</string>
     <string name="raycontrol_findings_dns_failed">%1$s: DNS-туннель не проходит: резолверы этой сети его не пропускают или режут его ответы</string>

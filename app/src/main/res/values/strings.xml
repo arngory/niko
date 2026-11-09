@@ -946,6 +946,7 @@
     <string name="raycontrol_findings_name">%1$s: the node\'s name does not resolve on this network</string>
     <string name="raycontrol_findings_unreachable">%1$s: no route to the node from this network</string>
     <string name="raycontrol_findings_busy">%1$s: the node was busy with another check: run it again in a minute</string>
+    <string name="raycontrol_findings_limit">%1$s: the node refused, too many of your connections are open on it (its connection limit); it passes as they close, or ask the node\'s admin</string>
     <string name="raycontrol_findings_http">%1$s: the node answered the check with %2$s</string>
     <string name="raycontrol_findings_other">%1$s: %2$s</string>
     <string name="raycontrol_findings_dns_failed">%1$s: the DNS tunnel does not get through: the resolvers on this network do not pass it, or they cut its answers</string>

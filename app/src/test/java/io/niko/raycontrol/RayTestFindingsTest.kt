@@ -34,6 +34,9 @@ class RayTestFindingsTest {
             "dial tcp 185.10.1.1:443: connect: network is unreachable" to Cause.UNREACHABLE,
             "503 Service Unavailable" to Cause.HTTP,
             "429 Too Many Requests" to Cause.BUSY,
+            // the node's connection limit for the user (conn-limit-v1 §4.3): naive's CONNECT answer, Hysteria2's text
+            "unexpected response status: 429" to Cause.LIMIT,
+            "Get \"https://probe/down\": remote error: too many connections" to Cause.LIMIT,
             // an address first is not a status
             "185.10.1.1:443 said something" to Cause.OTHER,
             "something new" to Cause.OTHER,

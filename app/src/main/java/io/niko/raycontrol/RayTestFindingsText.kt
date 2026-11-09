@@ -58,6 +58,7 @@ object RayTestFindingsText {
                 Cause.NAME -> context.getString(R.string.raycontrol_findings_name, names)
                 Cause.UNREACHABLE -> context.getString(R.string.raycontrol_findings_unreachable, names)
                 Cause.BUSY -> context.getString(R.string.raycontrol_findings_busy, names)
+                Cause.LIMIT -> context.getString(R.string.raycontrol_findings_limit, names)
                 Cause.HTTP -> context.getString(R.string.raycontrol_findings_http, names, profiles.first().error ?: "?")
                 Cause.IN_USE -> continue
                 Cause.OTHER -> profiles.joinToString("\n• ") {

@@ -40,6 +40,12 @@ object RayTestFindings {
         /** the node answered the probe with an HTTP error */
         HTTP,
 
+        /**
+         * the node refused: its user has too many connections open (conn-limit-v1 §4.3: naive's 429 before the 200,
+         * Hysteria2's "too many connections"); not the network's doing, it passes as connections close
+         */
+        LIMIT,
+
         /** the running proxy uses it: not measured */
         IN_USE,
 
@@ -235,6 +241,9 @@ object RayTestFindings {
         val e = error?.lowercase()?.trim() ?: return Cause.OTHER
         return when {
             e == "stalled" -> Cause.STALLS
+            // the node's connection limit (conn-limit-v1 §4.3), before the status of the probe's own answer below: a
+            // 429 at the start is the probe slot taken, one in naive's CONNECT answer is the user's limit
+            "too many connections" in e || "response status: 429" in e -> Cause.LIMIT
             HTTP_STATUS.containsMatchIn(e) -> if (e.startsWith("429")) Cause.BUSY else Cause.HTTP
             "connection refused" in e -> Cause.REFUSED
             "no such host" in e || "lookup " in e -> Cause.NAME
