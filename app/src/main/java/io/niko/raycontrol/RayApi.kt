@@ -140,13 +140,10 @@ object RayApi {
         } finally {
             pendingKey.fill(0)
         }
-        val answer = try {
-            JsonParser.parseString(Libcore.raycontrolRegister(request.toString())).asJsonObject
-        } catch (e: Exception) {
-            // refused (used, expired, revoked): the key is of no further use
-            if (code(e) == "not_found") forgetPending(invite.inviteId)
-            throw e
-        }
+        // a refusal keeps the key too: not_found is also the node's answer to a retry with a wrong or missing PIN
+        // (api-v1 §4.1), and the right PIN after it must come with the same key. A key of no further use (the invite
+        // used by another, expired, revoked) goes with its window
+        val answer = JsonParser.parseString(Libcore.raycontrolRegister(request.toString())).asJsonObject
         val registration = Rcdev1.parse(answer.get("bundle").asString)
         // the channel is pinned to the invite's node; its package may name a new address (a moved node): that is kept
         if (registration.spa.nodeId != invite.spa.nodeId) {
@@ -170,8 +167,9 @@ object RayApi {
         return node to (answer.get("role")?.asString ?: "user")
     }
 
-    // how long a kept registration key is sent again: the node's window for answering a retry the same (15 min)
-    private const val REGISTER_RETRY_S = 15 * 60L
+    // how long a kept registration key is sent again. The node answers a retry the same for 15 min from the invite's
+    // first use, which may come well after the key was made (tries that never reached it): twice that from the making
+    private const val REGISTER_RETRY_S = 30 * 60L
 
     /** The client key for registering with the invite [inviteId]: the one kept within the window, else a new one, kept. */
     private fun pendingIdentity(inviteId: String): RayIdentity = RayNodesLock.withLock {
