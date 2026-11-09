@@ -167,6 +167,14 @@ jobs:
           . buildScript/lib/core/get_source_env.sh
           git clone --filter=blob:none "$REPOSITORY_RAYCONTROL" raycontrol
           git -C raycontrol checkout -q "$COMMIT_RAYCONTROL"
+          # the node's Xray is the one its raycontrol ships (deploy/versions.env: the fork with the per-user
+          # connection limits since v0.25.0); a raycontrol without the pin takes the client's interop Xray
+          XRAY_REPOSITORY=$(sed -n 's/^XRAY_REPOSITORY="\(.*\)"$/\1/p' raycontrol/deploy/versions.env)
+          XRAY_COMMIT=$(sed -n 's/^XRAY_COMMIT="\(.*\)"$/\1/p' raycontrol/deploy/versions.env)
+          if [ -n "$XRAY_REPOSITORY" ] && [ -n "$XRAY_COMMIT" ]; then
+            REPOSITORY_XRAY=$XRAY_REPOSITORY COMMIT_XRAY=$XRAY_COMMIT
+          fi
+          echo "the node's Xray: $REPOSITORY_XRAY at $COMMIT_XRAY"
           git clone --filter=blob:none "$REPOSITORY_XRAY" xray
           git -C xray checkout -q "$COMMIT_XRAY"
           git clone --filter=blob:none "$REPOSITORY_SING_BOX" ../sing-box
@@ -526,6 +534,35 @@ jobs:
           go test -count=1 -v -timeout 20m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolLAN . || {
             docker exec rc-node /opt/rc/rayctl device list alice || true
             docker exec rc-node sh -c 'grep -iE "ygg|lan" /var/log/rayd.log | tail -n 40' || true
+            exit 1
+          }
+
+      # conn-limit-v1 parts 2 and 3 (raycontrol v0.25.0): alice holds as many TCP connections open through Hysteria2,
+      # then REALITY, as the node lets one user have; the next ones are refused ("too many connections" through
+      # Hysteria2), dave's go through meanwhile, and with a few closed hers do again. The destination is an echo on
+      # the runner at 11.0.0.1: the node's Xray keeps its own network 203.0.113.0/24 out (a documentation range)
+      - name: The user's connection limit (Hysteria2, REALITY)
+        working-directory: libcore
+        env:
+          RAYCONTROL_BUNDLE: /tmp/phone.bundle
+          RAYCONTROL_ADDRESS: ${{ steps.node.outputs.address }}
+          RAYCONTROL_CA: /tmp/rccert/root.pem
+          RAYCONTROL_LIMIT_TARGET: 11.0.0.1
+          RAYCONTROL_LIMIT_OTHER: /tmp/dave.bundle
+        run: |
+          if ! grep -q 'XrayConnLimits' ../raycontrol/internal/render/render.go; then
+            echo "::notice::this raycontrol has no per-user connection limits in Hysteria2 and Xray (v0.25.0 does)"
+            exit 0
+          fi
+          TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
+          sudo ip addr add 11.0.0.1/32 dev lo
+          docker exec rc-node /opt/rc/rayctl user add dave -services reality,hy2o,hy2m > /dev/null
+          docker exec rc-node /opt/rc/rayctl device add dave phone -o /root/dave.bundle
+          docker exec rc-node cat /root/dave.bundle > /tmp/dave.bundle
+          # the node takes dave into its exits within seconds
+          sleep 5
+          go test -count=1 -v -timeout 10m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolConnLimit . || {
+            docker exec rc-node /opt/rc/rayctl conn-limit || true
             exit 1
           }
 
