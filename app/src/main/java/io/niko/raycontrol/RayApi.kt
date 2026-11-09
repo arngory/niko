@@ -101,8 +101,15 @@ object RayApi {
         }
         // the client key is made and kept before the first try: a retry after an answer that was lost sends the same,
         // and the node answers it the same package within its window, instead of "the invite is used"
-        val pending = pendingIdentity(invite.inviteId)
-        val pendingKey = DeviceKeyVault.unwrap(pending.keyWrapped)
+        var pending = pendingIdentity(invite.inviteId)
+        val pendingKey = try {
+            DeviceKeyVault.unwrap(pending.keyWrapped)
+        } catch (e: Exception) {
+            // the kept key no longer opens (the keystore key went with a restore or a reset): a new one, once
+            forgetPending(invite.inviteId)
+            pending = pendingIdentity(invite.inviteId)
+            DeviceKeyVault.unwrap(pending.keyWrapped)
+        }
         try {
             request.add("identity", JsonObject().apply {
                 addProperty("cert", pending.cert)
@@ -119,10 +126,10 @@ object RayApi {
             if (code(e) == "not_found") forgetPending(invite.inviteId)
             throw e
         }
-        forgetPending(invite.inviteId)
         val registration = Rcdev1.parse(answer.get("bundle").asString)
         // the channel is pinned to the invite's node; its package may name a new address (a moved node): that is kept
         if (registration.spa.nodeId != invite.spa.nodeId) {
+            forgetPending(invite.inviteId)
             throw Exception("raycontrol invite for ${invite.host}: the node answered with a package of another node; " +
                 "the invite is used: ask the administrator to revoke this device")
         }
@@ -137,6 +144,8 @@ object RayApi {
         val node = RayNodes.import(
             registration, RayIdentity(identity.get("cert").asString, wrapped, identity.get("pin").asString, now())
         )
+        // forgotten once the node is kept: until then a retry sends the same key and gets the same package
+        forgetPending(invite.inviteId)
         return node to (answer.get("role")?.asString ?: "user")
     }
 

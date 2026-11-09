@@ -235,7 +235,9 @@ object DataStore : OnPreferenceDataStoreChangeListener {
             // what this device measured on its networks: of no use on another one
             Key.RAYCONTROL_CHANNEL,
             // the service's state of this installation
-            Key.RAYCONTROL_YGG_RUNNING)
+            Key.RAYCONTROL_YGG_RUNNING,
+            // a registration's client key kept for a retry: wrapped with this device's keystore
+            Key.RAYCONTROL_PENDING_REGISTER)
 
     /** Settings whose values must not appear in logs or crash reports. */
     fun isSensitiveKey(key: String) = key in installSecretKeys || key in secretValueKeys ||
