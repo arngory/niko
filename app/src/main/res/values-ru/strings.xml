@@ -164,6 +164,17 @@
     <string name="raycontrol_findings_busy">%1$s: нода была занята другой проверкой: запустите прогон через минуту</string>
     <string name="raycontrol_findings_limit">%1$s: нода отказала — у вас открыто слишком много соединений (лимит соединений ноды); пройдёт, когда они закроются, иначе вопрос к админу ноды</string>
     <string name="trojan_go_mux_sum">Собственный мультиплекс Trojan-Go: много соединений внутри одного к серверу (на сервере должен быть включён mux; без него работает с любым сервером Trojan-Go)</string>
+    <string name="mieru_default">По умолчанию</string>
+    <string name="mieru_multiplexing">Мультиплексирование</string>
+    <string name="mieru_multiplexing_off">Выключено</string>
+    <string name="mieru_multiplexing_low">Низкое</string>
+    <string name="mieru_multiplexing_middle">Среднее</string>
+    <string name="mieru_multiplexing_high">Высокое</string>
+    <string name="mieru_handshake">Рукопожатие</string>
+    <string name="mieru_handshake_standard">Обычное: сначала ответ сервера</string>
+    <string name="mieru_handshake_no_wait">Без ожидания: данные уходят вместе с рукопожатием</string>
+    <string name="mieru_traffic_pattern">Шаблон трафика</string>
+    <string name="mieru_traffic_pattern_sum">Закодированный шаблон из настроек сервера (как в ссылке mierus://); пусто — без шаблона</string>
     <string name="raycontrol_findings_http">%1$s: нода ответила на проверку %2$s</string>
     <string name="raycontrol_findings_other">%1$s: %2$s</string>
     <string name="raycontrol_findings_dns_failed">%1$s: DNS-туннель не проходит: резолверы этой сети его не пропускают или режут его ответы</string>

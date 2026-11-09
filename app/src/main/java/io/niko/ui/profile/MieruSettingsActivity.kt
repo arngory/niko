@@ -42,7 +42,14 @@ class MieruSettingsActivity : ProfileSettingsActivity<MieruBean>() {
         DataStore.serverUsername = username
         DataStore.serverPassword = password
         DataStore.serverMTU = mtu
+        // a link's MULTIPLEXING_HIGH or HANDSHAKE_NO_WAIT as the menu's "high" or "no_wait"; none: mieru's default
+        DataStore.profileCacheStore.putString(MULTIPLEXING, menuValue(multiplexing, "MULTIPLEXING_", R.array.mieru_multiplexing_value))
+        DataStore.profileCacheStore.putString(HANDSHAKE, menuValue(handshakeMode, "HANDSHAKE_", R.array.mieru_handshake_value))
+        DataStore.profileCacheStore.putString(TRAFFIC_PATTERN, trafficPattern)
     }
+
+    private fun menuValue(kept: String?, prefix: String, values: Int): String =
+        kept.orEmpty().trim().removePrefix(prefix).lowercase().takeIf { it in resources.getStringArray(values) } ?: DEFAULT
 
     override fun MieruBean.serialize() {
         name = DataStore.profileName
@@ -52,6 +59,16 @@ class MieruSettingsActivity : ProfileSettingsActivity<MieruBean>() {
         username = DataStore.serverUsername
         password = DataStore.serverPassword
         mtu = DataStore.serverMTU
+        multiplexing = DataStore.profileCacheStore.getString(MULTIPLEXING, DEFAULT).orEmpty().takeIf { it != DEFAULT }.orEmpty()
+        handshakeMode = DataStore.profileCacheStore.getString(HANDSHAKE, DEFAULT).orEmpty().takeIf { it != DEFAULT }.orEmpty()
+        trafficPattern = DataStore.profileCacheStore.getString(TRAFFIC_PATTERN, "").orEmpty().trim()
+    }
+
+    companion object {
+        private const val MULTIPLEXING = "mieruMultiplexing"
+        private const val HANDSHAKE = "mieruHandshake"
+        private const val TRAFFIC_PATTERN = "mieruTrafficPattern"
+        private const val DEFAULT = "default"
     }
 
     override fun PreferenceFragmentCompat.createPreferences(

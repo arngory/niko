@@ -41,6 +41,28 @@
             app:key="serverMTU"
             app:title="@string/mtu"
             app:useSimpleSummaryProvider="true" />
+        <io.niko.ui.SimpleMenuPreference
+            app:defaultValue="default"
+            app:entries="@array/mieru_multiplexing_entry"
+            app:entryValues="@array/mieru_multiplexing_value"
+            app:icon="@drawable/ic_baseline_layers_24"
+            app:key="mieruMultiplexing"
+            app:title="@string/mieru_multiplexing"
+            app:useSimpleSummaryProvider="true" />
+        <io.niko.ui.SimpleMenuPreference
+            app:defaultValue="default"
+            app:entries="@array/mieru_handshake_entry"
+            app:entryValues="@array/mieru_handshake_value"
+            app:icon="@drawable/ic_baseline_airplanemode_active_24"
+            app:key="mieruHandshake"
+            app:title="@string/mieru_handshake"
+            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            app:dialogMessage="@string/mieru_traffic_pattern_sum"
+            app:icon="@drawable/ic_baseline_format_align_left_24"
+            app:key="mieruTrafficPattern"
+            app:title="@string/mieru_traffic_pattern"
+            app:useSimpleSummaryProvider="true" />
     </PreferenceCategory>
 
 </PreferenceScreen>

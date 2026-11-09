@@ -356,6 +356,30 @@
         <item>TCP</item>
         <item>UDP</item>
     </string-array>
+    <string-array name="mieru_multiplexing_entry">
+        <item>@string/mieru_default</item>
+        <item>@string/mieru_multiplexing_off</item>
+        <item>@string/mieru_multiplexing_low</item>
+        <item>@string/mieru_multiplexing_middle</item>
+        <item>@string/mieru_multiplexing_high</item>
+    </string-array>
+    <string-array name="mieru_multiplexing_value" translatable="false">
+        <item>default</item>
+        <item>off</item>
+        <item>low</item>
+        <item>middle</item>
+        <item>high</item>
+    </string-array>
+    <string-array name="mieru_handshake_entry">
+        <item>@string/mieru_default</item>
+        <item>@string/mieru_handshake_standard</item>
+        <item>@string/mieru_handshake_no_wait</item>
+    </string-array>
+    <string-array name="mieru_handshake_value" translatable="false">
+        <item>default</item>
+        <item>standard</item>
+        <item>no_wait</item>
+    </string-array>
 
     <string-array name="naive_proto_entry">
         <item>HTTPS</item>
