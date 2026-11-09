@@ -160,3 +160,34 @@ fun JSONObject.parseTrojanGo(): TrojanGoBean {
         }
     }
 }
+/**
+ * Trojan-Go's Shadowsocks layer inside TLS (`encryption=ss;method:password`): the one part of it the core's Trojan
+ * does not speak. Without it a Trojan-Go server is a Trojan server (its mux is optional, the server takes plain
+ * streams too), and the core's outbound carries the profile, no plugin.
+ */
+fun TrojanGoBean.needsPlugin(): Boolean = encryption.orEmpty().let { it.isNotBlank() && it != "none" }
+
+/** The core's Trojan outbound for a Trojan-Go profile: TLS to the server, WebSocket for type=ws. */
+fun buildSingBoxOutboundTrojanGoBean(
+    bean: TrojanGoBean, globalInsecure: Boolean = DataStore.globalAllowInsecure,
+): io.niko.SingBoxOptions.Outbound_TrojanOptions {
+    if (bean.needsPlugin()) throw Exception("Trojan-Go with its Shadowsocks layer (encryption=ss) needs the Trojan-Go plugin")
+    return io.niko.SingBoxOptions.Outbound_TrojanOptions().apply {
+        type = "trojan"
+        server = bean.serverAddress
+        server_port = bean.serverPort
+        password = bean.password
+        tls = io.niko.SingBoxOptions.OutboundTLSOptions().apply {
+            enabled = true
+            server_name = bean.sni.takeIf { !it.isNullOrBlank() } ?: bean.serverAddress
+            insecure = bean.allowInsecure == true || globalInsecure
+        }
+        if (bean.type == "ws") transport = io.niko.SingBoxOptions.V2RayTransportOptions_WebsocketOptions().apply {
+            type = "ws"
+            path = bean.path.takeIf { !it.isNullOrBlank() } ?: "/"
+            headers = mutableMapOf<String, String>().apply {
+                (bean.host.takeIf { !it.isNullOrBlank() } ?: bean.sni.takeIf { !it.isNullOrBlank() })?.let { put("Host", it) }
+            }
+        }
+    }
+}

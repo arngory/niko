@@ -528,6 +528,9 @@ fun buildConfig(
                         is NaiveBean ->
                             buildSingBoxOutboundNaiveBean(bean)
 
+                        is io.niko.fmt.trojan_go.TrojanGoBean ->
+                            io.niko.fmt.trojan_go.buildSingBoxOutboundTrojanGoBean(bean)
+
                         else -> throw IllegalStateException("can't reach")
                     }
 
