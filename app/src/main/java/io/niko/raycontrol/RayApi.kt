@@ -8,6 +8,7 @@ import io.niko.ktx.Logs
 import libcore.Libcore
 import okio.ByteString.Companion.decodeBase64
 import okio.ByteString.Companion.toByteString
+import javax.crypto.AEADBadTagException
 
 /**
  * The remote API of a raycontrol node (api-v1.md): registration by invite, and the node's NodeService for admin
@@ -105,7 +106,9 @@ object RayApi {
         val pendingKey = try {
             DeviceKeyVault.unwrap(pending.keyWrapped)
         } catch (e: Exception) {
-            // the kept key no longer opens (the keystore key went with a restore or a reset): a new one, once
+            // the kept key no longer opens (the keystore key went with a restore or a reset: a bad tag) or its record
+            // is damaged: a new one, once. A keystore that fails for the moment keeps it: a new key would use the invite
+            if (e !is AEADBadTagException && e !is IllegalArgumentException && e !is IllegalStateException) throw e
             forgetPending(invite.inviteId)
             pending = pendingIdentity(invite.inviteId)
             DeviceKeyVault.unwrap(pending.keyWrapped)
