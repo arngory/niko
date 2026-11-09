@@ -109,6 +109,8 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var yggdrasilInboundPorts by configurationStore.string(Key.YGGDRASIL_INBOUND_PORTS)
     // lan-v1: the ports the user's other devices reach on this one (127.0.0.1), MeshPorts' format; none by default
     var lanInboundPorts by configurationStore.string(Key.LAN_INBOUND_PORTS)
+    // what the running config took from the nodes' LANs (RayLanNet.signature), set by its build
+    var lanRunning by configurationStore.string(Key.LAN_RUNNING)
     // plugin package → the signer the user trusted (PluginTrust)
     var pluginTrust by configurationStore.string(Key.PLUGIN_TRUST) { "{}" }
     var yggdrasilPeersViaProxy by configurationStore.boolean(Key.YGGDRASIL_PEERS_VIA_PROXY)

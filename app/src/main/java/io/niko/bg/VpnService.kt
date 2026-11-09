@@ -126,16 +126,15 @@ class VpnService : BaseVpnService(),
         }
 
         // lan-v1: the user's other devices are Yggdrasil addresses (200::/7), reached through the core's mesh node.
-        // With IPv6 off the VPN still takes them and gives the apps an IPv6 address; the probes the system resolver
-        // (AI_ADDRCONFIG: a route to 2000::) and Chrome (2001:4860:4860::8888) make before they ask for AAAA at all
-        // get a route too, or no app would look the devices' names up. Every other IPv6 address stays as it was
+        // With IPv6 off the VPN still gives the apps an IPv6 address, and then takes all of IPv6: an address of a
+        // family lets that family past the VPN wherever it has no route (Builder.allowFamily), where before the whole
+        // family was blocked. The core refuses what is not a device's (ConfigBuilder), so IPv6 stays closed as before,
+        // and the system resolver (AI_ADDRCONFIG, a route to 2000::) and Chrome ask for the devices' AAAA
         if (RayLanNet.running) {
             if (ipv6Mode == IPv6Mode.DISABLE) {
                 builder.addAddress(PRIVATE_VLAN6_CLIENT, 126)
-                builder.addRoute("2000::", 128)
-                builder.addRoute("2001:4860:4860::8888", 128)
-            }
-            if (ipv6Mode == IPv6Mode.DISABLE || DataStore.bypassLan) builder.addRoute("200::", 7)
+                builder.addRoute("::", 0)
+            } else if (DataStore.bypassLan) builder.addRoute("200::", 7)
         }
 
         updateUnderlyingNetwork(builder)

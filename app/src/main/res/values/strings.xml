@@ -721,7 +721,7 @@
     <string name="raycontrol_lan_none">No other device of yours is shown yet.</string>
     <string name="raycontrol_lan_device">%1$s: %2$s</string>
     <string name="raycontrol_lan_ports">Ports open to my devices</string>
-    <string name="raycontrol_lan_ports_help">For example 22, 8000-8100; empty: none. Your other devices reach these ports on this device\'s 127.0.0.1, never Niko\'s own.</string>
+    <string name="raycontrol_lan_ports_help" tools:ignore="TypographyDashes">For example 22, 8000-8100; empty: none. Your other devices reach these ports on this device\'s 127.0.0.1, never Niko\'s own.</string>
     <string name="raycontrol_lan_ports_bad">Not a list of ports: %1$s</string>
     <string name="raycontrol_lan_shown">This device is shown to your other devices</string>
     <string name="raycontrol_lan_hidden">This device is hidden from your other devices</string>

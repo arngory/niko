@@ -4,7 +4,6 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import io.niko.database.ProxyEntity
 import io.niko.database.SagerDatabase
-import io.niko.fmt.isYggdrasilAddress
 
 /**
  * A device of the user on the node's LAN (lan-v1 §1.2, raycontrol v0.23.0): its name for display, its DNS label
@@ -185,8 +184,8 @@ object RayLanNet {
     fun suffixes(names: Map<String, String>) = names.keys.map { it.substringAfter('.') }.distinct()
 
     /**
-     * The addresses kept after this answer: [old]'s addresses of the devices still listed in [new] that it no longer
-     * names, until two days on, with the earlier ones still unexpired. A device gone from the list (hidden, revoked)
+     * The addresses kept after this answer: the stored list's addresses of the devices still listed in [new] that it
+     * no longer names, until two days after the switch (§5), with the earlier ones still unexpired. A device gone from the list (hidden, revoked)
      * takes its addresses with it.
      */
     fun previous(node: RayNode, new: RayLan?, now: Long): List<RayLanPrevious> {
@@ -195,7 +194,9 @@ object RayLanNet {
         val kept = node.lanPrevious.orEmpty().filter { it.until > now && it.id in listed }
         val dropped = node.lan?.devices.orEmpty().filter { it.id in listed }.flatMap { old ->
             val current = listed.getValue(old.id).let { setOfNotNull(it.addr, it.nextAddr) }
-            listOfNotNull(old.addr, old.nextAddr).filter { it !in current }.map { RayLanPrevious(old.id, it, now + PREVIOUS_FOR) }
+            // two days after the switch the old address held until (its next's `from`, the node's clock), else from now
+            val until = if (old.nextFrom > 0) old.nextFrom - node.clockSkew + PREVIOUS_FOR else now + PREVIOUS_FOR
+            listOfNotNull(old.addr, old.nextAddr).filter { it !in current }.map { RayLanPrevious(old.id, it, until) }
         }
         return (dropped + kept).distinctBy { it.addr }
     }
@@ -219,17 +220,35 @@ object RayLanNet {
     fun refreshBy(node: RayNode, lan: RayLan?, now: Long): Long = when {
         node.lanShow != true || lan == null -> Long.MAX_VALUE
         !lan.shown && now - node.lanShowAt < RETRY_ON_FOR -> now + RETRY_ON
-        else -> now + REFRESH_AT_MOST
+        // a device's next address from its `from` (the names change then), a kept address expiring: the fetch then
+        // finds the config's LAN changed and restarts the core ([reloadIfChanged])
+        else -> (lan.devices.mapNotNull { d -> d.nextFrom.takeIf { d.nextAddr != null && it > 0 }?.minus(node.clockSkew) } +
+                node.lanPrevious.orEmpty().map { it.until }).filter { it > now }.fold(now + REFRESH_AT_MOST, ::minOf)
     }
 
-    /** What a config takes from the nodes' LANs: a change of it restarts the core ([reloadIfChanged]). */
+    /**
+     * What a config takes from the nodes' LANs at [now]: the neighbours, the names and the rows they run on. The
+     * build that runs stores it ([noteRunning]); a different one now restarts the core ([reloadIfChanged]).
+     */
     fun signature(nodes: List<RayNode>, now: Long): String = nodes.filter { of(it) != null }.joinToString("\n") { node ->
-        node.spa.nodeId + " " + of(node)!!.svc + " " + neighbours(node, now).sorted().joinToString(",")
+        val lan = of(node)!!
+        val rows = node.profileIds.orEmpty().filterKeys { it.substringBefore('#') == lan.svc.toString() }.values.sorted()
+        node.spa.nodeId + " " + lan.svc + " " + rows + " " + neighbours(node, now).sorted().joinToString(",")
     } + "\n" + names(nodes, now).entries.joinToString(",") { "${it.key}=${it.value}" }
 
-    /** The neighbours or their names changed since [before] ([signature]): a running core takes them at once. */
-    fun reloadIfChanged(before: String, now: Long) {
-        if (signature(RayNodes.list(), now) != before) io.niko.SagerNet.reloadService(force = true)
+    /** The running config's LAN: [signature] at its build, in the store both processes read. */
+    fun noteRunning(nodes: List<RayNode>, now: Long) {
+        io.niko.database.DataStore.lanRunning = signature(nodes, now)
+    }
+
+    /**
+     * The neighbours, their names or the rows changed since the running config was built (a fetch, the user's
+     * switch, a device's next address from its `from`, a kept address expired): a running core takes them at once.
+     * The service ignores the reload when it is not running.
+     */
+    fun reloadIfChanged(now: Long) {
+        val running = io.niko.database.DataStore.lanRunning.ifEmpty { signature(emptyList(), now) }
+        if (signature(RayNodes.list(), now) != running) io.niko.SagerNet.reloadService(force = true)
     }
 
     /**
@@ -238,11 +257,10 @@ object RayLanNet {
      */
     suspend fun setShow(nodeId: String, show: Boolean): RaySubscriptionResult? {
         val now = System.currentTimeMillis() / 1000
-        val before = signature(RayNodes.list(), now)
         RayNodesLock.withLock {
             RayNodes.update(nodeId) { it.copy(lanShow = show, lanShowAt = now) }
         }
-        reloadIfChanged(before, now)
+        reloadIfChanged(now)
         return runCatching { RaySubscription.refresh(nodeId) }.getOrNull()
     }
 
@@ -259,8 +277,44 @@ private val ID = Regex("^[0-9a-f]{16}$")
 // a DNS label as the node computes them (§1.3): LDH, no "-" at either end, at most 63
 private val LABEL = Regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$")
 
-/** A Yggdrasil address (200::/7) as given, lowercase; null for anything else. */
-private fun yggAddress(s: String) = s.trim().lowercase().takeIf { it.isYggdrasilAddress() && !it.startsWith('[') }
+/**
+ * A Yggdrasil address (200::/7) in its canonical form (RFC 5952), null for anything else: parsed here, strictly, as
+ * the core will (netip), so no address the core refuses ever reaches a config, and one address is one string.
+ */
+internal fun yggAddress(s: String): String? {
+    val text = s.trim().lowercase()
+    if (text.isEmpty() || text.length > 39 || !text.all { it in '0'..'9' || it in 'a'..'f' || it == ':' }) return null
+    val halves = text.split("::")
+    if (halves.size > 2) return null
+    fun groups(part: String) = if (part.isEmpty()) emptyList() else part.split(':')
+    val head = groups(halves[0])
+    val tail = if (halves.size == 2) groups(halves[1]) else emptyList()
+    if ((head + tail).any { it.isEmpty() || it.length > 4 }) return null
+    val missing = 8 - head.size - tail.size
+    if (if (halves.size == 2) missing < 1 else missing != 0) return null
+    val words = (head + List(missing) { "0" } + tail).map { it.toInt(16) }
+    if (words[0] !in 0x200..0x3ff) return null
+    // the longest run of two or more zero words becomes "::", the first of equal runs
+    var best = -1
+    var bestLength = 1
+    var i = 0
+    while (i < 8) {
+        if (words[i] != 0) {
+            i++
+            continue
+        }
+        var j = i
+        while (j < 8 && words[j] == 0) j++
+        if (j - i > bestLength) {
+            best = i
+            bestLength = j - i
+        }
+        i = j
+    }
+    if (best < 0) return words.joinToString(":") { it.toString(16) }
+    return words.subList(0, best).joinToString(":") { it.toString(16) } + "::" +
+            words.subList(best + bestLength, 8).joinToString(":") { it.toString(16) }
+}
 
 private fun JsonObject.str(name: String) = get(name)?.takeIf { it.isJsonPrimitive }?.let { runCatching { it.asString }.getOrNull() }
 

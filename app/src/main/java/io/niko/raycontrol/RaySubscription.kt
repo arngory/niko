@@ -119,6 +119,7 @@ object RaySubscription {
                     if (refused(e)) it.copy(refreshAt = at, failedFetches = failures, failedNetwork = network, lan = null, lanPrevious = null)
                     else it.copy(refreshAt = at, failedFetches = failures, failedNetwork = network)
                 }
+                if (refused(e)) RayLanNet.reloadIfChanged(System.currentTimeMillis() / 1000)
                 throw e
             } finally {
                 if (reschedule) schedule()
@@ -208,8 +209,6 @@ object RaySubscription {
         // the UI and the scheduled worker (`:bg`) may both get here: one writer across the processes
         // with the LAN shown, sooner: a revoked device leaves the others' lists, an `on` not taken yet is asked again
         val refreshAt = minOf(maxOf(now + 60, nextRefresh(payload, nodeNow) - skew), RayLanNet.refreshBy(node, parsed.lan, now))
-        // the LAN as the running config has it, to restart the core when the neighbours or their names change
-        val lanBefore = RayLanNet.signature(RayNodes.list(), now)
         val subExpires = payload.get("expires")?.takeIf { it.isJsonPrimitive }?.asLong?.minus(skew) ?: 0
         // the user's traffic is used up (traffic-limit-v1 §4): the node answers with no profiles until the reset,
         // the rows and the selection stay as they are for then; only what the card shows and the next fetch change
@@ -226,7 +225,7 @@ object RaySubscription {
                     )
                 }
             }
-            RayLanNet.reloadIfChanged(lanBefore, now)
+            RayLanNet.reloadIfChanged(now)
             RayNodes.get(nodeId)?.groupId?.takeIf { it > 0 }?.let { GroupManager.postReload(it) }
             return RaySubscriptionResult(
                 profiles = 0, skipped = 0, clockSkew = skew,
@@ -251,7 +250,7 @@ object RaySubscription {
             RayChannel.recordHints(nodeId, network, parsed.hints?.let { RayHints.fromJson(it, now) })
         }
         return finish(stored, reload, parsed, skew, spaOverTcp = result.get("spa_over_tcp")?.asBoolean == true).also {
-            if (!it.restarted) RayLanNet.reloadIfChanged(lanBefore, now)
+            if (!it.restarted) RayLanNet.reloadIfChanged(now)
         }
     }
 

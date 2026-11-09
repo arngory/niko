@@ -85,7 +85,10 @@ private fun Fragment.lanDialog(node: RayNode, hasRow: Boolean) {
                 snackbar(getString(R.string.raycontrol_lan_ports_bad, typed)).show()
             } else if (portsChanged) {
                 DataStore.lanInboundPorts = typed
-                if (RayLanNet.running) SagerNet.reloadService(force = true)
+                // the running core (another process) takes the ports at once, a closed one too; ignored when stopped
+                runOnDefaultDispatcher {
+                    if (RayNodes.list().any { RayLanNet.of(it) != null }) SagerNet.reloadService(force = true)
+                }
             }
             val wanted = show.isChecked
             if (wanted != (node.lanShow == true)) runOnDefaultDispatcher {

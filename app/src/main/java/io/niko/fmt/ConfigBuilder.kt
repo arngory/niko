@@ -1051,14 +1051,17 @@ fun buildConfig(
             lanEndpointOf[node.spa.nodeId] = tag
         }
         val lanNames = RayLanNet.names(lanNodes.filter { it.spa.nodeId in lanEndpointOf }, lanNow)
-        if (notes) RayLanNet.running = lanEndpoints.isNotEmpty()
+        if (notes) {
+            RayLanNet.running = lanEndpoints.isNotEmpty()
+            RayLanNet.noteRunning(RayNodes.list(), lanNow)
+        }
         // the mesh nodes of raycontrol rows: no answers about their peers to the mesh (DebugPrivacy); only the
         // neighbours' flows come in, the rest are dropped before a handshake (none at all without a LAN)
         endpoints.filterIsInstance<Outbound>().filter { endpoint -> yggProfileEndpoints.values.any { it.first == endpoint.tag } }.forEach { endpoint ->
             endpoint._hack_config_map["debug_privacy"] = true
             endpoint._hack_config_map["inbound_sources"] = lanEndpoints[endpoint.tag].orEmpty().distinct().map { "$it/128" }
         }
-        // the apps reach the devices' addresses over IPv6, also with IPv6 off (the VPN routes 200::/7, RayLanNet.running)
+        // the apps reach the devices' addresses over IPv6, also with IPv6 off (the VPN takes IPv6, RayLanNet.running)
         if (lanEndpoints.isNotEmpty() && ipv6Mode == IPv6Mode.DISABLE) inbounds.filterIsInstance<Inbound_TunOptions>().forEach { tun ->
             tun.address = (tun.address.orEmpty() + (VpnService.PRIVATE_VLAN6_CLIENT + "/126")).distinct()
         }
@@ -1347,8 +1350,9 @@ fun buildConfig(
         } + externalIndexMap.flatMap { it.chain.keys } + slipstreamLaunches.map { it.localPort } +
                 listOfNotNull(9090.takeIf { experimental?.clash_api != null })).distinct()
 
-        // lan-v1 §5: the devices' names answered here, from the list; nothing under niko.internal goes out (an
-        // unknown name: NXDOMAIN). AAAA also with IPv6 off: these addresses go through the mesh, not the network
+        // lan-v1 §5: the devices' names answered here, from the list; nothing under niko.internal ever goes out, with a
+        // LAN or without one (an unknown name: NXDOMAIN). AAAA also with IPv6 off: these addresses go through the
+        // mesh, not the network
         if (lanNames.isNotEmpty()) {
             dns.servers.add(DNSServerOptions().apply {
                 type = "hosts"
@@ -1359,7 +1363,11 @@ fun buildConfig(
                 domain_suffix = listOf(RayLanNet.ZONE)
                 server = TAG_DNS_LAN
             })
-        }
+        } else if (!forTest) dns.rules.add(0, DNSRule_DefaultOptions().apply {
+            domain_suffix = listOf(RayLanNet.ZONE)
+            action = "predefined"
+            rcode = "NXDOMAIN"
+        })
 
         if (forTest) {
             dns.rules = listOf()
@@ -1454,10 +1462,11 @@ fun buildConfig(
             }
         }
         // lan-v1: to the user's other devices through the node's mesh node, by address and by name (a proxy client's
-        // domain; the mesh node looks it up in the names below)
-        if (lanEndpoints.isNotEmpty()) {
+        // domain; the mesh node looks it up in the names below). Any other name under niko.internal goes nowhere,
+        // with a LAN or without one, never to the proxy
+        if (!forTest) {
             val byNode = lanNodes.filter { it.spa.nodeId in lanEndpointOf }
-            route.rules.addAll(0, lanEndpoints.map { (tag, neighbours) ->
+            val lanRules = lanEndpoints.map { (tag, neighbours) ->
                 Rule_DefaultOptions().apply {
                     ip_cidr = neighbours.distinct().map { "$it/128" }
                     outbound = tag
@@ -1468,7 +1477,25 @@ fun buildConfig(
                     domain_suffix = suffixes
                     outbound = lanEndpointOf.getValue(node.spa.nodeId)
                 }
-            })
+            } + Rule_DefaultOptions().apply {
+                domain_suffix = listOf(RayLanNet.ZONE)
+                action = "reject"
+            }
+            // IPv6 off: the VPN takes all of IPv6 for the devices' addresses (else Android would let the rest of the
+            // family past the VPN, VpnService): what is not a device's goes nowhere, as before. The experimental
+            // mesh node keeps 200::/7
+            val ipv6Closed = if (isVPN && lanEndpoints.isNotEmpty() && ipv6Mode == IPv6Mode.DISABLE) listOfNotNull(
+                Rule_DefaultOptions().apply {
+                    ip_cidr = listOf(YGGDRASIL_PREFIX)
+                    outbound = TAG_YGGDRASIL
+                }.takeIf { yggdrasilEndpoint != null },
+                Rule_DefaultOptions().apply {
+                    inbound = listOf("tun-in")
+                    ip_version = 6
+                    action = "reject"
+                },
+            ) else emptyList()
+            route.rules.addAll(0, lanRules + ipv6Closed)
         }
         // nothing reaches the device through the mesh node of a raycontrol Yggdrasil profile: the node and the mesh
         // behind it would get the device's resolver, its local listeners or the proxy. Above every other rule. On a

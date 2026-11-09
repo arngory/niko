@@ -489,14 +489,16 @@ jobs:
             go test -count=1 -v -timeout 5m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolAppMirror .
 
       # lan-v1 (v0.23.0, niko-server v0.16.0): alice's phone and laptop show themselves and reach a port the other
-      # opened through the node, on its 127.0.0.1; carol's device does not, even where the laptop lets every flow in
-      # (the node's filter); lan_relay=0 closes the path; the laptop that hides leaves the phone's list
+      # opened through the node, on its 127.0.0.1, and nothing the other did not list (the client's filter); carol's
+      # device, shown on a LAN of her own, does not reach the laptop even where it lets every flow in (the node's
+      # filter); lan_relay=0 closes the path; the laptop that hides leaves the phone's list
       - name: The user's devices on the node's Yggdrasil
         working-directory: libcore
         env:
           RAYCONTROL_BUNDLE: /tmp/phone.bundle
           RAYCONTROL_LAN_BUNDLE: /tmp/laptop.bundle
           RAYCONTROL_LAN_STRANGER: /tmp/carol.bundle
+          RAYCONTROL_LAN_STRANGER_USER: carol
           RAYCONTROL_ADDRESS: ${{ steps.node.outputs.address }}
           RAYCONTROL_CA: /tmp/rccert/root.pem
           RAYCONTROL_RAYCTL: docker exec rc-node /opt/rc/rayctl

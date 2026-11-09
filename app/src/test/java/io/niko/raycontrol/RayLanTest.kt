@@ -121,10 +121,11 @@ class RayLanTest {
             lan.devices[1].copy(addr = "203:2222::3", nextAddr = null, nextFrom = 0),
         ))
         val previous = RayLanNet.previous(node(), rotated, now)
-        assertEquals(listOf(RayLanPrevious("1111222233334444", "201:2222::2", now + RayLanNet.PREVIOUS_FOR)), previous)
+        // two days after the switch the old address held until (its next's `from`), not after this fetch
+        assertEquals(listOf(RayLanPrevious("1111222233334444", "201:2222::2", 1767268800 + RayLanNet.PREVIOUS_FOR)), previous)
         val after = node(lan = rotated, previous = previous)
         assertEquals(listOf("203:2222::3", "201:2222::2"), RayLanNet.neighbours(after, now))
-        assertEquals(listOf("203:2222::3"), RayLanNet.neighbours(after, now + RayLanNet.PREVIOUS_FOR + 1))
+        assertEquals(listOf("203:2222::3"), RayLanNet.neighbours(after, 1767268800 + RayLanNet.PREVIOUS_FOR + 1))
         // the device hidden later: its kept address goes with it
         assertTrue(RayLanNet.previous(after, rotated.copy(devices = listOf(lan.devices[0])), now).isEmpty())
         // no `lan` any more (turned off, over the limit): nothing kept
@@ -140,8 +141,27 @@ class RayLanTest {
         assertEquals(now + 11 * 60 + RayLanNet.REFRESH_AT_MOST, RayLanNet.refreshBy(node(lan = waiting), waiting, now + 11 * 60))
         // shown: at least every 6 h
         assertEquals(now + RayLanNet.REFRESH_AT_MOST, RayLanNet.refreshBy(node(), lan, now))
+        // and at a device's switch to its next address (the names change then), at a kept address' expiry
+        assertEquals(1767268800, RayLanNet.refreshBy(node(), lan, 1767268800 - 3600))
+        assertEquals(1767268900, RayLanNet.refreshBy(node(previous = listOf(RayLanPrevious("1111222233334444", "201:2222::9", 1767268900))), lan, 1767268800 + 10))
         // hidden or not offered: the plan alone
         assertEquals(Long.MAX_VALUE, RayLanNet.refreshBy(node(show = false), lan, now))
         assertEquals(Long.MAX_VALUE, RayLanNet.refreshBy(node(), null, now))
+    }
+
+    @Test
+    fun addressesStrictAndCanonical() {
+        // the core parses them with netip: what it would refuse never reaches a config (a whole VPN refused to start)
+        for (bad in listOf("201:1:2:3:4:5:6:7:8::1", "201::1:2:3:4:5:6:7:8:9", "1:2:3:4::5:6:7:8".replaceFirst("1", "201"),
+            "201:::1", "201::1::2", "[201::1]", "201::1/128", "201::1%wlan0", "201:12345::1", "2001:db8::1", "::1",
+            "201:1:2:3:4:5:6", "201::g", "", "201::1.2.3.4")) {
+            assertNull(bad, yggAddress(bad))
+        }
+        // one address, one string: RFC 5952
+        assertEquals("201::1", yggAddress("0201:0000::0001"))
+        assertEquals("201:0:0:1::1", yggAddress("201:0:0:1:0:0:0:1"))
+        assertEquals("201:1:0:2:3:4:5:6", yggAddress("201:1:0:2:3:4:5:6"))
+        assertEquals("3ff:abcd::", yggAddress("3FF:ABCD:0:0:0:0:0:0"))
+        assertEquals("201:1:2:3:4:5:6:0", yggAddress("201:1:2:3:4:5:6::"))
     }
 }
