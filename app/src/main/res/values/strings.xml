@@ -945,6 +945,7 @@
     <string name="raycontrol_findings_unreachable">%1$s: no route to the node from this network</string>
     <string name="raycontrol_findings_busy">%1$s: the node was busy with another check: run it again in a minute</string>
     <string name="raycontrol_findings_limit">%1$s: the node refused, too many of your connections are open on it (its connection limit); it passes as they close, or ask the node\'s admin</string>
+    <string name="raycontrol_findings_auth">%1$s: the server did not accept the profile\'s username or password (it answered as an ordinary site would): update the subscription, or check them in the profile</string>
     <string name="trojan_go_mux_sum">Trojan-Go\'s own multiplexing: many connections in one to the server (it must have mux on; off works with every Trojan-Go server)</string>
     <string name="mieru_default">Default</string>
     <string name="mieru_multiplexing">Multiplexing</string>

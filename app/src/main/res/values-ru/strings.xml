@@ -163,6 +163,7 @@
     <string name="raycontrol_findings_unreachable">%1$s: из этой сети нет маршрута к ноде</string>
     <string name="raycontrol_findings_busy">%1$s: нода была занята другой проверкой: запустите прогон через минуту</string>
     <string name="raycontrol_findings_limit">%1$s: нода отказала — у вас открыто слишком много соединений (лимит соединений ноды); пройдёт, когда они закроются, иначе вопрос к админу ноды</string>
+    <string name="raycontrol_findings_auth">%1$s: сервер не принял имя пользователя или пароль профиля (ответил как обычный сайт): обновите подписку или проверьте их в профиле</string>
     <string name="trojan_go_mux_sum">Собственный мультиплекс Trojan-Go: много соединений внутри одного к серверу (на сервере должен быть включён mux; без него работает с любым сервером Trojan-Go)</string>
     <string name="mieru_default">По умолчанию</string>
     <string name="mieru_multiplexing">Мультиплексирование</string>

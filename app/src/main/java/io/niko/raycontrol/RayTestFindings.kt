@@ -46,6 +46,12 @@ object RayTestFindings {
          */
         LIMIT,
 
+        /**
+         * the proxy did not take the profile's username or password (naive: the CONNECT answered 404 as an ordinary
+         * site, 401, 403 or 407): the profile's doing, not the network's
+         */
+        AUTH,
+
         /** the running proxy uses it: not measured */
         IN_USE,
 
@@ -233,6 +239,10 @@ object RayTestFindings {
     // resp.Status: the code and its reason ("503 Service Unavailable"), not an address that begins the error
     private val HTTP_STATUS = Regex("""^\d{3} [a-z]""")
 
+    // the core's naive outbound on a CONNECT the proxy did not answer with 200 (the fork's protocol/naive)
+    private val NAIVE_STATUS = Regex("""unexpected response status: (\d{3})""")
+    private val NAIVE_UNAUTHORIZED = setOf("401", "403", "404", "407")
+
     /**
      * The likely cause of a failed TCP probe by its error, as Go words it through the core (the dial, the TLS of the
      * probe inside the tunnel, the read): the more telling words first, a name's lookup before the timeout it ended in.
@@ -244,8 +254,10 @@ object RayTestFindings {
             // the node's connection limit (conn-limit-v1 §4.3), before the status of the probe's own answer below: a
             // 429 at the start is the probe slot taken, one in naive's CONNECT answer is the user's limit
             "too many connections" in e || "response status: 429" in e -> Cause.LIMIT
-            // naive's CONNECT answered with another status (404 as the site answers a wrong password, 407): refused
-            "unexpected response status:" in e -> Cause.REFUSED
+            // naive's CONNECT answered with another status: the site's 404 (as a raycontrol node answers a user it does
+            // not know), 401, 403 or 407 are the profile's credentials; anything else is the proxy's own trouble
+            NAIVE_STATUS.containsMatchIn(e) ->
+                if (NAIVE_STATUS.find(e)!!.groupValues[1] in NAIVE_UNAUTHORIZED) Cause.AUTH else Cause.HTTP
             HTTP_STATUS.containsMatchIn(e) -> if (e.startsWith("429")) Cause.BUSY else Cause.HTTP
             "connection refused" in e -> Cause.REFUSED
             "no such host" in e || "lookup " in e -> Cause.NAME

@@ -729,6 +729,13 @@ jobs:
           sleep 1
           python3 .github/scripts/netlog-errors.py --connect 200 /tmp/naive-net.json || fail=1
           python3 .github/scripts/netlog-errors.py --connect 404 /tmp/naive-wrong-net.json || fail=1
+          # the core reads a refused CONNECT as its status (the fork's naive outbound: cronet's early dial alone reads
+          # a stream that ends): the wrong password's 404 above is in its log, in the words the app's test run reads
+          if grep -q "handshake failed: unexpected response status: 404" /tmp/core-naive.log; then
+            echo "core naive outbound, wrong password: the 404 read as the CONNECT's status"
+          else
+            echo "core naive outbound, wrong password: no \"unexpected response status: 404\" in the core's log"; fail=1
+          fi
           # ping through the node (icmp-v1, the core's naive `icmp`): a TUN of the core's takes only nobody's traffic;
           # nobody's ping goes into it, the naive outbound carries the echo to rayd naive, which pings for it
           if [ -n "${RAYD_ICMP:-}" ]; then
