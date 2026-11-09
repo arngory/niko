@@ -159,4 +159,4 @@ replace github.com/sagernet/wireguard-go => ../../sing-box/third_party/wireguard
 
 replace masterdnsvpn-go => ../../sing-box/third_party/masterdnsvpn
 
-replace github.com/yggdrasil-network/yggdrasil-go => github.com/arngory/yggdrasil-go v0.5.16-0.20261103204312-0db15d43777a
+replace github.com/yggdrasil-network/yggdrasil-go => github.com/arngory/yggdrasil-go v0.5.16-0.20261108201637-5afe92f15200

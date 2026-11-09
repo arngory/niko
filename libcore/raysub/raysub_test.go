@@ -37,6 +37,8 @@ type node struct {
 	rawPayload []byte
 	// app-update-v1's files, behind the same auth (app_test.go)
 	app http.Handler
+	// the X-Raycontrol-LAN of the last request, "-" without one
+	sawLAN string
 }
 
 const nodeID = "33333333333333333333333333333333"
@@ -68,6 +70,10 @@ func newNode(t *testing.T) *node {
 		if r.URL.Path != "/sub/v1" || !authorized {
 			http.Error(w, "not found", http.StatusNotFound)
 			return
+		}
+		n.sawLAN = "-"
+		if values, ok := r.Header["X-Raycontrol-Lan"]; ok {
+			n.sawLAN = strings.Join(values, ",")
 		}
 		body, _ := json.Marshal(n.payload)
 		if n.rawPayload != nil {
@@ -136,6 +142,27 @@ func TestSubscriptionKeepsThePayloadWhole(t *testing.T) {
 	have, _ := json.Marshal(got.Payload)
 	if string(have) != string(want) {
 		t.Fatalf("the app gets %s, the node signed %s", have, want)
+	}
+}
+
+// lan-v1 §1.1: the consent goes as X-Raycontrol-LAN: on|off; without one (an old setting, a node the device never
+// chose for) the node keeps what it had, so no header at all
+func TestNekoSubscriptionLANHeader(t *testing.T) {
+	n := newNode(t)
+	for lan, want := range map[string]string{"": "-", "on": "on", "off": "off", "maybe": "-"} {
+		request := n.request
+		request.LAN = lan
+		if _, err := Fetch(context.Background(), request); err != nil {
+			t.Fatal(err)
+		}
+		if n.sawLAN != want {
+			t.Fatalf("lan %q: the node saw %q, want %q", lan, n.sawLAN, want)
+		}
+	}
+	// the app passes it in the request's JSON
+	var request Request
+	if err := json.Unmarshal([]byte(`{"lan":"on"}`), &request); err != nil || request.LAN != "on" {
+		t.Fatalf("%+v %v", request, err)
 	}
 }
 

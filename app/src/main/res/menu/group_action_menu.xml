@@ -5,6 +5,10 @@
         android:title="@string/raycontrol_admin"
         android:visible="false" />
     <item
+        android:id="@+id/action_ray_lan"
+        android:title="@string/raycontrol_lan"
+        android:visible="false" />
+    <item
         android:id="@+id/action_share_subscription"
         android:title="@string/share_subscription">
         <menu>

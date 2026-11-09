@@ -47,6 +47,9 @@ type Request struct {
 	MLDSA65  string             `json:"mldsa65"` // base64url
 	SPA      knock.SPAv2Options `json:"spa"`     // device_key set
 	LastSeq  uint64             `json:"last_seq"`
+	// LAN is the device's consent to lan-v1 (raycontrol v0.23.0): "on" shows it to the user's other devices, "off"
+	// hides it, sent as X-Raycontrol-LAN; "" sends no header, and the node keeps what it had
+	LAN string `json:"lan,omitempty"`
 	// a socket control that keeps the sockets out of the app's own VPN (nil in tests)
 	Control func(network, address string, conn syscall.RawConn) error `json:"-"`
 	// overrides for tests
@@ -309,6 +312,9 @@ func (r *Request) get(ctx context.Context, client *http.Client, deviceKey []byte
 	}
 	request.Header.Set("X-Raycontrol-Device", r.DeviceID)
 	request.Header.Set("Authorization", authToken(deviceKey, now.Unix()/60))
+	if r.LAN == "on" || r.LAN == "off" {
+		request.Header.Set("X-Raycontrol-LAN", r.LAN)
+	}
 	response, err := client.Do(request)
 	if err != nil {
 		if errors.Is(err, errPin) {

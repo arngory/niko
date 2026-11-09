@@ -107,6 +107,8 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var yggdrasilAllowInbound by configurationStore.boolean(Key.YGGDRASIL_ALLOW_INBOUND)
     // the ports other nodes may reach when incoming is allowed: "22, 8080"; empty: all but Niko's own
     var yggdrasilInboundPorts by configurationStore.string(Key.YGGDRASIL_INBOUND_PORTS)
+    // lan-v1: the ports the user's other devices reach on this one (127.0.0.1), MeshPorts' format; none by default
+    var lanInboundPorts by configurationStore.string(Key.LAN_INBOUND_PORTS)
     // plugin package → the signer the user trusted (PluginTrust)
     var pluginTrust by configurationStore.string(Key.PLUGIN_TRUST) { "{}" }
     var yggdrasilPeersViaProxy by configurationStore.boolean(Key.YGGDRASIL_PEERS_VIA_PROXY)

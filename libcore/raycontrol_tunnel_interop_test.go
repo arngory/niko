@@ -983,6 +983,12 @@ func interopDevice(t *testing.T) (interopBundle, string, []byte) {
 	if path == "" {
 		t.Skip("RAYCONTROL_BUNDLE not set (raycontrol-interop.yml sets it)")
 	}
+	return interopDeviceAt(t, path)
+}
+
+// interopDeviceAt is interopDevice for the package at path.
+func interopDeviceAt(t *testing.T, path string) (interopBundle, string, []byte) {
+	t.Helper()
 	node := os.Getenv("RAYCONTROL_ADDRESS")
 	if node == "" {
 		t.Fatal("RAYCONTROL_ADDRESS not set")

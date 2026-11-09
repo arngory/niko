@@ -115,7 +115,9 @@ object RaySubscription {
                     if (it.subscription == null) return@update it
                     val failures = if (it.failedNetwork == network) it.failedFetches + 1 else 1
                     val at = if (refused(e)) RayNodes.STOPPED else System.currentTimeMillis() / 1000 + retryAfter(e, failures)
-                    it.copy(refreshAt = at, failedFetches = failures, failedNetwork = network)
+                    // the node no longer knows this device (404): its LAN goes with it (lan-v1 §5)
+                    if (refused(e)) it.copy(refreshAt = at, failedFetches = failures, failedNetwork = network, lan = null, lanPrevious = null)
+                    else it.copy(refreshAt = at, failedFetches = failures, failedNetwork = network)
                 }
                 throw e
             } finally {
@@ -171,6 +173,8 @@ object RaySubscription {
         addProperty("ed25519", info.ed25519)
         addProperty("mldsa65", info.mldsa65)
         addProperty("last_seq", node.subSeq)
+        // lan-v1 §1.1: the device's choice, once it made one; without it the node keeps the device hidden
+        node.lanShow?.let { addProperty("lan", if (it) "on" else "off") }
         add("spa", node.spaJson().apply { addProperty("device_key", RayNodes.deviceKeyHex(node)) })
     }
 
@@ -202,7 +206,10 @@ object RaySubscription {
         val parsed = parse(payload, node.services.associate { it.id to it.kind }, nodeNow)
 
         // the UI and the scheduled worker (`:bg`) may both get here: one writer across the processes
-        val refreshAt = maxOf(now + 60, nextRefresh(payload, nodeNow) - skew)
+        // with the LAN shown, sooner: a revoked device leaves the others' lists, an `on` not taken yet is asked again
+        val refreshAt = minOf(maxOf(now + 60, nextRefresh(payload, nodeNow) - skew), RayLanNet.refreshBy(node, parsed.lan, now))
+        // the LAN as the running config has it, to restart the core when the neighbours or their names change
+        val lanBefore = RayLanNet.signature(RayNodes.list(), now)
         val subExpires = payload.get("expires")?.takeIf { it.isJsonPrimitive }?.asLong?.minus(skew) ?: 0
         // the user's traffic is used up (traffic-limit-v1 §4): the node answers with no profiles until the reset,
         // the rows and the selection stay as they are for then; only what the card shows and the next fetch change
@@ -215,9 +222,11 @@ object RaySubscription {
                     else node.copy(
                         subSeq = seq, refreshAt = refreshAt, clockSkew = skew, failedFetches = 0, failedNetwork = null,
                         subUpdatedAt = now, subExpires = subExpires, traffic = parsed.traffic, note = parsed.note,
+                        lan = parsed.lan, lanPrevious = RayLanNet.previous(node, parsed.lan, now),
                     )
                 }
             }
+            RayLanNet.reloadIfChanged(lanBefore, now)
             RayNodes.get(nodeId)?.groupId?.takeIf { it > 0 }?.let { GroupManager.postReload(it) }
             return RaySubscriptionResult(
                 profiles = 0, skipped = 0, clockSkew = skew,
@@ -231,7 +240,7 @@ object RaySubscription {
                         probe = parsed.probe, spaCarriers = parsed.carriers, failedFetches = 0, failedNetwork = null,
                         relays = parsed.relays, dnsProbeKey = parsed.dnsProbeKey, subUpdatedAt = now,
                         appReleases = parsed.appReleases, note = parsed.note, traffic = parsed.traffic,
-                        subExpires = subExpires,
+                        subExpires = subExpires, lan = parsed.lan, lanPrevious = RayLanNet.previous(node, parsed.lan, now),
                     )
                 }
             }
@@ -241,7 +250,9 @@ object RaySubscription {
         if (viaRelay == null) RayChannel.network()?.let { network ->
             RayChannel.recordHints(nodeId, network, parsed.hints?.let { RayHints.fromJson(it, now) })
         }
-        return finish(stored, reload, parsed, skew, spaOverTcp = result.get("spa_over_tcp")?.asBoolean == true)
+        return finish(stored, reload, parsed, skew, spaOverTcp = result.get("spa_over_tcp")?.asBoolean == true).also {
+            if (!it.restarted) RayLanNet.reloadIfChanged(lanBefore, now)
+        }
     }
 
     /** What a subscription's payload gives the node and its rows ([parse]), without the network or the store. */
@@ -263,6 +274,8 @@ object RaySubscription {
         val note: String? = null,
         // the user's traffic and limit (raycontrol v0.22.0 `traffic`), null none
         val traffic: RayTraffic? = null,
+        // the user's devices on the node's Yggdrasil (raycontrol v0.23.0 `lan`), null none
+        val lan: RayLan? = null,
     )
 
     /**
@@ -332,6 +345,7 @@ object RaySubscription {
             RayAppRelease.listFromPayload(payload),
             RayNode.nodeNote(payload.get("note")?.takeIf { it.isJsonPrimitive }?.asString),
             RayTraffic.fromJson(payload.get("traffic") as? JsonObject),
+            RayLan.fromJson(payload.get("lan") as? JsonObject),
         )
     }
 
@@ -615,11 +629,21 @@ object RaySubscription {
      */
     fun networkChanged(network: String?) {
         val now = System.currentTimeMillis() / 1000
+        // into a Wi-Fi with the LAN shown: the list anew, a revoked device's window is the refresh (lan-v1 §4.2)
+        val lanDue = if (RayChannel.network()?.kind != "wifi") emptyList() else RayNodes.list().filter {
+            it.lanShow == true && it.lan != null && it.refreshAt != RayNodes.STOPPED && it.refreshAt > now + 120
+        }
+        for (node in lanDue) {
+            RayNodes.update(node.spa.nodeId) { if (it.refreshAt > now + 120) it.copy(refreshAt = now + 30 + (0L..30L).random()) else it }
+        }
         val due = RayNodes.list().filter {
             it.subscription != null && it.failedFetches > 0 && it.failedNetwork != network &&
                     it.refreshAt != RayNodes.STOPPED && it.refreshAt > now + 60
         }
-        if (due.isEmpty()) return
+        if (due.isEmpty()) {
+            if (lanDue.isNotEmpty()) schedule()
+            return
+        }
         for (node in due) {
             RayNodes.update(node.spa.nodeId) {
                 if (it.failedFetches == 0 || it.refreshAt == RayNodes.STOPPED) it else it.copy(refreshAt = now + 30 + (0L..30L).random())

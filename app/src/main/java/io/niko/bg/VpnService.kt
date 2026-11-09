@@ -1,5 +1,6 @@
 package io.niko.bg
 
+import io.niko.raycontrol.RayLanNet
 import io.niko.fmt.localProxyUsers
 import android.Manifest
 import android.annotation.SuppressLint
@@ -122,6 +123,19 @@ class VpnService : BaseVpnService(),
             if (ipv6Mode != IPv6Mode.DISABLE) {
                 builder.addRoute("::", 0)
             }
+        }
+
+        // lan-v1: the user's other devices are Yggdrasil addresses (200::/7), reached through the core's mesh node.
+        // With IPv6 off the VPN still takes them and gives the apps an IPv6 address; the probes the system resolver
+        // (AI_ADDRCONFIG: a route to 2000::) and Chrome (2001:4860:4860::8888) make before they ask for AAAA at all
+        // get a route too, or no app would look the devices' names up. Every other IPv6 address stays as it was
+        if (RayLanNet.running) {
+            if (ipv6Mode == IPv6Mode.DISABLE) {
+                builder.addAddress(PRIVATE_VLAN6_CLIENT, 126)
+                builder.addRoute("2000::", 128)
+                builder.addRoute("2001:4860:4860::8888", 128)
+            }
+            if (ipv6Mode == IPv6Mode.DISABLE || DataStore.bypassLan) builder.addRoute("200::", 7)
         }
 
         updateUnderlyingNetwork(builder)

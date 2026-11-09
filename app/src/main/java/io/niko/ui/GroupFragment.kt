@@ -363,6 +363,8 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
                         .putExtra(RayAdminActivity.EXTRA_NODE, node.spa.nodeId))
                 }
 
+                R.id.action_ray_lan -> rayNode?.let { node -> showRayLanDialog(node.spa.nodeId) }
+
                 R.id.action_universal_qr -> {
                     QRCodeDialog(
                         proxyGroup.toUniversalLink(), proxyGroup.displayName()
@@ -439,6 +441,8 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
                 }
                 // a raycontrol node this device is an admin of: its admin panel
                 popup.menu.findItem(R.id.action_ray_admin).isVisible = rayNode?.isAdmin == true
+                // the node's local network (lan-v1): offered by the node, or chosen here before
+                popup.menu.findItem(R.id.action_ray_lan).isVisible = rayNode?.let { it.lan != null || it.lanShow != null } == true
                 popup.setOnMenuItemClickListener(this)
                 popup.show()
             }

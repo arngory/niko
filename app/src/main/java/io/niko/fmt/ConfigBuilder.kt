@@ -30,6 +30,7 @@ import io.niko.raycontrol.RayNode
 import io.niko.raycontrol.RayBrutal
 import io.niko.raycontrol.RayChannel
 import io.niko.raycontrol.RayNodes
+import io.niko.raycontrol.RayLanNet
 import io.niko.raycontrol.knockOptions
 import io.niko.ktx.isIpAddress
 import io.niko.ktx.mkPort
@@ -63,6 +64,9 @@ const val TAG_DIRECT = "direct"
 const val TAG_BYPASS = "bypass"
 const val TAG_BLOCK = "block"
 const val TAG_YGGDRASIL = "yggdrasil"
+
+// lan-v1: the names of the user's devices (RayLanNet.names)
+const val TAG_DNS_LAN = "dns-lan"
 
 /** the Yggdrasil address space */
 private val YGGDRASIL_PREFIX = "200::/7"
@@ -1024,6 +1028,41 @@ fun buildConfig(
             tagMap[key] = buildChain(key, p)
         }
 
+        // lan-v1: the user's other devices on a node's Yggdrasil, where this device shows itself. The mesh node of the
+        // node's Yggdrasil row (lan.svc) runs for it also when another profile is selected; neighbours' addresses go
+        // through it, and only theirs come in. Not in a test, not in an export (the devices' names and addresses)
+        val lanNow = System.currentTimeMillis() / 1000
+        val lanNodes = if (forTest || forExport) emptyList() else RayNodes.list().filter { RayLanNet.of(it) != null }
+        // endpoint tag → the neighbours' addresses; node id → the endpoint
+        val lanEndpoints = LinkedHashMap<String, MutableList<String>>()
+        val lanEndpointOf = HashMap<String, String>()
+        for (node in lanNodes) {
+            val neighbours = RayLanNet.neighbours(node, lanNow)
+            if (neighbours.isEmpty()) continue
+            val row = RayLanNet.row(node) ?: continue
+            val seed = row.requireBean().yggKey.orEmpty()
+            if (seed !in yggProfileEndpoints) try {
+                buildChain(row.id, row)
+            } catch (e: Exception) {
+                Logs.w("LAN of ${node.label}: ${e.message}")
+            }
+            val tag = yggProfileEndpoints[seed]?.first ?: continue
+            lanEndpoints.getOrPut(tag) { mutableListOf() } += neighbours
+            lanEndpointOf[node.spa.nodeId] = tag
+        }
+        val lanNames = RayLanNet.names(lanNodes.filter { it.spa.nodeId in lanEndpointOf }, lanNow)
+        if (notes) RayLanNet.running = lanEndpoints.isNotEmpty()
+        // the mesh nodes of raycontrol rows: no answers about their peers to the mesh (DebugPrivacy); only the
+        // neighbours' flows come in, the rest are dropped before a handshake (none at all without a LAN)
+        endpoints.filterIsInstance<Outbound>().filter { endpoint -> yggProfileEndpoints.values.any { it.first == endpoint.tag } }.forEach { endpoint ->
+            endpoint._hack_config_map["debug_privacy"] = true
+            endpoint._hack_config_map["inbound_sources"] = lanEndpoints[endpoint.tag].orEmpty().distinct().map { "$it/128" }
+        }
+        // the apps reach the devices' addresses over IPv6, also with IPv6 off (the VPN routes 200::/7, RayLanNet.running)
+        if (lanEndpoints.isNotEmpty() && ipv6Mode == IPv6Mode.DISABLE) inbounds.filterIsInstance<Inbound_TunOptions>().forEach { tun ->
+            tun.address = (tun.address.orEmpty() + (VpnService.PRIVATE_VLAN6_CLIENT + "/126")).distinct()
+        }
+
         // WireGuard requires a real destination for UDP, including FakeDNS
         // addresses. Let the native resolve action restore it before routing.
         if (!forTest && !DataStore.resolveDestination && endpoints.any { it is Endpoint_WireGuardOptions }) {
@@ -1301,6 +1340,27 @@ fun buildConfig(
             }
         }
 
+        // the mesh arrives at 127.0.0.1: never at this app's own listeners (the local proxy, the Clash API, the plugins'
+        // SOCKS and forwarding ports, the slipstream clients'), whatever their password (S7)
+        fun ownListenPorts() = (inbounds.mapNotNull {
+            (it as? Inbound_MixedOptions)?.listen_port ?: (it as? Inbound_DirectOptions)?.listen_port
+        } + externalIndexMap.flatMap { it.chain.keys } + slipstreamLaunches.map { it.localPort } +
+                listOfNotNull(9090.takeIf { experimental?.clash_api != null })).distinct()
+
+        // lan-v1 §5: the devices' names answered here, from the list; nothing under niko.internal goes out (an
+        // unknown name: NXDOMAIN). AAAA also with IPv6 off: these addresses go through the mesh, not the network
+        if (lanNames.isNotEmpty()) {
+            dns.servers.add(DNSServerOptions().apply {
+                type = "hosts"
+                tag = TAG_DNS_LAN
+                _hack_config_map["predefined"] = lanNames.mapValues { listOf(it.value) }
+            })
+            dns.rules.add(0, DNSRule_DefaultOptions().apply {
+                domain_suffix = listOf(RayLanNet.ZONE)
+                server = TAG_DNS_LAN
+            })
+        }
+
         if (forTest) {
             dns.rules = listOf()
         } else {
@@ -1321,13 +1381,7 @@ fun buildConfig(
             yggdrasilInboundRule?.let { rule ->
                 val meshRules = mutableListOf<Rule_DefaultOptions>()
                 if (rule.outbound == TAG_DIRECT) {
-                    // the mesh arrives at 127.0.0.1: never at this app's own listeners (the local proxy, the Clash
-                    // API, the plugins' SOCKS and forwarding ports, the slipstream clients'), whatever their
-                    // password (S7)
-                    val own = (inbounds.mapNotNull {
-                        (it as? Inbound_MixedOptions)?.listen_port ?: (it as? Inbound_DirectOptions)?.listen_port
-                    } + externalIndexMap.flatMap { it.chain.keys } + slipstreamLaunches.map { it.localPort } +
-                            listOfNotNull(9090.takeIf { experimental?.clash_api != null })).distinct()
+                    val own = ownListenPorts()
                     if (own.isNotEmpty()) meshRules += Rule_DefaultOptions().apply {
                         inbound = listOf(TAG_YGGDRASIL)
                         port = own
@@ -1399,12 +1453,51 @@ fun buildConfig(
                 })
             }
         }
+        // lan-v1: to the user's other devices through the node's mesh node, by address and by name (a proxy client's
+        // domain; the mesh node looks it up in the names below)
+        if (lanEndpoints.isNotEmpty()) {
+            val byNode = lanNodes.filter { it.spa.nodeId in lanEndpointOf }
+            route.rules.addAll(0, lanEndpoints.map { (tag, neighbours) ->
+                Rule_DefaultOptions().apply {
+                    ip_cidr = neighbours.distinct().map { "$it/128" }
+                    outbound = tag
+                }
+            } + byNode.mapNotNull { node ->
+                val suffixes = RayLanNet.suffixes(RayLanNet.names(byNode, lanNow).filterValues { it in RayLanNet.neighbours(node, lanNow) })
+                if (suffixes.isEmpty()) null else Rule_DefaultOptions().apply {
+                    domain_suffix = suffixes
+                    outbound = lanEndpointOf.getValue(node.spa.nodeId)
+                }
+            })
+        }
         // nothing reaches the device through the mesh node of a raycontrol Yggdrasil profile: the node and the mesh
-        // behind it would get the device's resolver, its local listeners or the proxy. Above every other rule
-        if (yggProfileEndpoints.isNotEmpty()) route.rules.add(0, Rule_DefaultOptions().apply {
-            inbound = yggProfileEndpoints.values.map { it.first }
-            action = "reject"
-        })
+        // behind it would get the device's resolver, its local listeners or the proxy. Above every other rule. On a
+        // LAN the user's other devices (the only ones the mesh node lets in) reach the ports the user opened, on
+        // 127.0.0.1, never this app's own listeners
+        if (yggProfileEndpoints.isNotEmpty()) {
+            val lanTags = lanEndpoints.keys
+            val open = MeshPorts.parse(DataStore.lanInboundPorts)
+            val meshRules = mutableListOf<Rule_DefaultOptions>()
+            if (lanTags.isNotEmpty() && open != null) {
+                val own = ownListenPorts()
+                if (own.isNotEmpty()) meshRules += Rule_DefaultOptions().apply {
+                    inbound = lanTags.toList()
+                    port = own
+                    action = "reject"
+                }
+                meshRules += Rule_DefaultOptions().apply {
+                    inbound = lanTags.toList()
+                    if (open.ports.isNotEmpty()) port = open.ports
+                    if (open.ranges.isNotEmpty()) port_range = open.ranges
+                    outbound = TAG_DIRECT
+                }
+            }
+            meshRules += Rule_DefaultOptions().apply {
+                inbound = yggProfileEndpoints.values.map { it.first }
+                action = "reject"
+            }
+            route.rules.addAll(0, meshRules)
+        }
         // slipstream's queries from its mapping ports go out as they are, above the DNS hijack (port 53)
         route.rules.addAll(0, slipstreamRules)
 
@@ -1413,6 +1506,7 @@ fun buildConfig(
             rule.strategy = when (rule.server) {
                 "dns-direct", "dns-remote" -> autoDnsDomainStrategy(SingBoxOptionsUtil.domainStrategy(rule.server))
                 "dns-fake" -> "ipv4_only"
+                TAG_DNS_LAN -> "ipv6_only"
                 else -> null
             }
         }

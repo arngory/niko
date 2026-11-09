@@ -174,6 +174,14 @@ data class RayNode(
     val note: String? = null,
     // the user's traffic and limit (the subscription's `traffic`, raycontrol v0.22.0), null none: the card
     val traffic: RayTraffic? = null,
+    // lan-v1 (raycontrol v0.23.0): the user's choice to show this device to their other devices (X-Raycontrol-LAN),
+    // null = never chosen (no header: the node keeps it hidden); when it was last switched (unix s)
+    val lanShow: Boolean? = null,
+    val lanShowAt: Long = 0,
+    // the subscription's `lan`, null none (not allowed, no Yggdrasil service, an older node)
+    val lan: RayLan? = null,
+    // addresses the user's devices had before a rotation, still taken for a while (lan-v1 §5)
+    val lanPrevious: List<RayLanPrevious>? = null,
 ) {
     /** What the node is called in the app: its admin's name, else "raycontrol · <host>" as before. */
     val displayName get() = groupName(host, name)
@@ -224,6 +232,10 @@ data class RayNode(
         if (appReleases.isNotEmpty()) add("app_releases", JsonArray().apply { appReleases.forEach { add(it.toJson()) } })
         note?.let { addProperty("note", it) }
         traffic?.let { add("traffic", it.toJson()) }
+        lanShow?.let { addProperty("lan_show", it) }
+        if (lanShowAt > 0) addProperty("lan_show_at", lanShowAt)
+        lan?.let { add("lan", it.toJson()) }
+        lanPrevious?.takeIf { it.isNotEmpty() }?.let { list -> add("lan_previous", JsonArray().apply { list.forEach { add(it.toJson()) } }) }
     }
 
     /** The relay with this address, for a profile row through it. */
@@ -262,6 +274,10 @@ data class RayNode(
             appReleases = RayAppRelease.listFromJson(o.get("app_releases") as? JsonArray),
             note = o.get("note")?.takeIf { it.isJsonPrimitive }?.asString?.let(::nodeNote),
             traffic = RayTraffic.fromJson(o.get("traffic") as? JsonObject),
+            lanShow = o.get("lan_show")?.takeIf { it.isJsonPrimitive }?.let { runCatching { it.asBoolean }.getOrNull() },
+            lanShowAt = o.get("lan_show_at")?.asLong ?: 0,
+            lan = RayLan.fromJson(o.get("lan") as? JsonObject),
+            lanPrevious = (o.get("lan_previous") as? JsonArray)?.mapNotNull { (it as? JsonObject)?.let(RayLanPrevious::fromJson) },
         )
 
         /** The group name of the node at [host] called [name] (null: none given). */

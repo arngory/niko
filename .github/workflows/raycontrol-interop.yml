@@ -27,6 +27,7 @@ on:
       - "libcore/raycontrol_tunnel_interop_test.go"
       - "libcore/raycontrol_app_interop_test.go"
       - "libcore/raycontrol_traffic_interop_test.go"
+      - "libcore/raycontrol_lan_interop_test.go"
       - ".github/xray-interop.env"
       - "buildScript/lib/core/get_source_env.sh"
       - "libcore/box_naive.go"
@@ -145,7 +146,8 @@ jobs:
   # and finds its own Hysteria2 sessions in link
   supervised:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # the LAN step alone may take ten minutes (mesh paths through the node, the backend restarted twice)
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -485,6 +487,37 @@ jobs:
           docker exec rc-node /opt/rc/rayctl app-mirror
           RAYCONTROL_APP_KEY=$(sed -n 2p /tmp/appkey/test.pub) \
             go test -count=1 -v -timeout 5m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolAppMirror .
+
+      # lan-v1 (v0.23.0, niko-server v0.16.0): alice's phone and laptop show themselves and reach a port the other
+      # opened through the node, on its 127.0.0.1; carol's device does not, even where the laptop lets every flow in
+      # (the node's filter); lan_relay=0 closes the path; the laptop that hides leaves the phone's list
+      - name: The user's devices on the node's Yggdrasil
+        working-directory: libcore
+        env:
+          RAYCONTROL_BUNDLE: /tmp/phone.bundle
+          RAYCONTROL_LAN_BUNDLE: /tmp/laptop.bundle
+          RAYCONTROL_LAN_STRANGER: /tmp/carol.bundle
+          RAYCONTROL_ADDRESS: ${{ steps.node.outputs.address }}
+          RAYCONTROL_CA: /tmp/rccert/root.pem
+          RAYCONTROL_RAYCTL: docker exec rc-node /opt/rc/rayctl
+          RAYCONTROL_USER: alice
+          RAYCONTROL_LAN_SERVICE: ygg
+        run: |
+          if ! grep -q 'case "lan":' ../raycontrol/cmd/rayctl/main.go; then
+            echo "::notice::this rayctl has no user lan (v0.23.0 does)"
+            exit 0
+          fi
+          TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
+          docker exec rc-node /opt/rc/rayctl device add alice laptop -o /root/laptop.bundle
+          docker exec rc-node cat /root/laptop.bundle > /tmp/laptop.bundle
+          docker exec rc-node /opt/rc/rayctl user add carol -services ygg > /dev/null
+          docker exec rc-node /opt/rc/rayctl device add carol phone -o /root/carol.bundle
+          docker exec rc-node cat /root/carol.bundle > /tmp/carol.bundle
+          go test -count=1 -v -timeout 20m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolLAN . || {
+            docker exec rc-node /opt/rc/rayctl device list alice || true
+            docker exec rc-node sh -c 'grep -iE "ygg|lan" /var/log/rayd.log | tail -n 40' || true
+            exit 1
+          }
 
       # traffic-limit-v1 (v0.22.0): a limit announced; set below what alice used, her Hysteria2 session is cut and the
       # subscription answers exhausted with no profiles; reset-usage brings them back. Last: it cuts her sessions
