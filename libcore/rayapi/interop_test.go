@@ -37,6 +37,12 @@ func TestRaycontrolInterop(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
+	// the client key made before the first try and kept, as the app does per invite (RayApi.pendingIdentity)
+	kept, err := NewIdentity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	invite.Identity = &kept
 	registered, err := Register(ctx, invite, nil)
 	if err != nil {
 		t.Fatalf("Register: %v", err)
@@ -44,7 +50,27 @@ func TestRaycontrolInterop(t *testing.T) {
 	if !strings.HasPrefix(registered.Bundle, "rcdev1:") || registered.Role != "admin" {
 		t.Fatalf("Register answered %q, role %q", registered.Bundle[:min(len(registered.Bundle), 12)], registered.Role)
 	}
+	if registered.Identity != kept {
+		t.Fatal("Register did not use the client key it was given")
+	}
 	t.Logf("registered device %s as %s", registered.DeviceID, registered.Role)
+	// the answer lost, or the package not kept: the same invite with the same key again gets the same device
+	// (api-v1 §4.1, raycontrol v0.24.0), as often as it asks within the node's 15 minutes
+	retry := os.Getenv("RAYCONTROL_REGISTER_RETRY") != ""
+	if retry {
+		for try := 2; try <= 3; try++ {
+			again, err := Register(ctx, invite, nil)
+			if err != nil {
+				t.Fatalf("Register, try %d with the same key: %v", try, err)
+			}
+			if again.DeviceID != registered.DeviceID || again.Role != registered.Role ||
+				parseBundle(t, again.Bundle).DeviceKey != parseBundle(t, registered.Bundle).DeviceKey {
+				t.Fatalf("Register, try %d: device %s as %s, want the first one (%s as %s) with its SPA key",
+					try, again.DeviceID, again.Role, registered.DeviceID, registered.Role)
+			}
+		}
+		t.Logf("Register again with the same key: the same device %s, twice", registered.DeviceID)
+	}
 
 	// the device's own package: its SPA key and the api endpoint
 	bundle, err := base64.RawURLEncoding.DecodeString(strings.TrimPrefix(registered.Bundle, "rcdev1:"))
@@ -159,10 +185,14 @@ func TestRaycontrolInterop(t *testing.T) {
 		t.Fatalf("SetSummary off: %v", err)
 	}
 
-	// the invite is spent: a second Register is refused
+	// the invite is spent: a second Register with another key is refused
 	again := invite
+	again.Identity = nil
 	if _, err = Register(ctx, again, nil); !isCode(err, "not_found") {
 		t.Fatalf("second Register: %v, want not_found", err)
+	}
+	if name := os.Getenv("RAYCONTROL_ROTATE_SERVICE"); name != "" {
+		checkRotateInGrace(ctx, t, endpoint, name)
 	}
 
 	// a new client key; the old one stops working at once
@@ -180,6 +210,58 @@ func TestRaycontrolInterop(t *testing.T) {
 	if _, err = Call(ctx, endpoint, DeviceService+"GetSelf", nil); err != nil {
 		t.Fatalf("new key: %v", err)
 	}
+	// the key of the first try is no longer the device's: the invite is used for it too
+	if retry {
+		if _, err = Register(ctx, invite, nil); !isCode(err, "not_found") {
+			t.Fatalf("Register with the key before RotateCertificate: %v, want not_found", err)
+		}
+	}
+}
+
+// graceUntil is the time in the node's refusal of a switch with a grace, as the app's RayApi.graceUntil reads it.
+var graceUntil = regexp.MustCompile(`still accepted until (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)`)
+
+// checkRotateInGrace rotates the key of a dnstt or masterdns service as the admin mode does (raycontrol v0.24.0): the
+// first switch leaves the previous key its grace; a second one with a grace is failed_precondition with that time in
+// its message and changes nothing; with force it switches.
+func checkRotateInGrace(ctx context.Context, t *testing.T, admin Endpoint, name string) {
+	t.Helper()
+	rotate := func(body string) (int64, error) {
+		raw, err := Call(ctx, admin, NodeService+"RotateService", []byte(body))
+		if err != nil {
+			return 0, err
+		}
+		var answer struct {
+			PrevUntil string `json:"prevUntil"`
+		}
+		if err = json.Unmarshal(raw, &answer); err != nil {
+			t.Fatalf("RotateService: %s: %v", raw, err)
+		}
+		until, _ := strconv.ParseInt(answer.PrevUntil, 10, 64)
+		return until, nil
+	}
+	// what the admin mode sends: no force unless asked
+	until, err := rotate(`{"name":"` + name + `","now":false}`)
+	if err != nil || until <= time.Now().Unix() {
+		t.Fatalf("RotateService %s: previous key until %d, %v", name, until, err)
+	}
+	_, err = rotate(`{"name":"` + name + `","now":false}`)
+	var refused *Error
+	if !errors.As(err, &refused) || refused.Code != "failed_precondition" {
+		t.Fatalf("RotateService %s again in the grace: %v, want failed_precondition", name, err)
+	}
+	m := graceUntil.FindStringSubmatch(err.Error())
+	if m == nil {
+		t.Fatalf("RotateService %s again: no time the app reads in %q", name, err)
+	}
+	if at, perr := time.Parse(time.RFC3339, m[1]); perr != nil || at.Unix() != until {
+		t.Fatalf("RotateService %s again: %q in the message, the first answer said %d", name, m[1], until)
+	}
+	forced, err := rotate(`{"name":"` + name + `","now":false,"force":true}`)
+	if err != nil || forced < until {
+		t.Fatalf("RotateService %s with force: previous key until %d, %v", name, forced, err)
+	}
+	t.Logf("RotateService %s: a grace until %s, a second switch refused with that time, switched with force", name, m[1])
 }
 
 // checkReport sends a summary for the user's hy2-obfs service, the admin turning the node's summaries on in between.
@@ -556,11 +638,30 @@ func TestRaycontrolInteropPin(t *testing.T) {
 	if _, e := register(invite, wrong(pin)); e == nil || e.Code != "permission_denied" || e.PinLeft == nil || *e.PinLeft != tries-1 {
 		t.Fatalf("a wrong PIN: %+v (want %d tries left)", e, tries-1)
 	}
+	kept, err := NewIdentity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	invite.Identity = &kept
 	registered, e := register(invite, pin)
 	if e != nil || !strings.HasPrefix(registered.Bundle, "rcdev1:") {
 		t.Fatalf("the right PIN: %+v", e)
 	}
 	t.Logf("rcinv1 with a PIN: registered %s after a wrong try (%d of %d left)", registered.DeviceID, tries-1, tries)
+	// again with the same key (api-v1 §4.1): the PIN is asked again; a wrong or missing one is not_found and takes no
+	// try, the right one gets the same device
+	if os.Getenv("RAYCONTROL_REGISTER_RETRY") != "" {
+		for _, bad := range []string{wrong(pin), ""} {
+			if _, e = register(invite, bad); e == nil || e.Code != "not_found" || e.PinLeft != nil {
+				t.Fatalf("Register again with PIN %q: %+v, want not_found without tries", bad, e)
+			}
+		}
+		again, e := register(invite, pin)
+		if e != nil || again.DeviceID != registered.DeviceID {
+			t.Fatalf("Register again with the right PIN: %+v, want device %s", e, registered.DeviceID)
+		}
+		t.Logf("rcinv1 with a PIN, again with the same key: the same device; a wrong PIN refused, no try taken")
+	}
 
 	// rcinv2, the short form, with a PIN
 	invite = readInvite(t, dir+"/v2.invite")

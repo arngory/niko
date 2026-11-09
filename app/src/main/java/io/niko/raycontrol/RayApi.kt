@@ -8,6 +8,9 @@ import io.niko.ktx.Logs
 import libcore.Libcore
 import okio.ByteString.Companion.decodeBase64
 import okio.ByteString.Companion.toByteString
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 import javax.crypto.AEADBadTagException
 
 /**
@@ -38,6 +41,21 @@ object RayApi {
 
     /** The tries an invite has left when Register refused for its PIN (permission_denied, api-v1.md §4), or null. */
     fun pinLeft(e: Throwable): Int? = e.message?.let { PIN_LEFT.find(it) }?.groupValues?.get(1)?.toIntOrNull()
+
+    // the node's refusal of a switch with a grace while the previous key is still in its own (raycontrol v0.24.0,
+    // failed_precondition): "... its previous seal key is still accepted until 2026-11-10T07:14:05Z (...)"
+    private val GRACE_UNTIL = Regex("still accepted until (\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})Z")
+
+    /** Until when (unix seconds) the previous key is accepted, from the node's refusal to rotate again; 0 without one. */
+    fun graceUntil(e: Throwable): Long {
+        val time = e.message?.let { GRACE_UNTIL.find(it) }?.groupValues?.get(1) ?: return 0
+        return runCatching {
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+                isLenient = false
+            }.parse(time)!!.time / 1000
+        }.getOrDefault(0)
+    }
 
     private fun now() = System.currentTimeMillis() / 1000
 

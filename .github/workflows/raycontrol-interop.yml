@@ -117,6 +117,13 @@ jobs:
             [ -n "$pin" ] || { echo "no PIN shown for $f"; cat /tmp/rc/pin/$f.out; exit 1; }
             if grep -q "$pin" /tmp/rc/pin/$f.invite; then echo "the PIN in $f's file"; exit 1; fi
           done
+          # raycontrol v0.24.0: Register again with the same client key gets the same device (api-v1 §4.1); a second
+          # switch of a dnstt seal key within the first one's grace is refused unless forced
+          if grep -rqs "register-replay" raycontrol/internal/api; then echo "RAYCONTROL_REGISTER_RETRY=1" >> "$GITHUB_ENV"; fi
+          if grep -qs "bool force = 3" raycontrol/api/proto/raycontrol/node/v1/node.proto; then
+            rc service add dnstt dns
+            echo "RAYCONTROL_ROTATE_SERVICE=dns" >> "$GITHUB_ENV"
+          fi
           rc service list
           # the API listener follows the change
           sleep 2
@@ -768,6 +775,28 @@ jobs:
             out=$(nobody ping -n -c 2 -W 5 -M do -s 1473 198.51.100.2); echo "$out" | sed 's/^/    /'
             echo "$out" | grep -q "mtu = 1480\|mtu=1480" && echo "too big: 1480" ||
               { echo "too big: no MTU 1480"; fail=1; }
+            # conn-limit-v1 (raycontrol v0.24.0, §3.1): a user in debt for failed dials gets 429 to CONNECT in place of
+            # the 200. 160 dials to a closed port of the host behind the node, each refused and paid for (the reserve
+            # is 100, 5 a second come back); the core's log then names the status the app reads as the node's limit
+            # (RayTestFindings: Cause.LIMIT, not a broken profile), and with the debt paid the same profile carries on
+            if [ -f raycontrol/internal/naive/limits.go ]; then
+              seq 160 | xargs -P 40 -I{} curl -s -m 10 -o /dev/null -x socks5h://127.0.0.1:11093 http://198.51.100.2:9/ || true
+              curl -s -m 10 -o /dev/null -x socks5h://127.0.0.1:11093 https://www.gstatic.com/generate_204 || true
+              sleep 1
+              if grep -q "response status: 429" /tmp/core-naive.log; then
+                echo "the limit of failed dials: 429, $(grep -c "response status: 429" /tmp/core-naive.log) lines in the core's log"
+              else
+                echo "the limit of failed dials: no 429 in the core's log"; fail=1
+              fi
+              got=000
+              for i in $(seq 15); do
+                got=$(probe 11093); [ "$got" = 204 ] && break
+                sleep 2
+              done
+              echo "after the limit: $got (want 204)"; [ "$got" = 204 ] || fail=1
+            else
+              echo "the limit of connections: raycontrol $(git -C raycontrol rev-parse --short HEAD) has none in rayd naive (from v0.24.0), not checked"
+            fi
           else
             echo "ping through the node: raycontrol $(git -C raycontrol rev-parse --short HEAD) has no icmp-v1 (from v0.21.0), not checked"
           fi

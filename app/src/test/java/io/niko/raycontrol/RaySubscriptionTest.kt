@@ -202,6 +202,16 @@ class RaySubscriptionTest {
         assertEquals(0, RayApi.pinLeft(Exception("raycontrol api: permission_denied: pin tries left 0")))
         assertEquals(null, RayApi.pinLeft(Exception("raycontrol api: permission_denied: not an admin")))
         assertEquals(null, RayApi.pinLeft(Exception("raycontrol api: not_found")))
+        // a switch with a grace refused while the previous key is in its own (raycontrol v0.24.0): the node's time
+        val inGrace = Exception("raycontrol api: failed_precondition: not now: dns: its previous seal key is still accepted " +
+            "until 2026-11-10T07:14:05Z (clients that have not fetched their subscription since the last switch use it); " +
+            "another switch now would drop it at once: switch after that, or anyway with force (rayctl service rotate dns -force)")
+        assertEquals("failed_precondition", RayApi.code(inGrace))
+        assertEquals(1794294845L, RayApi.graceUntil(inGrace))
+        assertEquals(1794294845L, RayApi.graceUntil(Exception(inGrace.message!!.replace("seal key", "service key"))))
+        // another failed_precondition (an update requested already), and a time that is none: nothing to ask about
+        assertEquals(0L, RayApi.graceUntil(Exception("raycontrol api: failed_precondition: not now: an update is requested already")))
+        assertEquals(0L, RayApi.graceUntil(Exception("raycontrol api: failed_precondition: still accepted until 2026-13-45T99:99:99Z")))
         for (bad in listOf(invite.replace(""", "api": {"port": 48213, "pin": "$apiPin"}""", ""),
             invite.replace(apiPin, "short"), invite.replace("48213", "0"), invite.replace(""", "expires": 1767312000""", ""))) {
             try {

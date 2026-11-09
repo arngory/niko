@@ -141,8 +141,8 @@ class RayAdminActivity : ThemedActivity() {
 
     // ---- calls
 
-    /** Runs [call] off the main thread with the refresh indicator; errors go to a snackbar. */
-    private fun <T> api(call: () -> T, failed: (Throwable) -> Unit = {}, done: (T) -> Unit) {
+    /** Runs [call] off the main thread with the refresh indicator; errors go to a snackbar, but those [failed] asks about ([quiet]). */
+    private fun <T> api(call: () -> T, quiet: (Throwable) -> Boolean = { false }, failed: (Throwable) -> Unit = {}, done: (T) -> Unit) {
         binding.refreshLayout.isRefreshing = true
         runOnDefaultDispatcher {
             val result = try {
@@ -155,7 +155,7 @@ class RayAdminActivity : ThemedActivity() {
                 if (isFinishing || isDestroyed) return@onMainDispatcher
                 binding.refreshLayout.isRefreshing = false
                 result.onSuccess(done).onFailure {
-                    snackbar(failure(it)).show()
+                    if (!quiet(it)) snackbar(failure(it)).show()
                     failed(it)
                 }
             }
@@ -807,7 +807,7 @@ class RayAdminActivity : ThemedActivity() {
             .setItems(options) { _, i ->
                 when {
                     i == 1 -> confirm(getString(R.string.raycontrol_admin_rotate_key_now_confirm)) { rotateKeyNow(name, true) }
-                    inGrace -> confirm(getString(R.string.raycontrol_admin_rotate_key_in_grace, date(prevUntil))) { rotateKeyNow(name, false) }
+                    inGrace -> confirm(getString(R.string.raycontrol_admin_rotate_key_in_grace, date(prevUntil))) { rotateKeyNow(name, false, force = true) }
                     else -> rotateKeyNow(name, false)
                 }
             }
@@ -815,10 +815,29 @@ class RayAdminActivity : ThemedActivity() {
             .show()
     }
 
-    private fun rotateKeyNow(name: String, now: Boolean): Unit = api({ call("RotateService", body("name" to name, "now" to now)) }, failed = { e ->
-        // it may have rotated: the list shows the rotation (the grace above guards a second one), never a retry here
-        if (lost(e)) loadServices()
-    }) { answer ->
+    // raycontrol v0.24.0: a switch with a grace while the previous key is in its own is refused (failed_precondition)
+    // unless forced. It is asked about here where this list did not show that grace (a list from before another
+    // admin's rotation, or this one's own whose answer was lost): the time is the node's
+    private fun graceRefused(now: Boolean, force: Boolean, e: Throwable) =
+        !now && !force && RayApi.code(e) == "failed_precondition" && RayApi.graceUntil(e) > 0
+
+    private fun rotateKeyNow(name: String, now: Boolean, force: Boolean = false): Unit = api(
+        // force only when asked: a node before v0.24.0 has no such field and switches as it did
+        { call("RotateService", body("name" to name, "now" to now, "force" to force.takeIf { it })) },
+        quiet = { e -> graceRefused(now, force, e) },
+        failed = { e ->
+            when {
+                // it may have rotated: the list shows the rotation (the grace guards a second one), never a retry here
+                lost(e) -> loadServices()
+                graceRefused(now, force, e) -> {
+                    loadServices()
+                    confirm(getString(R.string.raycontrol_admin_rotate_key_in_grace, date(RayApi.graceUntil(e)))) {
+                        rotateKeyNow(name, false, force = true)
+                    }
+                }
+            }
+        },
+    ) { answer ->
         val until = answer.l("prevUntil")
         snackbar(if (until > 0) getString(R.string.raycontrol_admin_rotate_key_until, date(until))
         else getString(R.string.raycontrol_admin_rotate_key_gone)).show()
