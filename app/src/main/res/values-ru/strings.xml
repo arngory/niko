@@ -186,8 +186,6 @@
 <string name="domain_strategy_for_direct">Правило домена для Прямого</string>
 <string name="domain_strategy_for_remote">Правило домена для Удаленного</string>
 <string name="domain_strategy_for_server">Правило домена для Адреса сервера</string>
-<string name="donate">Пожертвовать</string>
-<string name="donate_info">Я люблю деньги</string>
 <string name="download">Скачать</string>
 <string name="early_data_header_name">Имя заголовка ранних данных</string>
 <string name="ech_config">Конфигурация ECH</string>
@@ -502,7 +500,7 @@
 <string name="share">Поделиться</string>
 <string name="share_qr_nfc">QR-код</string>
 <string name="share_subscription">Поделиться подпиской</string>
-<string name="show_bottom_bar">Показать нижнюю панель, как в SagerNet</string>
+<string name="show_bottom_bar">Показывать нижнюю панель</string>
 <string name="show_direct_speed">Показать прямую скорость</string>
 <string name="show_direct_speed_sum">Также в уведомлении показывать скорость трафика без прокси</string>
 <string name="show_group_in_notification">Показывать название группы в уведомлении</string>
@@ -542,7 +540,6 @@
 <string name="subscriptions">Подписки</string>
 <string name="tcp_connections">%d TCP-соединений</string>
 <string name="tcp_keep_alive_interval">Интервал доставки пакетов TCP keep-alive</string>
-<string name="telegram">Канал обновлений в Telegram</string>
 <string name="test_concurrency">Число параллельных подключений</string>
 <string name="theme">Тема</string>
 <string name="tile_title">Переключатель</string>

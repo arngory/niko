@@ -19,6 +19,7 @@ import androidx.preference.PreferenceDataStore
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.navigation.NavigationView
 import com.google.android.material.snackbar.Snackbar
+import io.niko.RELEASE_REPO
 import io.niko.BuildConfig
 import io.niko.GroupType
 import io.niko.Key
@@ -328,9 +329,6 @@ class MainActivity : ThemedActivity(),
                 showDownloadDialog(pluginEntity)
             }
             .setNeutralButton(android.R.string.cancel, null)
-            .setNeutralButton(R.string.action_learn_more) { _, _ ->
-                launchCustomTab("https://matsuridayo.github.io/nb4a-plugin/")
-            }
             .show()
     }
 
@@ -400,7 +398,7 @@ class MainActivity : ThemedActivity(),
             R.id.nav_tools -> displayFragment(ToolsFragment())
             R.id.nav_logcat -> displayFragment(LogcatFragment())
             R.id.nav_faq -> {
-                launchCustomTab("https://matsuridayo.github.io/")
+                launchCustomTab("https://github.com/$RELEASE_REPO#readme")
                 return false
             }
 

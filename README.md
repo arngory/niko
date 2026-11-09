@@ -13,7 +13,8 @@ APKs for arm64-v8a, armeabi-v7a, x86 and x86_64 are on the [Releases](../../rele
 ## Protocols
 
 SOCKS 4/4a/5, HTTP(S), SSH, Shadowsocks, VMess, VLESS (REALITY, XHTTP), Trojan, AnyTLS, ShadowTLS,
-TUIC, Hysteria 1/2, WireGuard. With NekoBox plugins: Trojan-Go, NaïveProxy, Mieru.
+TUIC, Hysteria 1/2, WireGuard, AmneziaWG, NaïveProxy (built in), Yggdrasil, DNS tunnels (dnstt, MasterDnsVPN,
+slipstream). With external plugins: Trojan-Go, Mieru.
 
 ## What the fork adds
 
@@ -44,7 +45,8 @@ See [docs/RELEASE_SIGNING.md](docs/RELEASE_SIGNING.md) (Russian).
 - **Скачать:** APK для arm64-v8a, armeabi-v7a, x86 и x86_64 на странице [Releases](../../releases), рядом
   `SHA256SUMS`. Android 6.0+.
 - **Протоколы:** SOCKS 4/4a/5, HTTP(S), SSH, Shadowsocks, VMess, VLESS (REALITY, XHTTP), Trojan, AnyTLS,
-  ShadowTLS, TUIC, Hysteria 1/2, WireGuard. С плагинами NekoBox: Trojan-Go, NaïveProxy, Mieru.
+  ShadowTLS, TUIC, Hysteria 1/2, WireGuard, AmneziaWG, NaïveProxy (встроен), Yggdrasil, DNS-туннели (dnstt,
+  MasterDnsVPN, slipstream). Через внешние плагины: Trojan-Go, Mieru.
 - **Что добавлено в форке:** ядро sing-box 1.14 с XHTTP и постквантовым REALITY, port knocking,
   фрагментация TLS ClientHello и пиннинг сертификатов, remote rule-set, заголовки подписок и HWID,
   исправления UDP в Hysteria2 и многое другое (см. [Releases](../../releases)).

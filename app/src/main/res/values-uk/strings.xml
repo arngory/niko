@@ -5,7 +5,6 @@
     <string name="app_desc">Універсальний набір інструментів проксі для Android, написаний на Kotlin.</string>
     <string name="project">Проєкт</string>
     <string name="github">Вихідний код</string>
-    <string name="telegram">Канал оновлень в Telegram</string>
     <string name="oss_licenses">Ліцензії з відкритим кодом</string>
     <string name="app_version">Версія</string>
     <string name="version_x">Версія (%s)</string>
@@ -276,8 +275,6 @@
     <string name="no_proxies_found_in_file">У файлі не знайдено проксі</string>
     <string name="no_proxies_found_in_clipboard">У буфері обміну не знайдено проксі</string>
     <string name="deduplication">Дедуплікація</string>
-    <string name="donate">Пожертвувати</string>
-    <string name="donate_info">Я люблю гроші</string>
     <string name="ignore_battery_optimizations">Ігнорувати оптимізацію батареї</string>
     <string name="ignore_battery_optimizations_sum">Зняти деякі обмеження</string>
     <!-- plugin -->

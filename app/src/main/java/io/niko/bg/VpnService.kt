@@ -179,7 +179,7 @@ class VpnService : BaseVpnService(),
             val added = mutableListOf<String>()
 
             individual.apply {
-                // Allow Matsuri itself using VPN.
+                // Allow Niko itself to use the VPN.
                 remove(packageName)
                 if (!bypass) add(packageName)
             }.forEach {

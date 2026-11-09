@@ -10,6 +10,7 @@ import androidx.core.view.ViewCompat
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import io.niko.RELEASE_REPO
 import io.niko.R
 import io.niko.RoutePresets
 import io.niko.RuleSetFiles
@@ -297,7 +298,7 @@ class RouteFragment : ToolbarFragment(R.layout.layout_route), Toolbar.OnMenuItem
         inner class DocumentHolder(binding: LayoutEmptyRouteBinding) : RecyclerView.ViewHolder(binding.root) {
             fun bind() {
                 itemView.setOnClickListener {
-                    it.context.launchCustomTab("https://matsuridayo.github.io/nb4a-route/")
+                    it.context.launchCustomTab("https://github.com/$RELEASE_REPO/blob/main/docs/ROUTING.md")
                 }
             }
         }
