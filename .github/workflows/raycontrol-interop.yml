@@ -94,7 +94,8 @@ jobs:
       - name: A node with the remote API
         run: |
           mkdir -p /tmp/rc/rendered
-          /tmp/rayd init -db /tmp/rc/rayd.db -host 127.0.0.1
+          # the domain is for the dnstt service below (its zone); clients reach the node by its host
+          /tmp/rayd init -db /tmp/rc/rayd.db -host 127.0.0.1 -domain example.test
           # no perimeter here (rayspa, nftables): the API port is open without SPA; the client still sends SPA
           nohup /tmp/rayd serve -db /tmp/rc/rayd.db -socket /tmp/rc/rayd.sock -group "$(id -gn)" \
             -live=false -acme-directory "" -rendered /tmp/rc/rendered > /tmp/rayd.log 2>&1 &
@@ -777,8 +778,9 @@ jobs:
               { echo "too big: no MTU 1480"; fail=1; }
             # conn-limit-v1 (raycontrol v0.24.0, §3.1): a user in debt for failed dials gets 429 to CONNECT in place of
             # the 200. 160 dials to a closed port of the host behind the node, each refused and paid for (the reserve
-            # is 100, 5 a second come back); the core's log then names the status the app reads as the node's limit
-            # (RayTestFindings: Cause.LIMIT, not a broken profile), and with the debt paid the same profile carries on
+            # is 100, 5 a second come back); the core then reads a refused CONNECT as its status (the fork's naive
+            # outbound: the early dial alone would read a stream that ends), in the words the app takes for the node's
+            # limit (RayTestFindings: Cause.LIMIT, not a broken profile), and with the debt paid the profile carries on
             if [ -f raycontrol/internal/naive/limits.go ]; then
               seq 160 | xargs -P 40 -I{} curl -s -m 10 -o /dev/null -x socks5h://127.0.0.1:11093 http://198.51.100.2:9/ || true
               curl -s -m 10 -o /dev/null -x socks5h://127.0.0.1:11093 https://www.gstatic.com/generate_204 || true

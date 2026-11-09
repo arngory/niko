@@ -36,6 +36,8 @@ class RayTestFindingsTest {
             "429 Too Many Requests" to Cause.BUSY,
             // the node's connection limit for the user (conn-limit-v1 §4.3): naive's CONNECT answer, Hysteria2's text
             "unexpected response status: 429" to Cause.LIMIT,
+            // naive's CONNECT refused otherwise (a wrong password gets the site's 404)
+            "unexpected response status: 404" to Cause.REFUSED,
             "Get \"https://probe/down\": remote error: too many connections" to Cause.LIMIT,
             // an address first is not a status
             "185.10.1.1:443 said something" to Cause.OTHER,

@@ -244,6 +244,8 @@ object RayTestFindings {
             // the node's connection limit (conn-limit-v1 §4.3), before the status of the probe's own answer below: a
             // 429 at the start is the probe slot taken, one in naive's CONNECT answer is the user's limit
             "too many connections" in e || "response status: 429" in e -> Cause.LIMIT
+            // naive's CONNECT answered with another status (404 as the site answers a wrong password, 407): refused
+            "unexpected response status:" in e -> Cause.REFUSED
             HTTP_STATUS.containsMatchIn(e) -> if (e.startsWith("429")) Cause.BUSY else Cause.HTTP
             "connection refused" in e -> Cause.REFUSED
             "no such host" in e || "lookup " in e -> Cause.NAME
