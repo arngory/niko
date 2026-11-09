@@ -557,11 +557,9 @@ class RayAdminActivity : ThemedActivity() {
                     call("CreateUser", body("name" to userName, "expiresAt" to expires.toString(),
                         "trafficLimitBytes" to limit.toString(), "note" to note.text.toString().trim(), "services" to chosen))
                 }, failed = { e ->
-                    // created with its answer lost, or a second tap: the user is there, the first device's invite next
-                    if (lost(e) || RayApi.code(e) == "already_exists") {
-                        loadUsers()
-                        invite(userName, created = true)
-                    }
+                    // created with its answer lost: the user may be there, the list shows it; no invite on its own,
+                    // as "already exists" may be another user of that name (shown as the error it is)
+                    if (lost(e)) loadUsers()
                 }) {
                     loadUsers()
                     // a user reaches the node through their devices: the first one's invite now
