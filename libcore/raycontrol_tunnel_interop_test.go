@@ -39,50 +39,8 @@ import (
 // takes the client's address for link), RAYCONTROL_CA the test CA of the node's site (hy2-masq), RAYCONTROL_EXPECT
 // the kinds of profiles that must be among them (hysteria2-pin, hysteria2-ca, reality, yggdrasil).
 func TestRaycontrolTunnelInterop(t *testing.T) {
-	path := os.Getenv("RAYCONTROL_BUNDLE")
-	if path == "" {
-		t.Skip("RAYCONTROL_BUNDLE not set (raycontrol-interop.yml sets it)")
-	}
-	node := os.Getenv("RAYCONTROL_ADDRESS")
-	if node == "" {
-		t.Fatal("RAYCONTROL_ADDRESS not set")
-	}
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	body, err := base64.RawURLEncoding.DecodeString(strings.TrimPrefix(strings.TrimSpace(string(raw)), "rcdev1:"))
-	if err != nil {
-		t.Fatal("package: ", err)
-	}
-	var b struct {
-		Host      string             `json:"host"`
-		DeviceID  string             `json:"device_id"`
-		DeviceKey string             `json:"device_key"`
-		SPA       knock.SPAv2Options `json:"spa"`
-		Sub       struct {
-			Port int    `json:"port"`
-			Pin  string `json:"pin"`
-		} `json:"sub"`
-		NodeKeys struct {
-			Ed25519 string `json:"ed25519"`
-			MLDSA65 string `json:"mldsa65"`
-		} `json:"node_keys"`
-	}
-	if err = json.Unmarshal(body, &b); err != nil || b.Sub.Port == 0 {
-		t.Fatalf("package: %v", err)
-	}
-	b.SPA.DeviceKey = b.DeviceKey
-	deviceKey, err := hex.DecodeString(b.DeviceKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// the subscription as the app takes it: RaycontrolFetchSubscription's JSON, which the app reads (a struct of the
-	// core once dropped fields the app needs on the way); the core's own steps below read its struct
-	request, _ := json.Marshal(raysub.Request{
-		Host: node, Port: b.Sub.Port, Pin: b.Sub.Pin, DeviceID: b.DeviceID, NodeID: b.SPA.NodeID,
-		Ed25519: b.NodeKeys.Ed25519, MLDSA65: b.NodeKeys.MLDSA65, SPA: b.SPA,
-	})
+	b, node, request := interopDevice(t)
+	deviceKey, _ := hex.DecodeString(b.DeviceKey)
 	appJSON, err := RaycontrolFetchSubscription(string(request))
 	if err != nil {
 		t.Fatalf("subscription: %v", err)
@@ -999,4 +957,57 @@ func linkWithSeal(t *testing.T, link, key string) string {
 	}
 	u.RawQuery = q.Encode()
 	return u.String()
+}
+
+// interopBundle is the device's rcdev1 package (RAYCONTROL_BUNDLE) as the interop tests read it.
+type interopBundle struct {
+	Host      string             `json:"host"`
+	DeviceID  string             `json:"device_id"`
+	DeviceKey string             `json:"device_key"`
+	SPA       knock.SPAv2Options `json:"spa"`
+	Sub       struct {
+		Port int    `json:"port"`
+		Pin  string `json:"pin"`
+	} `json:"sub"`
+	NodeKeys struct {
+		Ed25519 string `json:"ed25519"`
+		MLDSA65 string `json:"mldsa65"`
+	} `json:"node_keys"`
+}
+
+// interopDevice reads the device's package and the node's address (skipping without them, as outside the workflow)
+// and builds the subscription request the app sends: RaycontrolFetchSubscription's argument.
+func interopDevice(t *testing.T) (interopBundle, string, []byte) {
+	t.Helper()
+	path := os.Getenv("RAYCONTROL_BUNDLE")
+	if path == "" {
+		t.Skip("RAYCONTROL_BUNDLE not set (raycontrol-interop.yml sets it)")
+	}
+	node := os.Getenv("RAYCONTROL_ADDRESS")
+	if node == "" {
+		t.Fatal("RAYCONTROL_ADDRESS not set")
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := base64.RawURLEncoding.DecodeString(strings.TrimPrefix(strings.TrimSpace(string(raw)), "rcdev1:"))
+	if err != nil {
+		t.Fatal("package: ", err)
+	}
+	var b interopBundle
+	if err = json.Unmarshal(body, &b); err != nil || b.Sub.Port == 0 {
+		t.Fatalf("package: %v", err)
+	}
+	b.SPA.DeviceKey = b.DeviceKey
+	if _, err = hex.DecodeString(b.DeviceKey); err != nil {
+		t.Fatal(err)
+	}
+	// the subscription as the app takes it: RaycontrolFetchSubscription's JSON, which the app reads (a struct of the
+	// core once dropped fields the app needs on the way); the core's own steps read its struct
+	request, _ := json.Marshal(raysub.Request{
+		Host: node, Port: b.Sub.Port, Pin: b.Sub.Pin, DeviceID: b.DeviceID, NodeID: b.SPA.NodeID,
+		Ed25519: b.NodeKeys.Ed25519, MLDSA65: b.NodeKeys.MLDSA65, SPA: b.SPA,
+	})
+	return b, node, request
 }

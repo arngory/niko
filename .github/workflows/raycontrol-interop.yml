@@ -26,6 +26,7 @@ on:
       - "libcore/dnsprobe_box.go"
       - "libcore/raycontrol_tunnel_interop_test.go"
       - "libcore/raycontrol_app_interop_test.go"
+      - "libcore/raycontrol_traffic_interop_test.go"
       - ".github/xray-interop.env"
       - "buildScript/lib/core/get_source_env.sh"
       - "libcore/box_naive.go"
@@ -484,6 +485,24 @@ jobs:
           docker exec rc-node /opt/rc/rayctl app-mirror
           RAYCONTROL_APP_KEY=$(sed -n 2p /tmp/appkey/test.pub) \
             go test -count=1 -v -timeout 5m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolAppMirror .
+
+      # traffic-limit-v1 (v0.22.0): a limit announced; set below what alice used, her Hysteria2 session is cut and the
+      # subscription answers exhausted with no profiles; reset-usage brings them back. Last: it cuts her sessions
+      - name: The user's traffic limit
+        working-directory: libcore
+        env:
+          RAYCONTROL_BUNDLE: /tmp/phone.bundle
+          RAYCONTROL_ADDRESS: ${{ steps.node.outputs.address }}
+          RAYCONTROL_CA: /tmp/rccert/root.pem
+          RAYCONTROL_RAYCTL: docker exec rc-node /opt/rc/rayctl
+          RAYCONTROL_USER: alice
+        run: |
+          if ! grep -q '"reset-usage"' ../raycontrol/cmd/rayctl/main.go; then
+            echo "::notice::this raycontrol has no traffic limit (v0.22.0 does)"
+            exit 0
+          fi
+          TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
+          go test -count=1 -v -timeout 10m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTrafficLimit .
 
       - name: The subscription as the app reads it
         if: always()
