@@ -142,7 +142,7 @@ object RayApi {
         }
         // a refusal keeps the key too: not_found is also the node's answer to a retry with a wrong or missing PIN
         // (api-v1 §4.1), and the right PIN after it must come with the same key. A key of no further use (the invite
-        // used by another, expired, revoked) goes with its window
+        // used by another, expired, revoked) goes with its window, which runs from this try
         val answer = JsonParser.parseString(Libcore.raycontrolRegister(request.toString())).asJsonObject
         val registration = Rcdev1.parse(answer.get("bundle").asString)
         // the channel is pinned to the invite's node; its package may name a new address (a moved node): that is kept
@@ -167,14 +167,19 @@ object RayApi {
         return node to (answer.get("role")?.asString ?: "user")
     }
 
-    // how long a kept registration key is sent again. The node answers a retry the same for 15 min from the invite's
-    // first use, which may come well after the key was made (tries that never reached it): twice that from the making
+    // how long a kept registration key is sent again, from its last try. The node answers a retry the same for 15 min
+    // from the invite's first use, and any try may have been that use (one whose answer was lost, after tries that
+    // never reached the node or a PIN typed much later): twice the node's window from the last one. A key kept
+    // too long does no harm: for an invite that is gone the node refuses every key alike
     private const val REGISTER_RETRY_S = 30 * 60L
 
-    /** The client key for registering with the invite [inviteId]: the one kept within the window, else a new one, kept. */
+    /**
+     * The client key for a try to register with the invite [inviteId]: the one kept within the window, else a new one;
+     * kept as tried now.
+     */
     private fun pendingIdentity(inviteId: String): RayIdentity = RayNodesLock.withLock {
         val kept = pendingRegistrations().filterValues { now() - it.createdAt < REGISTER_RETRY_S }
-        kept[inviteId] ?: run {
+        val identity = kept[inviteId]?.copy(createdAt = now()) ?: run {
             val made = JsonParser.parseString(Libcore.raycontrolNewIdentity()).asJsonObject
             val key = made.get("key").asString.decodeBase64()?.toByteArray()
                 ?: throw Exception("raycontrol: the core returned no client key")
@@ -183,10 +188,10 @@ object RayApi {
             } finally {
                 key.fill(0)
             }
-            RayIdentity(made.get("cert").asString, wrapped, made.get("pin").asString, now()).also {
-                savePendingRegistrations(kept + (inviteId to it))
-            }
+            RayIdentity(made.get("cert").asString, wrapped, made.get("pin").asString, now())
         }
+        savePendingRegistrations(kept + (inviteId to identity))
+        identity
     }
 
     private fun forgetPending(inviteId: String) = RayNodesLock.withLock {
