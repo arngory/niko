@@ -100,13 +100,14 @@ func TestRaycontrolTrafficLimit(t *testing.T) {
 		t.Fatal("no Hysteria2 profile among the probe's tunnels")
 		return "", ""
 	}
-	carries := func(instance *BoxInstance, tunnel string) bool {
-		warm, _ := json.Marshal(probeRequest{Host: b.Host, Port: b.Sub.Port, Pin: b.Sub.Pin, DeviceID: b.DeviceID, SPA: b.SPA,
-			Tunnel: tunnel, DownBytes: 1024, WindowMs: 5000})
-		out, err := RaycontrolProbeTunnel(instance, string(warm))
+	download := func(instance *BoxInstance, tunnel string, bytes int64) bool {
+		probe, _ := json.Marshal(probeRequest{Host: b.Host, Port: b.Sub.Port, Pin: b.Sub.Pin, DeviceID: b.DeviceID, SPA: b.SPA,
+			Tunnel: tunnel, DownBytes: bytes, WindowMs: 10000})
+		out, err := RaycontrolProbeTunnel(instance, string(probe))
 		var r probeResult
 		return err == nil && json.Unmarshal([]byte(out), &r) == nil && r.Down != nil && r.Down.OK
 	}
+	carries := func(instance *BoxInstance, tunnel string) bool { return download(instance, tunnel, 1024) }
 	carriesWithin := func(what string, instance *BoxInstance, tunnel string, within time.Duration) {
 		t.Helper()
 		for deadline := time.Now().Add(within); !carries(instance, tunnel); time.Sleep(3 * time.Second) {
@@ -116,7 +117,7 @@ func TestRaycontrolTrafficLimit(t *testing.T) {
 		}
 	}
 
-	// a limit far above what is used: announced, nothing cut
+	// a limit far above what is used: announced, nothing cut. The first limit turns the node's count on, from zero
 	rayctl("user", "limit", user, "100G")
 	result, _ := subscription("a limit", 90*time.Second, func(r raysub.Result, tr *traffic) bool {
 		return tr != nil && tr.V == 1 && tr.Limit > 0 && !tr.Exhausted && len(r.Payload.Profiles) > 0
@@ -124,8 +125,22 @@ func TestRaycontrolTrafficLimit(t *testing.T) {
 	config, tunnel := hysteria(result)
 	instance := startTestBox(t, config)
 	carriesWithin("under the limit", instance, tunnel, 90*time.Second)
+	// a few megabytes through Hysteria2, until the node counts them (its count lags up to a minute)
+	const counted = 2 << 20
+	for deadline := time.Now().Add(150 * time.Second); ; {
+		download(instance, tunnel, 1<<20)
+		_, tr := subscription("counting", 10*time.Second, func(raysub.Result, *traffic) bool { return true })
+		if tr != nil && tr.Used >= counted {
+			t.Logf("counted: %d bytes used", tr.Used)
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the node counted %+v after megabytes through Hysteria2, want %d bytes at least", tr, counted)
+		}
+		time.Sleep(5 * time.Second)
+	}
 
-	// below what the earlier steps used: the session through the tunnel stops carrying
+	// below what is used now: the session through the tunnel stops carrying
 	rayctl("user", "limit", user, "1M")
 	crossed := time.Now()
 	for carries(instance, tunnel) {
