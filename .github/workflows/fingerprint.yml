@@ -12,6 +12,7 @@ on:
       - ".github/workflows/fingerprint.yml"
       - ".github/scripts/quic-sizes.py"
       - ".github/scripts/netlog-quic.py"
+      - ".github/scripts/netlog-chains.py"
   schedule:
     - cron: "41 3 * * 1"
   workflow_dispatch:
@@ -84,6 +85,27 @@ jobs:
             echo '```'
             sudo tcpdump -n -r "$RUNNER_TEMP/quic.pcap" 2> /dev/null | python3 -I .github/scripts/quic-sizes.py
             python3 -I .github/scripts/netlog-quic.py "$RUNNER_TEMP/chrome-netlog.json"
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # A naive profile is held to the core's list of roots by key pins: a key of a listed root has to be in the chain
+      # Chromium verified. Whether that holds for the servers Chrome takes is a question of what chain Chrome
+      # verifies: with trust anchor IDs a server may end its chain short of the root. Real Chrome's own net log
+      # says which chains it accepted, and the script which of their keys the core's lists have
+      - name: The chains Chrome verifies, against the core's root lists (informational)
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: |
+          timeout 60 xvfb-run -a google-chrome --no-first-run --no-default-browser-check --user-data-dir="$RUNNER_TEMP/chrome-chains" \
+            --log-net-log="$RUNNER_TEMP/chrome-chains.json" --net-log-capture-mode=Everything \
+            https://www.gstatic.com/generate_204 https://www.google.com/ https://letsencrypt.org/ https://github.com/ \
+            https://www.cloudflare.com/ https://www.microsoft.com/ https://www.amazon.com/ https://www.wikipedia.org/ \
+            > /dev/null 2>&1 || true
+          {
+            echo "### The chains $(google-chrome --version) verified"
+            echo '```'
+            python3 -I .github/scripts/netlog-chains.py "$RUNNER_TEMP/chrome-chains.json" \
+              chrome=../sing-box/common/certificate/chrome.go mozilla=../sing-box/common/certificate/mozilla.go
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
