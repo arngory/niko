@@ -669,11 +669,16 @@ func profileConfig(t *testing.T, link, node, resolver, ca, deviceKey string, dow
 			"curve_preferences": []string{"X25519MLKEM768"},
 		}
 		if pin := q.Get("niko-pin"); pin != "" {
-			sum, err := base64.RawURLEncoding.DecodeString(strings.TrimRight(pin, "="))
-			if err != nil || len(sum) != 32 {
-				t.Fatalf("niko-pin %q: %v", pin, err)
+			// one pin of hy2-obfs's own certificate, or the list of the site's keys (cert-pin-v1): any of them
+			var pins []string
+			for _, one := range strings.Split(pin, ",") {
+				sum, err := base64.RawURLEncoding.DecodeString(strings.TrimRight(one, "="))
+				if err != nil || len(sum) != 32 {
+					t.Fatalf("niko-pin %q: %v", pin, err)
+				}
+				pins = append(pins, base64.StdEncoding.EncodeToString(sum))
 			}
-			tls["certificate_public_key_sha256"] = []string{base64.StdEncoding.EncodeToString(sum)}
+			tls["certificate_public_key_sha256"] = pins
 			kind = "hysteria2-pin"
 		} else if ca != "" {
 			tls["certificate_path"] = ca
