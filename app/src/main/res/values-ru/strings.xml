@@ -908,7 +908,7 @@
     <string name="dns_tunnel_method">Шифрование MasterDnsVPN: 0 нет, 1 XOR, 2 ChaCha20, 3–5 AES-GCM</string>
     <string name="dns_tunnel_fixed_upstream">Сервер MasterDnsVPN в режиме TCP (одна фиксированная цель)</string>
     <string name="dns_tunnel_summary">Доступ к серверу через DNS-запросы, когда наружу проходит только DNS. Сервер dnstt или MasterDnsVPN в режиме TCP пересылает всё на один upstream — настройте этот профиль под него (SOCKS, SSH, Shadowsocks…). MasterDnsVPN в режиме SOCKS5 сам доходит до сервера этого профиля. Только TCP, медленно. Пустой домен выключает туннель.</string>
-    <string name="cert_pins_summary">Base64 или hex, по одному в строке. Заменяет проверку по CA, поэтому самоподписанный сертификат работает без «небезопасного» режима. Получить: openssl x509 -in cert.pem -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64</string>
+    <string name="cert_pins_summary">Base64 или hex, по одному в строке. Заменяет проверку по CA, поэтому самоподписанный сертификат работает без «небезопасного» режима. У профиля naive проверяются и пин, и CA, а для пина нужно имя сервера (SNI). Получить: openssl x509 -in cert.pem -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64</string>
     <string name="tls_fragment">Фрагментация TLS</string>
     <string name="tls_fragment_record">Разбивать на TLS-записи</string>
     <string name="tls_fragment_tcp">Разбивать на TCP-сегменты (медленнее)</string>

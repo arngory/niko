@@ -995,7 +995,7 @@
     <string name="dns_tunnel_method">MasterDnsVPN encryption: 0 none, 1 XOR, 2 ChaCha20, 3–5 AES-GCM</string>
     <string name="dns_tunnel_fixed_upstream">MasterDnsVPN server in TCP mode (one fixed target)</string>
     <string name="dns_tunnel_summary">Reaches the server through DNS queries when only DNS gets out. A dnstt server, or MasterDnsVPN in TCP mode, forwards to one upstream: set this profile up for it (SOCKS, SSH, Shadowsocks…). MasterDnsVPN in SOCKS5 mode reaches the server of this profile. TCP only, slow. Empty domain turns it off.</string>
-    <string name="cert_pins_summary">Base64 or hex, one per line. Replaces the CA check, so a self-signed certificate works without "allow insecure". Get it with: openssl x509 -in cert.pem -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64</string>
+    <string name="cert_pins_summary">Base64 or hex, one per line. Replaces the CA check, so a self-signed certificate works without "allow insecure". A naive profile checks the pin and the CA both, and needs a server name (SNI) for it. Get it with: openssl x509 -in cert.pem -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64</string>
     <string name="tls_fragment">TLS fragmentation</string>
     <string name="tls_fragment_record">Split into TLS records</string>
     <string name="tls_fragment_tcp">Split into TCP segments (slower)</string>
