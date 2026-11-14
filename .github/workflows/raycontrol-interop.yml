@@ -14,6 +14,7 @@ on:
       - ".github/slipstream-server.env"
       - "buildScript/lib/slipstream/env.sh"
       - ".github/scripts/netlog-errors.py"
+      - ".github/scripts/hello.py"
       - ".github/scripts/udp-dns-probe.py"
       - "libcore/rayapi/**"
       - "libcore/rayprobe/**"
@@ -813,6 +814,7 @@ jobs:
                        {type: "socks", tag: "quic-pin", listen: "127.0.0.1", listen_port: 11101},
                        {type: "socks", tag: "quic-pin-bad", listen: "127.0.0.1", listen_port: 11102},
                        {type: "socks", tag: "ack", listen: "127.0.0.1", listen_port: 11103},
+                       {type: "socks", tag: "hello", listen: "127.0.0.1", listen_port: 11104},
                        {type: "socks", tag: "wrong", listen: "127.0.0.1", listen_port: 11094},
                        {type: "socks", tag: "quic", listen: "127.0.0.1", listen_port: 11095},
                        {type: "direct", tag: "uot", listen: "127.0.0.1", listen_port: 11096, network: "udp",
@@ -829,12 +831,14 @@ jobs:
                         {type: "naive", tag: "naive-quic-pin-bad", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw, quic: true, tls: $tls_pin_bad},
                         {type: "naive", tag: "naive-ack", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw,
                          await_dial: true, tls: $tls},
+                        {type: "naive", tag: "naive-hello", server: "127.0.0.1", server_port: 18447, username: "niko", password: $pw, tls: $tls},
                         {type: "naive", tag: "naive-uot", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw,
                          udp_over_tcp: true, tls: $tls}],
             route: {rules: [{inbound: ["wrong"], outbound: "naive-wrong"}, {inbound: ["quic"], outbound: "naive-quic"},
                             {inbound: ["pin"], outbound: "naive-pin"}, {inbound: ["pin-bad"], outbound: "naive-pin-bad"},
                             {inbound: ["pin-one"], outbound: "naive-pin-one"}, {inbound: ["quic-pin"], outbound: "naive-quic-pin"},
                             {inbound: ["quic-pin-bad"], outbound: "naive-quic-pin-bad"}, {inbound: ["ack"], outbound: "naive-ack"},
+                            {inbound: ["hello"], outbound: "naive-hello"},
                             {inbound: ["uot"], outbound: "naive-uot"}], final: "naive"}}' > /tmp/core-naive.json
           nohup /tmp/sing-box run -c /tmp/core-naive.json > /tmp/core-naive.log 2>&1 &
           for i in $(seq 75); do
@@ -898,6 +902,19 @@ jobs:
             echo "core naive outbound, wrong password: the 404 read as the CONNECT's status"
           else
             echo "core naive outbound, wrong password: no \"unexpected response status: 404\" in the core's log"; fail=1
+          fi
+          # the ClientHello of the core's naive outbound against the one captured from Chrome (the core's
+          # common/tls/chromehello, kept current by fingerprint.yml): the outbound is Chromium's network stack, and
+          # where the library build leaves something of Chrome's out it shows here. A warning, not a failure: the
+          # library's Chromium and the captured Chrome are of different versions
+          python3 -I .github/scripts/hello.py capture 18447 /tmp/naive-hello.hex &
+          sleep 1
+          curl -s -m 8 -o /dev/null -x socks5h://127.0.0.1:11104 https://www.gstatic.com/generate_204 || true
+          if [ -s /tmp/naive-hello.hex ]; then
+            echo "Chrome's ClientHello: $(cat /tmp/sing-box-src/common/tls/chromehello/SOURCE)"
+            python3 -I .github/scripts/hello.py compare /tmp/sing-box-src/common/tls/chromehello/hello.hex /tmp/naive-hello.hex
+          else
+            echo "::warning::no ClientHello captured from the core's naive outbound"
           fi
           # honest connect (the core's naive `await_dial`: niko-ack: 1 with the CONNECT, raycontrol naive-uot-v1 §4.1):
           # rayd naive answers after its own dial, and the core's dial ends with what became of it, in words the
