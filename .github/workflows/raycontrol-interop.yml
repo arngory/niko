@@ -620,7 +620,9 @@ jobs:
           # the roots the node's certificates lead to (the clients' CA here), and the one of Pebble's own API, which
           # the node's ACME client checks (its system pool: SSL_CERT_FILE)
           curl -skf https://127.0.0.1:15000/roots/0 > /tmp/pebble-roots.pem
-          cp "$dir/test/certs/pebble.minica.pem" /tmp/rccert/pebble.minica.pem && chmod 0644 /tmp/rccert/pebble.minica.pem
+          # with the runner's own roots: the node's DoH asks public resolvers over HTTPS, and the container has none
+          cat /etc/ssl/certs/ca-certificates.crt "$dir/test/certs/pebble.minica.pem" > /tmp/rccert/stand-roots.pem
+          chmod 0644 /tmp/rccert/stand-roots.pem
           docker run -d --name rc-pin --network rc-net --ip 203.0.113.4 --dns 203.0.113.1 --add-host pebble:203.0.113.1 \
             -v /tmp/rcbin:/opt/rc:ro -v /tmp/rccert:/opt/cert:ro debian:13 sleep infinity > /dev/null
           p() { docker exec rc-pin "$@"; }
@@ -638,7 +640,7 @@ jobs:
           if grep -rqs RAYCONTROL_UNSAFE_SITE_KEY_FORCE_ANY_AGE ../raycontrol/cmd ../raycontrol/internal; then
             any_age="RAYCONTROL_UNSAFE_SITE_KEY_FORCE_ANY_AGE=1"
           fi
-          p sh -c 'SSL_CERT_FILE=/opt/cert/pebble.minica.pem NIKO_SERVER_UNSAFE_ANY_DESTINATION=1 '"$any_age"' nohup /opt/rc/rayd serve -supervise \
+          p sh -c 'SSL_CERT_FILE=/opt/cert/stand-roots.pem NIKO_SERVER_UNSAFE_ANY_DESTINATION=1 '"$any_age"' nohup /opt/rc/rayd serve -supervise \
             -xray /opt/rc/xray -niko-server /opt/rc/niko-server -acme-directory https://pebble:14000/dir > /var/log/rayd.log 2>&1 &'
           for i in $(seq 50); do p test -S /run/raycontrol/rayd.sock && break; sleep 0.2; done
           # naive shares TCP 443 with REALITY under the node's own site: REALITY first
