@@ -313,6 +313,67 @@ jobs:
         with:
           go-version-file: libcore/go.mod
           cache: false
+      # cert-pin-v1: a second node whose site takes its certificate from an ACME CA, as a real node does (the node
+      # above has the test CA's through rayctl service cert, and its rows carry no pins): Pebble, Let's Encrypt's test
+      # CA, on the runner. Every challenge passes (the stand has no perimeter to open TCP 80 through), and
+      # pebble-challtestsrv answers every name with the node's address, which rayd checks before it orders. The CA's
+      # chain is RSA with four intermediates: the site takes one at least as long as REALITY's own certificate.
+      # Started here, checked at the job's end (the site's key pins): rayd holds back the pins made in its first ten
+      # minutes (raycontrol v0.26.0, cert-pin-v1 §4: an update rolled back in those minutes must leave no pin with a
+      # client), and those minutes pass under the checks between
+      - name: A node with certificates from Pebble, started for the pins check
+        working-directory: libcore
+        env:
+          PEBBLE: github.com/letsencrypt/pebble/v2@v2.10.1
+        run: |
+          # raycontrol v0.26.0 has the pins: a commit without them is a pin gone back
+          if [ ! -f ../raycontrol/docs/spec/cert-pin-v1.md ]; then
+            echo "::error::this raycontrol has no key pins of the site (cert-pin-v1, from v0.26.0)"
+            exit 1
+          fi
+          go install "${PEBBLE%@*}/cmd/pebble@${PEBBLE#*@}" "${PEBBLE%@*}/cmd/pebble-challtestsrv@${PEBBLE#*@}"
+          bin="$(go env GOPATH)/bin"
+          dir="$(cd /tmp && go mod download -json "$PEBBLE" | jq -r .Dir)"
+          jq --arg dir "$dir" '.pebble.keyAlgorithm = "rsa" | .pebble.certificate = $dir + "/" + .pebble.certificate |
+            .pebble.privateKey = $dir + "/" + .pebble.privateKey' "$dir/test/config/pebble-config.json" > /tmp/pebble-config.json
+          sudo nohup "$bin/pebble-challtestsrv" -dnsserver 203.0.113.1:53 -defaultIPv4 203.0.113.4 -defaultIPv6 "" \
+            -http01 "" -https01 "" -tlsalpn01 "" -doh "" -management 127.0.0.1:8055 > /tmp/challtestsrv.log 2>&1 &
+          PEBBLE_VA_ALWAYS_VALID=1 PEBBLE_VA_NOSLEEP=1 PEBBLE_WFE_NONCEREJECT=0 PEBBLE_CHAIN_LENGTH=4 \
+            nohup "$bin/pebble" -config /tmp/pebble-config.json > /tmp/pebble.log 2>&1 &
+          for i in $(seq 30); do curl -skf https://127.0.0.1:14000/dir > /dev/null && break; sleep 1; done
+          curl -skf https://127.0.0.1:14000/dir > /dev/null || { echo "Pebble did not start"; tail -n 40 /tmp/pebble.log; exit 1; }
+          # the roots the node's certificates lead to (the clients' CA here), and the one of Pebble's own API, which
+          # the node's ACME client checks (its system pool: SSL_CERT_FILE)
+          curl -skf https://127.0.0.1:15000/roots/0 > /tmp/pebble-roots.pem
+          # with the runner's own roots: the node's DoH asks public resolvers over HTTPS, and the container has none
+          cat /etc/ssl/certs/ca-certificates.crt "$dir/test/certs/pebble.minica.pem" > /tmp/rccert/stand-roots.pem
+          chmod 0644 /tmp/rccert/stand-roots.pem
+          docker run -d --name rc-pin --network rc-net --ip 203.0.113.4 --dns 203.0.113.1 --add-host pebble:203.0.113.1 \
+            -v /tmp/rcbin:/opt/rc:ro -v /tmp/rccert:/opt/cert:ro debian:13 sleep infinity > /dev/null
+          p() { docker exec rc-pin "$@"; }
+          p mkdir -p /var/lib/raycontrol /run/raycontrol
+          p /opt/rc/rayd init -host 203.0.113.4 -domain example.test > /dev/null
+          # the switch to the next key is refused while the key in use is younger than a subscription's lifetime (72
+          # hours): a stand's node (-supervise only) may lift that for the forced switch, where rayd has the setting
+          any_age=
+          if grep -rqs RAYCONTROL_UNSAFE_SITE_KEY_FORCE_ANY_AGE ../raycontrol/cmd ../raycontrol/internal; then
+            any_age="RAYCONTROL_UNSAFE_SITE_KEY_FORCE_ANY_AGE=1"
+          fi
+          echo "PIN_NODE_ANY_AGE=$any_age" >> "$GITHUB_ENV"
+          # when this rayd starts to give the pins it made (ten minutes from its start, and a little)
+          echo "RAYCONTROL_PINS_FROM=$(( $(date +%s) + 630 ))" >> "$GITHUB_ENV"
+          p sh -c 'SSL_CERT_FILE=/opt/cert/stand-roots.pem NIKO_SERVER_UNSAFE_ANY_DESTINATION=1 '"$any_age"' nohup /opt/rc/rayd serve -supervise \
+            -xray /opt/rc/xray -niko-server /opt/rc/niko-server -acme-directory https://pebble:14000/dir > /var/log/rayd.log 2>&1 &'
+          for i in $(seq 50); do p test -S /run/raycontrol/rayd.sock && break; sleep 0.2; done
+          # naive shares TCP 443 with REALITY under the node's own site: REALITY first
+          p /opt/rc/rayctl service add reality reality > /dev/null
+          p /opt/rc/rayctl service add naive naive > /dev/null
+          p /opt/rc/rayctl service add hy2-masq hy2m > /dev/null
+          p /opt/rc/rayctl service add doh doh > /dev/null
+          p /opt/rc/rayctl user add erin -services naive,hy2m,doh > /dev/null
+          p /opt/rc/rayctl device add erin phone -o /root/pin.bundle
+          p cat /root/pin.bundle > /tmp/pin.bundle
+
       - name: Through each tunnel and own (libcore)
         working-directory: libcore
         env:
@@ -587,13 +648,9 @@ jobs:
           TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
           go test -count=1 -v -timeout 10m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTrafficLimit .
 
-      # cert-pin-v1: a second node whose site takes its certificate from an ACME CA, as a real node does (the node
-      # above has the test CA's through rayctl service cert, and its rows carry no pins): Pebble, Let's Encrypt's test
-      # CA, on the runner. Every challenge passes (the stand has no perimeter to open TCP 80 through), and
-      # pebble-challtestsrv answers every name with the node's address, which rayd checks before it orders. The CA's
-      # chain is RSA with four intermediates: the site takes one at least as long as REALITY's own certificate.
       # The rows' pins against the leaf the node answers with, Hysteria2 and DoH held to them, then the key switched
-      # (to its next key, or where the node has the rule of 72 hours, to a fresh one)
+      # (to its next key, where the stand lifted the rule of 72 hours, and to a fresh one). The node is the one
+      # started above; the test waits for the end of its first ten minutes where they are not over
       - name: The site's key pins (a node with certificates from Pebble)
         working-directory: libcore
         env:
@@ -601,31 +658,7 @@ jobs:
           RAYCONTROL_ADDRESS: 203.0.113.4
           RAYCONTROL_CA: /tmp/pebble-roots.pem
           RAYCONTROL_LIMIT_TARGET: 11.0.0.1
-          PEBBLE: github.com/letsencrypt/pebble/v2@v2.10.1
         run: |
-          if [ ! -f ../raycontrol/docs/spec/cert-pin-v1.md ]; then
-            echo "::notice::this raycontrol has no key pins of the site (cert-pin-v1)"
-            exit 0
-          fi
-          go install "${PEBBLE%@*}/cmd/pebble@${PEBBLE#*@}" "${PEBBLE%@*}/cmd/pebble-challtestsrv@${PEBBLE#*@}"
-          bin="$(go env GOPATH)/bin"
-          dir="$(cd /tmp && go mod download -json "$PEBBLE" | jq -r .Dir)"
-          jq --arg dir "$dir" '.pebble.keyAlgorithm = "rsa" | .pebble.certificate = $dir + "/" + .pebble.certificate |
-            .pebble.privateKey = $dir + "/" + .pebble.privateKey' "$dir/test/config/pebble-config.json" > /tmp/pebble-config.json
-          sudo nohup "$bin/pebble-challtestsrv" -dnsserver 203.0.113.1:53 -defaultIPv4 203.0.113.4 -defaultIPv6 "" \
-            -http01 "" -https01 "" -tlsalpn01 "" -doh "" -management 127.0.0.1:8055 > /tmp/challtestsrv.log 2>&1 &
-          PEBBLE_VA_ALWAYS_VALID=1 PEBBLE_VA_NOSLEEP=1 PEBBLE_WFE_NONCEREJECT=0 PEBBLE_CHAIN_LENGTH=4 \
-            nohup "$bin/pebble" -config /tmp/pebble-config.json > /tmp/pebble.log 2>&1 &
-          for i in $(seq 30); do curl -skf https://127.0.0.1:14000/dir > /dev/null && break; sleep 1; done
-          curl -skf https://127.0.0.1:14000/dir > /dev/null || { echo "Pebble did not start"; tail -n 40 /tmp/pebble.log; exit 1; }
-          # the roots the node's certificates lead to (the clients' CA here), and the one of Pebble's own API, which
-          # the node's ACME client checks (its system pool: SSL_CERT_FILE)
-          curl -skf https://127.0.0.1:15000/roots/0 > /tmp/pebble-roots.pem
-          # with the runner's own roots: the node's DoH asks public resolvers over HTTPS, and the container has none
-          cat /etc/ssl/certs/ca-certificates.crt "$dir/test/certs/pebble.minica.pem" > /tmp/rccert/stand-roots.pem
-          chmod 0644 /tmp/rccert/stand-roots.pem
-          docker run -d --name rc-pin --network rc-net --ip 203.0.113.4 --dns 203.0.113.1 --add-host pebble:203.0.113.1 \
-            -v /tmp/rcbin:/opt/rc:ro -v /tmp/rccert:/opt/cert:ro debian:13 sleep infinity > /dev/null
           p() { docker exec rc-pin "$@"; }
           state() {
             p /opt/rc/rayctl service list || true
@@ -633,40 +666,22 @@ jobs:
             echo "--- Pebble"; tail -n 40 /tmp/pebble.log
             echo "--- names"; tail -n 20 /tmp/challtestsrv.log
           }
-          p mkdir -p /var/lib/raycontrol /run/raycontrol
-          p /opt/rc/rayd init -host 203.0.113.4 -domain example.test > /dev/null
-          # the switch to the next key is refused while the key in use is younger than a subscription's lifetime (72
-          # hours): a stand's node (-supervise only) may lift that for the forced switch, where rayd has the setting
-          any_age=
-          if grep -rqs RAYCONTROL_UNSAFE_SITE_KEY_FORCE_ANY_AGE ../raycontrol/cmd ../raycontrol/internal; then
-            any_age="RAYCONTROL_UNSAFE_SITE_KEY_FORCE_ANY_AGE=1"
-          fi
-          p sh -c 'SSL_CERT_FILE=/opt/cert/stand-roots.pem NIKO_SERVER_UNSAFE_ANY_DESTINATION=1 '"$any_age"' nohup /opt/rc/rayd serve -supervise \
-            -xray /opt/rc/xray -niko-server /opt/rc/niko-server -acme-directory https://pebble:14000/dir > /var/log/rayd.log 2>&1 &'
-          for i in $(seq 50); do p test -S /run/raycontrol/rayd.sock && break; sleep 0.2; done
-          # naive shares TCP 443 with REALITY under the node's own site: REALITY first
-          p /opt/rc/rayctl service add reality reality > /dev/null
-          p /opt/rc/rayctl service add naive naive > /dev/null
-          p /opt/rc/rayctl service add hy2-masq hy2m > /dev/null
-          p /opt/rc/rayctl service add doh doh > /dev/null
-          p /opt/rc/rayctl user add erin -services naive,hy2m,doh > /dev/null
-          p /opt/rc/rayctl device add erin phone -o /root/pin.bundle
-          p cat /root/pin.bundle > /tmp/pin.bundle
           sudo ip addr add 11.0.0.1/32 dev lo 2> /dev/null || true
           # the key switches a node allows right after its first certificate. To the next key (forced): where the
           # stand lifted the age of 72 hours, or on a node from before that rule. To a key made for the switch
           # (-fresh): where the node has it. A node with both runs both, the next key first
           if /tmp/rcbin/rayctl -h 2>&1 | grep -q -- "-fresh"; then
             export RAYCONTROL_PINS_ROTATE_FRESH="docker exec rc-pin /opt/rc/rayctl service rotate site -fresh"
-            if [ -n "$any_age" ]; then
+            if [ -n "${PIN_NODE_ANY_AGE:-}" ]; then
               export RAYCONTROL_PINS_ROTATE_NEXT="docker exec rc-pin /opt/rc/rayctl service rotate site -force"
             fi
           else
             export RAYCONTROL_PINS_ROTATE_NEXT="docker exec rc-pin /opt/rc/rayctl service rotate site -force"
           fi
           echo "the key switches of this run: next ${RAYCONTROL_PINS_ROTATE_NEXT:+yes}, fresh ${RAYCONTROL_PINS_ROTATE_FRESH:+yes}"
+          echo "the node gives its pins from $(date -u -d "@$RAYCONTROL_PINS_FROM" +%H:%M:%S), now $(date -u +%H:%M:%S)"
           TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
-          go test -count=1 -v -timeout 12m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolSitePins . || { state; exit 1; }
+          go test -count=1 -v -timeout 22m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolSitePins . || { state; exit 1; }
           p /opt/rc/rayctl service list
 
       - name: The subscription as the app reads it
@@ -939,7 +954,7 @@ jobs:
               fi
             done
           else
-            echo "honest connect: raycontrol $(git -C raycontrol rev-parse --short HEAD) has no niko-ack in rayd naive, not checked"
+            echo "::error::honest connect: raycontrol $(git -C raycontrol rev-parse --short HEAD) has no niko-ack in rayd naive (v0.26.0 has)"; fail=1
           fi
           # ping through the node (icmp-v1, the core's naive `icmp`): a TUN of the core's takes only nobody's traffic;
           # nobody's ping goes into it, the naive outbound carries the echo to rayd naive, which pings for it

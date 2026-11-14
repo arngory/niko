@@ -302,14 +302,21 @@ func TestRaycontrolSitePins(t *testing.T) {
 		t.Logf("with %s: naive's and DoH's leaf on the first pin, Hysteria2 and DoH carry; another key's pin is refused", heldWhat)
 	}
 
-	// the first certificate, and with it the next key: the rows carry the pins from then on (§4)
-	for deadline := time.Now().Add(3 * time.Minute); ; time.Sleep(3 * time.Second) {
+	// the first certificate, and with it the next key: the rows carry the pins from then on (§4), but for a rayd
+	// in its first ten minutes, which holds back the pins it made in them (raycontrol v0.26.0: an update rolled
+	// back then leaves no pin with a client). RAYCONTROL_PINS_FROM is when the stand's node is past that
+	from := time.Now()
+	if at, err := strconv.ParseInt(os.Getenv("RAYCONTROL_PINS_FROM"), 10, 64); err == nil && time.Unix(at, 0).After(from) {
+		from = time.Unix(at, 0)
+		t.Logf("the node holds its pins back for %s yet", time.Until(from).Round(time.Second))
+	}
+	for deadline := from.Add(3 * time.Minute); ; time.Sleep(3 * time.Second) {
 		appJSON, err := RaycontrolFetchSubscription(string(request))
 		if err == nil && strings.Contains(appJSON, "niko-pin") {
 			break
 		}
 		if time.Now().After(deadline) {
-			t.Fatalf("no pins in the subscription 3 minutes on (its error: %v)", err)
+			t.Fatalf("no pins in the subscription 3 minutes after the node was to give them (its error: %v)", err)
 		}
 	}
 	before := rows()
