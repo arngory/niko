@@ -265,9 +265,12 @@ jobs:
               query = urllib.parse.urlencode(dict({"sni": "naive.test"}, **more), quote_via=urllib.parse.quote)
               return "naive+%s://niko:%s@203.0.113.5:18446?%s#%s" % (scheme, pw, query, name)
           open(out + "/h2.link", "w").write(link("https", "e2e-naive"))
+          open(out + "/quic.link", "w").write(link("quic", "e2e-naive-quic-bare"))
+          # a site of a public CA that is no naive server: the chain must pass, the CONNECT must not
+          open(out + "/public.link", "w").write("naive+https://niko:%s@www.gstatic.com:443#e2e-naive-public" % pw)
           open(out + "/h2-cert.link", "w").write(link("https", "e2e-naive-cert", cert=root))
           open(out + "/quic-cert.link", "w").write(link("quic", "e2e-naive-quic", cert=root))
-          # and one to a port of the runner's where only the first TLS record is read (e2e.sh, hello.py)
+          # and one to a port on the runner where only the first TLS record is read (e2e.sh, hello.py)
           open(out + "/hello.link", "w").write(link("https", "e2e-naive-hello").replace("203.0.113.5:18446", "203.0.113.1:18447"))
           ' "$pw" /tmp/slipbin/roots/root.pem /tmp/naivestage
           grep -q '^naive+quic://' /tmp/naivestage/quic-cert.link

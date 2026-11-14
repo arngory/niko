@@ -123,6 +123,8 @@ func NewSingBoxInstance(config string, localTransport LocalDNSTransport) (b *Box
 	// imported in the app, and Go's own roots the same (certs.go). A config that names a list of its own keeps it
 	applyRootStore()
 	options.Certificate = rootStoreFor(options.Certificate, namesRootStore(config))
+	// and what naive's Chromium takes besides Chrome's list, read when its engine is made (naive_roots.go)
+	writeNaiveRoots()
 
 	// create box
 	instance, err := box.New(box.Options{

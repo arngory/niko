@@ -530,6 +530,8 @@
     <string name="root_store_chrome">Chrome\'s list (a root installed on the phone is not trusted)</string>
     <string name="root_store_mozilla">Mozilla\'s list (a root installed on the phone is not trusted)</string>
     <string name="root_store_system">The system\'s, with roots installed on the phone</string>
+    <string name="root_store_naive_title">naive profiles and this setting</string>
+    <string name="root_store_naive_note">naive profiles check certificates inside Chromium, by its rules. Under Chrome\'s and Mozilla\'s lists naive takes Chrome\'s list alone: Chromium cannot be given Mozilla\'s without weakening its checks. Under the system\'s store it also takes this phone\'s roots, over HTTP/2 only: over QUIC Chromium wants a root of Chrome\'s list. An imported ca.pem does not reach naive. A root of your own for a naive server goes into the profile\'s certificate field, and works over QUIC too.</string>
     <string name="hop_interval">Port Hopping Interval(second)</string>
     <string name="domain_strategy_for_remote">Domain strategy for Remote</string>
     <string name="domain_strategy_for_direct">Domain strategy for Direct</string>

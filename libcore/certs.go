@@ -30,9 +30,9 @@ import (
 // The ca.pem imported in the app (Assets) is added under any of them; it never replaces a list. A profile's own
 // certificate and key pins are the profile's, whatever the list.
 //
-// A naive outbound follows none of this: its Chromium verifies with its own verifier, and takes other roots only
-// from the profile's own certificate (the core's naive outbound reads no store). Which roots that verifier takes on
-// Android besides Chrome's list has not been checked on a device.
+// A naive outbound verifies inside Chromium and reads no store of the core's: Chrome's list as Chromium carries it,
+// and besides it only what naive_roots.go gives it under the system's store. A profile's own certificate takes
+// the place of both there.
 const (
 	RootStoreChrome  = C.CertificateStoreChrome
 	RootStoreMozilla = C.CertificateStoreMozilla

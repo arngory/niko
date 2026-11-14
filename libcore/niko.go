@@ -51,6 +51,9 @@ func InitCore(process, cachePath, internalAssets, externalAssets string,
 	tmp := filepath.Join(cachePath, "../no_backup")
 	os.MkdirAll(tmp, 0755)
 	os.Chdir(tmp)
+	// the file of roots naive's Chromium reads besides Chrome's list: named to it here, before any engine
+	// (naive_roots.go)
+	initNaiveRoots(tmp)
 
 	// sing-box fs
 	resourcePaths = append(resourcePaths, externalAssets)

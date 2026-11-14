@@ -11,7 +11,7 @@
 # that carry the root, over HTTP/2 and over QUIC.
 # Arguments: the APK folder, the invite file, the server's log, the token it serves, the folder for what the emulator
 # showed (a failure's artifact), the slipstream link, the root to install, the link of the profile under it, the
-# folder of the naive links (h2.link, h2-cert.link, quic-cert.link, hello.link) and of Chrome's ClientHello
+# folder of the naive links (h2.link, quic.link, h2-cert.link, quic-cert.link, public.link, hello.link) and of Chrome's ClientHello
 # (chrome-hello.hex, chrome-hello.source).
 set -u
 pkg=io.niko
@@ -391,34 +391,83 @@ for i in $(seq 10); do
   [ -n "$from" ] && [ "$from" != "$slip_stage" ] && break
   sleep 3
 done
-# the core's log from here on is naive's
-timeout 20 adb shell am force-stop "$pkg"
-timeout 20 adb shell "rm -f /data/data/$pkg/cache/neko.log"
-# a profile that names no root. The stage's root is on the phone as its user's, and the app's setting is the system's
-# store since the section above: naive follows neither, Chromium verifies with what it was built with and the
-# roots Android ships. A request that goes nowhere, and Chromium's word for why
+# roots VALUE: the app stopped, its trusted-roots setting written (configuration.db, a string) and the core's log
+# begun anew: what the core says from here on is said under that setting
+roots() {
+  timeout 20 adb shell am force-stop "$pkg"
+  timeout 20 adb shell "sqlite3 /data/data/$pkg/databases/configuration.db \"INSERT OR REPLACE INTO KeyValuePair (key, valueType, value) VALUES ('rootStore', 5, CAST('$1' AS BLOB));\"" ||
+    fail "the root store setting not written (sqlite3 on the emulator)"
+  timeout 20 adb shell "rm -f /data/data/$pkg/cache/neko.log"
+}
+# refused ID WHAT: the profile started, and a request that goes nowhere with Chromium's "cert authority invalid" in
+# the core's log; then the VPN down
+refused() {
+  timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" --el profile "$1" > /dev/null ||
+    fail "the quick toggle did not start (naive, $2)"
+  local no=no
+  for i in $(seq 10); do
+    fetch "naive-refused-$i-$RANDOM"
+    [ "$from" = "$naive_stage" ] && fail "naive, $2: the server's certificate was taken, the request came from $from"
+    timeout 30 adb pull "/data/data/$pkg/cache/neko.log" "$out/neko-naive.log" > /dev/null 2>&1
+    if [ -z "$from" ] && grep -q "cert authority invalid" "$out/neko-naive.log" 2> /dev/null; then no=yes; break; fi
+    sleep 3
+  done
+  if [ "$no" != yes ]; then
+    echo "--- what naive said"
+    grep -a "naive" "$out/neko-naive.log" 2> /dev/null | tail -n 20 | cut -c1-400
+    fail "naive, $2: no request lost to an unknown authority (the last from '${from:-nowhere}', nc said: $last)"
+  fi
+  echo "naive, $2: the request went nowhere, and the core's log says:"
+  grep -m1 "cert authority invalid" "$out/neko-naive.log" | cut -c1-400
+  down naive-refused
+}
+# The stage's root is on the phone as its user's. A profile that names no root has what the app's setting gives
+# Chromium besides Chrome's list (libcore/naive_roots.go): nothing under Chrome's list, the phone's roots under the
+# system's store, and those over HTTP/2 only: over QUIC Chromium wants a root of Chrome's list
+roots chrome
 imported "$(cat "$naive_links/h2.link")" 0 || fail "no naive profile from the link without a root"
 bare=$id
 echo "the naive profile without a root: $bare"
+refused "$bare" "Chrome's list, no root in the profile"
+roots system
 timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" --el profile "$bare" > /dev/null ||
-  fail "the quick toggle did not start (naive, no root)"
-refused=no
-for i in $(seq 10); do
-  fetch "naive-bare-$i-$RANDOM"
-  [ "$from" = "$naive_stage" ] &&
-    fail "naive took a certificate from a root the phone's user installed: the request came from $from"
-  timeout 30 adb pull "/data/data/$pkg/cache/neko.log" "$out/neko-naive.log" > /dev/null 2>&1
-  if [ -z "$from" ] && grep -q "cert authority invalid" "$out/neko-naive.log" 2> /dev/null; then refused=yes; break; fi
+  fail "the quick toggle did not start (naive, the system's store)"
+for i in $(seq 20); do
+  fetch "naive-system-$i-$RANDOM"
+  [ "$from" = "$naive_stage" ] && [ "$carried" = yes ] && break
   sleep 3
 done
-if [ "$refused" != yes ]; then
+if [ "$from" != "$naive_stage" ] || [ "$carried" != yes ]; then
+  timeout 30 adb pull "/data/data/$pkg/cache/neko.log" "$out/neko-naive.log" > /dev/null 2>&1
   echo "--- what naive said"
   grep -a "naive" "$out/neko-naive.log" 2> /dev/null | tail -n 20 | cut -c1-400
-  fail "naive without a root: no request lost to an unknown authority (the last from '${from:-nowhere}', nc said: $last)"
+  fail "naive under the system's store, the root installed on the phone: from '${from:-nowhere}', token $carried, want the stage $naive_stage (nc said: $last)"
 fi
-echo "naive without a root: the request went nowhere, and the core's log says:"
-grep -m1 "cert authority invalid" "$out/neko-naive.log" | cut -c1-400
-down naive-bare
+echo "naive under the system's store, HTTP/2: the runner's server saw the request from $from"
+down naive-system
+# the same over QUIC: a root of the phone's is not one Chrome knows, and the request goes nowhere
+roots system
+imported "$(cat "$naive_links/quic.link")" "$bare" || fail "no naive profile from the QUIC link without a root"
+bare_quic=$id
+timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" --el profile "$bare_quic" > /dev/null ||
+  fail "the quick toggle did not start (naive over QUIC, the system's store)"
+lost=0
+for i in $(seq 6); do
+  fetch "naive-system-quic-$i-$RANDOM"
+  [ "$from" = "$naive_stage" ] &&
+    fail "naive over QUIC took a root of the phone's (the system's store): the request came from $from"
+  [ -z "$from" ] && lost=$((lost + 1))
+  sleep 3
+done
+timeout 30 adb pull "/data/data/$pkg/cache/neko.log" "$out/neko-naive.log" > /dev/null 2>&1
+echo "naive under the system's store, QUIC: $lost requests of 6 went nowhere, none through; naive said:"
+grep -a "outbound/naive" "$out/neko-naive.log" 2> /dev/null | grep -aiE "fail|error|invalid|unknown" | tail -n 3 | cut -c1-400
+[ "$lost" -gt 0 ] || fail "naive over QUIC under the system's store: no request went through the VPN at all"
+down naive-system-quic
+# and back: the list again, the file of the phone's roots emptied
+roots chrome
+refused "$bare" "back to Chrome's list"
+id=$bare_quic
 # the same server with its root in the profile: Chromium of the APK's library carries, over HTTP/2 and over QUIC
 for carriage in h2 quic; do
   imported "$(cat "$naive_links/$carriage-cert.link")" "$id" || fail "no naive profile from the $carriage link"
@@ -439,6 +488,34 @@ for carriage in h2 quic; do
   echo "naive over $carriage: the runner's server saw the request from $from"
   down "naive-$carriage"
 done
+
+echo "== naive against a public site: Chrome's list as the APK's Chromium carries it"
+# a site that is no naive server: its chain is to pass (a certificate of a public CA, the roots the phone gave left
+# out: the setting is Chrome's list), and the CONNECT to fail on something else than the certificate
+roots chrome
+imported "$(cat "$naive_links/public.link")" "$id" || fail "no naive profile from the link to a public site"
+timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" --el profile "$id" > /dev/null ||
+  fail "the quick toggle did not start (naive, a public site)"
+said=
+for i in $(seq 8); do
+  fetch "naive-public-$i-$RANDOM"
+  timeout 30 adb pull "/data/data/$pkg/cache/neko.log" "$out/neko-naive.log" > /dev/null 2>&1
+  said=$(grep -a "outbound/naive" "$out/neko-naive.log" 2> /dev/null | grep -aiE "fail|error|status" | head -1 | cut -c1-400)
+  [ -n "$said" ] && break
+  sleep 3
+done
+grep -q "cert authority invalid" "$out/neko-naive.log" 2> /dev/null &&
+  fail "naive does not take a public site's certificate under Chrome's list: $said"
+if [ -n "$said" ]; then
+  echo "naive against a public site: the certificate passed, and then: $said"
+else
+  echo "::warning::naive against a public site: the core's log has no word of naive's (nc said: $last)"
+fi
+down naive-public
+# Chromium's own complaint about a file without roots: the library says nothing of it on Android
+if timeout 60 adb logcat -d 2> /dev/null | grep -q "No CA certificates were found"; then
+  fail "Chromium complains of the empty file of roots (No CA certificates were found)"
+fi
 
 echo "== naive's ClientHello as this phone sends it, against the one captured from Chrome"
 # a profile to a port of the runner's that reads the first TLS record and closes: what Chromium of the APK's library

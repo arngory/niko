@@ -42,6 +42,8 @@
     <string name="root_store_chrome">Список Chrome (корню, установленному на телефон, доверия нет)</string>
     <string name="root_store_mozilla">Список Mozilla (корню, установленному на телефон, доверия нет)</string>
     <string name="root_store_system">Системные и установленные на телефон</string>
+    <string name="root_store_naive_title">Профили naive и эта настройка</string>
+    <string name="root_store_naive_note">Профили naive проверяют сертификаты внутри Chromium, по его правилам. При списках Chrome и Mozilla naive берёт только список Chrome: дать Chromium список Mozilla нельзя, не ослабив его проверки. При системном хранилище он берёт ещё и корни этого телефона, но только по HTTP/2: по QUIC Chromium требует корень из списка Chrome. Импортированный ca.pem до naive не доходит. Свой корень для naive-сервера вписывается в поле сертификата профиля и работает и по QUIC.</string>
 <string name="app_version">Версия</string>
 <string name="append_http_proxy">Добавить HTTP-прокси к VPN</string>
 <string name="append_http_proxy_sum">HTTP-прокси будет использоваться напрямую из (браузера / некоторых поддерживаемых приложений), без использования виртуального сетевого интерфейса (Android 10+)</string>

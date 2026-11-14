@@ -376,6 +376,12 @@
             app:key="rootStore"
             app:title="@string/root_store"
             app:useSimpleSummaryProvider="true" />
+        <Preference
+            app:key="rootStoreNaiveNote"
+            app:persistent="false"
+            app:selectable="false"
+            app:summary="@string/root_store_naive_note"
+            app:title="@string/root_store_naive_title" />
         <SwitchPreference
             app:key="showBottomBar"
             app:title="@string/show_bottom_bar" />
