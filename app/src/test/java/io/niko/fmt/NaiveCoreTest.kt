@@ -68,6 +68,16 @@ class NaiveCoreTest {
         assertEquals(mapOf("X-A" to "1", "X-B" to "two: parts"), naiveHeaders("X-A: 1\nX-B: two: parts\n\nbad"))
     }
 
+    // QUIC takes the phone's roots only where all three say so: the system's store, the switch, a QUIC profile
+    @Test
+    fun quicTakesThePhonesRootsOnlyUnderTheSystemsStoreAndTheSwitch() {
+        assertEquals(true, naiveQuicPhoneRoots("system", true, "quic"))
+        assertFalse(naiveQuicPhoneRoots("system", false, "quic"))
+        assertFalse(naiveQuicPhoneRoots("system", true, "https"))
+        for (list in listOf("chrome", "mozilla", "", null)) assertFalse(naiveQuicPhoneRoots(list, true, "quic"))
+        assertFalse(naiveQuicPhoneRoots("system", true, null))
+    }
+
     @Test
     fun honestConnectOnlyWhereTheLinkSaysSo() {
         val bean = parseNaive("naive+https://u:p@198.51.100.1:443?niko-ack=1&uot=2#n")

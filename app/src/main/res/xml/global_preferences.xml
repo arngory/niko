@@ -383,6 +383,11 @@
             app:summary="@string/root_store_naive_note"
             app:title="@string/root_store_naive_title" />
         <SwitchPreference
+            app:defaultValue="false"
+            app:key="naiveQuicPhoneRoots"
+            app:summary="@string/naive_quic_phone_roots_summary"
+            app:title="@string/naive_quic_phone_roots" />
+        <SwitchPreference
             app:key="showBottomBar"
             app:title="@string/show_bottom_bar" />
     </PreferenceCategory>

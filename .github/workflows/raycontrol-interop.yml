@@ -735,6 +735,12 @@ jobs:
           CC=clang CXX=clang++ CGO_LDFLAGS=-fuse-ld=lld CGO_ENABLED=1 GOTOOLCHAIN=auto go build -o /tmp/sing-box \
             -ldflags=-checklinkname=0 -tags=with_naive_outbound,with_gvisor,badlinkname,tfogo_checklinkname0 ./cmd/sing-box
           /tmp/sing-box version | head -1
+          # the intermediate anchors naive is pinned to come from the library's table, and the core has its own,
+          # generated from Chromium's repository with each intermediate checked against its root: the two have to
+          # agree. Linked with the library, so here and not among the core's unit tests
+          CC=clang CXX=clang++ CGO_LDFLAGS=-fuse-ld=lld CGO_ENABLED=1 GOTOOLCHAIN=auto go test -count=1 -v \
+            -ldflags=-checklinkname=0 -tags=with_naive_outbound,with_gvisor,badlinkname,tfogo_checklinkname0 \
+            -run 'TestNekoAnchorsOfTheLibraryAreTheCoresTable|TestNekoLibraryRootsBeyondTheChromeList' ./protocol/naive
 
       - name: NaiveProxy client and the niko-server front
         env:

@@ -664,6 +664,14 @@ fun buildConfig(
                 if (!forExport && DataStore.honestConnect && bean is NaiveBean && bean.nikoAck == true) {
                     currentOutbound._hack_config_map["await_dial"] = true
                 }
+                // naive over QUIC with a root of the phone's (off by default): Chromium wants a root of its own list
+                // over QUIC, as Chrome does, and takes the phone's roots over HTTP/2 only. The switch makes QUIC as
+                // HTTP/2 there. A field of the core fork's: not in an export
+                if (!forExport && bean is NaiveBean &&
+                    naiveQuicPhoneRoots(DataStore.rootStore, DataStore.naiveQuicPhoneRoots, bean.proto)
+                ) {
+                    currentOutbound._hack_config_map["quic_locally_trusted_roots"] = true
+                }
                 // ping and traceroute through the node (experiment, off by default): the core's naive carries the
                 // app's echo to the node, which pings for it (raycontrol icmp-v1); only where the link says the
                 // node does (icmp=1). A field of the core fork's: not in an export
@@ -1608,6 +1616,14 @@ internal fun nodeTlsTweaks(outboundType: String?, tls: Map<*, *>?, replacedFinge
     }
     return tweaks
 }
+
+/**
+ * Whether a naive outbound over QUIC is to take the phone's roots as it does over HTTP/2: only where the setting of
+ * trusted roots is the system's store (under the lists naive gets none of the phone's roots, and the option would
+ * mean nothing), the switch is on and the profile is QUIC.
+ */
+internal fun naiveQuicPhoneRoots(rootStore: String?, switchOn: Boolean, proto: String?): Boolean =
+    switchOn && rootStore == "system" && proto == "quic"
 
 /** Why an outbound cannot be held to key pins, null when it can. */
 internal fun pinRefusal(outboundType: String?, external: Boolean, tls: Map<*, *>?): String? = when {

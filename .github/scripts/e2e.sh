@@ -11,7 +11,8 @@
 # that carry the root, over HTTP/2 and over QUIC.
 # Arguments: the APK folder, the invite file, the server's log, the token it serves, the folder for what the emulator
 # showed (a failure's artifact), the slipstream link, the root to install, the link of the profile under it, the
-# folder of the naive links (h2.link, quic.link, h2-cert.link, quic-cert.link, public.link, hello.link) and of Chrome's ClientHello
+# folder of the naive links (h2.link, quic.link, quic-badpin.link, h2-cert.link, quic-cert.link, public.link, hello.link) and of Chrome's
+# ClientHello
 # (chrome-hello.hex, chrome-hello.source).
 set -u
 pkg=io.niko
@@ -480,10 +481,53 @@ fi
 echo "naive under the system's store, QUIC: $lost requests of 6 went nowhere, none through, and the core's log says:"
 echo "$quic_said"
 down naive-system-quic
+# the switch (off by default): naive over QUIC takes the phone's roots as over HTTP/2. The same profile carries
+timeout 20 adb shell am force-stop "$pkg"
+timeout 20 adb shell "sqlite3 /data/data/$pkg/databases/configuration.db \"INSERT OR REPLACE INTO KeyValuePair (key, valueType, value) VALUES ('naiveQuicPhoneRoots', 1, x'01');\"" ||
+  fail "the switch for naive over QUIC not written (sqlite3 on the emulator)"
+timeout 20 adb shell "rm -f /data/data/$pkg/cache/neko.log"
+timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" --el profile "$bare_quic" > /dev/null ||
+  fail "the quick toggle did not start (naive over QUIC, the switch on)"
+for i in $(seq 20); do
+  fetch "naive-system-quic-on-$i-$RANDOM"
+  [ "$from" = "$naive_stage" ] && [ "$carried" = yes ] && break
+  sleep 3
+done
+if [ "$from" != "$naive_stage" ] || [ "$carried" != yes ]; then
+  timeout 30 adb pull "/data/data/$pkg/cache/neko.log" "$out/neko-naive.log" > /dev/null 2>&1
+  echo "--- what naive said"
+  grep -a "naive" "$out/neko-naive.log" 2> /dev/null | tail -n 20 | cut -c1-400
+  fail "naive over QUIC under the system's store with the switch on: from '${from:-nowhere}', token $carried, want the stage $naive_stage (nc said: $last)"
+fi
+echo "naive under the system's store, QUIC, the switch on: the runner's server saw the request from $from"
+down naive-system-quic-on
+# the switch lifts the question of the root and nothing else: a key pin that is not the server's still refuses
+timeout 20 adb shell am force-stop "$pkg"
+timeout 20 adb shell "rm -f /data/data/$pkg/cache/neko.log"
+imported "$(cat "$naive_links/quic-badpin.link")" "$bare_quic" || fail "no naive profile from the QUIC link with another key's pin"
+badpin=$id
+timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" --el profile "$badpin" > /dev/null ||
+  fail "the quick toggle did not start (naive over QUIC, another key's pin)"
+lost=0
+for i in $(seq 6); do
+  fetch "naive-quic-badpin-$i-$RANDOM"
+  [ "$from" = "$naive_stage" ] &&
+    fail "naive over QUIC with the switch on took a server whose key is not the pinned one: the request came from $from"
+  [ -z "$from" ] && lost=$((lost + 1))
+  sleep 3
+done
+timeout 30 adb pull "/data/data/$pkg/cache/neko.log" "$out/neko-naive.log" > /dev/null 2>&1
+[ "$lost" -gt 0 ] || fail "naive over QUIC with another key's pin: no request went through the VPN at all"
+echo "naive over QUIC, the switch on, another key's pin: $lost requests of 6 went nowhere, none through; naive said:"
+grep -a "outbound/naive" "$out/neko-naive.log" 2> /dev/null | grep -aiE "pinned|quic protocol error|quic handshake failed" | head -1 | cut -c1-400
+down naive-quic-badpin
+timeout 20 adb shell am force-stop "$pkg"
+timeout 20 adb shell "sqlite3 /data/data/$pkg/databases/configuration.db \"INSERT OR REPLACE INTO KeyValuePair (key, valueType, value) VALUES ('naiveQuicPhoneRoots', 1, x'00');\"" ||
+  fail "the switch for naive over QUIC not written back"
 # and back: the list again, the file of the phone's roots emptied
 roots chrome
 refused "$bare" "back to Chrome's list"
-id=$bare_quic
+id=$badpin
 # the same server with its root in the profile: Chromium of the APK's library carries, over HTTP/2 and over QUIC
 for carriage in h2 quic; do
   imported "$(cat "$naive_links/$carriage-cert.link")" "$id" || fail "no naive profile from the $carriage link"

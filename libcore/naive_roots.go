@@ -26,8 +26,9 @@ import (
 // file count as locally trusted: over HTTP/2 Chromium takes them, over QUIC it wants a root of its own list.
 //
 // Under the lists the core narrows what Chromium takes: a naive outbound without pins or a certificate of its own
-// gets the keys of the list's roots as key pins (the core's protocol/naive, certificate.StorePublicKeyHashes), so a
-// root has to be in Chromium's store and in the list of the setting. Chromium's store has roots the core's list of
+// gets the keys of the list's roots as key pins, and of the intermediates the library's store trusts as anchors
+// under those roots (the core's protocol/naive, certificate.StorePublicKeyHashes), so a root has to be in
+// Chromium's store and in the list of the setting. Chromium's store has roots the core's list of
 // Chrome's leaves out (those CCADB marks China), and cannot be given Mozilla's list without leaving its verifier.
 //
 // An imported ca.pem is not put into the file (the owner's decision of 2026-11-14): a root of one's own for a naive

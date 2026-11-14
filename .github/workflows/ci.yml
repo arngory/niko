@@ -266,6 +266,10 @@ jobs:
               return "naive+%s://niko:%s@203.0.113.5:18446?%s#%s" % (scheme, pw, query, name)
           open(out + "/h2.link", "w").write(link("https", "e2e-naive"))
           open(out + "/quic.link", "w").write(link("quic", "e2e-naive-quic-bare"))
+          # the same with a key pin of another key (e2e.sh: the switch for QUIC lifts no pin)
+          import base64, hashlib
+          other = base64.urlsafe_b64encode(hashlib.sha256(b"not the key of this server").digest()).decode().rstrip("=")
+          open(out + "/quic-badpin.link", "w").write(link("quic", "e2e-naive-quic-badpin", **{"niko-pin": other}))
           # a site of a public CA that is no naive server: the chain must pass, the CONNECT must not
           open(out + "/public.link", "w").write("naive+https://niko:%s@www.gstatic.com:443#e2e-naive-public" % pw)
           open(out + "/h2-cert.link", "w").write(link("https", "e2e-naive-cert", cert=root))

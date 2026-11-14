@@ -104,6 +104,8 @@ object DataStore : OnPreferenceDataStoreChangeListener {
 
     // the roots certificate chains are verified against (libcore/certs.go): chrome, mozilla or system
     var rootStore by configurationStore.string(Key.ROOT_STORE) { "chrome" }
+    // naive over QUIC takes the phone's roots too (off; only under rootStore "system"): ConfigBuilder
+    var naiveQuicPhoneRoots by configurationStore.boolean(Key.NAIVE_QUIC_PHONE_ROOTS)
     var enableClashAPI by configurationStore.boolean(Key.ENABLE_CLASH_API)
     var yggdrasilEnabled by configurationStore.boolean(Key.YGGDRASIL_ENABLED)
     var yggdrasilPeers by configurationStore.string(Key.YGGDRASIL_PEERS)

@@ -1,5 +1,5 @@
 export REPOSITORY_SING_BOX="https://github.com/arngory/sing-box.git"
-export COMMIT_SING_BOX="3718847ca7c719fd0171ff4bf7574d1381f025e9"
+export COMMIT_SING_BOX="76ae2a3f0ca4c8606903299de12343bbd3bac230"
 export REPOSITORY_LIBNEKO="https://github.com/MatsuriDayo/libneko.git"
 export COMMIT_LIBNEKO="1c47a3af71990a7b2192e03292b4d246c308ef0b"
 export COMMIT_GOMOBILE="17d6af34f6bd6d7e1e428e0c652c8b54a46bda4f"

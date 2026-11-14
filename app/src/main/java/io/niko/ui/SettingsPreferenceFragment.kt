@@ -174,8 +174,17 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         findPreference<SwitchPreference>(Key.HONEST_CONNECT)?.onPreferenceChangeListener = reloadListener
         findPreference<SwitchPreference>(Key.ICMP_THROUGH_NODE)?.onPreferenceChangeListener = reloadListener
         findPreference<SwitchPreference>(Key.ICMP_NO_LOCAL_REPLY)?.onPreferenceChangeListener = reloadListener
-        // the roots of a running core are those it started with
-        findPreference<Preference>(Key.ROOT_STORE)?.onPreferenceChangeListener = reloadListener
+        // the roots of a running core are those it started with. The switch for naive over QUIC means something
+        // under the system's store only: it is offered there
+        val naiveQuicPhoneRoots = findPreference<SwitchPreference>(Key.NAIVE_QUIC_PHONE_ROOTS)
+        naiveQuicPhoneRoots?.isEnabled = DataStore.rootStore == "system"
+        naiveQuicPhoneRoots?.onPreferenceChangeListener = reloadListener
+        findPreference<Preference>(Key.ROOT_STORE)?.onPreferenceChangeListener =
+            Preference.OnPreferenceChangeListener { _, value ->
+                naiveQuicPhoneRoots?.isEnabled = value == "system"
+                needReload()
+                true
+            }
         tlsFragmentBypass.onPreferenceChangeListener = reloadListener
         findPreference<Preference>(Key.RULE_SET_UPDATE_HOURS)!!.onPreferenceChangeListener = reloadListener
         mtu.onPreferenceChangeListener = reloadListener
