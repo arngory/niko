@@ -908,11 +908,15 @@ jobs:
           # where the library build leaves something of Chrome's out it shows here. A warning, not a failure: the
           # library's Chromium and the captured Chrome are of different versions
           python3 -I .github/scripts/hello.py capture 18447 /tmp/naive-hello.hex &
+          hello_pid=$!
           sleep 1
           curl -s -m 8 -o /dev/null -x socks5h://127.0.0.1:11104 https://www.gstatic.com/generate_204 || true
+          # the capture ends once it has its record (or after its two minutes without a connection)
+          wait "$hello_pid" || true
           if [ -s /tmp/naive-hello.hex ]; then
-            echo "Chrome's ClientHello: $(cat /tmp/sing-box-src/common/tls/chromehello/SOURCE)"
-            python3 -I .github/scripts/hello.py compare /tmp/sing-box-src/common/tls/chromehello/hello.hex /tmp/naive-hello.hex
+            echo "Chrome's ClientHello: $(cat /tmp/sing-box-src/common/tls/chromehello/SOURCE || true)"
+            python3 -I .github/scripts/hello.py compare /tmp/sing-box-src/common/tls/chromehello/hello.hex /tmp/naive-hello.hex ||
+              echo "::warning::the ClientHello of the core's naive outbound could not be compared with Chrome's"
           else
             echo "::warning::no ClientHello captured from the core's naive outbound"
           fi

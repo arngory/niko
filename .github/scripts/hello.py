@@ -47,9 +47,12 @@ def capture(port, out):
         if not chunk:
             break
         data += chunk
+    # the file before the connection closes: who waits for the client's failure finds the record written. A record
+    # cut short is not one: nothing is written
+    if len(data) >= 5 and len(data) >= 5 + struct.unpack(">H", data[3:5])[0]:
+        with open(out, "w") as f:
+            f.write(data[:5 + struct.unpack(">H", data[3:5])[0]].hex() + "\n")
     conn.close()
-    with open(out, "w") as f:
-        f.write(data[:5 + struct.unpack(">H", data[3:5])[0]].hex() + "\n")
 
 
 def parse(path):
