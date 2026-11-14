@@ -632,7 +632,13 @@ jobs:
           }
           p mkdir -p /var/lib/raycontrol /run/raycontrol
           p /opt/rc/rayd init -host 203.0.113.4 -domain example.test > /dev/null
-          p sh -c 'SSL_CERT_FILE=/opt/cert/pebble.minica.pem NIKO_SERVER_UNSAFE_ANY_DESTINATION=1 nohup /opt/rc/rayd serve -supervise \
+          # the switch to the next key is refused while the key in use is younger than a subscription's lifetime (72
+          # hours): a stand's node (-supervise only) may lift that for the forced switch, where rayd has the setting
+          any_age=
+          if grep -rqs RAYCONTROL_UNSAFE_SITE_KEY_FORCE_ANY_AGE ../raycontrol/cmd ../raycontrol/internal; then
+            any_age="RAYCONTROL_UNSAFE_SITE_KEY_FORCE_ANY_AGE=1"
+          fi
+          p sh -c 'SSL_CERT_FILE=/opt/cert/pebble.minica.pem NIKO_SERVER_UNSAFE_ANY_DESTINATION=1 '"$any_age"' nohup /opt/rc/rayd serve -supervise \
             -xray /opt/rc/xray -niko-server /opt/rc/niko-server -acme-directory https://pebble:14000/dir > /var/log/rayd.log 2>&1 &'
           for i in $(seq 50); do p test -S /run/raycontrol/rayd.sock && break; sleep 0.2; done
           # naive shares TCP 443 with REALITY under the node's own site: REALITY first
@@ -644,14 +650,18 @@ jobs:
           p /opt/rc/rayctl device add erin phone -o /root/pin.bundle
           p cat /root/pin.bundle > /tmp/pin.bundle
           sudo ip addr add 11.0.0.1/32 dev lo 2> /dev/null || true
-          # the key switch a node allows right after its first certificate: to the next key only once the key in use
-          # is 72 hours old (a subscription's lifetime), so a node that has -fresh is switched to a key made for it,
-          # and one from before that rule to its next key
+          # the key switches a node allows right after its first certificate. To the next key (forced): where the
+          # stand lifted the age of 72 hours, or on a node from before that rule. To a key made for the switch
+          # (-fresh): where the node has it. A node with both runs both, the next key first
           if /tmp/rcbin/rayctl -h 2>&1 | grep -q -- "-fresh"; then
             export RAYCONTROL_PINS_ROTATE_FRESH="docker exec rc-pin /opt/rc/rayctl service rotate site -fresh"
+            if [ -n "$any_age" ]; then
+              export RAYCONTROL_PINS_ROTATE_NEXT="docker exec rc-pin /opt/rc/rayctl service rotate site -force"
+            fi
           else
             export RAYCONTROL_PINS_ROTATE_NEXT="docker exec rc-pin /opt/rc/rayctl service rotate site -force"
           fi
+          echo "the key switches of this run: next ${RAYCONTROL_PINS_ROTATE_NEXT:+yes}, fresh ${RAYCONTROL_PINS_ROTATE_FRESH:+yes}"
           TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
           go test -count=1 -v -timeout 12m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolSitePins . || { state; exit 1; }
           p /opt/rc/rayctl service list
