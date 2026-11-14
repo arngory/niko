@@ -635,6 +635,8 @@ jobs:
           p sh -c 'SSL_CERT_FILE=/opt/cert/pebble.minica.pem NIKO_SERVER_UNSAFE_ANY_DESTINATION=1 nohup /opt/rc/rayd serve -supervise \
             -xray /opt/rc/xray -niko-server /opt/rc/niko-server -acme-directory https://pebble:14000/dir > /var/log/rayd.log 2>&1 &'
           for i in $(seq 50); do p test -S /run/raycontrol/rayd.sock && break; sleep 0.2; done
+          # naive shares TCP 443 with REALITY under the node's own site: REALITY first
+          p /opt/rc/rayctl service add reality reality > /dev/null
           p /opt/rc/rayctl service add naive naive > /dev/null
           p /opt/rc/rayctl service add hy2-masq hy2m > /dev/null
           p /opt/rc/rayctl service add doh doh > /dev/null
