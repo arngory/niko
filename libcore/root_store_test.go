@@ -12,6 +12,8 @@ import (
 	"testing"
 
 	"github.com/miekg/dns"
+	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common/json/badoption"
 )
 
 // the app's side of the setting, as a test sets it
@@ -153,6 +155,28 @@ func TestRootStore(t *testing.T) {
 	systemRootsMu.RUnlock()
 	if !same {
 		t.Fatal("the system's roots after Chrome's list are not the system's own")
+	}
+
+	// a config with a certificate section of its own: the list it names stays; where it names none it gets the
+	// setting's (the core would read it as the system's), and the imported root besides its own certificates
+	imported(serverPEM)
+	set(RootStoreChrome)
+	if namesRootStore(`{"certificate": {"certificate": ["x"]}}`) || namesRootStore(`{}`) || namesRootStore(`not json`) ||
+		!namesRootStore(`{"certificate": {"store": "system"}}`) {
+		t.Fatal("which configs name their list of roots")
+	}
+	own := &option.CertificateOptions{Store: RootStoreSystem, Certificate: badoption.Listable[string]{"own"}}
+	if got := rootStoreFor(own, false); got.Store != RootStoreChrome || len(got.Certificate) != 2 || got.Certificate[0] != "own" {
+		t.Fatalf("a config that names no list: store %q, %d certificates", got.Store, len(got.Certificate))
+	}
+	if len(own.Certificate) != 1 || own.Store != RootStoreSystem {
+		t.Fatal("the config's own section was changed in place")
+	}
+	if got := rootStoreFor(own, true); got != own {
+		t.Fatal("a config that names its list did not keep its section")
+	}
+	if got := rootStoreFor(nil, false); got.Store != RootStoreChrome || len(got.Certificate) != 1 {
+		t.Fatalf("a config without a section: store %q, %d certificates", got.Store, len(got.Certificate))
 	}
 
 	// a setting this version does not know, and no app to ask: Chrome's list

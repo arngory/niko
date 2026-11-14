@@ -36,6 +36,8 @@ func RaycontrolDnsProbe(requestJSON string) (result string, err error) {
 	if timeout <= 0 || timeout > 15*time.Second {
 		timeout = 4 * time.Second
 	}
+	// its DoT and DoH checks verify against Go's roots: the list of the setting (certs.go)
+	applyRootStore()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	dialer := &net.Dialer{Control: protectControl()}

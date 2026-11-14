@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/sing-box/common/certificate"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badoption"
 	"github.com/sagernet/sing/common/logger"
 )
@@ -29,8 +30,9 @@ import (
 // The ca.pem imported in the app (Assets) is added under any of them; it never replaces a list. A profile's own
 // certificate and key pins are the profile's, whatever the list.
 //
-// A naive outbound follows none of this: its Chromium verifies against the copy of Chrome's list it was built with,
-// and takes other roots only from the profile's own certificate (the core's naive outbound reads no store).
+// A naive outbound follows none of this: its Chromium verifies with its own verifier, and takes other roots only
+// from the profile's own certificate (the core's naive outbound reads no store). Which roots that verifier takes on
+// Android besides Chrome's list has not been checked on a device.
 const (
 	RootStoreChrome  = C.CertificateStoreChrome
 	RootStoreMozilla = C.CertificateStoreMozilla
@@ -45,6 +47,9 @@ var systemRootsMu sync.RWMutex
 
 var rootStore struct {
 	sync.Mutex
+	// held over a whole applyRootStore: two of them, across a change of the setting, would otherwise set their
+	// lists in either order
+	applying sync.Mutex
 	// what Go's roots were set from: the list's name and the imported certificates
 	applied string
 	// Go's own system roots, as they were before the first list took their place
@@ -94,14 +99,46 @@ func rootStoreOptions() *option.CertificateOptions {
 	return options
 }
 
+// rootStoreFor is the certificate store of a core instance whose config names own: the app's where it names none.
+// A config that names certificates but no list gets the list of the setting and the imported roots besides its
+// own (the core would give it the system's store, whatever the setting); one that names a list keeps it.
+func rootStoreFor(own *option.CertificateOptions, named bool) *option.CertificateOptions {
+	defaults := rootStoreOptions()
+	if own == nil {
+		return defaults
+	}
+	if named {
+		return own
+	}
+	merged := *own
+	merged.Store = defaults.Store
+	merged.Certificate = append(append(badoption.Listable[string]{}, own.Certificate...), defaults.Certificate...)
+	return &merged
+}
+
+// namesRootStore: whether a config names its list of roots (certificate.store). The decoded options do not say: an
+// absent list reads as the system's.
+func namesRootStore(config string) bool {
+	var named struct {
+		Certificate struct {
+			Store string `json:"store"`
+		} `json:"certificate"`
+	}
+	return json.Unmarshal([]byte(config), &named) == nil && named.Certificate.Store != ""
+}
+
 // applyRootStore makes Go's own roots the list of the setting, with the imported roots: called where a core
 // instance or an HTTP client is made, so each process of the app follows the setting without being told.
 func applyRootStore() {
+	rootStore.applying.Lock()
+	defer rootStore.applying.Unlock()
 	options := rootStoreOptions()
 	key := options.Store + "\x00" + strings.Join(options.Certificate, "\x00")
 	rootStore.Lock()
 	defer rootStore.Unlock()
-	if key == rootStore.applied {
+	// the system's store is read each time: a root taken off the phone is to stop being trusted by a process that
+	// lives on, and the store says nothing when it changes
+	if key == rootStore.applied && options.Store != RootStoreSystem {
 		return
 	}
 	if rootStore.original == nil {
@@ -126,6 +163,9 @@ func applyRootStore() {
 	systemRootsMu.Lock()
 	systemRoots = store.Pool()
 	systemRootsMu.Unlock()
+	if key == rootStore.applied {
+		return
+	}
 	rootStore.applied = key
 	log.Printf("roots: the %s list, %d imported", options.Store, strings.Count(strings.Join(options.Certificate, ""), "BEGIN CERTIFICATE"))
 }

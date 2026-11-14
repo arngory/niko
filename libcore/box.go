@@ -120,11 +120,9 @@ func NewSingBoxInstance(config string, localTransport LocalDNSTransport) (b *Box
 		return nil, err
 	}
 	// the roots its outbounds and DNS servers verify chains against: the list of the app's setting with the roots
-	// imported in the app, and Go's own roots the same (certs.go). A config that names a store of its own keeps it
+	// imported in the app, and Go's own roots the same (certs.go). A config that names a list of its own keeps it
 	applyRootStore()
-	if options.Certificate == nil {
-		options.Certificate = rootStoreOptions()
-	}
+	options.Certificate = rootStoreFor(options.Certificate, namesRootStore(config))
 
 	// create box
 	instance, err := box.New(box.Options{
