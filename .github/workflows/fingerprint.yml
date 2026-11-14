@@ -11,6 +11,7 @@ on:
       - "libcore/chromecheck/**"
       - ".github/workflows/fingerprint.yml"
       - ".github/scripts/quic-sizes.py"
+      - ".github/scripts/netlog-quic.py"
   schedule:
     - cron: "41 3 * * 1"
   workflow_dispatch:
@@ -60,10 +61,21 @@ jobs:
           command -v tcpdump > /dev/null || (sudo apt-get update -q && sudo apt-get install -y -q tcpdump) > /dev/null
           sudo timeout 60 tcpdump -i any -n -U -w "$RUNNER_TEMP/quic.pcap" 'udp port 443' > /dev/null 2>&1 &
           sleep 2
-          # QUIC from the first request (no Alt-Svc round first), a fresh profile, pages with enough to fetch
+          # an upload too: quiche sends its first MTU probe after a hundred packets of a session, and a page load is
+          # mostly acknowledgements. 4 MB to Cloudflare's speed test, which takes a POST of any size
+          cat > "$RUNNER_TEMP/upload.html" <<'PAGE'
+          <!doctype html><title>upload</title><script>
+          fetch("https://speed.cloudflare.com/__up", {method: "POST", mode: "no-cors", body: new Uint8Array(4000000)})
+            .then(() => document.title = "sent", () => document.title = "failed");
+          </script>
+          PAGE
+          # QUIC from the first request (no Alt-Svc round first), a fresh profile, pages with enough to fetch; the
+          # browser's own net log for its sessions' settings
           timeout 45 xvfb-run -a google-chrome --no-first-run --no-default-browser-check --user-data-dir="$RUNNER_TEMP/chrome-quic" \
-            --origin-to-force-quic-on=www.google.com:443,www.youtube.com:443,cloudflare-quic.com:443 \
-            https://www.google.com/ https://www.youtube.com/ https://cloudflare-quic.com/ > /dev/null 2>&1 || true
+            --origin-to-force-quic-on=www.google.com:443,www.youtube.com:443,cloudflare-quic.com:443,speed.cloudflare.com:443 \
+            --log-net-log="$RUNNER_TEMP/chrome-netlog.json" \
+            https://www.google.com/ https://www.youtube.com/ https://cloudflare-quic.com/ "file://$RUNNER_TEMP/upload.html" \
+            > /dev/null 2>&1 || true
           sleep 3
           sudo pkill tcpdump || true
           sleep 1
@@ -71,6 +83,7 @@ jobs:
             echo "### QUIC packet sizes of $(google-chrome --version)"
             echo '```'
             sudo tcpdump -n -r "$RUNNER_TEMP/quic.pcap" 2> /dev/null | python3 -I .github/scripts/quic-sizes.py
+            python3 -I .github/scripts/netlog-quic.py "$RUNNER_TEMP/chrome-netlog.json"
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
