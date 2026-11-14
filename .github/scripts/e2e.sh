@@ -461,14 +461,17 @@ for i in $(seq 6); do
 done
 timeout 30 adb pull "/data/data/$pkg/cache/neko.log" "$out/neko-naive.log" > /dev/null 2>&1
 [ "$lost" -gt 0 ] || fail "naive over QUIC under the system's store: no request went through the VPN at all"
-# lost to the certificate, not to the stand: Chromium's word for a root it does not know over QUIC (or for an
-# authority it does not trust). A timeout or a port nobody answers would say neither
+# lost in the QUIC handshake, not on the way: Chromium ends a session whose root it does not know as a protocol
+# error (ERR_QUIC_PROTOCOL_ERROR; the verifier's own code stays in the connection's details), on some platforms as
+# a failed handshake. That alone would also be the word for a stand whose QUIC is broken: the same server over
+# QUIC with the root in the profile, further down, is what tells the two apart. A port nobody answers would time
+# out and say none of these
 quic_said=$(grep -a "outbound/naive" "$out/neko-naive.log" 2> /dev/null |
-  grep -aiE "quic cert root not known|cert authority invalid" | head -1 | cut -c1-400)
+  grep -aiE "quic protocol error|quic handshake failed|quic cert root not known|cert authority invalid" | head -1 | cut -c1-400)
 if [ -z "$quic_said" ]; then
   echo "--- what naive said"
   grep -a "naive" "$out/neko-naive.log" 2> /dev/null | tail -n 20 | cut -c1-400
-  fail "naive over QUIC under the system's store: $lost requests lost, but not to the certificate"
+  fail "naive over QUIC under the system's store: $lost requests lost, but not in the QUIC handshake"
 fi
 echo "naive under the system's store, QUIC: $lost requests of 6 went nowhere, none through, and the core's log says:"
 echo "$quic_said"
