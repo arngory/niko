@@ -130,9 +130,17 @@ func TestRaycontrolSitePins(t *testing.T) {
 			}
 			found.pins = append(found.pins, pin)
 		}
-		// the node writes the key in use and the next one (§2); a client takes any number
-		if len(found.pins) != 2 || string(found.pins[0]) == string(found.pins[1]) {
-			t.Fatalf("niko-pin: %d pins, want the key in use and another, the next", len(found.pins))
+		// the node writes the key in use first, then the next one, and for an hour after an ordinary switch the key
+		// before it (§2): the rest in any order, and a client takes any number
+		seen := map[string]bool{}
+		for _, pin := range found.pins {
+			if seen[string(pin)] {
+				t.Fatal("niko-pin: a key twice in the list")
+			}
+			seen[string(pin)] = true
+		}
+		if len(found.pins) < 2 {
+			t.Fatalf("niko-pin: %d pins, want the key in use and the next one", len(found.pins))
 		}
 		return found
 	}
@@ -308,9 +316,21 @@ func TestRaycontrolSitePins(t *testing.T) {
 		t.Fatal("the naive row with pins has no sni: Chromium pins a key to a name")
 	}
 	check(before, before.list(), "the subscription's list")
-	// a list is a list: either pin alone is taken as it stands; only the first is the leaf's
-	if err := throughHysteria(before, base64.RawURLEncoding.EncodeToString(before.pins[1])); err == nil {
-		t.Fatal("Hysteria2 with the next key's pin alone went through before the switch")
+	// a list is a list: a pin alone is taken as it stands; only the first is the leaf's
+	has := func(pins [][]byte, pin []byte) bool {
+		for _, one := range pins {
+			if string(one) == string(pin) {
+				return true
+			}
+		}
+		return false
+	}
+	var rest []string
+	for _, pin := range before.pins[1:] {
+		rest = append(rest, base64.RawURLEncoding.EncodeToString(pin))
+	}
+	if err := throughHysteria(before, strings.Join(rest, ",")); err == nil {
+		t.Fatal("Hysteria2 with the pins of the keys not in use went through before the switch")
 	}
 
 	rotate := strings.Fields(os.Getenv("RAYCONTROL_PINS_ROTATE"))
@@ -324,16 +344,25 @@ func TestRaycontrolSitePins(t *testing.T) {
 	var after sitePinRows
 	for deadline := time.Now().Add(120 * time.Second); ; time.Sleep(2 * time.Second) {
 		after = rows()
-		if string(after.pins[0]) == string(before.pins[1]) {
+		if has(before.pins[1:], after.pins[0]) {
 			break
 		}
 		if string(after.pins[0]) != string(before.pins[0]) || time.Now().After(deadline) {
-			t.Fatalf("after the switch the first pin is not the next key from before it (still the old key: %v)",
+			t.Fatalf("after the switch the first pin is not a key the list had before it (still the old key: %v)",
 				string(after.pins[0]) == string(before.pins[0]))
 		}
 	}
-	if string(after.pins[1]) == string(before.pins[0]) || string(after.pins[1]) == string(before.pins[1]) {
-		t.Fatal("after the switch the next key is not a new one")
+	fresh := false
+	for _, pin := range after.pins[1:] {
+		fresh = fresh || !has(before.pins, pin)
+	}
+	if !fresh {
+		t.Fatal("after the switch the list has no new next key")
+	}
+	// the switch was forced (a leaked key): the key from before it is not in the list (after an ordinary one it
+	// stays for an hour)
+	if has(after.pins, before.pins[0]) {
+		t.Fatal("after a forced switch the list still has the key from before it")
 	}
 	// a client that has not fetched the subscription since holds the list from before: it goes on working
 	check(after, before.list(), "the list from before the switch")
