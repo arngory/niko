@@ -10,6 +10,7 @@ on:
       - "buildScript/lib/core/get_source_env.sh"
       - "libcore/chromecheck/**"
       - ".github/workflows/fingerprint.yml"
+      - ".github/scripts/quic-sizes.py"
   schedule:
     - cron: "41 3 * * 1"
   workflow_dispatch:
@@ -48,6 +49,30 @@ jobs:
           cd libcore
           CHROME_BIN="$(command -v google-chrome)" CHROME_HELLO_OUT="$RUNNER_TEMP/chrome-hello" \
             xvfb-run -a go test -count=1 -v -ldflags=-checklinkname=0 -tags="$TAGS" -run TestChromeLive ./chromecheck
+
+      # What the same Chrome sends over HTTP/3: the sizes of its QUIC packets to real sites. The naive outbound is
+      # Chromium as well, and a client option that would change these sizes (MTU discovery for UDP in HTTP/3
+      # datagrams, raycontrol naive-udp-v1) is weighed against this. Informational: it never fails the job
+      - name: Chrome's QUIC packet sizes (informational)
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: |
+          command -v tcpdump > /dev/null || (sudo apt-get update -q && sudo apt-get install -y -q tcpdump) > /dev/null
+          sudo timeout 60 tcpdump -i any -n -U -w "$RUNNER_TEMP/quic.pcap" 'udp port 443' > /dev/null 2>&1 &
+          sleep 2
+          # QUIC from the first request (no Alt-Svc round first), a fresh profile, pages with enough to fetch
+          timeout 45 xvfb-run -a google-chrome --no-first-run --no-default-browser-check --user-data-dir="$RUNNER_TEMP/chrome-quic" \
+            --origin-to-force-quic-on=www.google.com:443,www.youtube.com:443,cloudflare-quic.com:443 \
+            https://www.google.com/ https://www.youtube.com/ https://cloudflare-quic.com/ > /dev/null 2>&1 || true
+          sleep 3
+          sudo pkill tcpdump || true
+          sleep 1
+          {
+            echo "### QUIC packet sizes of $(google-chrome --version)"
+            echo '```'
+            sudo tcpdump -n -r "$RUNNER_TEMP/quic.pcap" 2> /dev/null | python3 -I .github/scripts/quic-sizes.py
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: The capture of this Chrome
         if: ${{ !cancelled() }}
