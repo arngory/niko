@@ -33,7 +33,9 @@ if [ "$(cronet_replaces go.mod)" != "$(cronet_replaces ../../sing-box/go.mod)" ]
   diff <(cronet_replaces go.mod) <(cronet_replaces ../../sing-box/go.mod)
   exit 1
 fi
-# the Chromium the Android library modules say they are: every ABI's library is to carry that version
+# the Chromium the Android library modules say they are: every ABI's library is to carry that version. The module
+# is fetched first: go list gives no directory for one the module cache does not hold yet (a build from nothing)
+go mod download github.com/sagernet/cronet-go/lib/android_arm64 || exit 1
 CHROMIUM="$(sed -n 's/^const Version = "\(.*\)"$/\1/p' "$(go list -m -f '{{.Dir}}' github.com/sagernet/cronet-go/lib/android_arm64)"/*.go | sort -u)"
 if [ -z "$CHROMIUM" ] || [ "$(wc -l <<< "$CHROMIUM")" != 1 ]; then
   echo ">> no single Chromium version in cronet-go's android_arm64 module: '$CHROMIUM'"
