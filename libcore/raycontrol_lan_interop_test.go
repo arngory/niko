@@ -253,6 +253,8 @@ func TestRaycontrolLAN(t *testing.T) {
 	phoneBox := startTestBox(t, phone.config(t, phoneResult, phoneLAN.Svc, laptopAddrs, port))
 	laptopBox := startTestBox(t, laptop.config(t, laptopResult, laptopLAN.Svc, phoneAddrs, port))
 
+	// why the last attempt did not reach, for the failure's message
+	var unreached error
 	reaches := func(from *BoxInstance, addr string) bool {
 		endpoint, ok := from.Box.Endpoint().Get("ygg")
 		if !ok {
@@ -262,22 +264,35 @@ func TestRaycontrolLAN(t *testing.T) {
 		defer cancel()
 		conn, err := endpoint.DialContext(ctx, "tcp", M.ParseSocksaddrHostPort(addr, uint16(port)))
 		if err != nil {
+			unreached = err
 			return false
 		}
 		defer conn.Close()
 		conn.SetDeadline(time.Now().Add(8 * time.Second))
 		if _, err = conn.Write([]byte("lan-v1")); err != nil {
+			unreached = err
 			return false
 		}
 		echo := make([]byte, 6)
 		_, err = io.ReadFull(conn, echo)
+		unreached = err
 		return err == nil && string(echo) == "lan-v1"
+	}
+	// the links of a mesh node as its peers show them: up or not, and for how long
+	links := func(b *BoxInstance) string {
+		endpoint, _ := b.Box.Endpoint().Get("ygg")
+		var out []string
+		for _, p := range endpoint.(interface{ Peers() []core.PeerInfo }).Peers() {
+			out = append(out, fmt.Sprintf("up %v for %v", p.Up, p.Uptime.Round(time.Second)))
+		}
+		return fmt.Sprintf("%d links [%s]", len(out), strings.Join(out, "; "))
 	}
 	reachesWithin := func(what string, from *BoxInstance, addr string, within time.Duration) {
 		t.Helper()
 		for deadline := time.Now().Add(within); !reaches(from, addr); time.Sleep(2 * time.Second) {
 			if time.Now().After(deadline) {
-				t.Fatalf("%s: [%s]:%d not reached in %v", what, addr, port, within)
+				t.Fatalf("%s: [%s]:%d not reached in %v (the last attempt: %v; the dialing side's %s)",
+					what, addr, port, within, unreached, links(from))
 			}
 		}
 		t.Logf("%s: [%s]:%d answers", what, addr, port)
@@ -335,6 +350,8 @@ func TestRaycontrolLAN(t *testing.T) {
 	}
 	open := startTestBox(t, laptop.config(t, laptopResult, laptopLAN.Svc, nil, port))
 	strangerBox := startTestBox(t, other.config(t, strangerResult, strangerSvc, []string{}, port))
+	// the laptop's link to the node first, as after its restart above: a path through a link not yet up is not there
+	linksUp("the laptop open", phoneBox, open)
 	reachesWithin("phone → laptop, the laptop open to all", phoneBox, laptopAddrs[0], 120*time.Second)
 	linksUp("another user", strangerBox, open)
 	never("another user → laptop", strangerBox, laptopAddrs[0])
