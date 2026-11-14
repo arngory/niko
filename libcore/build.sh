@@ -23,9 +23,22 @@ if [ -z "$GOTOOLCHAIN" ]; then
   exit 1
 fi
 export GOTOOLCHAIN
-# Go 1.26.11 takes no colon in the -l of a package's #cgo LDFLAGS; cronet-go's library modules name their static
-# library that way (-L${SRCDIR} -l:libcronet.a). That one flag, whole, and nothing else
-export CGO_LDFLAGS_ALLOW='-l:libcronet\.a'
+
+# Chromium's network stack (naive) comes from the library modules of cronet-go, and a replace in the core's go.mod
+# does not reach this module: the ones here are to be the core's, line for line, or the APK carries another
+# Chromium than the one the core's own build is checked with
+cronet_replaces() { sed -n 's/^replace \(github.com\/sagernet\/cronet-go[^ ]*\) => \(.*\)$/\1 \2/p' "$1" | sort; }
+if [ "$(cronet_replaces go.mod)" != "$(cronet_replaces ../../sing-box/go.mod)" ]; then
+  echo ">> cronet-go is replaced differently here and in the core:"
+  diff <(cronet_replaces go.mod) <(cronet_replaces ../../sing-box/go.mod)
+  exit 1
+fi
+# the Chromium the Android library modules say they are: every ABI's library is to carry that version
+CHROMIUM="$(sed -n 's/^const Version = "\(.*\)"$/\1/p' "$(go list -m -f '{{.Dir}}' github.com/sagernet/cronet-go/lib/android_arm64)"/*.go | sort -u)"
+if [ -z "$CHROMIUM" ] || [ "$(wc -l <<< "$CHROMIUM")" != 1 ]; then
+  echo ">> no single Chromium version in cronet-go's android_arm64 module: '$CHROMIUM'"
+  exit 1
+fi
 
 export GOBIND="$GOPATH/bin/gobind-matsuri"
 "$GOPATH"/bin/gomobile-matsuri bind -v -androidapi 23 -cache "$(realpath $BUILD)" -trimpath -ldflags='-s -w -checklinkname=0' -tags='with_naive_outbound,with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0' . || exit 1
@@ -40,7 +53,11 @@ for so in "$BUILD"/built/jni/*/libgojni.so; do
     echo ">> $so was built with $built, not with $GOTOOLCHAIN (libcore/go.mod)"
     exit 1
   fi
-  echo ">> $(basename "$(dirname "$so")"): $built"
+  if ! grep -qaF "$CHROMIUM" "$so"; then
+    echo ">> $so does not carry Chromium $CHROMIUM (cronet-go's library module)"
+    exit 1
+  fi
+  echo ">> $(basename "$(dirname "$so")"): $built, Chromium $CHROMIUM"
 done
 rm -rf "$BUILD/built"
 

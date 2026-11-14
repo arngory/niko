@@ -54,8 +54,7 @@ jobs:
           git -C /tmp/sing-box-src checkout -q "$COMMIT_SING_BOX"
           sudo apt-get install -y -qq lld > /dev/null
           cd /tmp/sing-box-src
-          # the colon in cronet-go's -l:libcronet.a: Go from 1.26.11 wants it allowed by name
-          CC=clang CXX=clang++ CGO_LDFLAGS=-fuse-ld=lld CGO_LDFLAGS_ALLOW='-l:libcronet\.a' CGO_ENABLED=1 GOTOOLCHAIN=auto go build -o /tmp/sing-box \
+          CC=clang CXX=clang++ CGO_LDFLAGS=-fuse-ld=lld CGO_ENABLED=1 GOTOOLCHAIN=auto go build -o /tmp/sing-box \
             -ldflags=-checklinkname=0 -tags=with_utls,with_naive_outbound,badlinkname,tfogo_checklinkname0 ./cmd/sing-box
           /tmp/sing-box version | head -1
 
