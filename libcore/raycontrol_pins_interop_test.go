@@ -368,6 +368,12 @@ func TestRaycontrolSitePins(t *testing.T) {
 		if !fresh {
 			t.Fatal("after the switch the list has no new next key")
 		}
+		// a forced switch is for a leaked key: it leaves the clients' lists at once (§5). After an ordinary one the
+		// key from before stays for an hour, for the clients that meet the old leaf with the new list
+		forced := strings.Contains(os.Getenv("RAYCONTROL_PINS_ROTATE_NEXT"), "-force")
+		if kept := has(after.pins, before.pins[0]); kept == forced {
+			t.Fatalf("after the switch (forced: %v) the key from before it is in the list: %v", forced, kept)
+		}
 		// a client that has not fetched the subscription since holds the list from before: it goes on working
 		check(after, before.list(), "the list from before the switch")
 		check(after, after.list(), "the new list")
