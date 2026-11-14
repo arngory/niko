@@ -13,21 +13,25 @@ import (
 	"github.com/sagernet/sing-box/common/certificate"
 )
 
-// The roots naive takes besides Chrome's list.
+// The roots naive takes besides Chromium's own list.
 //
-// naive is Chromium, and Chromium verifies a chain itself: against the copy of Chrome's list it was built with, and
-// on Android against nothing else unless SSL_CERT_FILE names a file of roots (the library of arngory/cronet-go from
-// d5ec437: before it Chromium read Android's /system roots whatever the app's setting). The file is read when an
-// engine is made, so each start of the core takes it as it is then.
+// naive is Chromium, and Chromium verifies a chain itself: against the root store it was built with, and on Android
+// against nothing else unless SSL_CERT_FILE names a file of roots (the library of arngory/cronet-go from d5ec437:
+// before it Chromium read Android's /system roots whatever the app's setting). The file is read when an engine is
+// made, so each start of the core takes it as it is then.
 //
 // The variable is set once, when the process starts, and never changed: setenv beside Chromium's threads, which
 // read the environment, is a race bionic does not guard. What changes is the file: empty under Chrome's and
-// Mozilla's lists (naive then takes Chrome's list alone: Chromium has no way to be given Mozilla's without leaving
-// its own verifier), the system's roots with those installed on the phone under the system's store. Roots from the
-// file count as locally trusted: over HTTP/2 Chromium takes them, over QUIC it wants a root of Chrome's list.
+// Mozilla's lists, the system's roots with those installed on the phone under the system's store. Roots from the
+// file count as locally trusted: over HTTP/2 Chromium takes them, over QUIC it wants a root of its own list.
 //
-// An imported ca.pem is not put there (the owner's decision of 2026-11-14): a root of one's own for a naive server
-// goes into the profile, where it takes the place of every list.
+// Under the lists the core narrows what Chromium takes: a naive outbound without pins or a certificate of its own
+// gets the keys of the list's roots as key pins (the core's protocol/naive, certificate.StorePublicKeyHashes), so a
+// root has to be in Chromium's store and in the list of the setting. Chromium's store has roots the core's list of
+// Chrome's leaves out (those CCADB marks China), and cannot be given Mozilla's list without leaving its verifier.
+//
+// An imported ca.pem is not put into the file (the owner's decision of 2026-11-14): a root of one's own for a naive
+// server goes into the profile, where it takes the place of every list.
 var naiveRoots struct {
 	sync.Mutex
 	path string
@@ -85,7 +89,7 @@ func writeNaiveRoots() {
 		if name == RootStoreSystem {
 			log.Printf("naive roots: Chrome's list and %d of the system's store (over QUIC Chrome's list alone)", count)
 		} else {
-			log.Println("naive roots: Chrome's list alone")
+			log.Printf("naive roots: none besides Chromium's own list, held to the %s list of the core by key pins", name)
 		}
 	}
 }

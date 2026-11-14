@@ -444,6 +444,10 @@ if [ "$from" != "$naive_stage" ] || [ "$carried" != yes ]; then
   fail "naive under the system's store, the root installed on the phone: from '${from:-nowhere}', token $carried, want the stage $naive_stage (nc said: $last)"
 fi
 echo "naive under the system's store, HTTP/2: the runner's server saw the request from $from"
+# under the system's store naive is held to no list: the phone's roots are in none
+timeout 30 adb pull "/data/data/$pkg/cache/neko.log" "$out/neko-naive.log" > /dev/null 2>&1
+grep -aq "is held to the" "$out/neko-naive.log" 2> /dev/null &&
+  fail "naive under the system's store is held to a list by key pins"
 down naive-system
 # the same over QUIC: a root of the phone's is not one Chrome knows, and the request goes nowhere
 roots system
@@ -501,29 +505,39 @@ for carriage in h2 quic; do
   down "naive-$carriage"
 done
 
-echo "== naive against a public site: Chrome's list as the APK's Chromium carries it"
+echo "== naive against a public site: Chromium's list and the list of the setting, both"
 # a site that is no naive server: its chain is to pass (a certificate of a public CA, the roots the phone gave left
-# out: the setting is Chrome's list), and the CONNECT to fail on something else than the certificate
-roots chrome
+# out), and the CONNECT to fail on something else than the certificate. Under a list the core holds naive to that
+# list besides Chromium's own (the keys of its roots as key pins) and says so; a root of a public CA is in both
 imported "$(cat "$naive_links/public.link")" "$id" || fail "no naive profile from the link to a public site"
-timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" --el profile "$id" > /dev/null ||
-  fail "the quick toggle did not start (naive, a public site)"
-said=
-for i in $(seq 8); do
-  fetch "naive-public-$i-$RANDOM"
-  timeout 30 adb pull "/data/data/$pkg/cache/neko.log" "$out/neko-naive.log" > /dev/null 2>&1
-  said=$(grep -a "outbound/naive" "$out/neko-naive.log" 2> /dev/null | grep -aiE "fail|error|status" | head -1 | cut -c1-400)
-  [ -n "$said" ] && break
-  sleep 3
+public=$id
+for list in chrome mozilla; do
+  roots "$list"
+  timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" --el profile "$public" > /dev/null ||
+    fail "the quick toggle did not start (naive, a public site, $list)"
+  said=
+  for i in $(seq 8); do
+    fetch "naive-public-$list-$i-$RANDOM"
+    timeout 30 adb pull "/data/data/$pkg/cache/neko.log" "$out/neko-naive.log" > /dev/null 2>&1
+    said=$(grep -a "outbound/naive" "$out/neko-naive.log" 2> /dev/null | grep -aiE "fail|error|status" | head -1 | cut -c1-400)
+    [ -n "$said" ] && break
+    sleep 3
+  done
+  grep -q "cert authority invalid" "$out/neko-naive.log" 2> /dev/null &&
+    fail "naive does not take a public site's certificate under the $list list: $said"
+  grep -q "pinned key" "$out/neko-naive.log" 2> /dev/null &&
+    fail "naive under the $list list: a public site's root is not among the list's keys: $said"
+  held=$(grep -a "outbound/naive" "$out/neko-naive.log" 2> /dev/null | grep -aoE "held to the [0-9]+ roots of the $list list" | head -1)
+  [ -n "$held" ] || fail "naive under the $list list: the core does not say it holds the chain to the list (its key pins are not set)"
+  if [ -n "$said" ]; then
+    echo "naive against a public site, $list: $held; the certificate passed, and then: $said"
+  else
+    echo "::warning::naive against a public site, $list: $held; the core's log has no word of naive's connection (nc said: $last)"
+  fi
+  down "naive-public-$list"
 done
-grep -q "cert authority invalid" "$out/neko-naive.log" 2> /dev/null &&
-  fail "naive does not take a public site's certificate under Chrome's list: $said"
-if [ -n "$said" ]; then
-  echo "naive against a public site: the certificate passed, and then: $said"
-else
-  echo "::warning::naive against a public site: the core's log has no word of naive's (nc said: $last)"
-fi
-down naive-public
+roots chrome
+id=$public
 # Chromium's own complaint about a file without roots: the library says nothing of it on Android
 if timeout 60 adb logcat -d 2> /dev/null | grep -q "No CA certificates were found"; then
   fail "Chromium complains of the empty file of roots (No CA certificates were found)"
