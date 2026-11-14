@@ -708,8 +708,18 @@ jobs:
           # and UDP over TCP v2 (uot=2 in raycontrol's links, udp_over_tcp: true as ConfigBuilder writes it): a DNS
           # query to 11096 goes to 1.1.1.1:53 through rayd naive, and to 11097 through naive without it (dropped)
           tls='{"enabled": true, "server_name": "naive.test", "certificate_path": "/tmp/ca.crt"}'
-          jq -n --arg pw "$pw" --argjson tls "$tls" '{log: {level: "debug"},
+          # the server's certificate pinned by its key (tls.certificate_public_key_sha256, raycontrol's niko-pin;
+          # Chromium's own PublicKeyPins through the cronet-go fork): 11098 pins the leaf's key next to another
+          # one, 11099 two keys the server does not have. The chain is the test CA's either way
+          pin=$(openssl x509 -in /tmp/leaf.crt -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64 -w0)
+          other=$(printf 'another key' | openssl dgst -sha256 -binary | base64 -w0)
+          spare=$(printf 'the next key' | openssl dgst -sha256 -binary | base64 -w0)
+          tls_pin=$(jq -cn --argjson tls "$tls" --arg a "$spare" --arg b "$pin" '$tls + {certificate_public_key_sha256: [$a, $b]}')
+          tls_pin_bad=$(jq -cn --argjson tls "$tls" --arg a "$spare" --arg b "$other" '$tls + {certificate_public_key_sha256: [$a, $b]}')
+          jq -n --arg pw "$pw" --argjson tls "$tls" --argjson tls_pin "$tls_pin" --argjson tls_pin_bad "$tls_pin_bad" '{log: {level: "debug"},
             inbounds: [{type: "socks", tag: "h2", listen: "127.0.0.1", listen_port: 11093},
+                       {type: "socks", tag: "pin", listen: "127.0.0.1", listen_port: 11098},
+                       {type: "socks", tag: "pin-bad", listen: "127.0.0.1", listen_port: 11099},
                        {type: "socks", tag: "wrong", listen: "127.0.0.1", listen_port: 11094},
                        {type: "socks", tag: "quic", listen: "127.0.0.1", listen_port: 11095},
                        {type: "direct", tag: "uot", listen: "127.0.0.1", listen_port: 11096, network: "udp",
@@ -719,9 +729,12 @@ jobs:
             outbounds: [{type: "naive", tag: "naive", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw, tls: $tls},
                         {type: "naive", tag: "naive-wrong", server: "127.0.0.1", server_port: 18446, username: "niko", password: "wrong", tls: $tls},
                         {type: "naive", tag: "naive-quic", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw, quic: true, tls: $tls},
+                        {type: "naive", tag: "naive-pin", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw, tls: $tls_pin},
+                        {type: "naive", tag: "naive-pin-bad", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw, tls: $tls_pin_bad},
                         {type: "naive", tag: "naive-uot", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw,
                          udp_over_tcp: true, tls: $tls}],
             route: {rules: [{inbound: ["wrong"], outbound: "naive-wrong"}, {inbound: ["quic"], outbound: "naive-quic"},
+                            {inbound: ["pin"], outbound: "naive-pin"}, {inbound: ["pin-bad"], outbound: "naive-pin-bad"},
                             {inbound: ["uot"], outbound: "naive-uot"}], final: "naive"}}' > /tmp/core-naive.json
           nohup /tmp/sing-box run -c /tmp/core-naive.json > /tmp/core-naive.log 2>&1 &
           for i in $(seq 75); do
@@ -750,6 +763,8 @@ jobs:
           check "core naive outbound (cronet, h2) -> rayd naive" 11093 204
           check "core naive outbound, wrong password (must fail)" 11094 000
           check "core naive outbound over QUIC -> front UDP -> rayd naive" 11095 204
+          check "core naive outbound, the server's key among its pins" 11098 204
+          check "core naive outbound, pins of other keys only (must fail)" 11099 000
           udp() { got=$(python3 -I .github/scripts/udp-dns-probe.py "$2"); echo "$1: $got (want $3)"; [ "$got" = "$3" ] || fail=1; }
           if [ -f raycontrol/internal/naive/uot.go ]; then
             udp "core naive outbound, UDP over TCP v2 -> rayd naive -> 1.1.1.1:53" 11096 answer
