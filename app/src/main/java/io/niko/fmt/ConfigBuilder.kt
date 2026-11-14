@@ -659,6 +659,11 @@ fun buildConfig(
                 ) {
                     currentOutbound._hack_config_map["await_dial"] = true
                 }
+                // the same through naive: the core asks the node for its answer after the dial (niko-ack: 1 with the
+                // CONNECT) and holds the dial for it
+                if (!forExport && DataStore.honestConnect && bean is NaiveBean && bean.nikoAck == true) {
+                    currentOutbound._hack_config_map["await_dial"] = true
+                }
                 // ping and traceroute through the node (experiment, off by default): the core's naive carries the
                 // app's echo to the node, which pings for it (raycontrol icmp-v1); only where the link says the
                 // node does (icmp=1). A field of the core fork's: not in an export

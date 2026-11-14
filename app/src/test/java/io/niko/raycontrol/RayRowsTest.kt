@@ -58,9 +58,12 @@ class RayRowsTest {
             "68a0f2d46bcfd04bfcdb78c90597aec21bd20f88093756b1eca5036b460bbe73",
         ).map { hex -> java.util.Base64.getEncoder().encodeToString(hex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()) }
 
+        // the naive row as the node writes it since it answers after its dial (niko-ack=1, naive-uot-v1 §4.1)
         val naive = RayRows.parse(
-            "naive+https://niko:f3b1c0de-0000-4000-8000-000000000001@203.0.113.7:443?$spec&niko-svc=5&sni=n4k2.example.com&uot=2#naive"
+            "naive+https://niko:f3b1c0de-0000-4000-8000-000000000001@203.0.113.7:443?niko-ack=1&$spec&niko-svc=5&sni=n4k2.example.com&uot=2#naive"
         ) as NaiveBean
+        assertEquals(true, naive.nikoAck)
+        assertEquals(true, naive.sUoT)
         assertEquals("$pin1,$pin2", naive.certPins)
         assertEquals("n4k2.example.com", naive.sni)
         assertEquals(hashes, parseCertificatePins(naive.certPins))

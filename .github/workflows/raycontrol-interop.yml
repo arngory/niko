@@ -790,6 +790,7 @@ jobs:
                        {type: "socks", tag: "pin-one", listen: "127.0.0.1", listen_port: 11100},
                        {type: "socks", tag: "quic-pin", listen: "127.0.0.1", listen_port: 11101},
                        {type: "socks", tag: "quic-pin-bad", listen: "127.0.0.1", listen_port: 11102},
+                       {type: "socks", tag: "ack", listen: "127.0.0.1", listen_port: 11103},
                        {type: "socks", tag: "wrong", listen: "127.0.0.1", listen_port: 11094},
                        {type: "socks", tag: "quic", listen: "127.0.0.1", listen_port: 11095},
                        {type: "direct", tag: "uot", listen: "127.0.0.1", listen_port: 11096, network: "udp",
@@ -804,12 +805,14 @@ jobs:
                         {type: "naive", tag: "naive-pin-one", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw, tls: $tls_pin_one},
                         {type: "naive", tag: "naive-quic-pin", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw, quic: true, tls: $tls_pin},
                         {type: "naive", tag: "naive-quic-pin-bad", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw, quic: true, tls: $tls_pin_bad},
+                        {type: "naive", tag: "naive-ack", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw,
+                         await_dial: true, tls: $tls},
                         {type: "naive", tag: "naive-uot", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw,
                          udp_over_tcp: true, tls: $tls}],
             route: {rules: [{inbound: ["wrong"], outbound: "naive-wrong"}, {inbound: ["quic"], outbound: "naive-quic"},
                             {inbound: ["pin"], outbound: "naive-pin"}, {inbound: ["pin-bad"], outbound: "naive-pin-bad"},
                             {inbound: ["pin-one"], outbound: "naive-pin-one"}, {inbound: ["quic-pin"], outbound: "naive-quic-pin"},
-                            {inbound: ["quic-pin-bad"], outbound: "naive-quic-pin-bad"},
+                            {inbound: ["quic-pin-bad"], outbound: "naive-quic-pin-bad"}, {inbound: ["ack"], outbound: "naive-ack"},
                             {inbound: ["uot"], outbound: "naive-uot"}], final: "naive"}}' > /tmp/core-naive.json
           nohup /tmp/sing-box run -c /tmp/core-naive.json > /tmp/core-naive.log 2>&1 &
           for i in $(seq 75); do
@@ -873,6 +876,27 @@ jobs:
             echo "core naive outbound, wrong password: the 404 read as the CONNECT's status"
           else
             echo "core naive outbound, wrong password: no \"unexpected response status: 404\" in the core's log"; fail=1
+          fi
+          # honest connect (the core's naive `await_dial`: niko-ack: 1 with the CONNECT, raycontrol naive-uot-v1 §4.1):
+          # rayd naive answers after its own dial, and the core's dial ends with what became of it, in words the
+          # app's test run reads. A port nobody listens on at an address of the runner's own is refused, loopback is
+          # the node's policy, a name that is not there has no address
+          if [ -f raycontrol/internal/naive/ack.go ]; then
+            check "core naive outbound, the answer after the node's dial" 11103 204
+            sudo ip addr add 11.0.0.1/32 dev lo 2> /dev/null || true
+            for url in http://11.0.0.1:9/ http://127.0.0.1:9/ http://no-such-name.invalid/; do
+              curl -s -m 8 -o /dev/null -x socks5h://127.0.0.1:11103 "$url" || true
+            done
+            for words in "remote error: connection refused" "remote error: destination denied by the server" \
+                "remote error: host is unreachable"; do
+              if grep -q "$words" /tmp/core-naive.log; then
+                echo "honest connect through naive: \"$words\""
+              else
+                echo "::error::honest connect through naive: no \"$words\" in the core's log"; fail=1
+              fi
+            done
+          else
+            echo "honest connect: raycontrol $(git -C raycontrol rev-parse --short HEAD) has no niko-ack in rayd naive, not checked"
           fi
           # ping through the node (icmp-v1, the core's naive `icmp`): a TUN of the core's takes only nobody's traffic;
           # nobody's ping goes into it, the naive outbound carries the echo to rayd naive, which pings for it

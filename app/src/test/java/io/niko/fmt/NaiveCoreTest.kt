@@ -67,4 +67,15 @@ class NaiveCoreTest {
     fun headers() {
         assertEquals(mapOf("X-A" to "1", "X-B" to "two: parts"), naiveHeaders("X-A: 1\nX-B: two: parts\n\nbad"))
     }
+
+    @Test
+    fun honestConnectOnlyWhereTheLinkSaysSo() {
+        val bean = parseNaive("naive+https://u:p@198.51.100.1:443?niko-ack=1&uot=2#n")
+        assertEquals(true, bean.nikoAck)
+        // kept through the store (bean version 5); a version 4 record has none
+        assertEquals(true, KryoConverters.deserialize(io.niko.fmt.naive.NaiveBean(), KryoConverters.serialize(bean)).nikoAck)
+        for (link in listOf("naive+https://u:p@198.51.100.1:443#n", "naive+https://u:p@198.51.100.1:443?niko-ack=true#n")) {
+            assertFalse(parseNaive(link).nikoAck)
+        }
+    }
 }
