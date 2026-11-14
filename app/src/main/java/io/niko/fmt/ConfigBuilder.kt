@@ -1345,6 +1345,12 @@ fun buildConfig(
                 mapOf("server" to "dns-direct", "strategy" to strategy)
         }
 
+        // an echo no outbound carries is refused instead of answered by the TUN in the destination's name (an option,
+        // off by default): a ping through the proxy then shows no answer, not the phone's own few milliseconds.
+        // What rules send to direct (the LAN, bypasses) and a naive with icmp carry it as before. A field of the
+        // core fork's: not in an export
+        if (!forTest && !forExport && DataStore.icmpNoLocalReply) route._hack_config_map["icmp_no_local_reply"] = true
+
         dns.final_ = if (forTest) "dns-direct" else "dns-remote"
 
         // dns object user rules

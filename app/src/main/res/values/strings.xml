@@ -581,6 +581,8 @@
     <string name="honest_connect_summary">An app\'s connection opens only once the node has reached the destination: a refused or unreachable one fails at once, with the reason in the log, instead of opening and ending empty. Each new connection waits one round trip to the node more. Only Hysteria2 of raycontrol nodes from v0.21.0 (their links say niko-ack=1).</string>
     <string name="icmp_through_node">Ping through the node (experiment)</string>
     <string name="icmp_through_node_summary">On naive of raycontrol nodes that allow it (icmp=1), the node pings for the app: ping shows the real round trip and traceroute the hops behind the node. Off, a ping through a proxy is answered on the phone at once and says nothing about the path.</string>
+    <string name="icmp_no_local_reply">No ping answers from the phone</string>
+    <string name="icmp_no_local_reply_summary">A ping that goes to a proxy is normally answered by the phone itself, in the server\'s name: a few milliseconds and no hops, whatever the server. On, such a ping gets no answer, so it shows what it is. Pings to the local network and to what bypasses the proxy, and pings through a node, are real either way. Apps that measure delay by ping will see no connection.</string>
     <string name="need_restart">Restart APP to apply changes</string>
     <string name="use_selector">Use selector</string>
     <string name="front_proxy">Front proxy</string>

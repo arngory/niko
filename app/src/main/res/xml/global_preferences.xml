@@ -124,6 +124,11 @@
             app:key="icmpThroughNode"
             app:summary="@string/icmp_through_node_summary"
             app:title="@string/icmp_through_node" />
+        <SwitchPreference
+            app:defaultValue="false"
+            app:key="icmpNoLocalReply"
+            app:summary="@string/icmp_no_local_reply_summary"
+            app:title="@string/icmp_no_local_reply" />
         <io.niko.ui.SimpleMenuPreference
             app:defaultValue="0"
             app:entries="@array/tls_fragment_values"

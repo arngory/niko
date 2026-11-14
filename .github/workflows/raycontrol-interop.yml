@@ -820,6 +820,34 @@ jobs:
             out=$(nobody ping -n -c 2 -W 5 -M do -s 1473 198.51.100.2); echo "$out" | sed 's/^/    /'
             echo "$out" | grep -q "mtu = 1480\|mtu=1480" && echo "too big: 1480" ||
               { echo "too big: no MTU 1480"; fail=1; }
+            # a ping no outbound carries: the TUN answers it itself in the destination's name (what a ping through
+            # a proxy shows by default), and with route.icmp_no_local_reply (the app's "No ping answers from the
+            # phone") it gets none. A naive without icmp here, an address nobody has
+            sudo pkill -x sing-box || true; sleep 1
+            for reply in false true; do
+              jq -n --arg pw "$pw" --argjson tls "$tls" --argjson noreply "$reply" '{log: {level: "warn"},
+                inbounds: [{type: "tun", tag: "tun-in", interface_name: "nikotun", address: ["172.19.0.1/30"], mtu: 9000,
+                            auto_route: true, include_uid: [65534], stack: "gvisor"}],
+                outbounds: [{type: "naive", tag: "naive-plain", server: "127.0.0.1", server_port: 18446, username: "niko",
+                             password: $pw, tls: $tls}],
+                route: ({final: "naive-plain", auto_detect_interface: true} + (if $noreply then {icmp_no_local_reply: true} else {} end))}' > /tmp/core-ping.json
+              sudo nohup /tmp/sing-box run -c /tmp/core-ping.json > /tmp/core-ping.log 2>&1 &
+              for i in $(seq 50); do ip link show nikotun > /dev/null 2>&1 && break; sleep 0.2; done
+              sleep 1
+              out=$(nobody ping -n -c 2 -W 2 203.0.113.77); echo "$out" | sed 's/^/    /'
+              if [ "$reply" = false ]; then
+                echo "$out" | grep -q "bytes from 203.0.113.77" && echo "a ping nobody carries: answered by the TUN (the default)" ||
+                  { echo "a ping nobody carries: no local answer, the default changed"; fail=1; }
+              else
+                echo "$out" | grep -q "bytes from 203.0.113.77" && { echo "icmp_no_local_reply: still answered"; fail=1; } ||
+                  echo "icmp_no_local_reply: no answer"
+              fi
+              sudo pkill -x sing-box || true
+              for i in $(seq 25); do ip link show nikotun > /dev/null 2>&1 || break; sleep 0.2; done
+            done
+            # the core with its socks inbounds again, for the limit below
+            nohup /tmp/sing-box run -c /tmp/core-naive.json > /tmp/core-naive.log 2>&1 &
+            for i in $(seq 75); do [ -n "$(ss -Hltn 'sport = :11093')" ] && break; sleep 0.2; done
             # conn-limit-v1 (raycontrol v0.24.0, §3.1): a user in debt for failed dials gets 429 to CONNECT in place of
             # the 200. 160 dials to a closed port of the host behind the node, each refused and paid for (the reserve
             # is 100, 5 a second come back); the core then reads a refused CONNECT as its status (the fork's naive

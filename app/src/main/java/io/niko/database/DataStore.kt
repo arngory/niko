@@ -154,6 +154,7 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var refuseQuicOverStreams by configurationStore.boolean(Key.REFUSE_QUIC_OVER_STREAMS)
     var honestConnect by configurationStore.boolean(Key.HONEST_CONNECT)
     var icmpThroughNode by configurationStore.boolean(Key.ICMP_THROUGH_NODE)
+    var icmpNoLocalReply by configurationStore.boolean(Key.ICMP_NO_LOCAL_REPLY)
     var tlsFragmentBypass by configurationStore.stringToInt(Key.TLS_FRAGMENT_BYPASS)
     var ruleSetUpdateHours by configurationStore.stringToInt(Key.RULE_SET_UPDATE_HOURS) { 24 }
 

@@ -42,6 +42,7 @@ object Key {
     const val REFUSE_QUIC_OVER_STREAMS = "refuseQuicOverStreams"
     const val HONEST_CONNECT = "honestConnect"
     const val ICMP_THROUGH_NODE = "icmpThroughNode"
+    const val ICMP_NO_LOCAL_REPLY = "icmpNoLocalReply"
     const val TLS_FRAGMENT_BYPASS = "tlsFragmentBypass"
     const val RULE_SET_UPDATE_HOURS = "ruleSetUpdateHours"
 
