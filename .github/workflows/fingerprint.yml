@@ -88,10 +88,11 @@ jobs:
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
-      # A naive profile is held to the core's list of roots by key pins: a key of a listed root has to be in the chain
-      # Chromium verified. Whether that holds for the servers Chrome takes is a question of what chain Chrome
-      # verifies: with trust anchor IDs a server may end its chain short of the root. Real Chrome's own net log
-      # says which chains it accepted, and the script which of their keys the core's lists have
+      # A naive profile is held to the core's list of roots by key pins: a key of the list has to be in the chain
+      # Chromium verified. That chain ends at the first certificate Chromium's store has as a trust anchor, and the
+      # store has intermediates as anchors (Google's, Let's Encrypt's): the core counts each with the list that
+      # has its root. Real Chrome's own net log says which chains it accepted, and the script which of their keys
+      # the core's lists and those anchors have: a site with none would be refused by a naive profile
       - name: The chains Chrome verifies, against the core's root lists (informational)
         if: ${{ !cancelled() }}
         continue-on-error: true
@@ -105,7 +106,8 @@ jobs:
             echo "### The chains $(google-chrome --version) verified"
             echo '```'
             python3 -I .github/scripts/netlog-chains.py "$RUNNER_TEMP/chrome-chains.json" \
-              chrome=../sing-box/common/certificate/chrome.go mozilla=../sing-box/common/certificate/mozilla.go
+              chrome=../sing-box/common/certificate/chrome.go mozilla=../sing-box/common/certificate/mozilla.go \
+              anchors=../sing-box/common/certificate/chromium_anchors_neko_generated.go
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
 

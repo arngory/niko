@@ -41,6 +41,15 @@ if [ -z "$CHROMIUM" ] || [ "$(wc -l <<< "$CHROMIUM")" != 1 ]; then
   echo ">> no single Chromium version in cronet-go's android_arm64 module: '$CHROMIUM'"
   exit 1
 fi
+# naive's key pins hold the intermediates that Chromium's store has as trust anchors, and the store is the
+# library's: the core's table of them is to be of the same Chromium release, or a new anchor of the library's
+# store is missing from the pins and every server under it is refused
+ANCHORS="$(sed -n 's/^const ChromiumAnchorsVersion = "\(.*\)"$/\1/p' ../../sing-box/common/certificate/chromium_anchors_neko_generated.go)"
+if [ "$ANCHORS" != "$CHROMIUM" ]; then
+  echo ">> the core's intermediate anchors are of Chromium '$ANCHORS', the library is Chromium $CHROMIUM:"
+  echo ">> in the core: go run ./cmd/internal/update_chromium_anchors $CHROMIUM"
+  exit 1
+fi
 
 export GOBIND="$GOPATH/bin/gobind-matsuri"
 "$GOPATH"/bin/gomobile-matsuri bind -v -androidapi 23 -cache "$(realpath $BUILD)" -trimpath -ldflags='-s -w -checklinkname=0' -tags='with_naive_outbound,with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0' . || exit 1

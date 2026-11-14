@@ -5,9 +5,14 @@ For each verification that ended with a chain: the host, the chain's subjects fr
 the chain whether a list of roots has it (SHA-256 of the SubjectPublicKeyInfo, what Chromium's key pins compare).
 The lists are Go files of PEM blocks, as the core carries them (common/certificate/chrome.go, mozilla.go). What it
 answers: whether a server that Chrome takes always has a key of a listed root in the chain Chrome verified. A chain
-that ends at a certificate the browser trusts by itself, short of a root of the lists, has none.
+that ends at a certificate the browser trusts by itself, short of a root of the lists, has none: Chromium's store
+has intermediates as trust anchors, and the core counts each with the list that has its root
+(chromium_anchors_neko_generated.go). Given as anchors=FILE, they are counted here the same way.
 
-  netlog-chains.py NETLOG NAME=LIST.go [NAME=LIST.go ...]
+  netlog-chains.py NETLOG NAME=LIST.go [NAME=LIST.go ...] [anchors=ANCHORS.go]
+
+The browser of the runner updates its store by itself and may be ahead of the library the app carries: a chain it
+ends at an anchor the library does not have is no refusal in the app, where the library goes on to the root.
 
 The file of a killed browser is cut mid-event: it is read as any sequence of JSON values. Informational: prints,
 and always exits 0.
@@ -68,6 +73,7 @@ def subject(pem):
 
 
 PEM = re.compile(r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----", re.S)
+ANCHOR = re.compile(r'\{key: "([A-Za-z0-9+/=]+)", rootKey: "([A-Za-z0-9+/=]+)"\}')
 
 
 def main():
@@ -76,15 +82,21 @@ def main():
     except (OSError, IndexError) as e:
         print(f"no net log: {e}")
         return
-    lists = {}
+    lists, anchors = {}, []
     for argument in sys.argv[2:]:
         name, _, path = argument.partition("=")
         try:
-            lists[name] = {key_hash(pem) for pem in PEM.findall(open(path).read())} - {""}
+            if name == "anchors":
+                anchors = ANCHOR.findall(open(path).read())
+            else:
+                lists[name] = {key_hash(pem) for pem in PEM.findall(open(path).read())} - {""}
         except OSError as e:
             print(f"no list {name}: {e}")
     for name, keys in lists.items():
-        print(f"the list {name}: {len(keys)} keys")
+        # an intermediate anchor goes with the list that has its root, as in the core
+        under = {key for key, root in anchors if root in keys}
+        print(f"the list {name}: {len(keys)} keys of roots, {len(under)} of Chromium's intermediate anchors under them")
+        keys |= under
     names, events = {}, []
     for value in values(text):
         walk(value, names, events)

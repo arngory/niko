@@ -508,7 +508,9 @@ done
 echo "== naive against a public site: Chromium's list and the list of the setting, both"
 # a site that is no naive server: its chain is to pass (a certificate of a public CA, the roots the phone gave left
 # out), and the CONNECT to fail on something else than the certificate. Under a list the core holds naive to that
-# list besides Chromium's own (the keys of its roots as key pins) and says so; a root of a public CA is in both
+# list besides Chromium's own (the keys of its roots as key pins) and says so; a root of a public CA is in both.
+# The site is Google's on purpose: Chromium ends its chain at an intermediate it has as a trust anchor (WE2), with
+# no root in it, and the pins have to hold that intermediate's key (1.50.0 before its release refused it here)
 imported "$(cat "$naive_links/public.link")" "$id" || fail "no naive profile from the link to a public site"
 public=$id
 for list in chrome mozilla; do
@@ -527,7 +529,7 @@ for list in chrome mozilla; do
     fail "naive does not take a public site's certificate under the $list list: $said"
   grep -q "pinned key" "$out/neko-naive.log" 2> /dev/null &&
     fail "naive under the $list list: a public site's root is not among the list's keys: $said"
-  held=$(grep -a "outbound/naive" "$out/neko-naive.log" 2> /dev/null | grep -aoE "held to the [0-9]+ roots of the $list list" | head -1)
+  held=$(grep -a "outbound/naive" "$out/neko-naive.log" 2> /dev/null | grep -aoE "held to the $list list besides Chromium's own \([0-9]+ keys" | head -1)
   [ -n "$held" ] || fail "naive under the $list list: the core does not say it holds the chain to the list (its key pins are not set)"
   if [ -n "$said" ]; then
     echo "naive against a public site, $list: $held; the certificate passed, and then: $said"
