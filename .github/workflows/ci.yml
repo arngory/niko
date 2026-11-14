@@ -163,7 +163,12 @@ jobs:
             printf 'subjectAltName=DNS:roots.e2e.test\nextendedKeyUsage=serverAuth\nbasicConstraints=CA:FALSE\n' > leaf.ext &&
             openssl x509 -req -in leaf.csr -CA root.pem -CAkey root.key -CAcreateserial -days 2 -extfile leaf.ext \
               -out leaf.pem 2> /dev/null &&
-            chmod 644 leaf.key && rm root.key)
+            openssl req -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -keyout naive.key -out naive.csr \
+              -subj "/CN=naive.test" 2> /dev/null &&
+            printf 'subjectAltName=DNS:naive.test\nextendedKeyUsage=serverAuth\nbasicConstraints=CA:FALSE\n' > naive.ext &&
+            openssl x509 -req -in naive.csr -CA root.pem -CAkey root.key -CAcreateserial -days 2 -extfile naive.ext \
+              -out naive.pem 2> /dev/null &&
+            chmod 644 leaf.key naive.key && rm root.key)
           trojan=$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')
           printf '%s' '{"log": {"loglevel": "info"}, "inbounds": [{"listen": "0.0.0.0", "port": 10443, "protocol": "vless",
             "settings": {"clients": [{"id": "UUID"}], "decryption": "none"}}, {"listen": "0.0.0.0", "port": 10444,
@@ -219,6 +224,52 @@ jobs:
           pkill -f 'slipstream-client --tcp-listen-port=7700' || true
           pkill -f 'slip-vless.json' || true
 
+      - name: A naive server under the stand's root
+        run: |
+          # rayd naive behind the node's front, as raycontrol-interop's naive job stands it, in a box of its own
+          # (203.0.113.5): what the emulator sends through it reaches the runner's server from that address. Its
+          # certificate is from the stand's root (the step above), which the emulator gets as a root its user
+          # installed: the app's naive is Chromium of the library the APK carries, and nothing else runs it on Android
+          mkdir -p /tmp/naivestage
+          pw=$(openssl rand -hex 16)
+          printf '["%s"]' "$(printf %s "$pw" | sha256sum | cut -d' ' -f1)" > /tmp/naivestage/users.json
+          jq -n '{schema: 1, role: "front", log: {level: "info"},
+            tcp: {listen: ["0.0.0.0:18446"], routes: [{sni: ["naive.test"], backend: "naive"}]},
+            udp: {listen: ["0.0.0.0:18446"], routes: [{sni: ["naive.test"], backend: "naive-quic"}]},
+            backends: {naive: {socket: "/run/naive/fd.sock", mode: "fd", uid: 0},
+                       "naive-quic": {socket: "/run/naive/packet.sock", mode: "packet", uid: 0}}}' > /tmp/naivestage/front.json
+          docker run -d --name rc-naive --network rc-net --ip 203.0.113.5 -v /tmp/rcbin:/opt/rc:ro \
+            -v /tmp/slipbin/roots:/opt/roots:ro -v /tmp/naivestage:/opt/stage:ro debian:13 sleep infinity > /dev/null
+          n() { docker exec rc-naive "$@"; }
+          n sh -c 'mkdir -p /run/naive && chmod 0710 /run/naive'
+          docker exec -d rc-naive sh -c '/opt/rc/rayd naive -users /opt/stage/users.json -chain /opt/roots/naive.pem \
+            -key /opt/roots/naive.key -front-uid 0 -socket /run/naive/fd.sock -quic-socket /run/naive/packet.sock \
+            > /var/log/naive.log 2>&1'
+          for i in $(seq 50); do n test -S /run/naive/fd.sock && n test -S /run/naive/packet.sock && break; sleep 0.2; done
+          n test -S /run/naive/fd.sock && n test -S /run/naive/packet.sock ||
+            { echo "::error::rayd naive did not start"; n cat /var/log/naive.log; exit 1; }
+          n /opt/rc/niko-server check -c /opt/stage/front.json --json
+          docker exec -d rc-naive sh -c '/opt/rc/niko-server front -c /opt/stage/front.json > /var/log/front.log 2>&1'
+          sleep 1
+          # the stage answers under its name with a chain to the stand's root
+          openssl s_client -connect 203.0.113.5:18446 -servername naive.test -CAfile /tmp/slipbin/roots/root.pem \
+            -verify_return_error < /dev/null 2>&1 | grep -q 'Verify return code: 0 (ok)' ||
+            { echo "::error::the naive stage does not answer with a chain to the stand's root"
+              n cat /var/log/front.log /var/log/naive.log; exit 1; }
+          # the profiles: one that names no root (the phone's stores are all it has), and two that carry the root, over
+          # HTTP/2 and over QUIC
+          python3 -I -c '
+          import sys, urllib.parse
+          pw, root, out = sys.argv[1], open(sys.argv[2]).read(), sys.argv[3]
+          def link(scheme, name, **more):
+              query = urllib.parse.urlencode(dict({"sni": "naive.test"}, **more), quote_via=urllib.parse.quote)
+              return "naive+%s://niko:%s@203.0.113.5:18446?%s#%s" % (scheme, pw, query, name)
+          open(out + "/h2.link", "w").write(link("https", "e2e-naive"))
+          open(out + "/h2-cert.link", "w").write(link("https", "e2e-naive-cert", cert=root))
+          open(out + "/quic-cert.link", "w").write(link("quic", "e2e-naive-quic", cert=root))
+          ' "$pw" /tmp/slipbin/roots/root.pem /tmp/naivestage
+          grep -q '^naive+quic://' /tmp/naivestage/quic-cert.link
+
       - name: KVM for the emulator
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -232,7 +283,7 @@ jobs:
           target: google_apis
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
-          script: bash .github/scripts/e2e.sh apks /tmp/phone.invite /tmp/www.log /tmp/www/e2e /tmp/e2e /tmp/slip.link /tmp/slipbin/roots/root.pem /tmp/roots.link
+          script: bash .github/scripts/e2e.sh apks /tmp/phone.invite /tmp/www.log /tmp/www/e2e /tmp/e2e /tmp/slip.link /tmp/slipbin/roots/root.pem /tmp/roots.link /tmp/naivestage
 
       - name: What the emulator showed
         if: failure()
@@ -251,4 +302,5 @@ jobs:
           echo "--- the runner's server"; cat /tmp/www.log || true
           echo "--- slipstream's server"; tail -n 80 /tmp/slip.log || true
           echo "--- its VLESS stage"; docker logs rc-slip 2>&1 | grep -v 'accepted udp:\|gstatic\|googleapis\|google.com' | tail -n 120 || true
-          docker rm -f rc-node rc-slip > /dev/null 2>&1 || true
+          echo "--- the naive stage"; docker exec rc-naive sh -c 'tail -n 40 /var/log/front.log; tail -n 60 /var/log/naive.log' 2>&1 || true
+          docker rm -f rc-node rc-slip rc-naive > /dev/null 2>&1 || true

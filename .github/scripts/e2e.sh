@@ -6,8 +6,12 @@
 # through the bundled client to the runner's slipstream server, whose VLESS stage (203.0.113.3) the request comes from.
 # Last the root store: a Trojan profile to a TLS server whose certificate comes from a root installed on the emulator
 # as its user's; refused under the Chrome list (the default), carried under the system's store.
+# Then naive, which is Chromium of the library the APK carries: against rayd naive under the same root, a profile that
+# names no root (refused: the root is the phone's user's, and naive follows no setting of the app's), then profiles
+# that carry the root, over HTTP/2 and over QUIC.
 # Arguments: the APK folder, the invite file, the server's log, the token it serves, the folder for what the emulator
-# showed (a failure's artifact), the slipstream link, the root to install, the link of the profile under it.
+# showed (a failure's artifact), the slipstream link, the root to install, the link of the profile under it, the
+# folder of the naive links (h2.link, h2-cert.link, quic-cert.link).
 set -u
 pkg=io.niko
 apk=$(ls "$1"/*-x86_64.apk 2>/dev/null | head -1)
@@ -19,6 +23,7 @@ out=$5
 slip_link=$(cat "$6")
 user_root=$7
 roots_link=$(cat "$8")
+naive_links=$9
 here=$(dirname "$0")
 mkdir -p "$out"
 # raycontrol-interop's addresses: the runner 203.0.113.1 (its server), the node .2
@@ -26,11 +31,14 @@ runner=203.0.113.1
 node=203.0.113.2
 # slipstream's VLESS stage (ci.yml)
 slip_stage=203.0.113.3
+# rayd naive behind its front (ci.yml)
+naive_stage=203.0.113.5
 port=8080
-# ProxyEntity.TYPE_HYSTERIA, TYPE_VMESS (VLESS rows too), TYPE_TROJAN
+# ProxyEntity.TYPE_HYSTERIA, TYPE_VMESS (VLESS rows too), TYPE_TROJAN, TYPE_NAIVE
 hysteria=15
 vless=4
 trojan=6
+naive=9
 
 finish() {
   timeout 30 adb exec-out screencap -p > "$out/screen.png" 2>/dev/null
@@ -67,13 +75,15 @@ fetch() {
   last=$(head -c 300 <<< "$body")
 }
 
-# the ID of the first profile of type $1 in the app's database, empty while there is none
+# the ID of the first profile of type $1 in the app's database (with "last" as $2, of the newest), empty while there
+# is none
 profile() {
   rm -rf "$out/db" && mkdir -p "$out/db"
   for f in sager_net.db sager_net.db-wal sager_net.db-shm; do
     timeout 30 adb pull "/data/data/$pkg/databases/$f" "$out/db/$f" > /dev/null 2>&1
   done
-  python3 -I "$here/e2e-profile.py" "$out/db/sager_net.db" "$1"
+  # shellcheck disable=SC2086 # the optional word
+  python3 -I "$here/e2e-profile.py" "$out/db/sager_net.db" "$1" ${2:-}
 }
 
 # tap TEXT: taps the positive button of the dialog that shows TEXT, waiting a minute for it
@@ -352,5 +362,81 @@ done
   fail "under the system's store, the root installed: from '${from:-nowhere}', token $carried, want the stage $slip_stage (nc said: $last)"
 echo "the system's store: the runner's server saw the request from $from"
 timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" > /dev/null || fail "the quick toggle did not stop (the system's store)"
+
+echo "== naive, the Chromium of the app's library: the roots it takes, then HTTP/2 and QUIC with the profile's own root"
+# imported LINK AFTER: the naive link opened and its import confirmed; id: the profile it made, newer than AFTER
+imported() {
+  timeout 60 adb shell "am start -W -n $pkg/$pkg.ui.MainActivity -a android.intent.action.VIEW -d '$1'" > /dev/null || return 1
+  tap "Import profile" || return 1
+  id=
+  for i in $(seq 20); do
+    id=$(profile "$naive" last)
+    [ -n "$id" ] && [ "$id" -gt "$2" ] && return 0
+    sleep 2
+  done
+  return 1
+}
+# down: the VPN stopped, and a request of the emulator's comes from the runner's own address again
+down() {
+  timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" > /dev/null || fail "the quick toggle did not stop ($1)"
+  for i in $(seq 10); do
+    fetch "after-$1-$i-$RANDOM"
+    [ -n "$from" ] && [ "$from" != "$naive_stage" ] && break
+    sleep 3
+  done
+}
+for i in $(seq 10); do
+  fetch "before-naive-$i-$RANDOM"
+  [ -n "$from" ] && [ "$from" != "$slip_stage" ] && break
+  sleep 3
+done
+# the core's log from here on is naive's
+timeout 20 adb shell am force-stop "$pkg"
+timeout 20 adb shell "rm -f /data/data/$pkg/cache/neko.log"
+# a profile that names no root. The stage's root is on the phone as its user's, and the app's setting is the system's
+# store since the section above: naive follows neither, Chromium verifies with what it was built with and the
+# roots Android ships. A request that goes nowhere, and Chromium's word for why
+imported "$(cat "$naive_links/h2.link")" 0 || fail "no naive profile from the link without a root"
+bare=$id
+echo "the naive profile without a root: $bare"
+timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" --el profile "$bare" > /dev/null ||
+  fail "the quick toggle did not start (naive, no root)"
+refused=no
+for i in $(seq 10); do
+  fetch "naive-bare-$i-$RANDOM"
+  [ "$from" = "$naive_stage" ] &&
+    fail "naive took a certificate from a root the phone's user installed: the request came from $from"
+  timeout 30 adb pull "/data/data/$pkg/cache/neko.log" "$out/neko-naive.log" > /dev/null 2>&1
+  if [ -z "$from" ] && grep -q "cert authority invalid" "$out/neko-naive.log" 2> /dev/null; then refused=yes; break; fi
+  sleep 3
+done
+if [ "$refused" != yes ]; then
+  echo "--- what naive said"
+  grep -a "naive" "$out/neko-naive.log" 2> /dev/null | tail -n 20 | cut -c1-400
+  fail "naive without a root: no request lost to an unknown authority (the last from '${from:-nowhere}', nc said: $last)"
+fi
+echo "naive without a root: the request went nowhere, and the core's log says:"
+grep -m1 "cert authority invalid" "$out/neko-naive.log" | cut -c1-400
+down naive-bare
+# the same server with its root in the profile: Chromium of the APK's library carries, over HTTP/2 and over QUIC
+for carriage in h2 quic; do
+  imported "$(cat "$naive_links/$carriage-cert.link")" "$id" || fail "no naive profile from the $carriage link"
+  echo "the naive profile with the root, $carriage: $id"
+  timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" --el profile "$id" > /dev/null ||
+    fail "the quick toggle did not start (naive, $carriage)"
+  for i in $(seq 20); do
+    fetch "naive-$carriage-$i-$RANDOM"
+    [ "$from" = "$naive_stage" ] && [ "$carried" = yes ] && break
+    sleep 3
+  done
+  if [ "$from" != "$naive_stage" ] || [ "$carried" != yes ]; then
+    timeout 30 adb pull "/data/data/$pkg/cache/neko.log" "$out/neko-naive.log" > /dev/null 2>&1
+    echo "--- what naive said"
+    grep -a "naive" "$out/neko-naive.log" 2> /dev/null | tail -n 20 | cut -c1-400
+    fail "naive over $carriage with the profile's root: from '${from:-nowhere}', token $carried, want the stage $naive_stage (nc said: $last)"
+  fi
+  echo "naive over $carriage: the runner's server saw the request from $from"
+  down "naive-$carriage"
+done
 
 finish 0
