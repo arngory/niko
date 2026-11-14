@@ -46,11 +46,12 @@ func (r sitePinRows) list() string {
 // key of the leaf the node answers with, under the names of naive and of DoH, with a chain to the CA; Hysteria2 and
 // the node's DoH as the remote DNS carry with the list and are refused with pins of other keys. Then the site's key
 // is switched (rayctl service rotate): the list moves by one, the node answers with the key that was the next one,
-// and a client that still holds the list from before the switch goes on working.
+// and a client that still holds the list from before the switch goes on working; or it is switched to a key made
+// for that (the node's store leaked): no key of the old list stays, and that list is refused.
 //
 // RAYCONTROL_PINS_BUNDLE is the device's package on that node, RAYCONTROL_ADDRESS the node, RAYCONTROL_CA the CA's
-// roots, RAYCONTROL_LIMIT_TARGET an address of the runner the node's exits dial, RAYCONTROL_PINS_ROTATE the command
-// that switches the key.
+// roots, RAYCONTROL_LIMIT_TARGET an address of the runner the node's exits dial; RAYCONTROL_PINS_ROTATE_NEXT and
+// RAYCONTROL_PINS_ROTATE_FRESH the commands of the two switches, either or both.
 func TestRaycontrolSitePins(t *testing.T) {
 	path := os.Getenv("RAYCONTROL_PINS_BUNDLE")
 	if path == "" {
@@ -333,42 +334,80 @@ func TestRaycontrolSitePins(t *testing.T) {
 		t.Fatal("Hysteria2 with the pins of the keys not in use went through before the switch")
 	}
 
-	rotate := strings.Fields(os.Getenv("RAYCONTROL_PINS_ROTATE"))
-	if len(rotate) == 0 {
-		t.Fatal("RAYCONTROL_PINS_ROTATE not set")
-	}
-	if out, err := exec.Command(rotate[0], rotate[1:]...).CombinedOutput(); err != nil {
-		t.Fatalf("the key switch: %v: %s", err, out)
-	}
-	// the list moves by one: the next key is in use, a new next one follows (§5)
-	var after sitePinRows
-	for deadline := time.Now().Add(120 * time.Second); ; time.Sleep(2 * time.Second) {
-		after = rows()
-		if has(before.pins[1:], after.pins[0]) {
-			break
+	run := func(name string) bool {
+		t.Helper()
+		command := strings.Fields(os.Getenv(name))
+		if len(command) == 0 {
+			return false
 		}
-		if string(after.pins[0]) != string(before.pins[0]) || time.Now().After(deadline) {
-			t.Fatalf("after the switch the first pin is not a key the list had before it (still the old key: %v)",
-				string(after.pins[0]) == string(before.pins[0]))
+		if out, err := exec.Command(command[0], command[1:]...).CombinedOutput(); err != nil {
+			t.Fatalf("the key switch (%s): %v: %s", name, err, out)
 		}
+		return true
 	}
-	fresh := false
-	for _, pin := range after.pins[1:] {
-		fresh = fresh || !has(before.pins, pin)
+	switched := false
+
+	// a switch to the next key: the list moves by one, the key that was next is in use, a new next one follows (§5)
+	if run("RAYCONTROL_PINS_ROTATE_NEXT") {
+		switched = true
+		var after sitePinRows
+		for deadline := time.Now().Add(120 * time.Second); ; time.Sleep(2 * time.Second) {
+			after = rows()
+			if has(before.pins[1:], after.pins[0]) {
+				break
+			}
+			if string(after.pins[0]) != string(before.pins[0]) || time.Now().After(deadline) {
+				t.Fatalf("after the switch the first pin is not a key the list had before it (still the old key: %v)",
+					string(after.pins[0]) == string(before.pins[0]))
+			}
+		}
+		fresh := false
+		for _, pin := range after.pins[1:] {
+			fresh = fresh || !has(before.pins, pin)
+		}
+		if !fresh {
+			t.Fatal("after the switch the list has no new next key")
+		}
+		// a client that has not fetched the subscription since holds the list from before: it goes on working
+		check(after, before.list(), "the list from before the switch")
+		check(after, after.list(), "the new list")
+		// the key from before the switch alone is refused
+		if err := throughHysteria(after, base64.RawURLEncoding.EncodeToString(before.pins[0])); err == nil {
+			t.Fatal("Hysteria2 with only the key from before the switch went through")
+		}
+		before = after
 	}
-	if !fresh {
-		t.Fatal("after the switch the list has no new next key")
+
+	// a switch to a key made for it (the node's store leaked, both of its keys with it): no key of the list from
+	// before is in the new one, and a client that holds that list is refused until it fetches its subscription
+	if run("RAYCONTROL_PINS_ROTATE_FRESH") {
+		switched = true
+		var after sitePinRows
+		for deadline := time.Now().Add(120 * time.Second); ; time.Sleep(2 * time.Second) {
+			after = rows()
+			if !has(before.pins, after.pins[0]) {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatal("2 minutes after the switch to a fresh key the first pin is still a key of the list before it")
+			}
+		}
+		for _, pin := range after.pins {
+			if has(before.pins, pin) {
+				t.Fatal("after the switch to a fresh key the list still has a key from before it")
+			}
+		}
+		check(after, after.list(), "the new list")
+		err := throughHysteria(after, before.list())
+		if err == nil || !strings.Contains(err.Error(), "unrecognized remote public key") {
+			t.Fatalf("Hysteria2 with the list from before a switch to a fresh key: %v, want the key refused", err)
+		}
+		if err = throughDoH(after, before.list()); err == nil {
+			t.Fatal("DoH with the list from before a switch to a fresh key answered")
+		}
+		t.Log("the list from before the switch to a fresh key is refused; the subscription's new one carries")
 	}
-	// the switch was forced (a leaked key): the key from before it is not in the list (after an ordinary one it
-	// stays for an hour)
-	if has(after.pins, before.pins[0]) {
-		t.Fatal("after a forced switch the list still has the key from before it")
-	}
-	// a client that has not fetched the subscription since holds the list from before: it goes on working
-	check(after, before.list(), "the list from before the switch")
-	check(after, after.list(), "the new list")
-	// the key from before the switch alone is refused
-	if err := throughHysteria(after, base64.RawURLEncoding.EncodeToString(before.pins[0])); err == nil {
-		t.Fatal("Hysteria2 with only the key from before the switch went through")
+	if !switched {
+		t.Fatal("neither RAYCONTROL_PINS_ROTATE_NEXT nor RAYCONTROL_PINS_ROTATE_FRESH set: the key was not switched")
 	}
 }

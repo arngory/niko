@@ -592,6 +592,7 @@ jobs:
       # pebble-challtestsrv answers every name with the node's address, which rayd checks before it orders. The CA's
       # chain is RSA with four intermediates: the site takes one at least as long as REALITY's own certificate.
       # The rows' pins against the leaf the node answers with, Hysteria2 and DoH held to them, then the key switched
+      # (to its next key, or where the node has the rule of 72 hours, to a fresh one)
       - name: The site's key pins (a node with certificates from Pebble)
         working-directory: libcore
         env:
@@ -599,7 +600,6 @@ jobs:
           RAYCONTROL_ADDRESS: 203.0.113.4
           RAYCONTROL_CA: /tmp/pebble-roots.pem
           RAYCONTROL_LIMIT_TARGET: 11.0.0.1
-          RAYCONTROL_PINS_ROTATE: docker exec rc-pin /opt/rc/rayctl service rotate site -force
           PEBBLE: github.com/letsencrypt/pebble/v2@v2.10.1
         run: |
           if [ ! -f ../raycontrol/docs/spec/cert-pin-v1.md ]; then
@@ -644,6 +644,14 @@ jobs:
           p /opt/rc/rayctl device add erin phone -o /root/pin.bundle
           p cat /root/pin.bundle > /tmp/pin.bundle
           sudo ip addr add 11.0.0.1/32 dev lo 2> /dev/null || true
+          # the key switch a node allows right after its first certificate: to the next key only once the key in use
+          # is 72 hours old (a subscription's lifetime), so a node that has -fresh is switched to a key made for it,
+          # and one from before that rule to its next key
+          if /tmp/rcbin/rayctl -h 2>&1 | grep -q -- "-fresh"; then
+            export RAYCONTROL_PINS_ROTATE_FRESH="docker exec rc-pin /opt/rc/rayctl service rotate site -fresh"
+          else
+            export RAYCONTROL_PINS_ROTATE_NEXT="docker exec rc-pin /opt/rc/rayctl service rotate site -force"
+          fi
           TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
           go test -count=1 -v -timeout 12m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolSitePins . || { state; exit 1; }
           p /opt/rc/rayctl service list
