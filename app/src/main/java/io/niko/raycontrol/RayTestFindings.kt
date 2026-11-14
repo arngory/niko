@@ -259,6 +259,9 @@ object RayTestFindings {
             NAIVE_STATUS.containsMatchIn(e) ->
                 if (NAIVE_STATUS.find(e)!!.groupValues[1] in NAIVE_UNAUTHORIZED) Cause.AUTH else Cause.HTTP
             HTTP_STATUS.containsMatchIn(e) -> if (e.startsWith("429")) Cause.BUSY else Cause.HTTP
+            // a key outside the profile's pins (cert-pin-v1), in Go TLS's words and in Chromium's (naive), before the
+            // closed connection it ends in
+            "unrecognized remote public key" in e || "pinned key" in e -> Cause.TLS
             "connection refused" in e -> Cause.REFUSED
             "no such host" in e || "lookup " in e -> Cause.NAME
             "network is unreachable" in e || "no route to host" in e || "host is unreachable" in e -> Cause.UNREACHABLE

@@ -710,16 +710,23 @@ jobs:
           tls='{"enabled": true, "server_name": "naive.test", "certificate_path": "/tmp/ca.crt"}'
           # the server's certificate pinned by its key (tls.certificate_public_key_sha256, raycontrol's niko-pin;
           # Chromium's own PublicKeyPins through the cronet-go fork): 11098 pins the leaf's key next to another
-          # one, 11099 two keys the server does not have. The chain is the test CA's either way
+          # one, 11099 two keys the server does not have. The chain is the test CA's either way. A list is a list
+          # (cert-pin-v1 §3): 11100 pins the leaf's key alone. Over QUIC (naive+quic:// carries the same pins): 11101
+          # with the leaf's key among them, 11102 without
           pin=$(openssl x509 -in /tmp/leaf.crt -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64 -w0)
           other=$(printf 'another key' | openssl dgst -sha256 -binary | base64 -w0)
           spare=$(printf 'the next key' | openssl dgst -sha256 -binary | base64 -w0)
           tls_pin=$(jq -cn --argjson tls "$tls" --arg a "$spare" --arg b "$pin" '$tls + {certificate_public_key_sha256: [$a, $b]}')
           tls_pin_bad=$(jq -cn --argjson tls "$tls" --arg a "$spare" --arg b "$other" '$tls + {certificate_public_key_sha256: [$a, $b]}')
-          jq -n --arg pw "$pw" --argjson tls "$tls" --argjson tls_pin "$tls_pin" --argjson tls_pin_bad "$tls_pin_bad" '{log: {level: "debug"},
+          tls_pin_one=$(jq -cn --argjson tls "$tls" --arg b "$pin" '$tls + {certificate_public_key_sha256: [$b]}')
+          jq -n --arg pw "$pw" --argjson tls "$tls" --argjson tls_pin "$tls_pin" --argjson tls_pin_bad "$tls_pin_bad" \
+            --argjson tls_pin_one "$tls_pin_one" '{log: {level: "debug"},
             inbounds: [{type: "socks", tag: "h2", listen: "127.0.0.1", listen_port: 11093},
                        {type: "socks", tag: "pin", listen: "127.0.0.1", listen_port: 11098},
                        {type: "socks", tag: "pin-bad", listen: "127.0.0.1", listen_port: 11099},
+                       {type: "socks", tag: "pin-one", listen: "127.0.0.1", listen_port: 11100},
+                       {type: "socks", tag: "quic-pin", listen: "127.0.0.1", listen_port: 11101},
+                       {type: "socks", tag: "quic-pin-bad", listen: "127.0.0.1", listen_port: 11102},
                        {type: "socks", tag: "wrong", listen: "127.0.0.1", listen_port: 11094},
                        {type: "socks", tag: "quic", listen: "127.0.0.1", listen_port: 11095},
                        {type: "direct", tag: "uot", listen: "127.0.0.1", listen_port: 11096, network: "udp",
@@ -731,10 +738,15 @@ jobs:
                         {type: "naive", tag: "naive-quic", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw, quic: true, tls: $tls},
                         {type: "naive", tag: "naive-pin", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw, tls: $tls_pin},
                         {type: "naive", tag: "naive-pin-bad", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw, tls: $tls_pin_bad},
+                        {type: "naive", tag: "naive-pin-one", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw, tls: $tls_pin_one},
+                        {type: "naive", tag: "naive-quic-pin", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw, quic: true, tls: $tls_pin},
+                        {type: "naive", tag: "naive-quic-pin-bad", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw, quic: true, tls: $tls_pin_bad},
                         {type: "naive", tag: "naive-uot", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw,
                          udp_over_tcp: true, tls: $tls}],
             route: {rules: [{inbound: ["wrong"], outbound: "naive-wrong"}, {inbound: ["quic"], outbound: "naive-quic"},
                             {inbound: ["pin"], outbound: "naive-pin"}, {inbound: ["pin-bad"], outbound: "naive-pin-bad"},
+                            {inbound: ["pin-one"], outbound: "naive-pin-one"}, {inbound: ["quic-pin"], outbound: "naive-quic-pin"},
+                            {inbound: ["quic-pin-bad"], outbound: "naive-quic-pin-bad"},
                             {inbound: ["uot"], outbound: "naive-uot"}], final: "naive"}}' > /tmp/core-naive.json
           nohup /tmp/sing-box run -c /tmp/core-naive.json > /tmp/core-naive.log 2>&1 &
           for i in $(seq 75); do
@@ -765,6 +777,17 @@ jobs:
           check "core naive outbound over QUIC -> front UDP -> rayd naive" 11095 204
           check "core naive outbound, the server's key among its pins" 11098 204
           check "core naive outbound, pins of other keys only (must fail)" 11099 000
+          check "core naive outbound, the server's key its one pin" 11100 204
+          check "core naive outbound over QUIC, the server's key among its pins" 11101 204
+          check "core naive outbound over QUIC, pins of other keys only (must fail)" 11102 000
+          # the refusal in the core's words, which the app's test run takes for a TLS failure (RayTestFindings)
+          if grep -qi "pinned key" /tmp/core-naive.log; then
+            echo "the core names the pin: $(grep -i -m1 'pinned key' /tmp/core-naive.log | cut -c1-240)"
+          else
+            echo "::error::a key outside the pins is refused without \"pinned key\" in the core's log"
+            grep -i "pin-bad" /tmp/core-naive.log | tail -n 20 | cut -c1-300
+            fail=1
+          fi
           udp() { got=$(python3 -I .github/scripts/udp-dns-probe.py "$2"); echo "$1: $got (want $3)"; [ "$got" = "$3" ] || fail=1; }
           if [ -f raycontrol/internal/naive/uot.go ]; then
             udp "core naive outbound, UDP over TCP v2 -> rayd naive -> 1.1.1.1:53" 11096 answer

@@ -1,7 +1,9 @@
 package io.niko.raycontrol
 
+import io.niko.fmt.KryoConverters
 import io.niko.fmt.hysteria.HysteriaBean
 import io.niko.fmt.naive.NaiveBean
+import io.niko.fmt.parseCertificatePins
 import io.niko.fmt.v2ray.VMessBean
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -42,6 +44,55 @@ class RayRowsTest {
         assertEquals("", naive.certificates)
         assertEquals("", naive.extraHeaders)
         assertTrue(RayRows.parse("naive+quic://niko:pw@n.example:443?$node") is NaiveBean)
+    }
+
+    // cert-pin-v1 §10: the rows as a node writes them, the leaf on the key of vector 1, the next key of vector 2
+    @Test
+    fun sitePinRows() {
+        val pin1 = "8dWUSbcnFl3nMr8oMzgSK5liimFZGP7cZ9h4__z0fac"
+        val pin2 = "aKDy1GvP0Ev823jJBZeuwhvSD4gJN1ax7KUDa0YLvnM"
+        val spec = "niko-node=00112233445566778899aabbccddeeff&niko-pin=$pin1%2C$pin2"
+        // the pins as sing-box takes them: standard base64 of the vectors' SHA-256
+        val hashes = listOf(
+            "f1d59449b727165de732bf283338122b99628a615918fedc67d878fffcf47da7",
+            "68a0f2d46bcfd04bfcdb78c90597aec21bd20f88093756b1eca5036b460bbe73",
+        ).map { hex -> java.util.Base64.getEncoder().encodeToString(hex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()) }
+
+        val naive = RayRows.parse(
+            "naive+https://niko:f3b1c0de-0000-4000-8000-000000000001@203.0.113.7:443?$spec&niko-svc=5&sni=n4k2.example.com&uot=2#naive"
+        ) as NaiveBean
+        assertEquals("$pin1,$pin2", naive.certPins)
+        assertEquals("n4k2.example.com", naive.sni)
+        assertEquals(hashes, parseCertificatePins(naive.certPins))
+        // the same over QUIC: the address and the certificate are the same
+        val quic = RayRows.parse(
+            "naive+quic://niko:f3b1c0de-0000-4000-8000-000000000001@203.0.113.7:443?$spec&niko-svc=5&sni=n4k2.example.com#naive-quic"
+        ) as NaiveBean
+        assertEquals("quic", quic.proto)
+        assertEquals(naive.certPins, quic.certPins)
+        // kept through the store
+        assertEquals(naive.certPins, KryoConverters.deserialize(NaiveBean(), KryoConverters.serialize(naive)).certPins)
+
+        val hy2 = RayRows.parse(
+            "hysteria2://f3b1c0de-0000-4000-8000-000000000002@203.0.113.7:443/?niko-ack=1&$spec&niko-svc=6&sni=h7q9.example.com#hy2-masq"
+        ) as HysteriaBean
+        assertEquals(hashes, parseCertificatePins(hy2.certPins))
+
+        // a list is a list: one pin, or three
+        val one = RayRows.parse("naive+https://niko:pw@203.0.113.7:443?niko-pin=$pin2&sni=n4k2.example.com") as NaiveBean
+        assertEquals(listOf(hashes[1]), parseCertificatePins(one.certPins))
+        val three = RayRows.parse("naive+https://niko:pw@n.example:443?niko-pin=$pin2%2C$pin1%2C${"A".repeat(43)}") as NaiveBean
+        assertEquals(3, parseCertificatePins(three.certPins).size)
+        // no parameter: no pin, the check as before
+        assertEquals("", (RayRows.parse("naive+https://niko:pw@n.example:443?$node") as NaiveBean).certPins)
+
+        // a list that does not read is not dropped for a row without pins: no row
+        refused("naive+https://niko:pw@n.example:443?niko-pin=$pin1%2Cshort", "naive: a short pin")
+        refused("naive+https://niko:pw@n.example:443?niko-pin=${"A".repeat(44)}A", "naive: a long pin")
+        refused("naive+https://niko:pw@n.example:443?niko-pin=%2C", "naive: an empty list")
+        refused("hysteria2://pw@203.0.113.7:443/?sni=h.example&niko-pin=$pin1%2Cnot-a-pin", "hysteria2: a bad pin")
+        // Chromium pins a key to a name: a naive row at an address needs its sni
+        refused("naive+https://niko:pw@203.0.113.7:443?niko-pin=$pin1", "naive: a pin without a name")
     }
 
     @Test

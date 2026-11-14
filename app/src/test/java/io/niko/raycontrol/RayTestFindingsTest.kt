@@ -28,6 +28,9 @@ class RayTestFindingsTest {
             "dial tcp 185.10.1.1:443: connect: connection refused" to Cause.REFUSED,
             "Get \"https://probe/down\": tls: failed to verify certificate: x509: certificate signed by unknown authority" to Cause.TLS,
             "reality verification failed" to Cause.TLS,
+            // a key outside the profile's pins (cert-pin-v1): Go TLS's words, Chromium's through the naive outbound
+            "remote error: unrecognized remote public key: 8dWUSbcnFl3nMr8oMzgSK5liimFZGP7cZ9h4//z0fac=" to Cause.TLS,
+            "ssl pinned key not in cert chain" to Cause.TLS,
             // the lookup is the cause, the timeout how it ended
             "dial tcp: lookup node.example on 10.0.0.1:53: i/o timeout" to Cause.NAME,
             "dial tcp: lookup node.example: no such host" to Cause.NAME,

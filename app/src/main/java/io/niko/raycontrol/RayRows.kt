@@ -1,12 +1,14 @@
 package io.niko.raycontrol
 
 import io.niko.fmt.AbstractBean
+import io.niko.fmt.parseCertificatePins
 import io.niko.fmt.hysteria.HysteriaBean
 import io.niko.fmt.hysteria.parseHysteria2
 import io.niko.fmt.naive.NaiveBean
 import io.niko.fmt.naive.parseNaive
 import io.niko.fmt.v2ray.VMessBean
 import io.niko.fmt.v2ray.parseDuckSoft
+import io.niko.ktx.isIpAddress
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
@@ -56,8 +58,16 @@ object RayRows {
                 val b = parseNaive(link)
                 b.certificates = ""
                 b.extraHeaders = ""
+                // Chromium pins a key to a name, never to an address (cert-pin-v1: the node's rows carry sni)
+                require(b.certPins.isNullOrBlank() || !b.sni.isNullOrBlank() || !b.serverAddress.isIpAddress()) {
+                    "naive: a pin without a server name"
+                }
                 b
             }
+        }
+        // a pin list that does not read would fail the start of the profile, and must not be dropped: no row
+        if (!bean.certPins.isNullOrBlank()) {
+            require(parseCertificatePins(bean.certPins).isNotEmpty()) { "niko-pin: no pin" }
         }
         // nothing outside the link's own fields: no config merged over the whole config, no raw outbound
         bean.customConfigJson = ""

@@ -145,6 +145,9 @@ data class RayNode(
     // the node's DoH from the subscription (https://<name>/dns-query/<token>, niko-* dropped): the remote DNS
     // while a profile of this node runs
     val doh: String? = null,
+    // the pins of the DoH's key from the same row (cert-pin-v1, `niko-pin`: SHA-256 of the leaf's key, comma
+    // separated), null none: the web PKI alone then
+    val dohPins: String? = null,
     // admin devices: the node's remote API and this device's client certificate for it
     val api: RayApiInfo? = null,
     val identity: RayIdentity? = null,
@@ -217,6 +220,7 @@ data class RayNode(
         add("links", JsonObject().apply { links.forEach { (k, v) -> add(k, v.toJson()) } })
         addProperty("clock_skew", clockSkew)
         doh?.let { addProperty("doh", it) }
+        dohPins?.let { addProperty("doh_pins", it) }
         api?.let { add("api", it.toJson()) }
         identity?.let { add("identity", it.toJson()) }
         identityNext?.let { add("identity_next", it.toJson()) }
@@ -259,6 +263,7 @@ data class RayNode(
             links = (o.get("links") as? JsonObject)?.entrySet()?.associate { it.key to RayLinks.fromJson(it.value.asJsonObject) }.orEmpty(),
             clockSkew = o.get("clock_skew")?.asLong ?: 0,
             doh = o.get("doh")?.takeIf { it.isJsonPrimitive }?.asString,
+            dohPins = o.get("doh_pins")?.takeIf { it.isJsonPrimitive }?.asString,
             api = (o.get("api") as? JsonObject)?.let { RayApiInfo.fromJson(it) },
             identity = (o.get("identity") as? JsonObject)?.let { RayIdentity.fromJson(it) },
             identityNext = (o.get("identity_next") as? JsonObject)?.let { RayIdentity.fromJson(it) },

@@ -77,7 +77,7 @@ private val TLS_FRAGMENT_TYPES = setOf("vmess", "vless", "trojan", "http", "anyt
 
 // QUIC clients whose UDP the core can shape (common/udpdesync)
 private val UDP_DESYNC_TYPES = setOf("hysteria2", "tuic")
-private val TLS_PIN_TYPES = TLS_FRAGMENT_TYPES + setOf("hysteria", "hysteria2", "tuic")
+private val TLS_PIN_TYPES = TLS_FRAGMENT_TYPES + setOf("hysteria", "hysteria2", "tuic", "naive")
 
 /**
  * Credentials of the local mixed inbound. In VPN mode any app on the device could otherwise
@@ -621,17 +621,10 @@ fun buildConfig(
                 if (!bean.certPins.isNullOrBlank()) {
                     // pins that would be silently ignored fail the start instead
                     val tls = (currentOutbound.asMap()["tls"] as? Map<*, *>)
-                    val reason = when {
-                        proxyEntity.needExternal() || outboundType !in TLS_PIN_TYPES ->
-                            "not supported for this profile type"
-                        tls?.get("enabled") != true -> "the profile does not use TLS"
-                        (tls["reality"] as? Map<*, *>)?.get("enabled") == true -> "not supported with REALITY"
-                        else -> null
+                    pinRefusal(outboundType, proxyEntity.needExternal(), tls)?.let { reason ->
+                        throw Exception("Certificate pinning (${bean.displayName()}): $reason")
                     }
-                    if (reason != null) throw Exception("Certificate pinning (${bean.displayName()}): $reason")
-                    tlsTweaks["certificate_public_key_sha256"] = parseCertificatePins(bean.certPins)
-                    // the pin replaces CA verification; sing-box rejects it next to a custom CA
-                    tlsTweaks["certificate"] = emptyList<String>()
+                    tlsTweaks += pinTlsTweaks(outboundType, bean.certPins)
                 }
                 if (tlsTweaks.isNotEmpty()) {
                     currentOutbound._hack_config_map["tls"] =
@@ -1611,6 +1604,37 @@ internal fun nodeTlsTweaks(outboundType: String?, tls: Map<*, *>?, replacedFinge
     return tweaks
 }
 
+/** Why an outbound cannot be held to key pins, null when it can. */
+internal fun pinRefusal(outboundType: String?, external: Boolean, tls: Map<*, *>?): String? = when {
+    external || outboundType !in TLS_PIN_TYPES -> "not supported for this profile type"
+    tls?.get("enabled") != true -> "the profile does not use TLS"
+    (tls["reality"] as? Map<*, *>)?.get("enabled") == true -> "not supported with REALITY"
+    // Chromium pins a key to a name, never to an address
+    outboundType == "naive" && (tls["server_name"] as? String).isNullOrBlank() -> "naive needs a server name (SNI)"
+    else -> null
+}
+
+/**
+ * The TLS options that hold an outbound to the key [pins] of its server (the profile's own, or a raycontrol row's
+ * `niko-pin`, cert-pin-v1). Go TLS takes the pin in place of CA verification, and sing-box rejects it next to a custom
+ * CA: that one goes. naive (Chromium) checks the pin besides the chain, against the profile's own roots too.
+ */
+internal fun pinTlsTweaks(outboundType: String?, pins: String): Map<String, Any> = buildMap {
+    put("certificate_public_key_sha256", parseCertificatePins(pins))
+    if (outboundType != "naive") put("certificate", emptyList<String>())
+}
+
+/**
+ * The TLS of a node's DoH: its name, post-quantum key exchange only and, when its row carries them (cert-pin-v1), the
+ * site's key pins, which Go TLS takes in place of the chain.
+ */
+internal fun nodeDohTls(name: String, pins: String?): Map<String, Any> = buildMap {
+    put("enabled", true)
+    put("server_name", name)
+    put("curve_preferences", listOf("X25519MLKEM768"))
+    if (!pins.isNullOrBlank()) put("certificate_public_key_sha256", parseCertificatePins(pins))
+}
+
 /**
  * The tweaks over an outbound's own TLS map, when it keeps one among its raw options (naive): a tweak never drops
  * what the outbound set. A typed outbound has none there, and its TLS object takes the tweaks when it is written out.
@@ -1644,10 +1668,6 @@ private fun nodeDohServer(node: RayNode, knockTag: String): DNSServerOptions {
         path = url.encodedPath + (url.encodedQuery?.let { "?$it" } ?: "")
         detour = knockTag
         if (!node.host.isIpAddress()) domain_resolver = "dns-direct"
-        _hack_config_map["tls"] = mapOf(
-            "enabled" to true,
-            "server_name" to url.host,
-            "curve_preferences" to listOf("X25519MLKEM768"),
-        )
+        _hack_config_map["tls"] = nodeDohTls(url.host, node.dohPins)
     }
 }

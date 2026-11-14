@@ -4,7 +4,7 @@ go 1.26.0
 
 // the toolchain the APK is built with (setup-go reads it): the standard library's security fixes (net/http,
 // crypto/tls, crypto/x509, net/url), checked by .github/workflows/govulncheck.yml
-toolchain go1.26.10
+toolchain go1.26.11
 
 require (
 	github.com/matsuridayo/libneko v1.0.0 // replaced

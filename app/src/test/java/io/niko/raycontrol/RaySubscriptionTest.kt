@@ -135,6 +135,8 @@ class RaySubscriptionTest {
         assertNull(r.services[1].ports)
         val node = RayNode(r.host, r.spa, r.deviceId, "w", r.services, doh = "https://d.example/dns-query/tok")
         assertEquals(node, RayNode.fromJson(JsonParser.parseString(node.toJson().toString()).asJsonObject))
+        val pinned = node.copy(dohPins = "8dWUSbcnFl3nMr8oMzgSK5liimFZGP7cZ9h4__z0fac,aKDy1GvP0Ev823jJBZeuwhvSD4gJN1ax7KUDa0YLvnM")
+        assertEquals(pinned, RayNode.fromJson(JsonParser.parseString(pinned.toJson().toString()).asJsonObject))
         for (bad in listOf(
             services.replace(""""port_base": 50000, """, ""),
             services.replace("2000", "20000"),
@@ -156,6 +158,18 @@ class RaySubscriptionTest {
         assertTrue(RaySubscription.isDoh("https://x.example/q", "doh"))
         assertTrue(!RaySubscription.isDoh("naive+https://niko:pw@n.example:443?niko-svc=6#naive", "naive"))
         assertEquals("https://abc.node.example/dns-query/TOKEN", RaySubscription.dohUrl(doh))
+        assertNull(RaySubscription.dohPins(doh))
+        // cert-pin-v1 §10: the DoH row with the site's key pins; the URL to query is without them
+        val pins = "8dWUSbcnFl3nMr8oMzgSK5liimFZGP7cZ9h4__z0fac,aKDy1GvP0Ev823jJBZeuwhvSD4gJN1ax7KUDa0YLvnM"
+        val pinned = "https://d3x8.example.com/dns-query/f3b1c0de-0000-4000-8000-000000000003" +
+            "?niko-node=00112233445566778899aabbccddeeff&niko-pin=${pins.replace(",", "%2C")}&niko-svc=7#doh"
+        assertEquals("https://d3x8.example.com/dns-query/f3b1c0de-0000-4000-8000-000000000003", RaySubscription.dohUrl(pinned))
+        assertEquals(pins, RaySubscription.dohPins(pinned))
+        try {
+            RaySubscription.dohPins("https://d.example/dns-query/t?niko-pin=short")
+            fail("a pin list that does not read")
+        } catch (_: IllegalArgumentException) {
+        }
 
         val spki = "q".repeat(43)
         val hy2 = io.niko.fmt.hysteria.parseHysteria2(

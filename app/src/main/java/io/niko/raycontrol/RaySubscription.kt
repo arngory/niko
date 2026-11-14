@@ -21,6 +21,7 @@ import io.niko.database.ProxyGroup
 import io.niko.database.SagerDatabase
 import io.niko.fmt.AbstractBean
 import io.niko.fmt.DnsTunnel
+import io.niko.fmt.parseCertificatePins
 import io.niko.ktx.Logs
 import io.niko.ktx.app
 import io.niko.ktx.applyDefaultValues
@@ -243,7 +244,7 @@ object RaySubscription {
             )
         }
         val stored = RayNodesLock.withLock {
-            store(nodeId, payload.get("seq").asLong, refreshAt, skew, parsed.beans, parsed.links, parsed.doh, parsed.name)?.also {
+            store(nodeId, payload.get("seq").asLong, refreshAt, skew, parsed.beans, parsed.links, parsed.doh, parsed.dohPins, parsed.name)?.also {
                 RayNodes.update(nodeId) { node ->
                     node.copy(
                         probe = parsed.probe, spaCarriers = parsed.carriers, failedFetches = 0, failedNetwork = null,
@@ -285,6 +286,8 @@ object RaySubscription {
         val traffic: RayTraffic? = null,
         // the user's devices on the node's Yggdrasil (raycontrol v0.23.0 `lan`), null none
         val lan: RayLan? = null,
+        // the pins of the DoH's key (cert-pin-v1), null none
+        val dohPins: String? = null,
     )
 
     /**
@@ -297,6 +300,7 @@ object RaySubscription {
         val beans = LinkedHashMap<String, AbstractBean>()
         val links = HashMap<String, RayLinks>()
         var doh: String? = null
+        var dohPins: String? = null
         // relays in front of the node (relay-v1 §4, a draft): a profile with `via` gets a row through each
         val relays = RayRelay.listFromJson(payload.get("relays") as? JsonArray)
         // dnsauth-v2 (raycontrol v0.15): the node's niko-server checks the hint; its links still say niko-dnsauth=v1
@@ -312,7 +316,11 @@ object RaySubscription {
                 // DoH is not a proxy: it becomes the remote DNS while a profile of the node runs
                 val kind = profile.get("svc")?.takeIf { it.isJsonPrimitive }?.asInt?.let { kinds[it] }
                 if (isDoh(pair.activeLink, kind)) {
-                    if (doh == null) doh = dohUrl(pair.activeLink)
+                    if (doh == null) {
+                        // the pins first: a row whose list does not read is not taken without them
+                        dohPins = dohPins(pair.activeLink)
+                        doh = dohUrl(pair.activeLink)
+                    }
                     return@forEach
                 }
                 // the spec's schemes only, without sent JSON (RayRows): a row that breaks it is skipped
@@ -355,6 +363,7 @@ object RaySubscription {
             RayNode.nodeNote(payload.get("note")?.takeIf { it.isJsonPrimitive }?.asString),
             RayTraffic.fromJson(payload.get("traffic") as? JsonObject),
             RayLan.fromJson(payload.get("lan") as? JsonObject),
+            dohPins,
         )
     }
 
@@ -410,7 +419,7 @@ object RaySubscription {
      */
     private fun store(
         nodeId: String, seq: Long, refreshAt: Long, skew: Long, beans: Map<String, AbstractBean>, links: Map<String, RayLinks>,
-        doh: String?, name: String?,
+        doh: String?, dohPins: String?, name: String?,
     ): Stored? {
         val node = RayNodes.get(nodeId) ?: throw Exception("raycontrol node $nodeId was removed")
         if (seq < node.subSeq) return null
@@ -460,7 +469,7 @@ object RaySubscription {
             RayNodes.update(nodeId) {
                 it.copy(
                     subSeq = seq, groupId = group.id, profileIds = ids + stale, refreshAt = refreshAt,
-                    links = links.filterKeys { k -> k in ids }, clockSkew = skew, doh = doh, name = name,
+                    links = links.filterKeys { k -> k in ids }, clockSkew = skew, doh = doh, dohPins = dohPins, name = name,
                 )
             }
         }
@@ -476,7 +485,9 @@ object RaySubscription {
             DataStore.selectedProxy = ids.values.firstOrNull() ?: 0L
         }
         val running = DataStore.currentProfile
-        val runningChanged = selected in changed || running in changed
+        // the node's DoH is in the running config of its profile: another address, token or key pins take a restart
+        val dohChanged = (node.doh != doh || node.dohPins != dohPins) && running in ids.values
+        val runningChanged = selected in changed || running in changed || dohChanged
         val runningGone = gone.any { it.id == running || it.id == selected }
         return Stored(group, groupCreated, runningChanged, runningGone, groupRenamed)
     }
@@ -584,6 +595,16 @@ object RaySubscription {
             url.queryParameterNames.filter { it.startsWith("niko-") }.forEach { removeAllQueryParameters(it) }
             fragment(null)
         }.build().toString()
+    }
+
+    /**
+     * The key pins of a DoH row (cert-pin-v1, `niko-pin`), null without the parameter; a list that does not read is
+     * an error, as in the profile rows.
+     */
+    fun dohPins(link: String): String? {
+        val pins = link.toHttpUrlOrNull()?.queryParameter("niko-pin")?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        require(parseCertificatePins(pins).isNotEmpty()) { "niko-pin: no pin" }
+        return pins
     }
 
     /** rotation (R4): from `next.from` on (the node's clock), the next credential replaces the current one */

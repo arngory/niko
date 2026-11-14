@@ -28,6 +28,8 @@ fun parseNaive(link: String): NaiveBean {
         sUoT = url.queryParameter("uot") == "2"
         // the node pings for the app (raycontrol icmp-v1), where its service allows it
         nikoIcmp = url.queryParameter("icmp") == "1"
+        // the server's key pins (raycontrol cert-pin-v1): Chromium checks them besides the chain
+        url.queryParameter("niko-pin")?.takeIf { it.isNotBlank() }?.let { certPins = it.trim() }
         name = url.fragment
         initializeDefaultValues()
     }
