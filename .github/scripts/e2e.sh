@@ -4,8 +4,10 @@
 # emulator's reaches the runner's HTTP server from the node's address, where without the VPN, before and after, it
 # comes from one of the runner's own (the emulator's network is the runner's sockets). Then a slipstream row: the VPN
 # through the bundled client to the runner's slipstream server, whose VLESS stage (203.0.113.3) the request comes from.
+# Last the root store: a Trojan profile to a TLS server whose certificate comes from a root installed on the emulator
+# as its user's; refused under the Chrome list (the default), carried under the system's store.
 # Arguments: the APK folder, the invite file, the server's log, the token it serves, the folder for what the emulator
-# showed (a failure's artifact), the slipstream link.
+# showed (a failure's artifact), the slipstream link, the root to install, the link of the profile under it.
 set -u
 pkg=io.niko
 apk=$(ls "$1"/*-x86_64.apk 2>/dev/null | head -1)
@@ -15,6 +17,8 @@ weblog=$3
 secret=$(cat "$4")
 out=$5
 slip_link=$(cat "$6")
+user_root=$7
+roots_link=$(cat "$8")
 here=$(dirname "$0")
 mkdir -p "$out"
 # raycontrol-interop's addresses: the runner 203.0.113.1 (its server), the node .2
@@ -23,9 +27,10 @@ node=203.0.113.2
 # slipstream's VLESS stage (ci.yml)
 slip_stage=203.0.113.3
 port=8080
-# ProxyEntity.TYPE_HYSTERIA, TYPE_VMESS (VLESS rows too)
+# ProxyEntity.TYPE_HYSTERIA, TYPE_VMESS (VLESS rows too), TYPE_TROJAN
 hysteria=15
 vless=4
+trojan=6
 
 finish() {
   timeout 30 adb exec-out screencap -p > "$out/screen.png" 2>/dev/null
@@ -283,5 +288,64 @@ timeout 20 adb shell "ps -A -o PID,USER,ARGS | grep [l]ibslipstream" || echo "no
   fail "through slipstream: from '${from:-nowhere}', token $carried, want its stage $slip_stage (nc said: $last)"
 echo "through slipstream: the runner's server saw the request from $from"
 timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" > /dev/null || fail "the quick toggle did not stop (slipstream)"
+for i in $(seq 10); do
+  fetch "after-slip-$i-$RANDOM"
+  [ -n "$from" ] && [ "$from" != "$slip_stage" ] && break
+  sleep 3
+done
+
+echo "== the root store: a root the phone's user installed, under the Chrome list and under the system's store"
+# the user's store as Android keeps it (Settings, Install a certificate, CA certificate): a file named by the
+# subject's old hash. The app is stopped: its next process reads the store anew
+timeout 20 adb shell am force-stop "$pkg"
+hash=$(openssl x509 -in "$user_root" -noout -subject_hash_old) || fail "the root's subject hash"
+added=/data/misc/user/0/cacerts-added
+timeout 20 adb shell "mkdir -p $added" || fail "the user's root store: no folder"
+timeout 30 adb push "$user_root" "$added/$hash.0" > /dev/null || fail "the user's root store: the root not written"
+timeout 20 adb shell "chown -R system:system $added && chmod 755 $added && chmod 644 $added/$hash.0 && restorecon -R /data/misc/user/0" ||
+  fail "the user's root store: its owner and mode"
+timeout 60 adb shell "am start -W -n $pkg/$pkg.ui.MainActivity -a android.intent.action.VIEW -d '$roots_link'" > /dev/null ||
+  fail "the link of the profile under the root did not open the app"
+tap "Import profile" || fail "no question to import the profile under the root on the screen"
+id=
+for i in $(seq 20); do
+  id=$(profile "$trojan")
+  [ -n "$id" ] && break
+  sleep 2
+done
+[ -n "$id" ] || fail "no Trojan profile from the link"
+echo "the profile under the root: $id"
+# the Chrome list, the app's default: the root on the phone opens nothing, and the core says whose fault it is
+timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" --el profile "$id" > /dev/null ||
+  fail "the quick toggle did not start (the Chrome list)"
+refused=no
+for i in $(seq 6); do
+  fetch "roots-chrome-$i-$RANDOM"
+  [ "$from" = "$slip_stage" ] &&
+    fail "under the Chrome list a certificate from a root the phone's user installed was taken: the request came from $from"
+  timeout 30 adb pull "/data/data/$pkg/cache/neko.log" "$out/neko-roots.log" > /dev/null 2>&1
+  if grep -q "unknown authority" "$out/neko-roots.log" 2> /dev/null; then refused=yes; break; fi
+  sleep 3
+done
+[ "$refused" = yes ] ||
+  fail "under the Chrome list the profile did not carry, but the core's log names no unknown authority (nc said: $last)"
+echo "the Chrome list: the certificate refused, $(grep -c 'unknown authority' "$out/neko-roots.log") times in the core's log"
+timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" > /dev/null || fail "the quick toggle did not stop (the Chrome list)"
+sleep 3
+# the system's store: the setting as the app keeps it (configuration.db, a string), the app stopped first
+timeout 20 adb shell am force-stop "$pkg"
+timeout 20 adb shell "sqlite3 /data/data/$pkg/databases/configuration.db \"INSERT OR REPLACE INTO KeyValuePair (key, valueType, value) VALUES ('rootStore', 5, CAST('system' AS BLOB));\"" ||
+  fail "the root store setting not written (sqlite3 on the emulator)"
+timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" --el profile "$id" > /dev/null ||
+  fail "the quick toggle did not start (the system's store)"
+for i in $(seq 20); do
+  fetch "roots-system-$i-$RANDOM"
+  [ "$from" = "$slip_stage" ] && [ "$carried" = yes ] && break
+  sleep 3
+done
+[ "$from" = "$slip_stage" ] && [ "$carried" = yes ] ||
+  fail "under the system's store, the root installed: from '${from:-nowhere}', token $carried, want the stage $slip_stage (nc said: $last)"
+echo "the system's store: the runner's server saw the request from $from"
+timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" > /dev/null || fail "the quick toggle did not stop (the system's store)"
 
 finish 0

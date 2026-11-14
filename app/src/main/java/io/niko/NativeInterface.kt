@@ -114,6 +114,9 @@ class NativeInterface : BoxPlatformInterface, NikoInterface {
         return DataStore.rulesProvider == 0
     }
 
+    // the roots chains are verified against (libcore/certs.go): asked wherever the core or an HTTP client starts
+    override fun rootStore(): String = DataStore.rootStore
+
     override fun selector_OnProxySelected(selectorTag: String, tag: String) {
         if (selectorTag != "proxy") {
             Logs.d("other selector: $selectorTag")

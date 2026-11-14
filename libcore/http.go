@@ -90,6 +90,8 @@ type httpClient struct {
 }
 
 func NewHttpClient() HTTPClient {
+	// its chains against the roots of the setting (Go's own, which applyRootStore keeps to the list)
+	applyRootStore()
 	client := new(httpClient)
 	client.h1h2Client.Transport = &client.h1h2Transport
 	client.h1h2Transport.TLSClientConfig = &client.tls

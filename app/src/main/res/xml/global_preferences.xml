@@ -369,6 +369,13 @@
             app:key="appTLSVersion"
             app:title="@string/app_tls_version"
             app:useSimpleSummaryProvider="true" />
+        <io.niko.ui.SimpleMenuPreference
+            app:defaultValue="chrome"
+            app:entries="@array/root_store_entries"
+            app:entryValues="@array/root_store_values"
+            app:key="rootStore"
+            app:title="@string/root_store"
+            app:useSimpleSummaryProvider="true" />
         <SwitchPreference
             app:key="showBottomBar"
             app:title="@string/show_bottom_bar" />

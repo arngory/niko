@@ -101,6 +101,9 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     }
 
     var appTLSVersion by configurationStore.string(Key.APP_TLS_VERSION)
+
+    // the roots certificate chains are verified against (libcore/certs.go): chrome, mozilla or system
+    var rootStore by configurationStore.string(Key.ROOT_STORE) { "chrome" }
     var enableClashAPI by configurationStore.boolean(Key.ENABLE_CLASH_API)
     var yggdrasilEnabled by configurationStore.boolean(Key.YGGDRASIL_ENABLED)
     var yggdrasilPeers by configurationStore.string(Key.YGGDRASIL_PEERS)

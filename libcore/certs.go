@@ -1,28 +1,131 @@
 package libcore
 
 import (
+	"context"
 	"crypto/x509"
 	"log"
+	"os"
+	"strings"
+	"sync"
 	_ "unsafe" // for go:linkname
+
+	"github.com/sagernet/sing-box/common/certificate"
+	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common/json/badoption"
+	"github.com/sagernet/sing/common/logger"
+)
+
+// The roots a certificate chain is verified against, everywhere this app verifies one: the core's outbounds and DNS
+// servers (their certificate store), and Go's own roots, which every TLS client of the process that names none
+// takes: the HTTP client of subscriptions, updates and rule sets, the probes.
+//
+//   - chrome (the default): Chrome's root store as the core carries it (common/certificate/chrome.go; the .pem
+//     files beside it are not compiled in). A root installed on the phone, by its user or for them, opens none of
+//     these connections.
+//   - mozilla: Mozilla's list.
+//   - system: Android's own store, with the roots its user installed (AndroidCAStore, through the core's JNI).
+//
+// The ca.pem imported in the app (Assets) is added under any of them; it never replaces a list. A profile's own
+// certificate and key pins are the profile's, whatever the list.
+//
+// A naive outbound follows none of this: its Chromium verifies against the copy of Chrome's list it was built with,
+// and takes other roots only from the profile's own certificate (the core's naive outbound reads no store).
+const (
+	RootStoreChrome  = C.CertificateStoreChrome
+	RootStoreMozilla = C.CertificateStoreMozilla
+	RootStoreSystem  = C.CertificateStoreSystem
 )
 
 //go:linkname systemRoots crypto/x509.systemRoots
 var systemRoots *x509.CertPool
 
-// updateRootCACerts adds the certificates of a user-imported ca.pem to the system roots. It never
-// replaces them: a file that only holds a MITM root would otherwise become the sole trust anchor.
-func updateRootCACerts(pem []byte) {
-	roots, err := x509.SystemCertPool()
-	if err != nil || roots == nil {
-		roots = x509.NewCertPool()
-	}
-	if !roots.AppendCertsFromPEM(pem) {
-		log.Println("failed to append certificates from pem")
-		return
-	}
-	systemRoots = roots
-	log.Println("imported ca.pem was added to the system roots")
+//go:linkname systemRootsMu crypto/x509.systemRootsMu
+var systemRootsMu sync.RWMutex
+
+var rootStore struct {
+	sync.Mutex
+	// what Go's roots were set from: the list's name and the imported certificates
+	applied string
+	// Go's own system roots, as they were before the first list took their place
+	original *x509.CertPool
+	// a ca.pem that held no certificate, said once
+	refused string
 }
 
-//go:linkname initSystemRoots crypto/x509.initSystemRoots
-func initSystemRoots()
+// rootStoreName is the list the app's setting names; chrome for a value it does not know, and where nothing can
+// be asked (a test).
+func rootStoreName() string {
+	if intfNiko != nil {
+		switch name := intfNiko.RootStore(); name {
+		case RootStoreMozilla, RootStoreSystem:
+			return name
+		}
+	}
+	return RootStoreChrome
+}
+
+// importedRoots are the certificates of the ca.pem imported in the app, empty when there is none or it holds no
+// certificate: a file that does not read would otherwise stop the core at its start.
+func importedRoots() string {
+	pem, err := os.ReadFile(externalAssetsPath + "ca.pem")
+	if err != nil {
+		return ""
+	}
+	if !x509.NewCertPool().AppendCertsFromPEM(pem) {
+		rootStore.Lock()
+		said := rootStore.refused == string(pem)
+		rootStore.refused = string(pem)
+		rootStore.Unlock()
+		if !said {
+			log.Println("the imported ca.pem holds no certificate: left out")
+		}
+		return ""
+	}
+	return string(pem)
+}
+
+// rootStoreOptions is the certificate store of a core instance: the list of the setting and the imported roots.
+func rootStoreOptions() *option.CertificateOptions {
+	options := &option.CertificateOptions{Store: rootStoreName()}
+	if pem := importedRoots(); pem != "" {
+		options.Certificate = badoption.Listable[string]{pem}
+	}
+	return options
+}
+
+// applyRootStore makes Go's own roots the list of the setting, with the imported roots: called where a core
+// instance or an HTTP client is made, so each process of the app follows the setting without being told.
+func applyRootStore() {
+	options := rootStoreOptions()
+	key := options.Store + "\x00" + strings.Join(options.Certificate, "\x00")
+	rootStore.Lock()
+	defer rootStore.Unlock()
+	if key == rootStore.applied {
+		return
+	}
+	if rootStore.original == nil {
+		// loads them, once: a list set before that would be overwritten by the load
+		original, err := x509.SystemCertPool()
+		if err != nil || original == nil {
+			original = x509.NewCertPool()
+		}
+		rootStore.original = original
+	}
+	if options.Store == RootStoreSystem {
+		// where the platform gives the core no list of its own it takes Go's: the system's, not the list set before
+		systemRootsMu.Lock()
+		systemRoots = rootStore.original
+		systemRootsMu.Unlock()
+	}
+	store, err := certificate.NewStore(context.Background(), logger.NOP(), *options)
+	if err != nil {
+		log.Println("roots:", err)
+		return
+	}
+	systemRootsMu.Lock()
+	systemRoots = store.Pool()
+	systemRootsMu.Unlock()
+	rootStore.applied = key
+	log.Printf("roots: the %s list, %d imported", options.Store, strings.Count(strings.Join(options.Certificate, ""), "BEGIN CERTIFICATE"))
+}

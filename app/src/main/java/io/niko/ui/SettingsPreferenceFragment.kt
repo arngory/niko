@@ -174,6 +174,8 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         findPreference<SwitchPreference>(Key.HONEST_CONNECT)?.onPreferenceChangeListener = reloadListener
         findPreference<SwitchPreference>(Key.ICMP_THROUGH_NODE)?.onPreferenceChangeListener = reloadListener
         findPreference<SwitchPreference>(Key.ICMP_NO_LOCAL_REPLY)?.onPreferenceChangeListener = reloadListener
+        // the roots of a running core are those it started with
+        findPreference<Preference>(Key.ROOT_STORE)?.onPreferenceChangeListener = reloadListener
         tlsFragmentBypass.onPreferenceChangeListener = reloadListener
         findPreference<Preference>(Key.RULE_SET_UPDATE_HOURS)!!.onPreferenceChangeListener = reloadListener
         mtu.onPreferenceChangeListener = reloadListener

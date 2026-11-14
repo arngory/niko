@@ -514,6 +514,17 @@
         <item>SagerNet</item>
     </string-array>
 
+    <string-array name="root_store_entries">
+        <item>@string/root_store_chrome</item>
+        <item>@string/root_store_mozilla</item>
+        <item>@string/root_store_system</item>
+    </string-array>
+    <string-array name="root_store_values" translatable="false">
+        <item>chrome</item>
+        <item>mozilla</item>
+        <item>system</item>
+    </string-array>
+
     <string-array name="app_tls_version">
         <item>1.2</item>
         <item>1.3</item>

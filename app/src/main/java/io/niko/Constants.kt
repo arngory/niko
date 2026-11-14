@@ -182,6 +182,7 @@ object Key {
     //
 
     const val APP_TLS_VERSION = "appTLSVersion"
+    const val ROOT_STORE = "rootStore"
     const val ENABLE_CLASH_API = "enableClashAPI"
     const val YGGDRASIL_ENABLED = "yggdrasilEnabled"
     const val YGGDRASIL_PEERS = "yggdrasilPeers"

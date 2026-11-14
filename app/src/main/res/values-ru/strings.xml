@@ -38,6 +38,10 @@
 <string name="app_name">Niko</string>
 <string name="app_name_long">Niko для Android</string>
 <string name="app_tls_version">Минимальная версия TLS протокола</string>
+    <string name="root_store">Доверенные корневые сертификаты</string>
+    <string name="root_store_chrome">Список Chrome (корню, установленному на телефон, доверия нет)</string>
+    <string name="root_store_mozilla">Список Mozilla (корню, установленному на телефон, доверия нет)</string>
+    <string name="root_store_system">Системные и установленные на телефон</string>
 <string name="app_version">Версия</string>
 <string name="append_http_proxy">Добавить HTTP-прокси к VPN</string>
 <string name="append_http_proxy_sum">HTTP-прокси будет использоваться напрямую из (браузера / некоторых поддерживаемых приложений), без использования виртуального сетевого интерфейса (Android 10+)</string>
@@ -479,7 +483,7 @@
 <string name="route_not_asset">Не файл ресурса: ожидался .db, а не %s</string>
 <string name="route_import_ca">Добавить корневой сертификат?</string>
 <string name="route_import_ca_message">Сертификатам из %s будут доверять все TLS-соединения приложения без пина: прокси, удалённый DNS, загрузка подписок и правил. Владелец ключа такого сертификата может читать и менять этот трафик. Добавляйте, только если знаете, откуда он.</string>
-<string name="route_import_ca_done">Сертификат добавлен. Он начнёт действовать после перезапуска приложения.</string>
+<string name="route_import_ca_done">Сертификат добавлен. Работающий профиль начнёт ему доверять после перезапуска.</string>
 <string name="route_opt_block_ads">Блокировать рекламу</string>
 <string name="route_opt_block_analysis">Блокировать аналитику</string>
 <string name="route_opt_block_quic">Блокировать QUIC</string>

@@ -79,12 +79,9 @@ func InitCore(process, cachePath, internalAssets, externalAssets string,
 		defer device.DeferPanicToError("InitCore-go", func(err error) { log.Println(err) })
 		device.GoDebug(process)
 
-		// certs: ca.pem imported in the app (AssetsActivity) into the route assets, which live in
-		// internal storage since 1.26.0; it is added to the system roots, never replaces them
-		pem, err := os.ReadFile(externalAssetsPath + "ca.pem")
-		if err == nil {
-			updateRootCACerts(pem)
-		}
+		// the roots chains are verified against: the list of the setting, with the ca.pem imported in the app
+		// (AssetsActivity) into the route assets, which live in internal storage since 1.26.0
+		applyRootStore()
 
 		// bg
 		if isBgProcess {

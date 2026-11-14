@@ -8,6 +8,8 @@ var isBgProcess bool
 
 type NikoInterface interface {
 	UseOfficialAssets() bool
+	// RootStore is the setting of the roots chains are verified against: chrome, mozilla or system (certs.go)
+	RootStore() string
 	Selector_OnProxySelected(selectorTag string, tag string)
 }
 

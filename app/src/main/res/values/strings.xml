@@ -163,7 +163,7 @@
     <string name="route_not_asset">Not an asset file: excepted .db, but %s</string>
     <string name="route_import_ca">Add a root certificate?</string>
     <string name="route_import_ca_message">The certificates in %s will be trusted for every TLS connection of the app that has no pin: proxies, remote DNS, subscription and rule downloads. Whoever holds the key of such a certificate can read and change that traffic. Add it only if you know where it came from.</string>
-    <string name="route_import_ca_done">Certificate added. It takes effect after the app restarts.</string>
+    <string name="route_import_ca_done">Certificate added. A running profile trusts it after its restart.</string>
     <string name="route_opt_bypass_lan">Bypass LAN</string>
     <string name="route_opt_block_ads">Block ADs</string>
     <string name="route_opt_block_analysis">Block analysis</string>
@@ -526,6 +526,10 @@
     <string name="exe_prefer_provider">Plugin Preferred Provider</string>
     <string name="create_shortcut">Create Shortcut</string>
     <string name="app_tls_version">Subscription Min TLS Version</string>
+    <string name="root_store">Trusted root certificates</string>
+    <string name="root_store_chrome">Chrome\'s list (a root installed on the phone is not trusted)</string>
+    <string name="root_store_mozilla">Mozilla\'s list (a root installed on the phone is not trusted)</string>
+    <string name="root_store_system">The system\'s, with roots installed on the phone</string>
     <string name="hop_interval">Port Hopping Interval(second)</string>
     <string name="domain_strategy_for_remote">Domain strategy for Remote</string>
     <string name="domain_strategy_for_direct">Domain strategy for Direct</string>
