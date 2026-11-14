@@ -11,7 +11,8 @@
 # that carry the root, over HTTP/2 and over QUIC.
 # Arguments: the APK folder, the invite file, the server's log, the token it serves, the folder for what the emulator
 # showed (a failure's artifact), the slipstream link, the root to install, the link of the profile under it, the
-# folder of the naive links (h2.link, h2-cert.link, quic-cert.link).
+# folder of the naive links (h2.link, h2-cert.link, quic-cert.link, hello.link) and of Chrome's ClientHello
+# (chrome-hello.hex, chrome-hello.source).
 set -u
 pkg=io.niko
 apk=$(ls "$1"/*-x86_64.apk 2>/dev/null | head -1)
@@ -438,5 +439,28 @@ for carriage in h2 quic; do
   echo "naive over $carriage: the runner's server saw the request from $from"
   down "naive-$carriage"
 done
+
+echo "== naive's ClientHello as this phone sends it, against the one captured from Chrome"
+# a profile to a port of the runner's that reads the first TLS record and closes: what Chromium of the APK's library
+# sends first, on Android. No capture is a failure (naive did not connect at all); a difference from Chrome's is a
+# warning, as in raycontrol-interop: the captured Chrome and the library's Chromium are of different versions
+rm -f "$out/naive-hello.hex"
+python3 -I "$here/hello.py" capture "$runner:18447" "$out/naive-hello.hex" &
+hello_pid=$!
+imported "$(cat "$naive_links/hello.link")" "$id" || fail "no naive profile from the ClientHello link"
+timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" --el profile "$id" > /dev/null ||
+  fail "the quick toggle did not start (naive, the ClientHello)"
+for i in $(seq 10); do
+  fetch "naive-hello-$i-$RANDOM"
+  [ -s "$out/naive-hello.hex" ] && break
+  sleep 3
+done
+# the capture ends once it has its record (or after its two minutes without a connection)
+wait "$hello_pid" || true
+[ -s "$out/naive-hello.hex" ] || fail "no ClientHello captured from naive on the emulator"
+echo "Chrome's ClientHello: $(cat "$naive_links/chrome-hello.source" 2> /dev/null)"
+python3 -I "$here/hello.py" compare "$naive_links/chrome-hello.hex" "$out/naive-hello.hex" ||
+  echo "::warning::the ClientHello of naive on the emulator could not be compared with Chrome's"
+down naive-hello
 
 finish 0

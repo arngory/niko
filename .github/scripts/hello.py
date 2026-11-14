@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """A TLS ClientHello as a client really sends it, against the one captured from Chrome.
 
-  hello.py capture PORT OUT          accept one connection on 127.0.0.1:PORT, write its first TLS record to OUT (hex)
+  hello.py capture PORT OUT          accept one connection on 127.0.0.1:PORT (or on HOST:PORT given so), write its
+                                     first TLS record to OUT (hex)
   hello.py compare REFERENCE GOT     compare two such records, part by part; --strict: exit 1 when they differ
 
 The naive outbound is Chromium's network stack, so its ClientHello should be Chrome's: this shows where it is not
@@ -33,10 +34,11 @@ def name(ext):
     return "GREASE" if grease(ext) else f"{NAMES.get(ext, 'unknown')} ({ext:#06x})"
 
 
-def capture(port, out):
+def capture(where, out):
+    host, _, port = where.rpartition(":")
     listener = socket.socket()
     listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    listener.bind(("127.0.0.1", port))
+    listener.bind((host or "127.0.0.1", int(port)))
     listener.listen(1)
     listener.settimeout(120)
     conn, _ = listener.accept()
@@ -127,7 +129,7 @@ def compare(reference, got, strict):
 
 if __name__ == "__main__":
     if len(sys.argv) >= 4 and sys.argv[1] == "capture":
-        capture(int(sys.argv[2]), sys.argv[3])
+        capture(sys.argv[2], sys.argv[3])
     elif len(sys.argv) >= 4 and sys.argv[1] == "compare":
         sys.exit(compare(sys.argv[2], sys.argv[3], "--strict" in sys.argv[4:]))
     else:
