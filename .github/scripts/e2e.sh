@@ -298,6 +298,8 @@ echo "== the root store: a root the phone's user installed, under the Chrome lis
 # the user's store as Android keeps it (Settings, Install a certificate, CA certificate): a file named by the
 # subject's old hash. The app is stopped: its next process reads the store anew
 timeout 20 adb shell am force-stop "$pkg"
+# the core's log from here on is this profile's: what it said before is the profiles' before
+timeout 20 adb shell "rm -f /data/data/$pkg/cache/neko.log"
 hash=$(openssl x509 -in "$user_root" -noout -subject_hash_old) || fail "the root's subject hash"
 added=/data/misc/user/0/cacerts-added
 timeout 20 adb shell "mkdir -p $added" || fail "the user's root store: no folder"
@@ -318,18 +320,21 @@ echo "the profile under the root: $id"
 # the Chrome list, the app's default: the root on the phone opens nothing, and the core says whose fault it is
 timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" --el profile "$id" > /dev/null ||
   fail "the quick toggle did not start (the Chrome list)"
+# a request that went nowhere with the VPN up (one before it is up comes from the runner's own address), and the
+# core's word for why, about this server
 refused=no
-for i in $(seq 6); do
+for i in $(seq 10); do
   fetch "roots-chrome-$i-$RANDOM"
   [ "$from" = "$slip_stage" ] &&
     fail "under the Chrome list a certificate from a root the phone's user installed was taken: the request came from $from"
   timeout 30 adb pull "/data/data/$pkg/cache/neko.log" "$out/neko-roots.log" > /dev/null 2>&1
-  if grep -q "unknown authority" "$out/neko-roots.log" 2> /dev/null; then refused=yes; break; fi
+  if [ -z "$from" ] && grep -q "unknown authority" "$out/neko-roots.log" 2> /dev/null; then refused=yes; break; fi
   sleep 3
 done
 [ "$refused" = yes ] ||
-  fail "under the Chrome list the profile did not carry, but the core's log names no unknown authority (nc said: $last)"
-echo "the Chrome list: the certificate refused, $(grep -c 'unknown authority' "$out/neko-roots.log") times in the core's log"
+  fail "under the Chrome list: no request lost to an unknown authority (the last from '${from:-nowhere}', nc said: $last)"
+echo "the Chrome list: the request went nowhere, and the core's log says, $(grep -c 'unknown authority' "$out/neko-roots.log") times:"
+grep -m1 "unknown authority" "$out/neko-roots.log" | cut -c1-400
 timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" > /dev/null || fail "the quick toggle did not stop (the Chrome list)"
 sleep 3
 # the system's store: the setting as the app keeps it (configuration.db, a string), the app stopped first
