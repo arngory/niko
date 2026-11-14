@@ -38,14 +38,20 @@ var naiveRoots struct {
 }
 
 // initNaiveRoots names the file to Chromium, once per process and before any engine of it, and leaves it empty:
-// nothing besides Chrome's list until a core instance says otherwise.
-func initNaiveRoots(dir string) {
+// nothing besides Chrome's list until a core instance says otherwise. Each of the app's processes has a file of
+// its own (the service's and the interface's both make core instances): one file between them would be emptied
+// by the start of one under an engine the other is about to make.
+func initNaiveRoots(dir string, bg bool) {
 	naiveRoots.Lock()
 	defer naiveRoots.Unlock()
 	if naiveRoots.path != "" {
 		return
 	}
-	naiveRoots.path = filepath.Join(dir, "naive-roots.pem")
+	name := "naive-roots-ui.pem"
+	if bg {
+		name = "naive-roots-bg.pem"
+	}
+	naiveRoots.path = filepath.Join(dir, name)
 	naiveRoots.system = certificate.SystemCertificates
 	if err := writeFileAtomic(naiveRoots.path, nil); err != nil {
 		log.Println("naive roots:", err)
@@ -104,11 +110,21 @@ func rootsBundle(certificates []*x509.Certificate) ([]byte, int) {
 }
 
 // writeFileAtomic writes the file whole or not at all: an engine made meanwhile reads the list before or the list
-// after, never a part.
+// after, never a part. The temporary file has a name of its own each time, so two writers never share one.
 func writeFileAtomic(path string, content []byte) error {
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, content, 0o600); err != nil {
+	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*.tmp")
+	if err != nil {
 		return err
 	}
-	return os.Rename(tmp, path)
+	_, err = tmp.Write(content)
+	if closeErr := tmp.Close(); err == nil {
+		err = closeErr
+	}
+	if err == nil {
+		err = os.Rename(tmp.Name(), path)
+	}
+	if err != nil {
+		_ = os.Remove(tmp.Name())
+	}
+	return err
 }

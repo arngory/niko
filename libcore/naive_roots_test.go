@@ -81,7 +81,36 @@ func TestNaiveRootsFile(t *testing.T) {
 	if n := blocks(); n != 0 {
 		t.Fatalf("no roots from the platform: %d certificates in naive's file", n)
 	}
+	// a write leaves no temporary file behind
+	if left, _ := filepath.Glob(filepath.Join(filepath.Dir(path), "*.tmp")); len(left) != 0 {
+		t.Fatalf("temporary files left: %v", left)
+	}
 	// before the process named a file nothing is written anywhere
 	naiveRoots.path = ""
 	writeNaiveRoots()
+
+	// each process of the app has a file of its own, named to Chromium once
+	savedEnv, hadEnv := os.LookupEnv("SSL_CERT_FILE")
+	defer func() {
+		if hadEnv {
+			os.Setenv("SSL_CERT_FILE", savedEnv)
+		} else {
+			os.Unsetenv("SSL_CERT_FILE")
+		}
+	}()
+	dir := t.TempDir()
+	initNaiveRoots(dir, true)
+	bg := naiveRoots.path
+	if os.Getenv("SSL_CERT_FILE") != bg || filepath.Base(bg) != "naive-roots-bg.pem" {
+		t.Fatalf("the service's process: file %q, the variable %q", bg, os.Getenv("SSL_CERT_FILE"))
+	}
+	initNaiveRoots(t.TempDir(), false)
+	if naiveRoots.path != bg {
+		t.Fatal("the file was named a second time in one process")
+	}
+	naiveRoots.path = ""
+	initNaiveRoots(dir, false)
+	if filepath.Base(naiveRoots.path) != "naive-roots-ui.pem" {
+		t.Fatalf("the interface's process: file %q", naiveRoots.path)
+	}
 }

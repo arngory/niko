@@ -53,7 +53,7 @@ func InitCore(process, cachePath, internalAssets, externalAssets string,
 	os.Chdir(tmp)
 	// the file of roots naive's Chromium reads besides Chrome's list: named to it here, before any engine
 	// (naive_roots.go)
-	initNaiveRoots(tmp)
+	initNaiveRoots(tmp, isBgProcess)
 
 	// sing-box fs
 	resourcePaths = append(resourcePaths, externalAssets)

@@ -460,9 +460,18 @@ for i in $(seq 6); do
   sleep 3
 done
 timeout 30 adb pull "/data/data/$pkg/cache/neko.log" "$out/neko-naive.log" > /dev/null 2>&1
-echo "naive under the system's store, QUIC: $lost requests of 6 went nowhere, none through; naive said:"
-grep -a "outbound/naive" "$out/neko-naive.log" 2> /dev/null | grep -aiE "fail|error|invalid|unknown" | tail -n 3 | cut -c1-400
 [ "$lost" -gt 0 ] || fail "naive over QUIC under the system's store: no request went through the VPN at all"
+# lost to the certificate, not to the stand: Chromium's word for a root it does not know over QUIC (or for an
+# authority it does not trust). A timeout or a port nobody answers would say neither
+quic_said=$(grep -a "outbound/naive" "$out/neko-naive.log" 2> /dev/null |
+  grep -aiE "quic cert root not known|cert authority invalid" | head -1 | cut -c1-400)
+if [ -z "$quic_said" ]; then
+  echo "--- what naive said"
+  grep -a "naive" "$out/neko-naive.log" 2> /dev/null | tail -n 20 | cut -c1-400
+  fail "naive over QUIC under the system's store: $lost requests lost, but not to the certificate"
+fi
+echo "naive under the system's store, QUIC: $lost requests of 6 went nowhere, none through, and the core's log says:"
+echo "$quic_said"
 down naive-system-quic
 # and back: the list again, the file of the phone's roots emptied
 roots chrome
