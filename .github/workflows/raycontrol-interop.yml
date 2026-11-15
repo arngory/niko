@@ -652,6 +652,10 @@ jobs:
             docker exec rc-node /opt/rc/rayctl user show alice || true
             docker exec rc-node /opt/rc/rayctl status || true
             docker exec rc-node sh -c 'for f in $(find /var/log -name "*.log" -mmin -3 2> /dev/null); do echo "== $f"; tail -n 200 "$f"; done' || true
+            # under -supervise rayd writes its units' output into its own log, a line each, the unit's name first:
+            # niko-server's (Hysteria2) apart, and whether a unit restarted around reset-usage
+            echo "--- niko-server (Hysteria2) and the units' starts and exits"
+            docker exec rc-node sh -c 'grep -aE "niko-server|hysteria|supervise: (started|exited|stopped)" /var/log/rayd.log | tail -n 400' || true
             exit 1
           }
 
