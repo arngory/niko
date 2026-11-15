@@ -36,6 +36,10 @@
         <include
             domain="database"
             path="sager_net.db" />
+        <!-- the database's journal: profiles written since its last checkpoint live there only -->
+        <include
+            domain="database"
+            path="sager_net.db-wal" />
         <!-- not the settings: this install's keys (the mesh key, the raycontrol nodes, wrapped by this device's
              Keystore) stay on it -->
     </device-transfer>

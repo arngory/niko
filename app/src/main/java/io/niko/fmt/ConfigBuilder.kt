@@ -1190,9 +1190,16 @@ fun buildConfig(
                 }
 
                 // a rule given domains whose DNS rule is left with none (a rule-set not here yet, an IP-only one) has
-                // no DNS rule: with the app alone it would take every name the app looks up
+                // no DNS rule: with the app alone it would take every name the app looks up. A rule without domains
+                // has one only where it is the app alone: an app's rule for some addresses, ports or a network
+                // would send every name the app looks up its way (direct: to the network's resolver)
                 fun addDnsRule(dnsRule: DNSRule_DefaultOptions) {
-                    if (rule.domains.isBlank() || dnsRule.hasDomain()) userDNSRuleList += dnsRule
+                    val follows = if (rule.domains.isBlank()) {
+                        dnsFollowsAppRule(rule.ip, rule.port, rule.sourcePort, rule.network, rule.source, rule.protocol)
+                    } else {
+                        dnsRule.hasDomain()
+                    }
+                    if (follows) userDNSRuleList += dnsRule
                 }
 
                 if (!dropRule) when (rule.outbound) {
@@ -1624,6 +1631,15 @@ internal fun nodeTlsTweaks(outboundType: String?, tls: Map<*, *>?, replacedFinge
  */
 internal fun naiveQuicPhoneRoots(rootStore: String?, switchOn: Boolean, proto: String?): Boolean =
     switchOn && rootStore == "system" && proto == "quic"
+
+/**
+ * Whether a route rule without domains takes the DNS of its apps along: only a rule that is its apps alone. One that
+ * also names addresses, ports, a network, sources or protocols matches some of the apps' connections, not their
+ * names (ThroneForAndroid aaef218 found it in NekoBox's code).
+ */
+internal fun dnsFollowsAppRule(
+    ip: String, port: String, sourcePort: String, network: String, source: String, protocol: String,
+): Boolean = listOf(ip, port, sourcePort, network, source, protocol).all { it.isBlank() }
 
 /** Why an outbound cannot be held to key pins, null when it can. */
 internal fun pinRefusal(outboundType: String?, external: Boolean, tls: Map<*, *>?): String? = when {

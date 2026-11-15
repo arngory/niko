@@ -263,6 +263,19 @@ class BaseService {
             }
         }
 
+        /** The running core's remote DNS asked once (libcore DohCheck): an HTTP status it refused with, or 0 or less. */
+        suspend fun dohRunning(): Int {
+            val box = data.proxy?.takeIf { it.isInitialized() }?.box ?: return -2
+            return try {
+                withContext(Dispatchers.IO) { Libcore.dohCheck(box, "dns-remote", 5000) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logs.d("raycontrol watchdog: DoH: ${e.readableMessage}")
+                -1
+            }
+        }
+
         fun startRunner() {
             this as Context
             if (Build.VERSION.SDK_INT >= 26) startForegroundService(Intent(this, javaClass))
@@ -342,8 +355,18 @@ class BaseService {
 
         suspend fun preInit() {
             RayWatchdog.beginRun()
+            // the default network went away since the last one this run saw
+            var upstreamLost = false
             DefaultNetworkListener.start(this) {
                 RayWatchdog.network(it != null)
+                if (it == null) {
+                    // no network: the VPN follows the system's default, not the network that is gone, and the
+                    // resolver asks no gone network's handle (ThroneForAndroid 234c661 found it in NekoBox's code)
+                    SagerNet.underlyingNetwork = null
+                    DataStore.vpnService?.updateUnderlyingNetwork()
+                    if (upstreamInterfaceName != null) upstreamLost = true
+                    return@start
+                }
                 SagerNet.connectivity.getLinkProperties(it)?.also { link ->
                     SagerNet.underlyingNetwork = it
                     DataStore.vpnService?.updateUnderlyingNetwork()
@@ -352,6 +375,8 @@ class BaseService {
                     if (oldName != link.interfaceName) {
                         upstreamInterfaceName = link.interfaceName
                     }
+                    val back = upstreamLost
+                    upstreamLost = false
                     if (oldName != null && upstreamInterfaceName != null && oldName != upstreamInterfaceName) {
                         Logs.d("Network changed: $oldName -> $upstreamInterfaceName")
                         if (DataStore.networkChangeResetConnections) {
@@ -359,6 +384,14 @@ class BaseService {
                         }
                         // a raycontrol node may be reachable differently here (SPA carrier, port)
                         RayWatchdog.networkChanged()
+                    } else if (back && upstreamInterfaceName != null) {
+                        // the same interface after none (wlan0, nothing, wlan0): the connections of before hang on
+                        // sockets of a network that went away all the same. The watchdog heard of it already
+                        // (RayWatchdog.network: a network that comes back)
+                        Logs.d("Network back: $upstreamInterfaceName")
+                        if (DataStore.networkChangeResetConnections) {
+                            Libcore.resetAllConnections(true)
+                        }
                     }
                 }
             }
@@ -453,7 +486,7 @@ class BaseService {
                     startProcesses()
                     if (data.state != State.Connecting) return@runOnMainDispatcher
                     data.changeState(State.Connected)
-                    RayWatchdog.start { probeRunning() }
+                    RayWatchdog.start({ probeRunning() }) { dohRunning() }
                     // the rules' downloaded rule-sets: the stale ones through the proxy, once it has settled
                     RuleSetFiles.updateSoon()
 

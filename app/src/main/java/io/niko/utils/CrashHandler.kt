@@ -36,10 +36,36 @@ object CrashHandler : Thread.UncaughtExceptionHandler {
         } catch (e: Exception) {
         }
 
+        // a crash soon after the last restart for one (the report itself failing, or the start): no other restart,
+        // or the app would loop restarting (ThroneForAndroid 3c4f9cb found it in NekoBox's code)
+        val now = System.currentTimeMillis()
+        val marker = try {
+            java.io.File(app.noBackupFilesDir, "crash-rebirth")
+        } catch (e: Exception) {
+            null
+        }
+        val last = try {
+            marker?.readText()?.trim()?.toLong() ?: 0L
+        } catch (e: Exception) {
+            0L
+        }
+        if (!rebirthAllowed(now, last)) {
+            android.os.Process.killProcess(android.os.Process.myPid())
+            kotlin.system.exitProcess(10)
+        }
+        try {
+            marker?.writeText(now.toString())
+        } catch (e: Exception) {
+        }
         ProcessPhoenix.triggerRebirth(app, Intent(app, BlankActivity::class.java).apply {
             putExtra("sendLog", "Niko Crash")
         })
     }
+
+    private const val REBIRTH_GAP = 30_000L
+
+    /** Whether a crash at [now] restarts the app for its report: not within [REBIRTH_GAP] of the last such restart. */
+    internal fun rebirthAllowed(now: Long, last: Long) = now - last !in 0 until REBIRTH_GAP
 
     fun formatThrowable(throwable: Throwable): String {
         var format = throwable.javaClass.name

@@ -59,7 +59,8 @@ jobs:
   e2e:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    # 10 more for the memory phases (e2e.sh, memory(): the loads, the URL test, the app off the screen)
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -301,6 +302,16 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
           script: bash .github/scripts/e2e.sh apks /tmp/phone.invite /tmp/www.log /tmp/www/e2e /tmp/e2e /tmp/slip.link /tmp/slipbin/roots/root.pem /tmp/roots.link /tmp/naivestage
 
+      # the app's memory by phase (e2e.sh, memory()): dumpsys meminfo, smaps and the Go runtime's line, with or
+      # without a failure; the table is in the job's summary
+      - name: The app's memory
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: e2e-memory
+          path: /tmp/e2e/memory
+          if-no-files-found: ignore
+          retention-days: 14
       - name: What the emulator showed
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

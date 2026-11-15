@@ -6,4 +6,6 @@
 <full-backup-content xmlns:tools="http://schemas.android.com/tools"
                      tools:ignore="FullBackupContent">
     <include domain="database" path="sager_net.db" requireFlags="deviceToDeviceTransfer"/>
+    <!-- the journal: profiles written since the last checkpoint live there only -->
+    <include domain="database" path="sager_net.db-wal" requireFlags="deviceToDeviceTransfer"/>
 </full-backup-content>

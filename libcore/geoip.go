@@ -24,8 +24,11 @@ func (g *geoip) Open(path string) error {
 
 func (g *geoip) Rules(countryCode string) ([]option.HeadlessRule, error) {
 	networks := g.geoipReader.Networks(maxminddb.SkipAliasedNetworks)
-	countryMap := make(map[string][]*net.IPNet)
+	// the networks of the one country asked, kept as they are read: a map of every country's, built to take one
+	// from it, held some 30 MB at its peak at each start of the core (neko: the app's memory study, 2026-11-14)
+	want := strings.ToLower(countryCode)
 	var (
+		ipNets          []*net.IPNet
 		ipNet           *net.IPNet
 		nextCountryCode string
 		err             error
@@ -35,10 +38,13 @@ func (g *geoip) Rules(countryCode string) ([]option.HeadlessRule, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to get network: %w", err)
 		}
-		countryMap[nextCountryCode] = append(countryMap[nextCountryCode], ipNet)
+		if nextCountryCode == want {
+			ipNets = append(ipNets, ipNet)
+		}
 	}
-
-	ipNets := countryMap[strings.ToLower(countryCode)]
+	if err = networks.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read networks: %w", err)
+	}
 
 	if len(ipNets) == 0 {
 		return nil, fmt.Errorf("no networks found for country code: %s", countryCode)

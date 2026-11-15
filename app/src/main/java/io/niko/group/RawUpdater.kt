@@ -262,6 +262,9 @@ object RawUpdater : GroupUpdater() {
         SagerDatabase.proxyDao.deleteProxy(toDelete).also {
             Logs.d("Deleted profiles: $it")
         }
+        // the selected profile gone with the subscription's update: no profile, as ProfileManager.deleteProfile
+        // leaves it, not an ID of none that the next start fails on (ThroneForAndroid found it in NekoBox's code)
+        if (toDelete.any { it.id == DataStore.selectedProxy }) DataStore.selectedProxy = 0L
 
         val existCount = SagerDatabase.proxyDao.countByGroup(proxyGroup.id).toInt()
 

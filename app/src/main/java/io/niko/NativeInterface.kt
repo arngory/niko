@@ -78,7 +78,7 @@ class NativeInterface : BoxPlatformInterface, NikoInterface {
             return "android"
         }
 
-        val packageNames = PackageCache.uidMap[uid]
+        val packageNames = PackageCache.packagesOf(uid)
         if (!packageNames.isNullOrEmpty()) for (packageName in packageNames) {
             return packageName
         }

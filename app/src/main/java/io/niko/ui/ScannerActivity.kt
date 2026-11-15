@@ -189,7 +189,9 @@ class ScannerActivity : ThemedActivity(),
         cameraScan = DefaultCameraScan(this, binding.previewView)
         // a code light on dark too (a QR drawn in a dark terminal), tried when a frame has no other
         cameraScan.setAnalyzer(
-            QRCodeAnalyzer(DecodeConfig().setHints(DecodeFormatManager.QR_CODE_HINTS).setSupportLuminanceInvert(true))
+            QRCodeAnalyzer(DecodeConfig().setHints(DecodeFormatManager.QR_CODE_HINTS).setSupportLuminanceInvert(true)
+                // the whole frame, not its centre only: a code off the middle of the screen is read too
+                .setFullAreaScan(true))
         )
         cameraScan.setOnScanResultCallback(this)
         cameraScan.setNeedAutoZoom(true)

@@ -11,7 +11,12 @@ class BlankActivity : AppCompatActivity() {
 
         // process crash log
         intent?.getStringExtra("sendLog")?.apply {
-            SendLog.sendLog(this@BlankActivity, this)
+            // the report failing (no room for the log, the file provider) is no reason to crash once more
+            try {
+                SendLog.sendLog(this@BlankActivity, this)
+            } catch (e: Throwable) {
+                io.niko.ktx.Logs.e(e)
+            }
         }
 
         finish()

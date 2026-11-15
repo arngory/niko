@@ -14,6 +14,8 @@
 # folder of the naive links (h2.link, quic.link, quic-badpin.link, h2-cert.link, quic-cert.link, public.link, hello.link) and of Chrome's
 # ClientHello
 # (chrome-hello.hex, chrome-hello.source).
+# Along the way the memory of the app's two processes at its phases (memory(), e2e-memory.py): a record in
+# $5/memory, the table in the job's summary; never a failure.
 set -u
 pkg=io.niko
 apk=$(ls "$1"/*-x86_64.apk 2>/dev/null | head -1)
@@ -42,6 +44,113 @@ vless=4
 trojan=6
 naive=9
 
+# Memory: each process of the app at a phase of the run, as the phone counts it (dumpsys meminfo), as the kernel maps
+# it (smaps by the region's name: Go's heap "[anon: Go: ...]", Chromium's "[anon:partition_alloc]", libgojni.so) and as
+# Go sees it (the go-mem line of libcore's ForceGc, on a trim the shell sends). A row per process and phase in
+# $memdir/summary.tsv; the table at the end. A record only: nothing here fails the run.
+www=$(dirname "$4")
+memdir="$out/memory"
+mkdir -p "$memdir"
+python3 -I "$here/e2e-memory.py" header > "$memdir/summary.tsv"
+applog="/data/data/$pkg/cache/neko.log"
+declare -A trimmed
+# gomem PID TAG MODE: the process's go-mem line. go: on a trim the shell sends now (ForceGc: the line, then the Go
+# heap's free memory back to the system). The shell takes a level below UI_HIDDEN only for a foreground process,
+# each higher than the last: three per process. log: the last line there is (a trim the system sent: UI_HIDDEN on
+# leaving the screen). Anything else, or none came: "-"
+gomem() {
+  local levels=(RUNNING_MODERATE RUNNING_LOW RUNNING_CRITICAL) n count said i line
+  case "$3" in
+    go)
+      count=$(timeout 10 adb shell "grep -c 'go-mem $2 ' $applog" 2>/dev/null | tr -d '\r')
+      n=${trimmed[$1]:-0}
+      said=
+      while [ "$n" -lt 3 ]; do
+        said=$(timeout 10 adb shell am send-trim-memory "$1" "${levels[$n]}" 2>&1)
+        n=$((n + 1))
+        grep -qiE "error|exception" <<< "$said" || { said=sent; break; }
+      done
+      trimmed[$1]=$n
+      [ "$said" = sent ] || { echo -; return; }
+      for i in $(seq 10); do
+        sleep 1
+        [ "$(timeout 10 adb shell "grep -c 'go-mem $2 ' $applog" 2>/dev/null | tr -d '\r')" != "${count:-0}" ] && break
+      done
+      ;;
+    log) ;;
+    *) echo -; return ;;
+  esac
+  line=$(timeout 10 adb shell "grep 'go-mem $2 ' $applog" 2>/dev/null | tr -d '\r' | tail -n 1)
+  echo "${line:--}"
+}
+# memory PHASE [UI_MODE [BG_MODE]]: a row for each process (gomem's MODE, "-" by default). dumpsys and smaps first: a
+# trim gives the Go heap's free memory back, which the next phase starts from
+memory() {
+  local phase=$1 proc tag pid mode go
+  for proc in "$pkg" "$pkg:bg"; do
+    if [ "$proc" = "$pkg" ]; then tag=ui; mode=${2:--}; else tag=bg; mode=${3:--}; fi
+    pid=$(timeout 10 adb shell pidof "$proc" 2>/dev/null | tr -d '\r' | awk '{print $1}')
+    if [ -z "$pid" ]; then
+      python3 -I "$here/e2e-memory.py" row "$phase" "$tag" "$memdir/none" - >> "$memdir/summary.tsv"
+      continue
+    fi
+    timeout 30 adb shell dumpsys meminfo "$pid" > "$memdir/$phase-$tag.meminfo" 2>&1
+    timeout 60 adb shell cat "/proc/$pid/smaps" > "$memdir/$phase-$tag.smaps" 2> /dev/null
+    timeout 10 adb shell cat "/proc/$pid/smaps_rollup" > "$memdir/$phase-$tag.rollup" 2> /dev/null
+    go=$(gomem "$pid" "$tag" "$mode")
+    python3 -I "$here/e2e-memory.py" row "$phase" "$tag" "$memdir/$phase-$tag" "$go" >> "$memdir/summary.tsv"
+    gzip -f "$memdir/$phase-$tag.smaps" 2> /dev/null
+  done
+  echo "memory, $phase (KB, PSS):" $(awk -F'\t' -v p="$phase" '$1 == p {printf "%s %s ", $2, $4}' "$memdir/summary.tsv")
+}
+# load KIND SECONDS: four transfers at once through the VPN, in the background, for SECONDS (the emulator's own
+# timeout). down: a file of the runner's server. up: to a sink of the runner's that reads slowly, an outbound slower
+# than the phone: what the apps send waits in the core, unread in its TUN stack. loads: their jobs, for wait
+head -c $((32 << 20)) /dev/urandom > "$www/big.bin"
+sinkport=18448
+python3 -I -c '
+import socket, sys, threading, time
+s = socket.socket()
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind((sys.argv[1], int(sys.argv[2])))
+s.listen(16)
+def slow(c):
+    with c:
+        while c.recv(16384):
+            time.sleep(0.1)
+while True:
+    c, _ = s.accept()
+    threading.Thread(target=slow, args=(c,), daemon=True).start()
+' "$runner" "$sinkport" > /dev/null 2>&1 &
+sink=$!
+loads=()
+load() {
+  local i
+  loads=()
+  for i in 1 2 3 4; do
+    if [ "$1" = up ]; then
+      timeout $(($2 + 30)) adb shell "timeout $2 nc -w 10 $runner $sinkport < /dev/zero" > /dev/null 2>&1 &
+    else
+      timeout $(($2 + 30)) adb shell "timeout $2 sh -c \"(printf 'GET /big.bin?load-$i HTTP/1.0\r\n\r\n'; sleep $2) | nc -w 10 $runner $port > /dev/null\"" \
+        > /dev/null 2>&1 &
+    fi
+    loads+=($!)
+  done
+}
+# tap_on TEXT: taps the node whose text or content-desc is TEXT, or whose resource-id ends in it, waiting for it
+tap_on() {
+  local i xy
+  for i in $(seq 10); do
+    timeout 30 adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1
+    timeout 30 adb pull /sdcard/ui.xml "$out/ui.xml" > /dev/null 2>&1
+    xy=$(python3 -I "$here/e2e-memory.py" tap "$out/ui.xml" "$1")
+    # shellcheck disable=SC2086 # x and y
+    [ -n "$xy" ] && timeout 20 adb shell input tap $xy && return 0
+    sleep 2
+  done
+  return 1
+}
+
 finish() {
   timeout 30 adb exec-out screencap -p > "$out/screen.png" 2>/dev/null
   timeout 60 adb logcat -d > "$out/logcat.txt" 2>/dev/null
@@ -49,6 +158,11 @@ finish() {
   { timeout 20 adb shell ip addr; timeout 20 adb shell ip rule; timeout 30 adb shell dumpsys connectivity;
     timeout 20 adb shell ps -A -o PID,USER,ARGS; } > "$out/network.txt" 2>&1
   status=$1
+  kill "$sink" 2> /dev/null
+  if [ "$(wc -l < "$memdir/summary.tsv" 2> /dev/null || echo 0)" -gt 1 ]; then
+    echo "--- the app's memory by phase (KB; $memdir)"
+    python3 -I "$here/e2e-memory.py" table "$memdir/summary.tsv" | tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}"
+  fi
   if grep -E "FATAL EXCEPTION|ANR in $pkg" -A 20 "$out/logcat.txt" | grep -B2 -A20 "$pkg"; then
     echo "::error::the app crashed or did not answer"; status=1
   fi
@@ -144,6 +258,8 @@ for i in $(seq 45); do
 done
 [ -n "$id" ] || fail "no Hysteria2 profile from the node after 90 s"
 echo "the node's Hysteria2 profile: $id"
+hy2=$id
+memory ui-start go go
 
 echo "== the core's log at debug (a failure's artifact)"
 # the app stopped first: its settings are Room's KeyValuePair in configuration.db, the log level a string
@@ -166,6 +282,20 @@ done
 [ "$from" = "$node" ] && [ "$carried" = yes ] ||
   fail "through the VPN: from '${from:-nowhere}', token $carried, want the node's $node (nc said: $last)"
 echo "through the tunnel: the runner's server saw the request from $from"
+
+echo "== memory: the VPN through Hysteria2, idle, under load (down, then up to a slow sink) and after it"
+sleep 10
+memory vpn-idle - go
+load down 25
+sleep 12
+memory vpn-down-load
+wait "${loads[@]}" 2> /dev/null
+load up 25
+sleep 15
+memory vpn-up-load
+wait "${loads[@]}" 2> /dev/null
+sleep 20
+memory vpn-after-load - go
 
 echo "== Private DNS with the VPN on: each mode, then strict across a restart of the core"
 # resolved NAME: the address ping got for NAME through the system's resolver (what every app gets), empty: none
@@ -273,6 +403,7 @@ for i in $(seq 10); do
 done
 [ "$cached" = no ] || fail "after the VPN stopped, FakeDNS's name $canary in the core's cache file ($cached)"
 echo "the VPN stopped: $canary is out of the core's cache file"
+memory vpn-off - go
 
 echo "== slipstream: the link, the VPN through the bundled client"
 timeout 60 adb shell "am start -W -n $pkg/$pkg.ui.MainActivity -a android.intent.action.VIEW -d '$slip_link'" > /dev/null ||
@@ -546,7 +677,19 @@ for carriage in h2 quic; do
     fail "naive over $carriage with the profile's root: from '${from:-nowhere}', token $carried, want the stage $naive_stage (nc said: $last)"
   fi
   echo "naive over $carriage: the runner's server saw the request from $from"
+  # Chromium's engine in the core: idle, under load, and what of it stays once the VPN is down
+  memory "naive-$carriage"
+  load down 25
+  sleep 12
+  memory "naive-$carriage-down-load"
+  wait "${loads[@]}" 2> /dev/null
+  load up 25
+  sleep 15
+  memory "naive-$carriage-up-load"
+  wait "${loads[@]}" 2> /dev/null
   down "naive-$carriage"
+  sleep 10
+  memory "naive-$carriage-off" - go
 done
 
 echo "== naive against a public site: Chromium's list and the list of the setting, both"
@@ -584,6 +727,18 @@ for list in chrome mozilla; do
 done
 roots chrome
 id=$public
+
+echo "== memory: a URL test of the group on the screen (the app's own process, a core for each profile, five at once)"
+timeout 60 adb shell am start -n "$pkg/$pkg.ui.MainActivity" > /dev/null 2>&1
+sleep 5
+memory ui-before-test go
+if tap_on action_misc && sleep 2 && tap_on "URL Test"; then
+  sleep 45
+  memory ui-after-test go
+  timeout 10 adb shell input keyevent KEYCODE_BACK
+else
+  echo "::warning::memory: no URL test started (its menu was not on the screen)"
+fi
 # Chromium's own complaint about a file without roots: the library says nothing of it on Android
 if timeout 60 adb logcat -d 2> /dev/null | grep -q "No CA certificates were found"; then
   fail "Chromium complains of the empty file of roots (No CA certificates were found)"
@@ -611,5 +766,19 @@ echo "Chrome's ClientHello: $(cat "$naive_links/chrome-hello.source" 2> /dev/nul
 python3 -I "$here/hello.py" compare "$naive_links/chrome-hello.hex" "$out/naive-hello.hex" ||
   echo "::warning::the ClientHello of naive on the emulator could not be compared with Chrome's"
 down naive-hello
+
+echo "== memory: the VPN through Hysteria2 again, the app off the screen"
+timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" --el profile "$hy2" > /dev/null 2>&1
+for i in $(seq 10); do
+  fetch "background-$i-$RANDOM"
+  [ "$from" = "$node" ] && break
+  sleep 3
+done
+memory foreground-vpn go go
+# UI_HIDDEN for the app's process from the system (its onTrimMemory: ForceGc, the line in the log)
+timeout 10 adb shell input keyevent KEYCODE_HOME
+sleep 60
+memory background-vpn log go
+timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" > /dev/null 2>&1
 
 finish 0

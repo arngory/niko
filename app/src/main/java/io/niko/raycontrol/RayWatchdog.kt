@@ -26,7 +26,11 @@ import kotlinx.coroutines.withTimeoutOrNull
  *   profile: own port, SPA, pinned key) and the core restarts if the profile changed; if the fetch fails, the
  *   profile switches to its other credential (`link` ↔ `next`), if it has one;
  * - when neither changes anything, the network does not let the profile through: the node's other profiles are
- *   probed and the core moves to the best one that works ([RayChannel.failover], setting raycontrolAutoSwitch).
+ *   probed and the core moves to the best one that works ([RayChannel.failover], setting raycontrolAutoSwitch);
+ * - while the node's DoH is the remote DNS, it is asked once in [DOH_PERIOD] besides the test: a 4xx is the node's
+ *   word that it no longer takes this device's token (raycontrol v0.27.0: a revoked device, the token before a
+ *   rotation, the shared token after its 72 hours) and the subscription is fetched, as after two failed tests. The
+ *   connection test passes all the while: DNS is the one thing that fails.
  *
  * Tests run 20 s after the start, 15 s after a network change, every 10 min, and every 30 s for 3 min after a
  * rotation. Fetches after failures back off from 5 min to 1 h; the backoff starts over on a network that comes back
@@ -38,6 +42,7 @@ object RayWatchdog {
     private const val PERIOD = 10 * 60_000L
     private const val FIRST_BACKOFF = 5 * 60_000L
     private const val STALE_MAX = 12 * 60 * 60_000L
+    private const val DOH_PERIOD = 30 * 60_000L
 
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
@@ -81,13 +86,21 @@ object RayWatchdog {
     @Volatile
     private var backoff = FIRST_BACKOFF
 
-    /** The core connected: [probe] tests the running profile and returns whether it works. */
+    // when the node's DoH was last asked; 0: at the next test that passes
+    @Volatile
+    private var dohAskedAt = 0L
+
+    /**
+     * The core connected: [probe] tests the running profile and returns whether it works; [doh] asks the running
+     * core's remote DNS once and returns the HTTP status it refused with, or 0 or less (libcore's DohCheck).
+     */
     @Synchronized
-    fun start(probe: suspend () -> Boolean) {
+    fun start(probe: suspend () -> Boolean, doh: suspend () -> Int = { 0 }) {
         job?.cancel()
         // the core just started with the current rows
         stale = false
         failures = 0
+        dohAskedAt = 0L
         // a start by the user or the system (perhaps on another network) fetches without waiting
         if (!ownRestart) {
             recoverAt = 0
@@ -95,7 +108,7 @@ object RayWatchdog {
         }
         ownRestart = false
         RayBrutal.reset()
-        job = scope.launch { loop(probe) }
+        job = scope.launch { loop(probe, doh) }
     }
 
     /** The core stops; [final]: the service stops for good, so no start that follows is the watchdog's. */
@@ -209,13 +222,13 @@ object RayWatchdog {
         poke(15_000L + Jitter.upTo(15_000L))
     }
 
-    private suspend fun loop(probe: suspend () -> Boolean) {
+    private suspend fun loop(probe: suspend () -> Boolean, doh: suspend () -> Int) {
         var wait = 20_000L
         while (true) {
             // a poke sets a new delay; the test runs when the delay passes without one
             val poked = withTimeoutOrNull(wait) { wake.receive() }
             wait = poked ?: try {
-                step(probe)
+                step(probe, doh)
             } catch (e: CancellationException) {
                 // the run was stopped (a restart, the service stopping): not an error
                 throw e
@@ -226,7 +239,7 @@ object RayWatchdog {
         }
     }
 
-    private suspend fun step(probe: suspend () -> Boolean): Long {
+    private suspend fun step(probe: suspend () -> Boolean, doh: suspend () -> Int): Long {
         // without network callbacks (fallback) the state is unknown: test anyway
         if (online != true && !DefaultNetworkListener.fallback) return PERIOD
         // Doze: the device sleeps and so may the channel; a test now would only wake the radio (P1)
@@ -275,6 +288,22 @@ object RayWatchdog {
                     }
                 }
             }
+            // the node's DoH: the connection test passes with a token the node refuses, DNS alone fails
+            owner?.let { (node, _) ->
+                if (node.doh != null && now - dohAskedAt >= DOH_PERIOD) {
+                    dohAskedAt = now
+                    val code = doh()
+                    currentCoroutineContext().ensureActive()
+                    if (dohRefused(code)) {
+                        Logs.i("raycontrol ${node.host}: the node's DoH refuses this device's token (HTTP $code), fetching the subscription")
+                        if (now >= recoverAt) {
+                            recoverAt = now + Jitter.around(backoff)
+                            backoff = minOf(backoff * 2, 60 * 60_000L)
+                            if (refetch(node)) return 60_000L
+                        }
+                    }
+                }
+            }
             if (stale && now - staleSince > STALE_MAX) {
                 // the old credential still works but not for long (raycontrol R4-1: 2 days after the switch)
                 Logs.i("raycontrol: restarting with the new credential before the old one expires")
@@ -300,6 +329,20 @@ object RayWatchdog {
         backoff = minOf(backoff * 2, 60 * 60_000L)
         recover(node, key)
         return 60_000L
+    }
+
+    /** A 4xx from the node's DoH: the node does not take the token the running config carries (raycontrol v0.27.0). */
+    internal fun dohRefused(code: Int) = code in 400..499
+
+    /** Fetches the node's subscription for a refused DoH token. Returns whether the core restarts with new rows. */
+    private suspend fun refetch(node: RayNode): Boolean = try {
+        // restarts the core itself (as ours) when the running config changed: a new DoH token does
+        RaySubscription.refresh(node.spa.nodeId, reload = RaySubscription.Reload.WATCHDOG).restarted
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Logs.w("raycontrol ${node.host}: subscription: ${e.message}")
+        false
     }
 
     private suspend fun recover(node: RayNode, key: String) {

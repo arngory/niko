@@ -28,6 +28,8 @@ class VpnService : BaseVpnService(),
         const val PRIVATE_VLAN4_CLIENT = "172.19.0.1"
         const val PRIVATE_VLAN4_ROUTER = "172.19.0.2"
         const val FAKEDNS_VLAN4_CLIENT = "198.18.0.0"
+        // FakeDNS's IPv6 range, as ConfigBuilder gives it to the core (inet6_range fc00::/18)
+        const val FAKEDNS_VLAN6_CLIENT = "fc00::"
         const val PRIVATE_VLAN6_CLIENT = "fdfe:dcba:9876::1"
         const val PRIVATE_VLAN6_ROUTER = "fdfe:dcba:9876::2"
 
@@ -117,6 +119,10 @@ class VpnService : BaseVpnService(),
             // https://issuetracker.google.com/issues/149636790
             if (ipv6Mode != IPv6Mode.DISABLE) {
                 builder.addRoute("2000::", 3)
+                // FakeDNS's IPv6 addresses (fc00::/18, ConfigBuilder) are no global ones: without their own route
+                // they go past the VPN, and an app that tries the fake AAAA first fails (ThroneForAndroid found it
+                // in NekoBox's code). Not a LAN's: those are fd00::/8
+                if (DataStore.enableFakeDns) builder.addRoute(FAKEDNS_VLAN6_CLIENT, 18)
             }
         } else {
             builder.addRoute("0.0.0.0", 0)
@@ -218,10 +224,10 @@ class VpnService : BaseVpnService(),
 
     fun updateUnderlyingNetwork(builder: Builder? = null) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
-            SagerNet.underlyingNetwork?.let {
-                builder?.setUnderlyingNetworks(arrayOf(SagerNet.underlyingNetwork))
-                    ?: setUnderlyingNetworks(arrayOf(SagerNet.underlyingNetwork))
-            }
+            // none known (the network went away): null, the system's default whatever it becomes, in place of a
+            // network that is gone, which the VPN would go on naming to the system (metered, its link speed)
+            val networks = SagerNet.underlyingNetwork?.let { arrayOf(it) }
+            builder?.setUnderlyingNetworks(networks) ?: setUnderlyingNetworks(networks)
         }
     }
 

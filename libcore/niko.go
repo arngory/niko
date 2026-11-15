@@ -30,8 +30,14 @@ func NekoLogClear() {
 	neko_log.LogWriter.Truncate()
 }
 
+// ForceGc returns the Go heap's free memory to the system (the app's onTrimMemory), and says in the log what the Go
+// side held before and after (MemoryStats).
 func ForceGc() {
-	go debug.FreeOSMemory()
+	go func() {
+		before := MemoryStats()
+		debug.FreeOSMemory()
+		log.Println(before, "| after FreeOSMemory:", MemoryStats())
+	}()
 }
 
 func InitCore(process, cachePath, internalAssets, externalAssets string,

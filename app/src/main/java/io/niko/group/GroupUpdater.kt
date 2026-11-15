@@ -59,14 +59,16 @@ abstract class GroupUpdater {
 
             lookupJobs.add(GlobalScope.launch(lookupPool) {
                 try {
+                    // read once: the listener sets it to null when the network goes away
+                    val underlying = SagerNet.underlyingNetwork
                     val results = if (
-                        SagerNet.underlyingNetwork != null &&
+                        underlying != null &&
                         DataStore.enableFakeDns &&
                         DataStore.serviceState.started &&
                         DataStore.serviceMode == Key.MODE_VPN
                     ) {
                         // FakeDNS
-                        SagerNet.underlyingNetwork!!
+                        underlying
                             .getAllByName(profile.serverAddress)
                             .filterNotNull()
                     } else {

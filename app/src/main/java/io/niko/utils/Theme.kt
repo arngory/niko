@@ -124,6 +124,9 @@ object Theme {
         return when (DataStore.nightTheme) {
             1 -> true
             2 -> false
+            // dark while the battery saver is on, as AppCompat's MODE_NIGHT_AUTO_BATTERY (getNightMode) shows it: the
+            // application's configuration does not follow it (ThroneForAndroid 9c8fd9d)
+            3 -> io.niko.SagerNet.power.isPowerSaveMode
             else -> (app.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         }
     }
