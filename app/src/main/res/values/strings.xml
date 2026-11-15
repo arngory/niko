@@ -201,6 +201,7 @@
     <string name="stopping">Shutting down…</string>
     <string name="vpn_error">%s</string>
     <string name="vpn_permission_denied">Permission denied to create a VPN service</string>
+    <string name="always_on_needs_vpn_mode">Android started Niko as the always-on VPN, but Niko is set to “Proxy only”, so nothing runs. To use always-on VPN, choose VPN in Settings → Service Mode, or turn always-on VPN off for Niko in the system\'s VPN settings.</string>
     <string name="reboot_required">Failed to start VPN service. You might need to reboot your
         device.</string>
     <!-- alert category -->
@@ -287,6 +288,10 @@
     <string name="deduplication">Deduplication</string>
     <string name="ignore_battery_optimizations">Ignore battery optimizations</string>
     <string name="ignore_battery_optimizations_sum">Remove some restrictions</string>
+    <string name="background_restricted">Background use is restricted</string>
+    <string name="background_restricted_sum">Android stops Niko in the background: the VPN, the node\'s watchdog and the subscription updates. Tap, then Battery → Unrestricted</string>
+    <string name="background_vendor">The phone\'s own background manager</string>
+    <string name="background_vendor_sum">This phone\'s maker stops apps in the background on top of Android. Tap to allow Niko autostart and running in the background</string>
     <!-- plugin -->
     <string name="plugin">Plugin</string>
     <string name="plugin_configure">Configure…</string>

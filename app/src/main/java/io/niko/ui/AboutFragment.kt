@@ -204,6 +204,26 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                                             .build())
                                 }
                             }
+                            // what stops the app in the background besides Doze: "Restricted" battery use and the
+                            // vendor's own manager (the node's watchdog and the subscription updates run there)
+                            if (io.niko.utils.BackgroundLimits.restricted(app)) {
+                                addItem(
+                                    MaterialAboutActionItem.Builder()
+                                        .icon(R.drawable.ic_baseline_running_with_errors_24)
+                                        .text(R.string.background_restricted)
+                                        .subText(R.string.background_restricted_sum)
+                                        .setOnClickAction { io.niko.utils.BackgroundLimits.openAppInfo(requireContext()) }
+                                        .build())
+                            }
+                            if (io.niko.utils.BackgroundLimits.hasVendorManager()) {
+                                addItem(
+                                    MaterialAboutActionItem.Builder()
+                                        .icon(R.drawable.ic_baseline_running_with_errors_24)
+                                        .text(R.string.background_vendor)
+                                        .subText(R.string.background_vendor_sum)
+                                        .setOnClickAction { io.niko.utils.BackgroundLimits.openVendorManager(requireContext()) }
+                                        .build())
+                            }
                         }
                         .build())
                 .addCard(

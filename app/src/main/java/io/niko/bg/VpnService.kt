@@ -81,8 +81,16 @@ class VpnService : BaseVpnService(),
                     ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 )
             } else return super<BaseService.Interface>.onStartCommand(intent, flags, startId)
+            stopRunner()
+            return Service.START_NOT_STICKY
         }
-        stopRunner()
+        // the VPN service started while the app is set to proxy only: the system's always-on VPN (or its start at
+        // boot). The app does not switch modes on its own (the owner's decision of 2026-11-15): the user is told why
+        // nothing runs and where to switch, rather than the VPN stopping without a word
+        val why = getString(R.string.always_on_needs_vpn_mode)
+        Logs.w(why)
+        runCatching { android.widget.Toast.makeText(this, why, android.widget.Toast.LENGTH_LONG).show() }
+        stopRunner(false, why)
         return Service.START_NOT_STICKY
     }
 

@@ -330,6 +330,10 @@
 <string name="icon_content_description">Значок диалогового окна</string>
 <string name="ignore_battery_optimizations">Игнорировать оптимизации батареи</string>
 <string name="ignore_battery_optimizations_sum">Снять некоторые ограничения</string>
+<string name="background_restricted">Работа в фоне ограничена</string>
+<string name="background_restricted_sum">Android останавливает Niko в фоне: VPN, сторож ноды и обновление подписок. Нажмите, затем Батарея → Без ограничений</string>
+<string name="background_vendor">Собственный менеджер фона телефона</string>
+<string name="background_vendor_sum">Производитель этого телефона останавливает приложения в фоне поверх Android. Нажмите, чтобы разрешить Niko автозапуск и работу в фоне</string>
 <string name="inbound_settings">Входящие настройки</string>
 <string name="insecure">Ненадежный</string>
 <string name="install_from_fdroid">Установить с F-Droid</string>
@@ -598,6 +602,7 @@
 <string name="version_x">Версия (%s)</string>
 <string name="vpn_connected">Подключено, нажмите для проверки подключения</string>
 <string name="vpn_permission_denied">Отказано в разрешении на создание службы VPN</string>
+<string name="always_on_needs_vpn_mode">Android запустил Niko как постоянный VPN, но Niko настроен на режим «Только прокси», поэтому ничего не работает. Чтобы пользоваться постоянным VPN, выберите VPN в Настройках → Сервисный режим или выключите постоянный VPN для Niko в системных настройках VPN.</string>
 <string name="wake_reset_connections">Сбросить исходящие соединения при выходе из спящего режима</string>
 <string name="warp_generate">Создать конфигурацию</string>
 <string name="warp_license">CloudFlare Warp - это бесплатный VPN-провайдер WireGuard. Используя его, вы соглашаетесь с условиями использования.</string>
