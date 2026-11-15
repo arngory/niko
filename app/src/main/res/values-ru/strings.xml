@@ -345,6 +345,11 @@
 <string name="route_test_out_proxy">через прокси</string>
 <string name="route_test_out_direct">напрямую</string>
 <string name="route_test_out_block">блокировка</string>
+<string name="exit_address">Адрес выхода</string>
+<string name="exit_address_message">Спросить у сервиса определения адреса через работающий профиль, с какого адреса и из какой страны выходит ваше соединение. Сервис узнает адрес ноды и время запроса. Ничего не отправляется, пока вы не нажмёте «Спросить».</string>
+<string name="exit_address_ask">Спросить</string>
+<string name="exit_address_answered">Ответил</string>
+<string name="exit_address_failed">%1$s не ответил: %2$s</string>
 <string name="ignore_battery_optimizations_sum">Снять некоторые ограничения</string>
 <string name="background_restricted">Работа в фоне ограничена</string>
 <string name="background_restricted_sum">Android останавливает Niko в фоне: VPN, сторож ноды и обновление подписок. Нажмите, затем Батарея → Без ограничений</string>

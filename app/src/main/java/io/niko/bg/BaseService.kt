@@ -175,6 +175,16 @@ class BaseService {
             }
         }
 
+        override fun exitAddress(provider: String): String {
+            // as urlTest: no box yet is an error Binder carries, not one that ends this process
+            val box = data?.proxy?.takeIf { it.isInitialized() }?.box ?: error("core not started")
+            try {
+                return Libcore.exitAddress(box, provider, 10000)
+            } catch (e: Exception) {
+                error(e.readableMessage)
+            }
+        }
+
         fun stateChanged(s: State, msg: String?) = launch {
             val profileName = profileName
             broadcast { it.stateChanged(s.ordinal, profileName, msg) }

@@ -98,6 +98,10 @@ class MainActivity : ThemedActivity(),
             )
         }
         binding.stats.setOnClickListener { if (DataStore.serviceState.connected) binding.stats.testConnection() }
+        // a long press: the exit address, asked of a service the user picks (it learns the node's address)
+        binding.stats.setOnLongClickListener {
+            DataStore.serviceState.connected.also { if (it) showExitAddress() }
+        }
 
         setContentView(binding.root)
         changeState(BaseService.State.Idle)
@@ -210,6 +214,14 @@ class MainActivity : ThemedActivity(),
             error(getString(R.string.route_test_not_running))
         }
         return connection.service!!.routeTest(query)
+    }
+
+    /** The running profile's exit as the lookup service [provider] sees it: JSON (libcore ExitAddress). */
+    fun exitAddress(provider: String): String {
+        if (!DataStore.serviceState.connected || connection.service == null) {
+            error(getString(R.string.route_test_not_running))
+        }
+        return connection.service!!.exitAddress(provider)
     }
 
     suspend fun importSubscription(uri: Uri) {

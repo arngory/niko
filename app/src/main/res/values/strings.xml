@@ -766,6 +766,11 @@
     <string name="route_test_out_proxy">the proxy</string>
     <string name="route_test_out_direct">direct</string>
     <string name="route_test_out_block">blocked</string>
+    <string name="exit_address">Exit address</string>
+    <string name="exit_address_message">Ask a lookup service, through the running profile, which address and country your connection leaves from. The service learns the node\'s address and when you asked. Nothing is sent until you press Ask.</string>
+    <string name="exit_address_ask">Ask</string>
+    <string name="exit_address_answered">Answered by</string>
+    <string name="exit_address_failed">%1$s did not answer: %2$s</string>
     <string name="route_preset_ru_title">Blocked through the proxy, Russian directly</string>
     <string name="route_preset_ru_message">Adds two rules:\n• what is blocked in Russia (runetfreedom\'s lists) goes through the proxy;\n• Russian services, the .ru, .su and .рф domains and Russian IPs go directly.\nEverything else goes as before; rules above the preset in the list come first. The lists (about 0.8 MB) are downloaded now and every %d h after, through the proxy while it runs; the direct rule waits for the blocked lists. Adding the preset again replaces its rules.</string>
     <string name="route_preset_ru_add">Add</string>

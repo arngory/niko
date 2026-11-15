@@ -13,4 +13,7 @@ interface ISagerNetService {
 
   // which rule of the running core a connection would match (libcore RouteTest): JSON in, JSON out
   String routeTest(String query);
+
+  // the running profile's exit as a lookup service sees it (libcore ExitAddress): JSON out
+  String exitAddress(String provider);
 }
