@@ -103,6 +103,14 @@ func TestRouteTest(t *testing.T) {
 	if r = ask(vpn("192.0.2.7", 8080)); r.Index != 8 || r.Outbound != "" || !strings.Contains(r.Steps[0].Note, "not known") {
 		t.Fatalf("a reject: %+v", r)
 	}
+	// an unknown TCP port: the name taken as a TLS or HTTP would carry it; an unknown UDP port: no name (not QUIC)
+	if r = ask(vpn("www.example.ru", 8443)); r.Index != 3 || !strings.Contains(r.Steps[0].Note, "TLS or HTTP") {
+		t.Fatalf("an unknown TCP port: %+v", r)
+	}
+	if r = ask(routeTestQuery{Host: "www.example.ru", Port: 3478, Network: "udp", Inbound: "tun-in", Resolve: true}); r.Index != -1 ||
+		r.Outbound != "proxy" || !strings.Contains(r.Steps[0].Note, "not QUIC") {
+		t.Fatalf("an unknown UDP port: %+v", r)
+	}
 	// SMTP is not sniffed: through the VPN its name is never seen
 	if r = ask(vpn("mail.example", 25)); r.Index != -1 || !strings.Contains(r.Steps[0].Note, "skipped") {
 		t.Fatalf("SMTP: %+v", r)
@@ -174,5 +182,37 @@ func TestRouteTestReverseMapping(t *testing.T) {
 	var r routeTestResult
 	if err = json.Unmarshal([]byte(answer), &r); err != nil || r.Index != 0 || r.Outbound != "bypass" {
 		t.Fatalf("%s: %v", answer, err)
+	}
+}
+
+// A sniff action of one kind of sniffers leaves the other network unsniffed, as the router's does.
+func TestRouteTestSniffers(t *testing.T) {
+	instance := startTestBox(t, `{
+		"log": {"level": "error"},
+		"dns": {"servers": [{"type": "hosts", "tag": "dns-hosts", "path": [], "predefined": {"www.example.ru": ["203.0.113.5"]}}]},
+		"outbounds": [{"type": "direct", "tag": "proxy"}, {"type": "direct", "tag": "bypass"}],
+		"route": {
+			"rules": [{"action": "sniff", "sniffer": ["quic"]}, {"domain_suffix": ["example.ru"], "outbound": "bypass"}],
+			"final": "proxy"
+		}
+	}`)
+	defer instance.Close()
+	ask := func(query string) routeTestResult {
+		t.Helper()
+		answer, err := RouteTest(instance, query)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var r routeTestResult
+		if err = json.Unmarshal([]byte(answer), &r); err != nil {
+			t.Fatal(err)
+		}
+		return r
+	}
+	if r := ask(`{"host": "www.example.ru", "port": 443, "resolve": true}`); r.Index != -1 || !strings.Contains(r.Steps[0].Note, "TCP is not sniffed") {
+		t.Fatalf("TCP under QUIC's sniffer: %+v", r)
+	}
+	if r := ask(`{"host": "www.example.ru", "port": 443, "network": "udp", "resolve": true}`); r.Index != 1 || r.Outbound != "bypass" {
+		t.Fatalf("QUIC: %+v", r)
 	}
 }

@@ -754,6 +754,7 @@
     <string name="route_test_target_hint">Host or address, and a port: example.com:443</string>
     <string name="route_test_app_hint">From an app (optional)</string>
     <string name="route_test_udp">UDP</string>
+    <string name="route_test_dns_query">Ask the core\'s DNS, as the app would</string>
     <string name="route_test_run">Check</string>
     <string name="route_test_bad_target">Enter a host or an address, and a port if not 443</string>
     <string name="route_test_not_running">Start Niko first: the rules are checked in the running core</string>

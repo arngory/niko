@@ -71,7 +71,9 @@ type routeTestResult struct {
 // port, inbound, an app's uid and package names, resolve. The connection is prepared and the rules walked as the
 // router does (route.Router's prepareMatchMetadata and matchRule): through the VPN an app asks the core's DNS for a
 // domain first and connects to the address it gets, a fake one standing for the domain; a sniff action takes what
-// the port suggests; a resolve action resolves as the router's does. Nothing is dialled.
+// the port suggests; a resolve action resolves as the router's does. No connection is opened, but with resolve the
+// core's DNS is really asked, through its DNS rules, and keeps what an app's query would leave: a FakeDNS address for
+// the domain, an entry in its cache, a reverse mapping. Without resolve nothing is asked.
 func RouteTest(i *BoxInstance, query string) (string, error) {
 	if i == nil {
 		return "", fmt.Errorf("the core does not run")
@@ -316,7 +318,10 @@ func routeTestPrepare(ctx context.Context, metadata *adapter.InboundContext) err
 
 // routeTestSniff stands for a sniff action, which reads the connection's first bytes, here unknown: the protocol is
 // what the network and port suggest (TLS on TCP 443, HTTP on TCP 80, QUIC on UDP 443, DNS on 53), and a TLS, HTTP or
-// QUIC carries the name asked for. The note says what was taken.
+// QUIC carries the name asked for. As the router's actionSniff, an action of packet sniffers alone leaves TCP alone and
+// one of stream sniffers alone leaves UDP alone. On a TCP port of no known protocol the name is taken (a TLS or HTTP
+// on another port carries it); on such a UDP port it is not (only a QUIC would, and games, STUN or WireGuard do not).
+// The note says what was taken.
 func routeTestSniff(metadata *adapter.InboundContext, action *R.RuleActionSniff, name string) string {
 	if sniff.Skip(metadata) {
 		return "sniff: skipped, the server speaks first on this port"
@@ -324,38 +329,51 @@ func routeTestSniff(metadata *adapter.InboundContext, action *R.RuleActionSniff,
 	if metadata.Protocol != "" {
 		return "sniff: done before"
 	}
+	tcp := metadata.Network == N.NetworkTCP
+	if tcp && len(action.StreamSniffers) == 0 && len(action.PacketSniffers) > 0 {
+		return "sniff: its sniffers are for UDP, TCP is not sniffed"
+	}
+	if !tcp && len(action.PacketSniffers) == 0 && len(action.StreamSniffers) > 0 {
+		return "sniff: its sniffers are for TCP, UDP is not sniffed"
+	}
+	// no names: the router's default sniffers, all of them
+	sniffs := func(protocol string) bool {
+		return len(action.SnifferNames) == 0 || slices.Contains(action.SnifferNames, protocol)
+	}
 	var protocol string
 	port := metadata.Destination.Port
 	switch {
 	case port == 53:
 		protocol = C.ProtocolDNS
-	case metadata.Network == N.NetworkTCP && port == 443:
+	case tcp && port == 443:
 		protocol = C.ProtocolTLS
-	case metadata.Network == N.NetworkTCP && port == 80:
+	case tcp && port == 80:
 		protocol = C.ProtocolHTTP
-	case metadata.Network == N.NetworkUDP && port == 443:
+	case !tcp && port == 443:
 		protocol = C.ProtocolQUIC
 	}
-	if protocol != "" && len(action.SnifferNames) > 0 && !slices.Contains(action.SnifferNames, protocol) {
+	if protocol != "" && !sniffs(protocol) {
 		return "sniff: " + protocol + " is not among its sniffers"
 	}
+	unknown := "sniff: what runs on " + metadata.Network + "/" + fmt.Sprint(port) + " is not known here"
 	var note string
-	switch protocol {
-	case C.ProtocolDNS:
+	switch {
+	case protocol == C.ProtocolDNS:
 		// the name of a query is the one asked of the server, not the server's
 		metadata.Protocol = protocol
 		return "sniff: taken as dns"
-	case "":
-		if name == "" {
-			return "sniff: what runs on " + metadata.Network + "/" + fmt.Sprint(port) + " is not known here: protocol rules were not checked"
-		}
-		note = "sniff: what runs on " + metadata.Network + "/" + fmt.Sprint(port) + " is not known here: the name taken as a TLS or HTTP would carry it, protocol rules were not checked"
-	default:
+	case protocol != "":
 		metadata.Protocol = protocol
 		if name == "" {
 			return "sniff: taken as " + protocol + ", its name not known here"
 		}
 		note = "sniff: taken as " + protocol + " with the name asked for"
+	case !tcp:
+		return unknown + ": taken as not QUIC, so without a name; protocol rules were not checked"
+	case name == "" || !sniffs(C.ProtocolTLS) && !sniffs(C.ProtocolHTTP):
+		return unknown + ": protocol rules were not checked"
+	default:
+		note = unknown + ": the name taken as a TLS or HTTP would carry it, protocol rules were not checked"
 	}
 	metadata.Domain = name
 	if action.OverrideDestination && M.IsDomainName(metadata.Domain) {

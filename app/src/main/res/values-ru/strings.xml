@@ -333,6 +333,7 @@
 <string name="route_test_target_hint">Хост или адрес и порт: example.com:443</string>
 <string name="route_test_app_hint">Из приложения (необязательно)</string>
 <string name="route_test_udp">UDP</string>
+<string name="route_test_dns_query">Спросить DNS ядра, как спросило бы приложение</string>
 <string name="route_test_run">Проверить</string>
 <string name="route_test_bad_target">Введите хост или адрес и порт, если не 443</string>
 <string name="route_test_not_running">Сначала запустите Niko: правила проверяются в работающем ядре</string>

@@ -23,8 +23,9 @@ import org.json.JSONObject
 
 /**
  * The route tester (after ThroneForAndroid's; the owner's decision of 2026-11-15): which of the running core's rules
- * a connection to a host, from an app or not, would match, and where it would go. Nothing is dialled; the core
- * walks its rules as its router does (libcore RouteTest), in the service's process, through ISagerNetService.
+ * a connection to a host, from an app or not, would match, and where it would go. No connection is opened; the core
+ * prepares it and walks its rules as its router does (libcore RouteTest), in the service's process, through
+ * ISagerNetService, and asks its own DNS for a domain only when the user leaves that on.
  */
 fun Fragment.showRouteTest() {
     val context = requireContext()
@@ -50,12 +51,19 @@ fun Fragment.showRouteTest() {
         }
     }
     val udp = CheckBox(context).apply { text = getString(R.string.route_test_udp) }
+    // the core's DNS really asked, as an app would ask it through the VPN: it keeps what such a query leaves (a
+    // FakeDNS address, a cache entry). Off: nothing is asked, and address rules see no address for a domain
+    val dns = CheckBox(context).apply {
+        text = getString(R.string.route_test_dns_query)
+        isChecked = true
+    }
     val layout = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(padding, padding / 2, padding, 0)
         addView(target)
         addView(app)
         addView(udp)
+        addView(dns)
     }
     MaterialAlertDialogBuilder(context)
         .setTitle(R.string.route_test)
@@ -73,7 +81,7 @@ fun Fragment.showRouteTest() {
                 .put("network", if (udp.isChecked) "udp" else "tcp")
                 .put("host", parsed.first)
                 .put("port", parsed.second)
-                .put("resolve", true)
+                .put("resolve", dns.isChecked)
             if (pkg != null) {
                 query.put("packages", JSONArray().put(pkg))
                 PackageCache[pkg]?.let { query.put("uid", it) }
