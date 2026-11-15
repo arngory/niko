@@ -32,6 +32,7 @@ on:
       - "libcore/raycontrol_pins_interop_test.go"
       - "libcore/raycontrol_revoke_interop_test.go"
       - "libcore/raycontrol_zones_interop_test.go"
+      - "libcore/raycontrol_naive_sni_interop_test.go"
       - ".github/xray-interop.env"
       - "buildScript/lib/core/get_source_env.sh"
       - "libcore/box_naive.go"
@@ -750,6 +751,41 @@ jobs:
           TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
           go test -count=1 -v -timeout 10m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolRevoke . || {
             p /opt/rc/rayctl device list frank || true
+            p tail -n 80 /var/log/rayd.log || true
+            exit 1
+          }
+
+      # raycontrol v0.29.0 (R4-42, subscription-v1 §4): the node's naive changes its name, the new one in the profile's
+      # next, the same line with another sni and the same niko-pin; both names carry ahead of the switch, and after
+      # rotate -now the new line carries and the line a device had before carries still (its rollback). Over HTTP/2
+      # and QUIC through the core's naive outbound (cronet, built here), on the node with certificates from Pebble
+      - name: naive's name rotation (raycontrol v0.29.0)
+        working-directory: libcore
+        env:
+          RAYCONTROL_RAYCTL: docker exec rc-pin /opt/rc/rayctl
+          RAYCONTROL_NAIVE_BUNDLE: /tmp/sni.bundle
+          RAYCONTROL_SING_BOX: /tmp/sing-box-naive
+          RAYCONTROL_ADDRESS: 203.0.113.4
+          RAYCONTROL_CA: /tmp/pebble-roots.pem
+          RAYCONTROL_LIMIT_TARGET: 11.0.0.1
+        run: |
+          if ! grep -qs "R4-42" ../raycontrol/docs/spec/subscription-v1.md; then
+            echo "::notice::this raycontrol does not rotate naive's name (v0.29.0 does)"
+            exit 0
+          fi
+          p() { docker exec rc-pin "$@"; }
+          # cronet's static library links with clang and lld: the system ld refuses its objects
+          sudo apt-get install -y -qq lld > /dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq lld > /dev/null; }
+          (cd ../../sing-box && CC=clang CXX=clang++ CGO_LDFLAGS=-fuse-ld=lld CGO_ENABLED=1 GOTOOLCHAIN=auto go build \
+            -o /tmp/sing-box-naive -ldflags=-checklinkname=0 -tags=with_naive_outbound,with_gvisor,badlinkname,tfogo_checklinkname0 ./cmd/sing-box)
+          /tmp/sing-box-naive version | head -1
+          p /opt/rc/rayctl user add hana -services naive > /dev/null
+          p /opt/rc/rayctl device add hana phone -o /root/sni.bundle > /dev/null
+          p cat /root/sni.bundle > /tmp/sni.bundle
+          TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
+          go test -count=1 -v -timeout 15m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolNaiveSNI . || {
+            p /opt/rc/rayctl service list || true
+            p /opt/rc/rayctl status || true
             p tail -n 80 /var/log/rayd.log || true
             exit 1
           }
