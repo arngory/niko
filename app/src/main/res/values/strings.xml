@@ -759,6 +759,9 @@
     <string name="route_test_not_running">Start Niko first: the rules are checked in the running core</string>
     <string name="route_test_no_rule">No rule matches: the final outbound</string>
     <string name="route_test_steps">Matched on the way:</string>
+    <string name="route_test_failed">No connection</string>
+    <string name="route_test_dns">The app\'s DNS query got</string>
+    <string name="route_test_seen">The rules saw</string>
     <string name="route_test_out_proxy">the proxy</string>
     <string name="route_test_out_direct">direct</string>
     <string name="route_test_out_block">blocked</string>

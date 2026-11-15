@@ -17,6 +17,7 @@ import io.niko.aidl.ISagerNetServiceCallback
 import io.niko.bg.proto.ProxyInstance
 import io.niko.database.DataStore
 import io.niko.database.SagerDatabase
+import io.niko.fmt.TAG_MIXED
 import io.niko.ktx.*
 import io.niko.plugin.PluginManager
 import io.niko.raycontrol.RayWatchdog
@@ -25,6 +26,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import libcore.Libcore
+import org.json.JSONObject
 import io.niko.Protocols
 import io.niko.utils.Util
 import java.net.UnknownHostException
@@ -48,6 +50,9 @@ class BaseService {
         var state = State.Stopped
         var proxy: ProxyInstance? = null
         var notification: ServiceNotification? = null
+
+        /** The running service is the VPN: its connections come in by tun-in, else by the local proxy's inbound. */
+        val isVpn get() = service is VpnService
 
         val receiver = broadcastReceiver { ctx, intent ->
             when (intent.action) {
@@ -159,9 +164,12 @@ class BaseService {
 
         override fun routeTest(query: String): String {
             // as urlTest: no box yet is an error Binder carries, not one that ends this process
+            val data = data
             val box = data?.proxy?.takeIf { it.isInitialized() }?.box ?: error("core not started")
             try {
-                return Libcore.routeTest(box, query)
+                // the inbound of the running service, not of the setting, which may have changed since it started
+                val asked = JSONObject(query).put("inbound", if (data.isVpn) "tun-in" else TAG_MIXED)
+                return Libcore.routeTest(box, asked.toString())
             } catch (e: Exception) {
                 error(e.readableMessage)
             }

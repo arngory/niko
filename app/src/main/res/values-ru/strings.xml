@@ -338,6 +338,9 @@
 <string name="route_test_not_running">Сначала запустите Niko: правила проверяются в работающем ядре</string>
 <string name="route_test_no_rule">Ни одно правило не подошло: финальный исходящий</string>
 <string name="route_test_steps">По пути подошли:</string>
+<string name="route_test_failed">Соединения не будет</string>
+<string name="route_test_dns">DNS-запрос приложения вернул</string>
+<string name="route_test_seen">Правила увидели</string>
 <string name="route_test_out_proxy">через прокси</string>
 <string name="route_test_out_direct">напрямую</string>
 <string name="route_test_out_block">блокировка</string>

@@ -33,16 +33,21 @@ fun Fragment.showRouteTest() {
         hint = getString(R.string.route_test_target_hint)
         isSingleLine = true
     }
-    // the installed apps by their label, for a rule by app: "Label (package)"
-    val apps = runCatching {
-        PackageCache.awaitLoadSync()
-        PackageCache.installedApps.keys.map { "${PackageCache.loadLabel(it)} ($it)" }.sorted()
-    }.getOrDefault(emptyList())
     val app = AutoCompleteTextView(context).apply {
         hint = getString(R.string.route_test_app_hint)
         isSingleLine = true
         threshold = 1
-        setAdapter(ArrayAdapter(context, android.R.layout.simple_dropdown_item_1line, apps))
+    }
+    // the installed apps by their label, for a rule by app: "Label (package)". Off the main thread: the cache may
+    // still be loading, and a label each is a call to the package manager
+    runOnDefaultDispatcher {
+        val apps = runCatching {
+            PackageCache.awaitLoadSync()
+            PackageCache.installedApps.keys.map { "${PackageCache.loadLabel(it)} ($it)" }.sorted()
+        }.onFailure { Logs.w(it) }.getOrDefault(emptyList())
+        onMainDispatcher {
+            app.setAdapter(ArrayAdapter(context, android.R.layout.simple_dropdown_item_1line, apps))
+        }
     }
     val udp = CheckBox(context).apply { text = getString(R.string.route_test_udp) }
     val layout = LinearLayout(context).apply {
@@ -63,6 +68,7 @@ fun Fragment.showRouteTest() {
                 return@setPositiveButton
             }
             val pkg = packageOfChoice(app.text.toString())
+            // the inbound is the service's to say (BaseService.routeTest): the VPN's or the local proxy's
             val query = JSONObject()
                 .put("network", if (udp.isChecked) "udp" else "tcp")
                 .put("host", parsed.first)
@@ -125,7 +131,11 @@ internal fun parseRouteTestTarget(text: String): Pair<String, Int>? {
     return value to port
 }
 
-/** The core's answer as the user reads it: the rule that decided, or none, where it goes, and the steps before. */
+/**
+ * The core's answer as the user reads it: the rule that decided, or none, where it goes, or why there is no
+ * connection; then what the rules saw (the address the app's DNS query gave, the domain of a FakeDNS address), the
+ * steps before, and what was taken on trust.
+ */
 internal fun describeRouteTest(result: JSONObject, string: (Int) -> String): String {
     fun outbound(tag: String) = when (tag) {
         TAG_PROXY -> string(R.string.route_test_out_proxy)
@@ -133,14 +143,34 @@ internal fun describeRouteTest(result: JSONObject, string: (Int) -> String): Str
         TAG_BLOCK -> string(R.string.route_test_out_block)
         else -> tag
     }
+    fun JSONArray?.strings() = if (this == null) emptyList() else (0 until length()).map { getString(it) }
     val lines = mutableListOf<String>()
     val index = result.optInt("index", -1)
     val out = result.optString("outbound")
-    if (index < 0) {
-        lines += string(R.string.route_test_no_rule) + (if (out.isNotEmpty()) " → " + outbound(out) else "")
-    } else {
-        lines += "#$index ${result.optString("rule")}"
-        lines += "→ " + if (out.isNotEmpty()) outbound(out) else result.optString("action")
+    val error = result.optString("error")
+    val failed = string(R.string.route_test_failed) + ": " + error
+    when {
+        index < 0 && error.isNotEmpty() -> lines += failed
+        index < 0 -> lines += string(R.string.route_test_no_rule) + (if (out.isNotEmpty()) " → " + outbound(out) else "")
+        else -> {
+            lines += "#$index ${result.optString("rule")}"
+            lines += "→ " + when {
+                error.isNotEmpty() -> failed
+                out.isNotEmpty() -> outbound(out)
+                else -> result.optString("action")
+            }
+        }
+    }
+    val seen = mutableListOf<String>()
+    result.optJSONArray("resolved").strings().takeIf { it.isNotEmpty() }?.let {
+        seen += string(R.string.route_test_dns) + ": " + it.joinToString(", ")
+    }
+    result.optString("destination").takeIf { it.isNotEmpty() && error.isEmpty() }?.let {
+        seen += string(R.string.route_test_seen) + ": " + it + if (result.optBoolean("fake_ip")) " (FakeDNS)" else ""
+    }
+    if (seen.isNotEmpty()) {
+        lines += ""
+        lines += seen
     }
     val steps = result.optJSONArray("steps") ?: JSONArray()
     val before = (0 until steps.length()).map { steps.getJSONObject(it) }.filter { it.optInt("index") != index }
@@ -150,11 +180,14 @@ internal fun describeRouteTest(result: JSONObject, string: (Int) -> String): Str
         for (step in before) {
             var line = "#${step.optInt("index")} ${step.optString("action")}"
             step.optString("note").takeIf { it.isNotEmpty() }?.let { line += " ($it)" }
-            step.optJSONArray("resolved")?.let { list ->
-                if (list.length() > 0) line += ": " + (0 until list.length()).joinToString(", ") { list.getString(it) }
-            }
+            step.optJSONArray("resolved").strings().takeIf { it.isNotEmpty() }?.let { line += ": " + it.joinToString(", ") }
             lines += line
         }
+    }
+    val notes = result.optJSONArray("notes").strings()
+    if (notes.isNotEmpty()) {
+        lines += ""
+        lines += notes
     }
     return lines.joinToString("\n")
 }
