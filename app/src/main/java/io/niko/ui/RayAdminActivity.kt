@@ -1450,7 +1450,7 @@ internal fun relaysSummary(update: JsonObject, t: AdminTexts): String? {
     return t(R.string.raycontrol_admin_relays_count, counts.entries.joinToString(", ") { (state, n) -> "${relayState(state, t)} $n" })
 }
 
-/** A relay's state in words; a state this build does not know (a newer node) as the node says it. */
+/** A relay's state in words; a state this build does not know (a newer node) as the node says it, in one line. */
 internal fun relayState(state: String, t: AdminTexts): String = when (state) {
     "waiting" -> t(R.string.raycontrol_admin_relay_waiting)
     "offered" -> t(R.string.raycontrol_admin_relay_offered)
@@ -1462,10 +1462,13 @@ internal fun relayState(state: String, t: AdminTexts): String = when (state) {
     "current" -> t(R.string.raycontrol_admin_relay_current)
     "off" -> t(R.string.raycontrol_admin_relay_off)
     "unknown", "" -> t(R.string.raycontrol_admin_relay_unknown)
-    else -> state
+    else -> relayText(state, RELAY_WORD)
 }
 
-/** Why a relay's update did not go (§3); a code this build does not know (a relay newer than its node) as it is. */
+/**
+ * Why a relay's update did not go (§3); a code this build does not know (a relay newer than its node) as it is, in one
+ * line.
+ */
 internal fun relayReason(reason: String, t: AdminTexts): String = when (reason) {
     "policy" -> t(R.string.raycontrol_admin_relay_reason_policy)
     "stale" -> t(R.string.raycontrol_admin_relay_reason_stale)
@@ -1483,8 +1486,19 @@ internal fun relayReason(reason: String, t: AdminTexts): String = when (reason) 
     "open" -> t(R.string.raycontrol_admin_relay_reason_open)
     "not_taken" -> t(R.string.raycontrol_admin_relay_reason_not_taken)
     "no_word" -> t(R.string.raycontrol_admin_relay_reason_no_word)
-    else -> reason
+    else -> relayText(reason, RELAY_WORD)
 }
+
+/** A word of the node's this build does not know (a state, a reason) is shown up to this many characters. */
+private const val RELAY_WORD = 32
+
+/**
+ * A relay's text as the node passes it on ([raw]: its name and version, what it said of a failure, which v0.28.1 makes
+ * the last line of rayctl's error on the relay, up to 200 bytes) in one line: the note's rules (control and format
+ * characters go, line breaks become a space, more than [max] characters end in "…"), so a relay cannot add lines of
+ * its own or turn the text around it.
+ */
+private fun relayText(raw: String, max: Int): String = RayNode.nodeNote(raw, max).orEmpty()
 
 /**
  * A relay not heard for longer than this is marked so, whatever its state says: well above the 10 minutes the node
@@ -1492,6 +1506,10 @@ internal fun relayReason(reason: String, t: AdminTexts): String = when (reason) 
  * the phone's clock against the node's, which the answer does not carry.
  */
 private const val RELAY_QUIET_SECONDS = 30 * 60L
+
+/** A relay's name, version and target are shown up to this many characters; its error up to the node's 200 bytes. */
+private const val RELAY_VERSION = 64
+private const val RELAY_ERROR = 200
 
 /**
  * A relay's lines: its name, version, state, the version it is offered and since when; why it failed (the reason in
@@ -1501,13 +1519,15 @@ private const val RELAY_QUIET_SECONDS = 30 * 60L
  */
 internal fun relayLine(relay: JsonObject, t: AdminTexts, now: Long, time: (Long) -> String): String {
     val state = relay.s("state")
-    val version = relay.s("version").ifEmpty { t(R.string.raycontrol_admin_relay_no_version) }
-    var head = "${relay.s("name")} · $version · ${relayState(state, t)}"
-    relay.s("target").takeIf { it.isNotEmpty() && it != relay.s("version") }?.let { head += " → $it" }
+    val version = relayText(relay.s("version"), RELAY_VERSION)
+    val shown = version.ifEmpty { t(R.string.raycontrol_admin_relay_no_version) }
+    var head = "${relayText(relay.s("name"), RELAY_VERSION)} · $shown · ${relayState(state, t)}"
+    relayText(relay.s("target"), RELAY_VERSION).takeIf { it.isNotEmpty() && it != version }?.let { head += " → $it" }
     relay.l("changedAt").takeIf { it > 0 }?.let { head += " · " + t(R.string.raycontrol_admin_relay_since, time(it)) }
     val lines = mutableListOf(head)
     val reason = relay.s("reason").takeIf { it.isNotEmpty() }?.let { relayReason(it, t) }
-    val error = relay.s("error").takeIf { it.isNotBlank() }
+    // the relay's own words, isolated from the line's direction
+    val error = relayText(relay.s("error"), RELAY_ERROR).takeIf { it.isNotEmpty() }?.let { "\u2068$it\u2069" }
     listOfNotNull(reason, error).takeIf { it.isNotEmpty() }?.let { lines += it.joinToString(": ") }
     val seen = relay.l("seenAt")
     when {

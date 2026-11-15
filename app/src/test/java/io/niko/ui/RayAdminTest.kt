@@ -47,6 +47,7 @@ class RayAdminTest {
         R.string.raycontrol_admin_relay_hint_off to "hint: remote on",
         R.string.raycontrol_admin_relay_hint_unknown to "hint: update by hand",
         R.string.raycontrol_admin_relay_reason_download to "no download",
+        R.string.raycontrol_admin_relay_reason_install to "no install",
         R.string.raycontrol_admin_relay_reason_no_word to "went silent",
     )
     private val t = AdminTexts { id, args -> String.format(Locale.US, patterns.getValue(id), *args) }
@@ -162,7 +163,7 @@ class RayAdminTest {
         assertEquals("r3 · v0.27.0 · waiting → v0.28.0 · since t9800\nlast heard t7000", relayLine(waiting, t, now, time))
         assertEquals("r8 · v0.28.0 · current", relayLine(json("""{"name":"r8","version":"v0.28.0","state":"current","seenAt":"8800"}"""), t, now, time))
         // a failure: the reason in words and the node's text; a reason this build does not know, as it is
-        assertEquals("r1 · v0.27.0 · failed → v0.28.0 · since t9900\nno download: github: 503",
+        assertEquals("r1 · v0.27.0 · failed → v0.28.0 · since t9900\nno download: \u2068github: 503\u2069",
             relayLine(json("""{"name":"r1","version":"v0.27.0","state":"failed","target":"v0.28.0","reason":"download",
                 "error":"github: 503","changedAt":9900,"seenAt":9990}"""), t, now, time))
         assertEquals("r1 · v0.27.0 · failed · since t9900\nsome_new_code",
@@ -176,5 +177,10 @@ class RayAdminTest {
         // a state of a newer node, as it is
         assertEquals("r7 · v0.29.0 · paused", relayLine(json("""{"name":"r7","version":"v0.29.0","state":"paused","seenAt":9990}"""), t, now, time))
         assertEquals("went silent", relayReason("no_word", t))
+        // what a relay says goes in one line, its control and direction characters gone: no lines of its own
+        assertEquals("r9 · v0.28.0 · failed · since t9900\nno install: \u2068rayctl: nft: bad rule last heard t1\u2069",
+            relayLine(json("""{"name":"r9\u202e","version":"v0.28.0\n","state":"failed","reason":"install",
+                "error":"rayctl: nft: bad rule\nlast heard t1\u0007","changedAt":9900,"seenAt":9990}"""), t, now, time))
+        assertEquals("a\u2026", relayState("a".repeat(40), t).let { it.take(1) + it.takeLast(1) })
     }
 }
