@@ -118,9 +118,10 @@ jobs:
           CGO_ENABLED: "0"
         run: go test -count=1 -ldflags=-checklinkname=0 -tags="$TAGS" ./protocol/knock ./common/certificate ./common/udpdesync ./common/nikoicmp
 
-      # libcronet.dll of the fork's module through purego, found on PATH: naive over HTTP/2 and QUIC against the
-      # core's own naive inbound, the profile's root and key pins; and a root of the Windows store (put in for the
-      # test, taken out after) refused without CRONET_WINDOWS_SYSTEM_ROOTS=1
+      # libcronet.dll of the fork's module through purego, beside the test's executable as beside the desktop's (the
+      # loader takes it from there, not from PATH): naive over HTTP/2 and QUIC against the core's own naive inbound,
+      # the profile's root and key pins; and a root of the Windows store (put in for the test, taken out after)
+      # refused without CRONET_WINDOWS_SYSTEM_ROOTS=1
       - name: naive on Windows
         working-directory: ../sing-box
         env:
@@ -129,9 +130,13 @@ jobs:
         run: |
           go mod download github.com/sagernet/cronet-go/lib/windows_amd64
           lib="$(go list -m -f '{{.Dir}}' github.com/sagernet/cronet-go/lib/windows_amd64)"
-          export PATH="$(cygpath -u "$lib"):$PATH"
-          go test -count=1 -v -timeout 10m -ldflags=-checklinkname=0 -tags="$TAGS,with_naive_outbound,with_purego" \
-            -run 'TestNekoNaiveWindows' ./protocol/naive
+          bin="$RUNNER_TEMP/naive-test"
+          mkdir -p "$bin"
+          go test -c -o "$bin/naive.test.exe" -ldflags=-checklinkname=0 -tags="$TAGS,with_naive_outbound,with_purego" \
+            ./protocol/naive
+          cp "$lib/libcronet.dll" "$bin/"
+          cd "$bin"
+          ./naive.test.exe -test.count=1 -test.v -test.timeout=10m -test.run 'TestNekoNaiveWindows'
 
       - name: libcore's packages on Windows
         working-directory: libcore
