@@ -914,6 +914,7 @@
     <string name="raycontrol_admin_update_unreachable">Нода перезапускается и пока недоступна (обычно минута-другая); спрашиваем снова…</string>
     <string name="raycontrol_admin_update_close">Закрыть (обновление продолжится)</string>
     <string name="raycontrol_admin_update_no_outcome">Итога пока нет. Нода может ещё обновляться: загляните на вкладку статуса позже, там видно состояние обновления.</string>
+    <string name="raycontrol_admin_update_idle">Нода сама не обновляется</string>
     <string name="raycontrol_admin_relays">Relay</string>
     <string name="raycontrol_admin_relays_count">Relay: %s</string>
     <string name="raycontrol_admin_relays_help">Нода называет свою версию своим relay, и каждый relay, на котором root это разрешил (там rayctl update remote on), обновляется сам, по одному. Обновить или придержать relay с телефона нельзя: root на relay придерживает его командой rayctl update remote off.</string>

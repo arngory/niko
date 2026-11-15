@@ -953,6 +953,7 @@
     <string name="raycontrol_admin_update_unreachable">The node is restarting and out of reach for now (a minute or two is usual); asking again…</string>
     <string name="raycontrol_admin_update_close">Close (the update goes on)</string>
     <string name="raycontrol_admin_update_no_outcome">No outcome yet. The node may still be updating: look at the status tab later, it shows the update\'s state.</string>
+    <string name="raycontrol_admin_update_idle">The node is not updating itself</string>
     <string name="raycontrol_admin_relays">Relays</string>
     <string name="raycontrol_admin_relays_count">Relays: %s</string>
     <string name="raycontrol_admin_relays_help">The node names its own version to its relays, and each relay whose root allows it (rayctl update remote on there) updates by itself, one at a time. A relay cannot be updated or held from the phone: root on the relay holds it with rayctl update remote off.</string>

@@ -369,7 +369,8 @@ class RayAdminActivity : ThemedActivity() {
         if (update.s("remote") != "on") return textDialog(getString(R.string.raycontrol_admin_update),
             listOfNotNull(getString(R.string.raycontrol_admin_update_remote_help), relays).joinToString("\n\n"))
         // the node's own update under way, or its relays still following it: watched
-        if (update.getAsJsonObject("status")?.s("state") in setOf("requested", "running") || relaysPending(update)) return watchUpdate()
+        val nodeUpdating = update.getAsJsonObject("status")?.s("state") in setOf("requested", "running")
+        if (nodeUpdating || relaysPending(update)) return watchUpdate(nodeUpdating)
         val installed = update.s("installed")
         val latest = update.s("latest")
         val actions = mutableListOf<Pair<String, () -> Unit>>(
@@ -404,8 +405,8 @@ class RayAdminActivity : ThemedActivity() {
         // an answer lost while rayd restarts, or "an update is requested already" on a second tap: the update may be
         // under way, and its status only reads
         api({ call("StartUpdate", body("version" to version)) }, failed = { e ->
-            if (lost(e) || RayApi.code(e) == "failed_precondition") watchUpdate()
-        }) { watchUpdate() }
+            if (lost(e) || RayApi.code(e) == "failed_precondition") watchUpdate(nodeUpdating = true)
+        }) { watchUpdate(nodeUpdating = true) }
     }
 
     /**
@@ -413,9 +414,11 @@ class RayAdminActivity : ThemedActivity() {
      * node is out of reach while rayd, its API and the data plane restart: asked again. Then its relays, which follow
      * it one at a time (relay-update-remote-v1 §8): asked every 30 s while one is waiting, offered, requested or
      * running, each of which ends, for three hours at most (a silent relay holds the queue up to 40 minutes before
-     * its turn and 40 in it). Closing leaves it all running.
+     * its turn and 40 in it). Closing leaves it all running. [nodeUpdating]: the node's own update is asked for or
+     * under way; else only its relays are on their way (a relay back after a while gets the node's version offered
+     * with no update of the node's), and the node's outcome is not waited for.
      */
-    private fun watchUpdate() {
+    private fun watchUpdate(nodeUpdating: Boolean) {
         val text = TextView(this).apply { setText(R.string.raycontrol_admin_update_waiting) }
         val dialog = MaterialAlertDialogBuilder(this)
             .setTitle(R.string.raycontrol_admin_update)
@@ -424,18 +427,25 @@ class RayAdminActivity : ThemedActivity() {
             .create()
         val job = lifecycleScope.launch {
             val started = System.currentTimeMillis()
-            var ended = false
+            var ended = !nodeUpdating
             while (isActive) {
                 val update = withContext(Dispatchers.IO) { runCatching { call("GetUpdateStatus") } }.getOrNull()
                 val status = update?.getAsJsonObject("status")
                 val node = when {
-                    status != null -> updateState(status) ?: getString(R.string.raycontrol_admin_update_waiting)
+                    status != null -> updateState(status) ?: getString(
+                        if (nodeUpdating) R.string.raycontrol_admin_update_waiting else R.string.raycontrol_admin_update_idle)
                     else -> getString(R.string.raycontrol_admin_update_unreachable)
                 }
                 text.text = listOfNotNull(node, update?.let { relaysText(it) }).joinToString("\n\n")
                 if (!ended && status?.s("state") in setOf("done", "rolled_back", "failed")) {
                     ended = true
                     if (tab == STATUS) loadStatus()
+                }
+                if (!ended && update != null && status?.s("state") !in setOf("requested", "running") &&
+                    System.currentTimeMillis() - started > 60_000L) {
+                    // asked for and gone a minute on without being requested or running (an idle status, a state this
+                    // build does not know): no outcome of the node's to wait for, only its relays
+                    ended = true
                 }
                 val elapsed = System.currentTimeMillis() - started
                 if (ended && update != null && !relaysPending(update)) return@launch
@@ -1467,13 +1477,18 @@ internal fun relayReason(reason: String, t: AdminTexts): String = when (reason) 
     else -> reason
 }
 
-/** A relay not heard for longer than this is marked so, whatever its state says. */
-private const val RELAY_QUIET_SECONDS = 10 * 60L
+/**
+ * A relay not heard for longer than this is marked so, whatever its state says: well above the 10 minutes the node
+ * leaves between refreshes of a connected relay's seen_at (relay-update-remote-v1 §8.3), and above a few minutes of
+ * the phone's clock against the node's, which the answer does not carry.
+ */
+private const val RELAY_QUIET_SECONDS = 30 * 60L
 
 /**
  * A relay's lines: its name, version, state, the version it is offered and since when; why it failed (the reason in
  * words, the error as the node gives it); that the node has not heard it for a while; and what root on the relay can
- * do for one that is off or unknown. [now] and the times are unix seconds by the node's clock, which [time] shows.
+ * do for one that is off or unknown. The relay's times are unix seconds by the node's clock, [now] the phone's (the
+ * answer carries no time of the node's), which [RELAY_QUIET_SECONDS] leaves room for; [time] shows a time.
  */
 internal fun relayLine(relay: JsonObject, t: AdminTexts, now: Long, time: (Long) -> String): String {
     val state = relay.s("state")

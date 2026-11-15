@@ -149,7 +149,7 @@ class RayAdminTest {
         val update = json("""{"relays":[
             {"name":"r1","version":"v0.27.0","state":"running","target":"v0.28.0","updateId":"7","changedAt":"9900","seenAt":"9990","remote":true},
             {"name":"r2","version":"v0.28.0","state":"current","seenAt":"9995","remote":true},
-            {"name":"r3","version":"v0.27.0","state":"waiting","target":"v0.28.0","changedAt":"9800","seenAt":"9000","remote":true}]}""")
+            {"name":"r3","version":"v0.27.0","state":"waiting","target":"v0.28.0","changedAt":"9800","seenAt":"7000","remote":true}]}""")
         assertTrue(relaysPending(update))
         assertEquals("relays: running 1, current 1, waiting 1", relaysSummary(update, t))
         assertFalse(relaysPending(json("""{"relays":[{"name":"r2","state":"current"},{"name":"r4","state":"failed"}]}""")))
@@ -157,8 +157,10 @@ class RayAdminTest {
         assertEquals("r1 · v0.27.0 · running → v0.28.0 · since t9900", relayLine(running, t, now, time))
         // the target is the version it has: not repeated; heard a moment ago: no mark
         assertEquals("r2 · v0.28.0 · current", relayLine(current, t, now, time))
-        // not heard for over ten minutes: said, whatever the state
-        assertEquals("r3 · v0.27.0 · waiting → v0.28.0 · since t9800\nlast heard t9000", relayLine(waiting, t, now, time))
+        // not heard for over half an hour: said, whatever the state; 20 minutes is within the node's refresh of a
+        // connected relay's seen_at (10 minutes) and some clock skew, no mark
+        assertEquals("r3 · v0.27.0 · waiting → v0.28.0 · since t9800\nlast heard t7000", relayLine(waiting, t, now, time))
+        assertEquals("r8 · v0.28.0 · current", relayLine(json("""{"name":"r8","version":"v0.28.0","state":"current","seenAt":"8800"}"""), t, now, time))
         // a failure: the reason in words and the node's text; a reason this build does not know, as it is
         assertEquals("r1 · v0.27.0 · failed → v0.28.0 · since t9900\nno download: github: 503",
             relayLine(json("""{"name":"r1","version":"v0.27.0","state":"failed","target":"v0.28.0","reason":"download",
