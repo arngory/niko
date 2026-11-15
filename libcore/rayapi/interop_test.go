@@ -194,6 +194,10 @@ func TestRaycontrolInterop(t *testing.T) {
 	if name := os.Getenv("RAYCONTROL_ROTATE_SERVICE"); name != "" {
 		checkRotateInGrace(ctx, t, endpoint, name)
 	}
+	// raycontrol v0.27.0: what the admin mode reads of a revocation, RenewUser, the ports, the last ssh service
+	if os.Getenv("RAYCONTROL_V027") != "" {
+		checkV027(ctx, t, endpoint)
+	}
 
 	// a new client key; the old one stops working at once
 	next, err := NewIdentity()
@@ -216,6 +220,138 @@ func TestRaycontrolInterop(t *testing.T) {
 			t.Fatalf("Register with the key before RotateCertificate: %v, want not_found", err)
 		}
 	}
+}
+
+// checkV027 is the admin API of raycontrol v0.27.0 as the admin mode calls it (api-v1 §5a, node.proto):
+//   - RevokeDevice says what it did: an unused invite withdrawn (invite), a device revoked before (already), or whose
+//     device it was and how many of the user's credentials are new;
+//   - RenewUser gives a user new credentials and says how many; an unknown user is not_found;
+//   - GetPorts lists the node's ports, the knock's, the subscription's and the API's among them;
+//   - GetUpdateStatus may carry latestPatch;
+//   - the last enabled ssh service is neither disabled nor deleted without force (failed_precondition), and is with it.
+func checkV027(ctx context.Context, t *testing.T, admin Endpoint) {
+	t.Helper()
+	type revocation struct {
+		Invite      bool   `json:"invite"`
+		Already     bool   `json:"already"`
+		User        string `json:"user"`
+		Device      string `json:"device"`
+		Credentials int    `json:"credentials"`
+	}
+	revoke := func(id string) revocation {
+		t.Helper()
+		raw, err := Call(ctx, admin, NodeService+"RevokeDevice", []byte(`{"id":"`+id+`"}`))
+		if err != nil {
+			t.Fatalf("RevokeDevice %s: %v", id, err)
+		}
+		var r revocation
+		if err = json.Unmarshal(raw, &r); err != nil {
+			t.Fatalf("RevokeDevice %s: %s: %v", id, raw, err)
+		}
+		return r
+	}
+	raw, err := Call(ctx, admin, NodeService+"CreateInvite",
+		[]byte(`{"user":"interop","name":"unused","role":"user","ttlSeconds":"3600"}`))
+	if err != nil {
+		t.Fatalf("CreateInvite: %v", err)
+	}
+	var created struct {
+		Invite struct {
+			ID string `json:"id"`
+		} `json:"invite"`
+	}
+	if err = json.Unmarshal(raw, &created); err != nil || created.Invite.ID == "" {
+		t.Fatalf("CreateInvite: no invite id in %s (%v)", raw, err)
+	}
+	if r := revoke(created.Invite.ID); !r.Invite || r.Already || r.User != "" || r.Credentials != 0 {
+		t.Fatalf("RevokeDevice of an unused invite: %+v, want the invite withdrawn and nothing else", r)
+	}
+	device, _ := newDevice(ctx, t, admin, "revoked")
+	r := revoke(device.DeviceID)
+	if r.Invite || r.Already || r.User != "interop" || r.Device != "revoked" || r.Credentials < 1 {
+		t.Fatalf("RevokeDevice of a device: %+v, want interop/revoked with its user's credentials new", r)
+	}
+	t.Logf("RevokeDevice: %s/%s, %d credentials new", r.User, r.Device, r.Credentials)
+	if again := revoke(device.DeviceID); !again.Already {
+		t.Fatalf("RevokeDevice again: %+v, want already", again)
+	}
+
+	raw, err = Call(ctx, admin, NodeService+"RenewUser", []byte(`{"name":"interop"}`))
+	var renewed struct {
+		Name        string `json:"name"`
+		Credentials int    `json:"credentials"`
+	}
+	if err != nil || json.Unmarshal(raw, &renewed) != nil || renewed.Name != "interop" || renewed.Credentials < 1 {
+		t.Fatalf("RenewUser: %s, %v", raw, err)
+	}
+	if _, err = Call(ctx, admin, NodeService+"RenewUser", []byte(`{"name":"nobody"}`)); !isCode(err, "not_found") {
+		t.Fatalf("RenewUser of an unknown user: %v, want not_found", err)
+	}
+	t.Logf("RenewUser: %d credentials new", renewed.Credentials)
+
+	raw, err = Call(ctx, admin, NodeService+"GetPorts", nil)
+	if err != nil {
+		t.Fatalf("GetPorts: %v", err)
+	}
+	var ports struct {
+		Ports []struct {
+			Name   string   `json:"name"`
+			Protos []string `json:"protos"`
+			From   int      `json:"from"`
+			To     int      `json:"to"`
+			Source string   `json:"source"`
+			Access string   `json:"access"`
+		} `json:"ports"`
+	}
+	if err = json.Unmarshal(raw, &ports); err != nil {
+		t.Fatalf("GetPorts: %s: %v", raw, err)
+	}
+	named := map[string]bool{}
+	for _, p := range ports.Ports {
+		if len(p.Protos) == 0 || p.From == 0 || p.Access == "" {
+			t.Fatalf("GetPorts: a port without its protocols, number or access: %+v", p)
+		}
+		named[p.Name] = true
+	}
+	for _, name := range []string{"spa", "sub", "api"} {
+		if !named[name] {
+			t.Fatalf("GetPorts: no %q among %s", name, raw)
+		}
+	}
+	t.Logf("GetPorts: %d ports", len(ports.Ports))
+	raw, err = Call(ctx, admin, NodeService+"GetUpdateStatus", nil)
+	var update struct {
+		LatestPatch string `json:"latestPatch"`
+	}
+	if err != nil || json.Unmarshal(raw, &update) != nil {
+		t.Fatalf("GetUpdateStatus: %s, %v", raw, err)
+	}
+	t.Logf("GetUpdateStatus: latestPatch %q", update.LatestPatch)
+
+	// the node's only ssh service: out only with force
+	if _, err = Call(ctx, admin, NodeService+"CreateService", []byte(`{"kind":"ssh","name":"ssh"}`)); err != nil {
+		t.Fatalf("CreateService ssh: %v", err)
+	}
+	lastRefused := func(what string, err error) {
+		t.Helper()
+		if !isCode(err, "failed_precondition") || !strings.Contains(err.Error(), "last enabled ssh service") {
+			t.Fatalf("%s of the last ssh service without force: %v, want failed_precondition naming it", what, err)
+		}
+	}
+	_, err = Call(ctx, admin, NodeService+"SetServiceEnabled", []byte(`{"name":"ssh","enabled":false}`))
+	lastRefused("SetServiceEnabled", err)
+	if _, err = Call(ctx, admin, NodeService+"SetServiceEnabled", []byte(`{"name":"ssh","enabled":false,"force":true}`)); err != nil {
+		t.Fatalf("SetServiceEnabled with force: %v", err)
+	}
+	if _, err = Call(ctx, admin, NodeService+"SetServiceEnabled", []byte(`{"name":"ssh","enabled":true}`)); err != nil {
+		t.Fatalf("SetServiceEnabled ssh on again: %v", err)
+	}
+	_, err = Call(ctx, admin, NodeService+"DeleteService", []byte(`{"name":"ssh"}`))
+	lastRefused("DeleteService", err)
+	if _, err = Call(ctx, admin, NodeService+"DeleteService", []byte(`{"name":"ssh","force":true}`)); err != nil {
+		t.Fatalf("DeleteService with force: %v", err)
+	}
+	t.Log("the last ssh service: disabled and deleted with force only")
 }
 
 // graceUntil is the time in the node's refusal of a switch with a grace, as the app's RayApi.graceUntil reads it.

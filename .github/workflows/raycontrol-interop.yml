@@ -123,6 +123,8 @@ jobs:
           # raycontrol v0.24.0: Register again with the same client key gets the same device (api-v1 §4.1); a second
           # switch of a dnstt seal key within the first one's grace is refused unless forced
           if grep -rqs "register-replay" raycontrol/internal/api; then echo "RAYCONTROL_REGISTER_RETRY=1" >> "$GITHUB_ENV"; fi
+          # raycontrol v0.27.0: RevokeDevice says what it did, RenewUser, GetPorts, the last ssh service only with force
+          if grep -qs "rpc RenewUser" raycontrol/api/proto/raycontrol/node/v1/node.proto; then echo "RAYCONTROL_V027=1" >> "$GITHUB_ENV"; fi
           if grep -qs "bool force = 3" raycontrol/api/proto/raycontrol/node/v1/node.proto; then
             rc service add dnstt dns
             echo "RAYCONTROL_ROTATE_SERVICE=dns" >> "$GITHUB_ENV"
@@ -703,6 +705,46 @@ jobs:
           TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
           go test -count=1 -v -timeout 22m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolSitePins . || { state; exit 1; }
           p /opt/rc/rayctl service list
+
+      # raycontrol v0.27.0 (api-v1 §5a): a revoked device takes its user's credentials with it, DoH has a token per
+      # device. Two devices of one user on the node with DoH; one revoked: its token gets the empty 404 at once, the
+      # other keeps its token, loses its old credentials and carries again with its next subscription; RenewUser does
+      # the same to it (its DoH token included). A REALITY target on the node's own address is refused
+      - name: A revoked device and its user's other one (raycontrol v0.27.0)
+        working-directory: libcore
+        env:
+          RAYCONTROL_RAYCTL: docker exec rc-pin /opt/rc/rayctl
+          RAYCONTROL_REVOKE_ONE: /tmp/rv-one.bundle
+          RAYCONTROL_REVOKE_TWO: /tmp/rv-two.bundle
+          RAYCONTROL_REVOKE_USER: frank
+          RAYCONTROL_ADDRESS: 203.0.113.4
+          RAYCONTROL_CA: /tmp/pebble-roots.pem
+          RAYCONTROL_LIMIT_TARGET: 11.0.0.1
+        run: |
+          if ! grep -qs "rpc RenewUser" ../raycontrol/api/proto/raycontrol/node/v1/node.proto; then
+            echo "::notice::this raycontrol has no RenewUser (v0.27.0 does): a revocation does not renew credentials"
+            exit 0
+          fi
+          p() { docker exec rc-pin "$@"; }
+          p /opt/rc/rayctl user add frank -services naive,hy2m,doh > /dev/null
+          for d in one two; do
+            p /opt/rc/rayctl device add frank "$d" -o "/root/rv-$d.bundle" > /dev/null
+            p cat "/root/rv-$d.bundle" > "/tmp/rv-$d.bundle"
+          done
+          # the target option (rayctl service set NAME target=HOST:PORT): this REALITY steals from the node's own site,
+          # whose name it has, so it takes no target, and the refusal says so (the admin mode offers the option only
+          # to a REALITY with a target of its own)
+          if out=$(p /opt/rc/rayctl service set reality target=www.example.org:443 2>&1); then
+            echo "::error::a REALITY under the node's own site took a foreign target: $out"
+            exit 1
+          fi
+          echo "$out" | grep -q "steals from the node's own site" || { echo "::error::the refusal of a target for a REALITY under the site: $out"; exit 1; }
+          TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
+          go test -count=1 -v -timeout 10m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolRevoke . || {
+            p /opt/rc/rayctl device list frank || true
+            p tail -n 80 /var/log/rayd.log || true
+            exit 1
+          }
 
       - name: The subscription as the app reads it
         if: always()
