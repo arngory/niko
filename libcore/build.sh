@@ -51,8 +51,22 @@ if [ "$ANCHORS" != "$CHROMIUM" ]; then
   exit 1
 fi
 
+# The Go runtime's defaults on Android: GOOS android is not "linux" to it, so the heap it frees goes back with MADV_FREE,
+# which the kernel takes only under pressure; until then the pages count in the process's RSS and PSS (the background
+# process after naive's upload: 20 MB of LazyFree in its Go heap, e2e on b248c63). madvdontneed=1 gives them back at
+# once, as on Linux. It is no setting go.mod or //go:debug take, so the linker sets the default, the way the go command
+# sets it from go.mod: after the go command's own for a module of libcore's go version under this toolchain (none while
+# they are of one release), which a later -X would otherwise drop. GODEBUG still overrides it.
+probe="$(mktemp -d)"
+printf 'module godebugprobe\n\ngo %s\n' "$(sed -n 's/^go //p' go.mod)" > "$probe/go.mod"
+printf 'package main\n\nfunc main() {}\n' > "$probe/main.go"
+GODEBUG_GO="$(cd "$probe" && go list -f '{{.DefaultGODEBUG}}' .)" || { rm -rf "$probe"; exit 1; }
+rm -rf "$probe"
+GODEBUG_DEFAULT="${GODEBUG_GO:+$GODEBUG_GO,}madvdontneed=1"
+echo ">> the Go runtime's GODEBUG default: $GODEBUG_DEFAULT"
+
 export GOBIND="$GOPATH/bin/gobind-matsuri"
-"$GOPATH"/bin/gomobile-matsuri bind -v -androidapi 23 -cache "$(realpath $BUILD)" -trimpath -ldflags='-s -w -checklinkname=0' -tags='with_naive_outbound,with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0' . || exit 1
+"$GOPATH"/bin/gomobile-matsuri bind -v -androidapi 23 -cache "$(realpath $BUILD)" -trimpath -ldflags="-s -w -checklinkname=0 -X=runtime.godebugDefault=$GODEBUG_DEFAULT" -tags='with_naive_outbound,with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0' . || exit 1
 rm -r libcore-sources.jar
 
 # what was built says which Go built it: every ABI's library, or no library
@@ -68,7 +82,11 @@ for so in "$BUILD"/built/jni/*/libgojni.so; do
     echo ">> $so does not carry Chromium $CHROMIUM (cronet-go's library module)"
     exit 1
   fi
-  echo ">> $(basename "$(dirname "$so")"): $built, Chromium $CHROMIUM"
+  if ! grep -qaF "$GODEBUG_DEFAULT" "$so"; then
+    echo ">> $so does not carry the GODEBUG default $GODEBUG_DEFAULT"
+    exit 1
+  fi
+  echo ">> $(basename "$(dirname "$so")"): $built, Chromium $CHROMIUM, GODEBUG $GODEBUG_DEFAULT"
 done
 rm -rf "$BUILD/built"
 
