@@ -43,6 +43,7 @@ object RayWatchdog {
     private const val FIRST_BACKOFF = 5 * 60_000L
     private const val STALE_MAX = 12 * 60 * 60_000L
     private const val DOH_PERIOD = 30 * 60_000L
+    private const val DOH_BACKOFF_MAX = 4 * 60 * 60_000L
 
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
@@ -90,6 +91,14 @@ object RayWatchdog {
     @Volatile
     private var dohAskedAt = 0L
 
+    // the fetches for a refused DoH token back off on their own: a passing test (the profile works) resets the
+    // fetches for failing tests, not these. Reset by an answer of the DoH and by a start not the watchdog's own
+    @Volatile
+    private var dohRetryAt = 0L
+
+    @Volatile
+    private var dohBackoff = FIRST_BACKOFF
+
     /**
      * The core connected: [probe] tests the running profile and returns whether it works; [doh] asks the running
      * core's remote DNS once and returns the HTTP status it refused with, or 0 or less (libcore's DohCheck).
@@ -105,6 +114,8 @@ object RayWatchdog {
         if (!ownRestart) {
             recoverAt = 0
             backoff = FIRST_BACKOFF
+            dohRetryAt = 0
+            dohBackoff = FIRST_BACKOFF
         }
         ownRestart = false
         RayBrutal.reset()
@@ -294,11 +305,15 @@ object RayWatchdog {
                     dohAskedAt = now
                     val code = doh()
                     currentCoroutineContext().ensureActive()
-                    if (dohRefused(code)) {
-                        Logs.i("raycontrol ${node.host}: the node's DoH refuses this device's token (HTTP $code), fetching the subscription")
-                        if (now >= recoverAt) {
-                            recoverAt = now + Jitter.around(backoff)
-                            backoff = minOf(backoff * 2, 60 * 60_000L)
+                    if (code == 0) {
+                        dohRetryAt = 0
+                        dohBackoff = FIRST_BACKOFF
+                    } else if (dohRefused(code)) {
+                        Logs.i("raycontrol ${node.host}: the node's DoH refuses this device's token (HTTP $code)")
+                        if (now >= dohRetryAt) {
+                            dohRetryAt = now + Jitter.around(dohBackoff)
+                            dohBackoff = minOf(dohBackoff * 2, DOH_BACKOFF_MAX)
+                            Logs.i("raycontrol ${node.host}: fetching the subscription for a new DoH token")
                             if (refetch(node)) return 60_000L
                         }
                     }

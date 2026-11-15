@@ -360,10 +360,11 @@ class BaseService {
             DefaultNetworkListener.start(this) {
                 RayWatchdog.network(it != null)
                 if (it == null) {
-                    // no network: the VPN follows the system's default, not the network that is gone, and the
-                    // resolver asks no gone network's handle (ThroneForAndroid 234c661 found it in NekoBox's code)
-                    SagerNet.underlyingNetwork = null
-                    DataStore.vpnService?.updateUnderlyingNetwork()
+                    // no network: the VPN names the system's default to the system, not the network that is gone
+                    // (ThroneForAndroid 234c661 found it in NekoBox's code). The network the core resolves through
+                    // stays the one that went: asked, it fails at once. Null would be this process's default, which
+                    // is the VPN itself, and the core's direct DNS would come back to the core
+                    DataStore.vpnService?.updateUnderlyingNetwork(network = null)
                     if (upstreamInterfaceName != null) upstreamLost = true
                     return@start
                 }

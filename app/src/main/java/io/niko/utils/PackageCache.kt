@@ -99,8 +99,9 @@ object PackageCache {
     }
 
     /**
-     * The packages of a uid. An app of another user on the device (a work profile, a second space, a clone) has the
-     * uid of its app ID in that user: the app's own, found by the app ID when the uid itself is not listed.
+     * The packages of a uid, for the names the core shows (NativeInterface). An app of another user on the device (a
+     * work profile, a second space, a clone) has the uid of its app ID in that user: the app's own, found by the app
+     * ID when the uid itself is not listed. Rules by app take the main user's uids (packageMap) only.
      */
     fun packagesOf(uid: Int): Set<String>? = packagesOf(uidMap, uid)
 

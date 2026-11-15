@@ -7,6 +7,7 @@ import android.annotation.SuppressLint
 import android.app.Service
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Network
 import android.net.ProxyInfo
 import android.os.Build
 import android.os.ParcelFileDescriptor
@@ -222,11 +223,13 @@ class VpnService : BaseVpnService(),
         return conn!!.fd
     }
 
-    fun updateUnderlyingNetwork(builder: Builder? = null) {
+    /**
+     * The network the VPN names to the system as its own (metered, its link speed). [network] null: the default
+     * network went away, and the VPN names the system's default, whatever it becomes, in place of the one that is gone.
+     */
+    fun updateUnderlyingNetwork(builder: Builder? = null, network: Network? = SagerNet.underlyingNetwork) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
-            // none known (the network went away): null, the system's default whatever it becomes, in place of a
-            // network that is gone, which the VPN would go on naming to the system (metered, its link speed)
-            val networks = SagerNet.underlyingNetwork?.let { arrayOf(it) }
+            val networks = network?.let { arrayOf(it) }
             builder?.setUnderlyingNetworks(networks) ?: setUnderlyingNetworks(networks)
         }
     }
