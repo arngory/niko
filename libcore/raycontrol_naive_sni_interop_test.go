@@ -24,10 +24,12 @@ import (
 	"libcore/raysub"
 )
 
-// naiveRow is a naive line of the subscription, with the next one the node published for it, if any.
+// naiveRow is a naive line of the subscription, with the next one the node published for it, if any; published is
+// false for a naive+quic line made here from the naive+https one by its scheme.
 type naiveRow struct {
-	link string
-	next *raysub.Next
+	link      string
+	next      *raysub.Next
+	published bool
 }
 
 // naiveRows are a device's naive lines: over HTTP/2 (naive+https) and over QUIC (naive+quic).
@@ -75,8 +77,10 @@ func naiveSameBut(t *testing.T, a, b string) error {
 // profile's next, the same line with another sni. Before its time the line and its next carry the same address, port
 // and niko-pin, and both names carry (the front serves the new one ahead of its publication); after rotate -now the
 // line has the new name and carries, and the line the device had before (the rollback to link of a device that has
-// not fetched again) carries still. Over HTTP/2 and over QUIC, through the core's naive outbound (cronet), as the app
-// takes each line whole.
+// not fetched again) carries still. Through the core's naive outbound (cronet), each line whole as the app takes it,
+// over HTTP/2; and each over QUIC as naive+quic, which the node publishes or this test makes from the line by its
+// scheme: the app makes no QUIC profile of a naive+https line, so that part checks the node's front on UDP 443 for a
+// client that does (raycontrol R3-5), not the app.
 //
 // RAYCONTROL_RAYCTL runs rayctl on that node, RAYCONTROL_NAIVE_BUNDLE is the package of a device whose user has the
 // naive service, RAYCONTROL_SING_BOX a sing-box built with naive, RAYCONTROL_CA the root of the node's certificates;
@@ -118,6 +122,14 @@ func TestRaycontrolNaiveSNI(t *testing.T) {
 	}()
 	destination := M.ParseSocksaddrHostPort(os.Getenv("RAYCONTROL_LIMIT_TARGET"), uint16(listener.Addr().(*net.TCPAddr).Port))
 
+	// the naive+quic lines made here from the published naive+https ones, not the node's
+	synthesized := map[string]bool{}
+	kind := func(link string) string {
+		if synthesized[link] {
+			return "naive+quic made from the line (the front over QUIC)"
+		}
+		return strings.SplitN(link, "://", 2)[0]
+	}
 	fetch := func() naiveRows {
 		t.Helper()
 		appJSON, err := RaycontrolFetchSubscription(string(request))
@@ -134,7 +146,7 @@ func TestRaycontrolNaiveSNI(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			row := &naiveRow{link: p.Link, next: p.Next}
+			row := &naiveRow{link: p.Link, next: p.Next, published: true}
 			switch u.Scheme {
 			case "naive+https":
 				rows.h2 = row
@@ -145,14 +157,17 @@ func TestRaycontrolNaiveSNI(t *testing.T) {
 		if rows.h2 == nil {
 			t.Fatalf("the subscription has no naive line: %d profiles", len(result.Payload.Profiles))
 		}
-		// the node publishes naive's one line, naive+https (R3-5): the client takes the same line over QUIC as
-		// naive+quic, the same name, password and pins on UDP 443, and the front serves every name of naive there too
+		// the node publishes naive's one line, naive+https (R3-5), and its front serves every name of naive on UDP
+		// 443 too, for a client that takes the same line over QUIC. Niko does not make such a profile from the line
+		// (RayRows takes the schemes published); the line is made here by its scheme, to check the front over QUIC
 		if rows.quic == nil {
 			rows.quic = &naiveRow{link: "naive+quic" + strings.TrimPrefix(rows.h2.link, "naive+https")}
+			synthesized[rows.quic.link] = true
 			if rows.h2.next != nil {
 				next := *rows.h2.next
 				next.Link = "naive+quic" + strings.TrimPrefix(next.Link, "naive+https")
 				rows.quic.next = &next
+				synthesized[next.Link] = true
 			}
 		}
 		return rows
@@ -266,15 +281,15 @@ func TestRaycontrolNaiveSNI(t *testing.T) {
 					break
 				}
 				if time.Since(start) > time.Minute {
-					t.Fatalf("%s, %s (%s), for a minute: %v", what, strings.SplitN(link, "://", 2)[0], naiveSNI(t, link), err)
+					t.Fatalf("%s, %s (%s), for a minute: %v", what, kind(link), naiveSNI(t, link), err)
 				}
 				time.Sleep(3 * time.Second)
 			}
 			if !before.IsZero() && !time.Now().Before(before) {
-				t.Fatalf("%s, %s (%s): carried only at or after %s, not ahead of it", what, strings.SplitN(link, "://", 2)[0],
+				t.Fatalf("%s, %s (%s): carried only at or after %s, not ahead of it", what, kind(link),
 					naiveSNI(t, link), before.UTC().Format(time.RFC3339))
 			}
-			t.Logf("%s, %s: carries (%s after the first try)", what, strings.SplitN(link, "://", 2)[0],
+			t.Logf("%s, %s: carries (%s after the first try)", what, kind(link),
 				time.Since(start).Round(time.Second))
 		}
 	}
@@ -334,7 +349,8 @@ func TestRaycontrolNaiveSNI(t *testing.T) {
 	if naiveQuery(t, planned.h2.link).Get("niko-pin") != naiveQuery(t, planned.h2.next.Link).Get("niko-pin") {
 		t.Fatal("niko-pin of the line and of its next differ: the site's key changed with the name")
 	}
-	if planned.quic != nil {
+	// a naive+quic line the node publishes has its own next: the same new name
+	if planned.quic.published {
 		if planned.quic.next == nil || naiveSNI(t, planned.quic.next.Link) != newName {
 			t.Fatalf("the naive+quic line's next %v, want the new name %s as over HTTP/2", planned.quic.next, newName)
 		}
