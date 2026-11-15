@@ -182,5 +182,13 @@ class RayAdminTest {
             relayLine(json("""{"name":"r9\u202e","version":"v0.28.0\n","state":"failed","reason":"install",
                 "error":"rayctl: nft: bad rule\nlast heard t1\u0007","changedAt":9900,"seenAt":9990}"""), t, now, time))
         assertEquals("a\u2026", relayState("a".repeat(40), t).let { it.take(1) + it.takeLast(1) })
+        // a state or reason of control characters alone: no state (unknown, with its hint) and no reason, no stray line
+        assertEquals("r1 · v0.28.0 · unknown · since t9900\nhint: update by hand",
+            relayLine(json("""{"name":"r1","version":"v0.28.0","state":"\u0007","reason":"\u202e","changedAt":9900,"seenAt":9990}"""),
+                t, now, time))
+        assertEquals("r1 · v0.28.0 · failed · since t9900\n\u2068disk full\u2069",
+            relayLine(json("""{"name":"r1","version":"v0.28.0","state":"failed","reason":"\u0007","error":"disk full","changedAt":9900,"seenAt":9990}"""),
+                t, now, time))
+        assertEquals("relays: unknown 2", relaysSummary(json("""{"relays":[{"name":"r1","state":"\u0007"},{"name":"r2","state":"unknown"}]}"""), t))
     }
 }

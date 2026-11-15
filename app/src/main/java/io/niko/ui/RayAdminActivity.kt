@@ -1446,8 +1446,9 @@ internal fun relaysPending(update: JsonObject) = update.arr("relays").any { it.s
 /** How many relays are in which state, in a line; null without relays (or from a node before v0.28.0). */
 internal fun relaysSummary(update: JsonObject, t: AdminTexts): String? {
     val relays = update.arr("relays").takeIf { it.isNotEmpty() } ?: return null
-    val counts = relays.groupingBy { it.s("state") }.eachCount()
-    return t(R.string.raycontrol_admin_relays_count, counts.entries.joinToString(", ") { (state, n) -> "${relayState(state, t)} $n" })
+    // by the state in words: one the cleaning leaves empty counts as unknown
+    val counts = relays.groupingBy { relayState(it.s("state"), t) }.eachCount()
+    return t(R.string.raycontrol_admin_relays_count, counts.entries.joinToString(", ") { (state, n) -> "$state $n" })
 }
 
 /** A relay's state in words; a state this build does not know (a newer node) as the node says it, in one line. */
@@ -1462,7 +1463,8 @@ internal fun relayState(state: String, t: AdminTexts): String = when (state) {
     "current" -> t(R.string.raycontrol_admin_relay_current)
     "off" -> t(R.string.raycontrol_admin_relay_off)
     "unknown", "" -> t(R.string.raycontrol_admin_relay_unknown)
-    else -> relayText(state, RELAY_WORD)
+    // nothing left of it once cleaned: as good as no state
+    else -> relayText(state, RELAY_WORD).ifEmpty { t(R.string.raycontrol_admin_relay_unknown) }
 }
 
 /**
@@ -1518,14 +1520,15 @@ private const val RELAY_ERROR = 200
  * answer carries no time of the node's), which [RELAY_QUIET_SECONDS] leaves room for; [time] shows a time.
  */
 internal fun relayLine(relay: JsonObject, t: AdminTexts, now: Long, time: (Long) -> String): String {
-    val state = relay.s("state")
+    // cleaned as the line shows it: a state of control characters alone is no state, and gets unknown's hint
+    val state = relayText(relay.s("state"), RELAY_WORD)
     val version = relayText(relay.s("version"), RELAY_VERSION)
     val shown = version.ifEmpty { t(R.string.raycontrol_admin_relay_no_version) }
     var head = "${relayText(relay.s("name"), RELAY_VERSION)} · $shown · ${relayState(state, t)}"
     relayText(relay.s("target"), RELAY_VERSION).takeIf { it.isNotEmpty() && it != version }?.let { head += " → $it" }
     relay.l("changedAt").takeIf { it > 0 }?.let { head += " · " + t(R.string.raycontrol_admin_relay_since, time(it)) }
     val lines = mutableListOf(head)
-    val reason = relay.s("reason").takeIf { it.isNotEmpty() }?.let { relayReason(it, t) }
+    val reason = relayReason(relay.s("reason"), t).takeIf { it.isNotEmpty() }
     // the relay's own words, isolated from the line's direction
     val error = relayText(relay.s("error"), RELAY_ERROR).takeIf { it.isNotEmpty() }?.let { "\u2068$it\u2069" }
     listOfNotNull(reason, error).takeIf { it.isNotEmpty() }?.let { lines += it.joinToString(": ") }
