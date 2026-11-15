@@ -3,7 +3,7 @@
 package libcore
 
 import (
-	"libcore/knock"
+	"github.com/sagernet/sing-box/protocol/knock"
 
 	"github.com/sagernet/sing-box/adapter/outbound"
 	"github.com/sagernet/sing-box/protocol/dnstt"

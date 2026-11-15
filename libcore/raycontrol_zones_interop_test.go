@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sagernet/sing-box/protocol/knock"
 	"libcore/dnsprobe"
-	"libcore/knock"
 	"libcore/rayprobe"
 	"libcore/raysub"
 

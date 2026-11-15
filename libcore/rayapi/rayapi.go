@@ -33,7 +33,7 @@ import (
 	"syscall"
 	"time"
 
-	"libcore/knock"
+	"github.com/sagernet/sing-box/protocol/knock"
 
 	"google.golang.org/protobuf/encoding/protowire"
 )

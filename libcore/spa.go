@@ -3,7 +3,7 @@ package libcore
 import (
 	"strings"
 
-	"libcore/knock"
+	"github.com/sagernet/sing-box/protocol/knock"
 )
 
 // SpaSetDeviceKey stores a raycontrol device key (64 hex) for the knock

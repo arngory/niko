@@ -24,7 +24,7 @@ import (
 	"testing"
 	"time"
 
-	"libcore/knock"
+	"github.com/sagernet/sing-box/protocol/knock"
 )
 
 // node is a fake remote API with the checks of api-v1.md §1, §4 and §6.

@@ -1,0 +1,108 @@
+# Stage 0 of the desktop client, Windows first (the owner's decision of 2026-11-15): the core and its daemon
+# (experimental/boxdd, the service a desktop app talks to) built for Windows with Niko's protocols, port knocking
+# among them, and the Go the desktop client takes over from the app tested on Windows itself. No naive yet: its
+# library for Windows comes from the server session (cronet-go, Chromium 158). No app: its stack is not chosen (no
+# Electron; Go with Dart/Flutter or another light one, Qt last).
+name: Desktop (Windows)
+
+on:
+  push:
+    paths:
+      - "buildScript/lib/core/get_source_env.sh"
+      - "libcore/go.mod"
+      - "libcore/raysub/**"
+      - "libcore/rayapi/**"
+      - "libcore/rayprobe/**"
+      - "libcore/probe/**"
+      - "libcore/dnsprobe/**"
+      - "libcore/minisign/**"
+      - "libcore/stun/**"
+      - ".github/workflows/desktop.yml"
+  workflow_dispatch:
+
+# read-only token: nothing here writes to the repository
+permissions:
+  contents: read
+
+env:
+  TAGS: with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: libcore/go.mod
+          cache-dependency-path: libcore/go.sum
+
+      - name: Fetch sources
+        run: ./run lib core/init
+
+      # the daemon's own tags for Windows (the external WinDivert and USB/IP drivers) besides Niko's; pure Go, so
+      # cross-compiled here
+      - name: The core and the daemon for Windows
+        run: |
+          mkdir -p "$RUNNER_TEMP/desktop"
+          cd ../sing-box
+          for arch in amd64 arm64; do
+            for pkg in cmd/sing-box experimental/boxdd; do
+              out="$RUNNER_TEMP/desktop/$(basename "$pkg")-windows-$arch.exe"
+              GOOS=windows GOARCH=$arch CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -checklinkname=0" \
+                -tags="$TAGS,with_external_windivert,with_external_usbip_drivers" -o "$out" "./$pkg"
+              echo "$(basename "$out"): $(du -h "$out" | cut -f1)"
+            done
+          done
+          # port knocking is in the core now: a profile of a raycontrol node needs it to reach the node
+          go version -m "$RUNNER_TEMP/desktop/boxdd-windows-amd64.exe" > /dev/null
+          strings "$RUNNER_TEMP/desktop/boxdd-windows-amd64.exe" | grep -q "sing-box/protocol/knock" ||
+            { echo "::error::the daemon has no port knocking"; exit 1; }
+
+      - name: The binaries
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: desktop-windows
+          path: ${{ runner.temp }}/desktop
+          retention-days: 7
+
+  # the Go the desktop client takes over, on Windows itself: the core's knock and certificates, libcore's node
+  # subscription, the node's API, the probes, the update signature
+  test:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: libcore/go.mod
+          cache-dependency-path: libcore/go.sum
+
+      # what ./run lib core/init fetches, without the NDK's environment that script sets up
+      - name: Fetch sources
+        run: |
+          . buildScript/lib/core/get_source_env.sh
+          git clone --filter=blob:none "$REPOSITORY_SING_BOX" ../sing-box
+          git -C ../sing-box checkout -q "$COMMIT_SING_BOX"
+          git clone --filter=blob:none "$REPOSITORY_LIBNEKO" ../libneko
+          git -C ../libneko checkout -q "$COMMIT_LIBNEKO"
+
+      - name: The core's packages on Windows
+        working-directory: ../sing-box
+        env:
+          CGO_ENABLED: "0"
+        run: go test -count=1 -ldflags=-checklinkname=0 -tags="$TAGS" ./protocol/knock ./common/certificate ./common/udpdesync ./common/nikoicmp
+
+      - name: libcore's packages on Windows
+        working-directory: libcore
+        env:
+          CGO_ENABLED: "0"
+        run: go test -count=1 -ldflags=-checklinkname=0 -tags="$TAGS" ./raysub ./rayapi ./minisign ./probe ./rayprobe ./dnsprobe ./stun

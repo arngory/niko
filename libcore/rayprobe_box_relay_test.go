@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"libcore/knock"
+	"github.com/sagernet/sing-box/protocol/knock"
 )
 
 // a relay's probe endpoint takes RC1 on K_relay (relay-v1 §9.1): the request's SPA names the relay

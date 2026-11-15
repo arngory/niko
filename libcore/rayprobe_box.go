@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/sagernet/sing-box/protocol/knock"
 	"libcore/device"
-	"libcore/knock"
 	"libcore/probe"
 	"libcore/rayprobe"
 

@@ -3,7 +3,7 @@ package libcore
 import (
 	"context"
 
-	"libcore/knock"
+	"github.com/sagernet/sing-box/protocol/knock"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/endpoint"

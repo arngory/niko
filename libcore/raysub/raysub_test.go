@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"libcore/knock"
+	"github.com/sagernet/sing-box/protocol/knock"
 
 	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
 )

@@ -20,7 +20,6 @@ on:
       - "libcore/rayprobe/**"
       - "libcore/raysub/**"
       - "libcore/probe/**"
-      - "libcore/knock/**"
       - "libcore/rayprobe_box.go"
       - "libcore/raysub.go"
       - "libcore/dnsprobe/**"

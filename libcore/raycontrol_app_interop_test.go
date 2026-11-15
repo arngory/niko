@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"libcore/knock"
+	"github.com/sagernet/sing-box/protocol/knock"
 	"libcore/raysub"
 )
 

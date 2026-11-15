@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"libcore/knock"
+	"github.com/sagernet/sing-box/protocol/knock"
 	"libcore/probe"
 	"libcore/rayprobe"
 	"libcore/raysub"
