@@ -239,10 +239,11 @@ func TestRaycontrolNaiveSNI(t *testing.T) {
 		}
 		return nil
 	}
-	// carries: each line carries within a minute, the time it took logged: the node applies a new user's password, a
-	// new name's route and a switch a little after it says so (its apply runs on its own), and answers as the site
-	// (an empty 404) until then
-	carries := func(what string, rows ...string) {
+	// carriesBefore: each line carries within a minute, the time it took logged: the node applies a new user's
+	// password, a new name's route and a switch a little after it says so (its apply runs on its own), and answers as
+	// the site (an empty 404) until then. With a time [before], a line that carries only at it or after fails: next
+	// ahead of its from is to carry ahead of it, not once the switch has come
+	carriesBefore := func(what string, before time.Time, rows ...string) {
 		t.Helper()
 		for _, link := range rows {
 			if link == "" {
@@ -259,9 +260,17 @@ func TestRaycontrolNaiveSNI(t *testing.T) {
 				}
 				time.Sleep(3 * time.Second)
 			}
+			if !before.IsZero() && !time.Now().Before(before) {
+				t.Fatalf("%s, %s (%s): carried only at or after %s, not ahead of it", what, strings.SplitN(link, "://", 2)[0],
+					naiveSNI(t, link), before.UTC().Format(time.RFC3339))
+			}
 			t.Logf("%s, %s: carries (%s after the first try)", what, strings.SplitN(link, "://", 2)[0],
 				time.Since(start).Round(time.Second))
 		}
+	}
+	carries := func(what string, rows ...string) {
+		t.Helper()
+		carriesBefore(what, time.Time{}, rows...)
 	}
 	quicLink := func(row *naiveRow) string {
 		if row == nil {
@@ -327,7 +336,7 @@ func TestRaycontrolNaiveSNI(t *testing.T) {
 		}
 	}
 	// the new name ahead of its time (next may be tried 120 s before from and earlier), the old one still
-	carries("next ahead of its time ("+newName+")", planned.h2.next.Link, quicNext(planned.quic))
+	carriesBefore("next ahead of its time ("+newName+")", from, planned.h2.next.Link, quicNext(planned.quic))
 	carries("the line until from ("+oldName+")", planned.h2.link, quicLink(planned.quic))
 
 	// the switch at once: the line takes the new name, the old one is still served (the rollback to link)
