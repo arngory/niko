@@ -428,24 +428,33 @@ class RayAdminActivity : ThemedActivity() {
         val job = lifecycleScope.launch {
             val started = System.currentTimeMillis()
             var ended = !nodeUpdating
+            // the node's update asked for and still not requested or running a minute on: none to wait for
+            var gaveUp = false
             while (isActive) {
                 val update = withContext(Dispatchers.IO) { runCatching { call("GetUpdateStatus") } }.getOrNull()
                 val status = update?.getAsJsonObject("status")
-                val node = when {
-                    status != null -> updateState(status) ?: getString(
-                        if (nodeUpdating) R.string.raycontrol_admin_update_waiting else R.string.raycontrol_admin_update_idle)
-                    else -> getString(R.string.raycontrol_admin_update_unreachable)
+                val show = {
+                    val node = when {
+                        status != null -> updateState(status) ?: getString(
+                            if (nodeUpdating && !gaveUp) R.string.raycontrol_admin_update_waiting else R.string.raycontrol_admin_update_idle)
+                        else -> getString(R.string.raycontrol_admin_update_unreachable)
+                    }
+                    text.text = listOfNotNull(node, update?.let { relaysText(it) }).joinToString("\n\n")
                 }
-                text.text = listOfNotNull(node, update?.let { relaysText(it) }).joinToString("\n\n")
+                show()
                 if (!ended && status?.s("state") in setOf("done", "rolled_back", "failed")) {
                     ended = true
                     if (tab == STATUS) loadStatus()
                 }
                 if (!ended && update != null && status?.s("state") !in setOf("requested", "running") &&
                     System.currentTimeMillis() - started > 60_000L) {
-                    // asked for and gone a minute on without being requested or running (an idle status, a state this
-                    // build does not know): no outcome of the node's to wait for, only its relays
+                    // asked for and gone a minute on without being requested or running (StartUpdate refused for
+                    // another reason than one under way, an idle status after a restart, a state this build does not
+                    // know): no outcome of the node's to wait for, only its relays; said so, not "waiting"
                     ended = true
+                    gaveUp = true
+                    show()
+                    if (tab == STATUS) loadStatus()
                 }
                 val elapsed = System.currentTimeMillis() - started
                 if (ended && update != null && !relaysPending(update)) return@launch
