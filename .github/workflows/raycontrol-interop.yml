@@ -361,8 +361,17 @@ jobs:
           echo "PIN_NODE_ANY_AGE=$any_age" >> "$GITHUB_ENV"
           # when this rayd starts to give the pins it made (ten minutes from its start, and a little)
           echo "RAYCONTROL_PINS_FROM=$(( $(date +%s) + 630 ))" >> "$GITHUB_ENV"
+          # from raycontrol v0.27.0 the node's own outbound TLS trusts its embedded roots and not the system's: the
+          # roots of the stand (Pebble's API, the runner's for public resolvers) go in through -tls-roots, a settings
+          # file of the stand's own. Older rayd reads SSL_CERT_FILE, kept for them
+          roots=
+          if /tmp/rcbin/rayd serve -h 2>&1 | grep -q -- "-tls-roots"; then
+            echo '{"file": "/opt/cert/stand-roots.pem"}' > /tmp/rccert/tls-roots.json
+            chmod 0644 /tmp/rccert/tls-roots.json
+            roots="-tls-roots /opt/cert/tls-roots.json"
+          fi
           p sh -c 'SSL_CERT_FILE=/opt/cert/stand-roots.pem NIKO_SERVER_UNSAFE_ANY_DESTINATION=1 '"$any_age"' nohup /opt/rc/rayd serve -supervise \
-            -xray /opt/rc/xray -niko-server /opt/rc/niko-server -acme-directory https://pebble:14000/dir > /var/log/rayd.log 2>&1 &'
+            -xray /opt/rc/xray -niko-server /opt/rc/niko-server -acme-directory https://pebble:14000/dir '"$roots"' > /var/log/rayd.log 2>&1 &'
           for i in $(seq 50); do p test -S /run/raycontrol/rayd.sock && break; sleep 0.2; done
           # naive shares TCP 443 with REALITY under the node's own site: REALITY first
           p /opt/rc/rayctl service add reality reality > /dev/null
