@@ -1,0 +1,3 @@
+# test data signed or hashed byte for byte: a Windows checkout (core.autocrlf) would turn its line ends into CRLF and
+# the signature would no longer hold (the desktop workflow's tests on windows-latest)
+libcore/minisign/testdata/** -text
