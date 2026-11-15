@@ -204,25 +204,40 @@ func TestRaycontrolRevoke(t *testing.T) {
 			t.Fatalf("%s: DoH answered %d (%d bytes), %v", what, status, len(body), err)
 		}
 	}
+	// dohTaken waits for a new DoH token (a new device's, a renewed user's) to answer, asking again only while the
+	// node answers 404 (its DoH takes a token after it reloads; raycontrol v0.27.0's notes have a token-shaped path
+	// wait for that reload, run 43672859960 got a 404 0.6 s on). Logged: how long after fetched (when the token came
+	// with the subscription) it answered
+	dohTaken := func(what string, u *url.URL, fetched time.Time) {
+		t.Helper()
+		for {
+			status, body, err := askDoH(u)
+			if err != nil || (status != http.StatusOK && status != http.StatusNotFound) {
+				t.Fatalf("%s: DoH answered %d (%d bytes), %v", what, status, len(body), err)
+			}
+			if status == http.StatusOK {
+				t.Logf("%s: DoH answered %v after the subscription that gave the token", what,
+					time.Since(fetched).Round(100*time.Millisecond))
+				dohAnswers(what, u)
+				return
+			}
+			if time.Since(fetched) > 60*time.Second {
+				t.Fatalf("%s: DoH still answers 404 60 s after the subscription that gave the token", what)
+			}
+			time.Sleep(500 * time.Millisecond)
+		}
+	}
 
 	// before: each device's DoH token answers, the other device's Hysteria2 carries. The devices were made just
 	// before this test: how long the node's DoH takes to take a new device's token is logged (a token-shaped path
 	// waits for DoH's reload after a change, raycontrol v0.27.0's notes say; run 43672859960 got a 404 0.6 s on)
-	started := time.Now()
-	oneRows, twoRows := rowsOf("device one", oneRequest), rowsOf("device two", twoRequest)
+	oneRows, oneFetched := rowsOf("device one", oneRequest), time.Now()
+	twoRows, twoFetched := rowsOf("device two", twoRequest), time.Now()
 	if oneRows.doh.Path == twoRows.doh.Path {
 		t.Fatal("the two devices have the same DoH line: no token per device")
 	}
-	for name, u := range map[string]*url.URL{"one": oneRows.doh, "two": twoRows.doh} {
-		var status int
-		took := within("device "+name+"'s DoH token taken", 60*time.Second, func() bool {
-			status, _, _ = askDoH(u)
-			return status == http.StatusOK
-		})
-		t.Logf("device %s's DoH answered %v after its subscription (%v after the test's start)", name, took,
-			time.Since(started).Round(time.Second))
-		dohAnswers("device "+name+" before", u)
-	}
+	dohTaken("device one's new DoH token", oneRows.doh, oneFetched)
+	dohTaken("device two's new DoH token", twoRows.doh, twoFetched)
 	if err = throughHysteria(twoRows.hy2, two.DeviceKey); err != nil {
 		t.Fatalf("device two before: %v", err)
 	}
@@ -279,13 +294,16 @@ func TestRaycontrolRevoke(t *testing.T) {
 	refused = within("device two's credentials refused after RenewUser", 60*time.Second, func() bool {
 		return throughHysteria(renewed.hy2, two.DeviceKey) != nil
 	})
-	var after revokeRows
+	var (
+		after        revokeRows
+		afterFetched time.Time
+	)
 	within("device two reconnects after RenewUser", 90*time.Second, func() bool {
 		rows, err := fetch(twoRequest)
 		if err != nil || rows.hy2 == renewed.hy2 {
 			return false
 		}
-		after = rows
+		after, afterFetched = rows, time.Now()
 		return throughHysteria(rows.hy2, two.DeviceKey) == nil
 	})
 	t.Logf("RenewUser: the old credentials refused %v after it, device two carries again %v after it", refused,
@@ -293,5 +311,5 @@ func TestRaycontrolRevoke(t *testing.T) {
 	if after.doh.Path == renewed.doh.Path {
 		t.Fatal("RenewUser left device two's DoH token as it was")
 	}
-	dohAnswers("device two's new DoH token after RenewUser", after.doh)
+	dohTaken("device two's DoH token after RenewUser", after.doh, afterFetched)
 }
