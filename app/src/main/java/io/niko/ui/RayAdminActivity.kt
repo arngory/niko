@@ -76,6 +76,9 @@ class RayAdminActivity : ThemedActivity() {
     private var tab = STATUS
     private var services: List<JsonObject> = emptyList()
     private var kinds: List<String> = emptyList()
+    // the node answered GetPorts unimplemented (before raycontrol v0.27.0): its row goes
+    private var noPorts = false
+    private val texts = AdminTexts { id, args -> getString(id, *args) }
 
     override fun snackbarInternal(text: CharSequence): Snackbar =
         Snackbar.make(binding.coordinator, text, Snackbar.LENGTH_LONG)
@@ -246,9 +249,12 @@ class RayAdminActivity : ThemedActivity() {
             Row(getString(R.string.raycontrol_admin_this_device),
                 "${self.s("user")}/${self.s("name")} · ${self.s("role")}"),
             Row(getString(R.string.raycontrol_admin_node), "${status.s("host")} · ${status.s("version")}\n${status.s("nodeId")}"),
-        ) + extra + listOf(
+        ) + extra + listOfNotNull(
             Row(getString(R.string.raycontrol_admin_counts, status.l("users"), status.l("services"), status.l("activeDevices"))),
             Row(getString(R.string.raycontrol_admin_spa_ports), status.strs("spaPorts").joinToString(", ")),
+            // every port for a provider's firewall (raycontrol v0.27.0); left out once an older node said it has none
+            Row(getString(R.string.raycontrol_admin_ports), getString(R.string.raycontrol_admin_ports_summary)) { showPorts() }
+                .takeIf { !noPorts },
             Row(getString(R.string.raycontrol_admin_metrics), getString(R.string.raycontrol_admin_metrics_summary)) { showMetrics() },
             Row(getString(R.string.raycontrol_admin_access),
                 access.strs("cidrs").joinToString(", ").ifEmpty { getString(R.string.raycontrol_admin_access_none) }) {
@@ -324,6 +330,7 @@ class RayAdminActivity : ThemedActivity() {
             else getString(R.string.raycontrol_admin_update_current, installed),
             getString(if (update.s("remote") == "on") R.string.raycontrol_admin_update_remote_on else R.string.raycontrol_admin_update_remote_off),
         )
+        latestPatch(update)?.let { parts.add(1, getString(R.string.raycontrol_admin_update_patch, installed, it)) }
         if (update.s("auto") == "patch") parts += getString(R.string.raycontrol_admin_update_auto, update.s("window"), update.s("timezone"))
         update.getAsJsonObject("status")?.let { updateState(it) }?.let { parts += it }
         update.strs("held").takeIf { it.isNotEmpty() }?.let { parts += getString(R.string.raycontrol_admin_update_held, it.joinToString(", ")) }
@@ -472,6 +479,23 @@ class RayAdminActivity : ThemedActivity() {
         textDialog(getString(R.string.raycontrol_admin_metrics), samples.ifEmpty { text })
     }
 
+    /**
+     * Every port of the node for a provider's firewall (GetPorts, raycontrol v0.27.0), a line each. A node before it
+     * answers unimplemented: said once, and the row goes.
+     */
+    private fun showPorts(): Unit = api({ call("GetPorts").arr("ports") }, quiet = { RayApi.unimplemented(it) }, failed = { e ->
+        if (RayApi.unimplemented(e)) {
+            noPorts = true
+            snackbar(R.string.raycontrol_admin_ports_old).show()
+            if (tab == STATUS) loadStatus()
+        }
+    }) { ports ->
+        val time = DateFormat.getTimeInstance(DateFormat.SHORT)
+        val lines = ports.joinToString("\n") { p -> portLine(p, texts) { time.format(Date(it * 1000)) } }
+            .ifEmpty { getString(R.string.raycontrol_admin_empty) }
+        textDialog(getString(R.string.raycontrol_admin_ports), getString(R.string.raycontrol_admin_ports_help) + "\n\n" + lines)
+    }
+
     private fun editAdminAccess(current: List<String>) {
         val input = editText(getString(R.string.raycontrol_admin_access_hint), current.joinToString("\n"), multiLine = true)
         MaterialAlertDialogBuilder(this)
@@ -513,6 +537,7 @@ class RayAdminActivity : ThemedActivity() {
                 api({ call("SetUserServices", body("name" to name, "services" to chosen)) }) { loadUsers() }
             } },
             R.string.raycontrol_admin_links to { exportLinks(name) },
+            R.string.raycontrol_admin_renew to { renew(name) },
             (if (enabled) R.string.disable else R.string.enable) to {
                 api({ call("SetUserEnabled", body("name" to name, "enabled" to !enabled)) }) { loadUsers() }
             },
@@ -570,6 +595,16 @@ class RayAdminActivity : ThemedActivity() {
             .show()
     }
 
+    /**
+     * New credentials for a user at once (RenewUser, raycontrol v0.27.0), for a leak: asked first, as every device of
+     * the user is cut until it fetches its subscription. A node before it answers unimplemented.
+     */
+    private fun renew(user: String) = confirm(getString(R.string.raycontrol_admin_renew_confirm, user)) {
+        api({ call("RenewUser", body("name" to user)) }, quiet = { RayApi.unimplemented(it) }, failed = { e ->
+            if (RayApi.unimplemented(e)) snackbar(R.string.raycontrol_admin_renew_old).show()
+        }) { answer -> message(renewText(answer, user, texts)) }
+    }
+
     private fun chooseServices(current: List<String>, done: (List<String>) -> Unit) {
         val names = services.map { it.s("name") }
         if (names.isEmpty()) return done(emptyList())
@@ -589,11 +624,11 @@ class RayAdminActivity : ThemedActivity() {
             val state = if (d.l("revokedAt") != 0L) getString(R.string.raycontrol_admin_revoked) else getString(R.string.raycontrol_admin_active)
             val via = if (d.b("registered")) " · " + getString(R.string.raycontrol_admin_registered) else ""
             Row("${d.s("name")} · ${d.s("role")}", "$state$via · ${date(d.l("createdAt"))}") {
-                if (d.l("revokedAt") == 0L) revoke(user, d.s("id"), d.s("name"))
+                if (d.l("revokedAt") == 0L) revoke(user, d.s("id"), d.s("name"), invite = false)
             }
         } + list.arr("invites").map { inv ->
             Row("${inv.s("name")} · ${inv.s("role")}", getString(R.string.raycontrol_admin_invite_pending, date(inv.l("expiresAt")))) {
-                revoke(user, inv.s("id"), inv.s("name"))
+                revoke(user, inv.s("id"), inv.s("name"), invite = true)
             }
         }
         val labels = rows.map { "${it.title}\n${it.summary}" }.ifEmpty { listOf(getString(R.string.raycontrol_admin_empty)) }
@@ -605,9 +640,17 @@ class RayAdminActivity : ThemedActivity() {
             .show()
     }
 
-    private fun revoke(user: String, id: String, name: String): Unit =
-        confirm(getString(R.string.raycontrol_admin_revoke, name)) {
-            api({ call("RevokeDevice", body("id" to id)) }) { showDevices(user) }
+    /**
+     * A device revoked, or an unused invite withdrawn (RevokeDevice). Since raycontrol v0.27.0 a revocation gives the
+     * device's user new credentials, which cuts the user's other devices until they fetch their subscription: asked
+     * with that, and said after. An older node says nothing of it, and the list shows what changed.
+     */
+    private fun revoke(user: String, id: String, name: String, invite: Boolean): Unit =
+        confirm(getString(if (invite) R.string.raycontrol_admin_invite_withdraw else R.string.raycontrol_admin_revoke, user, name)) {
+            api({ call("RevokeDevice", body("id" to id)) }) { answer ->
+                val text = revokeText(answer, user, name, texts)
+                if (text == null) showDevices(user) else message(text) { showDevices(user) }
+            }
         }
 
     /**
@@ -754,9 +797,7 @@ class RayAdminActivity : ThemedActivity() {
         val name = service.s("name")
         val enabled = service.b("enabled")
         val actions = mutableListOf<Pair<Int, () -> Unit>>(
-            (if (enabled) R.string.disable else R.string.enable) to {
-                api({ call("SetServiceEnabled", body("name" to name, "enabled" to !enabled)) }) { loadServices() }
-            },
+            (if (enabled) R.string.disable else R.string.enable) to { setServiceEnabled(service, !enabled) },
         )
         val kind = service.s("kind")
         if (optionsOf(service).isNotEmpty()) actions += R.string.raycontrol_admin_options to { serviceOptions(service) }
@@ -764,14 +805,39 @@ class RayAdminActivity : ThemedActivity() {
         // dnstt's seal key (dnsseal-v1 §8), masterdns's service key (masterdns-key-rotation §2): a new one at once
         if (kind == "dnstt") actions += R.string.raycontrol_admin_rotate_seal to { rotateKey(service, "seal_prev_until", R.string.raycontrol_admin_rotate_seal) }
         if (kind == "masterdns") actions += R.string.raycontrol_admin_rotate_service to { rotateKey(service, "key_prev_until", R.string.raycontrol_admin_rotate_service) }
-        actions += R.string.delete to { confirm(getString(R.string.raycontrol_admin_delete_service, name)) {
-            api({ call("DeleteService", body("name" to name)) }) { loadServices() }
-        } }
+        actions += R.string.delete to { confirm(getString(R.string.raycontrol_admin_delete_service, name)) { deleteService(service) } }
         MaterialAlertDialogBuilder(this)
             .setTitle(name)
             .setItems(actions.map { getString(it.first) }.toTypedArray()) { _, i -> actions[i].second() }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
+    }
+
+    // raycontrol v0.27.0: the node's last enabled ssh service is not taken out unless forced (failed_precondition), as
+    // SSH is then closed to everyone at the next snapshot, the admin addresses included. Asked here, and forced only on
+    // a yes: a node before v0.27.0 has no such field and sees the request as before
+    private fun setServiceEnabled(service: JsonObject, enabled: Boolean, force: Boolean = false) {
+        val name = service.s("name")
+        val refused = { e: Throwable -> !enabled && lastSshRefused(service.s("kind"), RayApi.code(e), force) }
+        api({ call("SetServiceEnabled", body("name" to name, "enabled" to enabled, "force" to force.takeIf { it })) },
+            quiet = refused,
+            failed = { e ->
+                if (refused(e)) confirm(getString(R.string.raycontrol_admin_last_ssh_disable, name)) {
+                    setServiceEnabled(service, false, force = true)
+                }
+            },
+        ) { loadServices() }
+    }
+
+    private fun deleteService(service: JsonObject, force: Boolean = false) {
+        val name = service.s("name")
+        val refused = { e: Throwable -> lastSshRefused(service.s("kind"), RayApi.code(e), force) }
+        api({ call("DeleteService", body("name" to name, "force" to force.takeIf { it })) },
+            quiet = refused,
+            failed = { e ->
+                if (refused(e)) confirm(getString(R.string.raycontrol_admin_last_ssh_delete, name)) { deleteService(service, force = true) }
+            },
+        ) { loadServices() }
     }
 
     /** REALITY keys: on the lead time (clients get the next keys first), or now (a leaked key, a blocked name). */
@@ -880,9 +946,14 @@ class RayAdminActivity : ThemedActivity() {
                 Option("device_connections", R.string.raycontrol_admin_option_device_connections, null, now("device_connections")),
             )
             "site" -> listOf(Option("answer", R.string.raycontrol_admin_option_answer, listOf("404", "403", "silent", "pages"), now("answer")))
-            "reality" -> listOf(
+            "reality" -> listOfNotNull(
                 Option("rotate_sni", R.string.raycontrol_admin_option_rotate_sni, onOff, now("rotate_sni")),
                 Option("open", R.string.raycontrol_admin_option_open, onOff, now("open")),
+                // who answers those who are not clients (raycontrol v0.27.0), for a target of the service's own: one
+                // that steals from the node's site has that site's name, which no foreign target has a certificate
+                // for, and the node refuses it
+                Option("target", R.string.raycontrol_admin_option_target, null, now("target"), text = true)
+                    .takeIf { settings.get("site")?.takeIf { it.isJsonPrimitive }?.asString.isNullOrEmpty() },
             )
             "hy2-masq", "hy2-obfs" -> listOf(
                 Option("up_mbps", R.string.raycontrol_admin_option_up_mbps, null, now("up_mbps")),
@@ -912,7 +983,9 @@ class RayAdminActivity : ThemedActivity() {
                         }
                     }
                 }
-                if (option.values != null) {
+                if (option.key == "target") {
+                    editTarget(name, option)
+                } else if (option.values != null) {
                     MaterialAlertDialogBuilder(this)
                         .setTitle(option.title)
                         .setSingleChoiceItems(option.values.toTypedArray(), option.values.indexOf(option.current)) { dialog, which ->
@@ -930,6 +1003,45 @@ class RayAdminActivity : ThemedActivity() {
                         .setPositiveButton(android.R.string.ok) { _, _ -> set(input.text.toString().trim()) }
                         .setNegativeButton(android.R.string.cancel, null)
                         .show()
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    /**
+     * A REALITY service's target (SetServiceOption target, raycontrol v0.27.0): its form checked here, the rest by the
+     * node, which also reaches it as a client would before it takes it. Refused, the dialog comes back with what was
+     * typed and the node's words.
+     */
+    private fun editTarget(name: String, option: Option, typed: String? = null, error: String? = null) {
+        val input = editText(getString(option.title), typed ?: option.current.takeIf { it != "—" }.orEmpty())
+        val help = getString(R.string.raycontrol_admin_option_target_help)
+        MaterialAlertDialogBuilder(this)
+            .setTitle(option.title)
+            .setMessage(if (error == null) help else "$help\n\n⚠ $error")
+            .setView(padded(input))
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val text = input.text.toString()
+                val target = realityTarget(text)
+                if (target == null) {
+                    editTarget(name, option, text, getString(R.string.raycontrol_admin_option_target_bad))
+                    return@setPositiveButton
+                }
+                confirm(getString(R.string.raycontrol_admin_option_target_confirm, name, option.current, target)) {
+                    api({ call("SetServiceOption", body("name" to name, "key" to "target", "value" to target)) },
+                        quiet = { e -> RayApi.code(e) == "invalid_argument" || targetUnknown(e.message) },
+                        failed = { e ->
+                            when {
+                                // a node before v0.27.0 has no such option
+                                targetUnknown(e.message) -> snackbar(R.string.raycontrol_admin_option_target_old).show()
+                                RayApi.code(e) == "invalid_argument" -> editTarget(name, option, target, nodeMessage(e.message.orEmpty()))
+                            }
+                        },
+                    ) {
+                        snackbar(getString(R.string.raycontrol_admin_option_set, option.key, target)).show()
+                        loadServices()
+                    }
                 }
             }
             .setNegativeButton(android.R.string.cancel, null)
@@ -1117,6 +1229,15 @@ class RayAdminActivity : ThemedActivity() {
             .show()
     }
 
+    /** A message to read, longer than a snackbar stays for; [then] once it is closed. */
+    private fun message(text: String, then: () -> Unit = {}) {
+        MaterialAlertDialogBuilder(this)
+            .setMessage(text)
+            .setPositiveButton(android.R.string.ok, null)
+            .setOnDismissListener { then() }
+            .show()
+    }
+
     private fun textDialog(title: String, text: String) {
         val view = TextView(this).apply {
             this.text = text
@@ -1155,6 +1276,110 @@ class RayAdminActivity : ThemedActivity() {
     }
 
     private class RowHolder(val binding: LayoutRayAdminItemBinding) : RecyclerView.ViewHolder(binding.root)
+}
+
+/** A string with its arguments, as the activity's getString gives it: the parts below take one, and tests their own. */
+internal class AdminTexts(private val get: (Int, Array<out Any>) -> String) {
+    operator fun invoke(id: Int, vararg args: Any) = get(id, args)
+}
+
+/**
+ * What a revocation did, from RevokeDeviceResponse (raycontrol v0.27.0): an unused invite withdrawn, a device revoked
+ * already, or the device revoked and its user's credentials new, which cuts the user's other devices until they fetch
+ * their subscription. Null from a node before v0.27.0, which answers with none of it and changes no credentials.
+ */
+internal fun revokeText(answer: JsonObject, user: String, name: String, t: AdminTexts): String? {
+    if (answer.b("invite")) return t(R.string.raycontrol_admin_revoked_invite, user, name)
+    val owner = answer.s("user").ifEmpty { return null }
+    val device = answer.s("device").ifEmpty { name }
+    val credentials = answer.l("credentials")
+    return when {
+        answer.b("already") -> t(R.string.raycontrol_admin_revoked_already, owner, device)
+        credentials == 0L -> t(R.string.raycontrol_admin_revoked_no_credentials, owner, device)
+        else -> t(R.string.raycontrol_admin_revoked_renewed, owner, device, credentials)
+    }
+}
+
+/** What RenewUser did: how many of the user's credentials are new; none for a user who had none yet. */
+internal fun renewText(answer: JsonObject, user: String, t: AdminTexts): String {
+    val name = answer.s("name").ifEmpty { user }
+    val credentials = answer.l("credentials")
+    return if (credentials == 0L) t(R.string.raycontrol_admin_renewed_none, name) else t(R.string.raycontrol_admin_renewed, name, credentials)
+}
+
+/**
+ * The node refused to disable or delete its last enabled ssh service unforced (raycontrol v0.27.0): the one
+ * failed_precondition of those calls that a force answers. Another service's refusal is not asked about.
+ */
+internal fun lastSshRefused(kind: String, code: String?, force: Boolean) = !force && kind == "ssh" && code == "failed_precondition"
+
+/**
+ * A REALITY target as typed, HOST:PORT (a name or an address, an IPv6 one in brackets, a port 1 to 65535), trimmed;
+ * null when it is not of that form. The form only: the node checks the target itself and says why it refuses one.
+ */
+internal fun realityTarget(text: String): String? {
+    val value = text.trim()
+    val host: String
+    val port: String
+    if (value.startsWith("[")) {
+        val end = value.indexOf(']')
+        if (end < 0 || value.getOrNull(end + 1) != ':') return null
+        host = value.substring(1, end)
+        port = value.substring(end + 2)
+        if (':' !in host || !host.all { it in '0'..'9' || it.lowercaseChar() in 'a'..'f' || it == ':' || it == '.' }) return null
+    } else {
+        host = value.substringBeforeLast(':', "")
+        port = value.substringAfterLast(':', "")
+        // an IPv6 address goes in brackets, as Go's SplitHostPort on the node wants it
+        if (host.isEmpty() || !host.all { it.isLetterOrDigit() || it == '.' || it == '-' || it == '_' }) return null
+    }
+    if (port.isEmpty() || port.length > 5 || !port.all { it in '0'..'9' } || port.toInt() !in 1..65535) return null
+    return value
+}
+
+/** A node before v0.27.0 refuses the target as an option it does not have (provision's "has no option"). */
+internal fun targetUnknown(message: String?) = message?.contains("no option \"target\"") == true
+
+/** The node's own words in an error of its API: without the core's "raycontrol api: CODE: " in front. */
+internal fun nodeMessage(message: String): String =
+    Regex("^raycontrol api: [a-z_]+: ").find(message)?.let { message.substring(it.range.last + 1) }?.ifBlank { null } ?: message
+
+/**
+ * A port of the node, or a range of them (GetPorts' NodePort), in a line for a provider's firewall: the protocols and
+ * the ports, the name, who reaches it and how it was set; for a rotating range, its port now and until when ([time]
+ * of unix seconds).
+ */
+internal fun portLine(port: JsonObject, t: AdminTexts, time: (Long) -> String): String {
+    val from = port.l("from")
+    val to = port.l("to")
+    val span = if (to > from) "$from-$to" else "$from"
+    val access = when (val a = port.s("access")) {
+        "everyone" -> t(R.string.raycontrol_admin_port_everyone)
+        "spa" -> t(R.string.raycontrol_admin_port_spa)
+        "admin" -> t(R.string.raycontrol_admin_port_admin)
+        "acme" -> t(R.string.raycontrol_admin_port_acme)
+        else -> a
+    }
+    val source = when (val s = port.s("source")) {
+        "fixed" -> t(R.string.raycontrol_admin_port_fixed)
+        "random" -> t(R.string.raycontrol_admin_port_random)
+        "chosen" -> t(R.string.raycontrol_admin_port_chosen)
+        "sshd" -> t(R.string.raycontrol_admin_port_sshd)
+        else -> s
+    }
+    val protos = port.strs("protos").joinToString("+") { it.uppercase() }
+    var line = "$protos $span ${port.s("name")}: " + listOf(access, source).filter { it.isNotEmpty() }.joinToString(", ")
+    val current = port.l("current")
+    if (current > 0) line += "; " + t(R.string.raycontrol_admin_port_current, current, time(port.l("currentUntil")))
+    return line
+}
+
+/**
+ * The newest patch release of the node's minor version (GetUpdateStatus latest_patch, raycontrol v0.27.0), which the
+ * auto update takes; null without one, or when it is the latest release, which the summary names already.
+ */
+internal fun latestPatch(update: JsonObject): String? = update.s("latestPatch").takeIf {
+    it.isNotEmpty() && it != update.s("latest") && isNewerVersion(it, update.s("installed"))
 }
 
 // protobuf JSON as the node answers: int64 as strings, defaults (false, 0, empty) left out

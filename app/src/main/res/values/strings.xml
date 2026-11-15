@@ -834,7 +834,7 @@
     <string name="raycontrol_admin_invite_pending">invite, valid until %s</string>
     <string name="raycontrol_admin_invite_created">One-time invite for %1$s/%2$s, valid until %3$s. Scan it in Niko on the new device, or send it over a trusted channel: whoever uses it first gets the device.</string>
     <string name="raycontrol_admin_device_name">Device name</string>
-    <string name="raycontrol_admin_revoke">Revoke %s? It loses access at once.</string>
+    <string name="raycontrol_admin_revoke">Revoke %1$s/%2$s? It loses access at once, and %1$s gets new credentials: %1$s\'s other devices lose their connection until they fetch their subscription, which Niko does at its next connection check, within about 10 minutes. A node older than v0.27.0 changes no credentials.</string>
     <string name="raycontrol_admin_user_services">Services</string>
     <string name="raycontrol_admin_user_new">New user</string>
     <string name="raycontrol_admin_user_name">Name</string>
@@ -953,6 +953,37 @@
     <string name="raycontrol_admin_update_unreachable">The node is restarting and out of reach for now (a minute or two is usual); asking again…</string>
     <string name="raycontrol_admin_update_close">Close (the update goes on)</string>
     <string name="raycontrol_admin_update_no_outcome">No outcome yet. The node may still be updating: look at the status tab later, it shows the update\'s state.</string>
+    <string name="raycontrol_admin_update_patch">Newest patch release of %1$s: %2$s</string>
+    <string name="raycontrol_admin_invite_withdraw">Withdraw the invite for %1$s/%2$s? It can no longer register a device.</string>
+    <string name="raycontrol_admin_revoked_invite">The invite for %1$s/%2$s is withdrawn.</string>
+    <string name="raycontrol_admin_revoked_already">%1$s/%2$s was revoked already: nothing changed.</string>
+    <string name="raycontrol_admin_revoked_no_credentials">%1$s/%2$s is revoked. %1$s has no credentials yet, so none changed.</string>
+    <string name="raycontrol_admin_revoked_renewed">%1$s/%2$s is revoked. New credentials of %1$s: %3$d. %1$s\'s other devices are cut until they fetch their subscription, which Niko does at its next connection check, within about 10 minutes (15–30 s after a network change; a sleeping phone once it wakes).</string>
+    <string name="raycontrol_admin_renew">New credentials</string>
+    <string name="raycontrol_admin_renew_confirm">Give %1$s new credentials? The old ones stop working within seconds, and every device of %1$s loses its connection until it fetches its subscription, which Niko does at its next connection check, within about 10 minutes (15–30 s after a network change; a sleeping phone once it wakes).</string>
+    <string name="raycontrol_admin_renewed">New credentials of %1$s: %2$d. %1$s\'s devices reconnect once they fetch their subscription, within about 10 minutes.</string>
+    <string name="raycontrol_admin_renewed_none">%s has no credentials yet: nothing to renew.</string>
+    <string name="raycontrol_admin_renew_old">The node is older than v0.27.0: it cannot renew a user\'s credentials.</string>
+    <string name="raycontrol_admin_last_ssh_disable">%s is the node\'s last enabled SSH service. Without it SSH is closed to everyone, the admin addresses included, at the next snapshot (sessions open now go on). Disable it anyway?</string>
+    <string name="raycontrol_admin_last_ssh_delete">%s is the node\'s last enabled SSH service. Without it SSH is closed to everyone, the admin addresses included, at the next snapshot (sessions open now go on). Delete it anyway?</string>
+    <string name="raycontrol_admin_option_target">Target (HOST:PORT)</string>
+    <string name="raycontrol_admin_option_target_help">The site that answers whoever is not a client (a probe, a browser). The keys, shortIds and server name stay, so the clients\' links do not change. A local address or 127.0.0.1:PORT works; the node\'s own non-loopback address, 0.0.0.0 and :: are refused. The node checks the target before it takes it.</string>
+    <string name="raycontrol_admin_option_target_bad">HOST:PORT: a name or an address (an IPv6 one in brackets) and a port from 1 to 65535</string>
+    <string name="raycontrol_admin_option_target_confirm">The target of %1$s: %2$s → %3$s? It applies at once; the clients\' links stay as they are.</string>
+    <string name="raycontrol_admin_option_target_old">The node is older than v0.27.0: it cannot change a REALITY target.</string>
+    <string name="raycontrol_admin_ports">Ports</string>
+    <string name="raycontrol_admin_ports_summary">Every port of the node, for a provider\'s firewall</string>
+    <string name="raycontrol_admin_ports_help">What a firewall in front of the node must let in. A rotating range is let in whole: its port changes over time.</string>
+    <string name="raycontrol_admin_ports_old">The node is older than v0.27.0: it does not list its ports.</string>
+    <string name="raycontrol_admin_port_everyone">everyone</string>
+    <string name="raycontrol_admin_port_spa">after the knock</string>
+    <string name="raycontrol_admin_port_admin">the admin addresses, and devices allowed SSH after the knock</string>
+    <string name="raycontrol_admin_port_acme">everyone while a certificate is issued (HTTP-01)</string>
+    <string name="raycontrol_admin_port_fixed">fixed</string>
+    <string name="raycontrol_admin_port_random">drawn by the node</string>
+    <string name="raycontrol_admin_port_chosen">chosen at install</string>
+    <string name="raycontrol_admin_port_sshd">sshd\'s port at install</string>
+    <string name="raycontrol_admin_port_current">now %1$d, until %2$s</string>
     <string-array name="raycontrol_admin_ttls">
         <item>1 hour</item>
         <item>1 day</item>

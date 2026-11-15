@@ -795,7 +795,7 @@
     <string name="raycontrol_admin_invite_pending">приглашение, действует до %s</string>
     <string name="raycontrol_admin_invite_created">Одноразовое приглашение для %1$s/%2$s, действует до %3$s. Отсканируйте его в Niko на новом устройстве или передайте по доверенному каналу: устройство получит тот, кто воспользуется им первым.</string>
     <string name="raycontrol_admin_device_name">Имя устройства</string>
-    <string name="raycontrol_admin_revoke">Отозвать %s? Доступ пропадёт сразу.</string>
+    <string name="raycontrol_admin_revoke">Отозвать %1$s/%2$s? Устройство сразу потеряет доступ, а пользователь %1$s получит новые учётные данные: остальные его устройства потеряют соединение, пока не получат подписку заново. Niko делает это при ближайшей проверке соединения, в течение примерно 10 минут. Нода на версии до v0.27.0 учётные данные не меняет.</string>
     <string name="raycontrol_admin_user_services">Сервисы</string>
     <string name="raycontrol_admin_user_new">Новый пользователь</string>
     <string name="raycontrol_admin_user_name">Имя</string>
@@ -914,6 +914,37 @@
     <string name="raycontrol_admin_update_unreachable">Нода перезапускается и пока недоступна (обычно минута-другая); спрашиваем снова…</string>
     <string name="raycontrol_admin_update_close">Закрыть (обновление продолжится)</string>
     <string name="raycontrol_admin_update_no_outcome">Итога пока нет. Нода может ещё обновляться: загляните на вкладку статуса позже, там видно состояние обновления.</string>
+<string name="raycontrol_admin_update_patch">Новейший патч-релиз %1$s: %2$s</string>
+<string name="raycontrol_admin_invite_withdraw">Отозвать приглашение для %1$s/%2$s? По нему больше нельзя будет зарегистрировать устройство.</string>
+<string name="raycontrol_admin_revoked_invite">Приглашение для %1$s/%2$s отозвано.</string>
+<string name="raycontrol_admin_revoked_already">Устройство %1$s/%2$s уже было отозвано: ничего не изменилось.</string>
+<string name="raycontrol_admin_revoked_no_credentials">Устройство %1$s/%2$s отозвано. У пользователя %1$s ещё нет учётных данных, менять было нечего.</string>
+<string name="raycontrol_admin_revoked_renewed">Устройство %1$s/%2$s отозвано. Новых учётных данных у пользователя %1$s: %3$d. Остальные его устройства отключены, пока не получат подписку заново: Niko делает это при ближайшей проверке соединения, в течение примерно 10 минут (через 15–30 с после смены сети; спящий телефон — когда проснётся).</string>
+<string name="raycontrol_admin_renew">Новые учётные данные</string>
+<string name="raycontrol_admin_renew_confirm">Выдать пользователю %1$s новые учётные данные? Старые перестанут работать через несколько секунд, и все его устройства потеряют соединение, пока не получат подписку заново: Niko делает это при ближайшей проверке соединения, в течение примерно 10 минут (через 15–30 с после смены сети; спящий телефон — когда проснётся).</string>
+<string name="raycontrol_admin_renewed">Новых учётных данных у пользователя %1$s: %2$d. Его устройства переподключатся, когда получат подписку заново, — в течение примерно 10 минут.</string>
+<string name="raycontrol_admin_renewed_none">У пользователя %s ещё нет учётных данных: менять нечего.</string>
+<string name="raycontrol_admin_renew_old">Нода на версии до v0.27.0: она не умеет менять учётные данные пользователя.</string>
+<string name="raycontrol_admin_last_ssh_disable">%s — последний включённый SSH-сервис ноды. Без него со следующим снимком SSH закроется для всех, включая адреса админов (уже открытые сессии продолжатся). Всё равно отключить?</string>
+<string name="raycontrol_admin_last_ssh_delete">%s — последний включённый SSH-сервис ноды. Без него со следующим снимком SSH закроется для всех, включая адреса админов (уже открытые сессии продолжатся). Всё равно удалить?</string>
+<string name="raycontrol_admin_option_target">Цель (ХОСТ:ПОРТ)</string>
+<string name="raycontrol_admin_option_target_help">Сайт, который отвечает всем, кто не клиент (сканеру, браузеру). Ключи, shortId и имя сервера остаются, поэтому ссылки клиентов не меняются. Локальный адрес или 127.0.0.1:ПОРТ подходят; собственный адрес ноды (кроме loopback), 0.0.0.0 и :: не принимаются. Нода проверяет цель, прежде чем её принять.</string>
+<string name="raycontrol_admin_option_target_bad">ХОСТ:ПОРТ: имя или адрес (IPv6 — в квадратных скобках) и порт от 1 до 65535</string>
+<string name="raycontrol_admin_option_target_confirm">Цель сервиса %1$s: %2$s → %3$s? Применится сразу; ссылки клиентов останутся прежними.</string>
+<string name="raycontrol_admin_option_target_old">Нода на версии до v0.27.0: она не умеет менять цель REALITY.</string>
+<string name="raycontrol_admin_ports">Порты</string>
+<string name="raycontrol_admin_ports_summary">Все порты ноды — для файрвола провайдера</string>
+<string name="raycontrol_admin_ports_help">Что должен пропускать файрвол перед нодой. Диапазон ротации пропускается целиком: его порт меняется со временем.</string>
+<string name="raycontrol_admin_ports_old">Нода на версии до v0.27.0: она не перечисляет свои порты.</string>
+<string name="raycontrol_admin_port_everyone">все</string>
+<string name="raycontrol_admin_port_spa">после стука</string>
+<string name="raycontrol_admin_port_admin">адреса админов, а после стука — устройства с доступом к SSH</string>
+<string name="raycontrol_admin_port_acme">все, пока выпускается сертификат (HTTP-01)</string>
+<string name="raycontrol_admin_port_fixed">постоянный</string>
+<string name="raycontrol_admin_port_random">выбран нодой</string>
+<string name="raycontrol_admin_port_chosen">задан при установке</string>
+<string name="raycontrol_admin_port_sshd">порт sshd при установке</string>
+<string name="raycontrol_admin_port_current">сейчас %1$d, до %2$s</string>
     <string-array name="raycontrol_admin_ttls">
         <item>1 час</item>
         <item>1 сутки</item>
