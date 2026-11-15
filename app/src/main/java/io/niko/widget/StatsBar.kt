@@ -2,6 +2,7 @@ package io.niko.widget
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.os.Build
 import android.text.format.Formatter
 import android.util.AttributeSet
 import android.view.View
@@ -77,7 +78,10 @@ class StatsBar @JvmOverloads constructor(
 
     private fun setStatus(text: CharSequence) {
         statusText.text = text
-        TooltipCompat.setTooltipText(this, text)
+        // below Android 8 TooltipCompat takes the view's long press for itself (TooltipCompatHandler sets its own
+        // listener at each call), and the long press is the exit address's (MainActivity): the tooltip there only
+        // from Android 8, where it is the view's own and a long press its listener takes shows none
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) TooltipCompat.setTooltipText(this, text)
     }
 
     fun changeState(state: BaseService.State) {

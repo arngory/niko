@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/netip"
 	"strings"
@@ -99,9 +100,19 @@ func ExitAddress(i *BoxInstance, provider string, timeoutMs int32) (string, erro
 	if timeoutMs <= 0 {
 		timeoutMs = 10000
 	}
-	ctx, cancel := context.WithTimeout(i.ctx, time.Duration(timeoutMs)*time.Millisecond)
+	timeout := time.Duration(timeoutMs) * time.Millisecond
+	ctx, cancel := context.WithTimeout(i.ctx, timeout)
 	defer cancel()
-	client := boxapi.CreateProxyHttpClient(i.Box, nil)
+	// the URL test's dialer (the final outbound), not its client: its 3 s for the TLS handshake and for the answer's
+	// headers are too short for a slow profile (a DNS tunnel), the whole timeout is the bound here
+	client := &http.Client{Transport: &http.Transport{
+		DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+			return boxapi.DialContext(ctx, i.Box, nil, network, address)
+		},
+		TLSHandshakeTimeout:   timeout,
+		ResponseHeaderTimeout: timeout,
+		ForceAttemptHTTP2:     true,
+	}}
 	defer client.CloseIdleConnections()
 	answer, err := exitAddress(ctx, client, p)
 	if err != nil {
