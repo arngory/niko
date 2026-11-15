@@ -239,17 +239,29 @@ func TestRaycontrolNaiveSNI(t *testing.T) {
 		}
 		return nil
 	}
+	// carries: each line carries within a minute, the time it took logged: the node applies a new user's password, a
+	// new name's route and a switch a little after it says so (its apply runs on its own), and answers as the site
+	// (an empty 404) until then
 	carries := func(what string, rows ...string) {
 		t.Helper()
 		for _, link := range rows {
 			if link == "" {
 				continue
 			}
-			if err := carry(link); err != nil {
-				t.Fatalf("%s, %s (%s): %v", what, strings.SplitN(link, "://", 2)[0], naiveSNI(t, link), err)
+			start := time.Now()
+			var err error
+			for {
+				if err = carry(link); err == nil {
+					break
+				}
+				if time.Since(start) > time.Minute {
+					t.Fatalf("%s, %s (%s), for a minute: %v", what, strings.SplitN(link, "://", 2)[0], naiveSNI(t, link), err)
+				}
+				time.Sleep(3 * time.Second)
 			}
+			t.Logf("%s, %s: carries (%s after the first try)", what, strings.SplitN(link, "://", 2)[0],
+				time.Since(start).Round(time.Second))
 		}
-		t.Logf("%s: carries", what)
 	}
 	quicLink := func(row *naiveRow) string {
 		if row == nil {
