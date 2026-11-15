@@ -1,10 +1,15 @@
 package libcore
 
 import (
+	"bytes"
 	"fmt"
+	"log"
 	"math"
+	"os"
+	"path/filepath"
 	"runtime"
 	"runtime/metrics"
+	"runtime/pprof"
 )
 
 // MemoryStats is the Go side of this process's memory in one line of the log, in KB: what the runtime holds from the
@@ -38,4 +43,41 @@ func MemoryStats() string {
 		process, m.Sys>>10, m.HeapInuse>>10, m.HeapIdle>>10, m.HeapReleased>>10, m.StackSys>>10,
 		(m.MSpanSys+m.MCacheSys+m.BuckHashSys+m.GCSys+m.OtherSys)>>10, m.NumGC, m.NextGC>>10, runtime.NumGoroutine(),
 		gogc, limit)
+}
+
+// memoryProfileDir is the working directory InitCore makes (no_backup): where the e2e asks for the profiles.
+var memoryProfileDir string
+
+// writeMemoryProfiles writes, when the file "memprofile" is in memoryProfileDir, the Go heap's profile (pprof: what is
+// live as of the last collection, by where it was allocated) and the goroutines' stacks there, as heap-PROC.pb.gz and
+// goroutines-PROC.txt: what keeps the heap the go-mem line counts. The e2e makes that file (as root); the app never
+// does. Function names and sizes, no data the connections carry. ForceGc calls it after its collection, before its
+// line, so the files are there by the time the line is.
+func writeMemoryProfiles() {
+	if memoryProfileDir == "" {
+		return
+	}
+	if _, err := os.Stat(filepath.Join(memoryProfileDir, "memprofile")); err != nil {
+		return
+	}
+	process := "ui"
+	if isBgProcess {
+		process = "bg"
+	}
+	for _, p := range []struct {
+		name, file string
+		debug      int
+	}{
+		{"heap", "heap-" + process + ".pb.gz", 0},
+		{"goroutine", "goroutines-" + process + ".txt", 1},
+	} {
+		var out bytes.Buffer
+		if err := pprof.Lookup(p.name).WriteTo(&out, p.debug); err != nil {
+			log.Println("memory profile:", p.name, err)
+			continue
+		}
+		if err := writeFileAtomic(filepath.Join(memoryProfileDir, p.file), out.Bytes()); err != nil {
+			log.Println("memory profile:", p.name, err)
+		}
+	}
 }

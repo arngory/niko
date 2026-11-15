@@ -36,6 +36,7 @@ func ForceGc() {
 	go func() {
 		before := MemoryStats()
 		debug.FreeOSMemory()
+		writeMemoryProfiles()
 		log.Println(before, "| after FreeOSMemory:", MemoryStats())
 	}()
 }
@@ -60,6 +61,7 @@ func InitCore(process, cachePath, internalAssets, externalAssets string,
 	// the file of roots naive's Chromium reads besides Chrome's list: named to it here, before any engine
 	// (naive_roots.go)
 	initNaiveRoots(tmp, isBgProcess)
+	memoryProfileDir = tmp
 
 	// sing-box fs
 	resourcePaths = append(resourcePaths, externalAssets)

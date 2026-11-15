@@ -53,6 +53,10 @@ memdir="$out/memory"
 mkdir -p "$memdir"
 python3 -I "$here/e2e-memory.py" header > "$memdir/summary.tsv"
 applog="/data/data/$pkg/cache/neko.log"
+# the core's working directory, where ForceGc writes the Go heap's profile and the goroutines when asked (profiles=1:
+# the file memprofile there, made once the app has made the directory)
+nobackup="/data/data/$pkg/no_backup"
+profiles=0
 declare -A trimmed
 # gomem PID TAG MODE: the process's go-mem line. go: on a trim the shell sends now (ForceGc: the line, then the Go
 # heap's free memory back to the system). The shell takes a level below UI_HIDDEN only for a foreground process,
@@ -99,6 +103,13 @@ memory() {
     timeout 10 adb shell cat "/proc/$pid/smaps_rollup" > "$memdir/$phase-$tag.rollup" 2> /dev/null
     go=$(gomem "$pid" "$tag" "$mode")
     python3 -I "$here/e2e-memory.py" row "$phase" "$tag" "$memdir/$phase-$tag" "$go" >> "$memdir/summary.tsv"
+    # what keeps that heap: the profiles ForceGc wrote before its line (libcore memstats.go), on the phone taken away
+    # once pulled, so none is ever a phase's before
+    if [ "$mode" = go ] && [ "$go" != - ] && [ "$profiles" = 1 ]; then
+      timeout 20 adb pull "$nobackup/heap-$tag.pb.gz" "$memdir/$phase-$tag.heap.pb.gz" > /dev/null 2>&1
+      timeout 20 adb pull "$nobackup/goroutines-$tag.txt" "$memdir/$phase-$tag.goroutines.txt" > /dev/null 2>&1
+      timeout 10 adb shell rm -f "$nobackup/heap-$tag.pb.gz" "$nobackup/goroutines-$tag.txt" > /dev/null 2>&1
+    fi
     gzip -f "$memdir/$phase-$tag.smaps" 2> /dev/null
   done
   echo "memory, $phase (KB, PSS):" $(awk -F'\t' -v p="$phase" '$1 == p {printf "%s %s ", $2, $4}' "$memdir/summary.tsv")
@@ -259,6 +270,14 @@ done
 [ -n "$id" ] || fail "no Hysteria2 profile from the node after 90 s"
 echo "the node's Hysteria2 profile: $id"
 hy2=$id
+# the file that asks the core for its memory profiles, the app's own and labelled as its directory: the app only looks
+# whether it is there. Without it the run goes on, its memory without the profiles
+if timeout 20 adb shell "[ -d $nobackup ] && touch $nobackup/memprofile" 2> /dev/null; then
+  profiles=1
+  timeout 20 adb shell "chown \$(stat -c %u:%g $nobackup) $nobackup/memprofile; chcon \$(stat -c %C $nobackup) $nobackup/memprofile" > /dev/null 2>&1
+else
+  echo "no memprofile file: the memory phases go without the Go heap's profiles"
+fi
 memory ui-start go go
 
 echo "== the core's log at debug (a failure's artifact)"

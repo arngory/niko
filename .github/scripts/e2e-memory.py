@@ -21,6 +21,7 @@ What each column is:
                              libgojni.so's mappings and its .bss: code and data, the relocated part private dirty
   dalvik_rss                 ART's heaps and its other mappings
   go_*                       the go-mem line (the Go runtime's own view, before FreeOSMemory)
+  go_live                    its heap_inuse after FreeOSMemory: what the collection that comes with it found live
 """
 import re
 import sys
@@ -33,6 +34,7 @@ COLUMNS = [
     "m_native", "m_so", "m_other_mmap", "m_unknown",
     "go_rss", "go_pss", "pa_rss", "pa_pss", "scudo_rss", "gojni_rss", "gojni_pss", "gojni_dirty", "dalvik_rss",
     "go_sys", "go_heap_inuse", "go_heap_idle", "go_heap_released", "go_stack", "go_next_gc", "go_gc", "go_goroutines",
+    "go_live",
 ]
 SUMMARY = {"Java Heap": "java", "Native Heap": "native", "Code": "code", "Stack": "stack", "Graphics": "graphics",
            "Private Other": "private_other", "System": "system"}
@@ -124,11 +126,14 @@ def smaps(path, row):
 
 
 def gomem(line, row):
-    before = line.split("| after", 1)[0]
+    before, _, after = line.partition("| after")
     for key, value in re.findall(r"(\w+)=(\S+)", before):
         column = "go_" + key
         if column in COLUMNS:
             row[column] = value
+    m = re.search(r"\bheap_inuse=(\d+)", after)
+    if m:
+        row["go_live"] = m.group(1)
 
 
 def main():
@@ -145,7 +150,7 @@ def main():
         print("\t".join(row.get(c, "-") for c in COLUMNS))
     elif command == "table":
         shown = ["phase", "proc", "pss", "rss", "java", "native", "code", "m_unknown", "go_rss", "pa_rss", "gojni_dirty",
-                 "go_heap_inuse", "go_heap_idle", "go_heap_released", "go_goroutines"]
+                 "go_heap_inuse", "go_live", "go_heap_idle", "go_heap_released", "go_goroutines"]
         try:
             rows = [line.rstrip("\n").split("\t") for line in open(sys.argv[2])]
         except OSError:
