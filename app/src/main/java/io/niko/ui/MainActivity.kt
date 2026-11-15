@@ -204,6 +204,14 @@ class MainActivity : ThemedActivity(),
         return connection.service!!.urlTest()
     }
 
+    /** Which rule of the running core a connection would match (the route tester): JSON in, JSON out. */
+    fun routeTest(query: String): String {
+        if (!DataStore.serviceState.connected || connection.service == null) {
+            error(getString(R.string.route_test_not_running))
+        }
+        return connection.service!!.routeTest(query)
+    }
+
     suspend fun importSubscription(uri: Uri) {
         val group: ProxyGroup
 

@@ -109,6 +109,7 @@ class RouteFragment : ToolbarFragment(R.layout.layout_route), Toolbar.OnMenuItem
             R.id.action_new_route -> {
                 startActivity(Intent(context, RouteSettingsActivity::class.java))
             }
+            R.id.action_route_test -> showRouteTest()
             R.id.action_reset_route -> {
                 MaterialAlertDialogBuilder(activity).setTitle(R.string.confirm)
                     .setMessage(R.string.clear_profiles_message)

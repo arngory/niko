@@ -10,4 +10,7 @@ interface ISagerNetService {
   oneway void unregisterCallback(in ISagerNetServiceCallback cb);
 
   int urlTest();
+
+  // which rule of the running core a connection would match (libcore RouteTest): JSON in, JSON out
+  String routeTest(String query);
 }
