@@ -30,6 +30,8 @@ on:
       - "libcore/raycontrol_lan_interop_test.go"
       - "libcore/raycontrol_connlimit_interop_test.go"
       - "libcore/raycontrol_pins_interop_test.go"
+      - "libcore/raycontrol_revoke_interop_test.go"
+      - "libcore/raycontrol_zones_interop_test.go"
       - ".github/xray-interop.env"
       - "buildScript/lib/core/get_source_env.sh"
       - "libcore/box_naive.go"
