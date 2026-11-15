@@ -221,6 +221,8 @@ func (b *BoxInstance) Close() (err error) {
 	if b.Box != nil {
 		b.Box.Close()
 	}
+	// what the box held is garbage now: back to the system soon, not as the scavenger gets to it
+	releaseMemorySoon()
 
 	return nil
 }

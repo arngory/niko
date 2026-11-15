@@ -8,8 +8,11 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"runtime/metrics"
 	"runtime/pprof"
+	"sync/atomic"
+	"time"
 )
 
 // MemoryStats is the Go side of this process's memory in one line of the log, in KB: what the runtime holds from the
@@ -79,5 +82,28 @@ func writeMemoryProfiles() {
 		if err := writeFileAtomic(filepath.Join(memoryProfileDir, p.file), out.Bytes()); err != nil {
 			log.Println("memory profile:", p.name, err)
 		}
+	}
+}
+
+// releaseMemory gives the system back what the Go heap does not use: two collections, the first moving what the
+// sync.Pools hold into their victim caches, the second (FreeOSMemory's) dropping those and returning the pages. The
+// pools are where a stopped TUN stack's packets go (gVisor's chunks, sing's buffers): under an upload through a slow
+// outbound its TCP queues take up to 8 MiB a connection, and FreeOSMemory alone kept them, 19.6 MB of gVisor's
+// chunks live in the e2e's heap profile after naive's upload with the VPN down.
+func releaseMemory() {
+	runtime.GC()
+	debug.FreeOSMemory()
+}
+
+var releasePending atomic.Bool
+
+// releaseMemorySoon runs releaseMemory a moment after a box closed, once for a run of closes (a URL test closes a box
+// for each profile it tests).
+func releaseMemorySoon() {
+	if releasePending.CompareAndSwap(false, true) {
+		time.AfterFunc(3*time.Second, func() {
+			releasePending.Store(false)
+			releaseMemory()
+		})
 	}
 }

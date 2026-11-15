@@ -5,9 +5,13 @@ import (
 	"compress/gzip"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 // TestMemoryStats: one line the e2e can take apart, every field a number in KB but GOGC's and the limit's words.
@@ -68,5 +72,23 @@ func TestWriteMemoryProfiles(t *testing.T) {
 	}
 	if !strings.Contains(string(goroutines), "TestWriteMemoryProfiles") {
 		t.Fatalf("the goroutines do not name this test:\n%s", goroutines)
+	}
+}
+
+// TestReleaseMemory: what a sync.Pool holds (where gVisor's packet chunks go) is gone after releaseMemory, which one
+// collection alone leaves in the pool's victim cache
+func TestReleaseMemory(t *testing.T) {
+	var pool sync.Pool
+	var freed atomic.Bool
+	chunk := new([64 << 10]byte)
+	runtime.SetFinalizer(chunk, func(*[64 << 10]byte) { freed.Store(true) })
+	pool.Put(chunk)
+	chunk = nil
+	releaseMemory()
+	for i := 0; i < 100 && !freed.Load(); i++ {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !freed.Load() {
+		t.Fatal("the pooled chunk is still there after releaseMemory")
 	}
 }
