@@ -145,6 +145,16 @@ func TestRaycontrolNaiveSNI(t *testing.T) {
 		if rows.h2 == nil {
 			t.Fatalf("the subscription has no naive line: %d profiles", len(result.Payload.Profiles))
 		}
+		// the node publishes naive's one line, naive+https (R3-5): the client takes the same line over QUIC as
+		// naive+quic, the same name, password and pins on UDP 443, and the front serves every name of naive there too
+		if rows.quic == nil {
+			rows.quic = &naiveRow{link: "naive+quic" + strings.TrimPrefix(rows.h2.link, "naive+https")}
+			if rows.h2.next != nil {
+				next := *rows.h2.next
+				next.Link = "naive+quic" + strings.TrimPrefix(next.Link, "naive+https")
+				rows.quic.next = &next
+			}
+		}
 		return rows
 	}
 
@@ -289,9 +299,6 @@ func TestRaycontrolNaiveSNI(t *testing.T) {
 	oldName := naiveSNI(t, before.h2.link)
 	if oldName == "" {
 		t.Fatal("the naive line has no sni")
-	}
-	if before.quic == nil {
-		t.Log("no naive+quic line: over HTTP/2 only")
 	}
 	carries("the line before the rotation ("+oldName+")", before.h2.link, quicLink(before.quic))
 
