@@ -238,9 +238,19 @@ func TestRaycontrolRevoke(t *testing.T) {
 	}
 	dohTaken("device one's new DoH token", oneRows.doh, oneFetched)
 	dohTaken("device two's new DoH token", twoRows.doh, twoFetched)
-	if err = throughHysteria(twoRows.hy2, two.DeviceKey); err != nil {
-		t.Fatalf("device two before: %v", err)
+	// a new user's credentials carry once the node's data plane has them (run 43678255945, with the DoH tokens taken
+	// at once: Hysteria2 refused device two 0.6 s after its subscription): waited for, and logged
+	for {
+		err := throughHysteria(twoRows.hy2, two.DeviceKey)
+		if err == nil {
+			break
+		}
+		if time.Since(twoFetched) > 60*time.Second {
+			t.Fatalf("device two before: Hysteria2 refuses its new credentials 60 s after its subscription: %v", err)
+		}
+		time.Sleep(time.Second)
 	}
+	t.Logf("device two carries %v after its subscription", time.Since(twoFetched).Round(100*time.Millisecond))
 
 	// the revocation
 	out := rayctl("device", "revoke", one.DeviceID)
