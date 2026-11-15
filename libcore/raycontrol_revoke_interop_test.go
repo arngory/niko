@@ -205,13 +205,24 @@ func TestRaycontrolRevoke(t *testing.T) {
 		}
 	}
 
-	// before: each device's DoH token answers, the other device's Hysteria2 carries
+	// before: each device's DoH token answers, the other device's Hysteria2 carries. The devices were made just
+	// before this test: how long the node's DoH takes to take a new device's token is logged (a token-shaped path
+	// waits for DoH's reload after a change, raycontrol v0.27.0's notes say; run 43672859960 got a 404 0.6 s on)
+	started := time.Now()
 	oneRows, twoRows := rowsOf("device one", oneRequest), rowsOf("device two", twoRequest)
 	if oneRows.doh.Path == twoRows.doh.Path {
 		t.Fatal("the two devices have the same DoH line: no token per device")
 	}
-	dohAnswers("device one before", oneRows.doh)
-	dohAnswers("device two before", twoRows.doh)
+	for name, u := range map[string]*url.URL{"one": oneRows.doh, "two": twoRows.doh} {
+		var status int
+		took := within("device "+name+"'s DoH token taken", 60*time.Second, func() bool {
+			status, _, _ = askDoH(u)
+			return status == http.StatusOK
+		})
+		t.Logf("device %s's DoH answered %v after its subscription (%v after the test's start)", name, took,
+			time.Since(started).Round(time.Second))
+		dohAnswers("device "+name+" before", u)
+	}
 	if err = throughHysteria(twoRows.hy2, two.DeviceKey); err != nil {
 		t.Fatalf("device two before: %v", err)
 	}
