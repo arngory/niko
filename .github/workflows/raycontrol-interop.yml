@@ -646,7 +646,15 @@ jobs:
             exit 0
           fi
           TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
-          go test -count=1 -v -timeout 10m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTrafficLimit .
+          go test -count=1 -v -timeout 10m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTrafficLimit . || {
+            # the node as the failure left it: Hysteria2 once carried nothing after reset-usage (run 43649754945),
+            # the server session reads these (the user, the node, the logs of the last minutes)
+            echo "--- the node after the failure"
+            docker exec rc-node /opt/rc/rayctl user show alice || true
+            docker exec rc-node /opt/rc/rayctl status || true
+            docker exec rc-node sh -c 'for f in $(find /var/log -name "*.log" -mmin -3 2> /dev/null); do echo "== $f"; tail -n 200 "$f"; done' || true
+            exit 1
+          }
 
       # The rows' pins against the leaf the node answers with, Hysteria2 and DoH held to them, then the key switched
       # (to its next key, where the stand lifted the rule of 72 hours, and to a fresh one). The node is the one
