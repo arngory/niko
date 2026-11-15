@@ -60,9 +60,14 @@ func newNode(t *testing.T) *node {
 
 	n.server = httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		key, _ := hex.DecodeString(deviceKey)
+		// the node takes a minute within 2 of its own (subscription-v1 §2): a request made in a minute's last moment
+		// and seen in the next one is the device's still (a test across that boundary got the 404 otherwise)
 		minute := time.Now().Unix() / 60
-		authorized := r.Header.Get("X-Raycontrol-Device") == "0123456789abcdef" &&
-			r.Header.Get("Authorization") == authToken(key, minute)
+		authorized := false
+		for m := minute - 2; m <= minute+2; m++ {
+			authorized = authorized || r.Header.Get("Authorization") == authToken(key, m)
+		}
+		authorized = authorized && r.Header.Get("X-Raycontrol-Device") == "0123456789abcdef"
 		if n.app != nil && authorized && strings.HasPrefix(r.URL.Path, "/app/v1/") {
 			n.app.ServeHTTP(w, r)
 			return
