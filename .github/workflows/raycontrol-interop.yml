@@ -127,6 +127,12 @@ jobs:
           if grep -rqs "register-replay" raycontrol/internal/api; then echo "RAYCONTROL_REGISTER_RETRY=1" >> "$GITHUB_ENV"; fi
           # raycontrol v0.27.0: RevokeDevice says what it did, RenewUser, GetPorts, the last ssh service only with force
           if grep -qs "rpc RenewUser" raycontrol/api/proto/raycontrol/node/v1/node.proto; then echo "RAYCONTROL_V027=1" >> "$GITHUB_ENV"; fi
+          # raycontrol v0.28.0 (relay-update-remote-v1 §8): GetUpdateStatus lists the relays; one added and never
+          # connected is unknown
+          if grep -qs "message RelayUpdateStatus" raycontrol/api/proto/raycontrol/node/v1/node.proto; then
+            rc relay add r9 192.0.2.9 > /dev/null
+            echo "RAYCONTROL_RELAY_UPDATE=r9" >> "$GITHUB_ENV"
+          fi
           if grep -qs "bool force = 3" raycontrol/api/proto/raycontrol/node/v1/node.proto; then
             rc service add dnstt dns
             echo "RAYCONTROL_ROTATE_SERVICE=dns" >> "$GITHUB_ENV"

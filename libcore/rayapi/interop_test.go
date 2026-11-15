@@ -198,6 +198,10 @@ func TestRaycontrolInterop(t *testing.T) {
 	if os.Getenv("RAYCONTROL_V027") != "" {
 		checkV027(ctx, t, endpoint)
 	}
+	// raycontrol v0.28.0: the relays' updates in GetUpdateStatus, as the admin mode reads them
+	if relay := os.Getenv("RAYCONTROL_RELAY_UPDATE"); relay != "" {
+		checkRelayUpdates(ctx, t, endpoint, relay)
+	}
 
 	// a new client key; the old one stops working at once
 	next, err := NewIdentity()
@@ -352,6 +356,45 @@ func checkV027(ctx context.Context, t *testing.T, admin Endpoint) {
 		t.Fatalf("DeleteService with force: %v", err)
 	}
 	t.Log("the last ssh service: disabled and deleted with force only")
+}
+
+// checkRelayUpdates reads GetUpdateStatus's relays (relay-update-remote-v1 §8) with the admin mode's names: the relay
+// the workflow added and never connected is there, unknown, not heard, no version, no target; the node offers it
+// nothing, having had no update by request.
+func checkRelayUpdates(ctx context.Context, t *testing.T, admin Endpoint, name string) {
+	t.Helper()
+	raw, err := Call(ctx, admin, NodeService+"GetUpdateStatus", nil)
+	if err != nil {
+		t.Fatalf("GetUpdateStatus: %v", err)
+	}
+	var update struct {
+		Relays []struct {
+			Name      string `json:"name"`
+			Version   string `json:"version"`
+			State     string `json:"state"`
+			Target    string `json:"target"`
+			UpdateID  string `json:"updateId"`
+			Reason    string `json:"reason"`
+			Error     string `json:"error"`
+			ChangedAt string `json:"changedAt"`
+			SeenAt    string `json:"seenAt"`
+			Remote    bool   `json:"remote"`
+		} `json:"relays"`
+	}
+	if err = json.Unmarshal(raw, &update); err != nil {
+		t.Fatalf("GetUpdateStatus: %s: %v", raw, err)
+	}
+	for _, r := range update.Relays {
+		if r.Name != name {
+			continue
+		}
+		if r.State != "unknown" || r.Version != "" || r.Target != "" || r.SeenAt != "" || r.Remote {
+			t.Fatalf("a relay never connected: %+v, want unknown with nothing heard", r)
+		}
+		t.Logf("GetUpdateStatus: relay %s %s", r.Name, r.State)
+		return
+	}
+	t.Fatalf("GetUpdateStatus: no relay %s among %s", name, raw)
 }
 
 // graceUntil is the time in the node's refusal of a switch with a grace, as the app's RayApi.graceUntil reads it.

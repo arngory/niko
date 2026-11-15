@@ -29,6 +29,25 @@ class RayAdminTest {
         R.string.raycontrol_admin_port_chosen to "chosen",
         R.string.raycontrol_admin_port_sshd to "sshd",
         R.string.raycontrol_admin_port_current to "now %1\$d until %2\$s",
+        R.string.raycontrol_admin_relays_count to "relays: %s",
+        R.string.raycontrol_admin_relay_waiting to "waiting",
+        R.string.raycontrol_admin_relay_offered to "offered",
+        R.string.raycontrol_admin_relay_requested to "requested",
+        R.string.raycontrol_admin_relay_running to "running",
+        R.string.raycontrol_admin_relay_done to "done",
+        R.string.raycontrol_admin_relay_rolled_back to "rolled back",
+        R.string.raycontrol_admin_relay_failed to "failed",
+        R.string.raycontrol_admin_relay_current to "current",
+        R.string.raycontrol_admin_relay_off to "off",
+        R.string.raycontrol_admin_relay_unknown to "unknown",
+        R.string.raycontrol_admin_relay_no_version to "no version",
+        R.string.raycontrol_admin_relay_since to "since %s",
+        R.string.raycontrol_admin_relay_never_heard to "never heard",
+        R.string.raycontrol_admin_relay_last_heard to "last heard %s",
+        R.string.raycontrol_admin_relay_hint_off to "hint: remote on",
+        R.string.raycontrol_admin_relay_hint_unknown to "hint: update by hand",
+        R.string.raycontrol_admin_relay_reason_download to "no download",
+        R.string.raycontrol_admin_relay_reason_no_word to "went silent",
     )
     private val t = AdminTexts { id, args -> String.format(Locale.US, patterns.getValue(id), *args) }
 
@@ -116,5 +135,44 @@ class RayAdminTest {
         // a node before v0.27.0 has none
         assertNull(latestPatch(json("""{"installed":"v0.26.0","latest":"v0.27.0"}""")))
         assertNull(latestPatch(json("""{"installed":"v0.27.3","latest":"v0.28.0","latestPatch":"v0.27.3"}""")))
+    }
+
+    // ---- the relays' updates (relay-update-remote-v1 §8)
+
+    @Test
+    fun relays() {
+        val now = 10_000L
+        val time = { seconds: Long -> "t$seconds" }
+        // a node before v0.28.0, or one without relays: no line, nothing to wait for
+        assertNull(relaysSummary(json("{}"), t))
+        assertFalse(relaysPending(json("{}")))
+        val update = json("""{"relays":[
+            {"name":"r1","version":"v0.27.0","state":"running","target":"v0.28.0","updateId":"7","changedAt":"9900","seenAt":"9990","remote":true},
+            {"name":"r2","version":"v0.28.0","state":"current","seenAt":"9995","remote":true},
+            {"name":"r3","version":"v0.27.0","state":"waiting","target":"v0.28.0","changedAt":"9800","seenAt":"9000","remote":true}]}""")
+        assertTrue(relaysPending(update))
+        assertEquals("relays: running 1, current 1, waiting 1", relaysSummary(update, t))
+        assertFalse(relaysPending(json("""{"relays":[{"name":"r2","state":"current"},{"name":"r4","state":"failed"}]}""")))
+        val (running, current, waiting) = update.getAsJsonArray("relays").map { it.asJsonObject }
+        assertEquals("r1 · v0.27.0 · running → v0.28.0 · since t9900", relayLine(running, t, now, time))
+        // the target is the version it has: not repeated; heard a moment ago: no mark
+        assertEquals("r2 · v0.28.0 · current", relayLine(current, t, now, time))
+        // not heard for over ten minutes: said, whatever the state
+        assertEquals("r3 · v0.27.0 · waiting → v0.28.0 · since t9800\nlast heard t9000", relayLine(waiting, t, now, time))
+        // a failure: the reason in words and the node's text; a reason this build does not know, as it is
+        assertEquals("r1 · v0.27.0 · failed → v0.28.0 · since t9900\nno download: github: 503",
+            relayLine(json("""{"name":"r1","version":"v0.27.0","state":"failed","target":"v0.28.0","reason":"download",
+                "error":"github: 503","changedAt":9900,"seenAt":9990}"""), t, now, time))
+        assertEquals("r1 · v0.27.0 · failed · since t9900\nsome_new_code",
+            relayLine(json("""{"name":"r1","version":"v0.27.0","state":"failed","reason":"some_new_code","changedAt":9900,"seenAt":9990}"""),
+                t, now, time))
+        // off and unknown: what root on the relay can do; never heard, no version
+        assertEquals("r5 · v0.26.0 · off → v0.28.0\nhint: remote on",
+            relayLine(json("""{"name":"r5","version":"v0.26.0","state":"off","target":"v0.28.0","seenAt":9990}"""), t, now, time))
+        assertEquals("r6 · no version · unknown\nnever heard\nhint: update by hand",
+            relayLine(json("""{"name":"r6","state":"unknown"}"""), t, now, time))
+        // a state of a newer node, as it is
+        assertEquals("r7 · v0.29.0 · paused", relayLine(json("""{"name":"r7","version":"v0.29.0","state":"paused","seenAt":9990}"""), t, now, time))
+        assertEquals("went silent", relayReason("no_word", t))
     }
 }

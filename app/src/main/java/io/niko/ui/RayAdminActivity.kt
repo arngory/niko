@@ -334,7 +334,17 @@ class RayAdminActivity : ThemedActivity() {
         if (update.s("auto") == "patch") parts += getString(R.string.raycontrol_admin_update_auto, update.s("window"), update.s("timezone"))
         update.getAsJsonObject("status")?.let { updateState(it) }?.let { parts += it }
         update.strs("held").takeIf { it.isNotEmpty() }?.let { parts += getString(R.string.raycontrol_admin_update_held, it.joinToString(", ")) }
+        relaysSummary(update, texts)?.let { parts += it }
         return parts.joinToString("\n")
+    }
+
+    /** The relays' lines (relay-update-remote-v1 §8), with what they are about first; null without relays. */
+    private fun relaysText(update: JsonObject): String? {
+        val relays = update.arr("relays").takeIf { it.isNotEmpty() } ?: return null
+        val time = DateFormat.getTimeInstance(DateFormat.SHORT)
+        val now = System.currentTimeMillis() / 1000
+        return getString(R.string.raycontrol_admin_relays_help) + "\n\n" +
+            relays.joinToString("\n\n") { relayLine(it, texts, now) { s -> time.format(Date(s * 1000)) } }
     }
 
     /** The last update in a line; null before any (idle). */
@@ -355,8 +365,11 @@ class RayAdminActivity : ThemedActivity() {
     }
 
     private fun updateActions(update: JsonObject) {
-        if (update.s("remote") != "on") return textDialog(getString(R.string.raycontrol_admin_update), getString(R.string.raycontrol_admin_update_remote_help))
-        if (update.getAsJsonObject("status")?.s("state") in setOf("requested", "running")) return watchUpdate()
+        val relays = relaysText(update)
+        if (update.s("remote") != "on") return textDialog(getString(R.string.raycontrol_admin_update),
+            listOfNotNull(getString(R.string.raycontrol_admin_update_remote_help), relays).joinToString("\n\n"))
+        // the node's own update under way, or its relays still following it: watched
+        if (update.getAsJsonObject("status")?.s("state") in setOf("requested", "running") || relaysPending(update)) return watchUpdate()
         val installed = update.s("installed")
         val latest = update.s("latest")
         val actions = mutableListOf<Pair<String, () -> Unit>>(
@@ -376,6 +389,9 @@ class RayAdminActivity : ThemedActivity() {
                     .show()
             },
         )
+        if (relays != null) actions += getString(R.string.raycontrol_admin_relays) to {
+            textDialog(getString(R.string.raycontrol_admin_relays), relays)
+        }
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.raycontrol_admin_update)
             .setItems(actions.map { it.first }.toTypedArray()) { _, i -> actions[i].second() }
@@ -394,7 +410,10 @@ class RayAdminActivity : ThemedActivity() {
 
     /**
      * The update as it goes (GetUpdateStatus every 7 s, node-update-v1 §2), until it ends or 20 min have gone. The
-     * node is out of reach while rayd, its API and the data plane restart: asked again. Closing leaves it running.
+     * node is out of reach while rayd, its API and the data plane restart: asked again. Then its relays, which follow
+     * it one at a time (relay-update-remote-v1 §8): asked every 30 s while one is waiting, offered, requested or
+     * running, each of which ends, for three hours at most (a silent relay holds the queue up to 40 minutes before
+     * its turn and 40 in it). Closing leaves it all running.
      */
     private fun watchUpdate() {
         val text = TextView(this).apply { setText(R.string.raycontrol_admin_update_waiting) }
@@ -404,22 +423,30 @@ class RayAdminActivity : ThemedActivity() {
             .setNegativeButton(R.string.raycontrol_admin_update_close, null)
             .create()
         val job = lifecycleScope.launch {
-            val until = System.currentTimeMillis() + 20 * 60_000L
-            while (isActive && System.currentTimeMillis() < until) {
-                val answer = withContext(Dispatchers.IO) { runCatching { call("GetUpdateStatus") } }
-                val status = answer.getOrNull()?.getAsJsonObject("status")
-                text.text = when {
+            val started = System.currentTimeMillis()
+            var ended = false
+            while (isActive) {
+                val update = withContext(Dispatchers.IO) { runCatching { call("GetUpdateStatus") } }.getOrNull()
+                val status = update?.getAsJsonObject("status")
+                val node = when {
                     status != null -> updateState(status) ?: getString(R.string.raycontrol_admin_update_waiting)
                     else -> getString(R.string.raycontrol_admin_update_unreachable)
                 }
-                if (status?.s("state") in setOf("done", "rolled_back", "failed")) {
+                text.text = listOfNotNull(node, update?.let { relaysText(it) }).joinToString("\n\n")
+                if (!ended && status?.s("state") in setOf("done", "rolled_back", "failed")) {
+                    ended = true
                     if (tab == STATUS) loadStatus()
+                }
+                val elapsed = System.currentTimeMillis() - started
+                if (ended && update != null && !relaysPending(update)) return@launch
+                if (!ended && elapsed > 20 * 60_000L) {
+                    // no outcome is not a failure: the node turns a run without one into failed only after an hour
+                    text.text = getString(R.string.raycontrol_admin_update_no_outcome)
                     return@launch
                 }
-                delay(7_000L)
+                if (ended && elapsed > 3 * 60 * 60_000L) return@launch
+                delay(if (ended) 30_000L else 7_000L)
             }
-            // no outcome is not a failure: the node turns a run without one into failed only after an hour
-            if (isActive) text.text = getString(R.string.raycontrol_admin_update_no_outcome)
         }
         dialog.setOnDismissListener { job.cancel() }
         dialog.show()
@@ -1388,3 +1415,84 @@ private fun JsonObject.l(name: String): Long = get(name)?.takeIf { it.isJsonPrim
 private fun JsonObject.b(name: String): Boolean = get(name)?.takeIf { it.isJsonPrimitive }?.asBoolean == true
 private fun JsonObject.arr(name: String): List<JsonObject> = (get(name) as? JsonArray)?.mapNotNull { it as? JsonObject }.orEmpty()
 private fun JsonObject.strs(name: String): List<String> = (get(name) as? JsonArray)?.map { it.asString }.orEmpty()
+
+// ---- the relays' updates (relay-update-remote-v1 §8, raycontrol v0.28.0)
+
+/** The states a relay leaves by itself, each within its bound: while one is in them, the update is still going. */
+private val RELAY_PENDING = setOf("waiting", "offered", "requested", "running")
+
+/** A relay is still on its way to the node's version (GetUpdateStatusResponse.relays). */
+internal fun relaysPending(update: JsonObject) = update.arr("relays").any { it.s("state") in RELAY_PENDING }
+
+/** How many relays are in which state, in a line; null without relays (or from a node before v0.28.0). */
+internal fun relaysSummary(update: JsonObject, t: AdminTexts): String? {
+    val relays = update.arr("relays").takeIf { it.isNotEmpty() } ?: return null
+    val counts = relays.groupingBy { it.s("state") }.eachCount()
+    return t(R.string.raycontrol_admin_relays_count, counts.entries.joinToString(", ") { (state, n) -> "${relayState(state, t)} $n" })
+}
+
+/** A relay's state in words; a state this build does not know (a newer node) as the node says it. */
+internal fun relayState(state: String, t: AdminTexts): String = when (state) {
+    "waiting" -> t(R.string.raycontrol_admin_relay_waiting)
+    "offered" -> t(R.string.raycontrol_admin_relay_offered)
+    "requested" -> t(R.string.raycontrol_admin_relay_requested)
+    "running" -> t(R.string.raycontrol_admin_relay_running)
+    "done" -> t(R.string.raycontrol_admin_relay_done)
+    "rolled_back" -> t(R.string.raycontrol_admin_relay_rolled_back)
+    "failed" -> t(R.string.raycontrol_admin_relay_failed)
+    "current" -> t(R.string.raycontrol_admin_relay_current)
+    "off" -> t(R.string.raycontrol_admin_relay_off)
+    "unknown", "" -> t(R.string.raycontrol_admin_relay_unknown)
+    else -> state
+}
+
+/** Why a relay's update did not go (§3); a code this build does not know (a relay newer than its node) as it is. */
+internal fun relayReason(reason: String, t: AdminTexts): String = when (reason) {
+    "policy" -> t(R.string.raycontrol_admin_relay_reason_policy)
+    "stale" -> t(R.string.raycontrol_admin_relay_reason_stale)
+    "version" -> t(R.string.raycontrol_admin_relay_reason_version)
+    "busy" -> t(R.string.raycontrol_admin_relay_reason_busy)
+    "unfinished" -> t(R.string.raycontrol_admin_relay_reason_unfinished)
+    "bundle" -> t(R.string.raycontrol_admin_relay_reason_bundle)
+    "ssh" -> t(R.string.raycontrol_admin_relay_reason_ssh)
+    "download" -> t(R.string.raycontrol_admin_relay_reason_download)
+    "signature" -> t(R.string.raycontrol_admin_relay_reason_signature)
+    "place" -> t(R.string.raycontrol_admin_relay_reason_place)
+    "install" -> t(R.string.raycontrol_admin_relay_reason_install)
+    "check" -> t(R.string.raycontrol_admin_relay_reason_check)
+    "interrupted" -> t(R.string.raycontrol_admin_relay_reason_interrupted)
+    "open" -> t(R.string.raycontrol_admin_relay_reason_open)
+    "not_taken" -> t(R.string.raycontrol_admin_relay_reason_not_taken)
+    "no_word" -> t(R.string.raycontrol_admin_relay_reason_no_word)
+    else -> reason
+}
+
+/** A relay not heard for longer than this is marked so, whatever its state says. */
+private const val RELAY_QUIET_SECONDS = 10 * 60L
+
+/**
+ * A relay's lines: its name, version, state, the version it is offered and since when; why it failed (the reason in
+ * words, the error as the node gives it); that the node has not heard it for a while; and what root on the relay can
+ * do for one that is off or unknown. [now] and the times are unix seconds by the node's clock, which [time] shows.
+ */
+internal fun relayLine(relay: JsonObject, t: AdminTexts, now: Long, time: (Long) -> String): String {
+    val state = relay.s("state")
+    val version = relay.s("version").ifEmpty { t(R.string.raycontrol_admin_relay_no_version) }
+    var head = "${relay.s("name")} · $version · ${relayState(state, t)}"
+    relay.s("target").takeIf { it.isNotEmpty() && it != relay.s("version") }?.let { head += " → $it" }
+    relay.l("changedAt").takeIf { it > 0 }?.let { head += " · " + t(R.string.raycontrol_admin_relay_since, time(it)) }
+    val lines = mutableListOf(head)
+    val reason = relay.s("reason").takeIf { it.isNotEmpty() }?.let { relayReason(it, t) }
+    val error = relay.s("error").takeIf { it.isNotBlank() }
+    listOfNotNull(reason, error).takeIf { it.isNotEmpty() }?.let { lines += it.joinToString(": ") }
+    val seen = relay.l("seenAt")
+    when {
+        seen == 0L -> lines += t(R.string.raycontrol_admin_relay_never_heard)
+        now - seen > RELAY_QUIET_SECONDS -> lines += t(R.string.raycontrol_admin_relay_last_heard, time(seen))
+    }
+    when (state) {
+        "off" -> lines += t(R.string.raycontrol_admin_relay_hint_off)
+        "unknown", "" -> lines += t(R.string.raycontrol_admin_relay_hint_unknown)
+    }
+    return lines.joinToString("\n")
+}
