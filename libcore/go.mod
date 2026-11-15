@@ -21,12 +21,14 @@ require (
 
 require (
 	github.com/cloudflare/circl v1.6.5
-	github.com/metacubex/utls v1.8.7
 	github.com/yggdrasil-network/yggdrasil-go v0.5.14
 	golang.org/x/crypto v0.58.0
 )
 
-require github.com/enfein/mieru/v3 v3.39.0 // indirect
+require (
+	github.com/enfein/mieru/v3 v3.39.0 // indirect
+	github.com/metacubex/utls v1.8.7 // indirect
+)
 
 require (
 	filippo.io/edwards25519 v1.2.0 // indirect
@@ -167,14 +169,18 @@ replace masterdnsvpn-go => ../../sing-box/third_party/masterdnsvpn
 
 replace github.com/yggdrasil-network/yggdrasil-go => github.com/arngory/yggdrasil-go v0.5.16-0.20261108201637-5afe92f15200
 
-replace github.com/sagernet/cronet-go => github.com/arngory/cronet-go v0.0.0-20261114220259-5f3ef3f83e0f
+replace github.com/sagernet/cronet-go => github.com/arngory/cronet-go v0.0.0-20261115160328-093616c88495
 
-replace github.com/sagernet/cronet-go/lib/android_arm64 => github.com/arngory/cronet-go/lib/android_arm64 v0.0.0-20261114220259-5f3ef3f83e0f
+replace github.com/sagernet/cronet-go/lib/android_arm64 => github.com/arngory/cronet-go/lib/android_arm64 v0.0.0-20261115160328-093616c88495
 
-replace github.com/sagernet/cronet-go/lib/android_arm => github.com/arngory/cronet-go/lib/android_arm v0.0.0-20261114220259-5f3ef3f83e0f
+replace github.com/sagernet/cronet-go/lib/android_arm => github.com/arngory/cronet-go/lib/android_arm v0.0.0-20261115160328-093616c88495
 
-replace github.com/sagernet/cronet-go/lib/android_amd64 => github.com/arngory/cronet-go/lib/android_amd64 v0.0.0-20261114220259-5f3ef3f83e0f
+replace github.com/sagernet/cronet-go/lib/android_amd64 => github.com/arngory/cronet-go/lib/android_amd64 v0.0.0-20261115160328-093616c88495
 
-replace github.com/sagernet/cronet-go/lib/android_386 => github.com/arngory/cronet-go/lib/android_386 v0.0.0-20261114220259-5f3ef3f83e0f
+replace github.com/sagernet/cronet-go/lib/android_386 => github.com/arngory/cronet-go/lib/android_386 v0.0.0-20261115160328-093616c88495
 
-replace github.com/sagernet/cronet-go/lib/linux_amd64 => github.com/arngory/cronet-go/lib/linux_amd64 v0.0.0-20261114220259-5f3ef3f83e0f
+replace github.com/sagernet/cronet-go/lib/linux_amd64 => github.com/arngory/cronet-go/lib/linux_amd64 v0.0.0-20261115160328-093616c88495
+
+replace github.com/sagernet/cronet-go/lib/windows_amd64 => github.com/arngory/cronet-go/lib/windows_amd64 v0.0.0-20261115160328-093616c88495
+
+replace github.com/sagernet/cronet-go/lib/windows_arm64 => github.com/arngory/cronet-go/lib/windows_arm64 v0.0.0-20261115160328-093616c88495

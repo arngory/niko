@@ -1,8 +1,9 @@
-# Stage 0 of the desktop client, Windows first (the owner's decision of 2026-11-15): the core and its daemon
-# (experimental/boxdd, the service a desktop app talks to) built for Windows with Niko's protocols, port knocking
-# among them, and the Go the desktop client takes over from the app tested on Windows itself. No naive yet: its
-# library for Windows comes from the server session (cronet-go, Chromium 158). No app: its stack is not chosen (no
-# Electron; Go with Dart/Flutter or another light one, Qt last).
+# The desktop client, Windows first (the owner's decision of 2026-11-15): the core and its daemon (experimental/boxdd,
+# the service a desktop app talks to) built for Windows with Niko's protocols, port knocking and naive among them, and
+# the Go the desktop client takes over from the app tested on Windows itself. naive is Chromium 158's libcronet.dll
+# from the fork of cronet-go (built by the server session), which the core loads with purego from beside its
+# executable: each architecture's directory holds the two executables and the library. No app: its stack is not
+# chosen (no Electron; Go with Dart/Flutter or another light one, Qt last).
 name: Desktop (Windows)
 
 on:
@@ -43,24 +44,40 @@ jobs:
       - name: Fetch sources
         run: ./run lib core/init
 
-      # the daemon's own tags for Windows (the external WinDivert and USB/IP drivers) besides Niko's; pure Go, so
-      # cross-compiled here
-      - name: The core and the daemon for Windows
+      # the daemon's own tags for Windows (the external WinDivert and USB/IP drivers) besides Niko's, naive through
+      # purego; pure Go, so cross-compiled here. Each architecture's library is the one the fork's SHA256SUMS names,
+      # of the Chromium the Android library is (the core's intermediate anchors are of that release)
+      - name: The core, the daemon and naive's library for Windows
         run: |
-          mkdir -p "$RUNNER_TEMP/desktop"
           cd ../sing-box
+          chromium="$(sed -n 's/^const ChromiumAnchorsVersion = "\(.*\)"$/\1/p' common/certificate/chromium_anchors_neko_generated.go)"
+          [ -n "$chromium" ] || { echo "::error::no Chromium version of the core's anchors"; exit 1; }
           for arch in amd64 arm64; do
+            out="$RUNNER_TEMP/desktop/windows-$arch"
+            mkdir -p "$out"
             for pkg in cmd/sing-box experimental/boxdd; do
-              out="$RUNNER_TEMP/desktop/$(basename "$pkg")-windows-$arch.exe"
               GOOS=windows GOARCH=$arch CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -checklinkname=0" \
-                -tags="$TAGS,with_external_windivert,with_external_usbip_drivers" -o "$out" "./$pkg"
-              echo "$(basename "$out"): $(du -h "$out" | cut -f1)"
+                -tags="$TAGS,with_naive_outbound,with_purego,with_external_windivert,with_external_usbip_drivers" \
+                -o "$out/$(basename "$pkg").exe" "./$pkg"
             done
+            go mod download "github.com/sagernet/cronet-go/lib/windows_$arch"
+            lib="$(go list -m -f '{{.Dir}}' "github.com/sagernet/cronet-go/lib/windows_$arch")"
+            sums="$(go list -m -f '{{.Dir}}' github.com/sagernet/cronet-go)/SHA256SUMS"
+            want="$(awk -v f="lib/windows_$arch/libcronet.dll" '$2 == f {print $1}' "$sums")"
+            have="$(sha256sum "$lib/libcronet.dll" | cut -d' ' -f1)"
+            [ -n "$want" ] && [ "$have" = "$want" ] ||
+              { echo "::error::windows_$arch libcronet.dll $have, the fork's SHA256SUMS says '${want:-none}'"; exit 1; }
+            grep -q "const Version = \"$chromium\"" "$lib/libcronet.go" ||
+              { echo "::error::windows_$arch is not Chromium $chromium"; exit 1; }
+            cp "$lib/libcronet.dll" "$out/libcronet.dll"
+            echo "windows-$arch: $(du -h "$out"/* | tr '\t\n' ' ')(libcronet.dll $have, Chromium $chromium)"
           done
-          # port knocking is in the core now: a profile of a raycontrol node needs it to reach the node
-          go version -m "$RUNNER_TEMP/desktop/boxdd-windows-amd64.exe" > /dev/null
-          strings "$RUNNER_TEMP/desktop/boxdd-windows-amd64.exe" | grep -q "sing-box/protocol/knock" ||
-            { echo "::error::the daemon has no port knocking"; exit 1; }
+          # port knocking is in the core now: a profile of a raycontrol node needs it to reach the node; and naive
+          go version -m "$RUNNER_TEMP/desktop/windows-amd64/boxdd.exe" > /dev/null
+          for pkg in knock naive; do
+            strings "$RUNNER_TEMP/desktop/windows-amd64/boxdd.exe" | grep -q "sing-box/protocol/$pkg" ||
+              { echo "::error::the daemon has no $pkg"; exit 1; }
+          done
 
       - name: The binaries
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -100,6 +117,21 @@ jobs:
         env:
           CGO_ENABLED: "0"
         run: go test -count=1 -ldflags=-checklinkname=0 -tags="$TAGS" ./protocol/knock ./common/certificate ./common/udpdesync ./common/nikoicmp
+
+      # libcronet.dll of the fork's module through purego, found on PATH: naive over HTTP/2 and QUIC against the
+      # core's own naive inbound, the profile's root and key pins; and a root of the Windows store (put in for the
+      # test, taken out after) refused without CRONET_WINDOWS_SYSTEM_ROOTS=1
+      - name: naive on Windows
+        working-directory: ../sing-box
+        env:
+          CGO_ENABLED: "0"
+          NEKO_NAIVE_WINDOWS_ROOTS: "1"
+        run: |
+          go mod download github.com/sagernet/cronet-go/lib/windows_amd64
+          lib="$(go list -m -f '{{.Dir}}' github.com/sagernet/cronet-go/lib/windows_amd64)"
+          export PATH="$(cygpath -u "$lib"):$PATH"
+          go test -count=1 -v -timeout 10m -ldflags=-checklinkname=0 -tags="$TAGS,with_naive_outbound,with_purego" \
+            -run 'TestNekoNaiveWindows' ./protocol/naive
 
       - name: libcore's packages on Windows
         working-directory: libcore
