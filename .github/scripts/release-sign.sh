@@ -29,14 +29,18 @@ for apk in "${unsigned[@]}"; do
     --ks-pass env:KEYSTORE_PASS --key-pass env:ALIAS_PASS --out "$out" "$RUNNER_TEMP/aligned.apk"
   rm -f "$apk" "$RUNNER_TEMP/aligned.apk" "$out.idsig"
   "$bt/zipalign" -c 4 "$out"
-  certs=$("$bt/apksigner" verify --print-certs "$out")
-  digest=$(printf '%s\n' "$certs" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
-  signers=$(printf '%s\n' "$certs" | grep -c '^Signer #[0-9]* certificate DN' || true)
-  if [ "$digest" != "$expect" ] || [ "$signers" != 1 ]; then
-    echo "::error::$(basename "$out") is signed by ${digest:-nothing} ($signers signers), the release key is $expect"
+  # both streams: where a build-tools version prints the certificates is not fixed
+  certs=$("$bt/apksigner" verify --verbose --print-certs "$out" 2>&1)
+  # every certificate apksigner names, whatever the line's prefix ("Signer #1", or "Signer (minSdkVersion=…)" for
+  # signatures per platform version): one certificate in all, the release's
+  digests=$(printf '%s\n' "$certs" | sed -n 's/.*certificate SHA-256 digest: *\([0-9a-fA-F]*\).*/\1/p' \
+    | tr 'A-F' 'a-f' | sort -u)
+  if [ "$digests" != "$expect" ]; then
+    printf '%s\n' "$certs"
+    echo "::error::$(basename "$out") is signed by [$(printf '%s' "$digests" | tr '\n' ' ')], the release key is $expect"
     exit 1
   fi
-  echo "$(basename "$out"): signed, certificate $digest"
+  echo "$(basename "$out"): signed, certificate $digests"
 done
 
 (cd "$dir" && rm -f SHA256SUMS SHA256SUMS.minisig && sha256sum -- *.apk > SHA256SUMS)
