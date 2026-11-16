@@ -25,6 +25,7 @@
             android:fillColor="#FFFFFF"
             android:fillAlpha="1"
             android:strokeColor="#FFFFFF"
+            android:strokeAlpha="0"
             android:strokeWidth="0" />
     </group>
 </vector>
