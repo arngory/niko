@@ -159,8 +159,9 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 	}
 
 	// a sing-box on the line: a local mixed port, the naive outbound with UDP over TCP and, with datagrams, datagrams
-	// allowed from the start (no app probes here)
-	start := func(link string, datagrams bool) (*socks.Client, *lockedBuffer) {
+	// allowed from the start (no app probes here). stop ends it and logs its output; the next one starts after it, so
+	// that the node's counts are of one sing-box's requests
+	start := func(link string, datagrams bool) (client *socks.Client, logs *lockedBuffer, stop func()) {
 		t.Helper()
 		u, err := url.Parse(link)
 		if err != nil {
@@ -202,17 +203,21 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 		if err := os.WriteFile(path, config, 0o600); err != nil {
 			t.Fatal(err)
 		}
-		logs := &lockedBuffer{}
+		logs = &lockedBuffer{}
 		process := exec.Command(singBox, "run", "-c", path)
 		process.Stdout, process.Stderr = logs, logs
 		if err := process.Start(); err != nil {
 			t.Fatal(err)
 		}
-		t.Cleanup(func() {
-			process.Process.Kill()
-			process.Wait()
-			t.Logf("sing-box: %s", strings.TrimSpace(logs.String()))
-		})
+		var stopOnce sync.Once
+		stop = func() {
+			stopOnce.Do(func() {
+				process.Process.Kill()
+				process.Wait()
+				t.Logf("sing-box: %s", strings.TrimSpace(logs.String()))
+			})
+		}
+		t.Cleanup(stop)
 		for i := 0; i < 50; i++ {
 			if conn, err := net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(localPort)), time.Second); err == nil {
 				conn.Close()
@@ -220,7 +225,7 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 			}
 			time.Sleep(100 * time.Millisecond)
 		}
-		return socks.NewClient(N.SystemDialer, M.ParseSocksaddrHostPort("127.0.0.1", uint16(localPort)), socks.Version5, "", ""), logs
+		return socks.NewClient(N.SystemDialer, M.ParseSocksaddrHostPort("127.0.0.1", uint16(localPort)), socks.Version5, "", ""), logs, stop
 	}
 	open := func(client *socks.Client, destination M.Socksaddr) net.PacketConn {
 		t.Helper()
@@ -296,15 +301,16 @@ else echo "no socat, python3 or nc in the node"; fi`
 	t.Logf("the naive line says udp=1: %s", on[strings.LastIndex(on, "@")+1:])
 
 	// UoT alone first: the node reaches the runner's echo, whatever datagrams do
-	client, logs := start(on, false)
+	client, logs, stop := start(on, false)
 	firstEcho(open(client, overUoT), overUoT, []byte("niko naive UoT before datagrams"))
 	if !strings.Contains(logs.String(), "outbound UoT packet connection") {
 		t.Fatal("the socket without datagrams did not go over UoT")
 	}
 	t.Log("over UoT alone the echo came back")
 	nodeStats()
+	stop()
 
-	client, logs = start(on, true)
+	client, logs, stop = start(on, true)
 
 	// a datagram, then one longer than a QUIC datagram carries (1206 bytes to IPv4): a capsule
 	conn := open(client, plain)
@@ -339,7 +345,8 @@ else echo "no socat, python3 or nc in the node"; fi`
 	rayctl("service", "set", "naive", "udp=off")
 	off := line(false)
 	naiveRuns(false)
-	client, logs = start(off, true)
+	stop()
+	client, logs, _ = start(off, true)
 	refused := open(client, afterOff)
 	if roundTrip(refused, afterOff, []byte("refused"), 5*time.Second) {
 		t.Log("the first socket's datagram came back before the answer (a capsule the node took): not expected")
