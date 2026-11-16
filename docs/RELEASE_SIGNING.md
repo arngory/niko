@@ -98,6 +98,9 @@ gh secret set RELEASE_MINISIGN_KEY --env release < niko-update.key
    git push origin v1.5.0
    ```
 
+Тег можно поставить и на сайте (Releases → Draft a new release → новый тег на `main`): сайт при этом сразу создаёт
+пустой релиз, а workflow потом кладёт в него файлы, заголовок и заметки из `.github/release-notes/<тег>.md`.
+
 Workflow проверит, что тег совпадает с `VERSION_NAME` и коммит лежит на `main`, соберёт libcore и APK без ключей,
 затем задача `sign` попросит одобрения владельца (Actions → запуск → **Review deployments**), подпишет APK и
 `SHA256SUMS`, а задача публикации проверит подпись и создаст GitHub Release. Теги с дефисом (`v1.5.0-beta.1`) публикуются как pre-release.

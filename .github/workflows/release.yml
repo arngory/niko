@@ -190,7 +190,15 @@ jobs:
           fi
           [ "$PRERELEASE" = "true" ] && flags+=(--prerelease)
           if gh release view "$TAG" > /dev/null 2>&1; then
+            # the release is there already: the tag was made on the site, which makes an empty release with it
+            # (v1.57.0 went out with no title and no notes so). It gets the files, and the title and the notes
+            # of the repository too; without a notes file, what was written by hand stays
             gh release upload "$TAG" apks/* --clobber
+            if [ -f ".github/release-notes/$TAG.md" ]; then
+              gh release edit "$TAG" --title "$TAG" --notes-file ".github/release-notes/$TAG.md"
+            else
+              gh release edit "$TAG" --title "$TAG"
+            fi
           else
             gh release create "$TAG" apks/* "${flags[@]}"
           fi
