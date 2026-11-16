@@ -194,11 +194,13 @@ jobs:
             # (v1.57.0 went out with no title and no notes so). It gets the files, and the title and the notes
             # of the repository too; without a notes file, what was written by hand stays
             gh release upload "$TAG" apks/* --clobber
-            if [ -f ".github/release-notes/$TAG.md" ]; then
-              gh release edit "$TAG" --title "$TAG" --notes-file ".github/release-notes/$TAG.md"
-            else
-              gh release edit "$TAG" --title "$TAG"
-            fi
+            # the pre-release mark follows the tag here too, whatever was ticked on the site: the app's update
+            # check reads "latest" for stable builds and the mark for preview ones, and a node's mirror expects
+            # the mark to agree with the dash in the tag
+            edit=(--title "$TAG" --prerelease="$PRERELEASE")
+            [ "$PRERELEASE" = "true" ] && edit+=(--latest=false)
+            [ -f ".github/release-notes/$TAG.md" ] && edit+=(--notes-file ".github/release-notes/$TAG.md")
+            gh release edit "$TAG" "${edit[@]}"
           else
             gh release create "$TAG" apks/* "${flags[@]}"
           fi
