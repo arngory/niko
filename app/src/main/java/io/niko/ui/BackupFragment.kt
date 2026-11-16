@@ -69,7 +69,8 @@ class BackupFragment : NamedFragment(R.layout.layout_backup) {
                 .setMessage(R.string.reset_settings_message)
                 .setNegativeButton(R.string.no, null)
                 .setPositiveButton(R.string.yes) { _, _ ->
-                    DataStore.configurationStore.reset()
+                    // the dialog promises the nodes stay: their registrations and keys live in this store too
+                    DataStore.replaceSettings()
                     triggerFullRestart(requireContext())
                 }
                 .show()
@@ -318,9 +319,7 @@ class BackupFragment : NamedFragment(R.layout.layout_backup) {
                 parcel.recycle()
             }
             // keep this installation's own secrets; backups from 1.5.1 still carry the old device's
-            val ownSecrets = DataStore.installSecretKeys.mapNotNull { PublicDatabase.kvPairDao[it] }
-            PublicDatabase.kvPairDao.reset()
-            PublicDatabase.kvPairDao.insert(settings.filter { it.key !in DataStore.installSecretKeys } + ownSecrets)
+            DataStore.replaceSettings(settings)
         }
     }
 

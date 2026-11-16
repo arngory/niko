@@ -245,6 +245,17 @@ object DataStore : OnPreferenceDataStoreChangeListener {
             // a registration's client key kept for a retry: wrapped with this device's keystore
             Key.RAYCONTROL_PENDING_REGISTER)
 
+    /**
+     * Replaces every setting with [settings], keeping this installation's own secrets: the node registrations and keys
+     * are this device's data, not settings, so neither a reset nor another device's backup may take them. One
+     * transaction, so a crash between the delete and the insert cannot lose them.
+     */
+    fun replaceSettings(settings: List<KeyValuePair> = emptyList()) = PublicDatabase.instance.runInTransaction {
+        val own = installSecretKeys.mapNotNull { PublicDatabase.kvPairDao[it] }
+        PublicDatabase.kvPairDao.reset()
+        PublicDatabase.kvPairDao.insert(settings.filter { it.key !in installSecretKeys } + own)
+    }
+
     /** Settings whose values must not appear in logs or crash reports. */
     fun isSensitiveKey(key: String) = key in installSecretKeys || key in secretValueKeys ||
         Regex("password|secret|token|psk|private", RegexOption.IGNORE_CASE).containsMatchIn(key)
