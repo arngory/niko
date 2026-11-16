@@ -399,6 +399,9 @@ class BaseService {
                 SagerNet.connectivity.getLinkProperties(it)?.also { link ->
                     SagerNet.underlyingNetwork = it
                     DataStore.vpnService?.updateUnderlyingNetwork()
+                    // naive's UDP as datagrams: a network of the app's reckoning (one Wi-Fi from the next on the same
+                    // interface too) goes over TCP until decided anew
+                    io.niko.raycontrol.RayDatagrams.networkChanged()
                     //
                     val oldName = upstreamInterfaceName
                     if (oldName != link.interfaceName) {

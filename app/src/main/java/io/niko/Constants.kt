@@ -199,6 +199,7 @@ object Key {
     const val YGGDRASIL_ADDRESS = "yggdrasilAddress"
     const val RAYCONTROL_NODES = "raycontrolNodes"
     const val RAYCONTROL_CHANNEL = "raycontrolChannel"
+    const val RAYCONTROL_DATAGRAMS = "raycontrolDatagrams"
     const val RAYCONTROL_AUTO_SWITCH = "raycontrolAutoSwitch"
     const val RAYCONTROL_YGG_RUNNING = "raycontrolYggRunning"
     const val RAYCONTROL_BRUTAL = "raycontrolBrutal"

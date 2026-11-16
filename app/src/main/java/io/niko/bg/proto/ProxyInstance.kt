@@ -62,12 +62,15 @@ class ProxyInstance(profile: ProxyEntity, var service: BaseService.Interface? = 
         // the mesh nodes this core runs: a test with one of their keys would be a second node on that address
         io.niko.fmt.setRunningYggKeys(config.yggKeys)
         super.launch() // start box
+        // naive's UDP as HTTP/3 datagrams: allowed per network once the probe passed there
+        if (notTmp) io.niko.raycontrol.RayDatagrams.started(box, config.naiveDatagramTags)
         // created right here, not in a coroutine: a close() after launch() must find it to stop it
         looper = service?.let { TrafficLooper(it.data, GlobalScope) }
         looper?.start()
     }
 
     override fun close() {
+        if (notTmp) io.niko.raycontrol.RayDatagrams.stopped()
         super.close()
         io.niko.fmt.setRunningYggKeys(emptySet())
         // the loop stops and its last counts reach the database before this returns (a restart reads the profiles

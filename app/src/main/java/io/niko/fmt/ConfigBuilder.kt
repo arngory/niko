@@ -51,10 +51,10 @@ import java.io.File
 import libcore.Libcore
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
-// UDP of naive as HTTP/3 datagrams (raycontrol naive-udp-v1, udp=1): on once the app probes the path per network
-// (libcore, the outbound's SetDatagramAllowed) and the core is built with a libcronet that has datagrams; until then
-// a node's udp=1 is kept on the profile and UDP stays over TCP
-const val NAIVE_UDP_DATAGRAMS = false
+// UDP of naive as HTTP/3 datagrams (raycontrol naive-udp-v1, udp=1): the core keeps it over TCP until the app's
+// probe has passed on the network (RayDatagrams, libcore's SetNaiveDatagramAllowed). Off, a node's udp=1 is kept on
+// the profile and UDP stays over TCP
+const val NAIVE_UDP_DATAGRAMS = true
 
 const val TAG_MIXED = "mixed-in"
 
@@ -131,6 +131,9 @@ class ConfigBuildResult(
     val yggKeys: Set<String> = emptySet(),
     // the slipstream clients the config's DNS tunnels dial through, processes of their own
     val slipstream: List<SlipstreamLaunch> = emptyList(),
+    // the naive outbounds whose UDP may go as HTTP/3 datagrams (udp_datagram), by tag: the profile each is; the app
+    // allows them per network after its probe (RayDatagrams)
+    val naiveDatagramTags: Map<String, Long> = emptyMap(),
 ) {
     data class IndexEntity(var chain: LinkedHashMap<Int, ProxyEntity>)
 
@@ -243,6 +246,7 @@ fun buildConfig(
     // slipstream's clients, and the rules of their mapping ports (above the DNS hijack: their queries go to port 53)
     val slipstreamLaunches = mutableListOf<ConfigBuildResult.SlipstreamLaunch>()
     val slipstreamRules = mutableListOf<Rule_DefaultOptions>()
+    val naiveDatagramTags = mutableMapOf<String, Long>()
     val ipv6Mode = if (forTest) IPv6Mode.ENABLE else DataStore.ipv6Mode
 
     fun genDomainStrategy(noAsIs: Boolean): String {
@@ -672,11 +676,12 @@ fun buildConfig(
                 // UDP as HTTP/3 datagrams on a second, QUIC connection to the node (raycontrol naive-udp-v1, udp=1 in
                 // its link), with UDP on: the core keeps UDP over TCP until the app's probe has passed on the network
                 // and after a refusal, so it goes only beside udp_over_tcp. A field of the core fork's: not in an
-                // export. Off until the probe and a libcronet with datagrams are in (NAIVE_UDP_DATAGRAMS)
+                // export (NAIVE_UDP_DATAGRAMS)
                 if (NAIVE_UDP_DATAGRAMS && !forExport && bean is NaiveBean && bean.nikoUdp == true && bean.sUoT == true &&
                     !proxyEntity.needExternal()
                 ) {
                     currentOutbound._hack_config_map["udp_datagram"] = true
+                    naiveDatagramTags[tagOut] = proxyEntity.id
                 }
                 // naive over QUIC with a root of the phone's (off by default): Chromium wants a root of its own list
                 // over QUIC, as Chrome does, and takes the phone's roots over HTTP/2 only. The switch makes QUIC as
@@ -1595,6 +1600,7 @@ fun buildConfig(
             if (buildSelector) group.id else -1L,
             yggProfileEndpoints.keys.toSet(),
             slipstreamLaunches.toList(),
+            naiveDatagramTags.toMap(),
         )
     }
 

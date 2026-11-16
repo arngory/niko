@@ -239,7 +239,7 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     val installSecretKeys =
         setOf("localProxyPassword", "clashApiSecret", "shortcutToken", "subscriptionHwid", Key.YGGDRASIL_PRIVATE_KEY, Key.RAYCONTROL_NODES,
             // what this device measured on its networks: of no use on another one
-            Key.RAYCONTROL_CHANNEL,
+            Key.RAYCONTROL_CHANNEL, Key.RAYCONTROL_DATAGRAMS,
             // the service's state of this installation
             Key.RAYCONTROL_YGG_RUNNING,
             // a registration's client key kept for a retry: wrapped with this device's keystore
