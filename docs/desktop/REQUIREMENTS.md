@@ -8,7 +8,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 
 - через какой вызов демона элемент работает;
 - где его логика живёт сейчас;
-- совпадает ли с этим макет (раунд от 2026-11-16).
+- совпадает ли с этим макет (раунд от 2026-11-16; D-SUB и D-MAIN-16/17 — по отчёту дизайн-сессии о третьем раунде, файл ещё не сверен).
 
 **Где логика сейчас:**
 
@@ -54,6 +54,8 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-MAIN-12 | Пинг строки: число, цвет, полоски | `NikoService.TestProfiles` | см. D-MAIN-08 | есть |
 | D-MAIN-13 | Срок и трафик узла, когда обновлён | `NikoService` | Kotlin: `raycontrol/RaySubscription.kt`, `group/SubscriptionHeaders.kt` | есть |
 | D-MAIN-14 | Подтверждение «Узнать IP»: какой сервис спросят | `NikoService.ExitAddress` | Go: `libcore/exitaddress.go` (Cloudflare, ipinfo.io, ipwho.is, ipapi.co) | расходится: ifconfig.me |
+| D-MAIN-16 | Причина ошибки подключения (на главной) | `SubscribeServiceStatus` (FATAL, текст ошибки) | есть | есть |
+| D-MAIN-17 | «Почему не работает» с главной: открывает D-WHY | `NikoService.TestRun` | Kotlin: `raycontrol/RayTestRun.kt` | есть |
 
 ## Добавление (D-ADD)
 
@@ -77,7 +79,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-NODE-04 | Срок доступа, трафик до сброса | `NikoService` | Kotlin: `raycontrol/RayNodes.kt` (`RayTraffic`: used, limit, since, reset) | расходится: «за месяц» вместо «до сброса» |
 | D-NODE-05 | Сведения: последнее и следующее обновление, подпись | `NikoService` | Kotlin: `raycontrol/RayNodeCard.kt` | расходится: «раз в 12 часов», «пресет узла» |
 | D-NODE-06 | Способы подключения узла | `NikoService` | Kotlin | расходится: города |
-| D-NODE-07 | Удалить узел | `NikoService` | Kotlin (хранилище) | есть |
+| D-NODE-07 | Удалить узел: с подтверждением, что вернуть его можно только новым приглашением | `NikoService` | Kotlin (хранилище) | есть |
 | D-NODE-08 | Свои устройства в сети узла (lan-v1) | `NikoService` | Kotlin: `raycontrol/RayLan.kt`, `ui/RayLanDialog.kt` | нет |
 
 ## Обычная подписка (D-SUB)
@@ -87,10 +89,10 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 
 | ID | Элемент | Вызов демона | Где логика сейчас | Макет |
 |---|---|---|---|---|
-| D-SUB-01 | Группа подписки в списке: имя, серверы с пингом | `NikoService` | Kotlin (хранилище, BG-02) | нет |
-| D-SUB-02 | Срок и трафик подписки (`subscription-userinfo`) | `NikoService` | Kotlin: `group/SubscriptionHeaders.kt` | нет |
-| D-SUB-03 | Обновить подписку вручную | `NikoService.Refresh` | Kotlin: `group/GroupUpdater.kt`, `group/RawUpdater.kt` | нет |
-| D-SUB-04 | Удалить подписку | `NikoService` | Kotlin (хранилище) | нет |
+| D-SUB-01 | Группа подписки в списке: имя, серверы с пингом | `NikoService` | Kotlin (хранилище, BG-02) | есть |
+| D-SUB-02 | Срок и трафик подписки (`subscription-userinfo`) | `NikoService` | Kotlin: `group/SubscriptionHeaders.kt` | есть |
+| D-SUB-03 | Обновить подписку вручную | `NikoService.Refresh` | Kotlin: `group/GroupUpdater.kt`, `group/RawUpdater.kt` | есть |
+| D-SUB-04 | Удалить подписку: в меню «⋯», с подтверждением | `NikoService` | Kotlin (хранилище) | расходится: кнопка в шапке группы |
 
 ## Проверка маршрута (D-CHECK)
 
