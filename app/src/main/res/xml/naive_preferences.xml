@@ -65,6 +65,6 @@
         <SwitchPreference
             app:key="sUoT"
             app:summary="@string/naive_uot_summary"
-            app:title="UDP over TCP" />
+            app:title="@string/naive_udp_title" />
     </PreferenceCategory>
 </PreferenceScreen>

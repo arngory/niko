@@ -64,6 +64,21 @@ class NaiveCoreTest {
     }
 
     @Test
+    fun udpDatagramsOnlyWhereTheLinkSaysSo() {
+        val bean = parseNaive("naive+https://u:p@198.51.100.1:443?uot=2&udp=1#n")
+        assertEquals(true, bean.nikoUdp)
+        assertEquals(true, bean.sUoT)
+        // kept through the store (bean version 6)
+        assertEquals(true, KryoConverters.deserialize(io.niko.fmt.naive.NaiveBean(), KryoConverters.serialize(bean)).nikoUdp)
+        for (link in listOf("naive+https://u:p@198.51.100.1:443?uot=2#n", "naive+https://u:p@198.51.100.1:443?udp=on#n",
+            "naive+https://u:p@198.51.100.1:443?udp=2#n")) {
+            val other = parseNaive(link)
+            assertFalse(link, other.nikoUdp)
+            assertFalse(link, KryoConverters.deserialize(io.niko.fmt.naive.NaiveBean(), KryoConverters.serialize(other)).nikoUdp)
+        }
+    }
+
+    @Test
     fun headers() {
         assertEquals(mapOf("X-A" to "1", "X-B" to "two: parts"), naiveHeaders("X-A: 1\nX-B: two: parts\n\nbad"))
     }

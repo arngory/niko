@@ -31,6 +31,9 @@ fun parseNaive(link: String): NaiveBean {
         // the node answers a CONNECT that asks for it only after its own dial to the destination (raycontrol
         // naive-uot-v1 §4.1): the dial may wait for that answer (Settings → honest connect)
         nikoAck = url.queryParameter("niko-ack") == "1"
+        // the node carries UDP as HTTP/3 datagrams on QUIC (raycontrol naive-udp-v1 §9.1); uot=2 stays the way
+        // until the path has passed and after a refusal
+        nikoUdp = url.queryParameter("udp") == "1"
         // the server's key pins (raycontrol cert-pin-v1): Chromium checks them besides the chain
         url.queryParameter("niko-pin")?.takeIf { it.isNotBlank() }?.let { certPins = it.trim() }
         name = url.fragment

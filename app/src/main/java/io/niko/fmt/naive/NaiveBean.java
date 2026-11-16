@@ -33,6 +33,10 @@ public class NaiveBean extends AbstractBean {
     // Settings → honest connect
     public Boolean nikoAck;
 
+    // version 6: the node carries UDP as HTTP/3 datagrams on QUIC (udp=1, raycontrol naive-udp-v1): with UDP on
+    // (sUoT), the core sends it that way on a network where the path has passed, over TCP otherwise
+    public Boolean nikoUdp;
+
     @Override
     public void initializeDefaultValues() {
         if (serverPort == null) serverPort = 443;
@@ -47,11 +51,12 @@ public class NaiveBean extends AbstractBean {
         if (sUoT == null) sUoT = false;
         if (nikoIcmp == null) nikoIcmp = false;
         if (nikoAck == null) nikoAck = false;
+        if (nikoUdp == null) nikoUdp = false;
     }
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(5);
+        output.writeInt(6);
         super.serialize(output);
         output.writeString(proto);
         output.writeString(username);
@@ -64,6 +69,7 @@ public class NaiveBean extends AbstractBean {
         output.writeBoolean(sUoT);
         output.writeBoolean(nikoIcmp != null && nikoIcmp);
         output.writeBoolean(nikoAck != null && nikoAck);
+        output.writeBoolean(nikoUdp != null && nikoUdp);
     }
 
     @Override
@@ -89,6 +95,9 @@ public class NaiveBean extends AbstractBean {
         }
         if (version >= 5) {
             nikoAck = input.readBoolean();
+        }
+        if (version >= 6) {
+            nikoUdp = input.readBoolean();
         }
     }
 

@@ -664,6 +664,15 @@ fun buildConfig(
                 if (!forExport && DataStore.honestConnect && bean is NaiveBean && bean.nikoAck == true) {
                     currentOutbound._hack_config_map["await_dial"] = true
                 }
+                // UDP as HTTP/3 datagrams on a second, QUIC connection to the node (raycontrol naive-udp-v1, udp=1 in
+                // its link), with UDP on: the core keeps UDP over TCP until the app's probe has passed on the network
+                // and after a refusal, so it goes only beside udp_over_tcp. A field of the core fork's: not in an
+                // export
+                if (!forExport && bean is NaiveBean && bean.nikoUdp == true && bean.sUoT == true &&
+                    !proxyEntity.needExternal()
+                ) {
+                    currentOutbound._hack_config_map["udp_datagram"] = true
+                }
                 // naive over QUIC with a root of the phone's (off by default): Chromium wants a root of its own list
                 // over QUIC, as Chrome does, and takes the phone's roots over HTTP/2 only. The switch makes QUIC as
                 // HTTP/2 there. A field of the core fork's: not in an export
