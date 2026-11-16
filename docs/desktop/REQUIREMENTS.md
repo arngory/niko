@@ -164,7 +164,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-SET-03 | Тема: как в системе, светлая, тёмная | — | UI | есть |
 | D-SET-04 | Запускать вместе с системой | `boxdd` в режиме службы + автозапуск окна | есть; установщика нет | есть |
 | D-SET-05 | Подключаться при запуске | `NikoService` | Kotlin: `BootReceiver.kt`; на компьютере — служба | есть |
-| D-SET-07 | Пресет «Россия» | `NikoService` | Kotlin: `RoutePresets.kt`, `RuleSetFiles.kt` | есть |
+| D-SET-07 | Пресет «Россия»: заменён выбором пресета страны в правилах (D-RULES-05) | `NikoService` | Kotlin: `RoutePresets.kt`, `RuleSetFiles.kt` | расходится: выбор пресета теперь в «Правилах», а не в настройках |
 | D-SET-08 | Реклама и трекеры: обычное правило «Блок» по `geosite:category-ads-all` в списке правил, отдельного переключателя и плитки нет (решение владельца) | `NikoService` | Kotlin: правило создаётся при первом запуске, `database/ProfileManager.kt` | есть |
 | D-SET-10 | Режим эксперта: заменён видом «Расширенный» (D-NAV-03) | — | UI | расходится: отдельной настройки больше нет |
 | D-SET-12 | О программе: версия, ядро, обновления (GitHub и узел, подпись minisign) | `DesktopService.InstallUpdate` + `NikoService` | Go: `libcore/update.go`, `minisign`; с узла — Kotlin `raycontrol/RayAppMirror.kt` | есть |
@@ -186,6 +186,8 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-CONN-01 | Соединения: список, закрыть | `SubscribeConnections`, `CloseConnection`, `CloseAllConnections` | есть | есть |
 | D-RULES-01 | Редактор правил | `NikoService` | Kotlin: `ui/RouteSettingsActivity.kt`, `fmt/ConfigBuilder.kt` | есть |
 | D-RULES-02 | Правило по программам (`process_name`, `process_path`) | конфиг | ядро умеет; на Android это список приложений | есть |
+| D-RULES-03 | Наборы правил: версии, обновить, удалить, импорт; источник и интервал обновления | `NikoService` | Kotlin: `ui/AssetsActivity.kt`, `RuleSetFiles.kt` | есть |
+| D-RULES-04 | Свой корневой сертификат из .pem, с предупреждением | `NikoService` | Kotlin: `ui/AssetsActivity.kt` | есть |
 | D-RULES-05 | Пресет страны: один из «Нет, Россия, Китай, Иран». Китай и Иран — по образцу «России»: заблокированное через узел, доступное только изнутри и адреса страны напрямую, из наборов с обновлением | `NikoService` | Kotlin: `RoutePresets.kt` (есть только «Россия»); наборы — Loyalsoldier (Китай), Chocolate4U (Иран) | есть |
 | D-RULES-06 | Программы через Niko: «Все, Только выбранные, Кроме выбранных» и список — то же, что приложения на телефоне (M-RULES-01) | конфиг | новое: «Кроме выбранных» — правило по `process_path` «Напрямую» первым в списке; «Только выбранные» — такое же правило через узел, а остальное напрямую | есть |
 | D-PROFILE-01 | Ручная форма профиля по протоколу; у naive переключатель «UDP: QUIC, через TCP если не проходит» | `NikoService` | Kotlin: 16 форм `ui/profile/*SettingsActivity.kt`, бины `fmt/*` | расходится: переключатель UDP нарисован в форме VLESS, он только у naive |
