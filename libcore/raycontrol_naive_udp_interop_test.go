@@ -71,9 +71,12 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 		t.Logf("rayctl %s: %s", strings.Join(args, " "), strings.TrimSpace(string(out)))
 	}
 
-	// UDP echoes on every address of the runner
+	// UDP echoes on the runner's address the node sends to. Not on every address: an answer from such a socket leaves
+	// from the address of the route back to the node (the docker bridge's), which the node drops as a stranger's, as
+	// a NAT does that lets in only the address and port a datagram went to
+	target := os.Getenv("RAYCONTROL_LIMIT_TARGET")
 	echo := func() uint16 {
-		conn, err := net.ListenPacket("udp", ":0")
+		conn, err := net.ListenPacket("udp", net.JoinHostPort(target, "0"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -90,7 +93,6 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 		}()
 		return uint16(conn.LocalAddr().(*net.UDPAddr).Port)
 	}
-	target := os.Getenv("RAYCONTROL_LIMIT_TARGET")
 	overUoT := M.ParseSocksaddrHostPort(target, echo())
 	plain := M.ParseSocksaddrHostPort(target, echo())
 	quicPair := M.ParseSocksaddrHostPort(target, echo())
