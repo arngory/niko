@@ -42,6 +42,14 @@ jobs:
             echo "::error::tag $TAG does not match VERSION_NAME=$version in niko.properties"
             exit 1
           fi
+          # only what main carries is released: the environment release admits any v* tag, and a tag on a commit
+          # of an unreviewed branch would bring that branch's workflows to the keys behind one approval. This
+          # check runs from the tagged commit's own workflow, so it catches mistakes; the guard against intent is
+          # the tag ruleset (docs/RELEASE_SIGNING.md §2: only the owner creates v* tags)
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::$GITHUB_SHA is not on main: releases are cut from main only"
+            exit 1
+          fi
           # an existing tag must point at the commit being released
           if existing=$(git rev-parse -q --verify "refs/tags/$TAG^{commit}"); then
             if [ "$existing" != "$GITHUB_SHA" ]; then
@@ -62,14 +70,67 @@ jobs:
     uses: ./.github/workflows/build.yml
     with:
       ref: ${{ needs.check.outputs.sha }}
-      require-signing: true
-      tag: ${{ needs.check.outputs.tag }}
-    secrets: inherit
+
+  # The release keys are secrets of the environment release only (one required reviewer, the owner; v* tags and
+  # main), under names no repository secret has (RELEASE_*), so a job never falls back to one. This job asks for
+  # the release's one approval and signs both the APKs and SHA256SUMS; no build code runs here, the APK artifact is
+  # data to it (.github/scripts/release-sign.sh: zipalign, apksigner, minisign)
+  sign:
+    name: Sign
+    runs-on: ubuntu-latest
+    needs: [check, build]
+    if: needs.check.outputs.kind == 'app'
+    environment: release
+    steps:
+      - name: Checkout the signing script
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ needs.check.outputs.sha }}
+          persist-credentials: false
+          # the files at the root come with it in cone mode: niko-update.pub
+          sparse-checkout: .github/scripts
+
+      - name: Download APKs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: APKs
+          path: apks
+
+      - name: Sign the APKs and SHA256SUMS
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          KEYSTORE_PASS: ${{ secrets.RELEASE_KEYSTORE_PASS }}
+          ALIAS_NAME: ${{ secrets.RELEASE_ALIAS_NAME }}
+          ALIAS_PASS: ${{ secrets.RELEASE_ALIAS_PASS }}
+          MINISIGN_KEY: ${{ secrets.RELEASE_MINISIGN_KEY }}
+          # the certificate every Niko release is signed with (oss and preview): another one is refused
+          EXPECT_CERT_SHA256: f4ac83655f2e6be36235706303bc4e4a1dd7bb36fcc2285dc526f9df5636c13f
+          TAG: ${{ needs.check.outputs.tag }}
+        run: |
+          for name in KEYSTORE_BASE64 KEYSTORE_PASS ALIAS_NAME ALIAS_PASS; do
+            [ -n "${!name}" ] || { echo "::error::RELEASE_$name is not set in the environment release"; exit 1; }
+          done
+          sudo apt-get install -y -q minisign > /dev/null || { sudo apt-get update -q && sudo apt-get install -y -q minisign; }
+          umask 077
+          keys="$RUNNER_TEMP/keys"; mkdir -p "$keys"; trap 'rm -rf "$keys"' EXIT
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$keys/release.keystore"
+          export KEYSTORE_FILE="$keys/release.keystore" MINISIGN_KEY_FILE="" UPDATE_PUB=""
+          if [ -n "$MINISIGN_KEY" ]; then printf '%s\n' "$MINISIGN_KEY" > "$keys/niko-update.key"; MINISIGN_KEY_FILE="$keys/niko-update.key"; fi
+          [ -f niko-update.pub ] && UPDATE_PUB=niko-update.pub
+          unset KEYSTORE_BASE64 MINISIGN_KEY
+          bash .github/scripts/release-sign.sh apks
+
+      - name: Upload the signed APKs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: APKs-signed
+          path: apks
+          if-no-files-found: error
 
   publish:
     name: Publish Release
     runs-on: ubuntu-latest
-    needs: [check, build]
+    needs: [check, sign]
     if: needs.check.outputs.kind == 'app'
     steps:
       - name: Checkout
@@ -79,14 +140,14 @@ jobs:
           # the files at the root come with it in cone mode: niko-update.pub
           sparse-checkout: .github/release-notes
 
-      - name: Download APKs
+      - name: Download the signed APKs
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: APKs
+          name: APKs-signed
           path: apks
 
-      # the build signed SHA256SUMS under the environment release (build.yml, Sign SHA256SUMS); this job holds no key
-      # and checks it as the app does: the pinned public key, the trusted comment the tag
+      # signed in the job sign under the environment release; this job holds no key and checks SHA256SUMS again as
+      # the app does: the pinned public key, the trusted comment the tag
       - name: Check the SHA256SUMS signature
         env:
           TAG: ${{ needs.check.outputs.tag }}

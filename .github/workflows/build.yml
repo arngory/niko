@@ -7,29 +7,10 @@ on:
         description: Git ref to build
         type: string
         default: ""
-      require-signing:
-        description: Fail when signing secrets are missing; signs in the environment release (the owner approves)
-        type: boolean
-        default: false
-      tag:
-        description: Release tag, the trusted comment of the SHA256SUMS signature ("niko <tag>")
-        type: string
-        default: ""
       lint:
         description: Run Android lint (new issues beyond app/lint-baseline.xml fail the build)
         type: boolean
         default: false
-    secrets:
-      KEYSTORE_BASE64:
-        required: false
-      KEYSTORE_PASS:
-        required: false
-      ALIAS_NAME:
-        required: false
-      ALIAS_PASS:
-        required: false
-      MINISIGN_SECRET_KEY:
-        required: false
 
 env:
   NDK_VERSION: 28.2.13676358
@@ -144,11 +125,9 @@ jobs:
     name: Build OSS APK
     runs-on: ubuntu-latest
     needs: [libcore, slipstream]
-    # The release keys (keystore, alias, minisign) are secrets of the environment release only: its one required
-    # reviewer is the owner, and it admits v* tags and main. A release build waits here for that approval, once;
-    # CI builds take no environment and no key, their APKs unsigned (the emulator jobs sign theirs with a
-    # throwaway key)
-    environment: ${{ inputs.require-signing && 'release' || '' }}
+    # No key ever reaches this job: Gradle, its plugins and the dependencies run here, and the APKs come out
+    # unsigned (Niko-<version>-<abi>-unsigned.apk). release.yml signs them in a job of its own under the environment
+    # release (.github/scripts/release-sign.sh); the emulator jobs of ci.yml sign theirs with a throwaway key
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -181,43 +160,14 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
 
-      - name: Signing key
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-          KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
-          ALIAS_NAME: ${{ secrets.ALIAS_NAME }}
-          REQUIRE_SIGNING: ${{ inputs.require-signing }}
-        run: |
-          if [ -z "$KEYSTORE_BASE64" ]; then
-            if [ "$REQUIRE_SIGNING" = "true" ]; then
-              echo "::error::KEYSTORE_BASE64 secret is not set, refusing to publish unsigned APKs"
-              exit 1
-            fi
-            echo "::warning::No signing key, APKs will be unsigned"
-            exit 0
-          fi
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
-          echo "KEYSTORE_FILE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
-          # fail early with the aliases that do exist instead of a packaging error
-          if ! keytool -list -keystore "$RUNNER_TEMP/release.keystore" -storepass "$KEYSTORE_PASS" \
-              -alias "$(printf '%s' "$ALIAS_NAME" | xargs)" > /dev/null 2>&1; then
-            echo "::error::alias from ALIAS_NAME not found in the keystore (or KEYSTORE_PASS is wrong). Aliases present:"
-            keytool -list -keystore "$RUNNER_TEMP/release.keystore" -storepass "$KEYSTORE_PASS" | grep -i 'entry' || true
-            exit 1
-          fi
-
       - name: Gradle build
         env:
           BUILD_PLUGIN: none
           # assets.sh asks the GitHub API for the latest geoip and geosite releases: unauthenticated, the shared
           # runner addresses run into the rate limit
           GITHUB_TOKEN: ${{ github.token }}
-          KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
-          ALIAS_NAME: ${{ secrets.ALIAS_NAME }}
-          ALIAS_PASS: ${{ secrets.ALIAS_PASS }}
         run: |
           echo "sdk.dir=${ANDROID_HOME}" > local.properties
-          [ -n "$KEYSTORE_FILE" ] || unset KEYSTORE_PASS ALIAS_NAME ALIAS_PASS
           ./run init action gradle
           tasks="app:testOssReleaseUnitTest app:assembleOssRelease"
           [ "${{ inputs.lint }}" = "true" ] && tasks="$tasks app:lintOssRelease"
@@ -237,31 +187,6 @@ jobs:
           find app/build/outputs/apk/oss/release -name '*.apk' -exec cp {} apks/ \;
           (cd apks && sha256sum *.apk > SHA256SUMS)
           ls -la apks
-
-      # SHA256SUMS signed with minisign (MINISIGN_SECRET_KEY, a key made with minisign -G -W) in this job, under the
-      # same approval as the APK key: the GitHub build checks it with niko-update.pub, the trusted comment its tag,
-      # before it installs an update (io.niko.utils.Updates; docs/RELEASE_SIGNING.md §5). Release publishes it
-      # after checking it again
-      - name: Sign SHA256SUMS
-        if: ${{ inputs.require-signing }}
-        env:
-          MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
-          TAG: ${{ inputs.tag }}
-        run: |
-          [ -n "$TAG" ] || { echo "::error::a signed build needs the release tag"; exit 1; }
-          if [ -z "$MINISIGN_SECRET_KEY" ]; then
-            if [ -f niko-update.pub ]; then
-              echo "::error::the app checks updates with niko-update.pub, and MINISIGN_SECRET_KEY is not set: it would refuse this release"
-              exit 1
-            fi
-            echo "::warning::MINISIGN_SECRET_KEY is not set: SHA256SUMS goes out unsigned"
-            exit 0
-          fi
-          sudo apt-get install -y -q minisign > /dev/null || { sudo apt-get update -q && sudo apt-get install -y -q minisign; }
-          umask 077
-          printf '%s\n' "$MINISIGN_SECRET_KEY" > "$RUNNER_TEMP/niko-update.key"
-          minisign -S -s "$RUNNER_TEMP/niko-update.key" -m apks/SHA256SUMS -t "niko $TAG" < /dev/null
-          rm -f "$RUNNER_TEMP/niko-update.key"
 
       - name: Upload APKs
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

@@ -22,6 +22,45 @@ jobs:
     with:
       lint: true
 
+  # release.yml's signing path (.github/scripts/release-sign.sh) on this build's APKs with throwaway keys: zipalign,
+  # apksigner with the expected certificate, SHA256SUMS signed and checked as the app checks it
+  sign-check:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: APKs
+          path: apks
+      - name: Sign as a release, with throwaway keys
+        run: |
+          sudo apt-get install -y -q minisign > /dev/null || { sudo apt-get update -q && sudo apt-get install -y -q minisign; }
+          k="$RUNNER_TEMP/k"; mkdir -p "$k"
+          keytool -genkeypair -storetype PKCS12 -keystore "$k/ks.p12" -storepass checkkey -keypass checkkey -alias check \
+            -keyalg RSA -keysize 2048 -validity 1 -dname CN=check -noprompt
+          minisign -G -W -p "$k/update.pub" -s "$k/update.key" > /dev/null
+          cert=$(keytool -exportcert -keystore "$k/ks.p12" -storepass checkkey -alias check | sha256sum | cut -d' ' -f1)
+          cp -r apks "$k/apks-wrong"
+          KEYSTORE_FILE="$k/ks.p12" KEYSTORE_PASS=checkkey ALIAS_NAME=check ALIAS_PASS=checkkey \
+            EXPECT_CERT_SHA256="$cert" MINISIGN_KEY_FILE="$k/update.key" UPDATE_PUB="$k/update.pub" TAG=v0.0.0-check \
+            bash .github/scripts/release-sign.sh apks
+          # every ABI signed, none left unsigned, and the sums cover exactly the signed APKs
+          for abi in arm64-v8a armeabi-v7a x86 x86_64; do ls apks/Niko-*-"$abi".apk > /dev/null; done
+          if ls apks/*-unsigned.apk 2> /dev/null; then echo "::error::an APK left unsigned"; exit 1; fi
+          (cd apks && sha256sum -c SHA256SUMS && [ "$(wc -l < SHA256SUMS)" = "$(ls *.apk | wc -l)" ])
+          # a key other than the expected certificate's is refused (the release's, here)
+          if out=$(KEYSTORE_FILE="$k/ks.p12" KEYSTORE_PASS=checkkey ALIAS_NAME=check ALIAS_PASS=checkkey \
+              EXPECT_CERT_SHA256=f4ac83655f2e6be36235706303bc4e4a1dd7bb36fcc2285dc526f9df5636c13f TAG=v0.0.0-check \
+              bash .github/scripts/release-sign.sh "$k/apks-wrong" 2>&1); then
+            echo "::error::signed with a key that is not the release's"; exit 1
+          fi
+          grep -q 'the release key is f4ac8365' <<< "$out" || { echo "$out"; echo "::error::refused for another reason"; exit 1; }
+
   # the release APK on an emulator: it starts, survives configuration changes and leaks no activity
   smoke:
     needs: build
