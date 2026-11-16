@@ -78,7 +78,7 @@ class QuickToggleShortcut : Activity(), SagerConnection.Callback {
                     context, ShortcutInfoCompat.Builder(context, "shortcut-profile-$profileId")
                         .setShortLabel(label)
                         .setLongLabel(label)
-                        .setIcon(IconCompat.createWithResource(context, R.drawable.ic_qu_shadowsocks_launcher))
+                        .setIcon(IconCompat.createWithResource(context, R.drawable.ic_qu_toggle_launcher))
                         .setIntent(shortcutIntent(context, profileId))
                         .build(), null
                 )
@@ -93,7 +93,7 @@ class QuickToggleShortcut : Activity(), SagerConnection.Callback {
                     .putExtra(Intent.EXTRA_SHORTCUT_NAME, label)
                     .putExtra(
                         Intent.EXTRA_SHORTCUT_ICON_RESOURCE,
-                        Intent.ShortcutIconResource.fromContext(context, R.drawable.ic_qu_shadowsocks_launcher)
+                        Intent.ShortcutIconResource.fromContext(context, R.drawable.ic_qu_toggle_launcher)
                     )
             )
             return true
@@ -116,7 +116,7 @@ class QuickToggleShortcut : Activity(), SagerConnection.Callback {
                 ShortcutInfoCompat.Builder(this, "toggle")
                     .setIntent(shortcutIntent(this))
                     .setIcon(IconCompat.createWithResource(this,
-                        R.drawable.ic_qu_shadowsocks_launcher))
+                        R.drawable.ic_qu_toggle_launcher))
                     .setShortLabel(getString(R.string.quick_toggle))
                     .build()))
             finish()

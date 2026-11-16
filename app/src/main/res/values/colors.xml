@@ -8,6 +8,8 @@
     <color name="niko_on_ink">#F8F8F8</color>
     <color name="niko_surface_2">#E3E3E3</color>
     <color name="niko_line_strong">#787878</color>
+    <!-- the launcher's shortcuts: the light app icon's ground, in both modes (launchers do not follow the app's) -->
+    <color name="niko_shortcut_background">#EEEEEE</color>
 
     <integer-array name="material_colors">
         <item>@color/material_red_500</item>

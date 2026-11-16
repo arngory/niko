@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
     <shortcut
-        android:icon="@drawable/ic_qu_shadowsocks_launcher"
+        android:icon="@drawable/ic_qu_toggle_launcher"
         android:shortcutId="toggle"
         android:shortcutLongLabel="@string/quick_toggle"
         android:shortcutShortLabel="@string/quick_toggle">
@@ -11,7 +11,7 @@
             android:targetPackage="@APPLICATION_ID@" />
     </shortcut>
     <shortcut
-        android:icon="@drawable/ic_qu_shadowsocks_launcher"
+        android:icon="@drawable/ic_qu_enable_launcher"
         android:shortcutId="enable"
         android:shortcutLongLabel="@string/quick_enable"
         android:shortcutShortLabel="@string/quick_enable">
@@ -21,7 +21,7 @@
             android:targetPackage="@APPLICATION_ID@" />
     </shortcut>
     <shortcut
-        android:icon="@drawable/ic_qu_shadowsocks_launcher"
+        android:icon="@drawable/ic_qu_disable_launcher"
         android:shortcutId="disable"
         android:shortcutLongLabel="@string/quick_disable"
         android:shortcutShortLabel="@string/quick_disable">
@@ -34,7 +34,7 @@
         android:icon="@drawable/ic_qu_camera_launcher"
         android:shortcutId="scan"
         android:shortcutLongLabel="@string/add_profile_methods_scan_qr_code"
-        android:shortcutShortLabel="@string/add_profile_methods_scan_qr_code">
+        android:shortcutShortLabel="@string/shortcut_scan">
         <intent
             android:action="android.intent.action.MAIN"
             android:targetClass="io.niko.ui.ScannerActivity"
