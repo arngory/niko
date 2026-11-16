@@ -232,7 +232,7 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                         .title(R.string.project)
                         .addItem(
                             MaterialAboutActionItem.Builder()
-                                .icon(R.drawable.ic_baseline_sanitizer_24)
+                                .icon(R.drawable.ic_baseline_link_24)
                                 .text(R.string.github)
                                 .setOnClickAction {
                                     requireContext().launchCustomTab("https://github.com/$RELEASE_REPO")
