@@ -158,3 +158,12 @@
     - Проверка инструмента на Chromium 153 (Chrome for Testing, локально, три соединения): форма одна и та же —
       две датаграммы по 1250 байт, по пакету в каждой, номера 1 и 2 длиной 1 и 2 байта, кадры CRYPTO, PADDING,
       PING, SCID и токен пустые, DCID 8 байт. ClientHello в 1716 байт: у трёх соединений совпал по форме, 25 частей.
+    - **Эталон: Chrome 157.0.8103.50 stable** (Linux, раннер, `fingerprint.yml` run 43980315740). Форма полёта та
+      же, что у Chromium 153: две датаграммы по 1250 байт, по пакету в каждой, номера 1 и 2 длиной 1 и 2 байта,
+      кадры CRYPTO, PADDING, PING, SCID и токен пустые, DCID 8 байт. ClientHello — 24 части: ALPN, ALPS,
+      compress_certificate, ECH (GREASE), key_share, psk_key_exchange_modes, транспортные параметры,
+      signature_algorithms, supported_groups, supported_versions, trust_anchors. В транспортных параметрах
+      `max_idle_timeout` 30 с и `google_connection_options` `ORIG`.
+    - Chromium 153 из тестовой сборки (headless, локально) от этого эталона отличается: нет ECH, есть расширение
+      0x12e0, `max_idle_timeout` 300 с, в `google_connection_options` ещё `NOIP`. Это другая сборка и другой режим
+      запуска, не naive; записано, чтобы такие отличия у naive было с чем сопоставить.
