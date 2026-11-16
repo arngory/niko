@@ -80,6 +80,18 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-NODE-07 | Удалить узел | `NikoService` | Kotlin (хранилище) | есть |
 | D-NODE-08 | Свои устройства в сети узла (lan-v1) | `NikoService` | Kotlin: `raycontrol/RayLan.kt`, `ui/RayLanDialog.kt` | нет |
 
+## Обычная подписка (D-SUB)
+
+Подписка провайдера по ссылке (base64, Clash YAML, sing-box JSON, SIP008), не raycontrol. В списке — отдельной
+группой рядом с узлом; здесь серверы действительно бывают в разных городах.
+
+| ID | Элемент | Вызов демона | Где логика сейчас | Макет |
+|---|---|---|---|---|
+| D-SUB-01 | Группа подписки в списке: имя, серверы с пингом | `NikoService` | Kotlin (хранилище, BG-02) | нет |
+| D-SUB-02 | Срок и трафик подписки (`subscription-userinfo`) | `NikoService` | Kotlin: `group/SubscriptionHeaders.kt` | нет |
+| D-SUB-03 | Обновить подписку вручную | `NikoService.Refresh` | Kotlin: `group/GroupUpdater.kt`, `group/RawUpdater.kt` | нет |
+| D-SUB-04 | Удалить подписку | `NikoService` | Kotlin (хранилище) | нет |
+
 ## Проверка маршрута (D-CHECK)
 
 | ID | Элемент | Вызов демона | Где логика сейчас | Макет |
@@ -106,6 +118,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 
 | ID | Элемент | Вызов демона | Где логика сейчас | Макет |
 |---|---|---|---|---|
+| D-ADD | Первый запуск: узлов и подписок нет, открыт экран добавления | BG-02 (пусто) | UI | есть («Добавление (первый запуск)») |
 | D-STATE-SVC | Служба не установлена: установить или режим «Прокси» | `DesktopService.GetDaemonInfo` | есть; установщика нет | есть |
 | D-STATE-QUOTA | Трафик узла исчерпан до сброса | `NikoService` | Kotlin: `raycontrol/RaySubscription.kt` (traffic-limit-v1) | есть; «за этот месяц» → «до сброса» |
 | D-STATE-NET | Нет сети | `boxdd` platform interface | есть | нет |
@@ -179,7 +192,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 |---|---|---|
 | BG-01 | Сборка конфига ядра из профиля и настроек — главный перенос | Kotlin: `fmt/ConfigBuilder.kt` |
 | BG-02 | Хранилище профилей и узлов | Kotlin: `database/` (Room) |
-| BG-03 | Обновление подписок по времени | Kotlin: `bg/SubscriptionUpdater.kt`, `raycontrol/RaySubscription.kt` |
+| BG-03 | Обновление подписок по времени: узлы raycontrol и обычные подписки | Kotlin: `bg/SubscriptionUpdater.kt`, `raycontrol/RaySubscription.kt`, `group/GroupUpdater.kt`, `group/RawUpdater.kt` |
 | BG-04 | Сторож: проверки, DoH, перезагрузка подписки | Kotlin + Go: `raycontrol/RayWatchdog.kt`, `libcore/dohcheck.go` |
 | BG-05 | Адаптивность канала, Brutal по измерению | Kotlin + Go: `raycontrol/RayChannel.kt`, `RayBrutal.kt`, `libcore/rayprobe`, `libcore/probe` |
 | BG-06 | Отчёты для админа | Kotlin: `raycontrol/RayReport.kt` |
