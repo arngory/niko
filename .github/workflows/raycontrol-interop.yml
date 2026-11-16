@@ -209,7 +209,10 @@ jobs:
             CGO_ENABLED=0 go build -o /tmp/rcbin/rayctl ./cmd/rayctl &&
             CGO_ENABLED=0 go build -o /tmp/rcbin/rayspa ./cmd/rayspa &&
             go run ./test/supervise/testcert -o /tmp/rccert '*.example.test')
-          (cd xray && CGO_ENABLED=0 go build -o /tmp/rcbin/xray -trimpath ./main) && /tmp/rcbin/xray version | head -1
+          # the Go its go.mod asks for (setup-go sets GOTOOLCHAIN=local: raycontrol's Go is older than the Xray
+          # fork's); a line of its own, so a failed build fails the step, not the node's start later
+          (cd xray && CGO_ENABLED=0 GOTOOLCHAIN=auto go build -o /tmp/rcbin/xray -trimpath ./main)
+          /tmp/rcbin/xray version | head -1
           . .github/niko-server.env
           NIKO_SERVER_TAG=${NIKO_SERVER_TAG_OVERRIDE:-$NIKO_SERVER_TAG}
           NIKO_SERVER_SHA256_AMD64=${NIKO_SERVER_SHA256_OVERRIDE:-$NIKO_SERVER_SHA256_AMD64}
