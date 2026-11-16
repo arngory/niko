@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- The Niko theme (Theme.NIKO): the design system's tokens (niko-ds tokens.json), light here, dark in values-night.
+         The bars stay dark in both, with white on them, as the app's layouts are made for a coloured bar -->
+    <color name="niko_bar">#1C1C1C</color>
+    <color name="niko_ink">#1C1C1C</color>
+    <color name="niko_on_ink">#F8F8F8</color>
+    <color name="niko_surface_2">#E3E3E3</color>
+    <color name="niko_line_strong">#787878</color>
+
     <integer-array name="material_colors">
         <item>@color/material_red_500</item>
         <item>@color/color_pink_ssr</item>
@@ -25,6 +33,7 @@
         <item>@color/material_grey_500</item>
         <item>@color/material_blue_grey_500</item>
         <item>@color/material_light_black</item>
+        <item>@color/niko_bar</item>
     </integer-array>
 
     <color name="material_amber_100">#FFECB3</color>

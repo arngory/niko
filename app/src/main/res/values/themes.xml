@@ -1,6 +1,22 @@
 <resources>
     <!-- Base application theme. -->
     <style name="Theme.SagerNet" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+
+        <!-- Geist, the design system's font, for every theme: the theme's own text and the text appearances that name a
+             font of their own (Material's buttons and headlines, the toolbar's title) -->
+        <item name="android:fontFamily">@font/geist</item>
+        <item name="fontFamily">@font/geist</item>
+        <item name="textAppearanceHeadline4">@style/TextAppearance.Niko.Headline4</item>
+        <item name="textAppearanceHeadline5">@style/TextAppearance.Niko.Headline5</item>
+        <item name="textAppearanceHeadline6">@style/TextAppearance.Niko.Headline6</item>
+        <item name="textAppearanceSubtitle1">@style/TextAppearance.Niko.Subtitle1</item>
+        <item name="textAppearanceSubtitle2">@style/TextAppearance.Niko.Subtitle2</item>
+        <item name="textAppearanceBody1">@style/TextAppearance.Niko.Body1</item>
+        <item name="textAppearanceBody2">@style/TextAppearance.Niko.Body2</item>
+        <item name="textAppearanceButton">@style/TextAppearance.Niko.Button</item>
+        <item name="textAppearanceCaption">@style/TextAppearance.Niko.Caption</item>
+        <item name="textAppearanceOverline">@style/TextAppearance.Niko.Overline</item>
+        <item name="toolbarStyle">@style/Widget.Niko.Toolbar</item>
         <item name="actionBarStyle">@style/Widget.MaterialComponents.ActionBar.Solid</item>
         <item name="actionModeCloseDrawable">@drawable/ic_navigation_close</item>
         <item name="colorButtonNormal">?colorAccent</item>
@@ -19,6 +35,8 @@
 
         <item name="fabColorBackground">?colorPrimary</item>
         <item name="selectedColorPrimary">?colorPrimary</item>
+        <item name="fabIconTint">@color/white</item>
+        <item name="fabRingColor">?colorMaterial100</item>
         <item name="actionBarTheme">@style/ThemeOverlay.AppCompat.Dark.ActionBar</item>
         <item name="tabTextColor">#99FFFFFF</item>
         <item name="tabSelectedTextColor">@color/white</item>
@@ -49,6 +67,22 @@
     </style>
 
     <style name="Theme.SagerNet.Dialog" parent="Theme.MaterialComponents.DayNight.Dialog.Alert">
+
+        <!-- Geist, the design system's font, for every theme: the theme's own text and the text appearances that name a
+             font of their own (Material's buttons and headlines, the toolbar's title) -->
+        <item name="android:fontFamily">@font/geist</item>
+        <item name="fontFamily">@font/geist</item>
+        <item name="textAppearanceHeadline4">@style/TextAppearance.Niko.Headline4</item>
+        <item name="textAppearanceHeadline5">@style/TextAppearance.Niko.Headline5</item>
+        <item name="textAppearanceHeadline6">@style/TextAppearance.Niko.Headline6</item>
+        <item name="textAppearanceSubtitle1">@style/TextAppearance.Niko.Subtitle1</item>
+        <item name="textAppearanceSubtitle2">@style/TextAppearance.Niko.Subtitle2</item>
+        <item name="textAppearanceBody1">@style/TextAppearance.Niko.Body1</item>
+        <item name="textAppearanceBody2">@style/TextAppearance.Niko.Body2</item>
+        <item name="textAppearanceButton">@style/TextAppearance.Niko.Button</item>
+        <item name="textAppearanceCaption">@style/TextAppearance.Niko.Caption</item>
+        <item name="textAppearanceOverline">@style/TextAppearance.Niko.Overline</item>
+        <item name="toolbarStyle">@style/Widget.Niko.Toolbar</item>
         <item name="actionBarStyle">@style/Widget.MaterialComponents.ActionBar.Solid</item>
         <item name="actionModeCloseDrawable">@drawable/ic_navigation_close</item>
         <item name="colorButtonNormal">?colorAccent</item>
@@ -67,6 +101,8 @@
 
         <item name="fabColorBackground">?colorPrimary</item>
         <item name="selectedColorPrimary">?colorPrimary</item>
+        <item name="fabIconTint">@color/white</item>
+        <item name="fabRingColor">?colorMaterial100</item>
         <item name="actionBarTheme">@style/ThemeOverlay.AppCompat.Dark.ActionBar</item>
         <item name="tabTextColor">#99FFFFFF</item>
         <item name="tabSelectedTextColor">@color/white</item>
@@ -470,6 +506,100 @@
         <item name="accentOrTextPrimary">?android:textColorPrimary</item>
         <item name="primaryOrTextSecondary">?android:textColorSecondary</item>
         <item name="primaryOrTextPrimary">?android:textColorPrimary</item>
+    </style>
+
+    <!-- Niko (Theme.NIKO, the default): neutral, from the design system's tokens; the accent is the inversion, ink -->
+    <style name="Theme.SagerNet.Niko">
+        <item name="colorPrimary">@color/niko_bar</item>
+        <item name="colorPrimaryDark">@color/niko_bar</item>
+        <item name="colorAccent">@color/niko_ink</item>
+        <item name="colorMaterial100">@color/niko_surface_2</item>
+        <item name="colorMaterial300">@color/niko_bar</item>
+
+        <item name="selectedColorPrimary">@color/niko_ink</item>
+        <item name="fabColorBackground">@color/niko_ink</item>
+        <item name="fabIconTint">@color/niko_on_ink</item>
+        <item name="fabRingColor">@color/niko_line_strong</item>
+
+        <item name="accentOrTextSecondary">?android:textColorSecondary</item>
+        <item name="accentOrTextPrimary">?android:textColorPrimary</item>
+        <item name="primaryOrTextSecondary">?android:textColorSecondary</item>
+        <item name="primaryOrTextPrimary">?android:textColorPrimary</item>
+    </style>
+
+    <style name="Theme.SagerNet.Dialog.Niko">
+        <item name="colorPrimary">@color/niko_bar</item>
+        <item name="colorPrimaryDark">@color/niko_bar</item>
+        <item name="colorAccent">@color/niko_ink</item>
+        <item name="colorMaterial100">@color/niko_surface_2</item>
+        <item name="colorMaterial300">@color/niko_bar</item>
+
+        <item name="selectedColorPrimary">@color/niko_ink</item>
+        <item name="fabColorBackground">@color/niko_ink</item>
+        <item name="fabIconTint">@color/niko_on_ink</item>
+        <item name="fabRingColor">@color/niko_line_strong</item>
+
+        <item name="accentOrTextSecondary">?android:textColorSecondary</item>
+        <item name="accentOrTextPrimary">?android:textColorPrimary</item>
+        <item name="primaryOrTextSecondary">?android:textColorSecondary</item>
+        <item name="primaryOrTextPrimary">?android:textColorPrimary</item>
+    </style>
+
+    <style name="TextAppearance.Niko.Headline4" parent="TextAppearance.MaterialComponents.Headline4">
+        <item name="fontFamily">@font/geist</item>
+        <item name="android:fontFamily">@font/geist</item>
+    </style>
+    <style name="TextAppearance.Niko.Headline5" parent="TextAppearance.MaterialComponents.Headline5">
+        <item name="fontFamily">@font/geist</item>
+        <item name="android:fontFamily">@font/geist</item>
+    </style>
+    <style name="TextAppearance.Niko.Headline6" parent="TextAppearance.MaterialComponents.Headline6">
+        <item name="fontFamily">@font/geist</item>
+        <item name="android:fontFamily">@font/geist</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    <style name="TextAppearance.Niko.Subtitle1" parent="TextAppearance.MaterialComponents.Subtitle1">
+        <item name="fontFamily">@font/geist</item>
+        <item name="android:fontFamily">@font/geist</item>
+    </style>
+    <style name="TextAppearance.Niko.Subtitle2" parent="TextAppearance.MaterialComponents.Subtitle2">
+        <item name="fontFamily">@font/geist</item>
+        <item name="android:fontFamily">@font/geist</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    <style name="TextAppearance.Niko.Body1" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="fontFamily">@font/geist</item>
+        <item name="android:fontFamily">@font/geist</item>
+    </style>
+    <style name="TextAppearance.Niko.Body2" parent="TextAppearance.MaterialComponents.Body2">
+        <item name="fontFamily">@font/geist</item>
+        <item name="android:fontFamily">@font/geist</item>
+    </style>
+    <style name="TextAppearance.Niko.Button" parent="TextAppearance.MaterialComponents.Button">
+        <item name="fontFamily">@font/geist</item>
+        <item name="android:fontFamily">@font/geist</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    <style name="TextAppearance.Niko.Caption" parent="TextAppearance.MaterialComponents.Caption">
+        <item name="fontFamily">@font/geist</item>
+        <item name="android:fontFamily">@font/geist</item>
+    </style>
+    <style name="TextAppearance.Niko.Overline" parent="TextAppearance.MaterialComponents.Overline">
+        <item name="fontFamily">@font/geist</item>
+        <item name="android:fontFamily">@font/geist</item>
+    </style>
+    <style name="TextAppearance.Niko.ToolbarTitle" parent="TextAppearance.Widget.AppCompat.Toolbar.Title">
+        <item name="fontFamily">@font/geist</item>
+        <item name="android:fontFamily">@font/geist</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    <style name="TextAppearance.Niko.ToolbarSubtitle" parent="TextAppearance.Widget.AppCompat.Toolbar.Subtitle">
+        <item name="fontFamily">@font/geist</item>
+        <item name="android:fontFamily">@font/geist</item>
+    </style>
+    <style name="Widget.Niko.Toolbar" parent="Widget.MaterialComponents.Toolbar">
+        <item name="titleTextAppearance">@style/TextAppearance.Niko.ToolbarTitle</item>
+        <item name="subtitleTextAppearance">@style/TextAppearance.Niko.ToolbarSubtitle</item>
     </style>
 
     <style name="Theme.Start" parent="Theme.MaterialComponents.DayNight">

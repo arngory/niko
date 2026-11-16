@@ -30,8 +30,10 @@ object Theme {
     const val GREY = 19
     const val BLUE_GREY = 20
     const val BLACK = 21
+    // neutral, from the design system: the default
+    const val NIKO = 22
 
-    private fun defaultTheme() = PINK_SSR
+    private fun defaultTheme() = NIKO
 
     fun apply(context: Context) {
         context.setTheme(getTheme())
@@ -72,6 +74,7 @@ object Theme {
             GREY -> R.style.Theme_SagerNet_Grey
             BLUE_GREY -> R.style.Theme_SagerNet_BlueGrey
             BLACK -> R.style.Theme_SagerNet_Black
+            NIKO -> R.style.Theme_SagerNet_Niko
             else -> getTheme(defaultTheme())
         }
     }
@@ -99,6 +102,7 @@ object Theme {
             GREY -> R.style.Theme_SagerNet_Dialog_Grey
             BLUE_GREY -> R.style.Theme_SagerNet_Dialog_BlueGrey
             BLACK -> R.style.Theme_SagerNet_Dialog_Black
+            NIKO -> R.style.Theme_SagerNet_Dialog_Niko
             else -> getDialogTheme(defaultTheme())
         }
     }

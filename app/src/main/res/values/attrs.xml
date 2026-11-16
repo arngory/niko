@@ -8,6 +8,9 @@
     <attr name="primaryOrTextSecondary" format="color" />
     <attr name="primaryOrTextPrimary" format="color" />
     <attr name="fabColorBackground" format="color" />
+    <!-- the connect button's icon on fabColorBackground, and the ring of its progress around it -->
+    <attr name="fabIconTint" format="color" />
+    <attr name="fabRingColor" format="color" />
     <attr name="selectedColorPrimary" format="color" />
     <attr name="whiteOrTextPrimary" format="color" />
 </resources>

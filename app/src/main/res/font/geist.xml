@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Geist 1.3.1 (Vercel, SIL Open Font License 1.1, its text in assets/LICENSE): the interface font of the Niko design
+     system. 400 for text, 500 for captions, 600 for titles and buttons; bold asks for 700 and gets 600, the nearest -->
+<font-family xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <font
+        android:font="@font/geist_regular"
+        android:fontStyle="normal"
+        android:fontWeight="400"
+        app:font="@font/geist_regular"
+        app:fontStyle="normal"
+        app:fontWeight="400" />
+    <font
+        android:font="@font/geist_medium"
+        android:fontStyle="normal"
+        android:fontWeight="500"
+        app:font="@font/geist_medium"
+        app:fontStyle="normal"
+        app:fontWeight="500" />
+    <font
+        android:font="@font/geist_semibold"
+        android:fontStyle="normal"
+        android:fontWeight="600"
+        app:font="@font/geist_semibold"
+        app:fontStyle="normal"
+        app:fontWeight="600" />
+</font-family>

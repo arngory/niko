@@ -111,6 +111,13 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
           script: bash .github/scripts/smoke.sh apks
+      - name: The screens
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: smoke-screens
+          path: smoke-screens
+          if-no-files-found: ignore
 
   # the app end to end (e2e.sh) on an emulator, against a CI node under rayd serve -supervise as raycontrol-interop's,
   # behind its perimeter (rayspa: SPA, the rotating UDP ports the app's Hysteria2 takes): the invite opened as a link

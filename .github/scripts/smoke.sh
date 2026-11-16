@@ -51,6 +51,24 @@ else
   echo "the app died during the rotations"; fail=1
 fi
 
+echo "== screenshots (light and dark): the main screen, the drawer, the settings"
+# for the eye, not a check: smoke-screens/ in the artifact. The night mode is the system's, as most users have it
+shots=smoke-screens
+mkdir -p "$shots"
+adb shell settings put system user_rotation 0
+for mode in no yes; do
+  timeout 30 adb shell cmd uimode night "$mode" > /dev/null 2>&1
+  adb shell am force-stop "$pkg"; sleep 1
+  timeout 60 adb shell am start -W -n "$pkg/$pkg.ui.MainActivity" > /dev/null; sleep 4
+  timeout 30 adb exec-out screencap -p > "$shots/main-$mode.png" 2> /dev/null
+  # the drawer, from the left edge
+  adb shell input swipe 5 800 700 800 300; sleep 2
+  timeout 30 adb exec-out screencap -p > "$shots/drawer-$mode.png" 2> /dev/null
+  adb shell input keyevent KEYCODE_BACK; sleep 1
+done
+timeout 30 adb shell cmd uimode night no > /dev/null 2>&1
+ls -la "$shots"
+
 if adb logcat -d | grep -E "FATAL EXCEPTION|ANR in $pkg" -A 20 | grep -B2 -A20 "$pkg"; then
   echo "the app crashed or did not answer"; fail=1
 fi

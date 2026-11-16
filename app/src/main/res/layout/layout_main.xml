@@ -25,7 +25,7 @@
             android:layout_height="wrap_content"
             android:max="1"
             android:visibility="invisible"
-            app:indicatorColor="?colorMaterial100"
+            app:indicatorColor="?fabRingColor"
             app:layout_anchor="@+id/fab"
             app:layout_anchorGravity="center"
             app:layout_behavior="io.niko.widget.FabProgressBehavior"
@@ -39,6 +39,7 @@
             android:elevation="6dp"
             android:nextFocusDown="@+id/stats"
             app:backgroundTint="?fabColorBackground"
+            app:tint="?fabIconTint"
             app:layout_anchor="@id/stats"
             app:pressedTranslationZ="6dp"
             app:srcCompat="@drawable/ic_service_idle" />
