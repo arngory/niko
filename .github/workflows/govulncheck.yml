@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       - name: Fetch the core
         run: |
           . buildScript/lib/core/get_source_env.sh
@@ -31,7 +31,7 @@ jobs:
           git -C ../sing-box checkout -q "$COMMIT_SING_BOX"
           git clone --filter=blob:none "$REPOSITORY_LIBNEKO" ../libneko
           git -C ../libneko checkout -q "$COMMIT_LIBNEKO"
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version-file: libcore/go.mod
           cache: false
