@@ -1,17 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Niko launcher icon: a cat head with an "N" -->
+<!-- Niko launcher icon: the mark «Маршрут» — n as a path, in at the blue point, out at the red one -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M41,40H67A11,11 0,0 1,78 51V69A11,11 0,0 1,67 80H41A11,11 0,0 1,30 69V51A11,11 0,0 1,41 40Z" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M30,53L35,26L52,41ZM56,41L73,26L78,53Z" />
-    <path
-        android:fillColor="#1F8BD1"
-        android:pathData="M41,51H47V71H41ZM61,51H67V71H61ZM41,51H47.5L67,71H60.5Z" />
+    <group
+        android:scaleX="0.82"
+        android:scaleY="0.82"
+        android:translateX="14.64"
+        android:translateY="11.36">
+        <path
+            android:pathData="M30,58V28M30,46a18,18 0,0 1,36 0v12"
+            android:strokeColor="#E2E2E2"
+            android:strokeWidth="12"
+            android:strokeLineCap="round"
+            android:fillColor="#00000000" />
+        <path
+            android:pathData="M24,76a6,6 0,1 0,12,0a6,6 0,1 0,-12,0Z"
+            android:fillColor="#3D5AFE" />
+        <path
+            android:pathData="M60,76a6,6 0,1 0,12,0a6,6 0,1 0,-12,0Z"
+            android:fillColor="#E5382D" />
+    </group>
 </vector>
