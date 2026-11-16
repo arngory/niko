@@ -13,6 +13,9 @@ on:
       - ".github/scripts/quic-sizes.py"
       - ".github/scripts/netlog-quic.py"
       - ".github/scripts/netlog-chains.py"
+      - ".github/scripts/hello.py"
+      - ".github/tools/quicinitial/**"
+      - ".github/fingerprint/**"
   schedule:
     - cron: "41 3 * * 1"
   workflow_dispatch:
@@ -51,6 +54,48 @@ jobs:
           cd libcore
           CHROME_BIN="$(command -v google-chrome)" CHROME_HELLO_OUT="$RUNNER_TEMP/chrome-hello" \
             xvfb-run -a go test -count=1 -v -ldflags=-checklinkname=0 -tags="$TAGS" -run TestChromeLive ./chromecheck
+
+      # Chrome's first flight over QUIC: its Initial packets to a port of the runner that only listens, opened by
+      # .github/tools/quicinitial (their keys come from the connection ID the client picks: anyone on the path opens
+      # them). The naive outbound's QUIC is Chromium's too: raycontrol-interop and e2e compare its first flight with
+      # .github/fingerprint/chrome-quic-initial.hex, which is this capture (the chrome-hello artifact), committed by
+      # hand. Against that reference a Chrome that changed is a warning here, not a failure
+      - name: Chrome's QUIC first flight
+        if: ${{ !cancelled() }}
+        run: |
+          (cd .github/tools/quicinitial && go test -count=1 . && go build -o "$RUNNER_TEMP/quicinitial" .)
+          q="$RUNNER_TEMP/quicinitial" out="$RUNNER_TEMP/chrome-hello"
+          mkdir -p "$out"
+          "$q" capture 18448 "$out/quic-initial.hex" &
+          cap=$!
+          sleep 1
+          # QUIC from the first request (no Alt-Svc round first); the name is the runner's (/etc/hosts above)
+          timeout 60 xvfb-run -a google-chrome --no-first-run --no-default-browser-check --no-proxy-server \
+            --user-data-dir="$RUNNER_TEMP/chrome-quic-initial" --origin-to-force-quic-on=niko-capture.example:18448 \
+            https://niko-capture.example:18448/ > /dev/null 2>&1 &
+          chrome=$!
+          # the capture ends once the ClientHello is whole, or after two minutes without a datagram
+          ok=yes
+          wait "$cap" || ok=no
+          pkill -f chrome-quic-initial || true
+          kill "$chrome" 2> /dev/null || true
+          wait "$chrome" 2> /dev/null || true
+          [ "$ok" = yes ] || { echo "::error::no QUIC first flight from Chrome"; exit 1; }
+          google-chrome --version > "$out/quic-initial.source"
+          {
+            echo "### QUIC first flight of $(cat "$out/quic-initial.source")"
+            echo '```'
+            "$q" open "$out/quic-initial.hex" "$RUNNER_TEMP/chrome-quic-hello.hex"
+            if [ -s .github/fingerprint/chrome-quic-initial.hex ]; then
+              echo "against the reference: $(cat .github/fingerprint/chrome-quic-initial.source)"
+              "$q" compare .github/fingerprint/chrome-quic-initial.hex "$out/quic-initial.hex"
+              "$q" open .github/fingerprint/chrome-quic-initial.hex "$RUNNER_TEMP/reference-quic-hello.hex" > /dev/null
+              python3 -I .github/scripts/hello.py compare "$RUNNER_TEMP/reference-quic-hello.hex" "$RUNNER_TEMP/chrome-quic-hello.hex"
+            else
+              echo "no reference in .github/fingerprint yet: this capture is the first (the chrome-hello artifact)"
+            fi
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
       # What Chrome sends over HTTP/3: the sizes of its QUIC packets to real sites. The naive outbound is Chromium as
       # well, and a client option that would change these sizes (MTU discovery for UDP in HTTP/3 datagrams, MTUH,

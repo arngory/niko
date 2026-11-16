@@ -794,6 +794,43 @@ python3 -I "$here/hello.py" compare "$naive_links/chrome-hello.hex" "$out/naive-
   echo "::warning::the ClientHello of naive on the emulator could not be compared with Chrome's"
 down naive-hello
 
+echo "== naive's QUIC first flight as this phone sends it, against Chrome's"
+# a QUIC profile to a UDP port of the runner's that only listens: quicinitial takes the Initial packets until the
+# ClientHello in them is whole and opens them (their keys come from the connection ID the client picks). The packets'
+# shape and the ClientHello against Chrome's (.github/fingerprint, from fingerprint.yml); a difference is a warning,
+# as for TCP. No capture is a warning too: naive over QUIC itself is checked above, this is the capture's
+if [ -x "$naive_links/quicinitial" ] && [ -s "$naive_links/quic-hello.link" ]; then
+  rm -f "$out/naive-quic-initial.hex"
+  "$naive_links/quicinitial" capture "$runner:18448" "$out/naive-quic-initial.hex" &
+  quic_pid=$!
+  imported "$(cat "$naive_links/quic-hello.link")" "$id" || fail "no naive profile from the QUIC first flight link"
+  timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" --el profile "$id" > /dev/null ||
+    fail "the quick toggle did not start (naive, the QUIC first flight)"
+  for i in $(seq 10); do
+    fetch "naive-quic-hello-$i-$RANDOM"
+    [ -s "$out/naive-quic-initial.hex" ] && break
+    sleep 3
+  done
+  # the capture ends once the ClientHello is whole (or after its two minutes without a datagram)
+  kill "$quic_pid" 2> /dev/null || true
+  wait "$quic_pid" 2> /dev/null || true
+  if [ -s "$out/naive-quic-initial.hex" ] &&
+    "$naive_links/quicinitial" open "$out/naive-quic-initial.hex" "$out/naive-quic-hello.hex"; then
+    if [ -s "$naive_links/chrome-quic-initial.hex" ]; then
+      echo "Chrome's QUIC first flight: $(cat "$naive_links/chrome-quic-initial.source" 2> /dev/null)"
+      "$naive_links/quicinitial" compare "$naive_links/chrome-quic-initial.hex" "$out/naive-quic-initial.hex" || true
+      "$naive_links/quicinitial" open "$naive_links/chrome-quic-initial.hex" "$out/chrome-quic-hello.hex" > /dev/null &&
+        python3 -I "$here/hello.py" compare "$out/chrome-quic-hello.hex" "$out/naive-quic-hello.hex" ||
+        echo "::warning::the QUIC ClientHello of naive on the emulator could not be compared with Chrome's"
+    else
+      echo "no QUIC first flight of Chrome's in .github/fingerprint yet: nothing to compare with"
+    fi
+  else
+    echo "::warning::no QUIC first flight captured from naive on the emulator, or it did not open"
+  fi
+  down naive-quic-hello
+fi
+
 echo "== memory: the VPN through Hysteria2 again, the app off the screen"
 timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" --el profile "$hy2" > /dev/null 2>&1
 for i in $(seq 10); do
