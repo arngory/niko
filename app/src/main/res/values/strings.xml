@@ -245,9 +245,9 @@
     <string name="action_from_link">From subscription</string>
     <string name="action_scan_china_apps">Scan China apps</string>
     <string name="action_export_file">Export to file</string>
-    <string name="action_export_clipboard">Export to Clipboard</string>
+    <string name="action_export_clipboard">Export to clipboard</string>
     <string name="action_export">Export</string>
-    <string name="action_import">Import from Clipboard</string>
+    <string name="action_import">Import from clipboard</string>
     <string name="action_import_file">Import from file</string>
     <string name="action_export_msg">Successfully export!</string>
     <string name="action_export_err">Failed to export.</string>
@@ -262,7 +262,7 @@
     <string name="delete_confirm_prompt">Are you sure you want to remove this profile?</string>
     <string name="share_qr_nfc">QR code</string>
     <string name="add_profile_methods_scan_qr_code">Scan QR code</string>
-    <string name="add_profile_methods_manual_settings">Manual Settings</string>
+    <string name="add_profile_methods_manual_settings">Manually</string>
     <plurals name="removed">
         <item quantity="one">Removed</item>
         <item quantity="other">%d items removed</item>
@@ -608,7 +608,7 @@
     <string name="share_subscription">Share Subscription</string>
     <string name="show_group_in_notification">Show group name in notification</string>
     <string name="reset_connections">Reset Connections</string>
-    <string name="remove_duplicate">Remove duplicate servers</string>
+    <string name="remove_duplicate">Remove duplicates</string>
     <string name="mtu_help">Long press the preference to set custom MTU.</string>
     <string name="log_level_help">Long press the preference to set the buffer size.</string>
     <string name="tls_camouflage_settings">TLS Camouflage Settings</string>
@@ -626,7 +626,7 @@
     <string name="ech_config">ECH Config</string>
     <string name="http_upgrade_host">HTTPUpgrade Host</string>
     <string name="http_upgrade_path">HTTPUpgrade Path</string>
-    <string name="update_current_subscription">Update current Group\'s subscription</string>
+    <string name="update_current_subscription">Update subscription</string>
     <string name="group_not_subscription">Group type is not subscription</string>
     <string name="allow_insecure_on_request_sum">Disable certificate checking when updating
         subscriptions</string>
