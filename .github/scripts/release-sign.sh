@@ -30,7 +30,11 @@ for apk in "${unsigned[@]}"; do
   rm -f "$apk" "$RUNNER_TEMP/aligned.apk" "$out.idsig"
   "$bt/zipalign" -c 4 "$out"
   # both streams: where a build-tools version prints the certificates is not fixed
-  certs=$("$bt/apksigner" verify --verbose --print-certs "$out" 2>&1)
+  if ! certs=$("$bt/apksigner" verify --verbose --print-certs "$out" 2>&1); then
+    printf '%s\n' "$certs"
+    echo "::error::$(basename "$out"): apksigner verify failed"
+    exit 1
+  fi
   # every certificate apksigner names, whatever the line's prefix ("Signer #1", or "Signer (minSdkVersion=…)" for
   # signatures per platform version): one certificate in all, the release's
   digests=$(printf '%s\n' "$certs" | sed -n 's/.*certificate SHA-256 digest: *\([0-9a-fA-F]*\).*/\1/p' \
