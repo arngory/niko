@@ -51,7 +51,7 @@ else
   echo "the app died during the rotations"; fail=1
 fi
 
-echo "== screenshots (light and dark): the main screen, the drawer, the settings"
+echo "== screenshots (light and dark): the main screen and the drawer"
 # for the eye, not a check: smoke-screens/ in the artifact. The night mode is the system's, as most users have it
 shots=smoke-screens
 mkdir -p "$shots"

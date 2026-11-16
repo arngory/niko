@@ -20,6 +20,7 @@ import androidx.preference.PreferenceViewHolder
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.niko.R
 import io.niko.ktx.getColorAttr
+import io.niko.utils.Theme
 import kotlin.math.roundToInt
 
 class ColorPickerPreference
@@ -44,11 +45,9 @@ class ColorPickerPreference
             inited = true
 
             widgetFrame.addView(
-                getNekoImageViewAtColor(
-                    context.getColorAttr(R.attr.colorPrimary),
-                    48,
-                    0
-                )
+                // Niko's own colour is a near-black like Black's: its swatch is the app's icon, not a dot
+                if (Theme.getTheme() == R.style.Theme_SagerNet_Niko) getNikoImageView(48)
+                else getNekoImageViewAtColor(context.getColorAttr(R.attr.colorPrimary), 48, 0)
             )
             widgetFrame.visibility = View.VISIBLE
         }
@@ -64,6 +63,16 @@ class ColorPickerPreference
             layoutParams = ViewGroup.LayoutParams(size, size)
             setPadding(paddingSize)
             setImageDrawable(getNekoAtColor(resources, color))
+        }
+    }
+
+    /** The swatch of the Niko theme: the app's icon, as #1C1C1C beside Black's #212121 would not tell them apart. */
+    fun getNikoImageView(sizeDp: Int): ImageView {
+        val size = (sizeDp * context.resources.displayMetrics.density).roundToInt()
+        return ImageView(context).apply {
+            layoutParams = ViewGroup.LayoutParams(size, size)
+            setImageDrawable(ResourcesCompat.getDrawable(resources, R.mipmap.ic_launcher, context.theme))
+            contentDescription = context.getString(R.string.app_name)
         }
     }
 
@@ -92,7 +101,7 @@ class ColorPickerPreference
                 i++ //Theme.kt
 
                 val themeId = i
-                val view = getNekoImageViewAtColor(color, 64, 0).apply {
+                val view = (if (themeId == Theme.NIKO) getNikoImageView(64) else getNekoImageViewAtColor(color, 64, 0)).apply {
                     setOnClickListener {
                         persistInt(themeId)
                         dialog.dismiss()
