@@ -34,7 +34,8 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | ID | Элемент | Вызов демона | Где логика сейчас | Макет |
 |---|---|---|---|---|
 | D-NAV-01 | Разделы: Главная, Узлы, Проверка маршрута, Настройки (+ Админ, Журнал) | — | UI | есть |
-| D-NAV-02 | Режим: Прокси или VPN (TUN) | конфиг (mixed или tun) + `ManagedService.SetSystemProxyEnabled` | Kotlin: `fmt/ConfigBuilder.kt` | есть |
+| D-NAV-02 | Режим: Прокси или VPN (TUN) | конфиг (mixed или tun) + `ManagedService.SetSystemProxyEnabled` | Kotlin: `fmt/ConfigBuilder.kt` | расходится: был в шапке; в Простом — плитка, в Расширенном — переключатель в карточке подключения |
+| D-NAV-03 | Вид интерфейса: Простой или Расширенный, переключатель в шапке (как в mdll). Простой: кнопка подключения, статус, 2–4 плитки, текущий узел. Расширенный: всё, плюс разделы «Соединения» и «Правила», JSON и ручная форма. Не сбрасывает подключение | — | UI (настройка приложения) | есть (Claude Design, вариант B) |
 
 ## Главная (D-MAIN)
 
@@ -165,7 +166,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-SET-05 | Подключаться при запуске | `NikoService` | Kotlin: `BootReceiver.kt`; на компьютере — служба | есть |
 | D-SET-07 | Пресет «Россия» | `NikoService` | Kotlin: `RoutePresets.kt`, `RuleSetFiles.kt` | есть |
 | D-SET-08 | Блокировать рекламу (`geosite:category-ads-all`) | `NikoService` | Kotlin: `database/ProfileManager.kt` | есть |
-| D-SET-10 | Режим эксперта | — | UI | есть |
+| D-SET-10 | Режим эксперта: заменён видом «Расширенный» (D-NAV-03) | — | UI | расходится: отдельной настройки больше нет |
 | D-SET-12 | О программе: версия, ядро, обновления (GitHub и узел, подпись minisign) | `DesktopService.InstallUpdate` + `NikoService` | Go: `libcore/update.go`, `minisign`; с узла — Kotlin `raycontrol/RayAppMirror.kt` | есть |
 | D-SET-13 | Язык | `DesktopService.SetLocale` | есть | есть |
 | D-SET-14 | Сервис для IP выхода | `NikoService.ExitAddress` | Go: `libcore/exitaddress.go` | есть |
@@ -175,7 +176,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-SET-18 | DNS: удалённый, прямой, FakeIP (эксперт) | конфиг | Kotlin: `fmt/ConfigBuilder.kt` | есть |
 | D-SET-19 | Резервная копия, перенос с телефона | `NikoService` | Kotlin: `ui/BackupFragment.kt` | есть |
 
-## Экраны режима эксперта
+## Экраны вида «Расширенный» (бывший режим эксперта)
 
 | ID | Элемент | Вызов демона | Где логика сейчас | Макет |
 |---|---|---|---|---|
