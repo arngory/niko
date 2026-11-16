@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Niko status icon, not connected: the two points are equal -->
+<!-- Niko status icon: not connected, the two points are equal. The path «exit» is animated by name (ic_service_stopped and the three beside it) -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -20,7 +20,11 @@
             android:pathData="M24,76a6,6 0,1 0,12,0a6,6 0,1 0,-12,0Z"
             android:fillColor="#FFFFFF" />
         <path
-            android:pathData="M60,76a6,6 0,1 0,12,0a6,6 0,1 0,-12,0Z"
-            android:fillColor="#FFFFFF" />
+            android:name="exit"
+            android:pathData="M60,77a6,6 0,1 0,12,0a6,6 0,1 0,-12,0Z"
+            android:fillColor="#FFFFFF"
+            android:fillAlpha="1"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="0" />
     </group>
 </vector>

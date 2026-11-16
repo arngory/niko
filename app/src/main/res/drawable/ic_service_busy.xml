@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Niko status icon, connecting or stopping: the exit point is a ring -->
+<!-- Niko status icon: connecting or stopping, the exit point is a ring. The path «exit» is animated by name (ic_service_stopped and the three beside it) -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -20,9 +20,11 @@
             android:pathData="M24,76a6,6 0,1 0,12,0a6,6 0,1 0,-12,0Z"
             android:fillColor="#FFFFFF" />
         <path
-            android:pathData="M59.5,78a6.5,6.5 0,1 0,13.0,0a6.5,6.5 0,1 0,-13.0,0Z"
+            android:name="exit"
+            android:pathData="M59.5,77a6.5,6.5 0,1 0,13.0,0a6.5,6.5 0,1 0,-13.0,0Z"
+            android:fillColor="#FFFFFF"
+            android:fillAlpha="0"
             android:strokeColor="#FFFFFF"
-            android:strokeWidth="4"
-            android:fillColor="#00000000" />
+            android:strokeWidth="4" />
     </group>
 </vector>
