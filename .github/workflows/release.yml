@@ -9,8 +9,10 @@ on:
         description: "Release tag (e.g. v1.4.3), must match VERSION_NAME in niko.properties. Created on the selected branch's head if it does not exist yet."
         required: true
 
+# read-only by default: only publish writes (the release and its assets). The build runs Gradle, its plugins and
+# the dependencies, and a token that could write would let them swap the assets of published releases
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   check:
@@ -26,6 +28,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Resolve tag
         id: tag
@@ -67,6 +70,8 @@ jobs:
   build:
     needs: check
     if: needs.check.outputs.kind == 'app'
+    permissions:
+      contents: read
     uses: ./.github/workflows/build.yml
     with:
       ref: ${{ needs.check.outputs.sha }}
@@ -81,6 +86,8 @@ jobs:
     needs: [check, build]
     if: needs.check.outputs.kind == 'app'
     environment: release
+    permissions:
+      contents: read
     steps:
       - name: Checkout the signing script
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -132,11 +139,15 @@ jobs:
     runs-on: ubuntu-latest
     needs: [check, sign]
     if: needs.check.outputs.kind == 'app'
+    # the one job that writes: gh release with GH_TOKEN; no build code runs here
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ needs.check.outputs.sha }}
+          persist-credentials: false
           # the files at the root come with it in cone mode: niko-update.pub
           sparse-checkout: .github/release-notes
 

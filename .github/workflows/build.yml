@@ -12,6 +12,10 @@ on:
         type: boolean
         default: false
 
+# read-only: Gradle, its plugins and the dependencies run here; the caller can only narrow this
+permissions:
+  contents: read
+
 env:
   NDK_VERSION: 28.2.13676358
 
@@ -24,6 +28,8 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ inputs.ref }}
+          # build code runs in these jobs: the token stays out of .git/config
+          persist-credentials: false
 
       - name: LibCore cache key
         id: key
@@ -85,6 +91,8 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ inputs.ref }}
+          # build code runs in these jobs: the token stays out of .git/config
+          persist-credentials: false
 
       - name: slipstream cache key
         id: key
@@ -133,6 +141,8 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ inputs.ref }}
+          # build code runs in these jobs: the token stays out of .git/config
+          persist-credentials: false
 
       - name: Download LibCore
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
