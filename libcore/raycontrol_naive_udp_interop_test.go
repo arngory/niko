@@ -46,8 +46,9 @@ func (b *lockedBuffer) String() string {
 // TestRaycontrolNaiveUDP checks UDP as HTTP/3 datagrams (raycontrol naive-udp-v1) between the core's naive outbound
 // (cronet with datagram_stream, a sing-box built here) and the node's handler, run by raycontrol-interop.yml on its
 // supervised node:
-//   - with the service's udp flag on, the naive line says udp=1, and a datagram and one longer than a QUIC datagram
-//     (a capsule) come back from an echo through it, as datagrams (not UoT);
+//   - with the service's udp flag on, the naive line says udp=1; over UoT alone an echo comes back through it (the
+//     node reaches the runner's echo at all), and a datagram and one longer than a QUIC datagram (a capsule) come
+//     back from an echo through it, as datagrams (not UoT);
 //   - a pair whose first datagram is QUIC sends one over 1252 bytes only where a QUIC datagram carries it (§4.4);
 //   - with the flag off the node answers a request as a site does: that socket ends, UDP of the network goes back
 //     over UoT, and an echo through UoT comes back.
@@ -90,6 +91,7 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 		return uint16(conn.LocalAddr().(*net.UDPAddr).Port)
 	}
 	target := os.Getenv("RAYCONTROL_LIMIT_TARGET")
+	overUoT := M.ParseSocksaddrHostPort(target, echo())
 	plain := M.ParseSocksaddrHostPort(target, echo())
 	quicPair := M.ParseSocksaddrHostPort(target, echo())
 	afterOff := M.ParseSocksaddrHostPort(target, echo())
@@ -156,9 +158,9 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 		t.Fatalf("the node's naive does not run with udp %v within 90 s", udp)
 	}
 
-	// a sing-box on the line: a local mixed port, the naive outbound with UDP over TCP and datagrams allowed from the
-	// start (no app probes here)
-	start := func(link string) (*socks.Client, *lockedBuffer) {
+	// a sing-box on the line: a local mixed port, the naive outbound with UDP over TCP and, with datagrams, datagrams
+	// allowed from the start (no app probes here)
+	start := func(link string, datagrams bool) (*socks.Client, *lockedBuffer) {
 		t.Helper()
 		u, err := url.Parse(link)
 		if err != nil {
@@ -192,7 +194,7 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 				"type": "naive", "tag": "naive", "server": u.Hostname(), "server_port": port,
 				"username": u.User.Username(), "password": password, "tls": tlsOptions,
 				"udp_over_tcp": map[string]any{"enabled": true, "version": 2},
-				"udp_datagram": true, "udp_datagram_allowed": true,
+				"udp_datagram": datagrams, "udp_datagram_allowed": datagrams,
 			}},
 			"route": map[string]any{"final": "naive"},
 		})
@@ -262,15 +264,19 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 	// the node's naive counts (its stats socket, one line "traffic" in, one line of JSON out): udp.requests 0 means no
 	// request reached it, requests with in 0 a request taken and no datagram in
 	nodeStats := func() {
+		// debian's perl-base carries IO::Socket::UNIX; the node's container has no socat, python3 or nc
 		script := `S=/run/niko/naive/stats.sock
-if command -v socat > /dev/null; then printf 'traffic\n' | socat - UNIX-CONNECT:$S
+if command -v perl > /dev/null; then timeout 5 perl -MIO::Socket::UNIX -e '$s = IO::Socket::UNIX->new(Peer => $ARGV[0]) or die "$!\n"; print $s "traffic\n"; print scalar <$s>' $S
+elif command -v socat > /dev/null; then printf 'traffic\n' | socat - UNIX-CONNECT:$S
 elif command -v python3 > /dev/null; then python3 -c 'import socket; s = socket.socket(socket.AF_UNIX); s.connect("/run/niko/naive/stats.sock"); s.sendall(b"traffic\n"); print(s.recv(65536).decode())'
 elif command -v nc > /dev/null; then printf 'traffic\n' | nc -U -w 2 $S
 else echo "no socat, python3 or nc in the node"; fi`
 		out, err := exec.Command(node[0], append(slices.Clone(node[1:]), "sh", "-c", script)...).CombinedOutput()
 		t.Logf("the node's naive counts: %s %v", strings.TrimSpace(string(out)), err)
 	}
-	// a datagram through the tunnel before the node's answer goes as a capsule: send until one comes back
+	// a datagram through the tunnel before the node's answer goes as a capsule: send until one comes back. Without
+	// one the socket closes first, so that the core says what it sent and lost (its debug line as a socket closes)
+	// before sing-box stops
 	firstEcho := func(conn net.PacketConn, destination M.Socksaddr, payload []byte) {
 		t.Helper()
 		for i := 0; i < 10; i++ {
@@ -279,6 +285,8 @@ else echo "no socat, python3 or nc in the node"; fi`
 			}
 		}
 		nodeStats()
+		conn.Close()
+		time.Sleep(2 * time.Second)
 		t.Fatalf("no echo of %d bytes from %s", len(payload), destination)
 	}
 
@@ -286,7 +294,17 @@ else echo "no socat, python3 or nc in the node"; fi`
 	on := line(true)
 	naiveRuns(true)
 	t.Logf("the naive line says udp=1: %s", on[strings.LastIndex(on, "@")+1:])
-	client, logs := start(on)
+
+	// UoT alone first: the node reaches the runner's echo, whatever datagrams do
+	client, logs := start(on, false)
+	firstEcho(open(client, overUoT), overUoT, []byte("niko naive UoT before datagrams"))
+	if !strings.Contains(logs.String(), "outbound UoT packet connection") {
+		t.Fatal("the socket without datagrams did not go over UoT")
+	}
+	t.Log("over UoT alone the echo came back")
+	nodeStats()
+
+	client, logs = start(on, true)
 
 	// a datagram, then one longer than a QUIC datagram carries (1206 bytes to IPv4): a capsule
 	conn := open(client, plain)
@@ -321,7 +339,7 @@ else echo "no socat, python3 or nc in the node"; fi`
 	rayctl("service", "set", "naive", "udp=off")
 	off := line(false)
 	naiveRuns(false)
-	client, logs = start(off)
+	client, logs = start(off, true)
 	refused := open(client, afterOff)
 	if roundTrip(refused, afterOff, []byte("refused"), 5*time.Second) {
 		t.Log("the first socket's datagram came back before the answer (a capsule the node took): not expected")
