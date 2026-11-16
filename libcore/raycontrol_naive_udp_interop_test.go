@@ -123,6 +123,39 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 		}
 	}
 
+	// naiveRuns waits for the node's naive to run with -udp (or without it). The flag is an argument of rayd naive
+	// (deploy.go), not a file: rayctl apply (which writes systemd units, not in this container) does nothing for it
+	// under rayd serve -supervise, whose supervisor restarts the unit when it next makes its plan, every 30 s, while
+	// the subscription says udp=1 at once. The node's processes are read from /proc in its container
+	node := rayctlCommand[:len(rayctlCommand)-1]
+	naiveRuns := func(udp bool) {
+		t.Helper()
+		started := time.Now()
+		for time.Since(started) < 90*time.Second {
+			out, err := exec.Command(node[0], append(slices.Clone(node[1:]), "sh", "-c",
+				`for f in /proc/[0-9]*/cmdline; do tr "\000" " " < "$f" 2>/dev/null; echo; done`)...).Output()
+			if err != nil {
+				t.Logf("the node's processes: %v; waiting 45 s for its supervisor instead", err)
+				time.Sleep(45 * time.Second)
+				return
+			}
+			for _, process := range strings.Split(string(out), "\n") {
+				fields := strings.Fields(process)
+				if len(fields) < 2 || !strings.HasSuffix(fields[0], "rayd") || fields[1] != "naive" {
+					continue
+				}
+				if slices.Contains(fields, "-udp") == udp {
+					t.Logf("naive runs with udp %v after %s: %s", udp, time.Since(started).Round(time.Second), process)
+					// its listeners up
+					time.Sleep(2 * time.Second)
+					return
+				}
+			}
+			time.Sleep(time.Second)
+		}
+		t.Fatalf("the node's naive does not run with udp %v within 90 s", udp)
+	}
+
 	// a sing-box on the line: a local mixed port, the naive outbound with UDP over TCP and datagrams allowed from the
 	// start (no app probes here)
 	start := func(link string) (*socks.Client, *lockedBuffer) {
@@ -237,11 +270,9 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 		t.Fatalf("no echo of %d bytes from %s", len(payload), destination)
 	}
 
-	// rayd serve -supervise restarts naive on the change itself (rayctl apply writes systemd units, which this
-	// container has not): the line says it, and a few seconds more for the restart
 	rayctl("service", "set", "naive", "udp=on")
 	on := line(true)
-	time.Sleep(5 * time.Second)
+	naiveRuns(true)
 	t.Logf("the naive line says udp=1: %s", on[strings.LastIndex(on, "@")+1:])
 	client, logs := start(on)
 
@@ -276,7 +307,7 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 	// the flag off: the node answers as a site does, UDP of the network goes back over UoT
 	rayctl("service", "set", "naive", "udp=off")
 	off := line(false)
-	time.Sleep(5 * time.Second)
+	naiveRuns(false)
 	client, logs = start(off)
 	refused := open(client, afterOff)
 	if roundTrip(refused, afterOff, []byte("refused"), 5*time.Second) {
