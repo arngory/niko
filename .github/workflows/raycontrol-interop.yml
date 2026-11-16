@@ -33,6 +33,8 @@ on:
       - "libcore/raycontrol_revoke_interop_test.go"
       - "libcore/raycontrol_zones_interop_test.go"
       - "libcore/raycontrol_naive_sni_interop_test.go"
+      - "libcore/raycontrol_naive_udp_interop_test.go"
+      - "libcore/naive_datagram.go"
       - ".github/xray-interop.env"
       - "buildScript/lib/core/get_source_env.sh"
       - "libcore/box_naive.go"
@@ -787,6 +789,42 @@ jobs:
             p /opt/rc/rayctl service list || true
             p /opt/rc/rayctl status || true
             p tail -n 80 /var/log/rayd.log || true
+            exit 1
+          }
+
+      # raycontrol naive-udp-v1: UDP as HTTP/3 datagrams between the core's naive outbound (cronet with datagram_stream,
+      # built here) and the node's handler: a datagram and a capsule back from an echo, the QUIC pairs' rule of 1252
+      # bytes, and with the service's udp flag off the site's answer and UoT after it. Where the node has the handler
+      - name: naive's UDP as HTTP/3 datagrams (naive-udp-v1)
+        working-directory: libcore
+        env:
+          RAYCONTROL_RAYCTL: docker exec rc-pin /opt/rc/rayctl
+          RAYCONTROL_NAIVE_UDP_BUNDLE: /tmp/udp.bundle
+          RAYCONTROL_SING_BOX: /tmp/sing-box-naive
+          RAYCONTROL_ADDRESS: 203.0.113.4
+          RAYCONTROL_CA: /tmp/pebble-roots.pem
+          RAYCONTROL_LIMIT_TARGET: 11.0.0.1
+        run: |
+          if ! grep -rqs "niko-udp" ../raycontrol/internal/naive/; then
+            echo "::notice::this raycontrol has no handler of naive-udp-v1"
+            exit 0
+          fi
+          p() { docker exec rc-pin "$@"; }
+          if [ ! -x /tmp/sing-box-naive ]; then
+            # cronet's static library links with clang and lld: the system ld refuses its objects
+            sudo apt-get install -y -qq lld > /dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq lld > /dev/null; }
+            (cd ../../sing-box && CC=clang CXX=clang++ CGO_LDFLAGS=-fuse-ld=lld CGO_ENABLED=1 GOTOOLCHAIN=auto go build \
+              -o /tmp/sing-box-naive -ldflags=-checklinkname=0 -tags=with_naive_outbound,with_gvisor,badlinkname,tfogo_checklinkname0 ./cmd/sing-box)
+          fi
+          /tmp/sing-box-naive version | head -1
+          p /opt/rc/rayctl user add umi -services naive > /dev/null
+          p /opt/rc/rayctl device add umi laptop -o /root/udp.bundle > /dev/null
+          p cat /root/udp.bundle > /tmp/udp.bundle
+          TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
+          go test -count=1 -v -timeout 15m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolNaiveUDP . || {
+            p /opt/rc/rayctl service list || true
+            p /opt/rc/rayctl status || true
+            p tail -n 120 /var/log/rayd.log || true
             exit 1
           }
 
