@@ -13,6 +13,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import libcore.BoxInstance
 import libcore.Libcore
@@ -46,8 +47,10 @@ object RayDatagrams {
     // a new network's first packets go over TCP; the probe once it has settled (SPA, the subscription)
     private const val SETTLE_MS = 5_000L
 
-    // the node's one probe slot busy, or the probe's session not started: tried again a few times
+    // the node's one probe slot busy, or the probe's session not started: tried again a few times; a failure counts
+    // once it repeats (a Wi-Fi that drops and comes back as the same network loses one probe's echoes)
     private const val TRIES = 3
+    private const val FAILS = 2
     private const val RETRY_MS = 60_000L
     private const val RETRY_MAX_MS = 10 * 60_000L
 
@@ -147,7 +150,7 @@ object RayDatagrams {
         }
     }
 
-    // the decision still stands: the core it was for runs, on the network it was for
+    // the decision still stands: the core it was for runs, on the network it was for (under the lock)
     private fun current(r: Running, network: ChannelNetwork) = running === r && r.network == network.key
 
     private suspend fun decide(r: Running, network: ChannelNetwork) {
@@ -172,12 +175,18 @@ object RayDatagrams {
             }
             if (runCatching { Libcore.naiveDatagramState(r.box, tag) }.getOrNull() == "unsupported") continue
             val id = "${node.spa.nodeId}#$svc"
-            val ok = remembered(load(), network, id, System.currentTimeMillis() / 1000) ?: probe(r, network, tag, node, info)?.also { ok ->
-                val all = remember(load(), network, id, ok, System.currentTimeMillis() / 1000)
-                DataStore.configurationStore.putString(Key.RAYCONTROL_DATAGRAMS, all.toString())
-            } ?: continue
+            val known = remembered(load(), network, id, System.currentTimeMillis() / 1000)
+            val ok = known ?: probe(r, network, tag, node, info) ?: continue
+            // the probe's call blocks and does not stop with the job: one whose network went, or whose core stopped,
+            // while it ran measured a path that is no longer this one's, partly another network's or a closed core's.
+            // Neither kept nor applied; the network's next decision probes it anew
+            val active = currentCoroutineContext().isActive
             synchronized(lock) {
-                if (!current(r, network)) return
+                if (!active || !current(r, network)) return
+                if (known == null) {
+                    val all = remember(load(), network, id, ok, System.currentTimeMillis() / 1000)
+                    DataStore.configurationStore.putString(Key.RAYCONTROL_DATAGRAMS, all.toString())
+                }
                 if (ok) runCatching { Libcore.setNaiveDatagramAllowed(r.box, tag, true) }.onFailure { Logs.w("raycontrol datagrams $tag: ${it.message}") }
             }
             Logs.i("raycontrol datagrams $tag: " + if (ok) "UDP as HTTP/3 datagrams on this network" else "the probe did not pass, UDP stays over TCP on this network")
@@ -187,9 +196,10 @@ object RayDatagrams {
     /** The probe's verdict for [tag], or null when it could not measure the path in a few tries. */
     private suspend fun probe(r: Running, network: ChannelNetwork, tag: String, node: RayNode, info: RayProbeInfo): Boolean? {
         val request = request(node, info) ?: return null
+        var failed = 0
         for (attempt in 1..TRIES) {
             currentCoroutineContext().ensureActive()
-            if (!current(r, network)) return null
+            if (!synchronized(lock) { current(r, network) }) return null
             val verdict = try {
                 verdict(JsonParser.parseString(Libcore.raycontrolProbeDatagram(r.box, tag, request.toString())).asJsonObject.getAsJsonObject("echo"))
             } catch (e: CancellationException) {
@@ -198,13 +208,12 @@ object RayDatagrams {
                 Logs.w("raycontrol datagrams $tag: probe: ${e.message}")
                 Verdict.Again(0)
             }
-            when (verdict) {
+            val retryAfter = when (verdict) {
                 Verdict.Passed -> return true
-                Verdict.Failed -> return false
-                is Verdict.Again -> if (attempt < TRIES) {
-                    delay((verdict.retryAfter * 1000L).coerceIn(RETRY_MS, RETRY_MAX_MS))
-                }
+                Verdict.Failed -> if (++failed >= FAILS) return false else 0
+                is Verdict.Again -> verdict.retryAfter
             }
+            if (attempt < TRIES) delay((retryAfter * 1000L).coerceIn(RETRY_MS, RETRY_MAX_MS))
         }
         return null
     }
