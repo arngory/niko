@@ -51,6 +51,11 @@ import java.io.File
 import libcore.Libcore
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
+// UDP of naive as HTTP/3 datagrams (raycontrol naive-udp-v1, udp=1): on once the app probes the path per network
+// (libcore, the outbound's SetDatagramAllowed) and the core is built with a libcronet that has datagrams; until then
+// a node's udp=1 is kept on the profile and UDP stays over TCP
+const val NAIVE_UDP_DATAGRAMS = false
+
 const val TAG_MIXED = "mixed-in"
 
 // user name the app itself uses for the local proxy, see DataStore.localProxyPassword
@@ -667,8 +672,8 @@ fun buildConfig(
                 // UDP as HTTP/3 datagrams on a second, QUIC connection to the node (raycontrol naive-udp-v1, udp=1 in
                 // its link), with UDP on: the core keeps UDP over TCP until the app's probe has passed on the network
                 // and after a refusal, so it goes only beside udp_over_tcp. A field of the core fork's: not in an
-                // export
-                if (!forExport && bean is NaiveBean && bean.nikoUdp == true && bean.sUoT == true &&
+                // export. Off until the probe and a libcronet with datagrams are in (NAIVE_UDP_DATAGRAMS)
+                if (NAIVE_UDP_DATAGRAMS && !forExport && bean is NaiveBean && bean.nikoUdp == true && bean.sUoT == true &&
                     !proxyEntity.needExternal()
                 ) {
                     currentOutbound._hack_config_map["udp_datagram"] = true

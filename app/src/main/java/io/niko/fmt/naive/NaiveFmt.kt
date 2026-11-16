@@ -66,6 +66,7 @@ fun NaiveBean.toUri(proxyOnly: Boolean = false): String {
             builder.addQueryParameter("insecure-concurrency", "$insecureConcurrency")
         }
         if (sUoT == true) builder.addQueryParameter("uot", "2")
+        if (nikoUdp == true) builder.addQueryParameter("udp", "1")
     }
     return builder.toLink(if (proxyOnly) proto else "naive+$proto", false)
 }

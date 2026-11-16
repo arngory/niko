@@ -3,6 +3,7 @@ package io.niko.fmt
 import io.niko.fmt.naive.buildSingBoxOutboundNaiveBean
 import io.niko.fmt.naive.naiveHeaders
 import io.niko.fmt.naive.parseNaive
+import io.niko.fmt.naive.toUri
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
@@ -68,8 +69,13 @@ class NaiveCoreTest {
         val bean = parseNaive("naive+https://u:p@198.51.100.1:443?uot=2&udp=1#n")
         assertEquals(true, bean.nikoUdp)
         assertEquals(true, bean.sUoT)
-        // kept through the store (bean version 6)
+        // kept through the store (bean version 6) and a shared link
         assertEquals(true, KryoConverters.deserialize(io.niko.fmt.naive.NaiveBean(), KryoConverters.serialize(bean)).nikoUdp)
+        // (a profile without a name: urlSafe of a name needs Android's classes)
+        val shared = parseNaive(parseNaive("naive+https://u:p@198.51.100.1:443?uot=2&udp=1").toUri())
+        assertEquals(true, shared.nikoUdp)
+        assertEquals(true, shared.sUoT)
+        assertFalse(parseNaive(parseNaive("naive+https://u:p@198.51.100.1:443?uot=2").toUri()).nikoUdp)
         for (link in listOf("naive+https://u:p@198.51.100.1:443?uot=2#n", "naive+https://u:p@198.51.100.1:443?udp=on#n",
             "naive+https://u:p@198.51.100.1:443?udp=2#n")) {
             val other = parseNaive(link)
