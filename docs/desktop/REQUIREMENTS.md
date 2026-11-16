@@ -168,6 +168,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-SET-08 | Блокировать рекламу (`geosite:category-ads-all`) | `NikoService` | Kotlin: `database/ProfileManager.kt` | есть |
 | D-SET-10 | Режим эксперта: заменён видом «Расширенный» (D-NAV-03) | — | UI | расходится: отдельной настройки больше нет |
 | D-SET-12 | О программе: версия, ядро, обновления (GitHub и узел, подпись minisign) | `DesktopService.InstallUpdate` + `NikoService` | Go: `libcore/update.go`, `minisign`; с узла — Kotlin `raycontrol/RayAppMirror.kt` | есть |
+| D-SET-33 | Проверять обновления самому: отдельная настройка, по умолчанию выключена (решение владельца); включённая только сообщает о новой версии | `NikoService` + `DesktopService.InstallUpdate` | Go: `libcore/update.go` для проверки; расписание и настройка — новое в Kotlin и в службе | нет |
 | D-SET-13 | Язык | `DesktopService.SetLocale` | есть | есть |
 | D-SET-14 | Сервис для IP выхода | `NikoService.ExitAddress` | Go: `libcore/exitaddress.go` | есть |
 | D-SET-15 | Корневые сертификаты naive: Chrome, Mozilla, системные | конфиг + `CRONET_WINDOWS_SYSTEM_ROOTS` | Go в ядре; настройка — Kotlin | есть |
