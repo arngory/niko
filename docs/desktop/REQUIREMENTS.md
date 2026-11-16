@@ -45,7 +45,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-MAIN-02 | Статус: подключается, подключено, ошибка; время в сети | `SubscribeServiceStatus`, `GetStartedAt` | есть | есть |
 | D-MAIN-03 | Кнопка «Узнать IP выхода» | `NikoService.ExitAddress` | Go: `libcore/exitaddress.go` | есть |
 | D-MAIN-04 | Подключить или отключить | `DesktopService.StartService(config)`, `ManagedService.StopService` | есть; конфиг — BG-01 | есть |
-| D-MAIN-05 | Схема маршрута: остальное, пресеты, реклама | конфиг + `NikoService` (пресеты) | Kotlin: `RoutePresets.kt`, `database/ProfileManager.kt` | есть |
+| D-MAIN-05 | Схема маршрута: остальное, пресет, правила | конфиг + `NikoService` (пресеты) | Kotlin: `RoutePresets.kt`, `database/ProfileManager.kt` | есть |
 | D-MAIN-06 | Показатели: входящий, исходящий, задержка, за сессию | `SubscribeStatus` (uplink, downlink, totals), `URLTest` | есть | есть |
 | D-MAIN-07 | Список способов подключения узла | `NikoService` | Kotlin (хранилище, BG-02) | есть |
 | D-MAIN-08 | Проверить пинг всех строк без подключения | `NikoService.TestProfiles` | Kotlin + Go: `bg/proto/TestInstance.kt`, `Libcore.urlTest` | есть |
@@ -165,7 +165,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-SET-04 | Запускать вместе с системой | `boxdd` в режиме службы + автозапуск окна | есть; установщика нет | есть |
 | D-SET-05 | Подключаться при запуске | `NikoService` | Kotlin: `BootReceiver.kt`; на компьютере — служба | есть |
 | D-SET-07 | Пресет «Россия» | `NikoService` | Kotlin: `RoutePresets.kt`, `RuleSetFiles.kt` | есть |
-| D-SET-08 | Блокировать рекламу (`geosite:category-ads-all`) | `NikoService` | Kotlin: `database/ProfileManager.kt` | есть |
+| D-SET-08 | Реклама и трекеры: обычное правило «Блок» по `geosite:category-ads-all` в списке правил, отдельного переключателя и плитки нет (решение владельца) | `NikoService` | Kotlin: правило создаётся при первом запуске, `database/ProfileManager.kt` | есть |
 | D-SET-10 | Режим эксперта: заменён видом «Расширенный» (D-NAV-03) | — | UI | расходится: отдельной настройки больше нет |
 | D-SET-12 | О программе: версия, ядро, обновления (GitHub и узел, подпись minisign) | `DesktopService.InstallUpdate` + `NikoService` | Go: `libcore/update.go`, `minisign`; с узла — Kotlin `raycontrol/RayAppMirror.kt` | есть |
 | D-SET-33 | Проверять обновления самому: отдельная настройка, по умолчанию выключена (решение владельца); включённая только сообщает о новой версии | `NikoService` + `DesktopService.InstallUpdate` | Go: `libcore/update.go` для проверки; расписание и настройка — новое в Kotlin и в службе | нет |
@@ -186,6 +186,8 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-CONN-01 | Соединения: список, закрыть | `SubscribeConnections`, `CloseConnection`, `CloseAllConnections` | есть | есть |
 | D-RULES-01 | Редактор правил | `NikoService` | Kotlin: `ui/RouteSettingsActivity.kt`, `fmt/ConfigBuilder.kt` | есть |
 | D-RULES-02 | Правило по программам (`process_name`, `process_path`) | конфиг | ядро умеет; на Android это список приложений | есть |
+| D-RULES-05 | Пресет страны: один из «Нет, Россия, Китай, Иран». Китай и Иран — по образцу «России»: заблокированное через узел, доступное только изнутри и адреса страны напрямую, из наборов с обновлением | `NikoService` | Kotlin: `RoutePresets.kt` (есть только «Россия»); наборы — Loyalsoldier (Китай), Chocolate4U (Иран) | есть |
+| D-RULES-06 | Программы через Niko: «Все, Только выбранные, Кроме выбранных» и список — то же, что приложения на телефоне (M-RULES-01) | конфиг | новое: «Кроме выбранных» — правило по `process_path` «Напрямую» первым в списке; «Только выбранные» — такое же правило через узел, а остальное напрямую | есть |
 | D-PROFILE-01 | Ручная форма профиля по протоколу; у naive переключатель «UDP: QUIC, через TCP если не проходит» | `NikoService` | Kotlin: 16 форм `ui/profile/*SettingsActivity.kt`, бины `fmt/*` | расходится: переключатель UDP нарисован в форме VLESS, он только у naive |
 | D-PROFILE-02 | JSON профиля и конфига | `ApplicationService.CheckConfig`, `FormatConfig` | есть | есть |
 
