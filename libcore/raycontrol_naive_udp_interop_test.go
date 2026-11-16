@@ -259,6 +259,17 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 		}
 		return b
 	}
+	// the node's naive counts (its stats socket, one line "traffic" in, one line of JSON out): udp.requests 0 means no
+	// request reached it, requests with in 0 a request taken and no datagram in
+	nodeStats := func() {
+		script := `S=/run/niko/naive/stats.sock
+if command -v socat > /dev/null; then printf 'traffic\n' | socat - UNIX-CONNECT:$S
+elif command -v python3 > /dev/null; then python3 -c 'import socket; s = socket.socket(socket.AF_UNIX); s.connect("/run/niko/naive/stats.sock"); s.sendall(b"traffic\n"); print(s.recv(65536).decode())'
+elif command -v nc > /dev/null; then printf 'traffic\n' | nc -U -w 2 $S
+else echo "no socat, python3 or nc in the node"; fi`
+		out, err := exec.Command(node[0], append(slices.Clone(node[1:]), "sh", "-c", script)...).CombinedOutput()
+		t.Logf("the node's naive counts: %s %v", strings.TrimSpace(string(out)), err)
+	}
 	// a datagram through the tunnel before the node's answer goes as a capsule: send until one comes back
 	firstEcho := func(conn net.PacketConn, destination M.Socksaddr, payload []byte) {
 		t.Helper()
@@ -267,6 +278,7 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 				return
 			}
 		}
+		nodeStats()
 		t.Fatalf("no echo of %d bytes from %s", len(payload), destination)
 	}
 
@@ -289,6 +301,7 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 		t.Fatal("a socket went over UoT with datagrams allowed")
 	}
 	t.Log("a datagram and a capsule came back as HTTP/3 datagrams")
+	nodeStats()
 
 	// §4.4: a pair whose first datagram is QUIC (a long header, version 1) sends one over 1252 bytes only where a
 	// QUIC datagram carries it, and up to 1252 as a capsule
