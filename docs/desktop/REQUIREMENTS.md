@@ -8,7 +8,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 
 - через какой вызов демона элемент работает;
 - где его логика живёт сейчас;
-- совпадает ли с этим макет (раунд от 2026-11-16; D-SUB и D-MAIN-16/17 — по отчёту дизайн-сессии о третьем раунде, файл ещё не сверен).
+- совпадает ли с этим макет (третий раунд pen.dev от 2026-11-16, сверен по его выгрузке; дальше дизайн ведётся в Claude Design, ID те же).
 
 **Где логика сейчас:**
 
@@ -33,40 +33,40 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 
 | ID | Элемент | Вызов демона | Где логика сейчас | Макет |
 |---|---|---|---|---|
-| D-NAV-01 | Разделы: Главная, Узлы, Проверка маршрута, Настройки (+ Админ, Журнал) | — | UI | есть; Журнала нет |
+| D-NAV-01 | Разделы: Главная, Узлы, Проверка маршрута, Настройки (+ Админ, Журнал) | — | UI | есть |
 | D-NAV-02 | Режим: Прокси или VPN (TUN) | конфиг (mixed или tun) + `ManagedService.SetSystemProxyEnabled` | Kotlin: `fmt/ConfigBuilder.kt` | есть |
 
 ## Главная (D-MAIN)
 
 | ID | Элемент | Вызов демона | Где логика сейчас | Макет |
 |---|---|---|---|---|
-| D-MAIN-01 | Заголовок «Трафик идёт через …»: узел и способ подключения | `SubscribeGroups` + профиль из `NikoService` | Kotlin (хранилище, BG-02) | расходится: город вместо узла |
-| D-MAIN-02 | Статус: подключается, подключено, ошибка; время в сети | `SubscribeServiceStatus`, `GetStartedAt` | есть | расходится: «Защищено» вместо «Подключено» |
+| D-MAIN-01 | Заголовок «Трафик идёт через …»: узел и способ подключения | `SubscribeGroups` + профиль из `NikoService` | Kotlin (хранилище, BG-02) | есть |
+| D-MAIN-02 | Статус: подключается, подключено, ошибка; время в сети | `SubscribeServiceStatus`, `GetStartedAt` | есть | есть |
 | D-MAIN-03 | Кнопка «Узнать IP выхода» | `NikoService.ExitAddress` | Go: `libcore/exitaddress.go` | есть |
 | D-MAIN-04 | Подключить или отключить | `DesktopService.StartService(config)`, `ManagedService.StopService` | есть; конфиг — BG-01 | есть |
-| D-MAIN-05 | Схема маршрута: остальное, пресеты, реклама | конфиг + `NikoService` (пресеты) | Kotlin: `RoutePresets.kt`, `database/ProfileManager.kt` | расходится: счётчика блокировок нет |
+| D-MAIN-05 | Схема маршрута: остальное, пресеты, реклама | конфиг + `NikoService` (пресеты) | Kotlin: `RoutePresets.kt`, `database/ProfileManager.kt` | есть |
 | D-MAIN-06 | Показатели: входящий, исходящий, задержка, за сессию | `SubscribeStatus` (uplink, downlink, totals), `URLTest` | есть | есть |
-| D-MAIN-07 | Список способов подключения узла | `NikoService` | Kotlin (хранилище, BG-02) | расходится: города вместо способов |
+| D-MAIN-07 | Список способов подключения узла | `NikoService` | Kotlin (хранилище, BG-02) | есть |
 | D-MAIN-08 | Проверить пинг всех строк без подключения | `NikoService.TestProfiles` | Kotlin + Go: `bg/proto/TestInstance.kt`, `Libcore.urlTest` | есть |
 | D-MAIN-09 | Добавить | — | UI, дальше D-ADD | есть |
 | D-MAIN-10 | Узел над списком, переход в карточку | — | UI | есть |
-| D-MAIN-11 | Строка: способ (naive, Hysteria2, REALITY, через ретранслятор, DNS-туннель) и выбор | `SelectOutbound` или перезапуск с новым конфигом | есть; ретрансляторы — Kotlin `raycontrol/RayRelays.kt` | расходится: города |
+| D-MAIN-11 | Строка: способ (naive, Hysteria2, REALITY, через ретранслятор, DNS-туннель) и выбор | `SelectOutbound` или перезапуск с новым конфигом | есть; ретрансляторы — Kotlin `raycontrol/RayRelays.kt` | есть |
 | D-MAIN-12 | Пинг строки: число, цвет, полоски | `NikoService.TestProfiles` | см. D-MAIN-08 | есть |
 | D-MAIN-13 | Срок и трафик узла, когда обновлён | `NikoService` | Kotlin: `raycontrol/RaySubscription.kt`, `group/SubscriptionHeaders.kt` | есть |
-| D-MAIN-14 | Подтверждение «Узнать IP»: какой сервис спросят | `NikoService.ExitAddress` | Go: `libcore/exitaddress.go` (Cloudflare, ipinfo.io, ipwho.is, ipapi.co) | расходится: ifconfig.me |
-| D-MAIN-16 | Причина ошибки подключения (на главной) | `SubscribeServiceStatus` (FATAL, текст ошибки) | есть | есть |
+| D-MAIN-14 | Подтверждение «Узнать IP»: какой сервис спросят | `NikoService.ExitAddress` | Go: `libcore/exitaddress.go` (Cloudflare, ipinfo.io, ipwho.is, ipapi.co) | есть |
+| D-MAIN-16 | Причина ошибки подключения (на главной) | `SubscribeServiceStatus` (FATAL, текст ошибки) | есть | расходится: текст баннера обрезан кнопкой «Почему не работает» |
 | D-MAIN-17 | «Почему не работает» с главной: открывает D-WHY | `NikoService.TestRun` | Kotlin: `raycontrol/RayTestRun.kt` | есть |
 
 ## Добавление (D-ADD)
 
 | ID | Элемент | Вызов демона | Где логика сейчас | Макет |
 |---|---|---|---|---|
-| D-ADD-02 | Поле «Вставить» | — | UI | расходится: пример RCINV2 в base64, нужен base32 |
+| D-ADD-02 | Поле «Вставить» | — | UI | есть |
 | D-ADD-03 | Распознано: приглашение, подписка или ссылка профиля | `NikoService.Import` | Kotlin: `raycontrol/RayImport.kt`, `fmt/UniversalFmt.kt`, парсеры `fmt/*`, `group/RawUpdater.kt` | есть |
 | D-ADD-04 | Из буфера | — | UI, дальше D-ADD-03 | есть |
 | D-ADD-05 | QR из файла или снимка экрана | — | нет; на Android камера (`ui/ScannerActivity.kt`) | есть |
-| D-ADD-06 | PIN приглашения, 6 цифр | `NikoService.Register` | Kotlin + Go: `raycontrol/RayImport.kt`, `libcore/rayapi` | расходится: 5 ячеек |
-| D-ADD-07 | Что будет добавлено | `NikoService.Import` (dry run) | Kotlin: `ui/ImportReview.kt` | расходится: до регистрации состав узла неизвестен |
+| D-ADD-06 | PIN приглашения, 6 цифр | `NikoService.Register` | Kotlin + Go: `raycontrol/RayImport.kt`, `libcore/rayapi` | есть |
+| D-ADD-07 | Что будет добавлено | `NikoService.Import` (dry run) | Kotlin: `ui/ImportReview.kt` | расходится: подсказка внизу обрезана кнопкой |
 | D-ADD-08 | Добавить | `NikoService.Register` / `Import` | Kotlin + Go | есть |
 
 ## Карточка узла (D-NODE)
@@ -76,12 +76,12 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-NODE-01 | Имя узла | `NikoService` | Kotlin: `raycontrol/RayNodes.kt` | есть |
 | D-NODE-02 | Обновить | `NikoService.Refresh` | Kotlin + Go: `raycontrol/RaySubscription.kt`, `libcore/raysub` | есть |
 | D-NODE-03 | Заметка узла | `NikoService` | Kotlin: `raycontrol/RayNodeCard.kt` | есть |
-| D-NODE-04 | Срок доступа, трафик до сброса | `NikoService` | Kotlin: `raycontrol/RayNodes.kt` (`RayTraffic`: used, limit, since, reset) | расходится: «за месяц» вместо «до сброса» |
-| D-NODE-05 | Сведения: последнее и следующее обновление, подпись | `NikoService` | Kotlin: `raycontrol/RayNodeCard.kt` | расходится: «раз в 12 часов», «пресет узла» |
-| D-NODE-06 | Способы подключения узла | `NikoService` | Kotlin | расходится: города |
+| D-NODE-04 | Срок доступа, трафик до сброса | `NikoService` | Kotlin: `raycontrol/RayNodes.kt` (`RayTraffic`: used, limit, since, reset) | есть |
+| D-NODE-05 | Сведения: последнее и следующее обновление, подпись | `NikoService` | Kotlin: `raycontrol/RayNodeCard.kt` | есть |
+| D-NODE-06 | Способы подключения узла | `NikoService` | Kotlin | есть |
 | D-NODE-07 | Удалить узел: с подтверждением, что вернуть его можно только новым приглашением | `NikoService` | Kotlin (хранилище) | есть |
-| D-NODE-08 | Свои устройства в сети узла (lan-v1) | `NikoService` | Kotlin: `raycontrol/RayLan.kt`, `ui/RayLanDialog.kt` | нет |
-| D-NODE-09 | UDP у способа naive в этой сети: QUIC, через TCP пока идёт проверка, через TCP потому что QUIC не проходит (naive-udp-v1) | `NikoService` (состояние ядра `NaiveDatagramState` и вердикт пробы сети) | Go: `libcore/naive_datagram.go`; проба и память по сетям — Kotlin: `raycontrol/RayDatagrams.kt` | нет |
+| D-NODE-08 | Свои устройства в сети узла (lan-v1) | `NikoService` | Kotlin: `raycontrol/RayLan.kt`, `ui/RayLanDialog.kt` | расходится: «2 из 3 разрешённых» — предела устройств узел не отдаёт |
+| D-NODE-09 | UDP у способа naive в этой сети: QUIC, через TCP пока идёт проверка, через TCP потому что QUIC не проходит (naive-udp-v1) | `NikoService` (состояние ядра `NaiveDatagramState` и вердикт пробы сети) | Go: `libcore/naive_datagram.go`; проба и память по сетям — Kotlin: `raycontrol/RayDatagrams.kt` | есть |
 
 ## Обычная подписка (D-SUB)
 
@@ -93,7 +93,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-SUB-01 | Группа подписки в списке: имя, серверы с пингом | `NikoService` | Kotlin (хранилище, BG-02) | есть |
 | D-SUB-02 | Срок и трафик подписки (`subscription-userinfo`) | `NikoService` | Kotlin: `group/SubscriptionHeaders.kt` | есть |
 | D-SUB-03 | Обновить подписку вручную | `NikoService.Refresh` | Kotlin: `group/GroupUpdater.kt`, `group/RawUpdater.kt` | есть |
-| D-SUB-04 | Удалить подписку: в меню «⋯», с подтверждением | `NikoService` | Kotlin (хранилище) | расходится: кнопка в шапке группы |
+| D-SUB-04 | Удалить подписку: в меню «⋯», с подтверждением | `NikoService` | Kotlin (хранилище) | есть |
 
 ## Проверка маршрута (D-CHECK)
 
@@ -103,7 +103,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-CHECK-03 | Проверить | `NikoService.RouteTest` | Go: `libcore/routetest.go` | есть |
 | D-CHECK-04 | Результат | `NikoService.RouteTest` | Go | есть |
 | D-CHECK-05 | Путь: сайт → правило → выход | `NikoService.RouteTest` | Go | есть |
-| D-CHECK-06 | Почему: какой список и когда обновлён | `NikoService.RouteTest` + BG-09 | Go + Kotlin: `RuleSetFiles.kt` | расходится: набора «ru-sites» нет |
+| D-CHECK-06 | Почему: какой список и когда обновлён | `NikoService.RouteTest` + BG-09 | Go + Kotlin: `RuleSetFiles.kt` | есть |
 | D-CHECK-07 | Недавние | — | UI | есть |
 
 ## Почему не работает (D-WHY)
@@ -113,7 +113,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-WHY-02 | Ошибка подключения | `SubscribeServiceStatus` (FATAL) | есть | есть |
 | D-WHY-03 | Шаги проверки | `NikoService.TestRun` | Kotlin: `raycontrol/RayTestRun.kt`, `RayTestFindings.kt` | есть |
 | D-WHY-04 | Что сделать | `NikoService.TestRun` | Kotlin: `raycontrol/RayTestFindings.kt` | есть |
-| D-WHY-05 | Переключиться на другой способ | `SelectOutbound` | есть | расходится: «Подключить Helsinki» |
+| D-WHY-05 | Переключиться на другой способ | `SelectOutbound` | есть | есть |
 | D-WHY-06 | Обновить узел | `NikoService.Refresh` | см. D-NODE-02 | есть |
 | D-WHY-07 | Отчёт для админа | `NikoService.TestRun` | Kotlin: `raycontrol/RayTestRun.kt` (журнал с run ID) | есть |
 
@@ -124,7 +124,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-ADD | Первый запуск: узлов и подписок нет, открыт экран добавления | BG-02 (пусто) | UI | есть («Добавление (первый запуск)») |
 | D-STATE-SVC | Служба не установлена: установить или режим «Прокси» | `DesktopService.GetDaemonInfo` | есть; установщика нет | есть |
 | D-STATE-QUOTA | Трафик узла исчерпан до сброса | `NikoService` | Kotlin: `raycontrol/RaySubscription.kt` (traffic-limit-v1) | есть; «за этот месяц» → «до сброса» |
-| D-STATE-NET | Нет сети | `boxdd` platform interface | есть | нет |
+| D-STATE-NET | Нет сети | `boxdd` platform interface | есть | есть |
 
 ## Админ-панель (D-ADMIN)
 
@@ -136,10 +136,10 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-ADMIN-01 | Имя узла | `GetStatus`, `SetNodeName` | есть |
 | D-ADMIN-02 | Изменить заметку | `SetNodeNote` | есть |
 | D-ADMIN-03 | Создать приглашение, PIN по выбору | `CreateInvite` | есть |
-| D-ADMIN-04 | Сводка: участники, активные устройства, трафик, серверы | `GetStatus`, `GetMetrics` | расходится: «серверы в сети» — уточнить у сервера |
-| D-ADMIN-05 | Участники: устройства, трафик, срок, включён | `ListUsers`, `ListDevices`, `RenewUser`, `SetUserEnabled`, `DeleteUser` | расходится: «в сети» по участнику узел не отдаёт; трафик по участнику — уточнить |
-| D-ADMIN-06 | Отозвать устройство | `RevokeDevice` | нет |
-| D-ADMIN-07 | Службы участника | `ListServices`, `SetUserServices` | нет |
+| D-ADMIN-04 | Сводка: участники, активные устройства, трафик, серверы | `GetStatus`, `GetMetrics` | расходится: «трафик за месяц» и «серверы 4 / 5» — уточнить у сервера |
+| D-ADMIN-05 | Участники: устройства, трафик, срок, включён | `ListUsers`, `ListDevices`, `RenewUser`, `SetUserEnabled`, `DeleteUser` | есть |
+| D-ADMIN-06 | Отозвать устройство | `RevokeDevice` | есть |
+| D-ADMIN-07 | Службы участника | `ListServices`, `SetUserServices` | есть |
 | D-ADMIN-08 | Обновление узла | `GetUpdateStatus`, `StartUpdate` | нет |
 | D-ADMIN-09 | Зеркало приложения, сводки, доступ к API | `SetAppMirror`, `SetSummary`, `SetAdminAccess` | нет |
 
@@ -148,13 +148,13 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | ID | Элемент | Вызов демона | Где логика сейчас | Макет |
 |---|---|---|---|---|
 | D-TRAY-01 | Значок с состоянием | `SubscribeServiceStatus` | UI | есть |
-| D-TRAY-02 | Меню: отключить, режим, способ подключения, открыть, выход | D-MAIN-04, D-NAV-02, D-MAIN-11 | UI | расходится: города в подменю |
+| D-TRAY-02 | Меню: отключить, режим, способ подключения, открыть, выход | D-MAIN-04, D-NAV-02, D-MAIN-11 | UI | есть |
 | D-TRAY-03 | Компактное окно | — | UI | есть |
 | D-TRAY-04 | Кнопка и текущий способ | D-MAIN-04, D-MAIN-01 | UI | есть |
 | D-TRAY-05 | Скорость и пинг | `SubscribeStatus` | есть | есть |
-| D-TRAY-06 | Избранные | `NikoService` | нет | есть |
+| D-TRAY-06 | Избранные | `NikoService` | нет | есть, помечено «позже»: функции нет, решает владелец |
 | D-TRAY-07 | Открыть Niko | — | UI | есть |
-| D-TRAY-08 | Уведомления: срок или трафик кончается, ошибка подключения | D-MAIN-13, D-MAIN-02 | UI | нет |
+| D-TRAY-08 | Уведомления: срок или трафик кончается, ошибка подключения | D-MAIN-13, D-MAIN-02 | UI | есть |
 
 ## Настройки (D-SET)
 
@@ -167,25 +167,25 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-SET-08 | Блокировать рекламу (`geosite:category-ads-all`) | `NikoService` | Kotlin: `database/ProfileManager.kt` | есть |
 | D-SET-10 | Режим эксперта | — | UI | есть |
 | D-SET-12 | О программе: версия, ядро, обновления (GitHub и узел, подпись minisign) | `DesktopService.InstallUpdate` + `NikoService` | Go: `libcore/update.go`, `minisign`; с узла — Kotlin `raycontrol/RayAppMirror.kt` | есть |
-| D-SET-13 | Язык | `DesktopService.SetLocale` | есть | нет |
-| D-SET-14 | Сервис для IP выхода | `NikoService.ExitAddress` | Go: `libcore/exitaddress.go` | нет |
-| D-SET-15 | Корневые сертификаты naive: Chrome, Mozilla, системные | конфиг + `CRONET_WINDOWS_SYSTEM_ROOTS` | Go в ядре; настройка — Kotlin | нет |
-| D-SET-16 | Локальная сеть напрямую | конфиг | Kotlin: `bypassLanInCore` в `fmt/ConfigBuilder.kt` | нет |
-| D-SET-17 | Отчёты для админа узла: согласие | `NikoService` | Kotlin: `raycontrol/RayReport.kt` | нет |
-| D-SET-18 | DNS: удалённый, прямой, FakeIP (эксперт) | конфиг | Kotlin: `fmt/ConfigBuilder.kt` | нет |
-| D-SET-19 | Резервная копия, перенос с телефона | `NikoService` | Kotlin: `ui/BackupFragment.kt` | нет |
+| D-SET-13 | Язык | `DesktopService.SetLocale` | есть | есть |
+| D-SET-14 | Сервис для IP выхода | `NikoService.ExitAddress` | Go: `libcore/exitaddress.go` | есть |
+| D-SET-15 | Корневые сертификаты naive: Chrome, Mozilla, системные | конфиг + `CRONET_WINDOWS_SYSTEM_ROOTS` | Go в ядре; настройка — Kotlin | есть |
+| D-SET-16 | Локальная сеть напрямую | конфиг | Kotlin: `bypassLanInCore` в `fmt/ConfigBuilder.kt` | есть |
+| D-SET-17 | Отчёты для админа узла: согласие | `NikoService` | Kotlin: `raycontrol/RayReport.kt` | есть |
+| D-SET-18 | DNS: удалённый, прямой, FakeIP (эксперт) | конфиг | Kotlin: `fmt/ConfigBuilder.kt` | есть |
+| D-SET-19 | Резервная копия, перенос с телефона | `NikoService` | Kotlin: `ui/BackupFragment.kt` | есть |
 
 ## Экраны режима эксперта (ещё не нарисованы)
 
 | ID | Элемент | Вызов демона | Где логика сейчас | Макет |
 |---|---|---|---|---|
-| D-LOG-01 | Журнал ядра, очистка | `SubscribeLog`, `ClearLogs` | есть | нет |
-| D-LOG-02 | Отчёты о падениях и нехватке памяти | `DesktopService` crash и OOM reports | есть | нет |
-| D-CONN-01 | Соединения: список, закрыть | `SubscribeConnections`, `CloseConnection`, `CloseAllConnections` | есть | нет |
-| D-RULES-01 | Редактор правил | `NikoService` | Kotlin: `ui/RouteSettingsActivity.kt`, `fmt/ConfigBuilder.kt` | нет |
-| D-RULES-02 | Правило по программам (`process_name`, `process_path`) | конфиг | ядро умеет; на Android это список приложений | нет |
-| D-PROFILE-01 | Ручная форма профиля по протоколу; у naive переключатель «UDP: QUIC, через TCP если не проходит» | `NikoService` | Kotlin: 16 форм `ui/profile/*SettingsActivity.kt`, бины `fmt/*` | нет |
-| D-PROFILE-02 | JSON профиля и конфига | `ApplicationService.CheckConfig`, `FormatConfig` | есть | нет |
+| D-LOG-01 | Журнал ядра, очистка | `SubscribeLog`, `ClearLogs` | есть | есть |
+| D-LOG-02 | Отчёты о падениях и нехватке памяти | `DesktopService` crash и OOM reports | есть | есть |
+| D-CONN-01 | Соединения: список, закрыть | `SubscribeConnections`, `CloseConnection`, `CloseAllConnections` | есть | есть |
+| D-RULES-01 | Редактор правил | `NikoService` | Kotlin: `ui/RouteSettingsActivity.kt`, `fmt/ConfigBuilder.kt` | есть |
+| D-RULES-02 | Правило по программам (`process_name`, `process_path`) | конфиг | ядро умеет; на Android это список приложений | есть |
+| D-PROFILE-01 | Ручная форма профиля по протоколу; у naive переключатель «UDP: QUIC, через TCP если не проходит» | `NikoService` | Kotlin: 16 форм `ui/profile/*SettingsActivity.kt`, бины `fmt/*` | расходится: переключатель UDP нарисован в форме VLESS, он только у naive |
+| D-PROFILE-02 | JSON профиля и конфига | `ApplicationService.CheckConfig`, `FormatConfig` | есть | есть |
 
 ## Фон службы, без экрана (BG)
 
