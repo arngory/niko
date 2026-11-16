@@ -25,6 +25,10 @@ import (
 	"libcore/raysub"
 )
 
+// naiveUDPProbe checks the app's probe of a network through a core in this process (naive-udp-v1 §9.4): set only
+// where the test binary has the naive outbound (raycontrol_naive_udp_probe_interop_test.go, with_naive_outbound).
+var naiveUDPProbe func(t *testing.T, config string, request []byte)
+
 // lockedBuffer collects a process's output while the test reads it.
 type lockedBuffer struct {
 	access sync.Mutex
@@ -50,6 +54,9 @@ func (b *lockedBuffer) String() string {
 //     node reaches the runner's echo at all), and a datagram and one longer than a QUIC datagram (a capsule) come
 //     back from an echo through it, as datagrams (not UoT);
 //   - a pair whose first datagram is QUIC sends one over 1252 bytes only where a QUIC datagram carries it (§4.4);
+//   - the app's probe of the network (§9.4, RayDatagrams): RaycontrolProbeDatagram's echo at the probe name through a
+//     datagram request of a core in this process, with datagrams not yet allowed (naiveUDPProbe: only in a test
+//     binary linked with the naive outbound, with_naive_outbound);
 //   - with the flag off the node answers a request as a site does: that socket ends, UDP of the network goes back
 //     over UoT, and an echo through UoT comes back.
 //
@@ -61,7 +68,7 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 	if len(rayctlCommand) == 0 || bundlePath == "" || singBox == "" || caPath == "" {
 		t.Skip("RAYCONTROL_RAYCTL, RAYCONTROL_NAIVE_UDP_BUNDLE, RAYCONTROL_SING_BOX and RAYCONTROL_CA not set (raycontrol-interop.yml sets them)")
 	}
-	_, _, request := interopDeviceAt(t, bundlePath)
+	bundle, nodeHost, request := interopDeviceAt(t, bundlePath)
 	rayctl := func(args ...string) {
 		t.Helper()
 		out, err := exec.Command(rayctlCommand[0], append(slices.Clone(rayctlCommand[1:]), args...)...).CombinedOutput()
@@ -98,7 +105,8 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 	quicPair := M.ParseSocksaddrHostPort(target, echo())
 	afterOff := M.ParseSocksaddrHostPort(target, echo())
 
-	// the naive line of the subscription, once it says udp=1 (or no longer does)
+	// the naive line of the subscription, once it says udp=1 (or no longer does); the probe's name with it
+	var probeTunnel string
 	line := func(udp bool) string {
 		t.Helper()
 		deadline := time.Now().Add(90 * time.Second)
@@ -110,6 +118,9 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 			var result raysub.Result
 			if err = json.Unmarshal([]byte(appJSON), &result); err != nil {
 				t.Fatal(err)
+			}
+			if result.Payload.Probe != nil {
+				probeTunnel = result.Payload.Probe.Tunnel
 			}
 			for _, p := range result.Payload.Profiles {
 				u, err := url.Parse(p.Link)
@@ -160,10 +171,8 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 		t.Fatalf("the node's naive does not run with udp %v within 90 s", udp)
 	}
 
-	// a sing-box on the line: a local mixed port, the naive outbound with UDP over TCP and, with datagrams, datagrams
-	// allowed from the start (no app probes here). stop ends it and logs its output; the next one starts after it, so
-	// that the node's counts are of one sing-box's requests
-	start := func(link string, datagrams bool) (client *socks.Client, logs *lockedBuffer, stop func()) {
+	// the naive outbound on the line, with UDP over TCP and, with datagrams, datagrams allowed from the start or not
+	naiveOutbound := func(link string, datagrams, allowed bool) map[string]any {
 		t.Helper()
 		u, err := url.Parse(link)
 		if err != nil {
@@ -184,6 +193,19 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 			}
 			tlsOptions["certificate_public_key_sha256"] = pins
 		}
+		return map[string]any{
+			"type": "naive", "tag": "naive", "server": u.Hostname(), "server_port": port,
+			"username": u.User.Username(), "password": password, "tls": tlsOptions,
+			"udp_over_tcp": map[string]any{"enabled": true, "version": 2},
+			"udp_datagram": datagrams, "udp_datagram_allowed": allowed,
+		}
+	}
+
+	// a sing-box on the line: a local mixed port, the naive outbound with UDP over TCP and, with datagrams, datagrams
+	// allowed from the start (no app probes here). stop ends it and logs its output; the next one starts after it, so
+	// that the node's counts are of one sing-box's requests
+	start := func(link string, datagrams bool) (client *socks.Client, logs *lockedBuffer, stop func()) {
+		t.Helper()
 		local, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
 			t.Fatal(err)
@@ -191,15 +213,10 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 		localPort := local.Addr().(*net.TCPAddr).Port
 		local.Close()
 		config, _ := json.Marshal(map[string]any{
-			"log":      map[string]any{"level": "debug"},
-			"inbounds": []any{map[string]any{"type": "mixed", "tag": "in", "listen": "127.0.0.1", "listen_port": localPort}},
-			"outbounds": []any{map[string]any{
-				"type": "naive", "tag": "naive", "server": u.Hostname(), "server_port": port,
-				"username": u.User.Username(), "password": password, "tls": tlsOptions,
-				"udp_over_tcp": map[string]any{"enabled": true, "version": 2},
-				"udp_datagram": datagrams, "udp_datagram_allowed": datagrams,
-			}},
-			"route": map[string]any{"final": "naive"},
+			"log":       map[string]any{"level": "debug"},
+			"inbounds":  []any{map[string]any{"type": "mixed", "tag": "in", "listen": "127.0.0.1", "listen_port": localPort}},
+			"outbounds": []any{naiveOutbound(link, datagrams, datagrams)},
+			"route":     map[string]any{"final": "naive"},
 		})
 		path := filepath.Join(t.TempDir(), "naive-udp.json")
 		if err := os.WriteFile(path, config, 0o600); err != nil {
@@ -342,6 +359,25 @@ else echo "no socat, python3 or nc in the node"; fi`
 		t.Fatal("a QUIC pair's datagram of 1252 bytes did not come back")
 	}
 	t.Log("a QUIC pair: 1300 bytes dropped, 1252 bytes carried as a capsule")
+
+	// the app's probe of the network (§9.4, RayDatagrams: 30 echoes of 1100 bytes at the probe name, passed with 22
+	// back), through a core in this process whose datagrams the app has not allowed yet
+	if naiveUDPProbe == nil {
+		t.Log("RaycontrolProbeDatagram not checked: this test binary has no naive outbound (with_naive_outbound)")
+	} else {
+		if probeTunnel == "" {
+			t.Fatal("the subscription names no probe")
+		}
+		config, _ := json.Marshal(map[string]any{
+			"log":       map[string]any{"level": "debug"},
+			"outbounds": []any{naiveOutbound(on, true, false)},
+			"route":     map[string]any{"final": "naive"},
+		})
+		probe, _ := json.Marshal(probeRequest{Host: nodeHost, Port: bundle.Sub.Port, Pin: bundle.Sub.Pin,
+			DeviceID: bundle.DeviceID, SPA: bundle.SPA, Tunnel: probeTunnel, EchoCount: 30, EchoSize: 1100, WindowMs: 5000})
+		naiveUDPProbe(t, string(config), probe)
+		nodeStats()
+	}
 
 	// the flag off: the node answers as a site does, UDP of the network goes back over UoT
 	rayctl("service", "set", "naive", "udp=off")
