@@ -186,7 +186,7 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 		localPort := local.Addr().(*net.TCPAddr).Port
 		local.Close()
 		config, _ := json.Marshal(map[string]any{
-			"log":      map[string]any{"level": "info"},
+			"log":      map[string]any{"level": "debug"},
 			"inbounds": []any{map[string]any{"type": "mixed", "tag": "in", "listen": "127.0.0.1", "listen_port": localPort}},
 			"outbounds": []any{map[string]any{
 				"type": "naive", "tag": "naive", "server": u.Hostname(), "server_port": port,
