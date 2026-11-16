@@ -237,9 +237,11 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 		t.Fatalf("no echo of %d bytes from %s", len(payload), destination)
 	}
 
+	// rayd serve -supervise restarts naive on the change itself (rayctl apply writes systemd units, which this
+	// container has not): the line says it, and a few seconds more for the restart
 	rayctl("service", "set", "naive", "udp=on")
-	rayctl("apply")
 	on := line(true)
+	time.Sleep(5 * time.Second)
 	t.Logf("the naive line says udp=1: %s", on[strings.LastIndex(on, "@")+1:])
 	client, logs := start(on)
 
@@ -273,8 +275,8 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 
 	// the flag off: the node answers as a site does, UDP of the network goes back over UoT
 	rayctl("service", "set", "naive", "udp=off")
-	rayctl("apply")
 	off := line(false)
+	time.Sleep(5 * time.Second)
 	client, logs = start(off)
 	refused := open(client, afterOff)
 	if roundTrip(refused, afterOff, []byte("refused"), 5*time.Second) {
