@@ -60,6 +60,27 @@ jobs:
             echo "::error::signed with a key that is not the release's"; exit 1
           fi
           grep -q 'the release key is f4ac8365' <<< "$out" || { echo "$out"; echo "::error::refused for another reason"; exit 1; }
+          # the update key in the shapes a pasted secret takes: the key line alone, the two lines joined by a space,
+          # CRLF. Each must sign; a file with no key line must be refused with a reason
+          shape() {  # shape <name> <key file>: sign the sums anew with this key file and check as the app does
+            cp "$2" "$k/shape.key"
+            (cd apks && rm -f *-unsigned.apk SHA256SUMS.minisig)
+            for f in apks/*.apk; do mv "$f" "${f%.apk}-unsigned.apk"; done
+            KEYSTORE_FILE="$k/ks.p12" KEYSTORE_PASS=checkkey ALIAS_NAME=check ALIAS_PASS=checkkey \
+              EXPECT_CERT_SHA256="$cert" MINISIGN_KEY_FILE="$k/shape.key" UPDATE_PUB="$k/update.pub" TAG=v0.0.0-check \
+              bash .github/scripts/release-sign.sh apks > "$k/shape.log" 2>&1 || { cat "$k/shape.log"; echo "::error::the key as $1 did not sign"; exit 1; }
+            echo "the key as $1: signed"
+          }
+          sed -n 2p "$k/update.key" > "$k/one.key"; shape "the key line alone" "$k/one.key"
+          tr '\n' ' ' < "$k/update.key" > "$k/joined.key"; shape "one line, comment and key" "$k/joined.key"
+          sed 's/$/\r/' "$k/update.key" > "$k/crlf.key"; shape "CRLF" "$k/crlf.key"
+          cp -r apks "$k/apks-nokey"; (cd "$k/apks-nokey" && for f in *.apk; do mv "$f" "${f%.apk}-unsigned.apk"; done)
+          if out=$(KEYSTORE_FILE="$k/ks.p12" KEYSTORE_PASS=checkkey ALIAS_NAME=check ALIAS_PASS=checkkey \
+              EXPECT_CERT_SHA256="$cert" MINISIGN_KEY_FILE="$k/update.pub" UPDATE_PUB="$k/update.pub" TAG=v0.0.0-check \
+              bash .github/scripts/release-sign.sh "$k/apks-nokey" 2>&1); then
+            echo "::error::signed with a file that holds no secret key"; exit 1
+          fi
+          grep -q 'holds no secret key line' <<< "$out" || { echo "$out"; echo "::error::refused for another reason"; exit 1; }
 
   # the release APK on an emulator: it starts, survives configuration changes and leaks no activity
   smoke:
