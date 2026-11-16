@@ -52,41 +52,63 @@ jobs:
           CHROME_BIN="$(command -v google-chrome)" CHROME_HELLO_OUT="$RUNNER_TEMP/chrome-hello" \
             xvfb-run -a go test -count=1 -v -ldflags=-checklinkname=0 -tags="$TAGS" -run TestChromeLive ./chromecheck
 
-      # What the same Chrome sends over HTTP/3: the sizes of its QUIC packets to real sites. The naive outbound is
-      # Chromium as well, and a client option that would change these sizes (MTU discovery for UDP in HTTP/3
-      # datagrams, raycontrol naive-udp-v1) is weighed against this. Informational: it never fails the job
+      # What Chrome sends over HTTP/3: the sizes of its QUIC packets to real sites. The naive outbound is Chromium as
+      # well, and a client option that would change these sizes (MTU discovery for UDP in HTTP/3 datagrams, MTUH,
+      # raycontrol naive-udp-v1 §4.5) is weighed against this: stable and beta (the next version), each on a profile
+      # that has run once before, so the field trials of the variations seed an ordinary user gets are on, and with
+      # uploads that finish. Informational: it never fails the job
       - name: Chrome's QUIC packet sizes (informational)
         if: ${{ !cancelled() }}
         continue-on-error: true
         run: |
           command -v tcpdump > /dev/null || (sudo apt-get update -q && sudo apt-get install -y -q tcpdump) > /dev/null
-          sudo timeout 60 tcpdump -i any -n -U -w "$RUNNER_TEMP/quic.pcap" 'udp port 443' > /dev/null 2>&1 &
-          sleep 2
+          if ! command -v google-chrome-beta > /dev/null; then
+            curl -fsSL -o "$RUNNER_TEMP/chrome-beta.deb" https://dl.google.com/linux/direct/google-chrome-beta_current_amd64.deb &&
+              sudo apt-get install -y -q "$RUNNER_TEMP/chrome-beta.deb" > /dev/null || echo "::warning::no Chrome beta"
+          fi
           # an upload too: quiche sends its first MTU probe after a hundred packets of a session, and a page load is
-          # mostly acknowledgements. 4 MB to Cloudflare's speed test, which takes a POST of any size
+          # mostly acknowledgements. Three POSTs of 1 MB to Cloudflare's speed test, one after another, each awaited
           cat > "$RUNNER_TEMP/upload.html" <<'PAGE'
           <!doctype html><title>upload</title><script>
-          fetch("https://speed.cloudflare.com/__up", {method: "POST", mode: "no-cors", body: new Uint8Array(4000000)})
-            .then(() => document.title = "sent", () => document.title = "failed");
+          (async () => {
+            for (let i = 0; i < 3; i++) {
+              await fetch("https://speed.cloudflare.com/__up", {method: "POST", mode: "no-cors", body: new Uint8Array(1000000)});
+              document.title = "sent " + (i + 1);
+            }
+          })().catch(() => document.title = "failed");
           </script>
           PAGE
-          # QUIC from the first request (no Alt-Svc round first), a fresh profile, pages with enough to fetch; the
-          # browser's own net log for its sessions' settings
-          timeout 45 xvfb-run -a google-chrome --no-first-run --no-default-browser-check --user-data-dir="$RUNNER_TEMP/chrome-quic" \
-            --origin-to-force-quic-on=www.google.com:443,www.youtube.com:443,cloudflare-quic.com:443,speed.cloudflare.com:443 \
-            --log-net-log="$RUNNER_TEMP/chrome-netlog.json" \
-            https://www.google.com/ https://www.youtube.com/ https://cloudflare-quic.com/ "file://$RUNNER_TEMP/upload.html" \
-            > /dev/null 2>&1 || true
-          sleep 3
-          sudo pkill tcpdump || true
-          sleep 1
-          {
-            echo "### QUIC packet sizes of $(google-chrome --version)"
-            echo '```'
-            sudo tcpdump -n -r "$RUNNER_TEMP/quic.pcap" 2> /dev/null | python3 -I .github/scripts/quic-sizes.py
-            python3 -I .github/scripts/netlog-quic.py "$RUNNER_TEMP/chrome-netlog.json"
-            echo '```'
-          } | tee -a "$GITHUB_STEP_SUMMARY"
+          capture() {
+            local bin="$1" name="$2" profile="$RUNNER_TEMP/chrome-quic-$2"
+            command -v "$bin" > /dev/null || return 0
+            # a first run on the profile fetches the variations seed; the field trials it holds are on from the
+            # next start, as for an ordinary user's browser
+            timeout 40 xvfb-run -a "$bin" --no-first-run --no-default-browser-check --user-data-dir="$profile" \
+              about:blank > /dev/null 2>&1 || true
+            local seed=no
+            grep -qs '"variations_compressed_seed"' "$profile/Local State" && seed=yes
+            sudo timeout 100 tcpdump -i any -n -U -w "$RUNNER_TEMP/quic-$name.pcap" 'udp port 443' > /dev/null 2>&1 &
+            sleep 2
+            # QUIC from the first request (no Alt-Svc round first), pages with enough to fetch, the uploads; the
+            # browser's own net log for its sessions' settings and its field trials
+            timeout 90 xvfb-run -a "$bin" --no-first-run --no-default-browser-check --user-data-dir="$profile" \
+              --origin-to-force-quic-on=www.google.com:443,www.youtube.com:443,cloudflare-quic.com:443,speed.cloudflare.com:443 \
+              --log-net-log="$RUNNER_TEMP/chrome-netlog-$name.json" \
+              https://www.google.com/ https://www.youtube.com/ https://cloudflare-quic.com/ "file://$RUNNER_TEMP/upload.html" \
+              > /dev/null 2>&1 || true
+            sleep 3
+            sudo pkill tcpdump || true
+            sleep 1
+            {
+              echo "### QUIC packet sizes of $("$bin" --version) (variations seed: $seed)"
+              echo '```'
+              sudo tcpdump -n -r "$RUNNER_TEMP/quic-$name.pcap" 2> /dev/null | python3 -I .github/scripts/quic-sizes.py
+              python3 -I .github/scripts/netlog-quic.py "$RUNNER_TEMP/chrome-netlog-$name.json"
+              echo '```'
+            } | tee -a "$GITHUB_STEP_SUMMARY"
+          }
+          capture google-chrome stable
+          capture google-chrome-beta beta
 
       # A naive profile is held to the core's list of roots by key pins: a key of the list has to be in the chain
       # Chromium verified. That chain ends at the first certificate Chromium's store has as a trust anchor, and the
