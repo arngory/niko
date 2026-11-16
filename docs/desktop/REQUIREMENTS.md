@@ -81,6 +81,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-NODE-06 | Способы подключения узла | `NikoService` | Kotlin | расходится: города |
 | D-NODE-07 | Удалить узел: с подтверждением, что вернуть его можно только новым приглашением | `NikoService` | Kotlin (хранилище) | есть |
 | D-NODE-08 | Свои устройства в сети узла (lan-v1) | `NikoService` | Kotlin: `raycontrol/RayLan.kt`, `ui/RayLanDialog.kt` | нет |
+| D-NODE-09 | UDP у способа naive в этой сети: QUIC, через TCP пока идёт проверка, через TCP потому что QUIC не проходит (naive-udp-v1) | `NikoService` (состояние ядра `NaiveDatagramState` и вердикт пробы сети) | Go: `libcore/naive_datagram.go`; проба и память по сетям — Kotlin: `raycontrol/RayDatagrams.kt` | нет |
 
 ## Обычная подписка (D-SUB)
 
@@ -183,7 +184,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-CONN-01 | Соединения: список, закрыть | `SubscribeConnections`, `CloseConnection`, `CloseAllConnections` | есть | нет |
 | D-RULES-01 | Редактор правил | `NikoService` | Kotlin: `ui/RouteSettingsActivity.kt`, `fmt/ConfigBuilder.kt` | нет |
 | D-RULES-02 | Правило по программам (`process_name`, `process_path`) | конфиг | ядро умеет; на Android это список приложений | нет |
-| D-PROFILE-01 | Ручная форма профиля по протоколу | `NikoService` | Kotlin: 16 форм `ui/profile/*SettingsActivity.kt`, бины `fmt/*` | нет |
+| D-PROFILE-01 | Ручная форма профиля по протоколу; у naive переключатель «UDP: QUIC, через TCP если не проходит» | `NikoService` | Kotlin: 16 форм `ui/profile/*SettingsActivity.kt`, бины `fmt/*` | нет |
 | D-PROFILE-02 | JSON профиля и конфига | `ApplicationService.CheckConfig`, `FormatConfig` | есть | нет |
 
 ## Фон службы, без экрана (BG)
