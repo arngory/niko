@@ -80,7 +80,7 @@
 
 | ID | Элемент | Вызов демона | Где логика сейчас |
 |---|---|---|---|
-| M01 | Пресеты-переключатели («Российские сайты напрямую» и т. п.) | `NikoService` | Kotlin: `RoutePresets.kt`, `RuleSetFiles.kt` |
+| M01 | Пресеты-переключатели. «Россия» — два правила: заблокированное через прокси, российские сервисы напрямую. «Блокировать рекламу» (`geosite:category-ads-all`). «Локальная сеть напрямую» | `NikoService` | Kotlin: `RoutePresets.kt`, `RuleSetFiles.kt`, `database/ProfileManager.kt`, `bypassLanInCore` в `fmt/ConfigBuilder.kt` |
 | M02 | Обновление наборов правил | в службе | Kotlin + Go: `RuleSetFiles.kt`, `libcore/ruleset_check.go` |
 | M03 | Редактор правил (эксперт) | `NikoService` | Kotlin: `ui/RouteSettingsActivity.kt`, `fmt/ConfigBuilder.kt` |
 | M04 | Проверка маршрута: куда пойдёт домен или адрес | `NikoService.RouteTest` | Go: `libcore/routetest.go` |
