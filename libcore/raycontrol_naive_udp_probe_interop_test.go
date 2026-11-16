@@ -23,8 +23,11 @@ func probeNaiveUDP(t *testing.T, config string, request []byte) {
 	if state := NaiveDatagramState(instance, tag); state != "probing" {
 		t.Fatalf("datagrams before the app's probe: %q, want probing", state)
 	}
-	// a probe that sent nothing measured nothing (the session over TCP did not start): the app tries again too
+	// as the app decides (RayDatagrams.probe): passed with 22 of 30 back (ECHO_PASS, over 24 KB); failed once a
+	// second probe also sent its echoes and got fewer back (FAILS); a probe that sent nothing measured nothing (the
+	// session over TCP did not start) and is tried again
 	var echo *rayprobe.EchoResult
+	failed := 0
 	for try := 1; try <= 3; try++ {
 		raw, err := RaycontrolProbeDatagram(instance, tag, string(request))
 		if err != nil {
@@ -36,12 +39,16 @@ func probeNaiveUDP(t *testing.T, config string, request []byte) {
 		}
 		echo = out.Echo
 		t.Logf("probe %d: %s", try, raw)
-		if echo != nil && echo.Sent > 0 {
+		if echo != nil && echo.Received >= 22 {
 			break
+		}
+		if echo != nil && echo.Sent > 0 {
+			if failed++; failed >= 2 {
+				break
+			}
 		}
 		time.Sleep(5 * time.Second)
 	}
-	// the app's pass (RayDatagrams.ECHO_PASS): 22 of 30 back, over 24 KB
 	if echo == nil || echo.Received < 22 {
 		t.Fatalf("the probe's echo through datagrams did not pass: %+v", echo)
 	}

@@ -13,7 +13,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import libcore.BoxInstance
 import libcore.Libcore
@@ -150,10 +150,14 @@ object RayDatagrams {
         }
     }
 
-    // the decision still stands: the core it was for runs, on the network it was for (under the lock)
-    private fun current(r: Running, network: ChannelNetwork) = running === r && r.network == network.key
+    // the decision still stands: the core it was for runs, on the network it was for, and [job] is still the one
+    // deciding there (a network that went and came back under the same key has a job of its own). Under the lock, which
+    // a network change holds to cancel the job and set the next one
+    private fun stands(r: Running, network: ChannelNetwork, job: Job) =
+        job.isActive && r.job === job && running === r && r.network == network.key
 
     private suspend fun decide(r: Running, network: ChannelNetwork) {
+        val job = currentCoroutineContext().job
         // the last network's allowance goes at once: this one's UDP over TCP until decided
         for (tag in r.tags.keys) {
             runCatching { Libcore.resetNaiveDatagram(r.box, tag) }.onFailure { Logs.w("raycontrol datagrams $tag: ${it.message}") }
@@ -176,13 +180,12 @@ object RayDatagrams {
             if (runCatching { Libcore.naiveDatagramState(r.box, tag) }.getOrNull() == "unsupported") continue
             val id = "${node.spa.nodeId}#$svc"
             val known = remembered(load(), network, id, System.currentTimeMillis() / 1000)
-            val ok = known ?: probe(r, network, tag, node, info) ?: continue
+            val ok = known ?: probe(r, network, job, tag, node, info) ?: continue
             // the probe's call blocks and does not stop with the job: one whose network went, or whose core stopped,
             // while it ran measured a path that is no longer this one's, partly another network's or a closed core's.
             // Neither kept nor applied; the network's next decision probes it anew
-            val active = currentCoroutineContext().isActive
             synchronized(lock) {
-                if (!active || !current(r, network)) return
+                if (!stands(r, network, job)) return
                 if (known == null) {
                     val all = remember(load(), network, id, ok, System.currentTimeMillis() / 1000)
                     DataStore.configurationStore.putString(Key.RAYCONTROL_DATAGRAMS, all.toString())
@@ -194,12 +197,12 @@ object RayDatagrams {
     }
 
     /** The probe's verdict for [tag], or null when it could not measure the path in a few tries. */
-    private suspend fun probe(r: Running, network: ChannelNetwork, tag: String, node: RayNode, info: RayProbeInfo): Boolean? {
+    private suspend fun probe(r: Running, network: ChannelNetwork, job: Job, tag: String, node: RayNode, info: RayProbeInfo): Boolean? {
         val request = request(node, info) ?: return null
         var failed = 0
         for (attempt in 1..TRIES) {
             currentCoroutineContext().ensureActive()
-            if (!synchronized(lock) { current(r, network) }) return null
+            if (!synchronized(lock) { stands(r, network, job) }) return null
             val verdict = try {
                 verdict(JsonParser.parseString(Libcore.raycontrolProbeDatagram(r.box, tag, request.toString())).asJsonObject.getAsJsonObject("echo"))
             } catch (e: CancellationException) {
