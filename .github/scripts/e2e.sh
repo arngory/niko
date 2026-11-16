@@ -781,7 +781,15 @@ done
 # the capture ends once it has its record (or after its two minutes without a connection)
 wait "$hello_pid" || true
 [ -s "$out/naive-hello.hex" ] || fail "no ClientHello captured from naive on the emulator"
-echo "Chrome's ClientHello: $(cat "$naive_links/chrome-hello.source" 2> /dev/null)"
+# two versions, which may differ: the Chromium the library in this APK was built from (the version string it carries)
+# and the Chrome the reference was captured from (the core's chromehello/SOURCE, re-captured by hand from
+# fingerprint.yml's artifact)
+# the library carries more than one version-like string (an older Chromium's among them, 153.0.8010.0 in 158's):
+# the build's own is the highest
+lib_version=$(unzip -p "$apk" 'lib/x86_64/*.so' 2> /dev/null | grep -a -o -E '\b1[0-9]{2}\.0\.[0-9]{4}\.[0-9]+\b' |
+  sort -u -V | tail -1)
+echo "naive's library in this APK: Chromium ${lib_version:-(no version string found)}"
+echo "the reference ClientHello: $(cat "$naive_links/chrome-hello.source" 2> /dev/null)"
 python3 -I "$here/hello.py" compare "$naive_links/chrome-hello.hex" "$out/naive-hello.hex" ||
   echo "::warning::the ClientHello of naive on the emulator could not be compared with Chrome's"
 down naive-hello
