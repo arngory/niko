@@ -37,7 +37,17 @@ base64 -w0 niko-release.jks > niko-release.jks.b64   # Linux
 base64 -i niko-release.jks -o niko-release.jks.b64   # macOS
 ```
 
-В репозитории: **Settings → Secrets and variables → Actions → New repository secret**. Создать четыре секрета:
+Секреты кладутся в окружение `release`, а не в секреты репозитория: секрет репозитория читает workflow любой
+ветки, а секрет окружения — только задача, которой это окружение разрешило запуск.
+
+Сначала окружение: **Settings → Environments → New environment** `release`:
+- **Required reviewers** — владелец, один; **Prevent self-reviews** выключен (релиз запускает и одобряет он сам);
+- **Deployment branches and tags** — «Selected»: тег `v*` и ветка `main`.
+
+Релиз ждёт одного одобрения: его просит задача сборки APK, она же подписывает APK и `SHA256SUMS` (§5). Сборки CI
+окружения не берут, ключей не видят и выходят неподписанными; эмуляторные задачи подписывают их одноразовым ключом.
+
+В окружении `release` (**Environment secrets → Add secret**) создать четыре секрета:
 
 | Секрет | Значение |
 |---|---|
@@ -49,11 +59,14 @@ base64 -i niko-release.jks -o niko-release.jks.b64   # macOS
 То же самое через `gh`:
 
 ```bash
-gh secret set KEYSTORE_BASE64 < niko-release.jks.b64
-gh secret set KEYSTORE_PASS
-gh secret set ALIAS_NAME --body niko
-gh secret set ALIAS_PASS
+gh secret set KEYSTORE_BASE64 --env release < niko-release.jks.b64
+gh secret set KEYSTORE_PASS --env release
+gh secret set ALIAS_NAME --env release --body niko
+gh secret set ALIAS_PASS --env release
 ```
+
+Если эти секреты раньше лежали в секретах репозитория, после переноса их там удалить
+(`gh secret delete KEYSTORE_BASE64` и так далее): иначе любой workflow любой ветки по-прежнему их читает.
 
 После этого удали `niko-release.jks.b64`: это тот же ключ, только в другой кодировке.
 
@@ -121,11 +134,13 @@ NekoBox (`moe.nb4a`) и с ним не конфликтует. Настройк�
    minisign -G -W -p niko-update.pub -s niko-update.key
    ```
 
-2. Содержимое `niko-update.key` положить в секрет `MINISIGN_SECRET_KEY` (`gh secret set MINISIGN_SECRET_KEY < niko-update.key`).
+2. Содержимое `niko-update.key` положить в секрет `MINISIGN_SECRET_KEY` окружения `release`
+   (`gh secret set MINISIGN_SECRET_KEY --env release < niko-update.key`), не в секреты репозитория.
    Резервную копию `niko-update.key` хранить офлайн, как и ключ APK.
 3. `niko-update.pub` закоммитить в корень репозитория. Сборки с ним проверяют обновления этим ключом.
 
-Release workflow подписывает `SHA256SUMS` и проверяет подпись этим ключом до публикации. Если `niko-update.pub`
+Задача сборки APK в окружении `release` подписывает `SHA256SUMS`, задача публикации без ключей проверяет подпись
+этим ключом до публикации. Если `niko-update.pub`
 есть, а секрета нет, релиз падает: такие обновления приложение отвергло бы. Приложение проверяет обновления тем
 ключом, с которым его собрали. Поэтому после смены ключа сборки со старым ключом новый релиз не примут, и их
 пользователям придётся один раз обновиться со страницы релиза.

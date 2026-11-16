@@ -16,11 +16,11 @@ permissions:
   contents: read
 
 jobs:
+  # no secrets: the release keys live in the environment release, and a CI build of any branch never sees them
   build:
     uses: ./.github/workflows/build.yml
     with:
       lint: true
-    secrets: inherit
 
   # the release APK on an emulator: it starts, survives configuration changes and leaks no activity
   smoke:
