@@ -991,6 +991,8 @@ jobs:
                        {type: "socks", tag: "ack", listen: "127.0.0.1", listen_port: 11103},
                        {type: "socks", tag: "hello", listen: "127.0.0.1", listen_port: 11104},
                        {type: "socks", tag: "hello-quic", listen: "127.0.0.1", listen_port: 11105},
+                       {type: "socks", tag: "quic-noise", listen: "127.0.0.1", listen_port: 11106},
+                       {type: "socks", tag: "quic-reorder", listen: "127.0.0.1", listen_port: 11107},
                        {type: "socks", tag: "wrong", listen: "127.0.0.1", listen_port: 11094},
                        {type: "socks", tag: "quic", listen: "127.0.0.1", listen_port: 11095},
                        {type: "direct", tag: "uot", listen: "127.0.0.1", listen_port: 11096, network: "udp",
@@ -1010,6 +1012,10 @@ jobs:
                         {type: "naive", tag: "naive-hello", server: "127.0.0.1", server_port: 18447, username: "niko", password: $pw, tls: $tls},
                         {type: "naive", tag: "naive-hello-quic", server: "127.0.0.1", server_port: 18448, username: "niko", password: $pw,
                          quic: true, tls: $tls},
+                        {type: "naive", tag: "naive-quic-noise", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw,
+                         quic: true, udp_desync: {prelude: 3}, tls: $tls},
+                        {type: "naive", tag: "naive-quic-reorder", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw,
+                         quic: true, udp_desync: {prelude: 2, prelude_sni: "allowed.example", reorder_initial: true}, tls: $tls},
                         {type: "naive", tag: "naive-uot", server: "127.0.0.1", server_port: 18446, username: "niko", password: $pw,
                          udp_over_tcp: true, tls: $tls}],
             route: {rules: [{inbound: ["wrong"], outbound: "naive-wrong"}, {inbound: ["quic"], outbound: "naive-quic"},
@@ -1017,6 +1023,8 @@ jobs:
                             {inbound: ["pin-one"], outbound: "naive-pin-one"}, {inbound: ["quic-pin"], outbound: "naive-quic-pin"},
                             {inbound: ["quic-pin-bad"], outbound: "naive-quic-pin-bad"}, {inbound: ["ack"], outbound: "naive-ack"},
                             {inbound: ["hello"], outbound: "naive-hello"}, {inbound: ["hello-quic"], outbound: "naive-hello-quic"},
+                            {inbound: ["quic-noise"], outbound: "naive-quic-noise"},
+                            {inbound: ["quic-reorder"], outbound: "naive-quic-reorder"},
                             {inbound: ["uot"], outbound: "naive-uot"}], final: "naive"}}' > /tmp/core-naive.json
           nohup /tmp/sing-box run -c /tmp/core-naive.json > /tmp/core-naive.log 2>&1 &
           for i in $(seq 75); do
@@ -1058,6 +1066,12 @@ jobs:
             grep -i "pin-bad" /tmp/core-naive.log | tail -n 20 | cut -c1-300
             fail=1
           fi
+          # udp_desync on naive over QUIC, as Hysteria2 and TUIC have it: three datagrams of noise before Chromium has
+          # the socket; then fake Initials with a name that is not the node and the Initials in reverse, for which
+          # the core relays the connection (Chromium no longer holds the socket itself). The front must let both by
+          check "core naive outbound over QUIC, a prelude of noise" 11106 204
+          check "core naive outbound over QUIC, fake Initials and the Initials in reverse" 11107 204
+          echo "UDP connections the core relayed for Chromium: $(grep -c "relaying UDP connection" /tmp/core-naive.log || true)"
           udp() { got=$(python3 -I .github/scripts/udp-dns-probe.py "$2"); echo "$1: $got (want $3)"; [ "$got" = "$3" ] || fail=1; }
           if [ -f raycontrol/internal/naive/uot.go ]; then
             udp "core naive outbound, UDP over TCP v2 -> rayd naive -> 1.1.1.1:53" 11096 answer

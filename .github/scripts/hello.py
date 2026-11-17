@@ -12,7 +12,8 @@ Extension order is not compared: Chrome shuffles it.
 
 A ClientHello from QUIC (quicinitial open, the CRYPTO frames of the Initial packets put together) is read the same
 way; its transport parameters (0x0039) are compared one by one, their order not (Chrome shuffles them too), a GREASE
-parameter as present, the GREASE version in version_information as one.
+parameter as present, the GREASE version in version_information as one, wherever it stands among the versions
+(Chromium places it at random).
 """
 import socket
 import struct
@@ -74,9 +75,11 @@ def transport_parameters(data):
         if pid == 0x0f:
             parts[f"transport parameter {label}"] = f"{len(value)} bytes"  # the client's own connection ID
         elif pid == 0x11:
+            # the chosen version, then the others, among which Chromium puts one GREASE version at a random index
+            # (QUICHE, SerializeTransportParameters): its place changes by connection, so it is told last
             versions = [struct.unpack(">I", value[k:k + 4])[0] for k in range(0, len(value) - 3, 4)]
-            parts[f"transport parameter {label}"] = ",".join(
-                "GREASE" if v & 0x0f0f0f0f == 0x0a0a0a0a else f"{v:08x}" for v in versions)
+            real = [f"{v:08x}" for v in versions if v & 0x0f0f0f0f != 0x0a0a0a0a]
+            parts[f"transport parameter {label}"] = ",".join(real + ["GREASE"] * (len(versions) - len(real)))
         else:
             parts[f"transport parameter {label}"] = value.hex()
     parts[name(0x0039)] = ",".join(sorted(ids))

@@ -82,6 +82,14 @@ private val TLS_FRAGMENT_TYPES = setOf("vmess", "vless", "trojan", "http", "anyt
 
 // QUIC clients whose UDP the core can shape (common/udpdesync)
 private val UDP_DESYNC_TYPES = setOf("hysteria2", "tuic")
+
+/**
+ * Whether the outbound opens a QUIC connection of its own, which the core can shape (udp_desync): Hysteria2 and TUIC
+ * always, naive when the profile goes over QUIC or carries UDP as HTTP/3 datagrams ([naiveDatagrams]: the second,
+ * QUIC connection beside HTTP/2). naive over HTTP/2 alone has none.
+ */
+internal fun udpDesyncApplies(outboundType: String, bean: AbstractBean, naiveDatagrams: Boolean): Boolean =
+    outboundType in UDP_DESYNC_TYPES || (bean is NaiveBean && (bean.proto == "quic" || naiveDatagrams))
 private val TLS_PIN_TYPES = TLS_FRAGMENT_TYPES + setOf("hysteria", "hysteria2", "tuic", "naive")
 
 /**
@@ -700,8 +708,10 @@ fun buildConfig(
                     currentOutbound._hack_config_map["icmp"] = true
                 }
 
-                // UDP desync of QUIC clients (core common/udpdesync)
-                if (!proxyEntity.needExternal() && outboundType in UDP_DESYNC_TYPES &&
+                // UDP desync of QUIC clients (core common/udpdesync). For naive the prelude goes out on the socket
+                // before Chromium has it; reordering makes the core relay every datagram of the connection
+                if (!proxyEntity.needExternal() &&
+                    udpDesyncApplies(outboundType, bean, currentOutbound._hack_config_map["udp_datagram"] == true) &&
                     ((bean.udpPrelude ?: 0) > 0 || bean.udpReorderInitial == true)
                 ) {
                     currentOutbound._hack_config_map["udp_desync"] = buildMap {

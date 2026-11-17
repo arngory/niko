@@ -1024,7 +1024,7 @@
     <string name="udp_prelude_ttl">TTL фейков (0 — по умолчанию)</string>
     <string name="udp_reorder_initial">Отправлять второй QUIC Initial первым</string>
     <string name="udp_prelude_sni_invalid">Имя сервера, например allowed.example.ru</string>
-    <string name="udp_desync_summary">Hysteria2 и TUIC. DPI, который судит о потоке по первым пакетам, видит фейки или ClientHello без имени сервера: постквантовый ClientHello занимает два Initial-пакета, и второй уходит первым. Нода raycontrol фейки отбрасывает; для другого сервера задайте TTL, который кончится раньше него (меньше хопов, чем до сервера). При obfs у Hysteria2 перестановка ничего не даёт (Initial там не виден).</string>
+    <string name="udp_desync_summary">Hysteria2, TUIC и naive поверх QUIC (и его датаграммы HTTP/3). DPI, который судит о потоке по первым пакетам, видит фейки или ClientHello без имени сервера: постквантовый ClientHello занимает два Initial-пакета, и второй уходит первым. Нода raycontrol фейки отбрасывает; для другого сервера задайте TTL, который кончится раньше него (меньше хопов, чем до сервера). При obfs у Hysteria2 перестановка ничего не даёт (Initial там не виден); у naive она стоит немного скорости (каждый пакет копируется лишний раз), а фейки делают его начало непохожим на браузер.</string>
     <string name="port_knocking">Port knocking</string>
     <string name="port_knocking_sequence">Последовательность, например 7000, 8000/udp, 9000</string>
     <string name="port_knocking_interval">Пауза между стуками, мс</string>

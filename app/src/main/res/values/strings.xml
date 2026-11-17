@@ -1112,7 +1112,7 @@
     <string name="udp_prelude_ttl">TTL of the fakes (0: default)</string>
     <string name="udp_reorder_initial">Send the second QUIC Initial first</string>
     <string name="udp_prelude_sni_invalid">A server name, like allowed.example.ru</string>
-    <string name="udp_desync_summary">Hysteria2 and TUIC. A box that judges the flow by its first packets sees the fakes, or a ClientHello without the server name: a post-quantum ClientHello takes two Initial packets, and the second one goes first. A raycontrol node drops the fakes; for another server give them a TTL that ends before it (fewer hops than the server). Reordering does nothing under Hysteria2 obfs (no visible Initial there).</string>
+    <string name="udp_desync_summary">Hysteria2, TUIC, and naive over QUIC (its HTTP/3 datagrams too). A box that judges the flow by its first packets sees the fakes, or a ClientHello without the server name: a post-quantum ClientHello takes two Initial packets, and the second one goes first. A raycontrol node drops the fakes; for another server give them a TTL that ends before it (fewer hops than the server). Reordering does nothing under Hysteria2 obfs (no visible Initial there); with naive it costs some speed (each packet takes one more copy), and the fakes make its start unlike a browser\'s.</string>
     <string name="port_knocking">Port knocking</string>
     <string name="port_knocking_sequence">Knock sequence, e.g. 7000, 8000/udp, 9000</string>
     <string name="port_knocking_interval">Delay between knocks, ms</string>
