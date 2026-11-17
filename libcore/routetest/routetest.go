@@ -26,6 +26,13 @@ import (
 	"github.com/sagernet/sing/service"
 )
 
+// timeLimit bounds the lookups of one test: the app's own query and a resolve action's.
+const timeLimit = 20 * time.Second
+
+// ErrTimeLimit: the test's lookups took all of timeLimit before the walk ended; the answer is not known, which no
+// rule decided (wraps context.DeadlineExceeded).
+var ErrTimeLimit = fmt.Errorf("the lookups took the route tester's %v: %w", timeLimit, context.DeadlineExceeded)
+
 // Query is a connection to try against the running core's rules: no connection is made.
 type Query struct {
 	// tcp or udp
@@ -94,12 +101,13 @@ func Run(ctx context.Context, q Query) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	// the lookups below: the binder's caller waits for them
-	// the caller's: a core stopped or a caller gone ends the walk below; the lookups' own limit does not (a lookup
-	// that answered just before it still gives an answer)
+	// the lookups below: the binder's caller waits for them, at most this long. A core stopped or a caller gone ends
+	// the walk with the caller's error; the limit run out ends it with ErrTimeLimit, never as a rule's verdict (a
+	// lookup of the walk cut short by it would read as the router ending the connection there)
 	caller := ctx
-	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, timeLimit)
 	defer cancel()
+	timedOut := func() bool { return ctx.Err() != nil && caller.Err() == nil }
 
 	metadata := adapter.InboundContext{Inbound: inbound, InboundType: inboundType, Network: network}
 	if q.UID > 0 || len(q.Packages) > 0 {
@@ -150,6 +158,9 @@ func Run(ctx context.Context, q Query) (*Result, error) {
 		if err := caller.Err(); err != nil {
 			return nil, err
 		}
+		if timedOut() {
+			return nil, ErrTimeLimit
+		}
 		metadata.ResetRuleCache()
 		if !rule.Match(&metadata) {
 			continue
@@ -183,6 +194,9 @@ func Run(ctx context.Context, q Query) (*Result, error) {
 				break
 			}
 			addresses, err := resolve(ctx, &metadata, a)
+			if err != nil && timedOut() {
+				return nil, ErrTimeLimit
+			}
 			if err != nil {
 				// the router ends the connection on it
 				result.Steps = append(result.Steps, step)

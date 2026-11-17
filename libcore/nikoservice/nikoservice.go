@@ -5,6 +5,7 @@ package nikoservice
 
 import (
 	"context"
+	"errors"
 
 	"libcore/nikopb"
 	"libcore/routetest"
@@ -86,6 +87,9 @@ func (s *server) RouteTest(ctx context.Context, request *nikopb.RouteTestRequest
 	}
 	if ctx.Err() != nil {
 		return nil, status.FromContextError(ctx.Err()).Err()
+	}
+	if errors.Is(err, routetest.ErrTimeLimit) {
+		return nil, status.Error(codes.DeadlineExceeded, err.Error())
 	}
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
