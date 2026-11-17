@@ -140,6 +140,8 @@
     </style>
 
     <style name="ThemeOverlay.MaterialComponents.MaterialAlertDialog.SagerNet">
+        <!-- a dialog's title is the design system's title (m-dialog__title, 600 24/30), not Material's Subtitle1 -->
+        <item name="materialAlertDialogTitleTextStyle">@style/MaterialAlertDialog.Niko.Title.Text</item>
         <item name="buttonBarPositiveButtonStyle">
             @style/Widget.MaterialComponents.Button.TextButton.Dialog.Primary
         </item>
@@ -149,6 +151,10 @@
         <item name="buttonBarNeutralButtonStyle">
             @style/Widget.MaterialComponents.Button.TextButton.Dialog.Flush.Primary
         </item>
+    </style>
+
+    <style name="MaterialAlertDialog.Niko.Title.Text" parent="MaterialAlertDialog.MaterialComponents.Title.Text">
+        <item name="android:textAppearance">?attr/textAppearanceHeadline5</item>
     </style>
 
     <style name="Widget.MaterialComponents.Button.TextButton.Dialog.Primary">
@@ -565,49 +571,6 @@
         <item name="primaryOrTextPrimary">?android:textColorPrimary</item>
     </style>
 
-    <style name="TextAppearance.Niko.Headline4" parent="TextAppearance.MaterialComponents.Headline4">
-        <item name="fontFamily">@font/geist</item>
-        <item name="android:fontFamily">@font/geist</item>
-    </style>
-    <style name="TextAppearance.Niko.Headline5" parent="TextAppearance.MaterialComponents.Headline5">
-        <item name="fontFamily">@font/geist</item>
-        <item name="android:fontFamily">@font/geist</item>
-    </style>
-    <style name="TextAppearance.Niko.Headline6" parent="TextAppearance.MaterialComponents.Headline6">
-        <item name="fontFamily">@font/geist</item>
-        <item name="android:fontFamily">@font/geist</item>
-        <item name="android:textStyle">bold</item>
-    </style>
-    <style name="TextAppearance.Niko.Subtitle1" parent="TextAppearance.MaterialComponents.Subtitle1">
-        <item name="fontFamily">@font/geist</item>
-        <item name="android:fontFamily">@font/geist</item>
-    </style>
-    <style name="TextAppearance.Niko.Subtitle2" parent="TextAppearance.MaterialComponents.Subtitle2">
-        <item name="fontFamily">@font/geist</item>
-        <item name="android:fontFamily">@font/geist</item>
-        <item name="android:textStyle">bold</item>
-    </style>
-    <style name="TextAppearance.Niko.Body1" parent="TextAppearance.MaterialComponents.Body1">
-        <item name="fontFamily">@font/geist</item>
-        <item name="android:fontFamily">@font/geist</item>
-    </style>
-    <style name="TextAppearance.Niko.Body2" parent="TextAppearance.MaterialComponents.Body2">
-        <item name="fontFamily">@font/geist</item>
-        <item name="android:fontFamily">@font/geist</item>
-    </style>
-    <style name="TextAppearance.Niko.Button" parent="TextAppearance.MaterialComponents.Button">
-        <item name="fontFamily">@font/geist</item>
-        <item name="android:fontFamily">@font/geist</item>
-        <item name="android:textStyle">bold</item>
-    </style>
-    <style name="TextAppearance.Niko.Caption" parent="TextAppearance.MaterialComponents.Caption">
-        <item name="fontFamily">@font/geist</item>
-        <item name="android:fontFamily">@font/geist</item>
-    </style>
-    <style name="TextAppearance.Niko.Overline" parent="TextAppearance.MaterialComponents.Overline">
-        <item name="fontFamily">@font/geist</item>
-        <item name="android:fontFamily">@font/geist</item>
-    </style>
     <style name="TextAppearance.Niko.ToolbarTitle" parent="TextAppearance.Widget.AppCompat.Toolbar.Title">
         <item name="fontFamily">@font/geist</item>
         <item name="android:fontFamily">@font/geist</item>
