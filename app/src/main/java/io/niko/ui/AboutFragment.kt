@@ -127,7 +127,7 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                         .outline(false)
                         .addItem(
                             MaterialAboutActionItem.Builder()
-                                .icon(R.drawable.ic_baseline_update_24)
+                                .icon(R.drawable.ic_l_refresh_cw)
                                 .text(R.string.app_version)
                                 .subText(SagerNet.appVersionNameForDisplay)
                                 .setOnClickAction {
@@ -152,7 +152,7 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                                 .build())
                         .addItem(
                             MaterialAboutActionItem.Builder()
-                                .icon(R.drawable.ic_baseline_layers_24)
+                                .icon(R.drawable.ic_l_layers)
                                 .text(getString(R.string.version_x, "sing-box"))
                                 .subText(Libcore.versionBox())
                                 .setOnClickAction { }
@@ -166,7 +166,7 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                                     if (pluginId.isNullOrBlank()) continue
                                     addItem(
                                         MaterialAboutActionItem.Builder()
-                                            .icon(R.drawable.ic_baseline_nfc_24)
+                                            .icon(R.drawable.ic_l_puzzle)
                                             .text(
                                                 getString(
                                                     R.string.version_x,
@@ -190,7 +190,7 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                                 if (!pm.isIgnoringBatteryOptimizations(app.packageName)) {
                                     addItem(
                                         MaterialAboutActionItem.Builder()
-                                            .icon(R.drawable.ic_baseline_running_with_errors_24)
+                                            .icon(R.drawable.ic_l_battery_warning)
                                             .text(R.string.ignore_battery_optimizations)
                                             .subText(R.string.ignore_battery_optimizations_sum)
                                             .setOnClickAction {
@@ -209,7 +209,7 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                             if (io.niko.utils.BackgroundLimits.restricted(app)) {
                                 addItem(
                                     MaterialAboutActionItem.Builder()
-                                        .icon(R.drawable.ic_baseline_running_with_errors_24)
+                                        .icon(R.drawable.ic_l_battery_warning)
                                         .text(R.string.background_restricted)
                                         .subText(R.string.background_restricted_sum)
                                         .setOnClickAction { io.niko.utils.BackgroundLimits.openAppInfo(requireContext()) }
@@ -218,7 +218,7 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                             if (io.niko.utils.BackgroundLimits.hasVendorManager()) {
                                 addItem(
                                     MaterialAboutActionItem.Builder()
-                                        .icon(R.drawable.ic_baseline_running_with_errors_24)
+                                        .icon(R.drawable.ic_l_battery_warning)
                                         .text(R.string.background_vendor)
                                         .subText(R.string.background_vendor_sum)
                                         .setOnClickAction { io.niko.utils.BackgroundLimits.openVendorManager(requireContext()) }
@@ -232,7 +232,7 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                         .title(R.string.project)
                         .addItem(
                             MaterialAboutActionItem.Builder()
-                                .icon(R.drawable.ic_baseline_link_24)
+                                .icon(R.drawable.ic_l_link)
                                 .text(R.string.github)
                                 .setOnClickAction {
                                     requireContext().launchCustomTab("https://github.com/$RELEASE_REPO")

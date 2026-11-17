@@ -212,7 +212,7 @@ class AppManagerActivity : ThemedActivity() {
         supportActionBar?.apply {
             setTitle(R.string.proxied_apps)
             setDisplayHomeAsUpEnabled(true)
-            setHomeAsUpIndicator(R.drawable.ic_navigation_close)
+            setHomeAsUpIndicator(R.drawable.ic_l_x)
         }
 
         if (!DataStore.proxyApps) {

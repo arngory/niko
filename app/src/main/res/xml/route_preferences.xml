@@ -2,28 +2,28 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <EditTextPreference
-        app:icon="@drawable/ic_social_emoji_symbols"
+        app:icon="@drawable/ic_l_tag"
         app:key="routeName"
         app:title="@string/route_name"
         app:useSimpleSummaryProvider="true" />
     <io.niko.ui.EditConfigPreference
-        app:icon="@drawable/ic_baseline_layers_24"
+        app:icon="@drawable/ic_l_file_json"
         app:key="serverConfig"
         app:title="@string/custom_config"
         app:useSimpleSummaryProvider="true" />
     <PreferenceCategory app:title="@string/cag_route">
         <io.niko.widget.AppListPreference
-            app:icon="@drawable/ic_baseline_legend_toggle_24"
+            app:icon="@drawable/ic_l_layout_grid"
             app:key="routePackages"
             app:title="@string/apps" />
         <EditTextPreference
-            app:icon="@drawable/ic_baseline_domain_24"
+            app:icon="@drawable/ic_l_globe"
             app:dialogMessage="@string/route_domain_help"
             app:key="routeDomain"
             app:title="domain"
             app:useSimpleSummaryProvider="true" />
         <EditTextPreference
-            app:icon="@drawable/ic_baseline_add_road_24"
+            app:icon="@drawable/ic_l_locate_fixed"
             app:dialogMessage="@string/route_ip_help"
             app:key="routeIP"
             app:title="dst ip"
@@ -31,34 +31,34 @@
         <EditTextPreference
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            app:icon="@drawable/ic_maps_directions_boat"
+            app:icon="@drawable/ic_l_ethernet_port"
             app:key="routePort"
             app:title="dst port"
             app:useSimpleSummaryProvider="true" />
         <EditTextPreference
-            app:icon="@drawable/ic_baseline_local_bar_24"
+            app:icon="@drawable/ic_l_house"
             app:key="routeSource"
             app:title="src ip"
             app:useSimpleSummaryProvider="true" />
         <EditTextPreference
-            app:icon="@drawable/ic_baseline_home_24"
+            app:icon="@drawable/ic_l_ethernet_port"
             app:key="routeSourcePort"
             app:title="src port"
             app:useSimpleSummaryProvider="true" />
         <io.niko.ui.SimpleMenuPreference
             app:entries="@array/route_protocol_entry"
             app:entryValues="@array/route_protocol_value"
-            app:icon="@drawable/ic_baseline_compare_arrows_24"
+            app:icon="@drawable/ic_l_network"
             app:key="routeNetwork"
             app:title="network"
             app:useSimpleSummaryProvider="true" />
         <EditTextPreference
-            app:icon="@drawable/ic_baseline_layers_24"
+            app:icon="@drawable/ic_l_layers"
             app:key="routeProtocol"
             app:title="protocol"
             app:useSimpleSummaryProvider="true" />
         <io.niko.widget.OutboundPreference
-            app:icon="@drawable/ic_hardware_router"
+            app:icon="@drawable/ic_l_log_out"
             app:key="routeOutbound"
             app:title="outbound"
             app:useSimpleSummaryProvider="true" />

@@ -1,7 +1,7 @@
 <PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <EditTextPreference
-        app:icon="@drawable/ic_social_emoji_symbols"
+        app:icon="@drawable/ic_l_tag"
         app:key="profileName"
         app:title="@string/profile_name"
         app:useSimpleSummaryProvider="true" />
@@ -10,7 +10,7 @@
         app:defaultValue="2"
         app:entries="@array/hysteria_version"
         app:entryValues="@array/hysteria_version"
-        app:icon="@drawable/ic_baseline_update_24"
+        app:icon="@drawable/ic_l_hash"
         app:key="protocolVersion"
         app:title="@string/protocol_version"
         app:useSimpleSummaryProvider="true" />
@@ -18,83 +18,83 @@
     <PreferenceCategory app:title="@string/proxy_cat">
 
         <EditTextPreference
-            app:icon="@drawable/ic_hardware_router"
+            app:icon="@drawable/ic_l_server"
             app:key="serverAddress"
             app:title="@string/server_address"
             app:useSimpleSummaryProvider="true" />
         <EditTextPreference
-            app:icon="@drawable/ic_maps_directions_boat"
+            app:icon="@drawable/ic_l_ethernet_port"
             app:key="serverPorts"
             app:title="@string/server_port"
             app:useSimpleSummaryProvider="true" />
         <EditTextPreference
             app:dialogLayout="@layout/layout_password_dialog"
-            app:icon="@drawable/ic_baseline_texture_24"
+            app:icon="@drawable/ic_l_venetian_mask"
             app:key="serverObfs"
             app:title="@string/hysteria_obfs"
             app:useSimpleSummaryProvider="true" />
         <io.niko.ui.SimpleMenuPreference
             app:entries="@array/hysteria_auth_type"
             app:entryValues="@array/int_array_3"
-            app:icon="@drawable/ic_baseline_compare_arrows_24"
+            app:icon="@drawable/ic_l_user_check"
             app:key="serverAuthType"
             app:title="@string/hysteria_auth_type"
             app:useSimpleSummaryProvider="true" />
         <EditTextPreference
             app:dialogLayout="@layout/layout_password_dialog"
-            app:icon="@drawable/ic_settings_password"
+            app:icon="@drawable/ic_l_key_round"
             app:key="serverPassword"
             app:title="@string/hysteria_auth_payload" />
         <io.niko.ui.SimpleMenuPreference
             app:defaultValue="https"
             app:entries="@array/hysteria_protocol"
             app:entryValues="@array/int_array_3"
-            app:icon="@drawable/ic_baseline_layers_24"
+            app:icon="@drawable/ic_l_layers"
             app:key="serverProtocol"
             app:title="@string/protocol"
             app:useSimpleSummaryProvider="true" />
         <EditTextPreference
-            app:icon="@drawable/ic_action_copyright"
+            app:icon="@drawable/ic_l_globe"
             app:key="serverSNI"
             app:title="@string/sni"
             app:useSimpleSummaryProvider="true" />
         <EditTextPreference
-            app:icon="@drawable/ic_baseline_legend_toggle_24"
+            app:icon="@drawable/ic_l_list_ordered"
             app:key="serverALPN"
             app:title="@string/alpn"
             app:useSimpleSummaryProvider="true" />
         <EditTextPreference
-            app:icon="@drawable/ic_baseline_vpn_key_24"
+            app:icon="@drawable/ic_l_file_badge"
             app:key="serverCertificates"
             app:title="@string/certificates"
             app:useSimpleSummaryProvider="true" />
         <SwitchPreference
-            app:icon="@drawable/ic_notification_enhanced_encryption"
+            app:icon="@drawable/ic_l_shield_off"
             app:key="serverAllowInsecure"
             app:summary="@string/allow_insecure_sum"
             app:title="@string/allow_insecure" />
         <EditTextPreference
-            app:icon="@drawable/ic_file_file_upload"
+            app:icon="@drawable/ic_l_upload"
             app:key="serverUploadSpeed"
             app:title="@string/hysteria_upload_mbps"
             app:useSimpleSummaryProvider="true" />
         <EditTextPreference
-            app:icon="@drawable/ic_baseline_download_24"
+            app:icon="@drawable/ic_l_download"
             app:key="serverDownloadSpeed"
             app:title="@string/hysteria_download_mbps"
             app:useSimpleSummaryProvider="true" />
         <EditTextPreference
-            app:icon="@drawable/ic_baseline_texture_24"
+            app:icon="@drawable/ic_l_rows_2"
             app:key="serverStreamReceiveWindow"
             app:title="@string/hysteria_stream_receive_window"
             app:useSimpleSummaryProvider="true" />
         <EditTextPreference
-            app:icon="@drawable/ic_baseline_transform_24"
+            app:icon="@drawable/ic_l_rows_3"
             app:key="serverConnectionReceiveWindow"
             app:title="@string/hysteria_connection_receive_window"
             app:useSimpleSummaryProvider="true" />
         <SwitchPreference
-            app:icon="@drawable/ic_baseline_multiple_stop_24"
+            app:icon="@drawable/ic_l_ruler"
             app:key="serverDisableMtuDiscovery"
             app:title="@string/hysteria_disable_mtu_discovery" />
         <EditTextPreference

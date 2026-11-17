@@ -68,7 +68,7 @@
                     android:contentDescription="@string/edit"
                     android:focusable="true"
                     android:padding="12dp"
-                    app:srcCompat="@drawable/ic_image_edit" />
+                    app:srcCompat="@drawable/ic_l_pencil" />
 
                 <LinearLayout
                     android:id="@+id/share"
@@ -90,7 +90,7 @@
                             android:id="@+id/shareIcon"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            app:srcCompat="@drawable/ic_social_share" />
+                            app:srcCompat="@drawable/ic_l_share_2" />
                     </LinearLayout>
 
                 </LinearLayout>
@@ -105,7 +105,7 @@
                     android:focusable="true"
                     android:padding="12dp"
                     android:visibility="gone"
-                    app:srcCompat="@drawable/ic_action_delete" />
+                    app:srcCompat="@drawable/ic_l_trash_2" />
 
             </LinearLayout>
 

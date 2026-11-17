@@ -51,7 +51,7 @@
             android:layout_height="36dp"
             android:background="?primaryOrTextPrimary"
             android:padding="8dp"
-            android:src="@drawable/baseline_keyboard_tab_24"
+            android:src="@drawable/ic_l_arrow_right_to_line"
             app:tint="?colorOnSurface" />
 
         <io.niko.ui.ExtendedKeyboard
@@ -70,7 +70,7 @@
             android:layout_height="36dp"
             android:background="?primaryOrTextPrimary"
             android:padding="8dp"
-            android:src="@drawable/baseline_undo_24"
+            android:src="@drawable/ic_l_undo_2"
             app:tint="?colorOnSurface" />
 
         <ImageView
@@ -79,7 +79,7 @@
             android:layout_height="36dp"
             android:background="?primaryOrTextPrimary"
             android:padding="8dp"
-            android:src="@drawable/baseline_redo_24"
+            android:src="@drawable/ic_l_redo_2"
             app:tint="?colorOnSurface" />
 
         <ImageView
@@ -88,7 +88,7 @@
             android:layout_height="36dp"
             android:background="?primaryOrTextPrimary"
             android:padding="8dp"
-            android:src="@drawable/ic_baseline_format_align_left_24"
+            android:src="@drawable/ic_l_align_left"
             app:tint="?colorOnSurface" />
 
         <ImageView

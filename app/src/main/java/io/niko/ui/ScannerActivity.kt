@@ -52,7 +52,7 @@ class ScannerActivity : ThemedActivity(),
         setSupportActionBar(findViewById(R.id.toolbar))
         supportActionBar?.apply {
             setDisplayHomeAsUpEnabled(true)
-            setHomeAsUpIndicator(R.drawable.ic_navigation_close)
+            setHomeAsUpIndicator(R.drawable.ic_l_x)
         }
 
         // 二维码库

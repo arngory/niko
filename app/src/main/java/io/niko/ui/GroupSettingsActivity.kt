@@ -216,7 +216,7 @@ class GroupSettingsActivity(
         supportActionBar?.apply {
             setTitle(R.string.group_settings)
             setDisplayHomeAsUpEnabled(true)
-            setHomeAsUpIndicator(R.drawable.ic_navigation_close)
+            setHomeAsUpIndicator(R.drawable.ic_l_x)
         }
 
         if (savedInstanceState == null) {

@@ -145,9 +145,11 @@ jobs:
           persist-credentials: false
 
       # the design system's colours in the app's resources are what shared/tokens.json gives (the same check
-      # desktop.yml makes for the window's theme)
+      # desktop.yml makes for the window's theme), and the icons what the SVGs of shared/icons give
       - name: Generated resources are current
-        run: python3 -I shared/tool/gen_tokens.py --check
+        run: |
+          python3 -I shared/tool/gen_tokens.py --check
+          python3 -I shared/tool/gen_icons.py --check
 
       - name: Download LibCore
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0

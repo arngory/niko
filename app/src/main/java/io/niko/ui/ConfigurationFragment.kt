@@ -224,7 +224,7 @@ class ConfigurationFragment @JvmOverloads constructor(
             toolbar.setOnMenuItemClickListener(this)
         } else {
             toolbar.setTitle(titleRes)
-            toolbar.setNavigationIcon(R.drawable.ic_navigation_close)
+            toolbar.setNavigationIcon(R.drawable.ic_l_x)
             toolbar.setNavigationOnClickListener {
                 requireActivity().finish()
             }
@@ -1748,7 +1748,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                     if (!(select || proxyEntity.type == ProxyEntity.TYPE_CHAIN)) {
                         onMainDispatcher {
                             shareLayer.setBackgroundColor(Color.TRANSPARENT)
-                            shareButton.setImageResource(R.drawable.ic_social_share)
+                            shareButton.setImageResource(R.drawable.ic_l_share_2)
                             shareButton.setColorFilter(Color.GRAY)
                             shareButton.isVisible = true
 

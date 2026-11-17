@@ -65,7 +65,7 @@
                 android:contentDescription="@string/edit"
                 android:focusable="true"
                 android:padding="12dp"
-                app:srcCompat="@drawable/ic_image_edit" />
+                app:srcCompat="@drawable/ic_l_pencil" />
 
             <androidx.appcompat.widget.AppCompatImageView
                 android:id="@+id/options"
@@ -76,7 +76,7 @@
                 android:focusable="true"
                 android:nextFocusLeft="@+id/container"
                 android:padding="12dp"
-                app:srcCompat="@drawable/ic_baseline_more_vert_24" />
+                app:srcCompat="@drawable/ic_l_ellipsis_vertical" />
 
         </LinearLayout>
 

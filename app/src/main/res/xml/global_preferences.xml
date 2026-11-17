@@ -4,19 +4,19 @@
     <PreferenceCategory app:title="@string/general_settings">
         <SwitchPreference
             app:defaultValue="false"
-            app:icon="@drawable/ic_communication_phonelink_ring"
+            app:icon="@drawable/ic_l_power"
             app:key="isAutoConnect"
             app:summary="@string/auto_connect_summary"
             app:title="@string/auto_connect" />
         <io.niko.ui.ColorPickerPreference
             android:title="@string/theme"
-            app:icon="@drawable/ic_baseline_color_lens_24"
+            app:icon="@drawable/ic_l_palette"
             app:key="appTheme" />
         <io.niko.ui.SimpleMenuPreference
             app:defaultValue="0"
             app:entries="@array/night_mode"
             app:entryValues="@array/int_array_4"
-            app:icon="@drawable/ic_baseline_wb_sunny_24"
+            app:icon="@drawable/ic_l_moon"
             app:key="nightTheme"
             app:title="@string/night_mode"
             app:useSimpleSummaryProvider="true" />
@@ -24,7 +24,7 @@
             app:defaultValue="vpn"
             app:entries="@array/service_modes"
             app:entryValues="@array/service_mode_values"
-            app:icon="@drawable/ic_device_developer_mode"
+            app:icon="@drawable/ic_l_router"
             app:key="serviceMode"
             app:title="@string/service_mode"
             app:useSimpleSummaryProvider="true" />
@@ -32,7 +32,7 @@
             app:defaultValue="0"
             app:entries="@array/tun_implementation"
             app:entryValues="@array/int_array_3"
-            app:icon="@drawable/ic_baseline_flip_camera_android_24"
+            app:icon="@drawable/ic_l_cable"
             app:key="tunImplementation"
             app:title="@string/tun_implementation"
             app:useSimpleSummaryProvider="true" />
@@ -40,14 +40,14 @@
             app:defaultValue="9000"
             app:entries="@array/mtu_select"
             app:entryValues="@array/mtu_select"
-            app:icon="@drawable/baseline_public_24"
+            app:icon="@drawable/ic_l_ruler"
             app:key="mtu"
             app:title="@string/mtu" />
         <io.niko.ui.SimpleMenuPreference
             app:defaultValue="1000"
             app:entries="@array/notification_entry"
             app:entryValues="@array/notification_value"
-            app:icon="@drawable/ic_baseline_shutter_speed_24"
+            app:icon="@drawable/ic_l_timer"
             app:key="speedInterval"
             app:title="@string/speed_interval"
             app:useSimpleSummaryProvider="true" />
@@ -58,7 +58,7 @@
             app:title="@string/profile_traffic_statistics" />
         <SwitchPreference
             app:defaultValue="true"
-            app:icon="@drawable/ic_baseline_speed_24"
+            app:icon="@drawable/ic_l_gauge"
             app:key="showDirectSpeed"
             app:summary="@string/show_direct_speed_sum"
             app:title="@string/show_direct_speed"
@@ -67,17 +67,17 @@
             app:key="showGroupInNotification"
             app:title="@string/show_group_in_notification" />
         <SwitchPreference
-            app:icon="@drawable/ic_baseline_center_focus_weak_24"
+            app:icon="@drawable/ic_l_eye"
             app:key="alwaysShowAddress"
             app:summary="@string/always_show_address_sum"
             app:title="@string/always_show_address" />
         <SwitchPreference
-            app:icon="@drawable/ic_device_data_usage"
+            app:icon="@drawable/ic_l_signal"
             app:key="meteredNetwork"
             app:summary="@string/metered_summary"
             app:title="@string/metered" />
         <SwitchPreference
-            app:icon="@drawable/baseline_developer_board_24"
+            app:icon="@drawable/ic_l_coffee"
             app:key="acquireWakeLock"
             app:summary="@string/acquire_wake_lock_summary"
             app:title="@string/acquire_wake_lock" />
@@ -85,12 +85,12 @@
             app:defaultValue="0"
             app:entries="@array/log_level"
             app:entryValues="@array/int_array_5"
-            app:icon="@drawable/ic_baseline_bug_report_24"
+            app:icon="@drawable/ic_l_scroll_text"
             app:key="logLevel"
             app:title="@string/log_level"
             app:useSimpleSummaryProvider="true" />
         <io.niko.ui.EditConfigPreference
-            app:icon="@drawable/ic_baseline_layers_24"
+            app:icon="@drawable/ic_l_file_json"
             app:key="globalCustomConfig"
             app:title="@string/custom_config"
             app:useSimpleSummaryProvider="true" />
@@ -98,12 +98,12 @@
 
     <PreferenceCategory app:title="@string/cag_route">
         <SwitchPreference
-            app:icon="@drawable/ic_navigation_apps"
+            app:icon="@drawable/ic_l_layout_grid"
             app:key="proxyApps"
             app:summary="@string/proxied_apps_summary"
             app:title="@string/proxied_apps" />
         <SwitchPreference
-            app:icon="@drawable/ic_baseline_legend_toggle_24"
+            app:icon="@drawable/ic_l_house"
             app:key="bypassLan"
             app:title="@string/route_opt_bypass_lan" />
         <SwitchPreference
@@ -147,12 +147,12 @@
             app:defaultValue="1"
             app:entries="@array/traffic_sniffing_values"
             app:entryValues="@array/int_array_2"
-            app:icon="@drawable/ic_baseline_manage_search_24"
+            app:icon="@drawable/ic_l_scan_search"
             app:key="trafficSniffing"
             app:title="@string/traffic_sniffing"
             app:useSimpleSummaryProvider="true" />
         <SwitchPreference
-            app:icon="@drawable/baseline_wrap_text_24"
+            app:icon="@drawable/ic_l_locate"
             app:key="resolveDestination"
             app:summary="@string/resolve_destination_summary"
             app:title="@string/resolve_destination" />
@@ -160,7 +160,7 @@
             app:defaultValue="0"
             app:entries="@array/ipv6_mode"
             app:entryValues="@array/int_array_4"
-            app:icon="@drawable/ic_image_looks_6"
+            app:icon="@drawable/ic_l_hexagon"
             app:key="ipv6Mode"
             app:title="@string/ipv6"
             app:useSimpleSummaryProvider="true" />
@@ -168,7 +168,7 @@
             app:defaultValue="0"
             app:entries="@array/rules_dat_provider"
             app:entryValues="@array/int_array_4"
-            app:icon="@drawable/ic_baseline_rule_folder_24"
+            app:icon="@drawable/ic_l_folder_cog"
             app:key="rulesProvider"
             app:title="@string/route_rules_provider"
             app:useSimpleSummaryProvider="true" />
@@ -177,7 +177,7 @@
     <PreferenceCategory app:title="@string/cag_dns">
         <EditTextPreference
             app:defaultValue="https://dns.google/dns-query"
-            app:icon="@drawable/ic_action_dns"
+            app:icon="@drawable/ic_l_cloud"
             app:key="remoteDns"
             app:title="@string/remote_dns"
             app:useSimpleSummaryProvider="true" />
@@ -191,7 +191,7 @@
         <EditTextPreference
             app:defaultValue="local"
             app:dialogMessage="@string/direct_dns_help"
-            app:icon="@drawable/ic_action_dns"
+            app:icon="@drawable/ic_l_signpost"
             app:key="directDns"
             app:title="@string/direct_dns"
             app:useSimpleSummaryProvider="true" />
@@ -211,18 +211,18 @@
             app:useSimpleSummaryProvider="true" />
         <SwitchPreference
             app:defaultValue="true"
-            app:icon="@drawable/ic_baseline_camera_24"
+            app:icon="@drawable/ic_l_split"
             app:key="enableDnsRouting"
             app:summary="@string/dns_routing_message"
             app:title="@string/enable_dns_routing" />
         <SwitchPreference
             app:defaultValue="true"
-            app:icon="@drawable/ic_action_lock"
+            app:icon="@drawable/ic_l_ghost"
             app:key="enableFakeDns"
             app:summary="@string/fakedns_message"
             app:title="@string/enable_fakedns" />
         <SwitchPreference
-            app:icon="@drawable/ic_baseline_timelapse_24"
+            app:icon="@drawable/ic_l_history"
             app:key="dnsOptimisticCache"
             app:summary="@string/dns_optimistic_cache_sum"
             app:title="@string/dns_optimistic_cache" />
@@ -230,7 +230,7 @@
 
     <PreferenceCategory app:title="@string/inbound_settings">
         <EditTextPreference
-            app:icon="@drawable/ic_maps_directions_boat"
+            app:icon="@drawable/ic_l_ethernet_port"
             app:key="mixedPort"
             app:title="@string/port_proxy"
             app:useSimpleSummaryProvider="true" />
@@ -253,7 +253,7 @@
             app:summary="@string/append_http_proxy_sum"
             app:title="@string/append_http_proxy" />
         <SwitchPreference
-            app:icon="@drawable/ic_baseline_nat_24"
+            app:icon="@drawable/ic_l_wifi"
             app:key="allowAccess"
             app:summary="@string/allow_access_sum"
             app:title="@string/allow_access" />
@@ -261,7 +261,7 @@
 
     <PreferenceCategory app:title="@string/yggdrasil">
         <SwitchPreference
-            app:icon="@drawable/ic_baseline_domain_24"
+            app:icon="@drawable/ic_l_tree_deciduous"
             app:key="yggdrasilEnabled"
             app:summary="@string/yggdrasil_summary"
             app:title="@string/yggdrasil_enable" />
@@ -301,7 +301,7 @@
 
     <PreferenceCategory app:title="@string/raycontrol">
         <Preference
-            app:icon="@drawable/ic_baseline_vpn_key_24"
+            app:icon="@drawable/ic_l_server_cog"
             app:key="raycontrolNodesView"
             app:title="@string/raycontrol_nodes" />
         <SwitchPreference
@@ -336,18 +336,18 @@
     <PreferenceCategory app:title="@string/cag_misc">
         <io.niko.ui.UrlTestPreference
             app:defaultValue="http://cp.cloudflare.com/"
-            app:icon="@drawable/ic_baseline_cast_connected_24"
+            app:icon="@drawable/ic_l_activity"
             app:key="connectionTestURL"
             app:title="@string/connection_test_url"
             app:useSimpleSummaryProvider="true" />
         <SwitchPreference
-            app:icon="@drawable/baseline_construction_24"
+            app:icon="@drawable/ic_l_square_terminal"
             app:key="enableClashAPI"
             app:summary="@string/enable_clash_api_summary"
             app:title="@string/enable_clash_api" />
         <SwitchPreference
             app:defaultValue="true"
-            app:icon="@drawable/ic_baseline_flip_camera_android_24"
+            app:icon="@drawable/ic_l_rotate_ccw"
             app:key="networkChangeResetConnections"
             app:title="@string/network_change_reset_connections"
             app:useSimpleSummaryProvider="true" />
@@ -356,7 +356,7 @@
             app:title="@string/wake_reset_connections"
             app:useSimpleSummaryProvider="true" />
         <SwitchPreference
-            app:icon="@drawable/ic_action_lock_open"
+            app:icon="@drawable/ic_l_shield_off"
             app:key="globalAllowInsecure"
             app:title="@string/global_allow_insecure" />
         <SwitchPreference

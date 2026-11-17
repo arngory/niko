@@ -18,7 +18,7 @@
         <item name="textAppearanceOverline">@style/TextAppearance.Niko.Overline</item>
         <item name="toolbarStyle">@style/Widget.Niko.Toolbar</item>
         <item name="actionBarStyle">@style/Widget.MaterialComponents.ActionBar.Solid</item>
-        <item name="actionModeCloseDrawable">@drawable/ic_navigation_close</item>
+        <item name="actionModeCloseDrawable">@drawable/ic_l_x</item>
         <item name="colorButtonNormal">?colorAccent</item>
         <item name="android:navigationBarColor">?colorPrimaryDark</item>
         <item name="colorPrimary">@color/material_pink_500</item>
@@ -84,7 +84,7 @@
         <item name="textAppearanceOverline">@style/TextAppearance.Niko.Overline</item>
         <item name="toolbarStyle">@style/Widget.Niko.Toolbar</item>
         <item name="actionBarStyle">@style/Widget.MaterialComponents.ActionBar.Solid</item>
-        <item name="actionModeCloseDrawable">@drawable/ic_navigation_close</item>
+        <item name="actionModeCloseDrawable">@drawable/ic_l_x</item>
         <item name="colorButtonNormal">?colorAccent</item>
         <item name="android:navigationBarColor">?colorPrimaryDark</item>
         <item name="colorPrimary">@color/material_pink_500</item>

@@ -44,7 +44,7 @@ class AssetsActivity : ThemedActivity() {
         supportActionBar?.apply {
             setTitle(R.string.route_assets)
             setDisplayHomeAsUpEnabled(true)
-            setHomeAsUpIndicator(R.drawable.ic_navigation_close)
+            setHomeAsUpIndicator(R.drawable.ic_l_x)
         }
 
         binding.recyclerView.layoutManager = FixedLinearLayoutManager(binding.recyclerView)

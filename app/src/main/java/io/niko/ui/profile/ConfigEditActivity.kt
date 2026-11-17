@@ -69,7 +69,7 @@ class ConfigEditActivity : ThemedActivity() {
         supportActionBar?.apply {
             setTitle(R.string.config_settings)
             setDisplayHomeAsUpEnabled(true)
-            setHomeAsUpIndicator(R.drawable.ic_navigation_close)
+            setHomeAsUpIndicator(R.drawable.ic_l_x)
         }
 
         binding.editor.apply {

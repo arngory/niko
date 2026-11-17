@@ -96,7 +96,7 @@ class RayAdminActivity : ThemedActivity() {
             setTitle(R.string.raycontrol_admin)
             subtitle = node.label
             setDisplayHomeAsUpEnabled(true)
-            setHomeAsUpIndicator(R.drawable.ic_navigation_close)
+            setHomeAsUpIndicator(R.drawable.ic_l_x)
         }
         binding.recyclerView.layoutManager = FixedLinearLayoutManager(binding.recyclerView)
         binding.recyclerView.adapter = adapter
@@ -122,7 +122,7 @@ class RayAdminActivity : ThemedActivity() {
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         if (tab == USERS || tab == SERVICES) {
             menu.add(0, MENU_ADD, 0, R.string.raycontrol_admin_add)
-                .setIcon(R.drawable.ic_action_note_add)
+                .setIcon(R.drawable.ic_l_plus)
                 .setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
         }
         return true
