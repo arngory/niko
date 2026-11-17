@@ -48,7 +48,11 @@ void main() {
     Process? process;
 
     Future<void> startDaemon() async {
-      final started = await Process.start(boxdd, ['run', '--listen', '127.0.0.1:$daemonPort', '-D', work.path]);
+      // boxdd takes INVOCATION_ID for "started by systemd" and refuses --listen as a service would; a CI runner
+      // and a terminal of a systemd session both carry it, and this child is no service
+      final environment = Map.of(Platform.environment)..remove('INVOCATION_ID');
+      final started = await Process.start(boxdd, ['run', '--listen', '127.0.0.1:$daemonPort', '-D', work.path],
+          environment: environment, includeParentEnvironment: false);
       process = started;
       started.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen(log.add);
       started.stderr.transform(utf8.decoder).transform(const LineSplitter()).listen(log.add);

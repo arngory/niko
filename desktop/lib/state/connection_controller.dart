@@ -167,6 +167,8 @@ class ConnectionController extends ChangeNotifier {
     _retryTimer?.cancel();
     unawaited(_statusSubscription?.cancel());
     unawaited(_trafficSubscription?.cancel());
+    // the link is this controller's: its channel goes with it
+    unawaited(_daemon?.close());
     super.dispose();
   }
 }

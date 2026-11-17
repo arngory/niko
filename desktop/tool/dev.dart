@@ -40,7 +40,11 @@ Future<void> main(List<String> arguments) async {
   final address = '127.0.0.1:$port';
   final work = Directory.systemTemp.createTempSync('niko-dev-');
   stdout.writeln('the daemon on $address (development only, no access control), its files in ${work.path}');
+  // boxdd takes INVOCATION_ID for "started by systemd" and refuses --listen as a service would; a terminal of a
+  // systemd session carries it, and this child is no service
   final daemon = await Process.start(boxdd, ['run', '--listen', address, '-D', work.path],
+      environment: Map.of(Platform.environment)..remove('INVOCATION_ID'),
+      includeParentEnvironment: false,
       mode: ProcessStartMode.inheritStdio);
   final device = Platform.isWindows ? 'windows' : 'linux';
   final window = await Process.start(
