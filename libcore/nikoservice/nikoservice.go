@@ -23,9 +23,10 @@ var Version = "dev"
 const API = 1
 
 // Service is NikoService as the daemon serves it: GetInfo for any caller the daemon verified, RouteTest for its
-// owner only (it reads the owner's core, as the daemon's own calls on the running core do). An owner's call runs under
-// the daemon's lifecycle lock, so the core is not stopped or replaced under a route test; a test with resolve holds a
-// start or a stop for its lookups, at most the tester's 20 s.
+// owner only (it reads the owner's core, as the daemon's own calls on the running core do). RouteTest is checked as
+// the owner's under the daemon's lifecycle lock and runs outside it: its lookups take up to the tester's 20 s, which a
+// stop, a start or the service's shutdown must not wait for. It holds the running core's context, which a stop
+// cancels, and its lookups end with it.
 func Service() boxdd.Service {
 	return boxdd.Service{
 		Desc: &nikopb.NikoService_ServiceDesc,
@@ -38,7 +39,7 @@ func Service() boxdd.Service {
 			}}, nil
 		},
 		Policy:  boxdd.PolicyCaller,
-		Methods: map[string]boxdd.MethodPolicy{"RouteTest": boxdd.PolicyOwner},
+		Methods: map[string]boxdd.MethodPolicy{"RouteTest": boxdd.PolicyOwnerUnlocked},
 	}
 }
 

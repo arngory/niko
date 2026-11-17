@@ -8,6 +8,7 @@ import (
 
 	box "github.com/sagernet/sing-box"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/experimental/boxdd"
 	"github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/option"
 
@@ -103,10 +104,12 @@ func TestGetInfo(t *testing.T) {
 	}
 }
 
-// The policies the daemon applies: the info to any caller it verified, the core's routing to its owner.
+// The policies the daemon applies: the info to any caller it verified, the core's routing to its owner, outside the
+// daemon's lifecycle lock.
 func TestServicePolicy(t *testing.T) {
 	service := Service()
-	if service.Desc.ServiceName != "niko.v1.NikoService" || service.Policy != 1 || service.Methods["RouteTest"] != 2 {
+	if service.Desc.ServiceName != "niko.v1.NikoService" || service.Policy != boxdd.PolicyCaller ||
+		service.Methods["RouteTest"] != boxdd.PolicyOwnerUnlocked {
 		t.Fatalf("%+v", service)
 	}
 }

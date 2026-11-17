@@ -74,10 +74,12 @@ Material не используется: компоненты свои, на сл
 - адрес разбирает `DevEndpoint`: `127.0.0.1:<порт>` и больше ничего — ни имени, ни другого адреса.
 
 ```
-dart run tool/dev.dart --boxdd <путь к boxdd> --config <файл.json>
+dart run tool/dev.dart --daemon <путь к nikod> --config <файл.json>
 ```
 
-`boxdd` для Windows собирает `desktop.yml` (артефакт `desktop-windows`). Конфиг — обычный JSON ядра; для пробы
+`nikod` — демон Niko: `boxdd` форка ядра и `NikoService` рядом (`libcore/cmd/nikod`; собирается из `libcore`:
+`go build -tags=<теги ядра> ./cmd/nikod`). Для Windows и Linux его собирает `desktop.yml` (артефакт
+`desktop-windows`, там же `boxdd` без `NikoService`). Конфиг — обычный JSON ядра; для пробы
 хватит входа `mixed` на `127.0.0.1` и выхода `direct`.
 
 ## Проверки
@@ -85,9 +87,10 @@ dart run tool/dev.dart --boxdd <путь к boxdd> --config <файл.json>
 ```
 flutter analyze
 flutter test                      # всё, кроме теста с настоящим демоном
-NIKO_BOXDD=<путь к boxdd> flutter test test/real_daemon_test.dart
+NIKO_DAEMON=<путь к nikod> flutter test test/real_daemon_test.dart   # без переменной тест пропускается
 python3 ../shared/tool/gen_tokens.py --check
 tool/gen_proto.sh --check <checkout форка ядра>
+../shared/tool/gen_proto_go.sh --check   # NikoService для Go (libcore/nikopb)
 ```
 
 - `test/daemon_link_test.dart` — клиент и состояние против поддельного демона по настоящему gRPC на `127.0.0.1`.

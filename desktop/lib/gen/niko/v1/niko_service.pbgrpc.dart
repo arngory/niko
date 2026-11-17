@@ -41,7 +41,8 @@ class NikoServiceClient extends $grpc.Client {
   }
 
   /// Which rule of the running core a connection would match and where it would go; no connection is made. The
-  /// daemon's owner only: it reads the owner's core. FAILED_PRECONDITION when no core runs.
+  /// daemon's owner only: it reads the owner's core; it runs outside the daemon's lifecycle lock, so a stop does not
+  /// wait for its lookups. FAILED_PRECONDITION when no core runs.
   $grpc.ResponseFuture<$0.RouteTestResult> routeTest(
     $0.RouteTestRequest request, {
     $grpc.CallOptions? options,
