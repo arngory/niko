@@ -1,0 +1,720 @@
+# Этап 3 десктопа: `nikod` и `NikoService` (черновик плана)
+
+Черновик для владельца, 2026-11-17. Ничего из этого ещё не сделано. Проверено по коду: этот репозиторий на `905b14c`,
+форк ядра на `489ccbd` (тот, что закреплён в `buildScript/lib/core/get_source_env.sh`), raycontrol на `4e772ac`.
+Ссылки `файл:строка` — на эти коммиты. Пути форка даны от его корня; пути Kotlin без префикса (`fmt/…`,
+`raycontrol/…`, `database/…`) — от `app/src/main/java/io/niko/`, как в [REQUIREMENTS.md](REQUIREMENTS.md).
+
+Этап 3 по [README.md](README.md): «`nikod` + `NikoService`: хранилище профилей, импорт ссылок и подписок, сборка
+конфига в Go», готово, когда «golden-тесты Go = Kotlin». Ниже: что есть на самом деле, что переносить, набросок API,
+хранилище, golden-тесты, сборка `nikod`, порядок работ и что решить владельцу.
+
+## 1. Что есть на самом деле
+
+### Окно
+
+- Flutter, около 4000 строк Dart в `desktop/lib`. Умеет то, что описано в [desktop/README.md](../../desktop/README.md):
+  главная с готовым JSON, журнал, отчёты, проверка NAT, соединения. Все вызовы — к трём службам форка:
+  `DesktopService`, `StartedService`, `ManagedService` (`desktop/lib/daemon/daemon.dart`).
+- **Релизная сборка окна с демоном не связана вовсе.** Связь есть только по TCP и только в сборке с `NIKO_DEV`
+  (`desktop/lib/main.dart:14`, `:24`); без флага демона у окна нет. Транспорт для релиза (named pipe через worker или
+  AF_UNIX) не сделан, выбор отложен на этап 3 (`docs/desktop/README.md:187`). Значит, всё, что даст этап 3, до этого
+  выбора проверяется только в режиме разработки.
+- Профилей, ссылок и подписок окно не знает. Конфиг — файл, который передаёт `tool/dev.dart`.
+
+### Демон
+
+- `boxdd` — команда апстрима sing-box, не наша: `experimental/boxdd` есть в sing-box v1.14.x и v1.15.0-alpha
+  ([pkg.go.dev](https://pkg.go.dev/github.com/sagernet/sing-box@v1.15.0-alpha.13)). Своя правка форка, судя по
+  истории и пометкам `niko:`, одна: `53abe2a` (`--listen` на Windows). Апстрим писал демон под своё окно «sing-box
+  for desktop» на Electron (см. комментарии про libuv и Node в `experimental/boxdd/server_windows.go:12-24`). Там
+  профили живут в окне, а демону приходит готовый конфиг. У нас профили и фоновая работа должны жить в службе —
+  отсюда правки форка в разделе 6.
+- 48 файлов, около 7300 строк Go без сгенерированных. Службы gRPC: `DesktopService` и `ApplicationService`
+  (`experimental/boxdd/desktop_service.proto`), `StartedService` и `ManagedService` (`daemon/*.proto`).
+  `ApplicationService` обслуживает не демон, а worker (`experimental/boxdd/cmd_worker.go:69`).
+- Данные демона разложены по пользователям: `<рабочий каталог>/users/<sha256(SID или uid)>/`
+  (`experimental/boxdd/snapshot.go:34`), там `config.json` и `start_options.json`; владелец службы — в `owner.json`.
+  Рабочий каталог Windows — `C:\ProgramData\sing-box-daemon` с защищённым DACL: SYSTEM, администраторы, SID службы
+  (`cmd_service_windows.go:23`, `security_windows.go:101`). Linux — `/var/lib/sing-box-daemon`.
+- Файлы вне каталога пользователя ядро без «небезопасного режима» не читает (`insecure_mode_supported.go`,
+  `restrictedFileManager`). Наборы правил и прочие файлы `NikoService` должен класть туда же.
+- При старте службы демон сам поднимает последнее ядро, если оно работало: из сохранённого `config.json`, без новой
+  сборки (`experimental/boxdd/server.go:126-181`).
+
+### Что в документах устарело или неверно
+
+1. `docs/desktop/README.md:64-74` — схема «окно → named pipe → worker → демон с `NikoService`» описывает цель, а
+   не то, что есть. Сейчас окно ходит в демон только по TCP в режиме разработки, worker'а окно не запускает, а
+   называется окно `niko_desktop.exe` (`desktop/windows/CMakeLists.txt:7`), не `sing-box.exe`. Нужна пометка
+   «цель».
+2. Объёмы. `docs/desktop/README.md:91-92`: «около 6000 строк в `io.niko.raycontrol`», «около 7000 строк в
+   `io.niko.fmt`» (как парсеры ссылок); `docs/design/PLATFORMS.md:25-27`: 6300, 4800 и 2000. На `905b14c`:
+   - `raycontrol` — 6524 строки, 25 файлов;
+   - `fmt` — 4850 Kotlin и 2239 Java, всего 7089, но из них 1759 — сам `ConfigBuilder.kt`; парсеры и бины — около
+     5300;
+   - вне `fmt`: обычные подписки `group/` — 1296 (`RawUpdater.kt` — 921), модель конфига `SingBoxOptions.java` —
+     5632, хранилище `database/` — 2212.
+3. `docs/desktop/README.md:94-96` и `:109` — «один набор входов прогоняется через Kotlin и через Go». Для парсеров
+   ссылок это реально: такие тесты уже идут в JVM (`app/src/test/java/io/niko/fmt/LinkParsersTest.kt`). Для сборки
+   конфига — нет:
+   - `buildConfig` (`fmt/ConfigBuilder.kt:164`) читает `DataStore` (Room, 46 настроек), DAO Room, около 35 функций
+     синглтонов raycontrol (`RayNodes`, `RayChannel`, `RayBrutal`, `RayLanNet`, `RayDnsResolvers`), файлы наборов
+     правил, `SagerNet.application`, показывает `Toast` и пишет побочные заметки (`notes`);
+   - unit-тесты приложения — чистый JUnit без Robolectric (`app/build.gradle.kts:44-46`); ни один не вызывает
+     `buildConfig`;
+   - даже сборщики исходящих читают `DataStore.globalAllowInsecure` (`fmt/hysteria/HysteriaFmt.kt:330`,
+     `fmt/v2ray/V2RayFmt.kt:690`, `fmt/tuic/TuicFmt.kt:95`), а `applyNikoParams` — резолверы по умолчанию
+     (`fmt/NikoParams.kt:31-53`).
+
+   Чтобы Kotlin вообще прогнал входы golden-тестов, нужен шов в Kotlin (раздел 5). В плане этой работы нет.
+4. `docs/desktop/README.md:97-99` — «свой proto рядом с `boxdd`» расходится с `docs/design/PLATFORMS.md:61`: там
+   `NikoService` в proto — часть общего слоя, из которого генерируются Kotlin и Dart. Предложение: proto в
+   `shared/proto`, не в форке (раздел 3).
+5. `docs/desktop/README.md:30-31`: «Так видно, что нарисовано, что сделано и чего нет». Колонки «сделано в окне» в
+   матрице нет (`REQUIREMENTS.md:7-13`), сделанное перечислено прозой в `desktop/README.md`. Пример: D-MAIN-06
+   включает задержку через `URLTest` (`REQUIREMENTS.md:51`), окно задержку не показывает. Предложение: колонка «Окно».
+6. Матрица отстала от описи функций: 38 ID из `docs/design/FUNCTIONS.md` в `REQUIREMENTS.md` нет. Для этапа 3
+   важны D-ADD-09…11 (импорт из файла, проверка импорта, обработчик ссылок), D-PROFILE-03…08 (тонкая настройка,
+   цепочка, список, проверка группы, «поделиться», перенос), D-SUB-05…09, D-GROUP-01, D-SET-20…32,
+   D-STATE-RELOAD. Одна функция живёт под двумя ID: NAT — D-LOG-03 в матрице (`REQUIREMENTS.md:200`) и D-TOOLS-01
+   в описи (`FUNCTIONS.md:135`).
+7. `REQUIREMENTS.md:48`, `:59`, `:106-108`, `:187` — «Go: `libcore/exitaddress.go`», «`routetest.go`», то есть
+   «нужна обёртка». Обёрткой не обойтись: эти функции берут `*libcore.BoxInstance` (`libcore/exitaddress.go:92`,
+   `libcore/routetest.go:77`) и достают роутер из контекста ядра. В `boxdd` ядро живёт в `daemon.Instance`, его
+   контекст — неэкспортируемое поле (`daemon/instance.go:26-40`), наружу есть только `Box()`, а у `box.Box` контекста
+   нет. Нужны правка форка (`Instance.Context()`) и вынос тел функций из корневого пакета `libcore` (он для
+   gomobile) в подпакеты.
+8. `REQUIREMENTS.md:128` — D-STATE-SVC «установить или режим «Прокси»», логика «есть». Режима без службы в `boxdd`
+   нет. Демон слушает только `\\.\pipe\ProtectedPrefix\Administrators\sing-box`
+   (`experimental/boxdd/server_windows.go:26`), а канал под этим префиксом создают только администраторы и SYSTEM.
+   Ядро в worker'е без прав не запускается: у `ApplicationService` такого вызова нет. «Прокси без службы» — новая
+   работа или отказ от варианта (вопрос 9).
+9. `REQUIREMENTS.md:219` — BG-01 «Kotlin: `fmt/ConfigBuilder.kt`». Источник шире: решения raycontrol (п. 3),
+   `RuleSetFiles.kt`, `RoutePresets.kt`, `database/ProfileManager.kt`, `bg/proto/TestInstance.kt` (сборка для
+   проверки профиля). Без этих входов конфиг узла не собрать.
+10. `REQUIREMENTS.md:228` — BG-10 «в `boxdd` пока не подключено». Верно, и подключать надо в форке: журнал ядра
+    попадает в кольцо `StartedService` (`daemon/started_service.go:67`) мимо `libcore/redact.go`.
+11. `docs/desktop/README.md:86-89` (имена) верно, но неполно. На апстрим завязаны ещё: имя службы и отображаемое
+    имя «sing-box Service» (`cmd_service_windows.go:21`), канал `…\Administrators\sing-box`, каталог
+    `C:\ProgramData\sing-box-daemon`, действия polkit `io.nekohasekai.sfl.*` (`authorize_linux.go:24-25`). Если на
+    машине стоят и «sing-box for desktop», и Niko, службы, каналы и каталоги совпадут.
+12. Задача этапа «импорт подписок» пересекается с этапом 4 («raycontrol в Go: подписка узла»,
+    `docs/desktop/README.md:110`). Без узлов raycontrol компьютер умеет только чужие ссылки, а главный сценарий
+    Niko — узел по приглашению. Граница — вопрос 1.
+
+Проверено и верно: сборка `boxdd.exe`, `sing-box.exe`, `libcronet.dll` и тесты Go-пакетов под Windows (`desktop.yml`);
+проверки клиента в `boxdd` (`docs/desktop/README.md:76-85`); `--listen` в режиме службы запрещён
+(`experimental/boxdd/cmd_run_windows.go:58`).
+
+### Вызовы `boxdd`: что брать готовым и чего нет
+
+**Окно зовёт сам, как сейчас:**
+
+| Что | Вызов |
+|---|---|
+| Статус, журнал, трафик, соединения, время в сети | `StartedService`: `SubscribeServiceStatus`, `SubscribeLog`, `SubscribeStatus`, `SubscribeConnections`, `GetStartedAt` |
+| Смена способа без перезапуска (D-MAIN-11, D-WHY-05) | `SubscribeGroups`, `SelectOutbound`, `URLTest` (группа в работающем ядре) |
+| Отключить, системный прокси (D-MAIN-04, D-NAV-02) | `ManagedService.StopService`, `SetSystemProxyEnabled` |
+| STUN, качество сети | `StartSTUNTest`, `StartNetworkQualityTest` |
+| Отчёты, язык, обновление | `DesktopService` |
+| Проверка и формат JSON (D-PROFILE-02) | `ApplicationService.CheckConfig`, `FormatConfig` — у worker'а |
+
+**`NikoService` берёт изнутри процесса (Go, не gRPC):**
+
+- запуск ядра: `Daemon.startServiceLocked` (`experimental/boxdd/server.go:211`) — неэкспортирован; логика
+  владельца — в `desktopService.StartService` (`desktop_service.go:55`). Нужен экспорт «запустить конфиг от имени
+  вызвавшего»;
+- работающее ядро: `StartedService.Instance().Box()` — есть; контекст ядра — нет (см. выше);
+- проверка конфига: `StartedService.CheckConfig` — есть;
+- ключи устройств для стука: `knock.SetDeviceKey` (`protocol/knock/spa2.go:160`) — есть; в одном процессе с ядром
+  ключ, как на Android, в конфиг не попадает.
+
+**Нет:**
+
+- регистрации чужой службы: авторизатор отказывает во всём, кроме трёх служб: «the service is not available»
+  (`experimental/boxdd/server.go:372`). `NikoService`, зарегистрированный рядом, вне режима разработки получит
+  `PermissionDenied`;
+- места в восстановлении: при старте службы и в `ReloadService` берётся сохранённый `config.json`
+  (`server.go:171`, `managed.go:39`). `NikoService` должен успеть положить ключи стука, а лучше — пересобрать конфиг;
+- проверки профиля без работающего ядра (D-MAIN-08): `URLTest` проверяет группу запущенного ядра, а на Android это
+  отдельный экземпляр ядра на каждую проверку (`bg/proto/TestInstance.kt`);
+- скрытия секретов в журнале (BG-10);
+- обхода туннеля для запросов самой службы. На Android `raysub` и `rayapi` получают `Control`, который защищает
+  сокет от VPN (`libcore/raysub.go:120`). В `nikod` при включённом TUN подписки, регистрация и стук пойдут в
+  туннель. Нужен `Control`, привязывающий сокет к физическому интерфейсу (по монитору интерфейсов ядра).
+
+## 2. Опись
+
+Пути Kotlin — от `app/src/main/java/io/niko/`. Новые пакеты Go — в модуле `libcore`; имена — предложение.
+
+| Область | Kotlin сейчас | Go сейчас | Написать |
+|---|---|---|---|
+| Хранилище профилей (BG-02) | `database/`, 2212 строк: `ProxyEntity.kt` 562, `ProxyGroup.kt` 155, `SubscriptionBean.java` 153, `RuleEntity.kt` 109, `ProfileManager.kt` 266, `GroupManager.kt` 115, `DataStore.kt` 391, `preference/*` | нет; `boxdd` хранит только `config.json`, `start_options.json`, `owner.json`, `settings.json` (через `atomicfile`) | `libcore/nikostore`: группы, профили, правила, настройки, схема и переходы, события изменений |
+| Ссылки (D-ADD-03, D-PROFILE-07) | `ktx/Formats.kt` (`parseProxies`, 106), `fmt/UniversalFmt.kt` 42, `KryoConverters.java` 190, `BoundedKryoInput.java` 46, `AbstractBean.java` 275, бины Java (2239 вместе с ними); парсеры: `v2ray/V2RayFmt.kt` 783 (vmess, vless, trojan), `v2ray/XHTTP.kt` 112, `hysteria/HysteriaFmt.kt` 390, `naive/NaiveFmt.kt` 136, `shadowsocks/` 126, `socks/` 75, `http/` 45, `tuic/` 99, `trojan_go/` 200, `mieru/` 109, `wireguard/` 159, `trojan/` 18, `proxy/anytls`, `proxy/shadowtls`; параметры Niko: `NikoParams.kt` 185, `DnsTunnel.kt` 268, `PortKnocking.kt` 70, `CertificatePinning.kt` 21, `UdpCarriage.kt` 79 | разбора ссылок нет нигде (ни в `libcore`, ни в форке, ни в `libneko`); есть целевые типы — пакет `option` ядра | `libcore/nikofmt`: бины как структуры Go (имена JSON = имена полей Kotlin), разбор и запись ссылок, чтение `sn://` (Kryo) |
+| Обычные подписки (D-SUB, BG-03) | `group/RawUpdater.kt` 921 (base64, Clash YAML, SIP008, `outbounds` sing-box, WireGuard), `group/GroupUpdater.kt` 172, `group/SubscriptionHeaders.kt` 54, `group/SubscriptionLinks.kt` 48, `bg/SubscriptionUpdater.kt` 96 | нет; YAML есть в зависимостях форка (`go.yaml.in/yaml/v3`) | `libcore/nikosub`: загрузка, форматы, `subscription-userinfo`, расписание в службе |
+| Подписка узла и приглашения (D-ADD-06, D-NODE, D-MAIN-13) | `raycontrol/Rcdev1.kt` 426 (RCINV1, RCINV2, rcdev1), `RayImport.kt` 111, `RayApi.kt` 255, `RayNodes.kt` 734, `RaySubscription.kt` 753, `RayRows.kt` 130, `RayNodeCard.kt` 102, `RayRelays.kt` 135, `DeviceKeyVault.kt` 52, `DnsAuthKey.kt` 30 | `libcore/rayapi` (543 строки без тестов: регистрация, PIN, вызовы API, личность), `libcore/raysub` (639: загрузка, подписи ed25519 и ML-DSA-65, SPA, файлы приложения), `knock` в форке; RCINV2 читает пока только тест (`libcore/rayapi/interop_test.go`) | `libcore/nikoray`: разбор приглашений, узлы (тот же JSON, что `RayNode.toJson`), payload → профили, обёртка ключей (DPAPI) |
+| Сборка конфига (BG-01) | `fmt/ConfigBuilder.kt` 1759, `buildSingBoxOutbound*Bean` в `fmt/*`, `SingBoxOptions.java` 5632, `SingBoxOptionsUtil.kt` 231, `bg/proto/TestInstance.kt` 75 | типы и проверка конфига — пакет `option` ядра; `libcore/options_drift_test.go` сверяет `SingBoxOptions.java` с ядром; `libcore/testdata/config_1_14.json` | `libcore/nikoconf`: `Build(Input) (Result, error)` на типах `option` |
+| Наборы правил, пресеты (D-RULES-01, -03, -05, D-SET-08, BG-09) | `RuleSetFiles.kt` 248, `RoutePresets.kt` 66 (только «Россия»), `RuleEntity.kt`, `ProfileManager.kt` (правило рекламы при первом запуске), `ui/AssetsActivity.kt` 387 | `libcore/ruleset_check.go` 84 (`CheckRuleSet`), чтение `.srs` в ядре | в `nikoconf`: элементы `PREFIX+URL`, файл `.kinds`, пресеты; в `nikostore`: загрузка и обновление наборов |
+| Настройки (D-SET) | `DataStore.kt` (162 свойства), `Constants.kt` (`Key`, 190 констант); сборка читает 46 из них | `boxdd`: `settings.json` (небезопасный режим, язык), `start_options.json` | подмножество настроек компьютера, типизированное |
+| Готовый Go за ядром (D-MAIN-03, D-CHECK, D-NODE-09) | — | `exitaddress.go` 160, `routetest.go` 435, `dohcheck.go` 57, `naive_datagram.go` 134, `redact.go` 108 — все в корневом пакете, на `*BoxInstance` | вынести тела в подпакеты, принимающие `context.Context` ядра; корень оставляет тонкие обёртки для gomobile |
+
+**Соответствие Kotlin → Go:**
+
+- `parseProxies` (`ktx/Formats.kt:106`) → `nikofmt.ParseText`: профили и найденные ссылки подписок;
+- `parseV2Ray`, `parseV2RayN`, `parseDuckSoft`, `parseHysteria1/2`, `parseNaive`, `parseShadowsocks`, `parseSOCKS`,
+  `parseHttp`, `parseTuic`, `parseTrojanGo`, `parseMieru`, `parseTrojan` → `nikofmt.Parse*`; функции `toUri` →
+  `nikofmt.Link`;
+- `applyNikoParams` (`fmt/NikoParams.kt:23`) → `nikofmt`, но значения по умолчанию — параметром, а не из
+  `DataStore`;
+- `parseUniversal`, `toUniversalLink`, `KryoConverters.deserialize` и `deserialize` каждого бина → `nikofmt/kryo`:
+  формат Kryo `ByteBufferOutput` (целые big-endian, varint, строки Kryo), версия бина первым `int`;
+- `RawUpdater.parseRaw`, `parseJSON`, `parseWireGuard`, `loadClashYaml` → `nikosub.Parse`;
+  `SubscriptionHeaders` → `nikosub.UserInfo`; загрузка из `GroupUpdater` → `nikosub.Fetch`;
+- `buildSingBoxOutbound*Bean` → `nikoconf.outbound(bean) option.Outbound`; `buildConfig` → `nikoconf.Build`;
+- `RuleSetFiles.itemsOf`, `url`, `format`, `file`, `available`, `withoutMissing`, `kinds`, `usableInDns` →
+  `nikoconf` (решения) и `nikostore` (файлы); `RoutePresets` → `nikoconf.Presets`;
+- `ProxyEntity`, `ProxyGroup`, `SubscriptionBean`, `RuleEntity`, `ProfileManager`, `GroupManager` → типы и методы
+  `nikostore`, каждый с событием изменения;
+- `Rcinv1.parse`, `Rcinv2.parse`, `Rcdev1.parse` → `nikoray.ParseInvite`, `ParseDevice`; `RayApi.register` →
+  `rayapi.Register` (есть) + запись узла; `RayNodes.import`, `update`, `remove`, `forHost`, `ownerOf`, `names`,
+  `prepareKnock`, `prepareDeviceKey`, `retainCoreKeys` → `nikoray.Nodes`; `RaySubscription.parse`, `store`, `linksOf`,
+  `nextRefresh` → `nikoray.ApplyPayload`; `DeviceKeyVault` → `nikoray/vault`;
+- `ExitAddress`, `RouteTest`, `DohCheck`, `NaiveDatagramState` → подпакеты `libcore/exitaddr`, `libcore/routetest` и
+  т. д.;
+- адаптивная часть raycontrol (`RayChannel`, `RayBrutal`, `RayWatchdog`, `RayDnsResolvers`, `RayLan*`, `RayReport`,
+  `RayDatagrams`, `RayYggPeers`) — этап 4. В этапе 3 её решения — входы сборщика со значениями «нет данных».
+
+**Протоколы.** Все исходящие — встроенные в ядро, внешних программ на компьютере нет, кроме slipstream (под Windows
+не собирается). Порядок: что раздают узлы raycontrol (naive, Hysteria2, VLESS REALITY и XHTTP, DNS-туннели), потом
+trojan, ss, socks, http, tuic, WireGuard и AmneziaWG, anytls, shadowtls, цепочка; mieru, trojan-go, ssh, Hysteria1 —
+по запросу; плагины NekoBox (`TYPE_NEKO`) — не переносить (вопрос 10).
+
+## 3. `NikoService`: набросок API
+
+Proto — в общем слое: `shared/proto/niko/v1/niko_service.proto`. Из него генерируются Go (`libcore/nikoservice`),
+Dart (`desktop/lib/gen/niko`) и позже Kotlin. Сгенерированное лежит в репозитории, CI проверяет его скриптом
+`--check`, как сейчас `desktop/tool/gen_proto.sh`.
+
+```proto
+syntax = "proto3";
+package niko.v1;
+
+service NikoService {
+  // сведения и изменения
+  rpc GetInfo(Empty) returns (Info);                           // версия Niko, схема хранилища
+  rpc Watch(WatchRequest) returns (stream Change);             // что изменилось, ход задач
+
+  // профили и группы (BG-02, D-MAIN-07, -10, D-SUB-01, D-PROFILE-01, -05, -08, D-GROUP-01)
+  rpc ListGroups(Empty) returns (GroupList);
+  rpc ListProfiles(ListProfilesRequest) returns (ProfileList); // строки списка, без бинов
+  rpc GetProfile(ProfileId) returns (Profile);                 // с бином
+  rpc SaveProfile(Profile) returns (Profile);                  // ручная форма, правка
+  rpc DeleteProfiles(ProfileIds) returns (Empty);
+  rpc MoveProfiles(MoveRequest) returns (Empty);               // порядок, другая группа
+  rpc SaveGroup(Group) returns (Group);                        // своя группа, настройки подписки (D-SUB-08)
+  rpc DeleteGroup(GroupId) returns (Empty);                    // D-SUB-04
+  rpc ShareProfile(ProfileId) returns (ShareLink);             // ссылка и sn:// (D-PROFILE-07)
+
+  // импорт (D-ADD-03…10)
+  rpc Recognize(ImportInput) returns (ImportPreview);          // без записи: что это, что добавится и что заменит
+  rpc Import(ImportRequest) returns (stream TaskProgress);     // с записью; приглашение — с PIN
+
+  // обновление (D-SUB-03, -07, D-NODE-02)
+  rpc Refresh(RefreshRequest) returns (stream TaskProgress);   // группа, узел или всё
+
+  // узлы raycontrol, статическая часть (D-NODE-01…07, D-MAIN-13)
+  rpc ListNodes(Empty) returns (NodeList);
+  rpc DeleteNode(NodeId) returns (Empty);
+
+  // подключение (BG-01, D-MAIN-04, -11)
+  rpc Select(ProfileId) returns (Empty);        // ядро идёт: SelectOutbound в группе или перезапуск
+  rpc Connect(ConnectRequest) returns (Empty);  // собрать конфиг и запустить ядро, как DesktopService.StartService
+  rpc BuildConfig(BuildRequest) returns (BuiltConfig);         // D-PROFILE-02, экспорт; секреты скрыты
+  rpc TestProfiles(TestRequest) returns (stream ProfileTest);  // D-MAIN-08, -12
+
+  // правила и наборы (D-RULES-01, -03, -05, D-SET-08, BG-09)
+  rpc ListRules(Empty) returns (RuleList);
+  rpc SaveRule(Rule) returns (Rule);
+  rpc DeleteRule(RuleId) returns (Empty);
+  rpc MoveRule(MoveRequest) returns (Empty);
+  rpc ApplyPreset(PresetRequest) returns (RuleList);
+  rpc ListRuleSets(Empty) returns (RuleSetList);               // версия, дата, источник, интервал
+  rpc UpdateRuleSets(RuleSetRequest) returns (stream TaskProgress);
+
+  // настройки, резервная копия (D-SET-05, -15, -16, -18, -19, -32)
+  rpc GetSettings(Empty) returns (Settings);
+  rpc UpdateSettings(SettingsUpdate) returns (Settings);       // только поля из маски
+  rpc ExportBackup(BackupRequest) returns (Backup);            // байты; файл сохраняет окно
+  rpc ImportBackup(BackupImport) returns (ImportPreview);      // dry_run или запись
+
+  // готовый Go за работающим ядром
+  rpc ExitAddress(ExitAddressRequest) returns (ExitAddress);   // D-MAIN-03, -14
+  rpc RouteTest(RouteTestRequest) returns (RouteTestResult);   // D-CHECK-03…06
+}
+
+message Change {
+  uint64 revision = 1;
+  bool reset = 2;              // первая посылка и после пропуска: перечитать всё показанное
+  Kind kind = 3;               // PROFILES, GROUPS, NODES, RULES, RULE_SETS, SETTINGS, TESTS, SELECTED, TASK
+  repeated int64 ids = 4;      // что изменилось; пусто — вся категория
+  TaskProgress task = 5;       // при kind = TASK
+}
+
+message TaskProgress {
+  string task_id = 1;
+  string line = 2;             // строка для пользователя, на языке SetLocale
+  bool done = 3;
+  int32 code = 4;              // код gRPC итога
+  string error = 5;
+  PinNeeded pin = 6;           // приглашению нужен PIN: сколько попыток, был ли прошлый неверным
+}
+
+message Profile {
+  int64 id = 1;
+  int64 group_id = 2;
+  int64 order = 3;
+  string type = 4;             // как TypeMap: naive, hysteria, vmess…
+  string name = 5;
+  string address = 6;
+  string bean_json = 7;        // полный бин: JSON с именами полей Kotlin, те же, что в golden-фикстурах
+  int32 ping_ms = 8;
+  string node_id = 9;          // профиль узла: правит узел, не пользователь
+}
+
+message ImportInput {
+  string text = 1;             // вставка, буфер, текст QR
+  bytes file = 2;              // импорт из файла (D-ADD-09): содержимое, не путь
+  string file_name = 3;
+}
+```
+
+**Унарные и потоковые вызовы.**
+
+- Потоки только от сервера; двунаправленных нет. В Dart пакета `grpc` они есть, но на этапе 2d отмена потока уже
+  роняла всё соединение (ошибка `http2`, `desktop/README.md:37-42`), поэтому потоков меньше и они долгие.
+- Долгое (импорт, регистрация, обновление, проверка) — задача демона. Поток показывает её ход, но отмена потока
+  задачу не отменяет: на Android ответ регистрации тоже может потеряться (`rayapi.ErrAnswerLost`), и задача должна
+  дойти до конца без окна. Итог задачи приходит ещё и в `Watch`, так что окно, открытое заново, его увидит.
+- PIN без двунаправленного потока: `Import` кончается итогом с `pin`, окно спрашивает PIN и зовёт `Import` снова,
+  как цикл в `RayImport.import` (`raycontrol/RayImport.kt:61-86`).
+
+**Как окно узнаёт об изменениях.** Один поток `Watch` на связь с демоном. События говорят только «что изменилось»
+(категория и id), данные окно перечитывает унарными вызовами. Номер `revision` растёт в памяти демона; после
+перезапуска демона или пропуска первая посылка идёт с `reset`, и окно перечитывает всё, что показывает. Так
+изменения от фоновой работы (обновление подписки по времени, правка из другого окна) доходят без отдельных
+подписок. Состояние ядра окно, как и сейчас, берёт из `SubscribeServiceStatus`.
+
+**Бин как JSON, а не типизированные сообщения.** Семнадцать типов бинов (`database/ProxyEntity.kt:57-73`) с
+полями Niko — это сотни полей proto, которые меняются почти каждую неделю. Одно описание — структуры Go с именами
+полей Kotlin — служит и хранилищу, и golden-фикстурам, и форме. Для строки списка поля типизированы. Типизировать
+бины целиком можно позже, когда форма устоится.
+
+**Доступ.** Данные — того пользователя Windows, кто вызвал (каталог по SID). `Connect` проверяет владельца так же,
+как `StartService`. Ошибки — кодами gRPC: `InvalidArgument` (ссылка не разобрана), `FailedPrecondition` (ядро не
+запущено для `RouteTest`, `ExitAddress`), `PermissionDenied` (служба чужая). Текст — на языке из `SetLocale`, через
+те же перехватчики `daemon.UnaryLocaleInterceptor`.
+
+**Правило службы с правами SYSTEM.** Окно передаёт содержимое, никогда не путь: служба не читает файл по просьбе
+пользователя, который сам его прочесть не может. Подписки — только `http` и `https`, с пределом размера; YAML — с
+пределом псевдонимов и вложенности, как `ClashYamlConstructor` на Android (`group/RawUpdater.kt:914`).
+
+## 4. Хранилище на компьютере
+
+### Где
+
+| | Каталог | Кто читает |
+|---|---|---|
+| Windows | `C:\ProgramData\sing-box-daemon\users\<sha256(SID)>\niko\` (после смены имён — каталог Niko) | служба (SYSTEM) и администраторы: DACL каталога демона наследуется |
+| Linux | `/var/lib/sing-box-daemon/users/<sha256(uid)>/niko/`, 0700, root | служба |
+| Разработка | `<--working-directory>/users/<sha256("local")>/niko/` | тот, кто запустил |
+| Окно | `%APPDATA%\Niko`, `~/.config/niko`: только своё — `window.json`, недавние проверки (D-CHECK-07) | пользователь |
+
+Данные в каталоге демона, а не в профиле пользователя: служба работает без окна и до входа в систему, а ядро без
+небезопасного режима берёт файлы только оттуда. Плюс: программа того же пользователя профили и ключи не прочтёт —
+только через демон, который проверяет подпись окна. Удаление всех данных уже есть: `DestroyWorkingDirectory`.
+
+### Формат
+
+```
+niko/
+  store.json     схема, счётчики id, группы, профили (бины JSON), правила
+  settings.json  настройки компьютера
+  nodes.json     узлы raycontrol: тот же JSON, что RayNode.toJson на Android
+  state.json     пинги, трафик профилей, выбранный профиль; потеря не страшна
+  rulesets/      скачанные наборы и их .kinds
+  backup/        копии перед сменой схемы
+```
+
+| Вариант | За | Против |
+|---|---|---|
+| **JSON-файлы, запись через `atomicfile` (предложение)** | так уже пишет `boxdd`; читается глазами; те же JSON, что в golden и в резервной копии; писатель один — служба, хватает мьютекса | без транзакций между файлами; `store.json` переписывается целиком (при 1000 серверов в подписке — около 1–2 МБ, пишется редко) |
+| bbolt | транзакции, запись по частям; уже в зависимостях (`github.com/sagernet/bbolt` через `cachefile`) | двоичный файл; схемы и переходы всё равно свои; разбирать руками неудобно |
+| SQLite | запросы | `mattn/go-sqlite3` требует cgo, а CI собирает с `CGO_ENABLED=0`; `modernc.org/sqlite` — транслированный C, медленнее и требует точной версии `modernc.org/libc` |
+
+Часто меняющееся (пинги, трафик) — в `state.json`, его пишем лениво. Целостность группа — профили — правила держит
+один файл. Если `store.json` вырастет за 10 МБ или запись станет частой — переход на bbolt; формат значений тот же
+JSON.
+
+### Секреты
+
+- **Что секретно:** пароли и UUID профилей, ключи WireGuard, ссылки подписок с токенами, ключ устройства и ключ
+  личности узла raycontrol, секрет Clash API, ключ Yggdrasil.
+- **Как на Android:** база в закрытых файлах приложения; ключи узла обёрнуты неизвлекаемым ключом Android Keystore
+  (`raycontrol/DeviceKeyVault.kt`; поля `device_key_wrapped` узла и `key_wrapped` личности, `RayNodes.kt:51-54`,
+  `:218`).
+- **На Windows так же:** всё лежит в каталоге с DACL «SYSTEM и администраторы». Ключ устройства и ключ личности
+  дополнительно обёрнуты DPAPI: `CryptProtectData` из службы, то есть в контексте SYSTEM, с флагом
+  `CRYPTPROTECT_UI_FORBIDDEN`, **без** `CRYPTPROTECT_LOCAL_MACHINE` (с ним расшифровать может любой пользователь
+  машины, так прямо в документации). В Go это `golang.org/x/sys/windows.CryptProtectData`, без cgo. Метка
+  обёртки (`dpapi:`) отличает её от блоба Keystore.
+- **Что DPAPI даёт, честно:** копия каталога или резервная копия ProgramData на другой машине бесполезна. От
+  администратора этой машины не защищает: он может стать SYSTEM. С диска без BitLocker вместе с кустами реестра
+  SYSTEM и SECURITY ключ DPAPI_SYSTEM тоже достаётся. Граница та же, что у самой службы.
+- **Пароли профилей не обёрнуты,** как и на Android. `config.json` демона с ними лежит там же, под тем же DACL.
+- **Linux:** файлы root 0600. Обёртка через `systemd-creds` (ключ хоста или TPM2) — решить на этапе 6.
+- **TPM** (Platform Crypto Provider) дал бы неизвлекаемый ключ-обёртку, как Keystore. Ключ стука всё равно нужен
+  ядру в памяти, так что это только обёртка. Не в этап 3.
+
+### Смена схемы и копии
+
+- В каждом файле `"schema": N`. Переходы — функции Go только вперёд, каждый с фикстурой старой схемы в тестах.
+- Перед переходом файлы копируются в `backup/<N>-<дата>/`, хранятся три последние копии.
+- Схема новее, чем знает демон (откат версии), — хранилище не открывается и не перезаписывается; окно говорит, что
+  установлена более старая версия.
+
+### Резервная копия и перенос с телефона (D-SET-19)
+
+- Своя копия компьютера: `ExportBackup` даёт JSON (профили, группы, правила, настройки без секретов установки — тот
+  же список, что `DataStore.installSecretKeys`), окно сохраняет файл. `ImportBackup` сначала показывает, что
+  заменится.
+- **Узлы raycontrol не переносятся ни с телефона, ни на телефон.** Android их в копию не кладёт
+  (`RAYCONTROL_NODES` в `installSecretKeys`, `database/DataStore.kt:244-251`), ключ устройства привязан к
+  устройству. Компьютер получает узел своим приглашением. Это стоит сказать в справке и на экране импорта.
+- **Копия Android сейчас (версия 1)** — JSON, где каждая запись — base64 от `Parcel.marshall()`
+  (`ui/BackupFragment.kt:138-168`):
+  - профили и группы: `writeByteArray` от Kryo-байтов бина — разбирается легко (длина `int32` и байты);
+  - правила: `@Parcelize` `RuleEntity` — строки Parcel в UTF-16, раскладка из сгенерированного кода;
+  - настройки: свой `writeToParcel` у `KeyValuePair`.
+
+  Android прямо пишет, что Parcel не для хранения: формат может меняться между версиями системы. В JVM-тестах
+  `Parcel` — заглушка, фикстуры из Kotlin не получить, только с эмулятора.
+
+  Предложение: копия версии 2 на Android — тот же JSON бинов, что в golden, правила и настройки обычным JSON.
+  Компьютер читает только её. Версию 1 читать, только если владелец скажет (вопрос 7).
+
+## 5. Сборка конфига в Go и golden-тесты
+
+### Шов в Kotlin
+
+Без него Kotlin golden-входы не прогонит (раздел 1, п. 3). Предложение:
+
+- `ConfigInput` — всё, что сборка читает: профиль и цепочка, группа, включённые правила и их профили, 46 настроек,
+  решения raycontrol (узел профиля, параметры стука, скорости Brutal, Yggdrasil через узел, резолвер DNS-туннеля,
+  устройства lan-v1), какие наборы правил скачаны, платформа;
+- `ConfigInput.fromApp()` собирает его из `DataStore`, Room и `Ray*` — так же, как сейчас;
+- `buildConfig(input)` — чистая функция. Заметки (`notes`) и предупреждения (сейчас `Toast`) — в результат, их
+  применяет вызывающий;
+- сборщики исходящих и `applyNikoParams` получают нужные настройки параметром.
+
+Правка механическая, но это 1759 строк, которые меняются чаще всего: 77 коммитов за месяц до 2026-11-17. Делать
+короткими коммитами без изменения логики и проверять e2e на эмуляторе (`ci.yml`, узел raycontrol на стенде). Та же
+`ConfigInput` — спецификация входов сборщика Go.
+
+### Фикстуры
+
+```
+shared/golden/
+  links/<имя>.txt           ссылка, sn:// или текст из нескольких строк
+  links/<имя>.json          бины после initializeDefaultValues, имена полей Kotlin (Gson)
+  subscriptions/<имя>.*     тело и заголовки ответа → бины и userinfo
+  raycontrol/<имя>.*        payload подписки узла → профили (RaySubscription.parse), векторы RCINV2
+  outbounds/<имя>.json      бин → исходящий ядра
+  config/<случай>/input.json     ConfigInput
+  config/<случай>/android.json   конфиг от Kotlin
+  config/<случай>/windows.json   конфиг компьютера: только Go, проверяется ревью
+  DIVERGENCES               известные расхождения: случай и причина
+```
+
+- Ожидаемое пишет Kotlin: `app/src/test/java/io/niko/golden/*` с флагом обновления переписывает файлы, без флага
+  сверяет. Go читает те же файлы (`libcore/nikofmt/golden_test.go` и др.) и сверяет свой вывод.
+- Входы для `links/` и `raycontrol/` — то, что реально раздают узлы: `internal/sub/conformance_test.go` raycontrol
+  перечисляет все виды ссылок, а `app/src/test/resources/raycontrol/subscription-v0.11.1.json` уже есть. Векторы
+  RCINV2 — из `raycontrol/Rcinv2Test.kt` (они же у raycontrol `TestInvite2Vectors`).
+- Kryo в JVM работает (`fmt/LinkParsersTest.kt` пишет и читает бины), поэтому фикстуры `sn://` Kotlin делает сам.
+
+### Как сравнивать
+
+- Бины: JSON по смыслу (числа как числа, порядок ключей не важен).
+- Конфиги: обе стороны прогоняются через парсер опций закреплённого ядра (`option.Options.UnmarshalJSONContext` с
+  реестрами Niko, как `libcore/config_check_test.go`), затем снова в JSON, и сравниваются они. Так не мешают
+  порядок полей и явно записанные значения по умолчанию (Kotlin пишет `false` и `0`, структуры Go их опускают), но
+  ловится всё, на что ядро действительно реагирует. Заодно каждый ожидаемый конфиг — рабочий конфиг этого ядра.
+- Отличия платформ: Kotlin делает только Android (TUN через `VpnService`, правила по пакетам). Сравнение
+  Go = Kotlin — для `platform: android`. Что только у компьютера (TUN с `auto_route` и `strict_route`, режим прокси,
+  правила по `process_path`), проверяют снимки `windows.json`, одобренные на ревью.
+
+### CI
+
+- Новая задача `golden` в одном workflow: `./gradlew app:testOssReleaseUnitTest --tests 'io.niko.golden.*'` и
+  `go test` пакетов Go с фикстурами. Запуск по путям: `shared/golden/**`, `fmt/**`, `raycontrol/**`, `group/**`,
+  `database/**`, `libcore/**`, закреплённое ядро.
+- На проверку Go в `build.yml` полагаться нельзя: тесты `libcore` там идут только при промахе кэша, а ключ кэша
+  строится из `buildScript`, `libcore` и `SingBoxOptions.java` (`.github/workflows/build.yml:35-40`). Правка Kotlin с
+  новыми фикстурами Go там не перепроверит.
+- `desktop.yml` прогоняет те же тесты Go на Windows.
+- Правка Kotlin, меняющая вывод, обновляет фикстуры в том же PR. Go тогда падает, пока его не догонят, или случай
+  явно попадает в `DIVERGENCES` с причиной.
+
+### Один сборщик в итоге
+
+Два сборщика навсегда — это каждая правка конфига дважды. При 77 коммитах в месяц в `ConfigBuilder.kt` golden будет
+краснеть постоянно. Варианты:
+
+- **А. Два сборщика и golden навсегда.** Android не трогаем. Цена — двойная работа без конца и расхождения, которые
+  golden ловит только на заведённых случаях.
+- **Б. Go — единственный сборщик, Android зовёт его через `libcore`** (`Libcore.buildConfig(inputJSON)`). Kotlin
+  собирает `ConfigInput` и применяет заметки.
+  - За: одна логика; типы и проверка ядра прямо при сборке; не нужны `SingBoxOptions.java` (5632 строки) и
+    `options_drift_test.go`; телефон и компьютер ведут себя одинаково.
+  - Против: риск для главного продукта; Android-части (адреса `VpnService`, пакеты приложений, slipstream, ключи
+    Yggdrasil) надо выразить данными; решения raycontrol до этапа 4 живут в Kotlin и пересекают границу JSON при
+    каждой сборке (сборка редкая, это дёшево); правка сборщика требует пересборки `libcore` — цикл разработки
+    Android медленнее; ошибки через gomobile беднее.
+  - Как снизить риск: «теневой» режим. Android собирает Kotlin'ом, в отладочной сборке и в e2e собирает ещё и Go,
+    сравнивает тем же способом, что golden, и пишет расхождения в журнал. Потом флаг переключает на Go. Потом
+    сборщик Kotlin удаляется, фикстуры остаются регрессионными тестами Go.
+- **В. Один сборщик на Kotlin** — на компьютере нет JVM, и Kotlin/Native этот код не возьмёт. Отпадает.
+
+Рекомендация — Б, с коротким сроком двойной поддержки (вопрос 2). Шов из этого раздела нужен в обоих вариантах.
+
+## 6. Упаковка: `nikod`
+
+### Что вынести из `package main` в форке
+
+- Во всех файлах `experimental/boxdd` поменять `package main` на `package boxdd` (по строке на файл). `main()` — в
+  новый `experimental/boxdd/cmd/boxdd/main.go`, чтобы `boxdd` апстрима собирался как раньше. `go_package` в
+  `desktop_service.proto` (сейчас `;main`, строка 4) — на `;boxdd`, перегенерировать `*.pb.go`.
+- Дифф при слиянии с апстримом: конфликты почти только в строке `package` у новых файлов апстрима, и они видны
+  сразу — сборка падает. Перенос файлов в другой каталог дал бы больше конфликтов: так не делаем.
+- `desktop.yml` и `tool/dev.dart` собирают и запускают `./experimental/boxdd/cmd/boxdd`.
+
+### Какие крючки нужны (около 150–250 новых строк в форке)
+
+- `boxdd.Main(Options)`: корневая команда cobra (`run`, `service`, `worker`, `version`) с параметрами:
+  - имена: служба, отображаемое имя, файлы демона и окна, канал, каталог по умолчанию, префикс действий polkit;
+  - дополнительные службы gRPC.
+- Интерфейс дополнительной службы: зарегистрироваться на `grpc.Server`; сказать политику своих методов
+  (`caller` — любой проверенный пользователь, свои данные; `owner` — только владелец); дать конфиг при
+  восстановлении и `ReloadService`; закрыться.
+- Host для службы:
+  - личность вызвавшего из контекста (сейчас `peerIdentityFromContext`);
+  - каталог пользователя;
+  - «запустить конфиг от имени вызвавшего» с логикой владельца из `StartService`;
+  - `StartedService`;
+  - монитор интерфейсов для `Control`.
+- `(*daemon.Instance).Context()` — для `RouteTest`, `ExitAddress`, `DohCheck`, `NaiveDatagramState`.
+- Крючок в журнал ядра для скрытия секретов (BG-10).
+- `--listen` — только `127.0.0.1:<порт>`, проверка в коде (обещано в `docs/desktop/README.md:149`); сейчас демон
+  открывает любой адрес с предупреждением (`server.go:102-108`).
+
+`libcore/cmd/nikod/main.go` — это `boxdd.Main` с именами Niko и `nikoservice`. Один файл — и демон, и worker, как
+требует `boxdd`.
+
+### Имена
+
+Сменить вторым PR после выноса в пакет, до первой публичной сборки: служба `niko-daemon` и отображаемое имя «Niko»,
+канал `\\.\pipe\ProtectedPrefix\Administrators\niko`, каталог `C:\ProgramData\Niko`, файлы `niko.exe` (окно) и
+`resources\daemon\niko-daemon.exe`, действия polkit Niko. Так Niko и «sing-box for desktop» уживаются на одной
+машине. Встроенное обновление (`update_windows.go`, NSIS с именем продукта `sing-box`) — этап 5, но параметр туда
+же.
+
+### Служба Windows и права
+
+Так `boxdd` делает уже сейчас:
+
+- служба — LocalSystem, автозапуск, зависит от `Tcpip`, перезапуск через 5 с три раза, SID службы unrestricted
+  (`cmd_service_windows.go:157-200`);
+- `service install` требует администратора: его вызывает установщик (этап 5) или окно через UAC (D-STATE-SVC);
+- на каталог установки ставится DACL: SYSTEM и администраторы — полный доступ, прошедшие проверку — чтение и
+  запуск (`security_windows.go`);
+- канал под `ProtectedPrefix\Administrators`: чужой процесс без прав не займёт имя раньше демона;
+- окно и worker работают без повышения. Worker проверяет, что его родитель — установленное окно, и пересылает
+  окну проверенное соединение с демоном (`cmd_worker_windows.go`).
+
+Что из этого следует для `NikoService`:
+
+- всё работает как SYSTEM: сеть без прокси пользователя, файлы — только в каталоге пользователя демона, разбор
+  чужих подписок — в процессе с наибольшими правами (Go без небезопасной памяти, но пределы размера обязательны);
+- служба работает до входа пользователя: обновление подписок по расписанию идёт без окна; ключи DPAPI в контексте
+  SYSTEM доступны и при загрузке (у ключа пользователя так не вышло бы);
+- `HandleSessionChange` в демоне уже есть: при выходе владельца из системы фоновую работу можно приостановить.
+
+### Транспорт окна в релизе: (а) или (в)
+
+Выбор назначен на этап 3 (`docs/desktop/README.md:163-187`). Что известно:
+
+- (а) свой транспорт для `grpc` в Dart: у пакета есть `ClientTransportConnectorChannel` и абстрактный
+  `ClientTransportConnector`, то есть свой поток вместо сокета. Канал Windows придётся открывать через FFI
+  (`CreateFile`, перекрывающийся ввод-вывод в отдельном изоляте). Работы больше, но проверка клиента в форке не
+  меняется.
+- (в) AF_UNIX между окном и worker'ом: в Dart работает и на Windows (проверено на этапе 2b), `grpc` умеет
+  `InternetAddressType.unix` сам. PID клиента worker берёт через `SIO_AF_UNIX_GETPEERPID`. Известная странность:
+  вызов возвращает верный PID, но сообщает длину ответа 0 (WSL #4676, Windows 10 1903–2004, исправления не видно;
+  GLib помечает это «Windows bug»). Код должен брать PID и не верить длине. Подмены PID worker не боится: он держит
+  открытый дескриптор родителя, и PID не переиспользуется, пока тот жив. Меняется только звено «окно — worker»
+  внутри одного пользователя; «worker — демон» остаётся каналом с проверкой подписи.
+
+Предложение: короткая проба (в) в CI на `windows-latest` (слушатель Go на AF_UNIX, клиент Dart, сверка PID через
+`SIO_AF_UNIX_GETPEERPID`). Прошла — (в) с отдельным ревью безопасности; нет — (а). (б) остаётся запасным, как и
+сейчас.
+
+### CI
+
+- `desktop.yml` собирает `nikod.exe` (amd64, arm64) и `nikod` для Linux рядом с `boxdd` (пока он нужен).
+- Тест окна с настоящим демоном (`test/real_daemon_test.dart`) идёт против `nikod`: переменная `NIKO_DAEMON`
+  вместо `NIKO_BOXDD`.
+- `test` на Windows добавляет новые пакеты Go.
+
+## 7. Нарезка
+
+Каждый срез сливается сам и сам проверяется в CI.
+
+| № | Срез | Что даёт | Чем проверяет CI |
+|---|---|---|---|
+| 1 | `nikod`: `boxdd` как пакет, пустой `NikoService` с `GetInfo` и `RouteTest` | основа всего; D-CHECK-03…05 на стороне демона | тест окна с настоящим `nikod` на Windows и Linux; тест политики авторизатора в форке |
+| 2 | Каркас golden и ссылки узлов: naive, Hysteria2, VLESS REALITY и XHTTP с параметрами Niko (`nikofmt`) | первые профили в Go | задача `golden`: Kotlin пишет и сверяет, Go сверяет |
+| 3 | Остальные ссылки и `sn://` (Kryo) | весь D-ADD-03 для ссылок | `golden` |
+| 4 | `nikostore`, CRUD, `Watch`, `Recognize`/`Import` для ссылок | профили живут в службе | тесты Go: хранилище, переходы схемы, gRPC через `bufconn`; тест окна: импорт ссылки виден через `Watch` |
+| 5 | Окно: список профилей, экран добавления (D-ADD-02…04, -07, -08), выбор (D-MAIN-07, -10, -11), «поделиться» (D-PROFILE-07) | первое, что видит пользователь | тесты виджетов и снимки; тест с настоящим `nikod` |
+| 6 | Шов `ConfigInput` в Kotlin, без изменения логики | Kotlin может прогнать golden-конфиги | unit-тесты Android; e2e на эмуляторе с узлом |
+| 7 | Исходящие и конфиг одного профиля без адаптивного raycontrol (`nikoconf`), `Connect` | подключение к сохранённому профилю | `golden` (исходящие, конфиги, круг через ядро); тест с `nikod`: профиль `ss://` к `sing-box.exe` из того же CI, запрос через прокси |
+| 8 | Части только компьютера: TUN, режим прокси (D-NAV-02), программы (D-RULES-02, -06), локальная сеть (D-SET-16), DNS (D-SET-18) | VPN на компьютере | снимки `windows.json`; тест режима прокси с `SetSystemProxyEnabled` |
+| 9 | Обычные подписки (`nikosub`), D-SUB-01…04, обновление по времени | подписки провайдеров | `golden` подписок; тест Go с локальным HTTP-сервером |
+| 10 | Правила, пресет «Россия», наборы правил (D-RULES-01, -03, -05, D-SET-08, BG-09, D-CHECK-06) | маршрутизация как на телефоне | `golden` конфигов с правилами; загрузка набора с локального сервера, `CheckRuleSet` |
+| 11 | Узел по приглашению, статическая часть: RCINV1, RCINV2, rcdev1, регистрация, подписка, профили узла, DPAPI, стук, обход туннеля (D-ADD-06, D-NODE-01…07, D-MAIN-13) | главный сценарий Niko | `golden` raycontrol; interop против `rayd` по образцу `raycontrol-interop.yml`: `nikod` регистрируется по приглашению и подключается |
+| 12 | Проверка профилей без подключения (D-MAIN-08, -12) | пинги в списке | тест с `nikod`: пинг локального сервера |
+| 13 | Настройки и резервная копия версии 2 (D-SET-05, -15, -19, -32), сначала на Android | перенос с телефона | `golden` копий: Kotlin пишет, Go читает |
+| 14 | Транспорт релиза: проба (в), затем реализация в форке и окне; имена Niko | окно в релизе видит демон | проба на `windows-latest`; ревью безопасности |
+| 15 | Android на сборщике Go: теневой режим, затем переключение | один сборщик | e2e: Kotlin и Go дают одинаковый конфиг; потом e2e на Go |
+
+Срезы 2–3 и 6 не зависят от 1, их можно вести параллельно. Срез 15 — по решению владельца (вопрос 2).
+
+**Готово для этапа 3:** golden ссылок, подписок, исходящих и конфигов (`platform: android`) зелёные на обеих
+сторонах; профиль из ссылки и из подписки подключается в `nikod` в CI на Windows; хранилище переживает перезапуск
+службы и смену схемы. Если владелец согласен (вопрос 1) — ещё узел по приглашению против `rayd`.
+
+### Срез 1 подробно
+
+**Цель:** один бинарник `nikod` = `boxdd` + `NikoService`. Поведение окна не меняется, кроме того, что оно говорит с
+`nikod`.
+
+**Форк** (отдельный PR, затем перенос закрепления):
+
+1. `package main` → `package boxdd` в `experimental/boxdd/*.go`; `cmd/boxdd/main.go`; `go_package`; перегенерировать
+   `desktop_service.pb.go`.
+2. `Options` и `Main` с именами по умолчанию как сейчас. `boxdd` апстрима ведёт себя как раньше.
+3. Дополнительные службы: регистрация, политика методов в `daemonAuthorizer.Authorize` и `InvokeUnary`
+   (`server.go:347-404`), статус в health.
+4. `(*daemon.Instance).Context()`.
+5. Тесты: политика авторизатора (метод чужой службы с политикой `caller` проходит у проверенного клиента и не
+   проходит без личности; без политики — отказ, как сейчас); существующие тесты `boxdd` и `daemon`;
+   `GOOS=windows go build` и `GOOS=linux go build` обоих `main`.
+
+**Этот репозиторий:**
+
+1. `shared/proto/niko/v1/niko_service.proto`: `GetInfo` и `RouteTest`. Скрипт генерации Go и Dart с `--check`
+   (версии `protoc-gen-go`, `protoc-gen-go-grpc` и `protoc_plugin` закреплены, как сейчас у Dart).
+2. `libcore/routetest`: тело `routeTest` из корня, на `context.Context`. Корневой `RouteTest` для Android остаётся
+   тонкой обёрткой, его тест переезжает вместе с телом.
+3. `libcore/nikoservice`: сервер с `GetInfo` (версия Niko, ядро, схема хранилища — пока 0) и `RouteTest`
+   (`FailedPrecondition`, если ядро не запущено).
+4. `libcore/cmd/nikod/main.go`. Корневой пакет `libcore` (он для gomobile) `nikod` не импортирует, только
+   подпакеты.
+5. Окно: `tool/gen_proto.sh` берёт ещё `shared/proto`; `GrpcDaemon` получает `NikoServiceClient`; экранов нет.
+6. `test/real_daemon_test.dart`: после запуска конфига с правилом `domain_suffix: example.com → direct` вызвать
+   `RouteTest("example.com:443")` и увидеть это правило и `direct`. Без сети: `resolve` не включён.
+7. `desktop.yml`: сборка `nikod` вместо `boxdd` для теста окна; `go test ./nikoservice ./routetest` на Windows.
+
+**Готово, когда:** тест окна проходит против `nikod` на `windows-latest` и `ubuntu-latest`; `boxdd` из форка
+собирается и проходит свои тесты; релизная сборка окна не изменилась (проверка `desktop.yml` на строки режима
+разработки проходит).
+
+**Не входит:** имена Niko, транспорт релиза, хранилище.
+
+**Риск:** форк меняют несколько сессий сразу (за время этой проверки в него пришёл `489ccbd`). PR форка должен быть
+коротким и сливаться первым, закрепление в этом репозитории переносится отдельным коммитом.
+
+## 8. Риски и вопросы владельцу
+
+### Риски
+
+- **Шов в Kotlin задевает главный продукт.** Смягчение: коммиты без изменения логики, e2e на каждый, теневой режим
+  до переключения.
+- **Темп правок сборщика.** 77 коммитов в месяц в `ConfigBuilder.kt`: пока сборщиков два, golden будет падать
+  часто. Смягчение: короткий срок двойной поддержки (вопрос 2).
+- **Расхождение с апстримом `boxdd`.** Смягчение: правка только строк `package` и крючков, файлы не переносить.
+- **Разбор чужих подписок в процессе SYSTEM.** Смягчение: пределы размера и YAML, только `http(s)`, никаких путей
+  от окна.
+- **Запросы службы при включённом TUN** уйдут в туннель (регистрация, стук, подписки). Смягчение: `Control` с
+  привязкой к физическому интерфейсу, проверка в тесте с TUN на Windows (срез 8 или 11).
+- **Несколько ядер в одном процессе** для проверки профилей (D-MAIN-08): общее состояние — ключи стука, журнал.
+  На Android так уже работает, но в `boxdd` не проверялось.
+- **`SIO_AF_UNIX_GETPEERPID`** — поведение известно по чужим отчётам, описания у Microsoft найти не удалось. Отсюда проба
+  до решения.
+- **Граница DPAPI**: защищает от копии на другую машину, не от администратора этой машины.
+
+### Вопросы (решает владелец)
+
+1. **Граница этапов 3 и 4 для raycontrol.** Приглашение, регистрация, первая загрузка подписки и статические профили
+   узла — в этапе 3? Сторож, канал, Brutal, отчёты, резолверы, lan-v1 остаются в этапе 4.
+   *Рекомендация:* да. Без узла компьютер не делает главного, а логика регистрации и подписки уже в Go (`rayapi`,
+   `raysub`).
+2. **Один сборщик.** Переводить ли Android на сборщик Go и когда?
+   *Рекомендация:* да, срез 15 сразу после того, как golden конфигов зелёный: теневой режим на одну-две версии, потом
+   переключение и удаление Kotlin.
+3. **Правка форка.** Согласны ли на `package boxdd` в `experimental/boxdd` и крючки из раздела 6 — и сменить имена на
+   Niko в той же правке?
+   *Рекомендация:* да, в два PR: сначала пакет и крючки, потом имена.
+4. **Формат хранилища.** JSON-файлы или bbolt?
+   *Рекомендация:* JSON сейчас, bbolt — если хранилище вырастет за 10 МБ.
+5. **Несколько пользователей Windows.** У каждого своё хранилище (каталог по SID), фоновая работа — только у
+   владельца службы. Или одно хранилище на машину?
+   *Рекомендация:* у каждого своё; так уже устроен `boxdd`.
+6. **Секреты.** DPAPI только для ключей raycontrol, пароли профилей — без обёртки под DACL, как на Android?
+   *Рекомендация:* да; TPM — позже, если понадобится.
+7. **Перенос с телефона.** Читать на компьютере нынешнюю копию Android (Parcel) или сначала выпустить на Android
+   копию версии 2 в JSON?
+   *Рекомендация:* версия 2; читать Parcel — только если важны старые копии.
+8. **Транспорт окна в релизе.** (в) AF_UNIX после пробы, (а) — если проба не пройдёт?
+   *Рекомендация:* да, с отдельным ревью безопасности правки worker'а.
+9. **«Режим «Прокси» без службы» (D-STATE-SVC).** Демон без прав не запускается. Убрать вариант или делать ядро
+   без прав в worker'е (новый код форка, свой канал и проверки)?
+   *Рекомендация:* убрать; без службы — только «Установить».
+10. **Протоколы на компьютере.** Плагины NekoBox (`TYPE_NEKO`) не переносить, mieru, trojan-go, ssh, Hysteria1 —
+    по запросу?
+    *Рекомендация:* да.
+11. **Где proto.** `shared/proto` (общий слой, `docs/design/PLATFORMS.md:61`), а не рядом с `boxdd`?
+    *Рекомендация:* `shared/proto`; поправить `docs/desktop/README.md:97`.
+12. **Матрица.** Добавить в `REQUIREMENTS.md` 38 ID из описи и колонку «Окно»; NAT оставить под одним ID.
+    *Рекомендация:* до среза 5: срезы ссылаются на эти ID.
+
+## Источники
+
+- CryptProtectData (DPAPI), Microsoft:
+  https://learn.microsoft.com/en-us/windows/win32/api/dpapi/nf-dpapi-cryptprotectdata
+- `golang.org/x/sys/windows` (CryptProtectData, CryptUnprotectData): https://pkg.go.dev/golang.org/x/sys/windows
+- DPAPI_SYSTEM и ключи SYSTEM: https://docs.specterops.io/ghostpack-docs/SharpDPAPI-mdx/commands/machinemasterkeys,
+  https://specterops.io/blog/2026/03/04/offensive-dpapi-with-nemesis/
+- systemd-creds: https://man7.org/linux/man-pages/man1/systemd-creds.1.html, https://systemd.io/CREDENTIALS/
+- modernc.org/sqlite: https://pkg.go.dev/modernc.org/sqlite
+- Parcel не для хранения: https://developer.android.com/reference/android/os/Parcel,
+  https://medium.com/@yukuku/androids-parcel-serialized-format-was-changed-in-android-13-a7017c25a246
+- SIO_AF_UNIX_GETPEERPID: https://github.com/microsoft/WSL/issues/4676,
+  https://gitlab.gnome.org/GNOME/glib/-/merge_requests/2445
+- ProtectedPrefix для каналов: https://tyranidslair.blogspot.com.au/2017/
+- grpc для Dart: https://pub.dev/documentation/grpc/latest/,
+  https://pub.dev/documentation/grpc/4.2.0/grpc/ClientTransportConnectorChannel-class.html
+- `boxdd` в апстриме sing-box: https://pkg.go.dev/github.com/sagernet/sing-box/experimental/boxdd,
+  https://pkg.go.dev/github.com/sagernet/sing-box@v1.15.0-alpha.13
+- sing-box for desktop: https://sing-box.sagernet.org/clients/desktop/
