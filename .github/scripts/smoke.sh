@@ -51,20 +51,42 @@ else
   echo "the app died during the rotations"; fail=1
 fi
 
-echo "== screenshots (light and dark): the main screen and the drawer"
+echo "== screenshots (light and dark): the main screen, the drawer, the settings"
 # for the eye, not a check: smoke-screens/ in the artifact. The night mode is the system's, as most users have it
 shots=smoke-screens
 mkdir -p "$shots"
+here=$(cd "$(dirname "$0")" && pwd)
 adb shell settings put system user_rotation 0
+# the toolbar's navigation button by its place (it has no description): 28dp from the left, under a 24dp status bar
+density=$(timeout 10 adb shell wm density | tr -d '\r' | sed -n 's/.*: *\([0-9]*\)$/\1/p' | tail -1)
+density=${density:-160}
+menu_x=$((28 * density / 160)); menu_y=$((52 * density / 160))
+# tap_text TEXT: the node with this text, by uiautomator's dump
+tap_text() {
+  timeout 30 adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1
+  timeout 30 adb pull /sdcard/ui.xml "$shots/ui.xml" > /dev/null 2>&1
+  local xy
+  xy=$(python3 -I "$here/ui-node.py" "$shots/ui.xml" "$1")
+  rm -f "$shots/ui.xml"
+  [ -n "$xy" ] || return 1
+  # shellcheck disable=SC2086 # x and y
+  timeout 20 adb shell input tap $xy
+}
 for mode in no yes; do
   timeout 30 adb shell cmd uimode night "$mode" > /dev/null 2>&1
   adb shell am force-stop "$pkg"; sleep 1
   timeout 60 adb shell am start -W -n "$pkg/$pkg.ui.MainActivity" > /dev/null; sleep 4
   timeout 30 adb exec-out screencap -p > "$shots/main-$mode.png" 2> /dev/null
-  # the drawer, from the left edge
-  adb shell input swipe 5 800 700 800 300; sleep 2
+  timeout 20 adb shell input tap "$menu_x" "$menu_y"; sleep 2
   timeout 30 adb exec-out screencap -p > "$shots/drawer-$mode.png" 2> /dev/null
-  adb shell input keyevent KEYCODE_BACK; sleep 1
+  # the settings, for the rows' icons
+  if tap_text "Settings"; then
+    sleep 3
+    timeout 30 adb exec-out screencap -p > "$shots/settings-$mode.png" 2> /dev/null
+  else
+    echo "no Settings in the drawer to tap ($mode)"
+    adb shell input keyevent KEYCODE_BACK; sleep 1
+  fi
 done
 timeout 30 adb shell cmd uimode night no > /dev/null 2>&1
 ls -la "$shots"

@@ -46,9 +46,11 @@ jobs:
       - name: The reference Chrome and a display
         run: |
           . .github/fingerprint/chrome.env
-          library="$(sed -n 's/^const ChromiumAnchorsVersion = "\([0-9]*\)\..*"$/\1/p' ../sing-box/common/certificate/chromium_anchors_neko_generated.go)"
+          # one Chromium for the project: the library's version is the core's ChromiumAnchorsVersion
+          library_version="$(sed -n 's/^const ChromiumAnchorsVersion = "\([0-9.]*\)"$/\1/p' ../sing-box/common/certificate/chromium_anchors_neko_generated.go)"
+          library="${library_version%%.*}"
           [ "$library" = "$CHROME_REFERENCE_MAJOR" ] ||
-            { echo "::error::the reference Chrome is $CHROME_REFERENCE_MAJOR, naive's library is Chromium ${library:-unknown}: .github/fingerprint/chrome.env moves with the library"; exit 1; }
+            { echo "::error::the reference Chrome is $CHROME_REFERENCE_MAJOR, naive's library is Chromium ${library_version:-unknown}: .github/fingerprint/chrome.env moves with the library"; exit 1; }
           major() { "$1" --version 2> /dev/null | sed -n 's/[^0-9]*\([0-9][0-9]*\)\..*/\1/p'; }
           echo "the image's Chrome: $(google-chrome --version)"
           curl -fsSL --retry 3 -o "$RUNNER_TEMP/chrome-stable.deb" https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb &&
@@ -67,7 +69,16 @@ jobs:
           fi
           [ -n "$reference" ] ||
             { echo "::error::no Chrome $CHROME_REFERENCE_MAJOR: stable is $(google-chrome --version), and chrome.env names no package of it"; exit 1; }
-          echo "the reference Chrome: $("$reference" --version)"
+          # the same release branch as the library (158.0.8127 of 158.0.8127.36): the code of TLS and QUIC is the
+          # branch's; the last number is the patch, which Linux packages get later than the library is built
+          have="$("$reference" --version | sed -n 's/[^0-9]*\([0-9][0-9.]*[0-9]\).*/\1/p')"
+          [ "${have%.*}" = "${library_version%.*}" ] ||
+            { echo "::error::the reference Chrome is $have, naive's library is Chromium $library_version: not one release branch"; exit 1; }
+          {
+            echo "### One Chromium"
+            echo "naive's library: Chromium $library_version; the reference: $("$reference" --version)"
+            [ "$have" = "$library_version" ] || echo "(the same branch ${have%.*}; the patch differs: Linux has no package of $library_version yet)"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
           echo "CHROME_REFERENCE_BIN=$(command -v "$reference")" >> "$GITHUB_ENV"
           command -v xvfb-run || (sudo apt-get update -q && sudo apt-get install -y -q xvfb)
           # a name, not an address: Chrome sends what it sends to sites
