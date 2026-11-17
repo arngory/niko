@@ -1,0 +1,39 @@
+name: niko_desktop
+description: "Niko for the computer: the window. The core and Niko's logic run in the daemon (docs/desktop)."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.14.0
+
+# No Material: the components are the design system's own (m-* on the canvas, lib/ui here), drawn with the widgets
+# layer alone. Their sizes and colours come from shared/tokens.json (lib/theme/tokens.g.dart).
+dependencies:
+  flutter:
+    sdk: flutter
+  grpc: ^5.1.0
+  protobuf: ^6.0.0
+  fixnum: ^1.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: false
+  fonts:
+    - family: Geist
+      fonts:
+        - asset: fonts/Geist-Regular.ttf
+          weight: 400
+        - asset: fonts/Geist-Medium.ttf
+          weight: 500
+        - asset: fonts/Geist-SemiBold.ttf
+          weight: 600
+    - family: Geist Mono
+      fonts:
+        - asset: fonts/GeistMono-Regular.ttf
+          weight: 400
+        - asset: fonts/GeistMono-Medium.ttf
+          weight: 500

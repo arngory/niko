@@ -2,8 +2,9 @@
 # the service a desktop app talks to) built for Windows with Niko's protocols, port knocking and naive among them, and
 # the Go the desktop client takes over from the app tested on Windows itself. naive is Chromium 158's libcronet.dll
 # from the fork of cronet-go (built by the server session), which the core loads with purego from beside its
-# executable: each architecture's directory holds the two executables and the library. No app: its stack is not
-# chosen (no Electron; Go with Dart/Flutter or another light one, Qt last).
+# executable: each architecture's directory holds the two executables and the library. The window is Flutter
+# (desktop/): analysed, tested and built on Windows and on Linux, and its link to the daemon checked against the real
+# boxdd in development mode (stage 2b of docs/desktop).
 name: Desktop (Windows)
 
 on:
@@ -18,6 +19,8 @@ on:
       - "libcore/dnsprobe/**"
       - "libcore/minisign/**"
       - "libcore/stun/**"
+      - "desktop/**"
+      - "shared/**"
       - ".github/workflows/desktop.yml"
   workflow_dispatch:
 
@@ -72,6 +75,11 @@ jobs:
             cp "$lib/libcronet.dll" "$out/libcronet.dll"
             echo "windows-$arch: $(du -h "$out"/* | tr '\t\n' ' ')(libcronet.dll $have, Chromium $chromium)"
           done
+          # the daemon for Linux, for the window's test against it there (Niko's tags; naive needs its library and is
+          # not what that test asks for)
+          mkdir -p "$RUNNER_TEMP/desktop/linux-amd64"
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -checklinkname=0" -tags="$TAGS" \
+            -o "$RUNNER_TEMP/desktop/linux-amd64/boxdd" ./experimental/boxdd
           # port knocking is in the core now: a profile of a raycontrol node needs it to reach the node; and naive
           go version -m "$RUNNER_TEMP/desktop/windows-amd64/boxdd.exe" > /dev/null
           for pkg in knock naive; do
@@ -143,3 +151,132 @@ jobs:
         env:
           CGO_ENABLED: "0"
         run: go test -count=1 -ldflags=-checklinkname=0 -tags="$TAGS" ./raysub ./rayapi ./minisign ./probe ./rayprobe ./dnsprobe ./stun
+
+  # The window (desktop/, Flutter): the generated files are what their sources give, the analyser is clean, the
+  # tests pass, and the link to the daemon works against the real boxdd of this run in development mode: the button
+  # starts a config, the status and the traffic are seen (stage 2b). Then the release build, which has no
+  # development link in it.
+  app:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      # Flutter 3.50.0 stable, by its commit
+      FLUTTER_VERSION: "3.50.0"
+      FLUTTER_COMMIT: ab2912035e160d9cad6306df307576da6128ebdb
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - name: Flutter
+        run: |
+          git clone -q --depth 1 --branch "$FLUTTER_VERSION" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          have="$(git -C "$RUNNER_TEMP/flutter" rev-parse HEAD)"
+          [ "$have" = "$FLUTTER_COMMIT" ] || { echo "::error::Flutter $FLUTTER_VERSION is $have, pinned $FLUTTER_COMMIT"; exit 1; }
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+          export PATH="$RUNNER_TEMP/flutter/bin:$PATH"
+          flutter --disable-analytics > /dev/null
+          flutter --version
+
+      - name: What Linux needs to build a window
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -q && sudo apt-get install -y -q clang cmake ninja-build pkg-config libgtk-3-dev > /dev/null
+
+      - name: Dependencies, as locked
+        working-directory: desktop
+        run: flutter pub get --enforce-lockfile
+
+      # generated files against their sources: the theme against shared/tokens.json, the daemon's API against the
+      # core's protos at the commit the app pins
+      - name: Generated files are current
+        if: runner.os == 'Linux'
+        run: |
+          python3 -I shared/tool/gen_tokens.py --check
+          . buildScript/lib/core/get_source_env.sh
+          git clone -q --filter=blob:none --no-checkout "$REPOSITORY_SING_BOX" "$RUNNER_TEMP/core"
+          git -C "$RUNNER_TEMP/core" checkout -q "$COMMIT_SING_BOX"
+          python3 -m pip install -q grpcio-tools==1.85.1
+          dart pub global activate protoc_plugin 25.1.0 > /dev/null
+          export PATH="$PATH:$HOME/.pub-cache/bin"
+          desktop/tool/gen_proto.sh --check "$RUNNER_TEMP/core"
+
+      - name: Analyse
+        working-directory: desktop
+        run: flutter analyze && dart analyze tool
+
+      - name: Tests
+        working-directory: desktop
+        run: flutter test
+
+      - name: The screens, when a picture differs
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: desktop-golden-failures-${{ runner.os }}
+          path: desktop/test/failures
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: The daemon of this run
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: desktop-windows
+          path: ${{ runner.temp }}/daemon
+
+      - name: The window's link against the real daemon
+        working-directory: desktop
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then
+            daemon="$RUNNER_TEMP/daemon/windows-amd64/boxdd.exe"
+          else
+            daemon="$RUNNER_TEMP/daemon/linux-amd64/boxdd"
+            chmod +x "$daemon"
+          fi
+          NIKO_BOXDD="$daemon" flutter test test/real_daemon_test.dart
+
+      # «Что решить», п. 2 of docs/desktop/README.md: what dart:io can open towards the daemon's worker here
+      - name: Local sockets dart:io has on this system (informational)
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        working-directory: desktop
+        run: |
+          {
+            echo "### dart:io and local sockets, $RUNNER_OS"
+            echo '```'
+            dart run tool/probe_local_sockets.dart
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # no NIKO_DEV: the release has no way to a daemon over TCP
+      - name: Build
+        working-directory: desktop
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then
+            flutter build windows --release
+            out=build/windows/x64/runner/Release
+          else
+            flutter build linux --release
+            out=build/linux/x64/release/bundle
+          fi
+          ls -la "$out"
+          du -sh "$out"
+          # the development link's own words are not in a release
+          if grep -r -a -l -- "--daemon takes 127.0.0.1" "$out" > /dev/null; then
+            echo "::error::the release build carries the development link"; exit 1
+          fi
+          echo "WINDOW_OUT=desktop/$out" >> "$GITHUB_ENV"
+
+      - name: The window
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: niko-window-${{ runner.os }}
+          path: ${{ env.WINDOW_OUT }}
+          retention-days: 7
