@@ -580,14 +580,13 @@ void main() {
       expect(find.text('Прошлый запуск завершился сбоем'), findsOneWidget);
       expect(find.text('17.11.2026 00:41'), findsOneWidget);
       await picture('log_report_light');
-      await tester.runAsync(() async {
-        await tester.tap(find.text('Экспорт'));
-        for (var i = 0; i < 50 && folder.listSync().isEmpty; i++) {
-          await Future<void>.delayed(const Duration(milliseconds: 20));
-        }
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-      });
-      await tester.pump();
+      await tester.runAsync(() async => tester.tap(find.text('Экспорт')));
+      // until the window says it saved: the file is there as soon as it is opened (on Windows too), the archive still
+      // being written into it and the file still open
+      for (var i = 0; i < 150 && find.text('Сохранено').evaluate().isEmpty; i++) {
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+        await tester.pump();
+      }
       expect(daemon.exportedReports, ['crash-1']);
       expect(find.text('Сохранено'), findsOneWidget);
       expect(find.textContaining('crash-1.zip'), findsOneWidget);
