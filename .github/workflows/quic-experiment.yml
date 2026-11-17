@@ -31,11 +31,6 @@ on:
 permissions:
   contents: read
 
-# one run per branch: a newer push cancels the run it supersedes (one full run per commit)
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   measure:
     runs-on: ubuntu-latest

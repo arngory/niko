@@ -62,9 +62,10 @@ env:
   NIKO_SERVER_TAG_OVERRIDE: ${{ inputs.niko_server_tag }}
   NIKO_SERVER_SHA256_OVERRIDE: ${{ inputs.niko_server_sha256 }}
 
-# one run per branch: a newer push cancels the run it supersedes (one full run per commit)
+# one run per branch for pushes: a newer push cancels the push run it supersedes (one full run per commit); a
+# manual or scheduled run (another version, other inputs) has a group of its own and is never cancelled by them
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
   cancel-in-progress: true
 
 jobs:
