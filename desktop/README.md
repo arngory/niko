@@ -57,4 +57,8 @@ tool/gen_proto.sh --check <checkout форка ядра>
 - `test/real_daemon_test.dart` — настоящий `boxdd`: запуск конфига, запрос через его прокси, счётчики трафика,
   остановка, убитый и вернувшийся демон. В CI идёт на Windows и на Linux.
 
+Живой запуск (Linux, виртуальный экран, настоящий `boxdd`, трафик через прокси из конфига):
+
+![Окно, подключено](doc/live-linux.png)
+
 Шрифты Geist и Geist Mono — SIL Open Font License 1.1, текст в `fonts/OFL.txt`.
