@@ -24,6 +24,7 @@ import (
 	box "github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/route"
 	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/filemanager"
 	"github.com/sagernet/sing/service/pause"
@@ -95,6 +96,16 @@ type BoxInstance struct {
 }
 
 func NewSingBoxInstance(config string, localTransport LocalDNSTransport) (b *BoxInstance, err error) {
+	return newSingBoxInstance(config, localTransport, false)
+}
+
+// NewSingBoxInstanceWatched is the service's running core: its connections that do not open through the node's
+// outbound are counted for the watchdog (dialfail.go). A test or probe core is made with NewSingBoxInstance.
+func NewSingBoxInstanceWatched(config string, localTransport LocalDNSTransport) (b *BoxInstance, err error) {
+	return newSingBoxInstance(config, localTransport, true)
+}
+
+func newSingBoxInstance(config string, localTransport LocalDNSTransport, watched bool) (b *BoxInstance, err error) {
 	defer device.DeferPanicToError("NewSingBoxInstance", func(err_ error) { err = err_ })
 
 	// create box context
@@ -107,6 +118,10 @@ func NewSingBoxInstance(config string, localTransport LocalDNSTransport) (b *Box
 	service.MustRegister[adapter.PlatformInterface](ctx, boxPlatformInterfaceInstance)
 	service.MustRegister[adapter.SecurityPolicy](ctx, boxSecurityPolicy{})
 	service.MustRegister[filemanager.Manager](ctx, newBoxFileManager())
+	if watched && intfNiko != nil {
+		niko := intfNiko
+		service.MustRegister[route.DialFailureObserver](ctx, newDialWatch(func(count int) { niko.ConnectionsFailing(int32(count)) }))
+	}
 
 	// parse options
 	var options option.Options

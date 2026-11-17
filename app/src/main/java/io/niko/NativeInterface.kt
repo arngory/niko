@@ -117,6 +117,13 @@ class NativeInterface : BoxPlatformInterface, NikoInterface {
     // the roots chains are verified against (libcore/certs.go): asked wherever the core or an HTTP client starts
     override fun rootStore(): String = DataStore.rootStore
 
+    // the running core's connections through the node's outbound do not open (libcore dialfail.go): the watchdog
+    // checks the profile at once instead of at its next turn
+    override fun connectionsFailing(count: Int) {
+        Logs.i("$count connections through the node did not open in a short while: checking the profile")
+        io.niko.raycontrol.RayWatchdog.connectionsFailing()
+    }
+
     override fun selector_OnProxySelected(selectorTag: String, tag: String) {
         if (selectorTag != "proxy") {
             Logs.d("other selector: $selectorTag")

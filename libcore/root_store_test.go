@@ -21,6 +21,7 @@ type rootStoreSetting struct{ name string }
 
 func (rootStoreSetting) UseOfficialAssets() bool                 { return true }
 func (rootStoreSetting) Selector_OnProxySelected(string, string) {}
+func (rootStoreSetting) ConnectionsFailing(int32)                {}
 func (s rootStoreSetting) RootStore() string                     { return s.name }
 
 // The roots chains are verified against follow the app's setting everywhere: Go's own roots (the HTTP client of

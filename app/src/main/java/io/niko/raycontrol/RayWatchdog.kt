@@ -32,8 +32,9 @@ import kotlinx.coroutines.withTimeoutOrNull
  *   rotation, the shared token after its 72 hours) and the subscription is fetched, as after two failed tests. The
  *   connection test passes all the while: DNS is the one thing that fails.
  *
- * Tests run 20 s after the start, 15 s after a network change, every 10 min, and every 30 s for 3 min after a
- * rotation. Fetches after failures back off from 5 min to 1 h; the backoff starts over on a network that comes back
+ * Tests run 20 s after the start, 15 s after a network change, every 10 min, every 30 s for 3 min after a
+ * rotation, and at once when the running core's connections through the node do not open, five in 30 s to three
+ * places or more (libcore dialfail.go, [connectionsFailing]). Fetches after failures back off from 5 min to 1 h; the backoff starts over on a network that comes back
  * and on any start of the core except the watchdog's own restarts (those must not loop). Without a network nothing
  * is tested: a failure there says nothing about the node's credentials.
  */
@@ -172,6 +173,16 @@ object RayWatchdog {
     /** A test in [delayMs]. */
     fun poke(delayMs: Long) {
         wake.trySend(delayMs)
+    }
+
+    /**
+     * The running core's connections through the node's outbound do not open, many in a short while to more than one
+     * place (libcore dialfail.go, at most once in 2 min): the profile is tested at once, as after its own failures.
+     * Without a network nothing is tested (a failure there says nothing about the node).
+     */
+    fun connectionsFailing() {
+        if (online == false) return
+        poke(Jitter.upTo(2_000L))
     }
 
     /**

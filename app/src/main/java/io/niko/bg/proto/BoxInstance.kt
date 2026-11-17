@@ -59,7 +59,10 @@ abstract class BoxInstance(
     }
 
     protected open suspend fun loadConfig() {
-        box = Libcore.newSingBoxInstance(config.config, LocalResolverImpl)
+        // the running core's failed connections wake the watchdog (Libcore.newSingBoxInstanceWatched); a core that
+        // only compares does not
+        box = if (runs) Libcore.newSingBoxInstanceWatched(config.config, LocalResolverImpl)
+        else Libcore.newSingBoxInstance(config.config, LocalResolverImpl)
     }
 
     open suspend fun init() {

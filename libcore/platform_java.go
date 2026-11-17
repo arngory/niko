@@ -11,6 +11,9 @@ type NikoInterface interface {
 	// RootStore is the setting of the roots chains are verified against: chrome, mozilla or system (certs.go)
 	RootStore() string
 	Selector_OnProxySelected(selectorTag string, tag string)
+	// the running core's connections through the node's outbound do not open: [count] of them in a short while, to
+	// more than one place (dialfail.go); the watchdog checks the profile at once
+	ConnectionsFailing(count int32)
 }
 
 type BoxPlatformInterface interface {
