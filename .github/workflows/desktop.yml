@@ -19,6 +19,12 @@ on:
       - "libcore/dnsprobe/**"
       - "libcore/minisign/**"
       - "libcore/stun/**"
+      - "libcore/routetest/**"
+      - "libcore/nikopb/**"
+      - "libcore/nikoservice/**"
+      - "libcore/cmd/nikod/**"
+      - "libcore/go.mod"
+      - "libcore/go.sum"
       - "desktop/**"
       - "shared/**"
       - ".github/workflows/desktop.yml"
@@ -52,17 +58,23 @@ jobs:
       # of the Chromium the Android library is (the core's intermediate anchors are of that release)
       - name: The core, the daemon and naive's library for Windows
         run: |
+          NIKO_VERSION="$(sed -n 's/^VERSION_NAME=//p' niko.properties)-${GITHUB_SHA::7}"
           cd ../sing-box
           chromium="$(sed -n 's/^const ChromiumAnchorsVersion = "\(.*\)"$/\1/p' common/certificate/chromium_anchors_neko_generated.go)"
           [ -n "$chromium" ] || { echo "::error::no Chromium version of the core's anchors"; exit 1; }
           for arch in amd64 arm64; do
             out="$RUNNER_TEMP/desktop/windows-$arch"
             mkdir -p "$out"
-            for pkg in cmd/sing-box experimental/boxdd; do
+            for pkg in cmd/sing-box cmd/boxdd; do
               GOOS=windows GOARCH=$arch CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -checklinkname=0" \
                 -tags="$TAGS,with_naive_outbound,with_purego,with_external_windivert,with_external_usbip_drivers" \
                 -o "$out/$(basename "$pkg").exe" "./$pkg"
             done
+            # Niko's daemon: boxdd with NikoService beside it (docs/desktop/STAGE3.md, slice 1)
+            (cd "$GITHUB_WORKSPACE/libcore" && GOOS=windows GOARCH=$arch CGO_ENABLED=0 go build -trimpath \
+              -ldflags="-s -w -checklinkname=0 -X libcore/nikoservice.Version=$NIKO_VERSION" \
+              -tags="$TAGS,with_naive_outbound,with_purego,with_external_windivert,with_external_usbip_drivers" \
+              -o "$out/nikod.exe" ./cmd/nikod)
             go mod download "github.com/sagernet/cronet-go/lib/windows_$arch"
             lib="$(go list -m -f '{{.Dir}}' "github.com/sagernet/cronet-go/lib/windows_$arch")"
             sums="$(go list -m -f '{{.Dir}}' github.com/sagernet/cronet-go)/SHA256SUMS"
@@ -79,13 +91,20 @@ jobs:
           # not what that test asks for)
           mkdir -p "$RUNNER_TEMP/desktop/linux-amd64"
           GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -checklinkname=0" -tags="$TAGS" \
-            -o "$RUNNER_TEMP/desktop/linux-amd64/boxdd" ./experimental/boxdd
+            -o "$RUNNER_TEMP/desktop/linux-amd64/boxdd" ./cmd/boxdd
+          (cd "$GITHUB_WORKSPACE/libcore" && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath \
+            -ldflags="-s -w -checklinkname=0 -X libcore/nikoservice.Version=$NIKO_VERSION" -tags="$TAGS" \
+            -o "$RUNNER_TEMP/desktop/linux-amd64/nikod" ./cmd/nikod)
           # port knocking is in the core now: a profile of a raycontrol node needs it to reach the node; and naive
-          go version -m "$RUNNER_TEMP/desktop/windows-amd64/boxdd.exe" > /dev/null
-          for pkg in knock naive; do
-            strings "$RUNNER_TEMP/desktop/windows-amd64/boxdd.exe" | grep -q "sing-box/protocol/$pkg" ||
-              { echo "::error::the daemon has no $pkg"; exit 1; }
+          for daemon in boxdd nikod; do
+            go version -m "$RUNNER_TEMP/desktop/windows-amd64/$daemon.exe" > /dev/null
+            for pkg in knock naive; do
+              strings "$RUNNER_TEMP/desktop/windows-amd64/$daemon.exe" | grep -q "sing-box/protocol/$pkg" ||
+                { echo "::error::$daemon has no $pkg"; exit 1; }
+            done
           done
+          strings "$RUNNER_TEMP/desktop/windows-amd64/nikod.exe" | grep -q "niko.v1.NikoService" ||
+            { echo "::error::nikod has no NikoService"; exit 1; }
 
       - name: The binaries
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -150,7 +169,7 @@ jobs:
         working-directory: libcore
         env:
           CGO_ENABLED: "0"
-        run: go test -count=1 -ldflags=-checklinkname=0 -tags="$TAGS" ./raysub ./rayapi ./minisign ./probe ./rayprobe ./dnsprobe ./stun
+        run: go test -count=1 -ldflags=-checklinkname=0 -tags="$TAGS" ./raysub ./rayapi ./minisign ./probe ./rayprobe ./dnsprobe ./stun ./nikoservice
 
   # The window (desktop/, Flutter): the generated files are what their sources give, the analyser is clean, the
   # tests pass, and the link to the daemon works against the real boxdd of this run in development mode: the button
@@ -196,6 +215,13 @@ jobs:
 
       # generated files against their sources: the theme against shared/tokens.json, the daemon's API against the
       # core's protos at the commit the app pins
+      - name: Go, for the generated Go
+        if: runner.os == 'Linux'
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: libcore/go.mod
+          cache: false
+
       - name: Generated files are current
         if: runner.os == 'Linux'
         run: |
@@ -209,6 +235,8 @@ jobs:
           dart pub global activate protoc_plugin 25.1.0 > /dev/null
           export PATH="$PATH:$HOME/.pub-cache/bin"
           desktop/tool/gen_proto.sh --check "$RUNNER_TEMP/core"
+          # NikoService as Go (libcore/nikopb), from the same shared/proto
+          shared/tool/gen_proto_go.sh --check
 
       - name: Analyse
         working-directory: desktop
@@ -237,12 +265,12 @@ jobs:
         working-directory: desktop
         run: |
           if [ "$RUNNER_OS" = Windows ]; then
-            daemon="$RUNNER_TEMP/daemon/windows-amd64/boxdd.exe"
+            daemon="$RUNNER_TEMP/daemon/windows-amd64/nikod.exe"
           else
-            daemon="$RUNNER_TEMP/daemon/linux-amd64/boxdd"
+            daemon="$RUNNER_TEMP/daemon/linux-amd64/nikod"
             chmod +x "$daemon"
           fi
-          NIKO_BOXDD="$daemon" flutter test test/real_daemon_test.dart
+          NIKO_DAEMON="$daemon" flutter test test/real_daemon_test.dart
 
       # «Что решить», п. 2 of docs/desktop/README.md: what dart:io can open towards the daemon's worker here
       - name: Local sockets dart:io has on this system (informational)

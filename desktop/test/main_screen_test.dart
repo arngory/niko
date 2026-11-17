@@ -69,6 +69,19 @@ class MemoryDaemon implements Daemon {
   /// The STUN test: each run gets a stream of its own, fed by the test.
   final stunRuns = <(String, StreamController<StunProgress>)>[];
   @override
+  Future<NikoInfo> nikoInfo() async =>
+      const NikoInfo(nikoVersion: '1.58.0', coreVersion: '1.14.4-niko', storeSchema: 0, api: 1);
+
+  @override
+  Future<RouteVerdict> routeTest(
+    String host,
+    int port, {
+    String network = 'tcp',
+    String inbound = '',
+    bool resolve = false,
+  }) async => const RouteVerdict(index: -1, rule: '', action: 'final', outbound: 'proxy');
+
+  @override
   Stream<StunProgress> stunTest(String server) {
     final steps = StreamController<StunProgress>();
     stunRuns.add((server, steps));
@@ -119,16 +132,18 @@ void main() {
       loadConfig: withConfig ? () async => '{}' : null,
     )..attach();
     addTearDown(controller.dispose);
-    await tester.pumpWidget(NikoApp(
-      controller: controller,
-      settings: settings,
-      saveTo: saveTo ?? () => null,
-      daemonAddress: withDaemon ? '127.0.0.1:18080' : '',
-      configName: withConfig && withDaemon ? 'direct.json' : '',
-      locale: Locale(locale),
-      brightness: brightness,
-      now: () => daemon.at.add(const Duration(minutes: 42, seconds: 17)),
-    ));
+    await tester.pumpWidget(
+      NikoApp(
+        controller: controller,
+        settings: settings,
+        saveTo: saveTo ?? () => null,
+        daemonAddress: withDaemon ? '127.0.0.1:18080' : '',
+        configName: withConfig && withDaemon ? 'direct.json' : '',
+        locale: Locale(locale),
+        brightness: brightness,
+        now: () => daemon.at.add(const Duration(minutes: 42, seconds: 17)),
+      ),
+    );
     await tester.pump();
   }
 
@@ -169,7 +184,9 @@ void main() {
 
     daemon.holdStart!.complete();
     await core(tester, ServicePhase.started);
-    daemon.rates.add(const Traffic(up: 312 * 1024, down: 4404019, upTotal: 12 * 1024 * 1024, downTotal: 409 * 1024 * 1024));
+    daemon.rates.add(
+      const Traffic(up: 312 * 1024, down: 4404019, upTotal: 12 * 1024 * 1024, downTotal: 409 * 1024 * 1024),
+    );
     await tester.pump();
     await tester.pump();
     expect(find.text('Подключено'), findsOneWidget);
@@ -240,7 +257,9 @@ void main() {
   });
 
   group('the header', () {
-    testWidgets('the simple view has the main screen and the log; the advanced one adds the connections', (tester) async {
+    testWidgets('the simple view has the main screen and the log; the advanced one adds the connections', (
+      tester,
+    ) async {
       await show(tester);
       await core(tester, ServicePhase.idle);
       expect(find.text('Главная'), findsOneWidget);
@@ -353,13 +372,18 @@ void main() {
       await openLog(tester);
       expect(find.text('Журнал пуст'), findsOneWidget);
       expect(find.bySemanticsLabel('Журнал ядра'), findsOneWidget);
-      daemon.logBatches.add(const LogBatch([
-        LogLine(LogSeverity.info, 'INFO[0000] sing-box started (0.23s)'),
-        LogLine(LogSeverity.debug, 'DEBUG[0000] outbound/knock[proxy-knock]: UDP <node>:443 goes to the slot port 42028'),
-        LogLine(LogSeverity.info, 'INFO[0001] outbound/naive[proxy]: outbound connection to www.example.com:443'),
-        LogLine(LogSeverity.error, 'ERROR[0011] connection: connection download closed: remote error: timeout'),
-        LogLine(LogSeverity.info, 'INFO[0028] raycontrol: switching from naive to hy2, which works on this network'),
-      ], reset: true));
+      daemon.logBatches.add(
+        const LogBatch([
+          LogLine(LogSeverity.info, 'INFO[0000] sing-box started (0.23s)'),
+          LogLine(
+            LogSeverity.debug,
+            'DEBUG[0000] outbound/knock[proxy-knock]: UDP <node>:443 goes to the slot port 42028',
+          ),
+          LogLine(LogSeverity.info, 'INFO[0001] outbound/naive[proxy]: outbound connection to www.example.com:443'),
+          LogLine(LogSeverity.error, 'ERROR[0011] connection: connection download closed: remote error: timeout'),
+          LogLine(LogSeverity.info, 'INFO[0028] raycontrol: switching from naive to hy2, which works on this network'),
+        ], reset: true),
+      );
       await tester.pump();
       await tester.pump();
       expect(find.text('Журнал пуст'), findsNothing);
@@ -388,7 +412,9 @@ void main() {
         }
       }
 
-      daemon.logBatches.add(LogBatch([for (var i = 1; i <= 200; i++) LogLine(LogSeverity.info, 'line $i')], reset: true));
+      daemon.logBatches.add(
+        LogBatch([for (var i = 1; i <= 200; i++) LogLine(LogSeverity.info, 'line $i')], reset: true),
+      );
       await frames();
       expect(find.text('line 200'), findsOneWidget);
       expect(find.text('line 1'), findsNothing);
@@ -426,14 +452,16 @@ void main() {
       await tester.pump();
       expect(find.text('203.0.113.7:40312'), findsOneWidget);
       expect(find.text('Сопоставление'), findsNothing);
-      steps.add(const StunProgress(
-        externalAddress: '203.0.113.7:40312',
-        latencyMs: 31,
-        mapping: NatBehaviour.endpointIndependent,
-        filtering: NatBehaviour.addressAndPortDependent,
-        natTypeSupported: true,
-        isFinal: true,
-      ));
+      steps.add(
+        const StunProgress(
+          externalAddress: '203.0.113.7:40312',
+          latencyMs: 31,
+          mapping: NatBehaviour.endpointIndependent,
+          filtering: NatBehaviour.addressAndPortDependent,
+          natTypeSupported: true,
+          isFinal: true,
+        ),
+      );
       await tester.pump();
       expect(find.text('не зависит от адреса назначения'), findsOneWidget);
       expect(find.text('зависит от адреса и порта'), findsOneWidget);
@@ -464,12 +492,14 @@ void main() {
       expect(find.text('203.0.113.7:40312'), findsNothing);
       expect(find.text('Подключение остановилось во время проверки: подключитесь и проверьте снова'), findsOneWidget);
       // the closed sockets read as a NAT that lets nothing in: not shown as a measurement
-      steps.add(const StunProgress(
-        externalAddress: '203.0.113.7:40312',
-        filtering: NatBehaviour.addressAndPortDependent,
-        natTypeSupported: true,
-        isFinal: true,
-      ));
+      steps.add(
+        const StunProgress(
+          externalAddress: '203.0.113.7:40312',
+          filtering: NatBehaviour.addressAndPortDependent,
+          natTypeSupported: true,
+          isFinal: true,
+        ),
+      );
       await tester.pump();
       expect(find.text('Фильтрация'), findsNothing);
       await core(tester, ServicePhase.started);
@@ -486,7 +516,9 @@ void main() {
 
     testWidgets('a window crossing the width keeps the typed server and the log', (tester) async {
       await openLog(tester);
-      daemon.logBatches.add(LogBatch([for (var i = 1; i <= 200; i++) LogLine(LogSeverity.info, 'line $i')], reset: true));
+      daemon.logBatches.add(
+        LogBatch([for (var i = 1; i <= 200; i++) LogLine(LogSeverity.info, 'line $i')], reset: true),
+      );
       for (var i = 0; i < 6; i++) {
         await tester.pump();
       }
@@ -573,10 +605,12 @@ void main() {
       await core(tester, ServicePhase.started);
       await tester.tap(find.text('Журнал'));
       await tester.pump();
-      daemon.logBatches.add(const LogBatch([
-        LogLine(LogSeverity.info, 'INFO[0000] one'),
-        LogLine(LogSeverity.error, 'ERROR[0001] two'),
-      ], reset: true));
+      daemon.logBatches.add(
+        const LogBatch([
+          LogLine(LogSeverity.info, 'INFO[0000] one'),
+          LogLine(LogSeverity.error, 'ERROR[0001] two'),
+        ], reset: true),
+      );
       await tester.pump();
       await tester.pump();
       await tester.tap(find.bySemanticsLabel('Скопировать журнал'));
@@ -601,23 +635,33 @@ void main() {
 
   group('the connections', () {
     final opened = daemonClock.subtract(const Duration(minutes: 4));
-    ConnectionInfo one(String id, String destination, {String domain = '', String process = '', String rule = '',
-            String outbound = 'arngory · naive', String type = 'naive', String network = 'tcp', String protocol = '',
-            int up = 0, int down = 0, Duration age = const Duration(minutes: 4)}) =>
-        ConnectionInfo(
-          id: id,
-          network: network,
-          destination: destination,
-          domain: domain,
-          protocol: protocol,
-          process: process,
-          rule: rule,
-          outbound: outbound,
-          outboundType: type,
-          createdAt: opened.add(const Duration(minutes: 4)).subtract(age),
-          up: up,
-          down: down,
-        );
+    ConnectionInfo one(
+      String id,
+      String destination, {
+      String domain = '',
+      String process = '',
+      String rule = '',
+      String outbound = 'arngory · naive',
+      String type = 'naive',
+      String network = 'tcp',
+      String protocol = '',
+      int up = 0,
+      int down = 0,
+      Duration age = const Duration(minutes: 4),
+    }) => ConnectionInfo(
+      id: id,
+      network: network,
+      destination: destination,
+      domain: domain,
+      protocol: protocol,
+      process: process,
+      rule: rule,
+      outbound: outbound,
+      outboundType: type,
+      createdAt: opened.add(const Duration(minutes: 4)).subtract(age),
+      up: up,
+      down: down,
+    );
 
     Future<void> openConnections(WidgetTester tester, {Brightness brightness = Brightness.light}) async {
       await show(tester, brightness: brightness);
@@ -626,17 +670,59 @@ void main() {
       await tester.pump();
       await tester.tap(find.text('Соединения'));
       await tester.pump();
-      daemon.connectionBatches.add(ConnectionBatch([
-        ConnectionChange.opened(one('a', '93.184.216.34:443', domain: 'www.example.com',
-            process: r'C:\Program Files\Browser\browser.exe', protocol: 'tls', up: 1258291, down: 50331648)),
-        ConnectionChange.opened(one('b', '203.0.113.9:443', domain: 'video.example.net', process: '/usr/bin/browser',
-            network: 'udp', protocol: 'quic', up: 6291456, down: 325058560, age: const Duration(minutes: 12))),
-        ConnectionChange.opened(one('c', '198.51.100.4:443', domain: 'bank.example.ru', process: 'browser',
-            rule: 'rule_set=geoip-ru', outbound: 'direct', type: 'direct', up: 98304, down: 839680,
-            age: const Duration(seconds: 75))),
-        ConnectionChange.opened(one('d', '10.0.0.7:22', process: '/usr/bin/ssh', rule: 'domain_suffix=corp.example',
-            up: 9216, down: 14336, age: const Duration(minutes: 38))),
-      ], reset: true));
+      daemon.connectionBatches.add(
+        ConnectionBatch([
+          ConnectionChange.opened(
+            one(
+              'a',
+              '93.184.216.34:443',
+              domain: 'www.example.com',
+              process: r'C:\Program Files\Browser\browser.exe',
+              protocol: 'tls',
+              up: 1258291,
+              down: 50331648,
+            ),
+          ),
+          ConnectionChange.opened(
+            one(
+              'b',
+              '203.0.113.9:443',
+              domain: 'video.example.net',
+              process: '/usr/bin/browser',
+              network: 'udp',
+              protocol: 'quic',
+              up: 6291456,
+              down: 325058560,
+              age: const Duration(minutes: 12),
+            ),
+          ),
+          ConnectionChange.opened(
+            one(
+              'c',
+              '198.51.100.4:443',
+              domain: 'bank.example.ru',
+              process: 'browser',
+              rule: 'rule_set=geoip-ru',
+              outbound: 'direct',
+              type: 'direct',
+              up: 98304,
+              down: 839680,
+              age: const Duration(seconds: 75),
+            ),
+          ),
+          ConnectionChange.opened(
+            one(
+              'd',
+              '10.0.0.7:22',
+              process: '/usr/bin/ssh',
+              rule: 'domain_suffix=corp.example',
+              up: 9216,
+              down: 14336,
+              age: const Duration(minutes: 38),
+            ),
+          ),
+        ], reset: true),
+      );
       await tester.pump();
       await tester.pump();
     }
@@ -658,10 +744,9 @@ void main() {
 
     testWidgets('a change moves the bytes; a closed one goes', (tester) async {
       await openConnections(tester);
-      daemon.connectionBatches.add(const ConnectionBatch([
-        ConnectionChange.moved('d', 1024, 2048),
-        ConnectionChange.closed('b'),
-      ]));
+      daemon.connectionBatches.add(
+        const ConnectionBatch([ConnectionChange.moved('d', 1024, 2048), ConnectionChange.closed('b')]),
+      );
       await tester.pump();
       await tester.pump();
       expect(find.text('открыто 3'), findsOneWidget);

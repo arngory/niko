@@ -519,11 +519,12 @@ shared/golden/
 ### Что вынести из `package main` в форке
 
 - Во всех файлах `experimental/boxdd` поменять `package main` на `package boxdd` (по строке на файл). `main()` — в
-  новый `experimental/boxdd/cmd/boxdd/main.go`, чтобы `boxdd` апстрима собирался как раньше. `go_package` в
-  `desktop_service.proto` (сейчас `;main`, строка 4) — на `;boxdd`, перегенерировать `*.pb.go`.
+  новый `cmd/boxdd/main.go` в корне форка, рядом с `cmd/sing-box`, чтобы `boxdd` апстрима собирался как раньше.
+  `go_package` в `desktop_service.proto` — на `;boxdd`, перегенерировать `*.pb.go`. **Сделано в форке `1b576e4`.**
 - Дифф при слиянии с апстримом: конфликты почти только в строке `package` у новых файлов апстрима, и они видны
   сразу — сборка падает. Перенос файлов в другой каталог дал бы больше конфликтов: так не делаем.
-- `desktop.yml` и `tool/dev.dart` собирают и запускают `./experimental/boxdd/cmd/boxdd`.
+- `desktop.yml` собирает `./cmd/boxdd` форка и `libcore/cmd/nikod`; `tool/dev.dart` запускает тот демон, путь к
+  которому ему дали (`--daemon`).
 
 ### Какие крючки нужны (около 150–250 новых строк в форке)
 

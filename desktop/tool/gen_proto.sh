@@ -1,5 +1,6 @@
 #!/bin/bash
-# The daemon's API as Dart: the three services of the core's fork (experimental/boxdd and daemon) into lib/gen.
+# The daemon's API as Dart: the three services of the core's fork (experimental/boxdd and daemon) and Niko's own
+# (shared/proto: NikoService, which nikod serves beside them) into lib/gen.
 #
 #   tool/gen_proto.sh [CORE]          CORE: a checkout of the fork at the commit the app pins
 #                                     (buildScript/lib/core/get_source_env.sh); ../../sing-box by default
@@ -19,6 +20,7 @@ out=$(mktemp -d)
 trap 'rm -rf "$out"' EXIT
 python3 -m grpc_tools.protoc -I "$core" --dart_out="grpc:$out" \
   daemon/started_service.proto daemon/managed_service.proto experimental/boxdd/desktop_service.proto
+python3 -m grpc_tools.protoc -I "$here/../shared/proto" --dart_out="grpc:$out" niko/v1/niko_service.proto
 # enum and JSON descriptors the app does not use
 find "$out" -name '*.pbjson.dart' -delete
 dart format "$out" > /dev/null

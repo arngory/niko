@@ -39,20 +39,22 @@ class TracedDaemon implements Daemon {
 
   Stream<T> _traced<T>(String name, Stream<T> stream, String Function(T) describe) {
     note('$name: asked');
-    return stream.transform(StreamTransformer.fromHandlers(
-      handleData: (value, sink) {
-        note('$name: ${describe(value)}');
-        sink.add(value);
-      },
-      handleError: (error, stack, sink) {
-        note('$name: error ${daemonError(error)}');
-        sink.addError(error, stack);
-      },
-      handleDone: (sink) {
-        note('$name: done');
-        sink.close();
-      },
-    ));
+    return stream.transform(
+      StreamTransformer.fromHandlers(
+        handleData: (value, sink) {
+          note('$name: ${describe(value)}');
+          sink.add(value);
+        },
+        handleError: (error, stack, sink) {
+          note('$name: error ${daemonError(error)}');
+          sink.addError(error, stack);
+        },
+        handleDone: (sink) {
+          note('$name: done');
+          sink.close();
+        },
+      ),
+    );
   }
 
   @override
@@ -80,8 +82,11 @@ class TracedDaemon implements Daemon {
   @override
   Future<void> clearLogs() => _inner.clearLogs();
   @override
-  Stream<ConnectionBatch> connections(Duration interval) => _traced('connections', _inner.connections(interval),
-      (b) => '${b.changes.length} changes${b.reset ? ', reset' : ''}');
+  Stream<ConnectionBatch> connections(Duration interval) => _traced(
+    'connections',
+    _inner.connections(interval),
+    (b) => '${b.changes.length} changes${b.reset ? ', reset' : ''}',
+  );
   @override
   Future<void> closeConnection(String id) => _inner.closeConnection(id);
   @override
@@ -93,6 +98,16 @@ class TracedDaemon implements Daemon {
   @override
   Future<void> markReportRead(ReportEntry report) => _inner.markReportRead(report);
   @override
+  Future<NikoInfo> nikoInfo() => _inner.nikoInfo();
+  @override
+  Future<RouteVerdict> routeTest(
+    String host,
+    int port, {
+    String network = 'tcp',
+    String inbound = '',
+    bool resolve = false,
+  }) => _inner.routeTest(host, port, network: network, inbound: inbound, resolve: resolve);
+  @override
   Stream<StunProgress> stunTest(String server) =>
       _traced('stun', _inner.stunTest(server), (p) => '${p.externalAddress}${p.isFinal ? ', final' : ''}');
   @override
@@ -100,19 +115,19 @@ class TracedDaemon implements Daemon {
 }
 
 pb.Connection connection(String id, String destination, {String domain = '', int at = 0}) => pb.Connection(
-      id: id,
-      network: 'tcp',
-      destination: destination,
-      domain: domain,
-      protocol: 'tls',
-      rule: 'domain_suffix=example.com',
-      outbound: 'proxy',
-      outboundType: 'naive',
-      createdAt: Int64(DateTime.utc(2026, 11, 17, 1, 0, at).millisecondsSinceEpoch),
-      uplinkTotal: Int64(100),
-      downlinkTotal: Int64(1000),
-      processInfo: pb.ProcessInfo(processPath: r'C:\Program Files\Browser\browser.exe'),
-    );
+  id: id,
+  network: 'tcp',
+  destination: destination,
+  domain: domain,
+  protocol: 'tls',
+  rule: 'domain_suffix=example.com',
+  outbound: 'proxy',
+  outboundType: 'naive',
+  createdAt: Int64(DateTime.utc(2026, 11, 17, 1, 0, at).millisecondsSinceEpoch),
+  uplinkTotal: Int64(100),
+  downlinkTotal: Int64(1000),
+  processInfo: pb.ProcessInfo(processPath: r'C:\Program Files\Browser\browser.exe'),
+);
 
 void main() {
   late FakeDaemonServer server;
@@ -174,7 +189,10 @@ void main() {
       feed.open();
       await until(() => feed.unread.length == 2, 'the unread reports');
       // newest first; the one read before is not shown
-      expect(feed.unread.map((r) => (r.kind, r.name)), [(ReportKind.outOfMemory, 'oom-1'), (ReportKind.crash, 'crash-1')]);
+      expect(feed.unread.map((r) => (r.kind, r.name)), [
+        (ReportKind.outOfMemory, 'oom-1'),
+        (ReportKind.crash, 'crash-1'),
+      ]);
 
       await feed.saveReport(feed.unread.first);
       expect(feed.notice, LogNotice.saved, reason: feed.noticeDetail);
@@ -188,7 +206,11 @@ void main() {
       // a second save of the same name does not replace the first
       await feed.saveReport(feed.unread.first);
       await feed.saveReport(ReportEntry(ReportKind.crash, 'crash-1', DateTime(2026)));
-      expect(folder.listSync().map((f) => f.uri.pathSegments.last).toSet(), {'oom-1.zip', 'crash-1.zip', 'crash-1 (2).zip'});
+      expect(folder.listSync().map((f) => f.uri.pathSegments.last).toSet(), {
+        'oom-1.zip',
+        'crash-1.zip',
+        'crash-1 (2).zip',
+      });
     });
 
     test('the log saved as text; nowhere to save is said', () async {
@@ -276,7 +298,10 @@ void main() {
       expect(result.isFinal, isTrue);
       expect((result.externalAddress, result.latencyMs), ('203.0.113.7:40312', 31));
       // the mapping keeps 1 reserved: its 2 and the filtering's 3 are not the same scale
-      expect((result.mapping, result.filtering), (NatBehaviour.endpointIndependent, NatBehaviour.addressAndPortDependent));
+      expect(
+        (result.mapping, result.filtering),
+        (NatBehaviour.endpointIndependent, NatBehaviour.addressAndPortDependent),
+      );
       expect(result.natTypeSupported, isTrue);
       expect(tool.error, isEmpty);
       expect(trace, contains(endsWith('stun: 203.0.113.7:40312, final')));

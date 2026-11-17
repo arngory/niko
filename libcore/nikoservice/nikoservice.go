@@ -1,0 +1,103 @@
+// Package nikoservice is NikoService, Niko's own service in its desktop daemon nikod, beside the core's daemon's
+// (docs/desktop/STAGE3.md, slice 1: the daemon's info and the route tester; the store, profiles and the config
+// builder come in later slices).
+package nikoservice
+
+import (
+	"context"
+
+	"libcore/nikopb"
+	"libcore/routetest"
+
+	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/experimental/boxdd"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+)
+
+// Version is Niko's version, set by the build (-X libcore/nikoservice.Version=...).
+var Version = "dev"
+
+// API is the version of NikoService: what the window may ask of this daemon.
+const API = 1
+
+// Service is NikoService as the daemon serves it: GetInfo for any caller the daemon verified, RouteTest for its
+// owner only (it reads the owner's core, as the daemon's own calls on the running core do). An owner's call runs under
+// the daemon's lifecycle lock, so the core is not stopped or replaced under a route test; a test with resolve holds a
+// start or a stop for its lookups, at most the tester's 20 s.
+func Service() boxdd.Service {
+	return boxdd.Service{
+		Desc: &nikopb.NikoService_ServiceDesc,
+		New: func(host boxdd.Host) (any, error) {
+			return &server{core: func() context.Context {
+				if instance := host.StartedService().RunningInstance(); instance != nil {
+					return instance.Context()
+				}
+				return nil
+			}}, nil
+		},
+		Policy:  boxdd.PolicyCaller,
+		Methods: map[string]boxdd.MethodPolicy{"RouteTest": boxdd.PolicyOwner},
+	}
+}
+
+type server struct {
+	nikopb.UnimplementedNikoServiceServer
+	// core is the running core's context, nil when none runs
+	core func() context.Context
+}
+
+func (s *server) GetInfo(context.Context, *nikopb.GetInfoRequest) (*nikopb.Info, error) {
+	return &nikopb.Info{NikoVersion: Version, CoreVersion: C.Version, StoreSchema: 0, Api: API}, nil
+}
+
+func (s *server) RouteTest(ctx context.Context, request *nikopb.RouteTestRequest) (*nikopb.RouteTestResult, error) {
+	if request.Port > 65535 {
+		return nil, status.Error(codes.InvalidArgument, "port over 65535")
+	}
+	core := s.core()
+	if core == nil {
+		return nil, status.Error(codes.FailedPrecondition, "the core does not run")
+	}
+	// the core's services from its context, the caller's cancellation from the request's
+	coreCtx, cancel := context.WithCancel(core)
+	defer cancel()
+	stop := context.AfterFunc(ctx, cancel)
+	defer stop()
+	result, err := routetest.Run(coreCtx, routetest.Query{
+		Network: request.Network,
+		Host:    request.Host,
+		Port:    uint16(request.Port),
+		Inbound: request.Inbound,
+		Resolve: request.Resolve,
+	})
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	return resultProto(result), nil
+}
+
+func resultProto(r *routetest.Result) *nikopb.RouteTestResult {
+	answer := &nikopb.RouteTestResult{
+		Index:       int32(r.Index),
+		Rule:        r.Rule,
+		Action:      r.Action,
+		Outbound:    r.Outbound,
+		Error:       r.Error,
+		Destination: r.Destination,
+		FakeIp:      r.FakeIP,
+		Resolved:    r.Resolved,
+		Notes:       r.Notes,
+	}
+	for _, step := range r.Steps {
+		answer.Steps = append(answer.Steps, &nikopb.RouteTestStep{
+			Index:    int32(step.Index),
+			Rule:     step.Rule,
+			Action:   step.Action,
+			Resolved: step.Resolved,
+			Note:     step.Note,
+		})
+	}
+	return answer
+}

@@ -26,9 +26,72 @@ require (
 )
 
 require (
+	filippo.io/age v1.3.1 // indirect
+	filippo.io/hpke v0.4.0 // indirect
+	github.com/RyuaNerin/go-krypto v1.3.0 // indirect
+	github.com/akutz/memconn v0.1.0 // indirect
+	github.com/alexbrainman/sspi v0.0.0-20231016080023-1a75b4708caa // indirect
+	github.com/anchore/go-lzo v0.1.0 // indirect
+	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
+	github.com/anthropics/anthropic-sdk-go v1.26.0 // indirect
+	github.com/axiomhq/hyperloglog v0.0.0-20240319100328-84253e514e02 // indirect
+	github.com/coreos/go-iptables v0.7.1-0.20240112124308-65c67c9f46e6 // indirect
+	github.com/coreos/go-oidc/v3 v3.17.0 // indirect
+	github.com/creack/pty v1.1.24 // indirect
+	github.com/cretz/bine v0.2.0 // indirect
+	github.com/dblohm7/wingoes v0.0.0-20240119213807-a09d6be7affa // indirect
+	github.com/dgryski/go-camellia v0.0.0-20191119043421-69a8a13fb23d // indirect
+	github.com/dgryski/go-metro v0.0.0-20180109044635-280f6062b5bc // indirect
 	github.com/enfein/mieru/v3 v3.39.0 // indirect
+	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
+	github.com/gaissmai/bart v0.26.1 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
+	github.com/go4org/hashtriemap v0.0.0-20251130024219-545ba229f689 // indirect
+	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
+	github.com/google/certificate-transparency-go v1.3.2 // indirect
+	github.com/google/nftables v0.2.1-0.20240414091927-5e242ec57806 // indirect
+	github.com/google/uuid v1.6.0 // indirect
+	github.com/hdevalence/ed25519consensus v0.2.0 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/insomniacslk/dhcp v0.0.0-20260220084031-5adc3eb26f91 // indirect
+	github.com/keybase/go-keychain v0.0.1 // indirect
+	github.com/kr/fs v0.1.0 // indirect
 	github.com/metacubex/utls v1.8.7 // indirect
+	github.com/mitchellh/go-ps v1.0.0 // indirect
+	github.com/openai/openai-go/v3 v3.26.0 // indirect
+	github.com/pion/dtls/v3 v3.1.5 // indirect
+	github.com/pion/logging v0.2.4 // indirect
+	github.com/pion/transport/v4 v4.0.2 // indirect
+	github.com/pires/go-proxyproto v0.8.1 // indirect
+	github.com/pkg/sftp v1.13.10 // indirect
+	github.com/safchain/ethtool v0.3.0 // indirect
+	github.com/sagernet/gliderssh v0.3.4-0.20261023092853-e0cad6d28647 // indirect
+	github.com/sagernet/sing-cloudflared v0.1.4-0.20261021152903-2d40d788fcf6 // indirect
+	github.com/sagernet/sing-openconnect v0.1.1-0.20260929151225-cbd68c45de58 // indirect
+	github.com/sagernet/sing-openvpn v0.1.1-0.20261020061838-432d37b47c92 // indirect
+	github.com/sagernet/tailscale v1.102.1-sing-box-1.14-mod.5.0.20261019070639-79c1732442a9 // indirect
+	github.com/smallstep/pkcs7 v0.1.1 // indirect
+	github.com/spf13/cobra v1.10.2 // indirect
+	github.com/spf13/pflag v1.0.10 // indirect
+	github.com/tailscale/certstore v0.1.1-0.20260409135935-3638fb84b77d // indirect
+	github.com/tailscale/go-winio v0.0.0-20231025203758-c4f33415bf55 // indirect
+	github.com/tailscale/hujson v0.0.0-20260302212456-ecc657c15afd // indirect
+	github.com/tailscale/netlink v1.1.1-0.20240822203006-4d49adab4de7 // indirect
+	github.com/tailscale/peercred v0.0.0-20250107143737-35a0c7bd7edc // indirect
+	github.com/tailscale/web-client-prebuilt v0.0.0-20250124233751-d4cd19a26976 // indirect
+	github.com/tidwall/gjson v1.18.0 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
+	github.com/tidwall/sjson v1.2.5 // indirect
+	github.com/u-root/uio v0.0.0-20240224005618-d2acac8f3701 // indirect
 	github.com/wlynxg/anet v0.0.5 // indirect
+	github.com/x448/float16 v0.8.4 // indirect
+	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
+	go4.org/mem v0.0.0-20240501181205-ae6ca9944745 // indirect
+	golang.org/x/oauth2 v0.36.0 // indirect
+	golang.org/x/term v0.47.0 // indirect
+	golang.zx2c4.com/wireguard/windows v1.1.1 // indirect
+	zombiezen.com/go/capnproto2 v2.18.2+incompatible // indirect
 )
 
 require (
@@ -151,7 +214,7 @@ require (
 	golang.org/x/tools v0.51.0 // indirect
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
-	google.golang.org/grpc v1.79.1 // indirect
+	google.golang.org/grpc v1.79.1
 	google.golang.org/protobuf v1.36.11
 	lukechampine.com/blake3 v1.3.0 // indirect
 	masterdnsvpn-go v0.0.0 // indirect

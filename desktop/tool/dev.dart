@@ -1,8 +1,10 @@
 // Stage 2b's way to run the window against the daemon in development mode (docs/desktop/README.md):
 //
-//   dart run tool/dev.dart --boxdd <path to boxdd> --config <file.json> [--port 18080]
+//   dart run tool/dev.dart --daemon <path to nikod> --config <file.json> [--port 18080]
 //
-// Starts `boxdd run --listen 127.0.0.1:<port>` and the window built with the development link. That mode of the
+// Starts `nikod run --listen 127.0.0.1:<port>` (Niko's daemon, libcore/cmd/nikod: the core's boxdd with NikoService;
+// the fork's plain boxdd works too, without NikoService; --boxdd is the old name of --daemon) and the window built
+// with the development link. That mode of the
 // daemon is gRPC over TCP with no check of the client at all, and boxdd itself listens on whatever address it is
 // given: this script is the only way the daemon is started in that mode, and it gives it 127.0.0.1 and a port,
 // nothing else. A developer's machine only; a release has neither the mode nor this script.
@@ -10,7 +12,7 @@ import 'dart:io';
 
 Never usage([String? why]) {
   if (why != null) stderr.writeln(why);
-  stderr.writeln('usage: dart run tool/dev.dart --boxdd <path> --config <file.json> [--port <1024..65535>]');
+  stderr.writeln('usage: dart run tool/dev.dart --daemon <path> --config <file.json> [--port <1024..65535>]');
   exit(2);
 }
 
@@ -20,7 +22,7 @@ Future<void> main(List<String> arguments) async {
   for (var i = 0; i < arguments.length; i += 2) {
     if (i + 1 >= arguments.length) usage('${arguments[i]} takes a value');
     switch (arguments[i]) {
-      case '--boxdd':
+      case '--daemon' || '--boxdd':
         boxdd = arguments[i + 1];
       case '--config':
         config = arguments[i + 1];
@@ -42,19 +44,28 @@ Future<void> main(List<String> arguments) async {
   stdout.writeln('the daemon on $address (development only, no access control), its files in ${work.path}');
   // boxdd takes INVOCATION_ID for "started by systemd" and refuses --listen as a service would; a terminal of a
   // systemd session carries it, and this child is no service
-  final daemon = await Process.start(boxdd, ['run', '--listen', address, '-D', work.path],
-      environment: Map.of(Platform.environment)..remove('INVOCATION_ID'),
-      includeParentEnvironment: false,
-      mode: ProcessStartMode.inheritStdio);
-  final device = Platform.isWindows ? 'windows' : 'linux';
-  final window = await Process.start(
-    Platform.isWindows ? 'flutter.bat' : 'flutter',
-    [
-      'run', '-d', device, '--dart-define=NIKO_DEV=true',
-      '-a', '--daemon', '-a', address, '-a', '--config', '-a', File(config).absolute.path,
-    ],
+  final daemon = await Process.start(
+    boxdd,
+    ['run', '--listen', address, '-D', work.path],
+    environment: Map.of(Platform.environment)..remove('INVOCATION_ID'),
+    includeParentEnvironment: false,
     mode: ProcessStartMode.inheritStdio,
   );
+  final device = Platform.isWindows ? 'windows' : 'linux';
+  final window = await Process.start(Platform.isWindows ? 'flutter.bat' : 'flutter', [
+    'run',
+    '-d',
+    device,
+    '--dart-define=NIKO_DEV=true',
+    '-a',
+    '--daemon',
+    '-a',
+    address,
+    '-a',
+    '--config',
+    '-a',
+    File(config).absolute.path,
+  ], mode: ProcessStartMode.inheritStdio);
   final code = await window.exitCode;
   daemon.kill();
   await daemon.exitCode;

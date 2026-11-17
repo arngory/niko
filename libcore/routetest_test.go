@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"libcore/routetest"
 )
 
 // The route tester against a core with rules as the app writes them (a sniff first, DNS hijacked on 53, then the
@@ -52,24 +54,24 @@ func TestRouteTest(t *testing.T) {
 	}`
 	instance := startTestBox(t, config)
 	defer instance.Close()
-	ask := func(q routeTestQuery) routeTestResult {
+	ask := func(q routetest.Query) routetest.Result {
 		t.Helper()
 		raw, _ := json.Marshal(q)
 		answer, err := RouteTest(instance, string(raw))
 		if err != nil {
 			t.Fatalf("%+v: %v", q, err)
 		}
-		var result routeTestResult
+		var result routetest.Result
 		if err = json.Unmarshal([]byte(answer), &result); err != nil {
 			t.Fatal(err)
 		}
 		return result
 	}
-	vpn := func(host string, port uint16) routeTestQuery {
-		return routeTestQuery{Host: host, Port: port, Inbound: "tun-in", Resolve: true}
+	vpn := func(host string, port uint16) routetest.Query {
+		return routetest.Query{Host: host, Port: port, Inbound: "tun-in", Resolve: true}
 	}
-	proxy := func(host string, port uint16) routeTestQuery {
-		return routeTestQuery{Host: host, Port: port, Inbound: "mixed-in", Resolve: true}
+	proxy := func(host string, port uint16) routetest.Query {
+		return routetest.Query{Host: host, Port: port, Inbound: "mixed-in", Resolve: true}
 	}
 
 	// through the VPN: the app's own query gives the address, the sniff the name, the domain rule takes it
@@ -94,10 +96,10 @@ func TestRouteTest(t *testing.T) {
 		t.Fatalf("an app: %+v", r)
 	}
 	// QUIC by its port, DNS by its port
-	if r = ask(routeTestQuery{Host: "www.example.ru", Port: 443, Network: "udp", Inbound: "tun-in", Resolve: true}); r.Index != 1 {
+	if r = ask(routetest.Query{Host: "www.example.ru", Port: 443, Network: "udp", Inbound: "tun-in", Resolve: true}); r.Index != 1 {
 		t.Fatalf("QUIC: %+v", r)
 	}
-	if r = ask(routeTestQuery{Host: "192.0.2.7", Port: 53, Network: "udp", Inbound: "tun-in"}); r.Index != 2 || r.Action != "hijack-dns" {
+	if r = ask(routetest.Query{Host: "192.0.2.7", Port: 53, Network: "udp", Inbound: "tun-in"}); r.Index != 2 || r.Action != "hijack-dns" {
 		t.Fatalf("DNS: %+v", r)
 	}
 	if r = ask(vpn("192.0.2.7", 8080)); r.Index != 8 || r.Outbound != "" || !strings.Contains(r.Steps[0].Note, "not known") {
@@ -107,7 +109,7 @@ func TestRouteTest(t *testing.T) {
 	if r = ask(vpn("www.example.ru", 8443)); r.Index != 3 || !strings.Contains(r.Steps[0].Note, "TLS or HTTP") {
 		t.Fatalf("an unknown TCP port: %+v", r)
 	}
-	if r = ask(routeTestQuery{Host: "www.example.ru", Port: 3478, Network: "udp", Inbound: "tun-in", Resolve: true}); r.Index != -1 ||
+	if r = ask(routetest.Query{Host: "www.example.ru", Port: 3478, Network: "udp", Inbound: "tun-in", Resolve: true}); r.Index != -1 ||
 		r.Outbound != "proxy" || !strings.Contains(r.Steps[0].Note, "not QUIC") {
 		t.Fatalf("an unknown UDP port: %+v", r)
 	}
@@ -132,7 +134,7 @@ func TestRouteTest(t *testing.T) {
 		t.Fatalf("IPv6: %+v", r)
 	}
 	// no DNS asked: the domain as it is, and said so
-	if r = ask(routeTestQuery{Host: "www.example.ru", Port: 443}); r.Index != 3 || len(r.Notes) != 1 {
+	if r = ask(routetest.Query{Host: "www.example.ru", Port: 443}); r.Index != 3 || len(r.Notes) != 1 {
 		t.Fatalf("a domain without DNS: %+v", r)
 	}
 
@@ -144,7 +146,7 @@ func TestRouteTest(t *testing.T) {
 	if r = ask(proxy("fail.example", 443)); r.Index != 6 || r.Error == "" {
 		t.Fatalf("a failed resolve action: %+v", r)
 	}
-	if r = ask(routeTestQuery{Host: "resolve.example", Port: 443, Inbound: "mixed-in"}); r.Index != -1 ||
+	if r = ask(routetest.Query{Host: "resolve.example", Port: 443, Inbound: "mixed-in"}); r.Index != -1 ||
 		r.Steps[1].Note != "resolve: skipped, no DNS queries asked" {
 		t.Fatalf("a resolve not asked for: %+v", r)
 	}
@@ -179,7 +181,7 @@ func TestRouteTestReverseMapping(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var r routeTestResult
+	var r routetest.Result
 	if err = json.Unmarshal([]byte(answer), &r); err != nil || r.Index != 0 || r.Outbound != "bypass" {
 		t.Fatalf("%s: %v", answer, err)
 	}
@@ -197,13 +199,13 @@ func TestRouteTestSniffers(t *testing.T) {
 		}
 	}`)
 	defer instance.Close()
-	ask := func(query string) routeTestResult {
+	ask := func(query string) routetest.Result {
 		t.Helper()
 		answer, err := RouteTest(instance, query)
 		if err != nil {
 			t.Fatal(err)
 		}
-		var r routeTestResult
+		var r routetest.Result
 		if err = json.Unmarshal([]byte(answer), &r); err != nil {
 			t.Fatal(err)
 		}

@@ -7,6 +7,7 @@ import 'package:protobuf/well_known_types/google/protobuf/empty.pb.dart';
 import '../gen/daemon/managed_service.pbgrpc.dart';
 import '../gen/daemon/started_service.pbgrpc.dart';
 import '../gen/experimental/boxdd/desktop_service.pbgrpc.dart';
+import '../gen/niko/v1/niko_service.pbgrpc.dart' as niko;
 import 'endpoint.dart';
 
 /// What the core is doing (the daemon's ServiceStatus).
@@ -182,6 +183,77 @@ class StunProgress {
   final String error;
 }
 
+/// What Niko's daemon, nikod, is (NikoService.GetInfo).
+class NikoInfo {
+  const NikoInfo({required this.nikoVersion, required this.coreVersion, required this.storeSchema, required this.api});
+
+  final String nikoVersion;
+  final String coreVersion;
+
+  /// The schema of the daemon's store; 0: no store yet.
+  final int storeSchema;
+
+  /// The version of NikoService: what the window may ask of this daemon.
+  final int api;
+}
+
+/// A rule a connection matched on its way (NikoService.RouteTest).
+class RouteStep {
+  const RouteStep({
+    required this.index,
+    required this.rule,
+    required this.action,
+    this.resolved = const [],
+    this.note = '',
+  });
+
+  final int index;
+  final String rule;
+  final String action;
+
+  /// A resolve action's addresses.
+  final List<String> resolved;
+
+  /// What the action did, or what of it was taken on trust.
+  final String note;
+}
+
+/// Where a connection would go, and which rule of the running core sent it there (NikoService.RouteTest).
+class RouteVerdict {
+  const RouteVerdict({
+    required this.index,
+    required this.rule,
+    required this.action,
+    required this.outbound,
+    this.error = '',
+    this.destination = '',
+    this.fakeIp = false,
+    this.resolved = const [],
+    this.notes = const [],
+    this.steps = const [],
+  });
+
+  /// The rule that decided; -1: none, the final outbound took it.
+  final int index;
+  final String rule;
+  final String action;
+  final String outbound;
+
+  /// A lookup the connection cannot do without failed, and it goes nowhere.
+  final String error;
+
+  /// The connection as the rules first saw it.
+  final String destination;
+  final bool fakeIp;
+
+  /// What the core's DNS answered the app's own query through the VPN.
+  final List<String> resolved;
+
+  /// What the rules did not see as they would see a real connection.
+  final List<String> notes;
+  final List<RouteStep> steps;
+}
+
 /// The daemon as the window uses it. One implementation talks gRPC ([GrpcDaemon]); tests put a server behind it.
 abstract interface class Daemon {
   /// The daemon's version: the first call, which also says whether it is there at all.
@@ -228,6 +300,20 @@ abstract interface class Daemon {
   /// last [StunProgress.isFinal]. Fails at once when the core is not running.
   Stream<StunProgress> stunTest(String server);
 
+  /// What Niko's daemon is (nikod's NikoService). Fails with UNIMPLEMENTED against the core's daemon alone.
+  Future<NikoInfo> nikoInfo();
+
+  /// Which rule of the running core a connection to [host]:[port] would match and where it would go; nothing is
+  /// connected (D-CHECK-03…05). [inbound] empty: the TUN's; [resolve] lets the core's DNS be asked, as an app's query
+  /// would. Fails when the core is not running, and for the daemon's owner alone outside development mode.
+  Future<RouteVerdict> routeTest(
+    String host,
+    int port, {
+    String network = 'tcp',
+    String inbound = '',
+    bool resolve = false,
+  });
+
   Future<void> close();
 }
 
@@ -243,24 +329,25 @@ String daemonError(Object error) {
 
 class GrpcDaemon implements Daemon {
   GrpcDaemon(this._channel)
-      : _desktop = DesktopServiceClient(_channel),
-        _started = StartedServiceClient(_channel),
-        _managed = ManagedServiceClient(_channel);
+    : _desktop = DesktopServiceClient(_channel),
+      _started = StartedServiceClient(_channel),
+      _managed = ManagedServiceClient(_channel),
+      _niko = niko.NikoServiceClient(_channel);
 
   /// The development link: plain TCP to 127.0.0.1, which [DevEndpoint] alone can name.
-  factory GrpcDaemon.dev(DevEndpoint endpoint) => GrpcDaemon(ClientChannel(
-        DevEndpoint.host,
-        port: endpoint.port,
-        options: const ChannelOptions(
-          credentials: ChannelCredentials.insecure(),
-          connectTimeout: Duration(seconds: 3),
-        ),
-      ));
+  factory GrpcDaemon.dev(DevEndpoint endpoint) => GrpcDaemon(
+    ClientChannel(
+      DevEndpoint.host,
+      port: endpoint.port,
+      options: const ChannelOptions(credentials: ChannelCredentials.insecure(), connectTimeout: Duration(seconds: 3)),
+    ),
+  );
 
   final ClientChannel _channel;
   final DesktopServiceClient _desktop;
   final StartedServiceClient _started;
   final ManagedServiceClient _managed;
+  final niko.NikoServiceClient _niko;
 
   static final _short = CallOptions(timeout: const Duration(seconds: 5));
   // a start downloads rule sets and opens a TUN: the daemon answers when the core is up or has failed
@@ -270,28 +357,33 @@ class GrpcDaemon implements Daemon {
   Future<String> version() async => (await _desktop.getDaemonInfo(Empty(), options: _short)).version;
 
   @override
-  Stream<ServiceState> serviceStatus() => _started.subscribeServiceStatus(Empty()).map((status) => ServiceState(
-        switch (status.status) {
+  Stream<ServiceState> serviceStatus() => _started
+      .subscribeServiceStatus(Empty())
+      .map(
+        (status) => ServiceState(switch (status.status) {
           ServiceStatus_Type.STARTING => ServicePhase.starting,
           ServiceStatus_Type.STARTED => ServicePhase.started,
           ServiceStatus_Type.STOPPING => ServicePhase.stopping,
           ServiceStatus_Type.FATAL => ServicePhase.fatal,
           _ => ServicePhase.idle,
-        },
-        status.errorMessage,
-      ));
+        }, status.errorMessage),
+      );
 
   @override
   Stream<Traffic> traffic(Duration interval) {
     // the interval is a Go duration: nanoseconds. The rates are bytes per interval
     final request = SubscribeStatusRequest(interval: Int64(interval.inMicroseconds) * 1000);
     final perSecond = Duration.microsecondsPerSecond / interval.inMicroseconds;
-    return _started.subscribeStatus(request).map((status) => Traffic(
-          up: (status.uplink.toInt() * perSecond).round(),
-          down: (status.downlink.toInt() * perSecond).round(),
-          upTotal: status.uplinkTotal.toInt(),
-          downTotal: status.downlinkTotal.toInt(),
-        ));
+    return _started
+        .subscribeStatus(request)
+        .map(
+          (status) => Traffic(
+            up: (status.uplink.toInt() * perSecond).round(),
+            down: (status.downlink.toInt() * perSecond).round(),
+            upTotal: status.uplinkTotal.toInt(),
+            downTotal: status.downlinkTotal.toInt(),
+          ),
+        );
   }
 
   @override
@@ -373,12 +465,19 @@ class GrpcDaemon implements Daemon {
     final memory = await _desktop.listOOMReports(Empty(), options: _short);
     return [
       for (final report in crashes.reports)
-        ReportEntry(ReportKind.crash, report.name, DateTime.fromMillisecondsSinceEpoch(report.crashedAt.toInt()),
-            read: report.isRead),
+        ReportEntry(
+          ReportKind.crash,
+          report.name,
+          DateTime.fromMillisecondsSinceEpoch(report.crashedAt.toInt()),
+          read: report.isRead,
+        ),
       for (final report in memory.reports)
-        ReportEntry(ReportKind.outOfMemory, report.name,
-            DateTime.fromMillisecondsSinceEpoch(report.recordedAt.toInt()),
-            read: report.isRead),
+        ReportEntry(
+          ReportKind.outOfMemory,
+          report.name,
+          DateTime.fromMillisecondsSinceEpoch(report.recordedAt.toInt()),
+          read: report.isRead,
+        ),
     ]..sort((a, b) => b.at.compareTo(a.at));
   }
 
@@ -386,47 +485,102 @@ class GrpcDaemon implements Daemon {
   Future<ReportArchive> exportReport(ReportEntry report) async {
     final archive = switch (report.kind) {
       ReportKind.crash => await _desktop.exportCrashReport(
-          CrashReportExportRequest(name: report.name, withLog: true, withConfiguration: false),
-          options: _long),
+        CrashReportExportRequest(name: report.name, withLog: true, withConfiguration: false),
+        options: _long,
+      ),
       ReportKind.outOfMemory => await _desktop.exportOOMReport(
-          OOMReportExportRequest(name: report.name, withLog: true, withConfiguration: false),
-          options: _long),
+        OOMReportExportRequest(name: report.name, withLog: true, withConfiguration: false),
+        options: _long,
+      ),
     };
     return ReportArchive(archive.fileName, archive.data);
   }
 
   @override
   Future<void> markReportRead(ReportEntry report) => switch (report.kind) {
-        ReportKind.crash => _desktop.markCrashReportRead(CrashReportRequest(name: report.name), options: _short),
-        ReportKind.outOfMemory => _desktop.markOOMReportRead(OOMReportRequest(name: report.name), options: _short),
-      };
+    ReportKind.crash => _desktop.markCrashReportRead(CrashReportRequest(name: report.name), options: _short),
+    ReportKind.outOfMemory => _desktop.markOOMReportRead(OOMReportRequest(name: report.name), options: _short),
+  };
 
   @override
-  Stream<StunProgress> stunTest(String server) =>
-      _started.startSTUNTest(STUNTestRequest(server: server)).map((progress) => StunProgress(
-            externalAddress: progress.externalAddr,
-            latencyMs: progress.latencyMs,
-            mapping: natMapping(progress.natMapping),
-            filtering: natFiltering(progress.natFiltering),
-            natTypeSupported: progress.natTypeSupported,
-            isFinal: progress.isFinal,
-            error: progress.error,
-          ));
+  Stream<StunProgress> stunTest(String server) => _started
+      .startSTUNTest(STUNTestRequest(server: server))
+      .map(
+        (progress) => StunProgress(
+          externalAddress: progress.externalAddr,
+          latencyMs: progress.latencyMs,
+          mapping: natMapping(progress.natMapping),
+          filtering: natFiltering(progress.natFiltering),
+          natTypeSupported: progress.natTypeSupported,
+          isFinal: progress.isFinal,
+          error: progress.error,
+        ),
+      );
 
   /// The core's numbers (common/stun): the mapping keeps 1 reserved, the filtering does not.
   static NatBehaviour natMapping(int value) => switch (value) {
-        2 => NatBehaviour.endpointIndependent,
-        3 => NatBehaviour.addressDependent,
-        4 => NatBehaviour.addressAndPortDependent,
-        _ => NatBehaviour.unknown,
-      };
+    2 => NatBehaviour.endpointIndependent,
+    3 => NatBehaviour.addressDependent,
+    4 => NatBehaviour.addressAndPortDependent,
+    _ => NatBehaviour.unknown,
+  };
 
   static NatBehaviour natFiltering(int value) => switch (value) {
-        1 => NatBehaviour.endpointIndependent,
-        2 => NatBehaviour.addressDependent,
-        3 => NatBehaviour.addressAndPortDependent,
-        _ => NatBehaviour.unknown,
-      };
+    1 => NatBehaviour.endpointIndependent,
+    2 => NatBehaviour.addressDependent,
+    3 => NatBehaviour.addressAndPortDependent,
+    _ => NatBehaviour.unknown,
+  };
+
+  @override
+  Future<NikoInfo> nikoInfo() async {
+    final info = await _niko.getInfo(niko.GetInfoRequest(), options: _short);
+    return NikoInfo(
+      nikoVersion: info.nikoVersion,
+      coreVersion: info.coreVersion,
+      storeSchema: info.storeSchema,
+      api: info.api,
+    );
+  }
+
+  // a resolve asks the core's DNS: its rules' servers, up to the tester's own 20 s
+  static final _routeTest = CallOptions(timeout: const Duration(seconds: 25));
+
+  @override
+  Future<RouteVerdict> routeTest(
+    String host,
+    int port, {
+    String network = 'tcp',
+    String inbound = '',
+    bool resolve = false,
+  }) async {
+    final r = await _niko.routeTest(
+      niko.RouteTestRequest(host: host, port: port, network: network, inbound: inbound, resolve: resolve),
+      options: _routeTest,
+    );
+    return RouteVerdict(
+      index: r.index,
+      rule: r.rule,
+      action: r.action,
+      outbound: r.outbound,
+      error: r.error,
+      destination: r.destination,
+      fakeIp: r.fakeIp,
+      resolved: List.unmodifiable(r.resolved),
+      notes: List.unmodifiable(r.notes),
+      steps: List.unmodifiable(
+        r.steps.map(
+          (s) => RouteStep(
+            index: s.index,
+            rule: s.rule,
+            action: s.action,
+            resolved: List.unmodifiable(s.resolved),
+            note: s.note,
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Future<void> close() => _channel.shutdown();

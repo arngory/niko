@@ -1,0 +1,71 @@
+// NikoService: Niko's own calls to its desktop daemon, nikod, served beside the core's daemon's services through the
+// same channel and credentials (docs/desktop/STAGE3.md). Go: libcore/nikopb (shared/tool/gen_proto_go.sh); Dart:
+// desktop/lib/gen (desktop/tool/gen_proto.sh).
+syntax = "proto3";
+
+package niko.v1;
+
+option go_package = "libcore/nikopb;nikopb";
+
+service NikoService {
+  // What this daemon is. Any caller the daemon verified.
+  rpc GetInfo(GetInfoRequest) returns (Info);
+  // Which rule of the running core a connection would match and where it would go; no connection is made. The
+  // daemon's owner only: it reads the owner's core. FAILED_PRECONDITION when no core runs.
+  rpc RouteTest(RouteTestRequest) returns (RouteTestResult);
+}
+
+message GetInfoRequest {}
+
+message Info {
+  // Niko's version, as its build names it
+  string niko_version = 1;
+  // the core's version
+  string core_version = 2;
+  // the schema of the daemon's store; 0: no store yet
+  int32 store_schema = 3;
+  // the version of this API: what the window may ask
+  int32 api = 4;
+}
+
+message RouteTestRequest {
+  // tcp (the default) or udp
+  string network = 1;
+  // a domain or an address
+  string host = 2;
+  uint32 port = 3;
+  // the inbound's tag: tun-in (the default), mixed-in or another of the running core's
+  string inbound = 4;
+  // DNS queries allowed, through the core's DNS: an app's own query for a domain through the VPN, a resolve
+  // action's; they leave what a real query would (a fake address, a cache entry)
+  bool resolve = 5;
+}
+
+// A rule the connection matched on its way.
+message RouteTestStep {
+  int32 index = 1;
+  string rule = 2;
+  string action = 3;
+  // a resolve action's addresses
+  repeated string resolved = 4;
+  // what the action did, or what of it was taken on trust
+  string note = 5;
+}
+
+message RouteTestResult {
+  // the rule that decided; -1: none, the final outbound took it (or a lookup before the rules failed)
+  int32 index = 1;
+  string rule = 2;
+  string action = 3;
+  string outbound = 4;
+  // a lookup the connection cannot do without failed, and it goes nowhere
+  string error = 5;
+  // the connection as the rules first saw it
+  string destination = 6;
+  bool fake_ip = 7;
+  // what the core's DNS answered the app's own query through the VPN
+  repeated string resolved = 8;
+  // what the rules did not see as they would see a real connection
+  repeated string notes = 9;
+  repeated RouteTestStep steps = 10;
+}
