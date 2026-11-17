@@ -38,6 +38,9 @@ class ConnectionController extends ChangeNotifier {
 
   /// How many times a working link dropped: each is asked again at once, and said only if that fails too.
   int drops = 0;
+
+  // an immediate relink was spent and the status stream has not answered since: the next drop waits [retry]
+  bool _quickSpent = false;
   String daemonVersion = '';
 
   ServiceState service = const ServiceState(ServicePhase.idle);
@@ -99,11 +102,13 @@ class ConnectionController extends ChangeNotifier {
     // what the core does is not known any more: nothing is claimed about it
     service = const ServiceState(ServicePhase.idle);
     _retryTimer?.cancel();
-    if (link == LinkPhase.ready) {
+    if (link == LinkPhase.ready && !_quickSpent) {
       // A link that worked and dropped is asked again at once, and the window says it is connecting: the gRPC
       // package closes the whole connection when the window lets go of a stream at the moment the daemon ends it
-      // (seen on Windows), and the daemon is there all the same. A second failure is said as such.
+      // (seen on Windows), and the daemon is there all the same. Once a drop: a link that answers its version and then
+      // fails its status stream at once (an older daemon, a refusal) waits [retry] like any loss, not a loop.
       drops++;
+      _quickSpent = true;
       link = LinkPhase.connecting;
       linkError = why;
       notifyListeners();
@@ -120,6 +125,8 @@ class ConnectionController extends ChangeNotifier {
 
   void _onService(ServiceState state) {
     if (_disposed) return;
+    // the link works end to end again: a later drop may be asked again at once
+    _quickSpent = false;
     service = state;
     if (state.phase == ServicePhase.started) {
       if (_trafficSubscription == null) {

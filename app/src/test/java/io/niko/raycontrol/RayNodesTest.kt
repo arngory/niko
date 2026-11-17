@@ -57,13 +57,18 @@ class RayNodesTest {
         val later = RayNodes.rememberNames(second, emptyMap(), t0 + 181 * day)
         assertEquals(setOf("b.example.com", "203.0.113.2"), later.keys)
         assertTrue(RayNodes.rememberNames(later, emptyMap(), t0 + 182 * day).isEmpty())
-        // a node whose name changes every hour: the newest 64
+        // a node whose name changes every hour: the current names and the 64 previous ones seen last
         var many = emptyMap<String, Long>()
         for (hour in 0 until 100) {
             many = RayNodes.rememberNames(many, mapOf("5" to RayLinks("naive", "$line&sni=h$hour.example.com")), t0 + hour * 3600L)
         }
-        assertEquals(64, many.size)
-        assertTrue("h99.example.com" in many && "203.0.113.2" in many && "h36.example.com" !in many)
+        assertEquals(66, many.size)
+        assertTrue("h99.example.com" in many && "203.0.113.2" in many && "h35.example.com" in many && "h34.example.com" !in many)
+        // a node with more current names than the bound keeps every one of them and the name it dropped as well
+        val rows = (0 until 40).associate { "$it" to RayLinks("naive", "$line&sni=r$it.example.com", next = "$line&sni=n$it.example.com") }
+        val before = RayNodes.rememberNames(emptyMap(), rows + ("x" to RayLinks("naive", "$line&sni=old.example.com")), t0)
+        val after = RayNodes.rememberNames(before, rows + ("x" to RayLinks("naive", "$line&sni=new.example.com")), t0 + day)
+        assertTrue("old.example.com" in after && "new.example.com" in after && "r39.example.com" in after && "n0.example.com" in after)
     }
 
     @Test

@@ -164,6 +164,16 @@ void main() {
       expect(File('${file.path}.new').existsSync(), isFalse);
       file.writeAsStringSync('{not json');
       expect((await WindowSettings.load(file)).advanced, isFalse);
+      // saves asked for at once run one after another: the last choice is what stays
+      final quick = await WindowSettings.load(file);
+      final saves = <Future<void>>[];
+      for (final advanced in [true, false, true, false, true]) {
+        quick.advanced = advanced;
+        saves.add(quick.save());
+      }
+      await Future.wait(saves);
+      expect((await WindowSettings.load(file)).advanced, isTrue);
+      expect(File('${file.path}.new').existsSync(), isFalse);
       // kept nowhere: nothing written, nothing thrown
       final memory = WindowSettings.memory(advanced: true);
       await memory.save();

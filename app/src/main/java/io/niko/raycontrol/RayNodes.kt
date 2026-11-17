@@ -662,19 +662,21 @@ object RayNodes {
     // the front keeps a previous naive name until the next switches, up to 90 days without them: twice that here
     private const val PAST_NAMES_KEEP_S = 180L * 24 * 3600
 
-    // a bound for a node whose names change often: the newest stay
+    // a bound on the previous names of a node whose names change often: the most recently seen stay
     private const val PAST_NAMES_MAX = 64
 
     /**
-     * [past] with the names of [links] seen [now]: each name's time is the last subscription that carried it. Names
-     * unseen for 180 days go, and at most [PAST_NAMES_MAX] stay, the most recently seen.
+     * [past] with the names of [links] seen [now]: each name's time is the last subscription that carried it. Every
+     * name of [links] stays; of the others, those unseen for 180 days go, and at most [PAST_NAMES_MAX] stay, the most
+     * recently seen. The bound is on the previous names alone: a node with many rows would otherwise push them out
+     * with its current ones, the very names a fake must still not carry.
      */
     internal fun rememberNames(past: Map<String, Long>, links: Map<String, RayLinks>, now: Long): Map<String, Long> {
-        val seen = past.toMutableMap()
-        for (name in linkNames(links)) seen[name] = now
-        return seen.filterValues { now - it <= PAST_NAMES_KEEP_S }.entries
+        val current = linkNames(links)
+        val previous = past.filterKeys { it !in current }.filterValues { now - it <= PAST_NAMES_KEEP_S }.entries
             .sortedWith(compareByDescending<Map.Entry<String, Long>> { it.value }.thenBy { it.key })
             .take(PAST_NAMES_MAX).associate { it.key to it.value }
+        return previous + current.associateWith { now }
     }
 
     /** The names in the subscription's lines themselves, `link` and `next` of every row. */

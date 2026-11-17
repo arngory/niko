@@ -126,6 +126,16 @@ void main() {
     expect(controller.service.phase, ServicePhase.idle);
   });
 
+  test('a daemon that answers its version and refuses the status: one quick try, then the usual pause', () async {
+    server.refuseStatus = true;
+    controller = link(server.port)..attach();
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    // a loop would have asked hundreds of times by now; the pause of 100 ms lets four or five through
+    expect(server.statusAsked, lessThan(10));
+    expect(controller.drops, lessThan(10));
+    expect(controller.link, anyOf(LinkPhase.lost, LinkPhase.connecting));
+  });
+
   test('no daemon at the address: lost, with a reason', () async {
     final port = server.port;
     await server.shutdown();

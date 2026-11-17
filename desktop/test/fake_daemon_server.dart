@@ -94,6 +94,10 @@ class FakeDaemonServer {
     _server = null;
   }
 
+  /// Set: the status stream is refused at once, as an older daemon or a refusal would.
+  bool refuseStatus = false;
+  int statusAsked = 0;
+
   /// What the server saw, for a test's trace.
   void Function(String what) onEvent = (_) {};
 
@@ -177,6 +181,8 @@ class _Started extends StartedServiceBase {
 
   @override
   Stream<ServiceStatus> subscribeServiceStatus(ServiceCall call, Empty request) async* {
+    daemon.statusAsked++;
+    if (daemon.refuseStatus) throw GrpcError.unimplemented('no status here');
     daemon._open++;
     try {
       yield daemon._status;
