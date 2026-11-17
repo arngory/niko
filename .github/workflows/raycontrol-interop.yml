@@ -62,6 +62,11 @@ env:
   NIKO_SERVER_TAG_OVERRIDE: ${{ inputs.niko_server_tag }}
   NIKO_SERVER_SHA256_OVERRIDE: ${{ inputs.niko_server_sha256 }}
 
+# one run per branch: a newer push cancels the run it supersedes (one full run per commit)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   invite:
     runs-on: ubuntu-latest

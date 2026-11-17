@@ -618,7 +618,7 @@ shared/golden/
 
 | № | Срез | Что даёт | Чем проверяет CI |
 |---|---|---|---|
-| 1 | `nikod`: `boxdd` как пакет, пустой `NikoService` с `GetInfo` и `RouteTest` | основа всего; D-CHECK-03…05 на стороне демона | тест окна с настоящим `nikod` на Windows и Linux; тест политики авторизатора в форке |
+| 1 | `nikod`: `boxdd` как пакет, пустой `NikoService` с `GetInfo` и `RouteTest` — **сделано 2026-11-17** (форк: `boxdd` пакетом с политиками методов, `Instance.Hold`; `RouteTest` вне блокировки демона, ABORTED после остановки ядра; тест окна против `nikod` на Windows и Linux) | основа всего; D-CHECK-03…05 на стороне демона | тест окна с настоящим `nikod` на Windows и Linux; тест политики авторизатора в форке |
 | 2 | Каркас golden и ссылки узлов: naive, Hysteria2, VLESS REALITY и XHTTP с параметрами Niko (`nikofmt`) | первые профили в Go | задача `golden`: Kotlin пишет и сверяет, Go сверяет |
 | 3 | Остальные ссылки и `sn://` (Kryo) | весь D-ADD-03 для ссылок | `golden` |
 | 4 | `nikostore`, CRUD, `Watch`, `Recognize`/`Import` для ссылок | профили живут в службе | тесты Go: хранилище, переходы схемы, gRPC через `bufconn`; тест окна: импорт ссылки виден через `Watch` |
