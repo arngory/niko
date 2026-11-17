@@ -150,6 +150,8 @@ jobs:
         run: |
           python3 -I shared/tool/gen_tokens.py --check
           python3 -I shared/tool/gen_icons.py --check
+          # a path Android cannot read builds and passes lint, then the screen that shows it does not open
+          python3 -I shared/tool/check_vectors.py app/src/main/res
 
       - name: Download LibCore
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0

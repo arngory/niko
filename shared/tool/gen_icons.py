@@ -31,12 +31,56 @@ def number(value):
     return str(int(value)) if value == int(value) else ("%.4f" % value).rstrip("0").rstrip(".")
 
 
+# how many numbers each path command takes
+ARGUMENTS = {"m": 2, "l": 2, "h": 1, "v": 1, "c": 6, "s": 4, "q": 4, "t": 2, "a": 7, "z": 0}
+NUMBER = re.compile(r"[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?")
+
+
+def spaced(data):
+    """Path data with every number apart. SVG lets numbers run together ("1.5.5", "2-3"), and an arc's two flags
+    stand with no space before what follows ("a2 2 0 0022 17" is flags 0 and 0, then x 22). Android reads a path's
+    numbers as floats one after another: "0022" is 22 to it, the arc is short of numbers, and the drawable does not
+    load (Resources.NotFoundException when it is inflated, nothing at build time or in lint)."""
+    out, i, command, taken = [], 0, None, 0
+    while i < len(data):
+        c = data[i]
+        if c in " \t\r\n,":
+            i += 1
+        elif c.lower() in ARGUMENTS:
+            if command and ARGUMENTS[command.lower()] and taken % ARGUMENTS[command.lower()]:
+                raise ValueError(f"path data: {command} is short of numbers in {data!r}")
+            command, taken = c, 0
+            out.append(c)
+            i += 1
+        elif command is None or not ARGUMENTS[command.lower()]:
+            raise ValueError(f"path data: a number with no command at {i} in {data!r}")
+        elif command.lower() == "a" and taken % 7 in (3, 4):
+            if c not in "01":
+                raise ValueError(f"path data: an arc flag is {c!r} at {i} in {data!r}")
+            out.append(c)
+            taken += 1
+            i += 1
+        else:
+            match = NUMBER.match(data, i)
+            if not match:
+                raise ValueError(f"path data: not a number at {i} in {data!r}")
+            out.append(match.group())
+            taken += 1
+            i = match.end()
+    if command and ARGUMENTS[command.lower()] and taken % ARGUMENTS[command.lower()]:
+        raise ValueError(f"path data: {command} is short of numbers in {data!r}")
+    text = ""
+    for token in out:
+        text += token if token.lower() in ARGUMENTS or text[-1:].lower() in ARGUMENTS else " " + token
+    return text
+
+
 def shape_path(element):
     """A basic shape as path data (SVG 2, 10: equivalent paths)."""
     tag = element.tag.replace(SVG, "")
     get = lambda name, default="0": float(element.get(name, default))
     if tag == "path":
-        return " ".join(element.get("d").split())
+        return spaced(element.get("d"))
     if tag == "line":
         return f"M{number(get('x1'))} {number(get('y1'))}L{number(get('x2'))} {number(get('y2'))}"
     if tag in ("circle", "ellipse"):
