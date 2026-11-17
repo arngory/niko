@@ -32,3 +32,6 @@ jniLibs/
 # Python's bytecode beside the tools (shared/tool, .github/scripts)
 __pycache__/
 *.pyc
+
+# local notes and audits, never published
+/docs/local/
