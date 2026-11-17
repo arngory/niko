@@ -314,7 +314,13 @@ sleep 15
 memory vpn-up-load
 wait "${loads[@]}" 2> /dev/null
 sleep 20
-memory vpn-after-load - go
+# as the load left it, nothing asked of the Go heap; then two and a half minutes of quiet with the VPN still up: what
+# the runtime gives back by itself (its collections every two minutes at least, its scavenger), the trim after it.
+# After-load measured with a trim at once had live data barely above idle (8.2 MB against 6.6) and the rest garbage
+# and idle pages: the question left is whether they go without the system's trim
+memory vpn-after-load
+sleep 150
+memory vpn-quiet - go
 
 echo "== Private DNS with the VPN on: each mode, then strict across a restart of the core"
 # resolved NAME: the address ping got for NAME through the system's resolver (what every app gets), empty: none
@@ -751,7 +757,8 @@ echo "== memory: a URL test of the group on the screen (the app's own process, a
 timeout 60 adb shell am start -n "$pkg/$pkg.ui.MainActivity" > /dev/null 2>&1
 sleep 5
 memory ui-before-test go
-if tap_on action_misc && sleep 2 && tap_on "URL Test"; then
+# the group's actions are in the bar's own overflow, the system's "More options" (its ⋮ of their own is gone)
+if tap_on "More options" && sleep 2 && tap_on "URL Test"; then
   sleep 45
   memory ui-after-test go
   timeout 10 adb shell input keyevent KEYCODE_BACK

@@ -37,7 +37,7 @@
         <item name="selectedColorPrimary">?colorPrimary</item>
         <item name="fabIconTint">@color/white</item>
         <item name="fabRingColor">?colorMaterial100</item>
-        <item name="actionBarTheme">@style/ThemeOverlay.AppCompat.Dark.ActionBar</item>
+        <item name="actionBarTheme">@style/ThemeOverlay.Niko.ActionBar</item>
         <item name="tabTextColor">#99FFFFFF</item>
         <item name="tabSelectedTextColor">@color/white</item>
         <item name="tabIndicatorColor">@color/white</item>
@@ -103,7 +103,7 @@
         <item name="selectedColorPrimary">?colorPrimary</item>
         <item name="fabIconTint">@color/white</item>
         <item name="fabRingColor">?colorMaterial100</item>
-        <item name="actionBarTheme">@style/ThemeOverlay.AppCompat.Dark.ActionBar</item>
+        <item name="actionBarTheme">@style/ThemeOverlay.Niko.ActionBar</item>
         <item name="tabTextColor">#99FFFFFF</item>
         <item name="tabSelectedTextColor">@color/white</item>
         <item name="tabIndicatorColor">@color/white</item>
@@ -508,6 +508,24 @@
         <item name="primaryOrTextPrimary">?android:textColorPrimary</item>
     </style>
 
+    <!-- the bars' overlay: AppCompat's dark one, with the search field's icons and the overflow's ⋮ from the shared set
+         (Lucide) in place of Material's; the overlay sets these styles itself, so the app theme's alone would not reach
+         them -->
+    <style name="ThemeOverlay.Niko.ActionBar" parent="ThemeOverlay.AppCompat.Dark.ActionBar">
+        <item name="searchViewStyle">@style/Widget.Niko.SearchView</item>
+        <item name="actionOverflowButtonStyle">@style/Widget.Niko.ActionButton.Overflow</item>
+    </style>
+
+    <style name="Widget.Niko.ActionButton.Overflow" parent="Widget.AppCompat.ActionButton.Overflow">
+        <item name="srcCompat">@drawable/ic_l_ellipsis_vertical</item>
+    </style>
+
+    <style name="Widget.Niko.SearchView" parent="Widget.AppCompat.SearchView.ActionBar">
+        <item name="searchIcon">@drawable/ic_l_search</item>
+        <item name="searchHintIcon">@drawable/ic_l_search</item>
+        <item name="closeIcon">@drawable/ic_l_x</item>
+    </style>
+
     <!-- Niko (Theme.NIKO, the default): neutral, from the design system's tokens; the accent is the inversion, ink -->
     <style name="Theme.SagerNet.Niko">
         <item name="colorPrimary">@color/niko_bar</item>
@@ -523,7 +541,8 @@
 
         <item name="accentOrTextSecondary">?android:textColorSecondary</item>
         <item name="accentOrTextPrimary">?android:textColorPrimary</item>
-        <item name="primaryOrTextSecondary">?android:textColorSecondary</item>
+        <!-- the drawer's chosen row: ink, as the design system's active section (n-nav__item.is-active), not quieter than the rest -->
+        <item name="primaryOrTextSecondary">?android:textColorPrimary</item>
         <item name="primaryOrTextPrimary">?android:textColorPrimary</item>
     </style>
 
@@ -541,7 +560,8 @@
 
         <item name="accentOrTextSecondary">?android:textColorSecondary</item>
         <item name="accentOrTextPrimary">?android:textColorPrimary</item>
-        <item name="primaryOrTextSecondary">?android:textColorSecondary</item>
+        <!-- the drawer's chosen row: ink, as the design system's active section (n-nav__item.is-active), not quieter than the rest -->
+        <item name="primaryOrTextSecondary">?android:textColorPrimary</item>
         <item name="primaryOrTextPrimary">?android:textColorPrimary</item>
     </style>
 
