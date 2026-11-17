@@ -1,6 +1,7 @@
 package io.niko.raycontrol
 
 import io.niko.database.SagerDatabase
+import io.niko.fmt.AbstractBean
 import io.niko.fmt.v2ray.StandardV2RayBean
 import io.niko.fmt.naive.NaiveBean
 import io.niko.fmt.hysteria.HysteriaBean
@@ -635,19 +636,36 @@ object RayNodes {
     /**
      * The names the node serves (its host, the SNI and server names of its profiles, its DoH): a fake QUIC Initial
      * naming one of them would pin the flow to that backend of the node's front (niko-mux-note.md §2).
+     *
+     * Every name the subscription carries counts, not the rows' current ones alone: the front serves a rotation's
+     * next name ahead of its time and the previous one after it (naive's names, R4-42), so both lines of a row are
+     * read, `link` and `next`, whichever is in the profile now.
      */
     fun names(node: RayNode): Set<String> {
         val names = mutableSetOf(node.host.lowercase())
         node.doh?.let { runCatching { java.net.URI(it).host }.getOrNull() }?.let { names += it.lowercase() }
         for (id in node.profileIds.orEmpty().values) {
-            val bean = SagerDatabase.proxyDao.getById(id)?.requireBean() ?: continue
-            names += listOfNotNull(
-                (bean as? HysteriaBean)?.sni, (bean as? StandardV2RayBean)?.sni, (bean as? NaiveBean)?.sni,
-                bean.serverAddress, bean.yggPeer?.let { io.niko.fmt.yggPeerHost(it) },
-            ).map { it.trim().lowercase() }.filter { it.isNotEmpty() }
+            SagerDatabase.proxyDao.getById(id)?.requireBean()?.let { names += servedNames(it) }
+        }
+        return names + linkNames(node)
+    }
+
+    /** The names in the subscription's lines themselves, `link` and `next` of every row. */
+    internal fun linkNames(node: RayNode): Set<String> {
+        val names = mutableSetOf<String>()
+        for (links in node.links.values) {
+            for (link in listOfNotNull(links.link, links.next)) {
+                runCatching { RayRows.parse(link) }.getOrNull()?.let { names += servedNames(it) }
+            }
         }
         return names
     }
+
+    /** The names a profile reaches its server by: the TLS server name and the address. */
+    internal fun servedNames(bean: AbstractBean): List<String> = listOfNotNull(
+        (bean as? HysteriaBean)?.sni, (bean as? StandardV2RayBean)?.sni, (bean as? NaiveBean)?.sni,
+        bean.serverAddress, bean.yggPeer?.let { io.niko.fmt.yggPeerHost(it) },
+    ).map { it.trim().lowercase() }.filter { it.isNotEmpty() }
 
     /** Hands the node's device key to the core and returns the knock outbound options. */
     fun prepareKnock(node: RayNode, relay: RayRelay? = null): Map<String, Any> {

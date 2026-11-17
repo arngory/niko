@@ -1071,7 +1071,14 @@ jobs:
           # the core relays the connection (Chromium no longer holds the socket itself). The front must let both by
           check "core naive outbound over QUIC, a prelude of noise" 11106 204
           check "core naive outbound over QUIC, fake Initials and the Initials in reverse" 11107 204
-          echo "UDP connections the core relayed for Chromium: $(grep -c "relaying UDP connection" /tmp/core-naive.log || true)"
+          # the reverse order is the core's doing only while Chromium does not hold the socket: were it handed the
+          # socket itself, both checks above would pass with nothing reordered
+          relayed=$(grep -c "relaying UDP connection" /tmp/core-naive.log || true)
+          echo "UDP connections the core relayed for Chromium: $relayed (want 1: the one with the Initials in reverse)"
+          if [ "$relayed" != 1 ]; then
+            echo "::error::the core relayed $relayed UDP connections for Chromium, 1 is the one that is reordered"
+            fail=1
+          fi
           udp() { got=$(python3 -I .github/scripts/udp-dns-probe.py "$2"); echo "$1: $got (want $3)"; [ "$got" = "$3" ] || fail=1; }
           if [ -f raycontrol/internal/naive/uot.go ]; then
             udp "core naive outbound, UDP over TCP v2 -> rayd naive -> 1.1.1.1:53" 11096 answer

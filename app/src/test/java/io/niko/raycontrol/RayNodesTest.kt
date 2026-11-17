@@ -21,6 +21,23 @@ class RayNodesTest {
         traffic = RayTraffic(used = 12_884_901_888, limit = 53_687_091_200, since = 1_767_225_600, reset = 1_769_904_000, exhausted = false),
     )
 
+    // a fake QUIC Initial must not name anything the node's front serves on UDP 443: the names of every line the
+    // subscription carries, a rotation's next name with the current one, whichever of the two the profile holds
+    @Test
+    fun namesOfEveryLineCurrentAndNext() {
+        val line = "naive+quic://niko:f3b1c0de-0000-4000-8000-000000000001@203.0.113.2:443?niko-node=00112233445566778899aabbccddeeff"
+        val rotating = node.copy(links = mapOf(
+            "5" to RayLinks("naive", "$line&sni=n4k2.example.com", next = "$line&sni=Q7R1.example.com", from = 1_700_100_000),
+            "6" to RayLinks("hy2", "hysteria2://pw@203.0.113.2:443/?sni=masq.example.net&insecure=0"),
+            "7" to RayLinks("broken", "naive+quic://"),
+        ))
+        val names = RayNodes.linkNames(rotating)
+        assertTrue(names.containsAll(listOf("n4k2.example.com", "q7r1.example.com", "masq.example.net", "203.0.113.2")))
+        // the same once the row has switched to its next line
+        assertEquals(names, RayNodes.linkNames(rotating.copy(links = rotating.links.mapValues { it.value.copy(nextActive = true) })))
+        assertTrue(RayNodes.linkNames(node).isEmpty())
+    }
+
     @Test
     fun jsonRoundTrip() {
         // every field the store keeps comes back, relays and the fetch backoff included

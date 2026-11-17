@@ -17,8 +17,34 @@ import xml.etree.ElementTree as ET
 ANDROID = "{http://schemas.android.com/apk/res/android}"
 ARGUMENTS = {"m": 2, "l": 2, "h": 1, "v": 1, "c": 6, "s": 4, "q": 4, "t": 2, "a": 7, "z": 0}
 COMMAND = re.compile(r"([MmLlHhVvCcSsQqTtAaZz])([^MmLlHhVvCcSsQqTtAaZz]*)")
-# as PathParser.extract: a number ends at a space, a comma, a sign that does not follow an exponent, a second dot
-NUMBER = re.compile(r"[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?")
+# what Float.parseFloat takes of the forms a path can hold
+FLOAT = re.compile(r"[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?")
+
+
+def numbers_of(rest):
+    """The text after a command cut into numbers as android.util.PathParser.extract cuts it: at a space or a comma,
+    before a minus that does not follow an exponent's e, before a second dot. Nothing else ends a number: a plus
+    does not ("1+2" is one piece, which is no number), nor does a dot after an exponent when the number had none
+    before it ("1e2.5")."""
+    pieces, current, dot, previous = [], "", False, ""
+    for c in rest:
+        if c in " ,\t\r\n":
+            if current:
+                pieces.append(current)
+            current, dot = "", False
+        elif c == "-" and current and previous not in "eE":
+            pieces.append(current)
+            current, dot = c, False
+        elif c == "." and dot:
+            pieces.append(current)
+            current, dot = c, True
+        else:
+            dot = dot or c == "."
+            current += c
+        previous = c
+    if current:
+        pieces.append(current)
+    return pieces
 
 
 def faults(data):
@@ -26,9 +52,11 @@ def faults(data):
         return ["does not start with a move"]
     found = []
     for command, rest in COMMAND.findall(data):
-        numbers = NUMBER.findall(rest)
-        if NUMBER.sub("", rest).strip(" ,\t\r\n"):
-            found.append(f"{command}: not numbers: {rest.strip()[:40]!r}")
+        numbers = numbers_of(rest)
+        bad = [n for n in numbers if not FLOAT.fullmatch(n)]
+        if bad:
+            found.append(f"{command}: not a number to Android: {bad[0][:40]!r} in {rest.strip()[:60]!r}")
+            continue
         want = ARGUMENTS[command.lower()]
         if (want == 0 and numbers) or (want and (not numbers or len(numbers) % want)):
             found.append(f"{command} takes {want} numbers a time, has {len(numbers)}: {rest.strip()[:60]!r}")
