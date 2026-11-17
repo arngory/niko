@@ -662,8 +662,9 @@ fun buildConfig(
                 }
                 // an idle QUIC connection to the node pings every 10 s by default, and the radio never sleeps: 25 s
                 // still holds a mobile NAT binding (around 30 s and more) (P1). quic-go pings at most every half of
-                // the idle timeout both sides agree on (the smaller one): 60 s here, so the node's own (30 s by
-                // default, 15 s pings) decides until it allows 50 s or more
+                // the idle timeout both sides agree on (the smaller one): 60 s here, so the node's own decides until it
+                // allows 50 s or more, and a node that pings by itself (sing-quic's servers: every 10 s) wakes the
+                // phone anyway (docs/research/keepalive.md)
                 if (rayNode != null && bean is HysteriaBean && bean.protocolVersion == 2 && !proxyEntity.needExternal()) {
                     currentOutbound._hack_config_map["keep_alive_period"] = "25s"
                     currentOutbound._hack_config_map["idle_timeout"] = "60s"
