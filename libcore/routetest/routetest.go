@@ -29,8 +29,8 @@ import (
 // timeLimit bounds the lookups of one test: the app's own query and a resolve action's.
 const timeLimit = 20 * time.Second
 
-// ErrTimeLimit: the test's lookups took all of timeLimit before the walk ended; the answer is not known, which no
-// rule decided (wraps context.DeadlineExceeded).
+// ErrTimeLimit: a lookup of the test failed with all of timeLimit spent; the answer is not known, and no rule or DNS
+// decided it (wraps context.DeadlineExceeded).
 var ErrTimeLimit = fmt.Errorf("the lookups took the route tester's %v: %w", timeLimit, context.DeadlineExceeded)
 
 // Query is a connection to try against the running core's rules: no connection is made.
@@ -102,8 +102,9 @@ func Run(ctx context.Context, q Query) (*Result, error) {
 		return nil, err
 	}
 	// the lookups below: the binder's caller waits for them, at most this long. A core stopped or a caller gone ends
-	// the walk with the caller's error; the limit run out ends it with ErrTimeLimit, never as a rule's verdict (a
-	// lookup of the walk cut short by it would read as the router ending the connection there)
+	// the walk with the caller's error. A lookup that fails with the limit run out ends it with ErrTimeLimit, never as
+	// a verdict (it would read as the app's DNS failing, or the router ending the connection there); a lookup that
+	// answered just before the limit still gives its answer, the rules after it need no time
 	caller := ctx
 	ctx, cancel := context.WithTimeout(ctx, timeLimit)
 	defer cancel()
@@ -124,6 +125,9 @@ func Run(ctx context.Context, q Query) (*Result, error) {
 		// through the VPN an app asks DNS first, and the VPN's DNS is the core's: the address it gets is what the
 		// rules see, a fake one standing for the domain
 		addresses, err := appQuery(ctx, metadata, host)
+		if err != nil && timedOut() {
+			return nil, ErrTimeLimit
+		}
 		if err != nil {
 			result.Action, result.Error, result.Destination = "dns", err.Error(), host
 			return result, nil
@@ -140,6 +144,9 @@ func Run(ctx context.Context, q Query) (*Result, error) {
 		}
 	}
 	if err = prepare(ctx, &metadata); err != nil {
+		if timedOut() {
+			return nil, ErrTimeLimit
+		}
 		result.Action, result.Error, result.Destination = "fakeip", err.Error(), metadata.Destination.String()
 		return result, nil
 	}
@@ -157,9 +164,6 @@ func Run(ctx context.Context, q Query) (*Result, error) {
 		// a core stopped or a caller gone: no answer from rules being closed (their rule sets emptied)
 		if err := caller.Err(); err != nil {
 			return nil, err
-		}
-		if timedOut() {
-			return nil, ErrTimeLimit
 		}
 		metadata.ResetRuleCache()
 		if !rule.Match(&metadata) {
