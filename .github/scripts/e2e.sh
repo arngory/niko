@@ -319,7 +319,21 @@ sleep 20
 # After-load measured with a trim at once had live data barely above idle (8.2 MB against 6.6) and the rest garbage
 # and idle pages: the question left is whether they go without the system's trim
 memory vpn-after-load
+# #148, the keepalive's cost: what the phone sends the node meanwhile, captured on the runner's bridge to it (rc-net,
+# 203.0.113.1): QUIC's PINGs every 10 s (Hysteria2's keepalive) against what the system sends itself
+bridge=$(ip -o -4 addr show 2> /dev/null | awk '$4 ~ /^203\.0\.113\.1\// {print $2; exit}')
+capture=
+if [ -n "$bridge" ] && command -v tcpdump > /dev/null; then
+  sudo timeout 150 tcpdump -i "$bridge" -nn -tt -q 'udp and dst host 203.0.113.2' > "$memdir/quiet-udp.txt" 2> /dev/null &
+  capture=$!
+fi
 sleep 150
+if [ -n "$capture" ]; then
+  wait "$capture" 2> /dev/null
+  python3 -I "$here/e2e-keepalive.py" "$memdir/quiet-udp.txt" 150 || true
+else
+  echo "keepalive: no capture (bridge '${bridge:-none}', tcpdump $(command -v tcpdump || echo missing))"
+fi
 memory vpn-quiet - go
 
 echo "== Private DNS with the VPN on: each mode, then strict across a restart of the core"
