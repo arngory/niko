@@ -21,6 +21,11 @@ class FakeDaemonServer {
   /// Set: StartService fails with these words, as for a config the core refuses.
   String? startError;
 
+  /// The reports the daemon kept: crashes and memory run out, with their archives' bytes.
+  final crashes = <CrashReportEntry>[];
+  final outOfMemory = <OOMReportEntry>[];
+  final exported = <String>[];
+
   /// The log the daemon keeps, and what it tells its readers: a batch of lines, or null for a clearing.
   final savedLog = <Log_Message>[];
   final _logChanges = StreamController<Log?>.broadcast();
@@ -110,6 +115,45 @@ class _Desktop extends DesktopServiceBase {
   @override
   Future<DaemonInfo> getDaemonInfo(ServiceCall call, Empty request) async =>
       DaemonInfo(version: '1.14.0-fake', ownership: DaemonOwnership.DAEMON_OWNERSHIP_AVAILABLE);
+
+  @override
+  Future<CrashReportList> listCrashReports(ServiceCall call, Empty request) async =>
+      CrashReportList(reports: daemon.crashes);
+
+  @override
+  Future<OOMReportList> listOOMReports(ServiceCall call, Empty request) async =>
+      OOMReportList(reports: daemon.outOfMemory);
+
+  // as boxdd: a zip named after the report; the config only when asked for, never here
+  @override
+  Future<CrashReportArchive> exportCrashReport(ServiceCall call, CrashReportExportRequest request) async {
+    if (request.withConfiguration) throw GrpcError.invalidArgument('the window never asks for the config');
+    daemon.exported.add('crash ${request.name}${request.withLog ? ' with the log' : ''}');
+    return CrashReportArchive(fileName: '${request.name}.zip', data: 'PK crash ${request.name}'.codeUnits);
+  }
+
+  @override
+  Future<CrashReportArchive> exportOOMReport(ServiceCall call, OOMReportExportRequest request) async {
+    if (request.withConfiguration) throw GrpcError.invalidArgument('the window never asks for the config');
+    daemon.exported.add('memory ${request.name}${request.withLog ? ' with the log' : ''}');
+    return CrashReportArchive(fileName: '${request.name}.zip', data: 'PK memory ${request.name}'.codeUnits);
+  }
+
+  @override
+  Future<Empty> markCrashReportRead(ServiceCall call, CrashReportRequest request) async {
+    for (final report in daemon.crashes) {
+      if (report.name == request.name) report.isRead = true;
+    }
+    return Empty();
+  }
+
+  @override
+  Future<Empty> markOOMReportRead(ServiceCall call, OOMReportRequest request) async {
+    for (final report in daemon.outOfMemory) {
+      if (report.name == request.name) report.isRead = true;
+    }
+    return Empty();
+  }
 
   @override
   Future<Empty> startService(ServiceCall call, StartServiceRequest request) async {

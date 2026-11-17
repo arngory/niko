@@ -40,3 +40,10 @@ String processName(String path) {
   final file = path.substring(path.lastIndexOf(RegExp(r'[\\/]')) + 1);
   return file.toLowerCase().endsWith('.exe') ? file.substring(0, file.length - 4) : file;
 }
+
+/// A moment as the window shows it, in the system's time: `17.11.2026 01:12`.
+String formatMoment(DateTime at) {
+  final local = at.toLocal();
+  String two(int value) => value.toString().padLeft(2, '0');
+  return '${two(local.day)}.${two(local.month)}.${local.year} ${two(local.hour)}:${two(local.minute)}';
+}

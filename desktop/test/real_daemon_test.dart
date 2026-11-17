@@ -114,6 +114,17 @@ void main() {
       }
     });
 
+    // every change of the link, with what the test was doing then: a drop is told where it happened
+    var step = 'the start';
+    var lastLink = controller.link;
+    controller.addListener(() {
+      if (controller.link != lastLink) {
+        // ignore: avoid_print
+        print('link ${lastLink.name} -> ${controller.link.name} during $step'
+            '${controller.linkError.isEmpty ? '' : ': ${controller.linkError}'}');
+        lastLink = controller.link;
+      }
+    });
     await startDaemon();
     controller.attach();
     await until(() => controller.link == LinkPhase.ready, 'the link');
@@ -123,6 +134,7 @@ void main() {
     expect(controller.service.phase, ServicePhase.idle);
     expect(await listening(proxyPort), isFalse);
 
+    step = 'a refused config';
     // a config the core refuses: its words, nothing started
     final good = config;
     config = '{"inbounds": [{"type": "no-such-inbound"}]}';
@@ -133,6 +145,7 @@ void main() {
     expect(controller.service.phase, anyOf(ServicePhase.idle, ServicePhase.fatal));
     expect(await listening(proxyPort), isFalse);
 
+    step = 'the start';
     // the button
     config = good;
     await controller.toggle();
@@ -171,6 +184,7 @@ void main() {
     // ignore: avoid_print
     print('traffic: total ↓ ${controller.traffic!.downTotal} ↑ ${controller.traffic!.upTotal}, peak ↓ $peak B/s');
 
+    step = 'the log';
     // the core's log: what the daemon kept of this start, without a terminal's colour codes
     logFeed.open();
     await until(() => logFeed.lines.isNotEmpty, 'the log');
@@ -180,10 +194,17 @@ void main() {
     // ignore: avoid_print
     print('log: ${logFeed.lines.length} lines, the last: ${logFeed.lines.last.text}');
     final before = logFeed.lines.length;
+    step = 'clearing the log';
     await logFeed.clear();
-    expect(logFeed.error, isEmpty);
+    expect(logFeed.notice, LogNotice.none, reason: logFeed.noticeDetail);
+    // the daemon's reports: none after a clean start, and the calls answer
+    final reports = await controller.daemon!.reports();
+    // ignore: avoid_print
+    print('reports of the daemon: ${reports.length}');
+    expect(reports.where((r) => !r.read), isEmpty);
     await until(() => logFeed.lines.length < before, 'the cleared log');
 
+    step = 'the connections';
     // the connections: one held open is listed with where it goes, and closing it from here ends it
     connections.show();
     final holder = HttpClient()..findProxy = (_) => 'PROXY 127.0.0.1:$proxyPort';
@@ -197,6 +218,7 @@ void main() {
     // ignore: avoid_print
     print('connection: ${shown.destination} ${shown.network} protocol "${shown.protocol}" process "${shown.process}" '
         'rule "${shown.rule}" -> ${shown.outbound} (${shown.outboundType}), ↓ ${shown.down} ↑ ${shown.up}');
+    step = 'closing a connection';
     await connections.close(shown.id);
     expect(connections.error, isEmpty);
     await until(() => !connections.open.any((c) => c.id == shown.id), 'the connection gone from the list');
@@ -204,12 +226,19 @@ void main() {
     print('the closed connection ${await ended.timeout(const Duration(seconds: 10))} for the program that held it');
     holder.close(force: true);
 
+    step = 'the stop';
     // the button again
     await controller.toggle();
     await until(() => controller.service.phase == ServicePhase.idle, 'the core down');
     await until(() => connections.open.isEmpty, 'no connections of a stopped core');
     expect(controller.traffic, isNull);
     await until(() async => !await listening(proxyPort), 'the proxy port closed');
+
+    step = 'the end';
+    // The link never dropped: the window lets the connections stream end at the stop rather than cancel it. A
+    // cancel crossing the daemon's end made package:http2 close the whole connection ("HTTP/2 clients cannot
+    // receive HEADER_FRAMEs", seen here against boxdd before the feed let the stream end).
+    expect(controller.drops, 0, reason: 'a working link dropped');
 
     // the daemon killed: the window says so and keeps asking; the daemon back: found
     process!.kill(ProcessSignal.sigkill);

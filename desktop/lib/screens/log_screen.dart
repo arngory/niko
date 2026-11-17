@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import '../daemon/daemon.dart';
@@ -6,6 +7,7 @@ import '../state/log_feed.dart';
 import '../theme/niko_theme.dart';
 import '../ui/banner.dart';
 import '../ui/controls.dart';
+import '../ui/format.dart';
 import '../ui/icons.dart';
 
 /// The core's log (D-LOG-01): its lines as the core writes them, the newest at the bottom and in view until the
@@ -82,11 +84,26 @@ class _LogScreenState extends State<LogScreen> {
     return false;
   }
 
+  Future<void> _copy() async {
+    await Clipboard.setData(ClipboardData(text: widget.feed.text));
+    widget.feed.copied();
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = NikoTheme.of(context);
     final strings = NikoStrings.of(Localizations.localeOf(context));
-    final lines = widget.feed.lines;
+    final feed = widget.feed;
+    final lines = feed.lines;
+    final report = feed.unread.isEmpty ? null : feed.unread.first;
+    final notice = switch (feed.notice) {
+      LogNotice.none => null,
+      LogNotice.copied => (strings.logCopied, '', false),
+      LogNotice.saved => (strings.saved, feed.noticeDetail, false),
+      LogNotice.saveFailed => (strings.saveFailed, feed.noticeDetail, true),
+      LogNotice.clearFailed => (strings.logClearFailed, feed.noticeDetail, true),
+      LogNotice.reportFailed => (strings.reportFailed, feed.noticeDetail, true),
+    };
     return Padding(
       padding: const EdgeInsets.fromLTRB(NikoSpace.s8, NikoSpace.s4, NikoSpace.s8, NikoSpace.s8),
       child: Column(
@@ -104,13 +121,38 @@ class _LogScreenState extends State<LogScreen> {
                 icon: NikoIcons.trash,
                 label: strings.logClear,
                 muted: true,
-                onPressed: lines.isEmpty ? null : widget.feed.clear,
+                onPressed: lines.isEmpty ? null : feed.clear,
+              ),
+              const SizedBox(width: NikoSpace.s2),
+              NikoIconButton(
+                icon: NikoIcons.copy,
+                label: strings.logCopy,
+                tonal: true,
+                onPressed: lines.isEmpty ? null : _copy,
+              ),
+              const SizedBox(width: NikoSpace.s2),
+              NikoIconButton(
+                icon: NikoIcons.export,
+                label: strings.logSave,
+                tonal: true,
+                onPressed: lines.isEmpty || feed.busy ? null : feed.saveLog,
               ),
             ],
           ),
           const SizedBox(height: NikoSpace.s4),
-          if (widget.feed.error.isNotEmpty) ...[
-            NikoBanner(icon: NikoIcons.alert, title: strings.logClearFailed, text: widget.feed.error, danger: true),
+          // D-LOG-02: the newest report nobody saved yet
+          if (report != null) ...[
+            NikoBanner(
+              icon: NikoIcons.alert,
+              title: report.kind == ReportKind.crash ? strings.reportCrash : strings.reportMemory,
+              text: formatMoment(report.at),
+              action: strings.reportSave,
+              onAction: feed.busy ? null : () => feed.saveReport(report),
+            ),
+            const SizedBox(height: NikoSpace.s4),
+          ],
+          if (notice != null) ...[
+            NikoBanner(icon: NikoIcons.alert, title: notice.$1, text: notice.$2, danger: notice.$3),
             const SizedBox(height: NikoSpace.s4),
           ],
           Expanded(
@@ -125,23 +167,31 @@ class _LogScreenState extends State<LogScreen> {
                         padding: const EdgeInsets.all(NikoSpace.s4),
                         child: Text(strings.logEmpty, style: NikoType.code.style(colors.ink2)),
                       )
-                    : NotificationListener<ScrollNotification>(
-                        onNotification: _scrolled,
-                        child: ListView.builder(
-                          controller: _scroll,
-                          padding: const EdgeInsets.all(NikoSpace.s4),
-                          itemCount: lines.length,
-                          itemBuilder: (context, index) {
-                            final line = lines[index];
-                            return Text(
-                              line.text,
-                              style: NikoType.code.style(switch (line.level) {
-                                LogSeverity.panic || LogSeverity.fatal || LogSeverity.error => colors.danger,
-                                LogSeverity.debug || LogSeverity.trace => colors.ink2,
-                                _ => colors.ink,
-                              }),
-                            );
-                          },
+                    // the lines can be selected with the pointer and copied with Ctrl+C, as text anywhere
+                    : DefaultSelectionStyle(
+                        selectionColor: colors.ink.withValues(alpha: 0.24),
+                        cursorColor: colors.ink,
+                        child: SelectableRegion(
+                          selectionControls: emptyTextSelectionControls,
+                          child: NotificationListener<ScrollNotification>(
+                            onNotification: _scrolled,
+                            child: ListView.builder(
+                              controller: _scroll,
+                              padding: const EdgeInsets.all(NikoSpace.s4),
+                              itemCount: lines.length,
+                              itemBuilder: (context, index) {
+                                final line = lines[index];
+                                return Text(
+                                  line.text,
+                                  style: NikoType.code.style(switch (line.level) {
+                                    LogSeverity.panic || LogSeverity.fatal || LogSeverity.error => colors.danger,
+                                    LogSeverity.debug || LogSeverity.trace => colors.ink2,
+                                    _ => colors.ink,
+                                  }),
+                                );
+                              },
+                            ),
+                          ),
                         ),
                       ),
               ),

@@ -50,7 +50,7 @@ class ConnectionsFeed extends ChangeNotifier {
     final running = _link.link == LinkPhase.ready && _link.service.phase == ServicePhase.started;
     if (!running) {
       final had = _byId.isNotEmpty;
-      _stop();
+      _retire();
       if (had && !_disposed) notifyListeners();
     } else if (_subscription == null && _retry == null) {
       final daemon = _link.daemon;
@@ -87,7 +87,45 @@ class ConnectionsFeed extends ChangeNotifier {
     });
   }
 
+  /// The core stopped: the daemon ends the stream itself. It is let end, not cancelled: a cancel that crosses the
+  /// daemon's end makes package:http2 close the whole connection, every other call of the window with it (seen
+  /// against boxdd: "HTTP/2 clients cannot receive HEADER_FRAMEs", a PROTOCOL_ERROR). Cancelled only if it has not
+  /// ended within a second.
+  void _retire() {
+    final subscription = _subscription;
+    _subscription = null;
+    _retry?.cancel();
+    _retry = null;
+    _byId.clear();
+    _sorted = null;
+    if (subscription == null) return;
+    late final Timer grace;
+    void forget() {
+      grace.cancel();
+      _retired.remove(subscription);
+    }
+
+    grace = Timer(const Duration(seconds: 1), () {
+      _retired.remove(subscription);
+      unawaited(subscription.cancel());
+    });
+    _retired[subscription] = grace;
+    subscription
+      ..onData((_) {})
+      ..onError((Object _) => forget())
+      ..onDone(forget);
+  }
+
+  // streams let end after a stop, and the timers that cancel them if they do not
+  final _retired = <StreamSubscription<ConnectionBatch>, Timer>{};
+
   void _stop() {
+    // the screen is gone: what was let end is cancelled now
+    for (final MapEntry(key: subscription, value: grace) in _retired.entries) {
+      grace.cancel();
+      unawaited(subscription.cancel());
+    }
+    _retired.clear();
     _retry?.cancel();
     _retry = null;
     unawaited(_subscription?.cancel());

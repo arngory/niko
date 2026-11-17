@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:niko_desktop/app.dart';
 import 'package:niko_desktop/daemon/daemon.dart';
 import 'package:niko_desktop/state/connection_controller.dart';
+import 'package:niko_desktop/state/window_settings.dart';
 import 'package:niko_desktop/ui/connect_button.dart';
 
 /// A daemon in memory: the test says what the core does, and reads what the window asked.
@@ -52,6 +53,19 @@ class MemoryDaemon implements Daemon {
   @override
   Future<void> closeAllConnections() async => closedAll++;
 
+  var reportList = <ReportEntry>[];
+  final exportedReports = <String>[];
+  @override
+  Future<List<ReportEntry>> reports() async => reportList;
+  @override
+  Future<ReportArchive> exportReport(ReportEntry report) async {
+    exportedReports.add(report.name);
+    return ReportArchive('${report.name}.zip', 'PK'.codeUnits);
+  }
+
+  @override
+  Future<void> markReportRead(ReportEntry report) async {}
+
   @override
   Future<void> close() async {}
 }
@@ -83,8 +97,11 @@ void main() {
     String locale = 'ru',
     bool withDaemon = true,
     bool withConfig = true,
+    WindowSettings? settings,
+    Directory? Function()? saveTo,
+    Size size = const Size(960, 720),
   }) async {
-    tester.view.physicalSize = const Size(960, 720);
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     daemon = MemoryDaemon();
@@ -95,6 +112,8 @@ void main() {
     addTearDown(controller.dispose);
     await tester.pumpWidget(NikoApp(
       controller: controller,
+      settings: settings,
+      saveTo: saveTo ?? () => null,
       daemonAddress: withDaemon ? '127.0.0.1:18080' : '',
       configName: withConfig && withDaemon ? 'direct.json' : '',
       locale: Locale(locale),
@@ -253,6 +272,66 @@ void main() {
     });
   });
 
+  group('the narrow window', () {
+    testWidgets('the sections fold into three bars, which open them as a list', (tester) async {
+      await show(tester, size: const Size(600, 640));
+      await core(tester, ServicePhase.idle);
+      // the sections are not in the line, the bars are
+      expect(find.text('Журнал'), findsNothing);
+      expect(find.bySemanticsLabel('Разделы'), findsOneWidget);
+      await picture('narrow_dark');
+      await tester.tap(find.bySemanticsLabel('Разделы'));
+      await tester.pump();
+      expect(find.text('Главная'), findsOneWidget);
+      expect(find.text('Журнал'), findsOneWidget);
+      await picture('narrow_menu_dark');
+      // a choice opens the section and closes the list
+      await tester.tap(find.text('Журнал'));
+      await tester.pump();
+      expect(find.text('Журнал пуст'), findsOneWidget);
+      expect(find.text('Главная'), findsNothing);
+      // Escape closes it too, and so does a press outside it
+      await tester.tap(find.bySemanticsLabel('Разделы'));
+      await tester.pump();
+      expect(find.text('Главная'), findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pump();
+      expect(find.text('Главная'), findsNothing);
+      await tester.tap(find.bySemanticsLabel('Разделы'));
+      await tester.pump();
+      await tester.tapAt(const Offset(500, 600));
+      await tester.pump();
+      expect(find.text('Главная'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a window grown wide again shows the sections in the line', (tester) async {
+      await show(tester, size: const Size(600, 640));
+      await core(tester, ServicePhase.idle);
+      await tester.tap(find.bySemanticsLabel('Разделы'));
+      await tester.pump();
+      tester.view.physicalSize = const Size(960, 720);
+      await tester.pump();
+      await tester.pump();
+      expect(find.bySemanticsLabel('Разделы'), findsOneWidget);
+      // one of each: the list closed when the line came back
+      expect(find.text('Журнал'), findsOneWidget);
+    });
+  });
+
+  group('the view remembered', () {
+    testWidgets('the window opens in the view chosen last time, and keeps a new choice', (tester) async {
+      final settings = WindowSettings.memory(advanced: true);
+      await show(tester, settings: settings);
+      await core(tester, ServicePhase.idle);
+      expect(find.text('Соединения'), findsOneWidget);
+      await tester.tap(find.text('Простой'));
+      await tester.pump();
+      expect(settings.advanced, isFalse);
+      expect(find.text('Соединения'), findsNothing);
+    });
+  });
+
   group('the log', () {
     Future<void> openLog(WidgetTester tester, {Brightness brightness = Brightness.dark}) async {
       await show(tester, brightness: brightness);
@@ -319,6 +398,57 @@ void main() {
       daemon.logBatches.add(LogBatch([for (var i = 1; i <= 90; i++) LogLine(LogSeverity.info, 'new $i')], reset: true));
       await frames();
       expect(find.text('new 90'), findsOneWidget);
+    });
+
+    testWidgets('a crash the daemon kept: said above the log, saved by its action', (tester) async {
+      late Directory folder;
+      await tester.runAsync(() async => folder = await Directory.systemTemp.createTemp('niko-save-'));
+      addTearDown(() => folder.deleteSync(recursive: true));
+      await show(tester, brightness: Brightness.light, saveTo: () => folder);
+      daemon.reportList = [ReportEntry(ReportKind.crash, 'crash-1', DateTime(2026, 11, 17, 0, 41))];
+      await core(tester, ServicePhase.started);
+      await tester.tap(find.text('Журнал'));
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Прошлый запуск завершился сбоем'), findsOneWidget);
+      expect(find.text('17.11.2026 00:41'), findsOneWidget);
+      await picture('log_report_light');
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Экспорт'));
+        for (var i = 0; i < 50 && folder.listSync().isEmpty; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      });
+      await tester.pump();
+      expect(daemon.exportedReports, ['crash-1']);
+      expect(find.text('Сохранено'), findsOneWidget);
+      expect(find.textContaining('crash-1.zip'), findsOneWidget);
+      expect(find.text('Прошлый запуск завершился сбоем'), findsNothing);
+    });
+
+    testWidgets('the log copied whole, and said', (tester) async {
+      String? copied;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') copied = (call.arguments as Map)['text'] as String?;
+        return null;
+      });
+      addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
+      await show(tester);
+      await core(tester, ServicePhase.started);
+      await tester.tap(find.text('Журнал'));
+      await tester.pump();
+      daemon.logBatches.add(const LogBatch([
+        LogLine(LogSeverity.info, 'INFO[0000] one'),
+        LogLine(LogSeverity.error, 'ERROR[0001] two'),
+      ], reset: true));
+      await tester.pump();
+      await tester.pump();
+      await tester.tap(find.bySemanticsLabel('Скопировать журнал'));
+      await tester.pump();
+      await tester.pump();
+      expect(copied, 'INFO[0000] one\nERROR[0001] two');
+      expect(find.text('Журнал скопирован'), findsOneWidget);
     });
 
     testWidgets('the log is read only while its screen is shown', (tester) async {

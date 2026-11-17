@@ -35,6 +35,9 @@ class ConnectionController extends ChangeNotifier {
 
   /// Why the link is [LinkPhase.lost].
   String linkError = '';
+
+  /// How many times a working link dropped: each is asked again at once, and said only if that fails too.
+  int drops = 0;
   String daemonVersion = '';
 
   ServiceState service = const ServiceState(ServicePhase.idle);
@@ -93,12 +96,23 @@ class ConnectionController extends ChangeNotifier {
     unawaited(_statusSubscription?.cancel());
     _statusSubscription = null;
     _dropTraffic();
-    link = LinkPhase.lost;
-    linkError = why;
     // what the core does is not known any more: nothing is claimed about it
     service = const ServiceState(ServicePhase.idle);
-    notifyListeners();
     _retryTimer?.cancel();
+    if (link == LinkPhase.ready) {
+      // A link that worked and dropped is asked again at once, and the window says it is connecting: the gRPC
+      // package closes the whole connection when the window lets go of a stream at the moment the daemon ends it
+      // (seen on Windows), and the daemon is there all the same. A second failure is said as such.
+      drops++;
+      link = LinkPhase.connecting;
+      linkError = why;
+      notifyListeners();
+      unawaited(_connect());
+      return;
+    }
+    link = LinkPhase.lost;
+    linkError = why;
+    notifyListeners();
     _retryTimer = Timer(retry, () {
       if (!_disposed) unawaited(_connect());
     });

@@ -36,6 +36,15 @@ class NikoStrings {
   String get logClear => _ru ? 'Очистить журнал' : 'Clear the log';
   String get logEmpty => _ru ? 'Журнал пуст' : 'The log is empty';
   String get logClearFailed => _ru ? 'Журнал не очищен' : 'The log was not cleared';
+  String get logCopy => _ru ? 'Скопировать журнал' : 'Copy the log';
+  String get logCopied => _ru ? 'Журнал скопирован' : 'The log is copied';
+  String get logSave => _ru ? 'Сохранить журнал в файл' : 'Save the log to a file';
+  String get saved => _ru ? 'Сохранено' : 'Saved';
+  String get saveFailed => _ru ? 'Не сохранено' : 'Not saved';
+  String get reportCrash => _ru ? 'Прошлый запуск завершился сбоем' : 'The last run crashed';
+  String get reportMemory => _ru ? 'Ядру не хватило памяти' : 'The core ran out of memory';
+  String get reportSave => _ru ? 'Экспорт' : 'Export';
+  String get reportFailed => _ru ? 'Отчёт не сохранён' : 'The report was not saved';
 
   String connectionsOpen(int count) => _ru ? 'открыто $count' : '$count open';
   String get connectionsList => _ru ? 'Открытые соединения' : 'Open connections';

@@ -1,8 +1,11 @@
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:niko_desktop/daemon/daemon.dart';
 import 'package:niko_desktop/daemon/endpoint.dart';
+import 'package:niko_desktop/platform/places.dart';
+import 'package:niko_desktop/state/window_settings.dart';
 import 'package:niko_desktop/ui/format.dart';
 import 'package:niko_desktop/ui/icons.dart';
 
@@ -103,6 +106,68 @@ void main() {
     test('a log line without the terminal colours', () {
       expect(plainLogText('\x1b[36mINFO\x1b[0m[0000] started'), 'INFO[0000] started');
       expect(plainLogText('plain'), 'plain');
+    });
+  });
+
+  group('places on the disk', () {
+    test('the settings file, as each system names a user\'s folder', () {
+      expect(settingsFile({'APPDATA': r'C:\Users\a\AppData\Roaming'}, 'windows')!.path,
+          r'C:\Users\a\AppData\Roaming\Niko\window.json');
+      expect(settingsFile({'HOME': '/home/a'}, 'linux')!.path, '/home/a/.config/niko/window.json');
+      expect(settingsFile({'HOME': '/home/a', 'XDG_CONFIG_HOME': '/cfg'}, 'linux')!.path, '/cfg/niko/window.json');
+      expect(settingsFile({'HOME': '/Users/a'}, 'macos')!.path, '/Users/a/Library/Application Support/Niko/window.json');
+      // no home: nothing kept, not a file in the working folder
+      expect(settingsFile({}, 'linux'), isNull);
+      expect(settingsFile({'APPDATA': ''}, 'windows'), isNull);
+    });
+
+    test('the folder a file is saved into: Downloads, else home', () async {
+      final home = await Directory.systemTemp.createTemp('niko-home-');
+      addTearDown(() => home.delete(recursive: true));
+      expect(saveDirectory({'HOME': home.path}, 'linux')!.path, home.path);
+      await Directory('${home.path}/Downloads').create();
+      expect(saveDirectory({'HOME': home.path}, 'linux')!.path, '${home.path}/Downloads');
+      expect(saveDirectory({'HOME': '/nowhere/at/all'}, 'linux'), isNull);
+    });
+
+    test('a name from the daemon is a file name, never a path', () {
+      expect(safeFileName('crash-1.zip'), 'crash-1.zip');
+      expect(safeFileName('../../etc/passwd'), 'passwd');
+      expect(safeFileName(r'..\..\Windows\win.ini'), 'win.ini');
+      expect(safeFileName('.hidden'), 'hidden');
+      expect(safeFileName('a b:c?.zip'), 'a_b_c_.zip');
+      expect(safeFileName('..'), 'niko');
+    });
+
+    test('a save never replaces a file', () async {
+      final folder = await Directory.systemTemp.createTemp('niko-save-');
+      addTearDown(() => folder.delete(recursive: true));
+      final first = await saveNew(folder, 'log.txt', [1]);
+      final second = await saveNew(folder, 'log.txt', [2]);
+      final third = await saveNew(folder, '../log.txt', [3]);
+      expect([first, second, third].map((f) => f.uri.pathSegments.last), ['log.txt', 'log (2).txt', 'log (3).txt']);
+      expect(first.readAsBytesSync(), [1]);
+      expect(third.parent.path, folder.path);
+    });
+  });
+
+  group('the window\'s settings', () {
+    test('the view is kept and read back; a missing or broken file gives the defaults', () async {
+      final folder = await Directory.systemTemp.createTemp('niko-settings-');
+      addTearDown(() => folder.delete(recursive: true));
+      final file = File('${folder.path}/niko/window.json');
+      final first = await WindowSettings.load(file);
+      expect(first.advanced, isFalse);
+      first.advanced = true;
+      await first.save();
+      expect((await WindowSettings.load(file)).advanced, isTrue);
+      expect(File('${file.path}.new').existsSync(), isFalse);
+      file.writeAsStringSync('{not json');
+      expect((await WindowSettings.load(file)).advanced, isFalse);
+      // kept nowhere: nothing written, nothing thrown
+      final memory = WindowSettings.memory(advanced: true);
+      await memory.save();
+      expect(memory.advanced, isTrue);
     });
   });
 }

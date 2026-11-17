@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/widgets.dart';
 
 import '../daemon/daemon.dart';
@@ -5,6 +8,7 @@ import '../l10n/strings.dart';
 import '../state/connection_controller.dart';
 import '../state/connections_feed.dart';
 import '../state/log_feed.dart';
+import '../state/window_settings.dart';
 import '../theme/niko_theme.dart';
 import '../ui/header.dart';
 import 'connections_screen.dart';
@@ -23,12 +27,20 @@ class NikoShell extends StatefulWidget {
   const NikoShell({
     super.key,
     required this.controller,
+    required this.settings,
+    this.saveTo,
     this.daemonAddress = '',
     this.configName = '',
     this.now = DateTime.now,
   });
 
   final ConnectionController controller;
+
+  /// The view chosen is kept in it, for the next launch.
+  final WindowSettings settings;
+
+  /// Where the log and the reports are saved; null: the user's Downloads.
+  final Directory? Function()? saveTo;
   final String daemonAddress;
   final String configName;
   final DateTime Function() now;
@@ -41,7 +53,7 @@ class _NikoShellState extends State<NikoShell> {
   late LogFeed _log;
   late ConnectionsFeed _connections;
   AppSection _section = AppSection.home;
-  bool _advanced = false;
+  late bool _advanced = widget.settings.advanced;
 
   @override
   void initState() {
@@ -50,7 +62,7 @@ class _NikoShellState extends State<NikoShell> {
   }
 
   void _attach() {
-    _log = LogFeed(widget.controller);
+    _log = LogFeed(widget.controller, saveTo: widget.saveTo);
     _connections = ConnectionsFeed(widget.controller);
     widget.controller.addListener(_changed);
   }
@@ -96,6 +108,8 @@ class _NikoShellState extends State<NikoShell> {
 
   void _setAdvanced(bool advanced) {
     if (advanced == _advanced) return;
+    widget.settings.advanced = advanced;
+    unawaited(widget.settings.save());
     setState(() {
       _advanced = advanced;
       // a section the simple view does not have gives way to the main screen

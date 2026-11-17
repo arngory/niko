@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:niko_desktop/daemon/daemon.dart';
 import 'package:niko_desktop/daemon/endpoint.dart';
 import 'package:niko_desktop/gen/daemon/started_service.pb.dart' as pb;
+import 'package:niko_desktop/gen/experimental/boxdd/desktop_service.pb.dart' as desktop;
 import 'package:niko_desktop/state/connection_controller.dart';
 import 'package:niko_desktop/state/connections_feed.dart';
 import 'package:niko_desktop/state/log_feed.dart';
@@ -83,6 +86,12 @@ class TracedDaemon implements Daemon {
   @override
   Future<void> closeAllConnections() => _inner.closeAllConnections();
   @override
+  Future<List<ReportEntry>> reports() => _inner.reports();
+  @override
+  Future<ReportArchive> exportReport(ReportEntry report) => _inner.exportReport(report);
+  @override
+  Future<void> markReportRead(ReportEntry report) => _inner.markReportRead(report);
+  @override
   Future<void> close() => _inner.close();
 }
 
@@ -147,7 +156,57 @@ void main() {
       expect(server.logClears, 1);
       await until(() => feed.lines.isEmpty, 'the clearing');
       expect(feed.resets, 2);
-      expect(feed.error, isEmpty);
+      expect(feed.notice, LogNotice.none);
+    });
+
+    test('the reports nobody saved: shown, saved as the daemon packs them, then read', () async {
+      final folder = await Directory.systemTemp.createTemp('niko-save-');
+      addTearDown(() => folder.delete(recursive: true));
+      server.crashes.add(desktop.CrashReportEntry(name: 'crash-1', crashedAt: Int64(1_800_000_000_000)));
+      server.crashes.add(desktop.CrashReportEntry(name: 'crash-0', crashedAt: Int64(1_700_000_000_000), isRead: true));
+      server.outOfMemory.add(desktop.OOMReportEntry(name: 'oom-1', recordedAt: Int64(1_800_000_100_000)));
+      final feed = LogFeed(controller, saveTo: () => folder);
+      addTearDown(feed.dispose);
+      feed.open();
+      await until(() => feed.unread.length == 2, 'the unread reports');
+      // newest first; the one read before is not shown
+      expect(feed.unread.map((r) => (r.kind, r.name)), [(ReportKind.outOfMemory, 'oom-1'), (ReportKind.crash, 'crash-1')]);
+
+      await feed.saveReport(feed.unread.first);
+      expect(feed.notice, LogNotice.saved, reason: feed.noticeDetail);
+      expect(File(feed.noticeDetail).readAsStringSync(), 'PK memory oom-1');
+      expect(feed.noticeDetail, endsWith('oom-1.zip'));
+      // the core's log in it, its config never
+      expect(server.exported, ['memory oom-1 with the log']);
+      expect(feed.unread.map((r) => r.name), ['crash-1']);
+      expect(server.outOfMemory.single.isRead, isTrue);
+
+      // a second save of the same name does not replace the first
+      await feed.saveReport(feed.unread.first);
+      await feed.saveReport(ReportEntry(ReportKind.crash, 'crash-1', DateTime(2026)));
+      expect(folder.listSync().map((f) => f.uri.pathSegments.last).toSet(), {'oom-1.zip', 'crash-1.zip', 'crash-1 (2).zip'});
+    });
+
+    test('the log saved as text; nowhere to save is said', () async {
+      final folder = await Directory.systemTemp.createTemp('niko-save-');
+      addTearDown(() => folder.delete(recursive: true));
+      server.log(pb.LogLevel.INFO, 'INFO[0000] one');
+      server.log(pb.LogLevel.WARN, 'WARN[0001] two');
+      final feed = LogFeed(controller, saveTo: () => folder, now: () => DateTime(2026, 11, 17, 1, 2, 3));
+      addTearDown(feed.dispose);
+      feed.open();
+      await until(() => feed.lines.length == 2, 'the lines');
+      expect(feed.text, 'INFO[0000] one\nWARN[0001] two');
+      await feed.saveLog();
+      expect(feed.notice, LogNotice.saved, reason: feed.noticeDetail);
+      expect(feed.noticeDetail, endsWith('niko-log-20261117-010203.txt'));
+      expect(utf8.decode(File(feed.noticeDetail).readAsBytesSync()), 'INFO[0000] one\nWARN[0001] two\n');
+
+      final homeless = LogFeed(controller, saveTo: () => null);
+      addTearDown(homeless.dispose);
+      await homeless.saveLog();
+      expect(homeless.notice, LogNotice.saveFailed);
+      expect(homeless.noticeDetail, isNotEmpty);
     });
 
     test('keeps the last lines only', () async {
@@ -248,11 +307,12 @@ void main() {
       await controller.toggle();
       await until(() => controller.service.phase == ServicePhase.idle, 'the core down');
       await until(() => feed.open.isEmpty, 'the empty list');
+      // On Windows the gRPC package of the fake daemon and of the window closes the whole connection when the feed
+      // lets go of the stream as the daemon ends it: the window then links again, and is pressed once it has
+      await until(() => controller.link == LinkPhase.ready, 'the link after the stop');
       server.connections['c'] = connection('c', '10.0.0.9:80');
       await controller.toggle();
       await until(() => feed.open.length == 2, 'the connections of the new run');
-      // ignore: avoid_print
-      print('the stop and the start again, as this system ordered them:\n${trace.join('\n')}');
     });
 
     test('hidden: forgotten and not read', () async {

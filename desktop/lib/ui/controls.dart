@@ -12,6 +12,7 @@ class NikoIconButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.muted = false,
+    this.tonal = false,
     this.small = false,
   });
 
@@ -21,6 +22,9 @@ class NikoIconButton extends StatelessWidget {
 
   /// The quieter ink, for an action beside the content (m-iconbtn--muted).
   final bool muted;
+
+  /// On a fill of its own, for the actions of a screen's title (m-iconbtn--tonal).
+  final bool tonal;
 
   /// The 20 icon (m-icon--sm); the button stays [NikoSize.tap].
   final bool small;
@@ -36,7 +40,10 @@ class NikoIconButton extends StatelessWidget {
       child: NikoPressable(
         onPressed: onPressed,
         builder: (context, state) => DecoratedBox(
-          decoration: BoxDecoration(color: state.pressed ? colors.surface2 : null, shape: BoxShape.circle),
+          decoration: BoxDecoration(
+            color: tonal ? (state.pressed ? colors.surface3 : colors.surface2) : (state.pressed ? colors.surface2 : null),
+            shape: BoxShape.circle,
+          ),
           child: SizedBox.square(
             dimension: NikoSize.tap,
             child: Center(

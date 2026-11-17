@@ -130,6 +130,31 @@ class ConnectionBatch {
   final bool reset;
 }
 
+/// What a report the daemon kept is of: the core's crash, or the memory it ran out of (D-LOG-02).
+enum ReportKind { crash, outOfMemory }
+
+/// A report the daemon kept: the core crashed, or ran out of memory.
+class ReportEntry {
+  const ReportEntry(this.kind, this.name, this.at, {this.read = false});
+
+  final ReportKind kind;
+
+  /// The daemon's name of it, which the other calls take.
+  final String name;
+  final DateTime at;
+
+  /// Exported or looked at already.
+  final bool read;
+}
+
+/// A report packed by the daemon to be saved: a zip of what it kept, the core's log with it, never its config.
+class ReportArchive {
+  const ReportArchive(this.fileName, this.data);
+
+  final String fileName;
+  final List<int> data;
+}
+
 /// The daemon as the window uses it. One implementation talks gRPC ([GrpcDaemon]); tests put a server behind it.
 abstract interface class Daemon {
   /// The daemon's version: the first call, which also says whether it is there at all.
@@ -163,6 +188,14 @@ abstract interface class Daemon {
   Future<void> closeConnection(String id);
 
   Future<void> closeAllConnections();
+
+  /// The reports of crashes and of the memory run out, newest first (D-LOG-02).
+  Future<List<ReportEntry>> reports();
+
+  /// The report as an archive: the core's log in it, the config the core ran left out (it holds the keys).
+  Future<ReportArchive> exportReport(ReportEntry report);
+
+  Future<void> markReportRead(ReportEntry report);
 
   Future<void> close();
 }
@@ -302,6 +335,40 @@ class GrpcDaemon implements Daemon {
 
   @override
   Future<void> closeAllConnections() => _started.closeAllConnections(Empty(), options: _short);
+
+  @override
+  Future<List<ReportEntry>> reports() async {
+    final crashes = await _desktop.listCrashReports(Empty(), options: _short);
+    final memory = await _desktop.listOOMReports(Empty(), options: _short);
+    return [
+      for (final report in crashes.reports)
+        ReportEntry(ReportKind.crash, report.name, DateTime.fromMillisecondsSinceEpoch(report.crashedAt.toInt()),
+            read: report.isRead),
+      for (final report in memory.reports)
+        ReportEntry(ReportKind.outOfMemory, report.name,
+            DateTime.fromMillisecondsSinceEpoch(report.recordedAt.toInt()),
+            read: report.isRead),
+    ]..sort((a, b) => b.at.compareTo(a.at));
+  }
+
+  @override
+  Future<ReportArchive> exportReport(ReportEntry report) async {
+    final archive = switch (report.kind) {
+      ReportKind.crash => await _desktop.exportCrashReport(
+          CrashReportExportRequest(name: report.name, withLog: true, withConfiguration: false),
+          options: _long),
+      ReportKind.outOfMemory => await _desktop.exportOOMReport(
+          OOMReportExportRequest(name: report.name, withLog: true, withConfiguration: false),
+          options: _long),
+    };
+    return ReportArchive(archive.fileName, archive.data);
+  }
+
+  @override
+  Future<void> markReportRead(ReportEntry report) => switch (report.kind) {
+        ReportKind.crash => _desktop.markCrashReportRead(CrashReportRequest(name: report.name), options: _short),
+        ReportKind.outOfMemory => _desktop.markOOMReportRead(OOMReportRequest(name: report.name), options: _short),
+      };
 
   @override
   Future<void> close() => _channel.shutdown();

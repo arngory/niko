@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/widgets.dart';
 
 import 'screens/shell.dart';
 import 'state/connection_controller.dart';
+import 'state/window_settings.dart';
 import 'theme/niko_theme.dart';
 
 /// The window: the design system's theme by the system's light or dark, and the shell with its sections.
@@ -9,6 +12,8 @@ class NikoApp extends StatelessWidget {
   const NikoApp({
     super.key,
     required this.controller,
+    this.settings,
+    this.saveTo,
     this.daemonAddress = '',
     this.configName = '',
     this.locale,
@@ -17,6 +22,12 @@ class NikoApp extends StatelessWidget {
   });
 
   final ConnectionController controller;
+
+  /// What the window remembers between launches; null: nothing kept (tests).
+  final WindowSettings? settings;
+
+  /// Where files the user asks for are saved; null: the user's Downloads (tests give their own).
+  final Directory? Function()? saveTo;
   final String daemonAddress;
   final String configName;
 
@@ -45,6 +56,8 @@ class NikoApp extends StatelessWidget {
               style: NikoType.body.style(colors.ink),
               child: NikoShell(
                 controller: controller,
+                settings: settings ?? WindowSettings.memory(),
+                saveTo: saveTo,
                 daemonAddress: daemonAddress,
                 configName: configName,
                 now: now,
