@@ -467,9 +467,12 @@ object RaySubscription {
             if (toUpdate.isNotEmpty()) SagerDatabase.proxyDao.updateProxy(toUpdate)
             val stale = known.values.filter { it !in ids.values && it in rows }.associateBy { "stale:$it" }
             RayNodes.update(nodeId) {
+                val kept = links.filterKeys { k -> k in ids }
                 it.copy(
                     subSeq = seq, groupId = group.id, profileIds = ids + stale, refreshAt = refreshAt,
-                    links = links.filterKeys { k -> k in ids }, clockSkew = skew, doh = doh, dohPins = dohPins, name = name,
+                    links = kept, clockSkew = skew, doh = doh, dohPins = dohPins, name = name,
+                    // the names this subscription carries, remembered past it: the front serves them a while longer
+                    pastNames = RayNodes.rememberNames(it.pastNames, kept, System.currentTimeMillis() / 1000),
                 )
             }
         }

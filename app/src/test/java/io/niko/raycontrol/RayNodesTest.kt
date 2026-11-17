@@ -19,6 +19,7 @@ class RayNodesTest {
         failedFetches = 2, failedNetwork = "wifi:abc", relays = listOf(relay), subUpdatedAt = 1_700_000_000,
         subExpires = 1_700_259_200, note = "До 100 ГБ в месяц 🙂",
         traffic = RayTraffic(used = 12_884_901_888, limit = 53_687_091_200, since = 1_767_225_600, reset = 1_769_904_000, exhausted = false),
+        pastNames = mapOf("n4k2.example.com" to 1_700_000_000, "203.0.113.2" to 1_700_000_000),
     )
 
     // a fake QUIC Initial must not name anything the node's front serves on UDP 443: the names of every line the
@@ -31,11 +32,38 @@ class RayNodesTest {
             "6" to RayLinks("hy2", "hysteria2://pw@203.0.113.2:443/?sni=masq.example.net&insecure=0"),
             "7" to RayLinks("broken", "naive+quic://"),
         ))
-        val names = RayNodes.linkNames(rotating)
+        val names = RayNodes.linkNames(rotating.links)
         assertTrue(names.containsAll(listOf("n4k2.example.com", "q7r1.example.com", "masq.example.net", "203.0.113.2")))
         // the same once the row has switched to its next line
-        assertEquals(names, RayNodes.linkNames(rotating.copy(links = rotating.links.mapValues { it.value.copy(nextActive = true) })))
-        assertTrue(RayNodes.linkNames(node).isEmpty())
+        assertEquals(names, RayNodes.linkNames(rotating.links.mapValues { it.value.copy(nextActive = true) }))
+        assertTrue(RayNodes.linkNames(node.links).isEmpty())
+    }
+
+    // a name the subscription dropped is still served by the front for a while: remembered from the last time a
+    // subscription carried it, forgotten 180 days after, the newest 64 at most
+    @Test
+    fun namesRememberedPastTheSubscription() {
+        val line = "naive+quic://niko:f3b1c0de-0000-4000-8000-000000000001@203.0.113.2:443?niko-node=00112233445566778899aabbccddeeff"
+        val day = 24 * 3600L
+        val t0 = 1_800_000_000L
+        val first = RayNodes.rememberNames(emptyMap(), mapOf("5" to RayLinks("naive", "$line&sni=a.example.com")), t0)
+        assertEquals(mapOf("a.example.com" to t0, "203.0.113.2" to t0), first)
+        // the next subscription carries another name: the first stays, with the time it was last seen
+        val second = RayNodes.rememberNames(first, mapOf("5" to RayLinks("naive", "$line&sni=b.example.com")), t0 + day)
+        assertEquals(t0, second["a.example.com"])
+        assertEquals(t0 + day, second["b.example.com"])
+        assertEquals(t0 + day, second["203.0.113.2"])
+        // 180 days after it was last seen it goes
+        val later = RayNodes.rememberNames(second, emptyMap(), t0 + 181 * day)
+        assertEquals(setOf("b.example.com", "203.0.113.2"), later.keys)
+        assertTrue(RayNodes.rememberNames(later, emptyMap(), t0 + 182 * day).isEmpty())
+        // a node whose name changes every hour: the newest 64
+        var many = emptyMap<String, Long>()
+        for (hour in 0 until 100) {
+            many = RayNodes.rememberNames(many, mapOf("5" to RayLinks("naive", "$line&sni=h$hour.example.com")), t0 + hour * 3600L)
+        }
+        assertEquals(64, many.size)
+        assertTrue("h99.example.com" in many && "203.0.113.2" in many && "h36.example.com" !in many)
     }
 
     @Test

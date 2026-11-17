@@ -88,7 +88,7 @@ private val UDP_DESYNC_TYPES = setOf("hysteria2", "tuic")
  * always, naive when the profile goes over QUIC or carries UDP as HTTP/3 datagrams ([naiveDatagrams]: the second,
  * QUIC connection beside HTTP/2). naive over HTTP/2 alone has none.
  */
-internal fun udpDesyncApplies(outboundType: String, bean: AbstractBean, naiveDatagrams: Boolean): Boolean =
+internal fun udpDesyncApplies(outboundType: String?, bean: AbstractBean, naiveDatagrams: Boolean): Boolean =
     outboundType in UDP_DESYNC_TYPES || (bean is NaiveBean && (bean.proto == "quic" || naiveDatagrams))
 private val TLS_PIN_TYPES = TLS_FRAGMENT_TYPES + setOf("hysteria", "hysteria2", "tuic", "naive")
 

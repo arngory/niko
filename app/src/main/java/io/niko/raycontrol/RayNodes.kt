@@ -186,6 +186,10 @@ data class RayNode(
     val lan: RayLan? = null,
     // addresses the user's devices had before a rotation, still taken for a while (lan-v1 §5)
     val lanPrevious: List<RayLanPrevious>? = null,
+    // every name a line of the subscription carried (server name, address), lower case → when it was last there
+    // (this device's clock, unix s): the node's front still serves a naive name for a while after the subscription
+    // dropped it (up to 3 previous ones a service, raycontrol R4-42), so a fake QUIC Initial must not name it either
+    val pastNames: Map<String, Long> = emptyMap(),
 ) {
     /** What the node is called in the app: its admin's name, else "raycontrol · <host>" as before. */
     val displayName get() = groupName(host, name)
@@ -241,6 +245,7 @@ data class RayNode(
         if (lanShowAt > 0) addProperty("lan_show_at", lanShowAt)
         lan?.let { add("lan", it.toJson()) }
         lanPrevious?.takeIf { it.isNotEmpty() }?.let { list -> add("lan_previous", JsonArray().apply { list.forEach { add(it.toJson()) } }) }
+        if (pastNames.isNotEmpty()) add("past_names", JsonObject().apply { pastNames.forEach { (k, v) -> addProperty(k, v) } })
     }
 
     /** The relay with this address, for a profile row through it. */
@@ -284,6 +289,9 @@ data class RayNode(
             lanShowAt = o.get("lan_show_at")?.asLong ?: 0,
             lan = RayLan.fromJson(o.get("lan") as? JsonObject),
             lanPrevious = (o.get("lan_previous") as? JsonArray)?.mapNotNull { (it as? JsonObject)?.let(RayLanPrevious::fromJson) },
+            pastNames = (o.get("past_names") as? JsonObject)?.entrySet()?.mapNotNull { (name, at) ->
+                runCatching { name.trim().lowercase() to at.asLong }.getOrNull()?.takeIf { it.first.isNotEmpty() }
+            }?.toMap().orEmpty(),
         )
 
         /** The group name of the node at [host] called [name] (null: none given). */
@@ -639,21 +647,40 @@ object RayNodes {
      *
      * Every name the subscription carries counts, not the rows' current ones alone: the front serves a rotation's
      * next name ahead of its time and the previous one after it (naive's names, R4-42), so both lines of a row are
-     * read, `link` and `next`, whichever is in the profile now.
+     * read, `link` and `next`, whichever is in the profile now; and the names earlier subscriptions carried
+     * ([RayNode.pastNames]), which the front still serves for a while after the subscription has dropped them.
      */
-    fun names(node: RayNode): Set<String> {
+    fun names(node: RayNode, now: Long = System.currentTimeMillis() / 1000): Set<String> {
         val names = mutableSetOf(node.host.lowercase())
         node.doh?.let { runCatching { java.net.URI(it).host }.getOrNull() }?.let { names += it.lowercase() }
         for (id in node.profileIds.orEmpty().values) {
             SagerDatabase.proxyDao.getById(id)?.requireBean()?.let { names += servedNames(it) }
         }
-        return names + linkNames(node)
+        return names + linkNames(node.links) + node.pastNames.filterValues { now - it <= PAST_NAMES_KEEP_S }.keys
+    }
+
+    // the front keeps a previous naive name until the next switches, up to 90 days without them: twice that here
+    private const val PAST_NAMES_KEEP_S = 180L * 24 * 3600
+
+    // a bound for a node whose names change often: the newest stay
+    private const val PAST_NAMES_MAX = 64
+
+    /**
+     * [past] with the names of [links] seen [now]: each name's time is the last subscription that carried it. Names
+     * unseen for 180 days go, and at most [PAST_NAMES_MAX] stay, the most recently seen.
+     */
+    internal fun rememberNames(past: Map<String, Long>, links: Map<String, RayLinks>, now: Long): Map<String, Long> {
+        val seen = past.toMutableMap()
+        for (name in linkNames(links)) seen[name] = now
+        return seen.filterValues { now - it <= PAST_NAMES_KEEP_S }.entries
+            .sortedWith(compareByDescending<Map.Entry<String, Long>> { it.value }.thenBy { it.key })
+            .take(PAST_NAMES_MAX).associate { it.key to it.value }
     }
 
     /** The names in the subscription's lines themselves, `link` and `next` of every row. */
-    internal fun linkNames(node: RayNode): Set<String> {
+    internal fun linkNames(rows: Map<String, RayLinks>): Set<String> {
         val names = mutableSetOf<String>()
-        for (links in node.links.values) {
+        for (links in rows.values) {
             for (link in listOfNotNull(links.link, links.next)) {
                 runCatching { RayRows.parse(link) }.getOrNull()?.let { names += servedNames(it) }
             }
