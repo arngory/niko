@@ -2,10 +2,4 @@
 <resources>
     <color name="fab_color_progress">@color/material_light_white</color>
     <color name="preference_simple_menu_background">#303030</color>
-    <!-- the Niko theme, dark (values/colors.xml) -->
-    <color name="niko_bar">#1C1C1C</color>
-    <color name="niko_ink">#E2E2E2</color>
-    <color name="niko_on_ink">#121212</color>
-    <color name="niko_surface_2">#272727</color>
-    <color name="niko_line_strong">#737373</color>
 </resources>

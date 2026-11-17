@@ -118,9 +118,10 @@ Kotlin или обратно автоматически нельзя: надёж
   `.github/release-notes/v1.58.0.md`.
 - Шаг 2 идёт: `desktop/` — окно на Flutter, связка с `boxdd` (см. [docs/desktop](../desktop/README.md), этап 2b).
 - От шага 4 сделано первое: `shared/tokens.json` — токены дизайн-системы в репозитории, и
-  `shared/tool/gen_tokens.py` генерирует из них тему Flutter (`desktop/lib/theme/tokens.g.dart`); CI проверяет, что
-  сгенерированный файл соответствует токенам. Ресурсы Android (`niko_*` в `colors.xml`) пока написаны руками по
-  тем же значениям: их генерация — следующий кусок.
+  `shared/tool/gen_tokens.py` генерирует из них обе стороны: тему Flutter (`desktop/lib/theme/tokens.g.dart`) и
+  цвета Android (`res/values/niko_tokens.xml` и `values-night/`, имена `niko_<токен>`; тема Niko берёт их оттуда).
+  CI обеих сторон проверяет, что сгенерированные файлы соответствуют токенам. Правка цвета в `tokens.json` меняет
+  и телефон, и компьютер. Размеры и стили текста на Android пока не генерируются.
 
 ## Репозиторий
 

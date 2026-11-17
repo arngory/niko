@@ -1,13 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- The Niko theme (Theme.NIKO): the design system's tokens (niko-ds tokens.json), light here, dark in values-night.
-         The bars stay dark in both, with white on them, as the app's layouts are made for a coloured bar -->
+    <!-- The Niko theme (Theme.NIKO) takes the design system's colours from niko_tokens.xml (generated from
+         shared/tokens.json, light there, dark in values-night). What is no token stands here: the bars stay dark in
+         both modes, with white on them, as the app's layouts are made for a coloured bar -->
     <color name="niko_bar">#1C1C1C</color>
-    <color name="niko_ink">#1C1C1C</color>
-    <color name="niko_on_ink">#F8F8F8</color>
-    <color name="niko_surface_2">#E3E3E3</color>
-    <color name="niko_line_strong">#787878</color>
     <!-- the launcher's shortcuts: the light app icon's ground, in both modes (launchers do not follow the app's) -->
     <color name="niko_shortcut_background">#EEEEEE</color>
 

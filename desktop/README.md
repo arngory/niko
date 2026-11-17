@@ -20,6 +20,7 @@ Flutter, Windows сначала, Linux потом. Ядро и логика Niko
 | `lib/gen/` | API демона на Dart. **Сгенерирован** из proto форка ядра (`tool/gen_proto.sh`) |
 | `lib/l10n/strings.dart` | Тексты, русский и английский. Временно здесь: переедут в общий слой с текстами Android |
 | `test/` | Тесты; `test/goldens/` — снимки экрана в состояниях |
+| `windows/runner/resources/app_icon.ico` | Значок окна: знак «Маршрут». Собирается `tool/make_icon.js` и `tool/make_icon.py` |
 
 Material не используется: компоненты свои, на слое `widgets`. Так окно легче, и выглядит как макет, а не как Android.
 

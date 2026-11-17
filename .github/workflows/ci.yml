@@ -3,7 +3,9 @@ name: CI
 on:
   push:
     branches: ["**"]
-    paths-ignore: ["**.md"]
+    # the window for the computer has its own workflow (desktop.yml); a push of it alone neither builds the app nor
+    # cancels a run of this one
+    paths-ignore: ["**.md", "desktop/**"]
   pull_request:
   workflow_dispatch:
 
