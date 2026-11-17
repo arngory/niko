@@ -31,6 +31,105 @@ class Traffic {
   final int downTotal;
 }
 
+/// How grave a line of the core's log is (the daemon's LogLevel, in its order).
+enum LogSeverity { panic, fatal, error, warn, info, debug, trace }
+
+/// A line of the core's log, as the core wrote it but for the terminal colours.
+class LogLine {
+  const LogLine(this.level, this.text);
+
+  final LogSeverity level;
+  final String text;
+}
+
+/// What the log stream brings at a time. [reset]: what was shown before is gone (the first batch, which carries
+/// the lines the daemon keeps, and a clearing), and [lines] is all there is.
+class LogBatch {
+  const LogBatch(this.lines, {this.reset = false});
+
+  final List<LogLine> lines;
+  final bool reset;
+}
+
+/// A connection the core carries: where to, for which program, by which rule and through what.
+class ConnectionInfo {
+  const ConnectionInfo({
+    required this.id,
+    required this.network,
+    required this.destination,
+    this.domain = '',
+    this.protocol = '',
+    this.process = '',
+    this.rule = '',
+    this.outbound = '',
+    this.outboundType = '',
+    required this.createdAt,
+    this.up = 0,
+    this.down = 0,
+  });
+
+  final String id;
+
+  /// `tcp` or `udp`.
+  final String network;
+
+  /// `address:port`, as the core dials it.
+  final String destination;
+
+  /// The name, where the program asked by name or the core sniffed it.
+  final String domain;
+
+  /// What the core sniffed in the stream: `tls`, `quic`, `http`, `ssh`...
+  final String protocol;
+
+  /// The program's file, where the core could tell.
+  final String process;
+  final String rule;
+  final String outbound;
+  final String outboundType;
+  final DateTime createdAt;
+
+  /// Bytes so far.
+  final int up;
+  final int down;
+
+  ConnectionInfo moved(int upDelta, int downDelta) => ConnectionInfo(
+    id: id,
+    network: network,
+    destination: destination,
+    domain: domain,
+    protocol: protocol,
+    process: process,
+    rule: rule,
+    outbound: outbound,
+    outboundType: outboundType,
+    createdAt: createdAt,
+    up: up + upDelta,
+    down: down + downDelta,
+  );
+}
+
+/// A change in the connections: [opened] is set for a new one, the deltas for one that moved bytes.
+class ConnectionChange {
+  const ConnectionChange.opened(ConnectionInfo this.opened) : id = '', closed = false, upDelta = 0, downDelta = 0;
+  const ConnectionChange.moved(this.id, this.upDelta, this.downDelta) : opened = null, closed = false;
+  const ConnectionChange.closed(this.id) : opened = null, closed = true, upDelta = 0, downDelta = 0;
+
+  final ConnectionInfo? opened;
+  final String id;
+  final bool closed;
+  final int upDelta;
+  final int downDelta;
+}
+
+/// What the connections stream brings at a time. [reset]: the first batch, which is every open connection.
+class ConnectionBatch {
+  const ConnectionBatch(this.changes, {this.reset = false});
+
+  final List<ConnectionChange> changes;
+  final bool reset;
+}
+
 /// The daemon as the window uses it. One implementation talks gRPC ([GrpcDaemon]); tests put a server behind it.
 abstract interface class Daemon {
   /// The daemon's version: the first call, which also says whether it is there at all.
@@ -50,6 +149,20 @@ abstract interface class Daemon {
 
   /// Stops it (D-MAIN-04).
   Future<void> stop();
+
+  /// The core's log: what the daemon keeps of it, then every new line (D-LOG-01).
+  Stream<LogBatch> logs();
+
+  /// Empties the daemon's log, for every window that reads it (D-LOG-01).
+  Future<void> clearLogs();
+
+  /// The open connections, then their changes; the traffic every [interval]. Fails at once when the core is not
+  /// running, and ends when it stops (D-CONN-01).
+  Stream<ConnectionBatch> connections(Duration interval);
+
+  Future<void> closeConnection(String id);
+
+  Future<void> closeAllConnections();
 
   Future<void> close();
 }
@@ -129,5 +242,72 @@ class GrpcDaemon implements Daemon {
   Future<void> stop() => _managed.stopService(Empty(), options: _long);
 
   @override
+  Stream<LogBatch> logs() => _started
+      .subscribeLog(Empty())
+      .map(
+        (batch) => LogBatch([
+          for (final message in batch.messages)
+            LogLine(
+              LogSeverity.values[message.level.value.clamp(0, LogSeverity.values.length - 1)],
+              plainLogText(message.message),
+            ),
+        ], reset: batch.reset),
+      );
+
+  @override
+  Future<void> clearLogs() => _started.clearLogs(Empty(), options: _short);
+
+  @override
+  Stream<ConnectionBatch> connections(Duration interval) {
+    final request = SubscribeConnectionsRequest(interval: Int64(interval.inMicroseconds) * 1000);
+    return _started
+        .subscribeConnections(request)
+        .map(
+          (batch) => ConnectionBatch([
+            for (final event in batch.events)
+              switch (event.type) {
+                ConnectionEventType.CONNECTION_EVENT_NEW when event.hasConnection() => ConnectionChange.opened(
+                  _connection(event.connection),
+                ),
+                ConnectionEventType.CONNECTION_EVENT_UPDATE => ConnectionChange.moved(
+                  event.id,
+                  event.uplinkDelta.toInt(),
+                  event.downlinkDelta.toInt(),
+                ),
+                ConnectionEventType.CONNECTION_EVENT_CLOSED => ConnectionChange.closed(event.id),
+                // a new connection without its description says nothing to show
+                _ => ConnectionChange.closed(event.id),
+              },
+          ], reset: batch.reset),
+        );
+  }
+
+  static ConnectionInfo _connection(Connection connection) => ConnectionInfo(
+    id: connection.id,
+    network: connection.network,
+    destination: connection.destination,
+    domain: connection.domain,
+    protocol: connection.protocol,
+    process: connection.hasProcessInfo() ? connection.processInfo.processPath : '',
+    rule: connection.rule,
+    outbound: connection.outbound,
+    outboundType: connection.outboundType,
+    createdAt: DateTime.fromMillisecondsSinceEpoch(connection.createdAt.toInt()),
+    up: connection.uplinkTotal.toInt(),
+    down: connection.downlinkTotal.toInt(),
+  );
+
+  @override
+  Future<void> closeConnection(String id) => _started.closeConnection(CloseConnectionRequest(id: id), options: _short);
+
+  @override
+  Future<void> closeAllConnections() => _started.closeAllConnections(Empty(), options: _short);
+
+  @override
   Future<void> close() => _channel.shutdown();
 }
+
+final _terminalColours = RegExp('\x1b\\[[0-9;]*m');
+
+/// A log line without the colour codes the core writes for a terminal.
+String plainLogText(String line) => line.replaceAll(_terminalColours, '');

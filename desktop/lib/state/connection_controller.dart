@@ -49,6 +49,9 @@ class ConnectionController extends ChangeNotifier {
 
   bool get hasConfig => _loadConfig != null;
 
+  /// The daemon, for what reads it beside this (the log, the connections); they ask only while [link] is ready.
+  Daemon? get daemon => _daemon;
+
   StreamSubscription<ServiceState>? _statusSubscription;
   StreamSubscription<Traffic>? _trafficSubscription;
   Timer? _retryTimer;

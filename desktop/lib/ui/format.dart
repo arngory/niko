@@ -19,3 +19,24 @@ String formatElapsed(Duration elapsed) {
   String two(int value) => value.toString().padLeft(2, '0');
   return '${two(seconds ~/ 3600)}:${two(seconds % 3600 ~/ 60)}:${two(seconds % 60)}';
 }
+
+/// How long a connection has been open, as the canvas writes it: `12 s`, `4 min`, `2 h`.
+String formatAge(Duration age) {
+  final seconds = age.isNegative ? 0 : age.inSeconds;
+  if (seconds < 60) return '$seconds s';
+  if (seconds < 3600) return '${seconds ~/ 60} min';
+  return '${seconds ~/ 3600} h';
+}
+
+/// Where a connection goes, by name where the core knows one: `www.example.com:443`.
+String connectionTarget(String destination, String domain) {
+  if (domain.isEmpty) return destination;
+  final colon = destination.lastIndexOf(':');
+  return colon < 0 ? domain : '$domain${destination.substring(colon)}';
+}
+
+/// A program by its file: `C:\Program Files\App\app.exe` and `/usr/bin/app` are `app`.
+String processName(String path) {
+  final file = path.substring(path.lastIndexOf(RegExp(r'[\\/]')) + 1);
+  return file.toLowerCase().endsWith('.exe') ? file.substring(0, file.length - 4) : file;
+}

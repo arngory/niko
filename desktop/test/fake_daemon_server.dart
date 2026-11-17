@@ -20,6 +20,46 @@ class FakeDaemonServer {
 
   /// Set: StartService fails with these words, as for a config the core refuses.
   String? startError;
+
+  /// The log the daemon keeps, and what it tells its readers: a batch of lines, or null for a clearing.
+  final savedLog = <Log_Message>[];
+  final _logChanges = StreamController<Log?>.broadcast();
+  int logClears = 0;
+
+  /// The connections of the running core, and their changes for the readers.
+  final connections = <String, Connection>{};
+  final _connectionChanges = StreamController<ConnectionEvents>.broadcast();
+  final closed = <String>[];
+  int closedAll = 0;
+
+  void log(LogLevel level, String message) {
+    final line = Log_Message(level: level, message: message);
+    savedLog.add(line);
+    _logChanges.add(Log(messages: [line]));
+  }
+
+  void open(Connection connection) {
+    connections[connection.id] = connection;
+    _connectionChanges.add(ConnectionEvents(events: [
+      ConnectionEvent(type: ConnectionEventType.CONNECTION_EVENT_NEW, id: connection.id, connection: connection),
+    ]));
+  }
+
+  void move(String id, int up, int down) => _connectionChanges.add(ConnectionEvents(events: [
+        ConnectionEvent(
+          type: ConnectionEventType.CONNECTION_EVENT_UPDATE,
+          id: id,
+          uplinkDelta: Int64(up),
+          downlinkDelta: Int64(down),
+        ),
+      ]));
+
+  void drop(String id) {
+    if (connections.remove(id) == null) return;
+    _connectionChanges.add(ConnectionEvents(events: [
+      ConnectionEvent(type: ConnectionEventType.CONNECTION_EVENT_CLOSED, id: id),
+    ]));
+  }
   final startedAt = DateTime.utc(2026, 11, 16, 20, 0, 0);
 
   Server? _server;
@@ -39,6 +79,8 @@ class FakeDaemonServer {
   Future<void> shutdown() async {
     _closing = true;
     if (!_changes.isClosed) await _changes.close();
+    if (!_logChanges.isClosed) await _logChanges.close();
+    if (!_connectionChanges.isClosed) await _connectionChanges.close();
     while (_open > 0) {
       await Future<void>.delayed(const Duration(milliseconds: 5));
     }
@@ -128,6 +170,76 @@ class _Started extends StartedServiceBase {
   @override
   Future<StartedAt> getStartedAt(ServiceCall call, Empty request) async =>
       StartedAt(startedAt: Int64(daemon.startedAt.millisecondsSinceEpoch));
+
+  // as boxdd: what is kept first, marked as a reset; then each batch; a clearing is a reset with nothing
+  @override
+  Stream<Log> subscribeLog(ServiceCall call, Empty request) async* {
+    daemon._open++;
+    try {
+      yield Log(messages: daemon.savedLog, reset: true);
+      await for (final batch in daemon._logChanges.stream) {
+        yield batch ?? Log(reset: true);
+      }
+    } finally {
+      daemon._open--;
+    }
+  }
+
+  @override
+  Future<Empty> clearLogs(ServiceCall call, Empty request) async {
+    daemon.logClears++;
+    daemon.savedLog.clear();
+    daemon._logChanges.add(null);
+    return Empty();
+  }
+
+  // as boxdd: refused while the core is not running, ended when it stops
+  @override
+  Stream<ConnectionEvents> subscribeConnections(ServiceCall call, SubscribeConnectionsRequest request) async* {
+    if (daemon._phase != ServiceStatus_Type.STARTED) throw GrpcError.unknown('invalid argument');
+    daemon._open++;
+    final stopped = daemon._changes.stream.firstWhere((_) => daemon._phase != ServiceStatus_Type.STARTED).then(
+          (_) => null,
+          onError: (Object _) => null,
+        );
+    try {
+      yield ConnectionEvents(
+        events: [
+          for (final connection in daemon.connections.values)
+            ConnectionEvent(type: ConnectionEventType.CONNECTION_EVENT_NEW, id: connection.id, connection: connection),
+        ],
+        reset: true,
+      );
+      final changes = StreamIterator(daemon._connectionChanges.stream);
+      try {
+        while (true) {
+          final next = await Future.any<Object?>([changes.moveNext(), stopped]);
+          if (next != true) return;
+          yield changes.current;
+        }
+      } finally {
+        await changes.cancel();
+      }
+    } finally {
+      daemon._open--;
+    }
+  }
+
+  @override
+  Future<Empty> closeConnection(ServiceCall call, CloseConnectionRequest request) async {
+    daemon.closed.add(request.id);
+    daemon.drop(request.id);
+    return Empty();
+  }
+
+  @override
+  Future<Empty> closeAllConnections(ServiceCall call, Empty request) async {
+    daemon.closedAll++;
+    for (final id in daemon.connections.keys.toList()) {
+      daemon.drop(id);
+    }
+    return Empty();
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => throw GrpcError.unimplemented();

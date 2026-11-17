@@ -10,6 +10,11 @@ abstract final class NikoIcons {
   static const power = 'M12 2v10 M18.4 6.6a9 9 0 1 1-12.77.04';
   static const alert = 'M2 12a10 10 0 1 0 20 0a10 10 0 1 0-20 0 M12 8v4 M12 16h.01';
   static const refresh = 'M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8 M21 3v5h-5';
+  static const trash = 'M3 6h18 M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6 M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2';
+  static const close = 'M18 6L6 18 M6 6l12 12';
+  static const search = 'M3 11a8 8 0 1 0 16 0a8 8 0 1 0-16 0 M21 21l-4.3-4.3';
+
+  static const all = [power, alert, refresh, trash, close, search];
 }
 
 /// An outline icon: [data] stroked with the icon stroke of the tokens, scaled with [size].

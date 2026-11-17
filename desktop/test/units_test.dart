@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:niko_desktop/daemon/daemon.dart';
 import 'package:niko_desktop/daemon/endpoint.dart';
 import 'package:niko_desktop/ui/format.dart';
 import 'package:niko_desktop/ui/icons.dart';
@@ -58,7 +59,7 @@ void main() {
 
   group('icons', () {
     test('every icon is path data this reads, inside the 24 grid', () {
-      for (final data in [NikoIcons.power, NikoIcons.alert, NikoIcons.refresh]) {
+      for (final data in NikoIcons.all) {
         final bounds = drawnBounds(parseSvgPath(data));
         expect(bounds.left >= 0 && bounds.top >= 0 && bounds.right <= 24 && bounds.bottom <= 24, isTrue,
             reason: '$data: $bounds');
@@ -77,6 +78,31 @@ void main() {
       expect(drawnBounds(parseSvgPath('M2 12a10 10 0 1020 0')).right, closeTo(22, 0.05));
       expect(() => parseSvgPath('M0 0q1 1 2 2'), throwsFormatException);
       expect(() => parseSvgPath('1 2 3'), throwsFormatException);
+    });
+  });
+  group('what the connections screen writes', () {
+    test('the age', () {
+      expect(formatAge(const Duration(seconds: 12)), '12 s');
+      expect(formatAge(const Duration(minutes: 4, seconds: 59)), '4 min');
+      expect(formatAge(const Duration(hours: 2, minutes: 10)), '2 h');
+      expect(formatAge(const Duration(seconds: -3)), '0 s');
+    });
+
+    test('the target by name where there is one', () {
+      expect(connectionTarget('93.184.216.34:443', 'www.example.com'), 'www.example.com:443');
+      expect(connectionTarget('93.184.216.34:443', ''), '93.184.216.34:443');
+      expect(connectionTarget('[2001:db8::1]:443', 'v6.example.com'), 'v6.example.com:443');
+    });
+
+    test('a program by its file', () {
+      expect(processName(r'C:\Program Files\Browser\browser.exe'), 'browser');
+      expect(processName('/usr/bin/curl'), 'curl');
+      expect(processName('ssh'), 'ssh');
+    });
+
+    test('a log line without the terminal colours', () {
+      expect(plainLogText('\x1b[36mINFO\x1b[0m[0000] started'), 'INFO[0000] started');
+      expect(plainLogText('plain'), 'plain');
     });
   });
 }

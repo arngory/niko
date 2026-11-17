@@ -1,7 +1,8 @@
 // The window's link against the real daemon: `boxdd run --listen 127.0.0.1:<port>` (development mode) started here,
 // a ready config with a proxy on 127.0.0.1 and a direct outbound, a request through it. Stage 2b of docs/desktop:
-// the button starts the config, the status and the rates are seen. Runs where NIKO_BOXDD names the daemon's
-// executable (CI: on Windows and on Linux); skipped otherwise.
+// the button starts the config, the status and the rates are seen; then the core's log and its connections, one of
+// which is closed from here (D-LOG-01, D-CONN-01). Runs where NIKO_BOXDD names the daemon's executable (CI: on
+// Windows and on Linux); skipped otherwise.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -10,6 +11,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:niko_desktop/daemon/daemon.dart';
 import 'package:niko_desktop/daemon/endpoint.dart';
 import 'package:niko_desktop/state/connection_controller.dart';
+import 'package:niko_desktop/state/connections_feed.dart';
+import 'package:niko_desktop/state/log_feed.dart';
 
 Future<int> freePort() async {
   final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
@@ -62,7 +65,17 @@ void main() {
     // what the proxy is asked for: 256 KB from a server of this test's own
     final origin = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final body = List<int>.filled(256 * 1024, 0x6e);
+    // /hold answers when this lets it: a connection that stays open to be seen, and closed
+    final release = Completer<void>();
     origin.listen((request) async {
+      if (request.uri.path == '/hold') {
+        request.response.bufferOutput = false;
+        request.response.write('held');
+        await request.response.flush();
+        await release.future;
+        await request.response.close().catchError((Object _) {});
+        return;
+      }
       request.response.headers.contentLength = body.length;
       request.response.add(body);
       await request.response.close();
@@ -83,7 +96,12 @@ void main() {
       retry: const Duration(milliseconds: 300),
       trafficInterval: const Duration(milliseconds: 200),
     );
+    final logFeed = LogFeed(controller);
+    final connections = ConnectionsFeed(controller, interval: const Duration(milliseconds: 200));
     addTearDown(() async {
+      if (!release.isCompleted) release.complete();
+      logFeed.dispose();
+      connections.dispose();
       controller.dispose();
       process?.kill();
       await origin.close(force: true);
@@ -153,9 +171,43 @@ void main() {
     // ignore: avoid_print
     print('traffic: total ↓ ${controller.traffic!.downTotal} ↑ ${controller.traffic!.upTotal}, peak ↓ $peak B/s');
 
+    // the core's log: what the daemon kept of this start, without a terminal's colour codes
+    logFeed.open();
+    await until(() => logFeed.lines.isNotEmpty, 'the log');
+    expect(logFeed.lines.any((line) => line.text.contains('sing-box started')), isTrue,
+        reason: logFeed.lines.map((line) => line.text).join('\n'));
+    expect(logFeed.lines.any((line) => line.text.contains('\x1b')), isFalse);
+    // ignore: avoid_print
+    print('log: ${logFeed.lines.length} lines, the last: ${logFeed.lines.last.text}');
+    final before = logFeed.lines.length;
+    await logFeed.clear();
+    expect(logFeed.error, isEmpty);
+    await until(() => logFeed.lines.length < before, 'the cleared log');
+
+    // the connections: one held open is listed with where it goes, and closing it from here ends it
+    connections.show();
+    final holder = HttpClient()..findProxy = (_) => 'PROXY 127.0.0.1:$proxyPort';
+    final held = await (await holder.getUrl(Uri.parse('http://127.0.0.1:${origin.port}/hold'))).close();
+    final ended = held.drain<void>().then((_) => 'ended', onError: (Object _) => 'broken');
+    await until(() => connections.open.any((c) => c.destination == '127.0.0.1:${origin.port}'), 'the held connection');
+    final shown = connections.open.firstWhere((c) => c.destination == '127.0.0.1:${origin.port}');
+    expect(shown.network, 'tcp');
+    expect(shown.outbound, 'direct');
+    expect(DateTime.now().difference(shown.createdAt).inSeconds.abs(), lessThan(60));
+    // ignore: avoid_print
+    print('connection: ${shown.destination} ${shown.network} protocol "${shown.protocol}" process "${shown.process}" '
+        'rule "${shown.rule}" -> ${shown.outbound} (${shown.outboundType}), ↓ ${shown.down} ↑ ${shown.up}');
+    await connections.close(shown.id);
+    expect(connections.error, isEmpty);
+    await until(() => !connections.open.any((c) => c.id == shown.id), 'the connection gone from the list');
+    // ignore: avoid_print
+    print('the closed connection ${await ended.timeout(const Duration(seconds: 10))} for the program that held it');
+    holder.close(force: true);
+
     // the button again
     await controller.toggle();
     await until(() => controller.service.phase == ServicePhase.idle, 'the core down');
+    await until(() => connections.open.isEmpty, 'no connections of a stopped core');
     expect(controller.traffic, isNull);
     await until(() async => !await listening(proxyPort), 'the proxy port closed');
 

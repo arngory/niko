@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -35,6 +34,24 @@ class MemoryDaemon implements Daemon {
 
   @override
   Future<void> stop() async => stopped++;
+
+  final logBatches = StreamController<LogBatch>.broadcast();
+  int cleared = 0;
+  final connectionBatches = StreamController<ConnectionBatch>.broadcast();
+  final closedConnections = <String>[];
+  int closedAll = 0;
+
+  @override
+  Stream<LogBatch> logs() => logBatches.stream;
+  @override
+  Future<void> clearLogs() async => cleared++;
+  @override
+  Stream<ConnectionBatch> connections(Duration interval) => connectionBatches.stream;
+  @override
+  Future<void> closeConnection(String id) async => closedConnections.add(id);
+  @override
+  Future<void> closeAllConnections() async => closedAll++;
+
   @override
   Future<void> close() async {}
 }
@@ -57,6 +74,8 @@ void main() {
 
   late MemoryDaemon daemon;
   late ConnectionController controller;
+  // the clock of the tests: 42 minutes and 17 seconds after the core's start
+  final daemonClock = DateTime.utc(2026, 11, 16, 20).add(const Duration(minutes: 42, seconds: 17));
 
   Future<void> show(
     WidgetTester tester, {
@@ -145,7 +164,10 @@ void main() {
   testWidgets('the keyboard: Enter on the focused button connects', (tester) async {
     await show(tester);
     await core(tester, ServicePhase.idle);
-    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    // the header first: two sections and the two views; then the button
+    for (var stop = 0; stop < 5; stop++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    }
     await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();
@@ -187,6 +209,240 @@ void main() {
     expect(find.text('Disconnected'), findsOneWidget);
     expect(find.bySemanticsLabel('Connect'), findsOneWidget);
     expect(find.text('DEVELOPMENT'), findsOneWidget);
+  });
+
+  group('the header', () {
+    testWidgets('the simple view has the main screen and the log; the advanced one adds the connections', (tester) async {
+      await show(tester);
+      await core(tester, ServicePhase.idle);
+      expect(find.text('Главная'), findsOneWidget);
+      expect(find.text('Журнал'), findsOneWidget);
+      expect(find.text('Соединения'), findsNothing);
+      expect(find.bySemanticsLabel('Вид интерфейса'), findsOneWidget);
+
+      await tester.tap(find.text('Расширенный'));
+      await tester.pump();
+      expect(find.text('Соединения'), findsOneWidget);
+      // the view changes what is shown, not the connection
+      expect(daemon.started, isEmpty);
+      expect(daemon.stopped, 0);
+      expect(find.byType(ConnectButton), findsOneWidget);
+
+      await tester.tap(find.text('Соединения'));
+      await tester.pump();
+      expect(find.byType(ConnectButton), findsNothing);
+      expect(find.text('Подключение выключено'), findsOneWidget);
+      // back to the simple view: the section it does not have gives way to the main screen
+      await tester.tap(find.text('Простой'));
+      await tester.pump();
+      expect(find.text('Соединения'), findsNothing);
+      expect(find.byType(ConnectButton), findsOneWidget);
+    });
+
+    testWidgets('the keyboard reaches the sections and the view', (tester) async {
+      await show(tester);
+      await core(tester, ServicePhase.idle);
+      // the first stop is the first section, the second the log
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      expect(find.byType(ConnectButton), findsNothing);
+      expect(find.text('Журнал пуст'), findsOneWidget);
+    });
+  });
+
+  group('the log', () {
+    Future<void> openLog(WidgetTester tester, {Brightness brightness = Brightness.dark}) async {
+      await show(tester, brightness: brightness);
+      await core(tester, ServicePhase.started);
+      await tester.tap(find.text('Журнал'));
+      await tester.pump();
+    }
+
+    testWidgets('the core\'s lines, an error in the danger colour, and the clearing', (tester) async {
+      await openLog(tester);
+      expect(find.text('Журнал пуст'), findsOneWidget);
+      expect(find.bySemanticsLabel('Журнал ядра'), findsOneWidget);
+      daemon.logBatches.add(const LogBatch([
+        LogLine(LogSeverity.info, 'INFO[0000] sing-box started (0.23s)'),
+        LogLine(LogSeverity.debug, 'DEBUG[0000] outbound/knock[proxy-knock]: UDP <node>:443 goes to the slot port 42028'),
+        LogLine(LogSeverity.info, 'INFO[0001] outbound/naive[proxy]: outbound connection to www.example.com:443'),
+        LogLine(LogSeverity.error, 'ERROR[0011] connection: connection download closed: remote error: timeout'),
+        LogLine(LogSeverity.info, 'INFO[0028] raycontrol: switching from naive to hy2, which works on this network'),
+      ], reset: true));
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Журнал пуст'), findsNothing);
+      expect(find.textContaining('sing-box started'), findsOneWidget);
+      final error = tester.widget<Text>(find.textContaining('remote error: timeout'));
+      final quiet = tester.widget<Text>(find.textContaining('slot port 42028'));
+      final plain = tester.widget<Text>(find.textContaining('sing-box started'));
+      expect({error.style!.color, quiet.style!.color, plain.style!.color}.length, 3);
+      await picture('log_dark');
+
+      await tester.tap(find.bySemanticsLabel('Очистить журнал'));
+      await tester.pump();
+      expect(daemon.cleared, 1);
+      // the daemon answers a clearing with a reset
+      daemon.logBatches.add(const LogBatch([], reset: true));
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Журнал пуст'), findsOneWidget);
+    });
+
+    testWidgets('the newest line is in view, and stays there as lines come', (tester) async {
+      await openLog(tester);
+      Future<void> frames() async {
+        for (var frame = 0; frame < 5; frame++) {
+          await tester.pump();
+        }
+      }
+
+      daemon.logBatches.add(LogBatch([for (var i = 1; i <= 200; i++) LogLine(LogSeverity.info, 'line $i')], reset: true));
+      await frames();
+      expect(find.text('line 200'), findsOneWidget);
+      expect(find.text('line 1'), findsNothing);
+      daemon.logBatches.add(const LogBatch([LogLine(LogSeverity.info, 'line 201')]));
+      await frames();
+      expect(find.text('line 201'), findsOneWidget);
+
+      // the user scrolled up to read: new lines do not pull the view back down
+      await tester.drag(find.text('line 195'), const Offset(0, 300));
+      await frames();
+      expect(find.text('line 201'), findsNothing);
+      daemon.logBatches.add(const LogBatch([LogLine(LogSeverity.info, 'line 202')]));
+      await frames();
+      expect(find.text('line 202'), findsNothing);
+      // a clearing starts over at the end
+      daemon.logBatches.add(LogBatch([for (var i = 1; i <= 90; i++) LogLine(LogSeverity.info, 'new $i')], reset: true));
+      await frames();
+      expect(find.text('new 90'), findsOneWidget);
+    });
+
+    testWidgets('the log is read only while its screen is shown', (tester) async {
+      await show(tester);
+      await core(tester, ServicePhase.idle);
+      expect(daemon.logBatches.hasListener, isFalse);
+      await tester.tap(find.text('Журнал'));
+      await tester.pump();
+      expect(daemon.logBatches.hasListener, isTrue);
+      await tester.tap(find.text('Главная'));
+      await tester.pump();
+      expect(daemon.logBatches.hasListener, isFalse);
+    });
+  });
+
+  group('the connections', () {
+    final opened = daemonClock.subtract(const Duration(minutes: 4));
+    ConnectionInfo one(String id, String destination, {String domain = '', String process = '', String rule = '',
+            String outbound = 'arngory · naive', String type = 'naive', String network = 'tcp', String protocol = '',
+            int up = 0, int down = 0, Duration age = const Duration(minutes: 4)}) =>
+        ConnectionInfo(
+          id: id,
+          network: network,
+          destination: destination,
+          domain: domain,
+          protocol: protocol,
+          process: process,
+          rule: rule,
+          outbound: outbound,
+          outboundType: type,
+          createdAt: opened.add(const Duration(minutes: 4)).subtract(age),
+          up: up,
+          down: down,
+        );
+
+    Future<void> openConnections(WidgetTester tester, {Brightness brightness = Brightness.light}) async {
+      await show(tester, brightness: brightness);
+      await core(tester, ServicePhase.started);
+      await tester.tap(find.text('Расширенный'));
+      await tester.pump();
+      await tester.tap(find.text('Соединения'));
+      await tester.pump();
+      daemon.connectionBatches.add(ConnectionBatch([
+        ConnectionChange.opened(one('a', '93.184.216.34:443', domain: 'www.example.com',
+            process: r'C:\Program Files\Browser\browser.exe', protocol: 'tls', up: 1258291, down: 50331648)),
+        ConnectionChange.opened(one('b', '203.0.113.9:443', domain: 'video.example.net', process: '/usr/bin/browser',
+            network: 'udp', protocol: 'quic', up: 6291456, down: 325058560, age: const Duration(minutes: 12))),
+        ConnectionChange.opened(one('c', '198.51.100.4:443', domain: 'bank.example.ru', process: 'browser',
+            rule: 'rule_set=geoip-ru', outbound: 'direct', type: 'direct', up: 98304, down: 839680,
+            age: const Duration(seconds: 75))),
+        ConnectionChange.opened(one('d', '10.0.0.7:22', process: '/usr/bin/ssh', rule: 'domain_suffix=corp.example',
+            up: 9216, down: 14336, age: const Duration(minutes: 38))),
+      ], reset: true));
+      await tester.pump();
+      await tester.pump();
+    }
+
+    testWidgets('each one: the target, the program, the rule, the way, the bytes and the age', (tester) async {
+      await openConnections(tester);
+      expect(find.text('открыто 4'), findsOneWidget);
+      expect(find.text('www.example.com:443'), findsOneWidget);
+      expect(find.text('browser · TCP (tls) · правило: остальное →'), findsOneWidget);
+      expect(find.text('↓ 48 MB ↑ 1.2 MB · 4 min'), findsOneWidget);
+      expect(find.text('browser · UDP (quic) · правило: остальное →'), findsOneWidget);
+      expect(find.text('10.0.0.7:22'), findsOneWidget);
+      expect(find.text('ssh · TCP · правило: domain_suffix=corp.example →'), findsOneWidget);
+      expect(find.text('↓ 820 KB ↑ 96 KB · 1 min'), findsOneWidget);
+      expect(find.text('DIRECT'), findsOneWidget);
+      expect(find.text('ARNGORY · NAIVE'), findsNWidgets(3));
+      await picture('connections_light');
+    });
+
+    testWidgets('a change moves the bytes; a closed one goes', (tester) async {
+      await openConnections(tester);
+      daemon.connectionBatches.add(const ConnectionBatch([
+        ConnectionChange.moved('d', 1024, 2048),
+        ConnectionChange.closed('b'),
+      ]));
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('открыто 3'), findsOneWidget);
+      expect(find.text('video.example.net:443'), findsNothing);
+      expect(find.text('↓ 16 KB ↑ 10 KB · 38 min'), findsOneWidget);
+    });
+
+    testWidgets('closing one, and all', (tester) async {
+      await openConnections(tester);
+      await tester.tap(find.bySemanticsLabel('Закрыть соединение с bank.example.ru:443'));
+      await tester.pump();
+      expect(daemon.closedConnections, ['c']);
+      await tester.tap(find.text('Закрыть все'));
+      await tester.pump();
+      expect(daemon.closedAll, 1);
+    });
+
+    testWidgets('the search narrows the list by any of its words', (tester) async {
+      await openConnections(tester);
+      await tester.enterText(find.byType(EditableText), 'SSH');
+      await tester.pump();
+      expect(find.text('10.0.0.7:22'), findsOneWidget);
+      expect(find.text('www.example.com:443'), findsNothing);
+      // the count is of what is open, not of what is shown
+      expect(find.text('открыто 4'), findsOneWidget);
+      await tester.enterText(find.byType(EditableText), 'direct');
+      await tester.pump();
+      expect(find.text('bank.example.ru:443'), findsOneWidget);
+      expect(find.text('10.0.0.7:22'), findsNothing);
+    });
+
+    testWidgets('the core stopped: said, and nothing to close', (tester) async {
+      await openConnections(tester, brightness: Brightness.dark);
+      await core(tester, ServicePhase.idle);
+      expect(find.text('Подключение выключено'), findsOneWidget);
+      expect(find.text('открыто 0'), findsOneWidget);
+      expect(find.text('www.example.com:443'), findsNothing);
+      await picture('connections_idle_dark');
+    });
+
+    testWidgets('a narrow window: nothing overflows', (tester) async {
+      await openConnections(tester);
+      tester.view.physicalSize = const Size(420, 480);
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
   });
 
   testWidgets('a narrow and low window: nothing overflows', (tester) async {

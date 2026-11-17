@@ -1,10 +1,10 @@
 import 'package:flutter/widgets.dart';
 
-import 'screens/main_screen.dart';
+import 'screens/shell.dart';
 import 'state/connection_controller.dart';
 import 'theme/niko_theme.dart';
 
-/// The window: the design system's theme by the system's light or dark, and the main screen.
+/// The window: the design system's theme by the system's light or dark, and the shell with its sections.
 class NikoApp extends StatelessWidget {
   const NikoApp({
     super.key,
@@ -43,7 +43,7 @@ class NikoApp extends StatelessWidget {
             colors: colors,
             child: DefaultTextStyle(
               style: NikoType.body.style(colors.ink),
-              child: MainScreen(
+              child: NikoShell(
                 controller: controller,
                 daemonAddress: daemonAddress,
                 configName: configName,

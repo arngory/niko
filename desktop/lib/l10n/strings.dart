@@ -24,6 +24,29 @@ class NikoStrings {
   String get serviceSilentTitle => _ru ? 'Служба не отвечает' : 'The service does not answer';
   String get noConfigTitle => _ru ? 'Нет конфига' : 'No config';
 
+  String get sections => _ru ? 'Разделы' : 'Sections';
+  String get sectionHome => _ru ? 'Главная' : 'Home';
+  String get sectionConnections => _ru ? 'Соединения' : 'Connections';
+  String get sectionLog => _ru ? 'Журнал' : 'Log';
+  String get view => _ru ? 'Вид интерфейса' : 'Interface view';
+  String get viewSimple => _ru ? 'Простой' : 'Simple';
+  String get viewAdvanced => _ru ? 'Расширенный' : 'Advanced';
+
+  String get logCore => _ru ? 'Журнал ядра' : 'The core\'s log';
+  String get logClear => _ru ? 'Очистить журнал' : 'Clear the log';
+  String get logEmpty => _ru ? 'Журнал пуст' : 'The log is empty';
+  String get logClearFailed => _ru ? 'Журнал не очищен' : 'The log was not cleared';
+
+  String connectionsOpen(int count) => _ru ? 'открыто $count' : '$count open';
+  String get connectionsList => _ru ? 'Открытые соединения' : 'Open connections';
+  String get connectionsSearch => _ru ? 'Поиск' : 'Search';
+  String get connectionsCloseAll => _ru ? 'Закрыть все' : 'Close all';
+  String connectionClose(String name) => _ru ? 'Закрыть соединение с $name' : 'Close the connection to $name';
+  String get connectionsIdle => _ru ? 'Подключение выключено' : 'Not connected';
+  String get connectionsCloseFailed => _ru ? 'Соединение не закрыто' : 'The connection was not closed';
+  String get rule => _ru ? 'правило' : 'rule';
+  String get ruleFinal => _ru ? 'остальное' : 'final';
+
   String get development => _ru ? 'Разработка' : 'Development';
   String get service => _ru ? 'Служба' : 'Service';
   String get config => _ru ? 'Конфиг' : 'Config';

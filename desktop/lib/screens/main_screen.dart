@@ -14,8 +14,8 @@ import '../ui/list.dart';
 import '../ui/status_block.dart';
 
 /// The main screen in the view Простой (B · Simple on the canvas), as far as stage 2b goes: the connect button, the
-/// status with the time and the rates, the reason of a failure. The node, the tiles and the header's sections come
-/// with NikoService (stage 3); what stands in their place is the development group, marked as such.
+/// status with the time and the rates, the reason of a failure. The node and the tiles come with NikoService
+/// (stage 3); what stands in their place is the development group, marked as such. The header is the shell's.
 class MainScreen extends StatefulWidget {
   const MainScreen({
     super.key,
@@ -82,7 +82,6 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = NikoTheme.of(context);
     final strings = NikoStrings.of(Localizations.localeOf(context));
     final state = widget.controller;
     final phase = state.service.phase;
@@ -119,92 +118,68 @@ class _MainScreenState extends State<MainScreen> {
     final error = phase == ServicePhase.fatal && state.service.error.isNotEmpty ? state.service.error : state.actionError;
     final canPress = ready && !state.busy && phase != ServicePhase.stopping && (state.hasConfig || phase == ServicePhase.started);
 
-    return ColoredBox(
-      color: colors.surface0,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // n-header: the wordmark; the sections and the view switch come with their screens
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: NikoSpace.s8, vertical: NikoSpace.s3),
-            child: SizedBox(
-              height: NikoSize.tap,
-              child: Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: Semantics(
-                  header: true,
-                  child: Text('niko', style: NikoType.title.style(colors.ink).copyWith(letterSpacing: -0.04 * 24)),
+    return SingleChildScrollView(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(NikoSpace.s8, NikoSpace.s8, NikoSpace.s8, 40),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // D-MAIN-04
+                Center(
+                  child: ConnectButton(look: look, label: label, onPressed: canPress ? state.toggle : null),
                 ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 560),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(NikoSpace.s8, NikoSpace.s8, NikoSpace.s8, 40),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // D-MAIN-04
-                        Center(
-                          child: ConnectButton(look: look, label: label, onPressed: canPress ? state.toggle : null),
-                        ),
-                        const SizedBox(height: NikoSpace.s4),
-                        // D-MAIN-02, D-MAIN-06
-                        StatusBlock(label: status, detail: detail, tone: tone),
-                        // D-MAIN-16
-                        if (failed && error.isNotEmpty) ...[
-                          const SizedBox(height: NikoSpace.s6),
-                          NikoBanner(icon: NikoIcons.alert, title: strings.errorTitle, text: error, danger: true),
-                        ],
-                        if (state.link == LinkPhase.none) ...[
-                          const SizedBox(height: NikoSpace.s6),
-                          NikoBanner(icon: NikoIcons.alert, title: strings.noServiceTitle),
-                        ],
-                        if (state.link == LinkPhase.lost) ...[
-                          const SizedBox(height: NikoSpace.s6),
-                          NikoBanner(
-                            icon: NikoIcons.alert,
-                            title: strings.serviceSilentTitle,
-                            text: state.linkError,
-                            danger: true,
-                          ),
-                        ],
-                        if (ready && !state.hasConfig) ...[
-                          const SizedBox(height: NikoSpace.s6),
-                          NikoBanner(icon: NikoIcons.alert, title: strings.noConfigTitle, text: '--config <file.json>'),
-                        ],
-                        if (widget.daemonAddress.isNotEmpty) ...[
-                          const SizedBox(height: NikoSpace.s8),
-                          NikoSection(
-                            overline: strings.development,
-                            rows: [
-                              NikoInfoRow(
-                                title: strings.service,
-                                value: [widget.daemonAddress, if (state.daemonVersion.isNotEmpty) state.daemonVersion]
-                                    .join(' · '),
-                              ),
-                              if (widget.configName.isNotEmpty)
-                                NikoInfoRow(title: strings.config, value: widget.configName),
-                              if (traffic != null)
-                                NikoInfoRow(
-                                  title: strings.session,
-                                  value: '↓ ${formatBytes(traffic.downTotal)} · ↑ ${formatBytes(traffic.upTotal)}',
-                                ),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
+                const SizedBox(height: NikoSpace.s4),
+                // D-MAIN-02, D-MAIN-06
+                StatusBlock(label: status, detail: detail, tone: tone),
+                // D-MAIN-16
+                if (failed && error.isNotEmpty) ...[
+                  const SizedBox(height: NikoSpace.s6),
+                  NikoBanner(icon: NikoIcons.alert, title: strings.errorTitle, text: error, danger: true),
+                ],
+                if (state.link == LinkPhase.none) ...[
+                  const SizedBox(height: NikoSpace.s6),
+                  NikoBanner(icon: NikoIcons.alert, title: strings.noServiceTitle),
+                ],
+                if (state.link == LinkPhase.lost) ...[
+                  const SizedBox(height: NikoSpace.s6),
+                  NikoBanner(
+                    icon: NikoIcons.alert,
+                    title: strings.serviceSilentTitle,
+                    text: state.linkError,
+                    danger: true,
                   ),
-                ),
-              ),
+                ],
+                if (ready && !state.hasConfig) ...[
+                  const SizedBox(height: NikoSpace.s6),
+                  NikoBanner(icon: NikoIcons.alert, title: strings.noConfigTitle, text: '--config <file.json>'),
+                ],
+                if (widget.daemonAddress.isNotEmpty) ...[
+                  const SizedBox(height: NikoSpace.s8),
+                  NikoSection(
+                    overline: strings.development,
+                    rows: [
+                      NikoInfoRow(
+                        title: strings.service,
+                        value: [widget.daemonAddress, if (state.daemonVersion.isNotEmpty) state.daemonVersion]
+                            .join(' · '),
+                      ),
+                      if (widget.configName.isNotEmpty)
+                        NikoInfoRow(title: strings.config, value: widget.configName),
+                      if (traffic != null)
+                        NikoInfoRow(
+                          title: strings.session,
+                          value: '↓ ${formatBytes(traffic.downTotal)} · ↑ ${formatBytes(traffic.upTotal)}',
+                        ),
+                    ],
+                  ),
+                ],
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
