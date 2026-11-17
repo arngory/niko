@@ -925,19 +925,24 @@ class ConfigurationFragment @JvmOverloads constructor(
         val testJobs = mutableListOf<Job>()
         val group = DataStore.currentGroup()
 
+        // the tests run in the service's process when it is there (UrlTest.doTest), a few at once on its Binder threads
+        val service = (activity as? MainActivity)?.connection?.service
         val mainJob = runOnDefaultDispatcher {
             val profilesList = SagerDatabase.proxyDao.getByGroup(group.id)
             test.proxyN = profilesList.size
             val profiles = ConcurrentLinkedQueue(profilesList)
-            repeat(DataStore.connectionTestConcurrent) {
+            val workers = DataStore.connectionTestConcurrent.let {
+                if (service != null) minOf(it, UrlTest.inServiceAtOnce) else it
+            }
+            repeat(workers) {
                 testJobs.add(launch(Dispatchers.IO) {
-                    val urlTest = UrlTest() // note: this is NOT in bg process
+                    val urlTest = UrlTest()
                     while (isActive) {
                         val profile = profiles.poll() ?: break
                         profile.status = 0
 
                         try {
-                            val result = urlTest.doTest(profile)
+                            val result = urlTest.doTest(profile, service)
                             profile.status = 1
                             profile.ping = result
                             profile.error = null

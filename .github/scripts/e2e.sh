@@ -753,7 +753,9 @@ done
 roots chrome
 id=$public
 
-echo "== memory: a URL test of the group on the screen (the app's own process, a core for each profile, five at once)"
+# the cores run in the service's process (UrlTest.doTest with the service): the window's row keeps what the dialog
+# draws, the service's row takes the cores (docs/research/memory.md: in the window they left ~25 MB behind)
+echo "== memory: a URL test of the group on the screen (a core for each profile in the service's process, five at once)"
 timeout 60 adb shell am start -n "$pkg/$pkg.ui.MainActivity" > /dev/null 2>&1
 sleep 5
 memory ui-before-test go

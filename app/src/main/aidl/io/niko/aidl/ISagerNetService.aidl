@@ -11,6 +11,10 @@ interface ISagerNetService {
 
   int urlTest();
 
+  // a profile's URL test with a core of its own, in this process, where the cores' code is in memory already (the
+  // window's process would keep it): JSON out, {"ping": ms} or {"error": "…"} with "plugin" naming one not installed
+  String testProfile(long profileId, String link, int timeout);
+
   // which rule of the running core a connection would match (libcore RouteTest): JSON in, JSON out
   String routeTest(String query);
 

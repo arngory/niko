@@ -15,6 +15,7 @@ import io.niko.SagerNet
 import io.niko.aidl.ISagerNetService
 import io.niko.aidl.ISagerNetServiceCallback
 import io.niko.bg.proto.ProxyInstance
+import io.niko.bg.proto.TestInstance
 import io.niko.database.DataStore
 import io.niko.database.SagerDatabase
 import io.niko.fmt.TAG_MIXED
@@ -160,6 +161,21 @@ class BaseService {
             } catch (e: Exception) {
                 error(Protocols.genFriendlyMsg(e.readableMessage))
             }
+        }
+
+        override fun testProfile(profileId: Long, link: String, timeout: Int): String {
+            // on a Binder thread, held for the test: the window asks a few at once (UrlTest.inServiceAtOnce). Every
+            // failure is the answer's: an exception Binder cannot carry would end this process
+            val answer = JSONObject()
+            try {
+                val profile = SagerDatabase.proxyDao.getById(profileId) ?: error("no profile $profileId")
+                answer.put("ping", runBlocking { TestInstance(profile, link, timeout).doTest() })
+            } catch (e: PluginManager.PluginNotFoundException) {
+                answer.put("error", e.readableMessage).put("plugin", e.plugin)
+            } catch (e: Exception) {
+                answer.put("error", e.readableMessage)
+            }
+            return answer.toString()
         }
 
         override fun routeTest(query: String): String {

@@ -185,8 +185,10 @@ jobs:
           grep -qE '^(rcinv1:|RCINV2:)' /tmp/phone.invite || { echo "not an invite: $(head -c 7 /tmp/phone.invite)"; exit 1; }
           for i in $(seq 150); do x test -S /run/niko/hy2o/stats.sock && break; sleep 0.2; done
           x test -S /run/niko/hy2o/stats.sock || { echo "no Hysteria2"; x tail -n 80 /var/log/rayd.log; exit 1; }
-          # the perimeter as a node runs it: closed but to SPA, the services' rotating UDP ports to their own
-          docker exec -d rc-node sh -c '/opt/rc/rayspa run > /var/log/rayspa.log 2>&1'
+          # the perimeter as a node runs it: closed but to SPA, the services' rotating UDP ports to their own.
+          # -debug: the packets it rejects are logged, for a Hysteria2 tunnel that stops answering (#112: once, the
+          # knock got no reply and the node's logs said nothing; its full log is kept with a failure)
+          docker exec -d rc-node sh -c '/opt/rc/rayspa run -debug > /var/log/rayspa.log 2>&1'
           for i in $(seq 150); do x grep -q 'snapshot applied' /var/log/rayspa.log 2>/dev/null && break; sleep 0.2; done
           x grep -q 'snapshot applied' /var/log/rayspa.log || { x cat /var/log/rayspa.log; exit 1; }
           # the token the server gives; its log says the address each request came from
@@ -389,6 +391,10 @@ jobs:
           path: /tmp/e2e/memory
           if-no-files-found: ignore
           retention-days: 14
+      - name: The node's logs, with a failure
+        if: failure()
+        run: |
+          for f in rayspa rayd; do docker cp "rc-node:/var/log/$f.log" "/tmp/e2e/node-$f.log" 2>/dev/null || true; done
       - name: What the emulator showed
         if: failure()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
