@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:niko_desktop/daemon/daemon.dart';
@@ -9,13 +11,79 @@ import 'package:niko_desktop/state/log_feed.dart';
 
 import 'fake_daemon_server.dart';
 
+/// What the window asked of the daemon and what came back, in order, with the time since the test began: printed
+/// when a wait times out, since an order of events that only one system shows cannot be read otherwise.
+final trace = <String>[];
+final _clock = Stopwatch();
+
+void note(String what) => trace.add('${_clock.elapsedMilliseconds.toString().padLeft(6)} ms  $what');
+
 /// Waits for [condition] with real time: these tests talk gRPC over a socket of 127.0.0.1.
 Future<void> until(bool Function() condition, String what) async {
   final deadline = DateTime.now().add(const Duration(seconds: 10));
   while (!condition()) {
-    if (DateTime.now().isAfter(deadline)) fail('timed out waiting for $what');
+    if (DateTime.now().isAfter(deadline)) fail('timed out waiting for $what; what happened:\n${trace.join('\n')}');
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }
+}
+
+/// The real client, every call and stream event of it noted.
+class TracedDaemon implements Daemon {
+  TracedDaemon(this._inner);
+
+  final Daemon _inner;
+
+  Stream<T> _traced<T>(String name, Stream<T> stream, String Function(T) describe) {
+    note('$name: asked');
+    return stream.transform(StreamTransformer.fromHandlers(
+      handleData: (value, sink) {
+        note('$name: ${describe(value)}');
+        sink.add(value);
+      },
+      handleError: (error, stack, sink) {
+        note('$name: error ${daemonError(error)}');
+        sink.addError(error, stack);
+      },
+      handleDone: (sink) {
+        note('$name: done');
+        sink.close();
+      },
+    ));
+  }
+
+  @override
+  Future<String> version() => _inner.version();
+  @override
+  Stream<ServiceState> serviceStatus() => _traced('status', _inner.serviceStatus(), (s) => s.phase.name);
+  @override
+  Stream<Traffic> traffic(Duration interval) => _inner.traffic(interval);
+  @override
+  Future<DateTime> startedAt() => _inner.startedAt();
+  @override
+  Future<void> start(String config) {
+    note('start');
+    return _inner.start(config);
+  }
+
+  @override
+  Future<void> stop() {
+    note('stop');
+    return _inner.stop();
+  }
+
+  @override
+  Stream<LogBatch> logs() => _traced('log', _inner.logs(), (b) => '${b.lines.length} lines${b.reset ? ', reset' : ''}');
+  @override
+  Future<void> clearLogs() => _inner.clearLogs();
+  @override
+  Stream<ConnectionBatch> connections(Duration interval) => _traced('connections', _inner.connections(interval),
+      (b) => '${b.changes.length} changes${b.reset ? ', reset' : ''}');
+  @override
+  Future<void> closeConnection(String id) => _inner.closeConnection(id);
+  @override
+  Future<void> closeAllConnections() => _inner.closeAllConnections();
+  @override
+  Future<void> close() => _inner.close();
 }
 
 pb.Connection connection(String id, String destination, {String domain = '', int at = 0}) => pb.Connection(
@@ -38,10 +106,14 @@ void main() {
   late ConnectionController controller;
 
   setUp(() async {
-    server = FakeDaemonServer();
+    server = FakeDaemonServer()..onEvent = note;
     await server.serve();
+    trace.clear();
+    _clock
+      ..reset()
+      ..start();
     controller = ConnectionController(
-      daemon: GrpcDaemon.dev(DevEndpoint.parse('127.0.0.1:${server.port}')!),
+      daemon: TracedDaemon(GrpcDaemon.dev(DevEndpoint.parse('127.0.0.1:${server.port}')!)),
       loadConfig: () async => '{}',
       retry: const Duration(milliseconds: 100),
       trafficInterval: const Duration(milliseconds: 50),
@@ -179,6 +251,8 @@ void main() {
       server.connections['c'] = connection('c', '10.0.0.9:80');
       await controller.toggle();
       await until(() => feed.open.length == 2, 'the connections of the new run');
+      // ignore: avoid_print
+      print('the stop and the start again, as this system ordered them:\n${trace.join('\n')}');
     });
 
     test('hidden: forgotten and not read', () async {

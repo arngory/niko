@@ -89,7 +89,11 @@ class FakeDaemonServer {
     _server = null;
   }
 
+  /// What the server saw, for a test's trace.
+  void Function(String what) onEvent = (_) {};
+
   void push(ServiceStatus_Type phase, [String error = '']) {
+    onEvent('server: ${phase.name}');
     _phase = phase;
     _error = error;
     if (!_changes.isClosed) _changes.add(null);
@@ -196,7 +200,11 @@ class _Started extends StartedServiceBase {
   // as boxdd: refused while the core is not running, ended when it stops
   @override
   Stream<ConnectionEvents> subscribeConnections(ServiceCall call, SubscribeConnectionsRequest request) async* {
-    if (daemon._phase != ServiceStatus_Type.STARTED) throw GrpcError.unknown('invalid argument');
+    if (daemon._phase != ServiceStatus_Type.STARTED) {
+      daemon.onEvent('server: connections refused at ${daemon._phase.name}');
+      throw GrpcError.unknown('invalid argument');
+    }
+    daemon.onEvent('server: connections open');
     daemon._open++;
     final stopped = daemon._changes.stream.firstWhere((_) => daemon._phase != ServiceStatus_Type.STARTED).then(
           (_) => null,
@@ -214,7 +222,10 @@ class _Started extends StartedServiceBase {
       try {
         while (true) {
           final next = await Future.any<Object?>([changes.moveNext(), stopped]);
-          if (next != true) return;
+          if (next != true) {
+            daemon.onEvent('server: connections ended');
+            return;
+          }
           yield changes.current;
         }
       } finally {
