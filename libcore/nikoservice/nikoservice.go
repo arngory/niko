@@ -25,17 +25,23 @@ const API = 1
 // Service is NikoService as the daemon serves it: GetInfo for any caller the daemon verified, RouteTest for its
 // owner only (it reads the owner's core, as the daemon's own calls on the running core do). RouteTest is checked as
 // the owner's under the daemon's lifecycle lock and runs outside it: its lookups take up to the tester's 20 s, which a
-// stop, a start or the service's shutdown must not wait for. It holds the running core's context, which a stop
-// cancels, and its lookups end with it.
+// stop, a start or the service's shutdown must not wait for. It holds the running core (daemon.Instance.Hold): a stop
+// cancels the core's context, the test ends at once, and only then is the core closed; an answer from a core stopped
+// meanwhile is refused (ABORTED), not given as the core's.
 func Service() boxdd.Service {
 	return boxdd.Service{
 		Desc: &nikopb.NikoService_ServiceDesc,
 		New: func(host boxdd.Host) (any, error) {
-			return &server{core: func() context.Context {
-				if instance := host.StartedService().RunningInstance(); instance != nil {
-					return instance.Context()
+			return &server{core: func() (context.Context, func()) {
+				instance := host.StartedService().RunningInstance()
+				if instance == nil {
+					return nil, nil
 				}
-				return nil
+				release, held := instance.Hold()
+				if !held {
+					return nil, nil
+				}
+				return instance.Context(), release
 			}}, nil
 		},
 		Policy:  boxdd.PolicyCaller,
@@ -45,8 +51,8 @@ func Service() boxdd.Service {
 
 type server struct {
 	nikopb.UnimplementedNikoServiceServer
-	// core is the running core's context, nil when none runs
-	core func() context.Context
+	// core holds the running core: its context and the release of the hold; nil when none runs
+	core func() (context.Context, func())
 }
 
 func (s *server) GetInfo(context.Context, *nikopb.GetInfoRequest) (*nikopb.Info, error) {
@@ -57,10 +63,11 @@ func (s *server) RouteTest(ctx context.Context, request *nikopb.RouteTestRequest
 	if request.Port > 65535 {
 		return nil, status.Error(codes.InvalidArgument, "port over 65535")
 	}
-	core := s.core()
+	core, release := s.core()
 	if core == nil {
 		return nil, status.Error(codes.FailedPrecondition, "the core does not run")
 	}
+	defer release()
 	// the core's services from its context, the caller's cancellation from the request's
 	coreCtx, cancel := context.WithCancel(core)
 	defer cancel()
@@ -73,6 +80,13 @@ func (s *server) RouteTest(ctx context.Context, request *nikopb.RouteTestRequest
 		Inbound: request.Inbound,
 		Resolve: request.Resolve,
 	})
+	// what a stopped core or a gone caller left is no answer: the lookups failed for that, the rules were closing
+	if core.Err() != nil {
+		return nil, status.Error(codes.Aborted, "the core stopped during the test")
+	}
+	if ctx.Err() != nil {
+		return nil, status.FromContextError(ctx.Err()).Err()
+	}
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}

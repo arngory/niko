@@ -143,6 +143,10 @@ func Run(ctx context.Context, q Query) (*Result, error) {
 	}
 
 	for index, rule := range router.Rules() {
+		// a core stopped or a caller gone: no answer from rules being closed (their rule sets emptied)
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		metadata.ResetRuleCache()
 		if !rule.Match(&metadata) {
 			continue

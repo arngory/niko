@@ -50,7 +50,7 @@ func startCore(t *testing.T) context.Context {
 
 func TestRouteTest(t *testing.T) {
 	core := startCore(t)
-	s := &server{core: func() context.Context { return core }}
+	s := &server{core: func() (context.Context, func()) { return core, func() {} }}
 	ask := func(request *nikopb.RouteTestRequest) *nikopb.RouteTestResult {
 		t.Helper()
 		answer, err := s.RouteTest(context.Background(), request)
@@ -91,9 +91,31 @@ func TestRouteTest(t *testing.T) {
 }
 
 func TestRouteTestNoCore(t *testing.T) {
-	s := &server{core: func() context.Context { return nil }}
+	s := &server{core: func() (context.Context, func()) { return nil, nil }}
 	if _, err := s.RouteTest(context.Background(), &nikopb.RouteTestRequest{Host: "www.example.com", Port: 443}); status.Code(err) != codes.FailedPrecondition {
 		t.Fatalf("no core: %v", err)
+	}
+}
+
+// A core stopped during the test: its answer refused, not given as the core's; the hold let go. A caller gone: its own
+// cancellation.
+func TestRouteTestStopped(t *testing.T) {
+	core, stop := context.WithCancel(startCore(t))
+	released := 0
+	s := &server{core: func() (context.Context, func()) { return core, func() { released++ } }}
+	stop()
+	if _, err := s.RouteTest(context.Background(), &nikopb.RouteTestRequest{Host: "www.example.com", Port: 443}); status.Code(err) != codes.Aborted {
+		t.Fatalf("a stopped core: %v", err)
+	}
+	if released != 1 {
+		t.Fatalf("released %d times", released)
+	}
+	alive := startCore(t)
+	s = &server{core: func() (context.Context, func()) { return alive, func() {} }}
+	gone, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := s.RouteTest(gone, &nikopb.RouteTestRequest{Host: "www.example.com", Port: 443}); status.Code(err) != codes.Canceled {
+		t.Fatalf("a caller gone: %v", err)
 	}
 }
 

@@ -35,7 +35,8 @@ type NikoServiceClient interface {
 	GetInfo(ctx context.Context, in *GetInfoRequest, opts ...grpc.CallOption) (*Info, error)
 	// Which rule of the running core a connection would match and where it would go; no connection is made. The
 	// daemon's owner only: it reads the owner's core; it runs outside the daemon's lifecycle lock, so a stop does not
-	// wait for its lookups. FAILED_PRECONDITION when no core runs.
+	// wait for its lookups. FAILED_PRECONDITION when no core runs; ABORTED when the core stopped during the test (its
+	// answer would be a closing core's, not the running one's).
 	RouteTest(ctx context.Context, in *RouteTestRequest, opts ...grpc.CallOption) (*RouteTestResult, error)
 }
 
@@ -75,7 +76,8 @@ type NikoServiceServer interface {
 	GetInfo(context.Context, *GetInfoRequest) (*Info, error)
 	// Which rule of the running core a connection would match and where it would go; no connection is made. The
 	// daemon's owner only: it reads the owner's core; it runs outside the daemon's lifecycle lock, so a stop does not
-	// wait for its lookups. FAILED_PRECONDITION when no core runs.
+	// wait for its lookups. FAILED_PRECONDITION when no core runs; ABORTED when the core stopped during the test (its
+	// answer would be a closing core's, not the running one's).
 	RouteTest(context.Context, *RouteTestRequest) (*RouteTestResult, error)
 	mustEmbedUnimplementedNikoServiceServer()
 }
