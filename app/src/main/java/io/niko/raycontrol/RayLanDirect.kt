@@ -2,6 +2,7 @@ package io.niko.raycontrol
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.os.Build
 import androidx.core.content.ContextCompat
@@ -9,20 +10,23 @@ import androidx.core.content.getSystemService
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import io.niko.SagerNet
 import io.niko.database.DataStore
 import io.niko.ktx.Logs
 import io.niko.ktx.app
 import io.niko.ktx.runOnDefaultDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import java.net.Inet4Address
+import java.net.InetAddress
 import java.security.MessageDigest
 
 /**
  * lan-v1 §3: the user's devices in one trusted Wi-Fi link to each other directly, by Yggdrasil's multicast with the
  * password the node gives them. The user keeps the trusted networks and picks how one is known (owner 2026-11-17):
- * - by its fingerprint: the hash of its gateway, DNS servers and domain (RayChannel.network), no permission at all,
- *   in the background too; a Wi-Fi of another place with the same router address and DNS is taken for it, where this
- *   device only announces itself (a node without the user's password never links);
+ * - by its fingerprint: the hash of its IPv4 gateway and DNS servers ([fingerprintOf]), no permission at all, in the
+ *   background too; a Wi-Fi of another place with the same router address and DNS is taken for it, where this device
+ *   only announces itself (a node without the user's password never links);
  * - by its SSID: the location permission, and "all the time" for the background on Android 10+ (the service is no
  *   location service): without it the name is unknown there, and the network is not taken for a trusted one.
  * Never together with niko-ygg-via: a node's mesh through the public peers stays off the local network.
@@ -71,10 +75,30 @@ object RayLanDirect {
     }
 
     /** The network under the VPN when it is a Wi-Fi, else null. */
-    fun current(): Current? {
-        val network = RayChannel.network() ?: return null
-        if (network.kind != "wifi") return null
-        return Current(network.key, ssid())
+    fun current(): Current? = fingerprint()?.let { Current(it, ssid()) }
+
+    /** The Wi-Fi under the VPN's fingerprint ([fingerprintOf]), null on another network. */
+    fun fingerprint(): String? {
+        val network = SagerNet.underlyingNetwork ?: return null
+        val caps = SagerNet.connectivity.getNetworkCapabilities(network) ?: return null
+        if (!caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return null
+        val link = SagerNet.connectivity.getLinkProperties(network) ?: return null
+        return fingerprintOf(link.routes.filter { it.isDefaultRoute }.mapNotNull { it.gateway }, link.dnsServers)
+    }
+
+    /**
+     * A Wi-Fi known by what stays: its IPv4 default gateways and IPv4 DNS servers, hashed. Not the channel's key
+     * (RayChannel.network), which takes the IPv6 DNS servers (a router's global address, new with each prefix a
+     * provider gives) and the domain, and may be read before the router's advertisement came: a trusted network would
+     * stop being one and the core restart. A network with no IPv4 at all is known by its gateways.
+     */
+    fun fingerprintOf(gateways: List<InetAddress>, dns: List<InetAddress>): String? {
+        val v4 = gateways.filterIsInstance<Inet4Address>().mapNotNull { it.hostAddress }.sorted()
+        val parts = if (v4.isNotEmpty()) v4 + "|" + dns.filterIsInstance<Inet4Address>().mapNotNull { it.hostAddress }.sorted()
+        else gateways.mapNotNull { it.hostAddress }.sorted()
+        if (parts.isEmpty()) return null
+        return "w1:" + MessageDigest.getInstance("SHA-256").digest(parts.joinToString(",").toByteArray())
+            .take(8).joinToString("") { "%02x".format(it) }
     }
 
     /** The location permission the SSID needs (ACCESS_FINE_LOCATION; the background one apart, [backgroundGranted]). */

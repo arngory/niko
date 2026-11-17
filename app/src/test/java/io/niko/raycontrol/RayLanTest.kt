@@ -211,4 +211,20 @@ class RayLanTest {
         assertTrue(RayLanDirect.parse("not json").isEmpty())
         assertTrue(RayLanDirect.parse(null).isEmpty())
     }
+
+    @Test
+    fun wifiFingerprint() {
+        fun ip(s: String) = java.net.InetAddress.getByName(s)
+        val gateway = listOf(ip("192.168.1.1"), ip("fe80::1"))
+        val home = RayLanDirect.fingerprintOf(gateway, listOf(ip("192.168.1.1"), ip("2001:db8:1::1")))!!
+        // the router's IPv6 DNS with the provider's next prefix, or not yet advertised: the same network
+        assertEquals(home, RayLanDirect.fingerprintOf(gateway, listOf(ip("192.168.1.1"), ip("2001:db8:2::1"))))
+        assertEquals(home, RayLanDirect.fingerprintOf(listOf(ip("192.168.1.1")), listOf(ip("192.168.1.1"))))
+        // another router or other DNS: another network
+        assertFalse(home == RayLanDirect.fingerprintOf(listOf(ip("192.168.0.1")), listOf(ip("192.168.0.1"))))
+        assertFalse(home == RayLanDirect.fingerprintOf(gateway, listOf(ip("1.1.1.1"))))
+        // no IPv4 at all: its gateways; nothing known: none
+        assertTrue(RayLanDirect.fingerprintOf(listOf(ip("fe80::1")), listOf(ip("2001:db8::53")))!!.startsWith("w1:"))
+        assertNull(RayLanDirect.fingerprintOf(emptyList(), listOf(ip("192.168.1.1"))))
+    }
 }

@@ -163,19 +163,37 @@ class BaseService {
             }
         }
 
+        // the tests testProfile runs, for cancelTests
+        private val tests = mutableSetOf<Job>()
+
         override fun testProfile(profileId: Long, link: String, timeout: Int): String {
             // on a Binder thread, held for the test: the window asks a few at once (UrlTest.inServiceAtOnce). Every
             // failure is the answer's: an exception Binder cannot carry would end this process
             val answer = JSONObject()
             try {
                 val profile = SagerDatabase.proxyDao.getById(profileId) ?: error("no profile $profileId")
-                answer.put("ping", runBlocking { TestInstance(profile, link, timeout).doTest() })
+                answer.put("ping", runBlocking {
+                    val test = async(Dispatchers.Default) { TestInstance(profile, link, timeout).doTest() }
+                    synchronized(tests) { tests += test }
+                    try {
+                        test.await()
+                    } finally {
+                        synchronized(tests) { tests -= test }
+                    }
+                })
+            } catch (e: CancellationException) {
+                // cancelTests: the core of the test ends within its own limits and closes (TestInstance.withBox)
+                answer.put("cancelled", true)
             } catch (e: PluginManager.PluginNotFoundException) {
                 answer.put("error", e.readableMessage).put("plugin", e.plugin)
             } catch (e: Exception) {
                 answer.put("error", e.readableMessage)
             }
             return answer.toString()
+        }
+
+        override fun cancelTests() {
+            synchronized(tests) { tests.toList() }.forEach { it.cancel() }
         }
 
         override fun routeTest(query: String): String {

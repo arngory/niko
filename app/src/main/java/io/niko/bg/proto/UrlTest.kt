@@ -5,6 +5,7 @@ import io.niko.aidl.ISagerNetService
 import io.niko.database.DataStore
 import io.niko.database.ProxyEntity
 import io.niko.plugin.PluginManager
+import kotlinx.coroutines.CancellationException
 import org.json.JSONObject
 
 class UrlTest {
@@ -29,6 +30,8 @@ class UrlTest {
         } ?: return doTest(profile)
         val result = JSONObject(answer)
         if (result.has("ping")) return result.getInt("ping")
+        // the user closed the test (cancelTests): no result, as a test cancelled here has none
+        if (result.optBoolean("cancelled")) throw CancellationException("test cancelled")
         if (result.has("plugin")) throw PluginManager.PluginNotFoundException(result.getString("plugin"))
         throw TestFailure(result.optString("error"))
     }

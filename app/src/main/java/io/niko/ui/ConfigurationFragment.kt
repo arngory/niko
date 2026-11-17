@@ -975,6 +975,8 @@ class ConfigurationFragment @JvmOverloads constructor(
             runOnDefaultDispatcher {
                 mainJob.cancel()
                 testJobs.forEach { it.cancel() }
+                // the tests in the service's process are held on its Binder threads: they end there too
+                service?.let { runCatching { it.cancelTests() } }
                 try {
                     ProfileManager.updateTestResult(test.results.toList())
                 } catch (e: Exception) {
