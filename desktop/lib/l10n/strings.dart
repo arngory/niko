@@ -1,5 +1,7 @@
 import 'dart:ui' show Locale;
 
+import '../daemon/daemon.dart' show NatBehaviour;
+
 /// The window's words, in Russian and English. A stopgap: the texts move to the shared layer with Android's
 /// (docs/design/PLATFORMS.md, one file a language), and this file is then generated from it.
 class NikoStrings {
@@ -39,6 +41,24 @@ class NikoStrings {
   String get logCopy => _ru ? 'Скопировать журнал' : 'Copy the log';
   String get logCopied => _ru ? 'Журнал скопирован' : 'The log is copied';
   String get logSave => _ru ? 'Сохранить журнал в файл' : 'Save the log to a file';
+  String get tools => _ru ? 'Инструменты' : 'Tools';
+  String get natTitle => _ru ? 'Поведение NAT' : 'NAT behaviour';
+  String get stunServer => _ru ? 'STUN-сервер' : 'STUN server';
+  String get stunDetect => _ru ? 'Определить' : 'Detect';
+  String get stunNeedsCore =>
+      _ru ? 'Проверка идёт через подключение: сначала подключитесь' : 'The check goes through the connection: connect first';
+  String get stunFailed => _ru ? 'NAT не определён' : 'NAT not detected';
+  String get natAddress => _ru ? 'Внешний адрес' : 'External address';
+  String get natMapping => _ru ? 'Сопоставление' : 'Mapping';
+  String get natFiltering => _ru ? 'Фильтрация' : 'Filtering';
+  String get natLatency => _ru ? 'Задержка' : 'Latency';
+  String get natUnsupported => _ru ? 'сервер говорит только адрес' : 'the server tells the address only';
+  String nat(NatBehaviour behaviour) => switch (behaviour) {
+        NatBehaviour.endpointIndependent => _ru ? 'не зависит от адреса назначения' : 'independent of the destination',
+        NatBehaviour.addressDependent => _ru ? 'зависит от адреса' : 'depends on the address',
+        NatBehaviour.addressAndPortDependent => _ru ? 'зависит от адреса и порта' : 'depends on the address and port',
+        NatBehaviour.unknown => _ru ? 'не определено' : 'not known',
+      };
   String get saved => _ru ? 'Сохранено' : 'Saved';
   String get saveFailed => _ru ? 'Не сохранено' : 'Not saved';
   String get reportCrash => _ru ? 'Прошлый запуск завершился сбоем' : 'The last run crashed';

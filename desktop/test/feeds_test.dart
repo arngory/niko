@@ -11,6 +11,7 @@ import 'package:niko_desktop/gen/experimental/boxdd/desktop_service.pb.dart' as 
 import 'package:niko_desktop/state/connection_controller.dart';
 import 'package:niko_desktop/state/connections_feed.dart';
 import 'package:niko_desktop/state/log_feed.dart';
+import 'package:niko_desktop/state/stun_tool.dart';
 
 import 'fake_daemon_server.dart';
 
@@ -91,6 +92,9 @@ class TracedDaemon implements Daemon {
   Future<ReportArchive> exportReport(ReportEntry report) => _inner.exportReport(report);
   @override
   Future<void> markReportRead(ReportEntry report) => _inner.markReportRead(report);
+  @override
+  Stream<StunProgress> stunTest(String server) =>
+      _traced('stun', _inner.stunTest(server), (p) => '${p.externalAddress}${p.isFinal ? ', final' : ''}');
   @override
   Future<void> close() => _inner.close();
 }
@@ -248,6 +252,53 @@ void main() {
       server.log(pb.LogLevel.WARN, 'after the restart');
       await server.serve(port);
       await until(() => feed.lines.isNotEmpty && feed.lines.last.text == 'after the restart', 'the new daemon\'s log');
+    });
+  });
+
+  group('the NAT tool', () {
+    test('not asked while the core is not running; running: the steps, the result in the core\'s numbers', () async {
+      final tool = StunTool(controller);
+      addTearDown(tool.dispose);
+      var told = 0;
+      tool.addListener(() => told++);
+      expect(tool.available, isFalse);
+      tool.run('stun.example.net:3478');
+      expect(tool.running, isFalse);
+
+      await controller.toggle();
+      await until(() => tool.available, 'the core');
+      expect(told, greaterThan(0), reason: 'the button follows the core');
+      tool.run('  stun.example.net:3478 ');
+      expect(tool.running, isTrue);
+      await until(() => !tool.running, 'the result');
+      expect(server.stunServers, ['stun.example.net:3478']);
+      final result = tool.progress!;
+      expect(result.isFinal, isTrue);
+      expect((result.externalAddress, result.latencyMs), ('203.0.113.7:40312', 31));
+      // the mapping keeps 1 reserved: its 2 and the filtering's 3 are not the same scale
+      expect((result.mapping, result.filtering), (NatBehaviour.endpointIndependent, NatBehaviour.addressAndPortDependent));
+      expect(result.natTypeSupported, isTrue);
+      expect(tool.error, isEmpty);
+      expect(trace, contains(endsWith('stun: 203.0.113.7:40312, final')));
+    });
+
+    test('a test that failed: the daemon\'s words, and it can run again', () async {
+      final tool = StunTool(controller);
+      addTearDown(tool.dispose);
+      await controller.toggle();
+      await until(() => tool.available, 'the core');
+      server.stunSteps = [pb.STUNTestProgress(isFinal: true, error: 'no answer from stun.example.net:3478')];
+      tool.run('stun.example.net:3478');
+      await until(() => !tool.running, 'the failure');
+      expect(tool.error, 'no answer from stun.example.net:3478');
+
+      server.stunSteps = [pb.STUNTestProgress(isFinal: true, externalAddr: '203.0.113.7:40312', natMapping: 3)];
+      tool.run('');
+      await until(() => !tool.running, 'the second test');
+      expect(server.stunServers, ['stun.example.net:3478', '']);
+      expect(tool.error, isEmpty);
+      expect(tool.progress!.mapping, NatBehaviour.addressDependent);
+      expect(tool.progress!.natTypeSupported, isFalse);
     });
   });
 

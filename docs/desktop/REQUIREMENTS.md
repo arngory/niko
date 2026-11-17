@@ -197,6 +197,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 |---|---|---|---|---|
 | D-LOG-01 | Журнал ядра, очистка | `SubscribeLog`, `ClearLogs` | есть | есть |
 | D-LOG-02 | Отчёты о падениях и нехватке памяти | `DesktopService` crash и OOM reports | есть | есть |
+| D-LOG-03 | Инструменты рядом с журналом: поведение NAT (сопоставление и фильтрация по RFC 4787, внешний адрес, задержка) через основной исходящий | `StartSTUNTest` | есть (`common/stun` ядра) | есть |
 | D-CONN-01 | Соединения: список, закрыть | `SubscribeConnections`, `CloseConnection`, `CloseAllConnections` | есть | есть |
 | D-RULES-01 | Редактор правил | `NikoService` | Kotlin: `ui/RouteSettingsActivity.kt`, `fmt/ConfigBuilder.kt` | есть |
 | D-RULES-02 | Правило по программам (`process_name`, `process_path`) | конфиг | ядро умеет; на Android это список приложений | есть |

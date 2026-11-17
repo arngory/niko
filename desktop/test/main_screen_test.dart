@@ -66,6 +66,15 @@ class MemoryDaemon implements Daemon {
   @override
   Future<void> markReportRead(ReportEntry report) async {}
 
+  /// The STUN test: each run gets a stream of its own, fed by the test.
+  final stunRuns = <(String, StreamController<StunProgress>)>[];
+  @override
+  Stream<StunProgress> stunTest(String server) {
+    final steps = StreamController<StunProgress>();
+    stunRuns.add((server, steps));
+    return steps.stream;
+  }
+
   @override
   Future<void> close() async {}
 }
@@ -398,6 +407,77 @@ void main() {
       daemon.logBatches.add(LogBatch([for (var i = 1; i <= 90; i++) LogLine(LogSeverity.info, 'new $i')], reset: true));
       await frames();
       expect(find.text('new 90'), findsOneWidget);
+    });
+
+    testWidgets('the NAT tool beside the log: the server typed, the steps, the result in words', (tester) async {
+      await openLog(tester);
+      expect(find.text('Инструменты'), findsOneWidget);
+      expect(find.text('Поведение NAT'), findsOneWidget);
+      await tester.enterText(find.byType(EditableText), 'stun.example.net:3478');
+      await tester.tap(find.text('Определить'));
+      await tester.pump();
+      expect(daemon.stunRuns.single.$1, 'stun.example.net:3478');
+      final steps = daemon.stunRuns.single.$2;
+      // one test at a time
+      await tester.tap(find.text('Определить'));
+      expect(daemon.stunRuns, hasLength(1));
+
+      steps.add(const StunProgress(externalAddress: '203.0.113.7:40312', latencyMs: 31));
+      await tester.pump();
+      expect(find.text('203.0.113.7:40312'), findsOneWidget);
+      expect(find.text('Сопоставление'), findsNothing);
+      steps.add(const StunProgress(
+        externalAddress: '203.0.113.7:40312',
+        latencyMs: 31,
+        mapping: NatBehaviour.endpointIndependent,
+        filtering: NatBehaviour.addressAndPortDependent,
+        natTypeSupported: true,
+        isFinal: true,
+      ));
+      await tester.pump();
+      expect(find.text('не зависит от адреса назначения'), findsOneWidget);
+      expect(find.text('зависит от адреса и порта'), findsOneWidget);
+      expect(find.text('31 ms'), findsOneWidget);
+      await picture('log_tools_dark');
+
+      // Enter in the field runs it again; a failure is said in the daemon's words
+      await tester.showKeyboard(find.byType(EditableText));
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+      expect(daemon.stunRuns, hasLength(2));
+      daemon.stunRuns.last.$2.add(const StunProgress(isFinal: true, error: 'no answer from stun.example.net:3478'));
+      await tester.pump();
+      expect(find.text('NAT не определён'), findsOneWidget);
+      expect(find.text('no answer from stun.example.net:3478'), findsOneWidget);
+      expect(find.text('Сопоставление'), findsNothing);
+    });
+
+    testWidgets('the NAT tool with the core off: says to connect, and does nothing', (tester) async {
+      await show(tester);
+      await tester.tap(find.text('Журнал'));
+      await tester.pump();
+      expect(find.text('Проверка идёт через подключение: сначала подключитесь'), findsOneWidget);
+      await tester.tap(find.text('Определить'));
+      await tester.pump();
+      expect(daemon.stunRuns, isEmpty);
+      await core(tester, ServicePhase.started);
+      expect(find.text('Проверка идёт через подключение: сначала подключитесь'), findsNothing);
+    });
+
+    testWidgets('a narrow window: the tools under the log, nothing overflows', (tester) async {
+      await show(tester, brightness: Brightness.light, size: const Size(800, 720));
+      daemon.reportList = [ReportEntry(ReportKind.crash, 'crash-1', DateTime(2026, 11, 17, 0, 41))];
+      await core(tester, ServicePhase.started);
+      await tester.tap(find.text('Журнал'));
+      await tester.pump();
+      await tester.pump();
+      final log = tester.getRect(find.bySemanticsLabel('Журнал ядра'));
+      final tools = tester.getRect(find.text('Инструменты'));
+      expect(tools.top, greaterThan(log.bottom));
+      await picture('log_tools_narrow_light');
+      tester.view.physicalSize = const Size(320, 360);
+      await tester.pump();
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('a crash the daemon kept: said above the log, saved by its action', (tester) async {

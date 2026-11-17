@@ -67,3 +67,37 @@ class NikoInfoRow extends StatelessWidget {
     );
   }
 }
+
+/// A row of a title and a line under it (m-row__title, m-row__sub): a value said in words, or one too long to stand
+/// beside its title, in mono.
+class NikoTextRow extends StatelessWidget {
+  const NikoTextRow({super.key, required this.title, required this.sub, this.mono = false});
+
+  final String title;
+  final String sub;
+  final bool mono;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = NikoTheme.of(context);
+    return MergeSemantics(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 56),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: NikoSpace.s4, vertical: NikoSpace.s3),
+          child: SizedBox(
+            width: double.infinity,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(title, style: NikoType.body.style(colors.ink)),
+                Text(sub, style: (mono ? NikoType.code : NikoType.bodySm).style(colors.ink2)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

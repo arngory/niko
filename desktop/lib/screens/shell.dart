@@ -8,6 +8,7 @@ import '../l10n/strings.dart';
 import '../state/connection_controller.dart';
 import '../state/connections_feed.dart';
 import '../state/log_feed.dart';
+import '../state/stun_tool.dart';
 import '../state/window_settings.dart';
 import '../theme/niko_theme.dart';
 import '../ui/header.dart';
@@ -52,6 +53,7 @@ class NikoShell extends StatefulWidget {
 class _NikoShellState extends State<NikoShell> {
   late LogFeed _log;
   late ConnectionsFeed _connections;
+  late StunTool _stun;
   AppSection _section = AppSection.home;
   late bool _advanced = widget.settings.advanced;
 
@@ -64,6 +66,7 @@ class _NikoShellState extends State<NikoShell> {
   void _attach() {
     _log = LogFeed(widget.controller, saveTo: widget.saveTo);
     _connections = ConnectionsFeed(widget.controller);
+    _stun = StunTool(widget.controller);
     widget.controller.addListener(_changed);
   }
 
@@ -71,6 +74,7 @@ class _NikoShellState extends State<NikoShell> {
     controller.removeListener(_changed);
     _log.dispose();
     _connections.dispose();
+    _stun.dispose();
   }
 
   @override
@@ -155,7 +159,7 @@ class _NikoShellState extends State<NikoShell> {
                 running: state.link == LinkPhase.ready && state.service.phase == ServicePhase.started,
                 now: widget.now,
               ),
-              AppSection.log => LogScreen(feed: _log),
+              AppSection.log => LogScreen(feed: _log, stun: _stun),
             },
           ),
         ],

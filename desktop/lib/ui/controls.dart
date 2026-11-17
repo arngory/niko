@@ -98,6 +98,140 @@ class NikoGhostButton extends StatelessWidget {
   }
 }
 
+/// A button of words on a fill of its own (m-btn--tonal): the action of a tool, not of the screen.
+class NikoTonalButton extends StatelessWidget {
+  const NikoTonalButton({super.key, required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = NikoTheme.of(context);
+    return Semantics(
+      container: true,
+      button: true,
+      enabled: onPressed != null,
+      child: NikoPressable(
+        onPressed: onPressed,
+        builder: (context, state) => DecoratedBox(
+          decoration: BoxDecoration(
+            color: state.pressed ? colors.surface3 : colors.surface2,
+            borderRadius: BorderRadius.circular(NikoRadius.full),
+          ),
+          child: SizedBox(
+            height: NikoSize.control,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: NikoSpace.s6),
+              child: Center(
+                widthFactor: 1,
+                child: Text(label, maxLines: 1, style: NikoType.body.style(colors.ink, weight: FontWeight.w600)),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A field with its label above (m-field): a value typed in mono, a placeholder for what it takes.
+class NikoTextField extends StatefulWidget {
+  const NikoTextField({super.key, required this.label, this.placeholder = '', required this.controller, this.onSubmit});
+
+  final String label;
+  final String placeholder;
+  final TextEditingController controller;
+  final ValueChanged<String>? onSubmit;
+
+  @override
+  State<NikoTextField> createState() => _NikoTextFieldState();
+}
+
+class _NikoTextFieldState extends State<NikoTextField> {
+  final _focus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(_repaint);
+    widget.controller.addListener(_repaint);
+  }
+
+  @override
+  void didUpdateWidget(NikoTextField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_repaint);
+      widget.controller.addListener(_repaint);
+    }
+  }
+
+  void _repaint() => setState(() {});
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_repaint);
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = NikoTheme.of(context);
+    return Semantics(
+      textField: true,
+      label: widget.label,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ExcludeSemantics(child: Text(widget.label, style: NikoType.caption.style(colors.ink2))),
+          const SizedBox(height: NikoSpace.s1),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _focus.requestFocus,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: colors.surface0,
+                borderRadius: BorderRadius.circular(NikoRadius.sm),
+                border: Border.all(
+                  width: NikoStroke.bold,
+                  color: _focus.hasFocus ? colors.ink : const Color(0x00000000),
+                ),
+              ),
+              child: SizedBox(
+                height: NikoSize.control,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: NikoSpace.s4),
+                  child: Stack(
+                    alignment: AlignmentDirectional.centerStart,
+                    children: [
+                      if (widget.controller.text.isEmpty)
+                        ExcludeSemantics(
+                          child: Text(widget.placeholder, maxLines: 1, style: NikoType.code.style(colors.ink2)),
+                        ),
+                      EditableText(
+                        controller: widget.controller,
+                        focusNode: _focus,
+                        style: NikoType.code.style(colors.ink),
+                        cursorColor: colors.ink,
+                        backgroundCursorColor: colors.ink2,
+                        selectionColor: colors.ink.withValues(alpha: 0.24),
+                        maxLines: 1,
+                        onSubmitted: widget.onSubmit,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// A short mark (m-tag): quiet, or in ink for the one that matters (m-tag--strong).
 class NikoTag extends StatelessWidget {
   const NikoTag(this.text, {super.key, this.strong = false});

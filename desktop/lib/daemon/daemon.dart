@@ -155,6 +155,33 @@ class ReportArchive {
   final List<int> data;
 }
 
+/// How a NAT maps a host's port, or lets packets in (RFC 4787), as STUN measured it.
+enum NatBehaviour { unknown, endpointIndependent, addressDependent, addressAndPortDependent }
+
+/// A step of the STUN test, or its result ([isFinal]): what the network looks like from the core's default way out.
+class StunProgress {
+  const StunProgress({
+    this.externalAddress = '',
+    this.latencyMs = 0,
+    this.mapping = NatBehaviour.unknown,
+    this.filtering = NatBehaviour.unknown,
+    this.natTypeSupported = false,
+    this.isFinal = false,
+    this.error = '',
+  });
+
+  /// The address and port the STUN server saw.
+  final String externalAddress;
+  final int latencyMs;
+  final NatBehaviour mapping;
+  final NatBehaviour filtering;
+
+  /// The server answers the tests that tell the NAT's behaviour (RFC 5780), not the binding alone.
+  final bool natTypeSupported;
+  final bool isFinal;
+  final String error;
+}
+
 /// The daemon as the window uses it. One implementation talks gRPC ([GrpcDaemon]); tests put a server behind it.
 abstract interface class Daemon {
   /// The daemon's version: the first call, which also says whether it is there at all.
@@ -196,6 +223,10 @@ abstract interface class Daemon {
   Future<ReportArchive> exportReport(ReportEntry report);
 
   Future<void> markReportRead(ReportEntry report);
+
+  /// The STUN test through the core's default outbound (`host:port`, empty: the daemon's own server): its steps, the
+  /// last [StunProgress.isFinal]. Fails at once when the core is not running.
+  Stream<StunProgress> stunTest(String server);
 
   Future<void> close();
 }
@@ -368,6 +399,33 @@ class GrpcDaemon implements Daemon {
   Future<void> markReportRead(ReportEntry report) => switch (report.kind) {
         ReportKind.crash => _desktop.markCrashReportRead(CrashReportRequest(name: report.name), options: _short),
         ReportKind.outOfMemory => _desktop.markOOMReportRead(OOMReportRequest(name: report.name), options: _short),
+      };
+
+  @override
+  Stream<StunProgress> stunTest(String server) =>
+      _started.startSTUNTest(STUNTestRequest(server: server)).map((progress) => StunProgress(
+            externalAddress: progress.externalAddr,
+            latencyMs: progress.latencyMs,
+            mapping: natMapping(progress.natMapping),
+            filtering: natFiltering(progress.natFiltering),
+            natTypeSupported: progress.natTypeSupported,
+            isFinal: progress.isFinal,
+            error: progress.error,
+          ));
+
+  /// The core's numbers (common/stun): the mapping keeps 1 reserved, the filtering does not.
+  static NatBehaviour natMapping(int value) => switch (value) {
+        2 => NatBehaviour.endpointIndependent,
+        3 => NatBehaviour.addressDependent,
+        4 => NatBehaviour.addressAndPortDependent,
+        _ => NatBehaviour.unknown,
+      };
+
+  static NatBehaviour natFiltering(int value) => switch (value) {
+        1 => NatBehaviour.endpointIndependent,
+        2 => NatBehaviour.addressDependent,
+        3 => NatBehaviour.addressAndPortDependent,
+        _ => NatBehaviour.unknown,
       };
 
   @override

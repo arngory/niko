@@ -1,11 +1,12 @@
 // The window's link against the real daemon: `boxdd run --listen 127.0.0.1:<port>` (development mode) started here,
 // a ready config with a proxy on 127.0.0.1 and a direct outbound, a request through it. Stage 2b of docs/desktop:
 // the button starts the config, the status and the rates are seen; then the core's log and its connections, one of
-// which is closed from here (D-LOG-01, D-CONN-01). Runs where NIKO_BOXDD names the daemon's executable (CI: on
+// which is closed from here (D-LOG-01, D-CONN-01); the NAT tool against a STUN server here. Runs where NIKO_BOXDD names the daemon's executable (CI: on
 // Windows and on Linux); skipped otherwise.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:niko_desktop/daemon/daemon.dart';
@@ -13,12 +14,38 @@ import 'package:niko_desktop/daemon/endpoint.dart';
 import 'package:niko_desktop/state/connection_controller.dart';
 import 'package:niko_desktop/state/connections_feed.dart';
 import 'package:niko_desktop/state/log_feed.dart';
+import 'package:niko_desktop/state/stun_tool.dart';
 
 Future<int> freePort() async {
   final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
   final port = socket.port;
   await socket.close();
   return port;
+}
+
+/// A STUN server for the binding alone (RFC 5389): the address it saw, XOR-mapped; no OTHER-ADDRESS, so the NAT's
+/// behaviour is not told. On every address: the daemon binds its sockets to the default interface, from which
+/// 127.0.0.1 is not reached.
+Future<RawDatagramSocket> stunServer() async {
+  final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+  socket.listen((event) {
+    if (event != RawSocketEvent.read) return;
+    final datagram = socket.receive();
+    if (datagram == null || datagram.data.length < 20 || datagram.data[0] != 0 || datagram.data[1] != 1) return;
+    const cookie = [0x21, 0x12, 0xA4, 0x42];
+    final port = datagram.port ^ 0x2112;
+    final ip = datagram.address.rawAddress;
+    final mapped = [0, 1, port >> 8, port & 0xff, for (var i = 0; i < 4; i++) ip[i] ^ cookie[i]];
+    final answer = BytesBuilder()
+      // a binding success, the length of its one attribute
+      ..add([0x01, 0x01, 0, 4 + mapped.length])
+      // the cookie and the transaction, as asked
+      ..add(datagram.data.sublist(4, 20))
+      ..add([0x00, 0x20, 0, mapped.length])
+      ..add(mapped);
+    socket.send(answer.toBytes(), datagram.address, datagram.port);
+  });
+  return socket;
 }
 
 Future<bool> listening(int port) async {
@@ -225,6 +252,33 @@ void main() {
     // ignore: avoid_print
     print('the closed connection ${await ended.timeout(const Duration(seconds: 10))} for the program that held it');
     holder.close(force: true);
+
+    step = 'the NAT tool';
+    // the STUN test through the core's default way out (direct here), to a server on this machine
+    final own = [
+      for (final interface in await NetworkInterface.list(type: InternetAddressType.IPv4))
+        for (final address in interface.addresses)
+          if (!address.isLoopback && !address.isLinkLocal) address.address,
+    ];
+    final stun = await stunServer();
+    final tool = StunTool(controller);
+    expect(tool.available, isTrue);
+    if (own.isEmpty) {
+      // ignore: avoid_print
+      print('STUN: no address of this machine but 127.0.0.1, not tested');
+    } else {
+      tool.run('${own.first}:${stun.port}');
+      await until(() => !tool.running, 'the STUN result');
+      expect(tool.error, isEmpty);
+      final nat = tool.progress!;
+      expect(nat.isFinal, isTrue);
+      expect(nat.externalAddress, startsWith('${own.first}:'));
+      expect(nat.natTypeSupported, isFalse);
+      // ignore: avoid_print
+      print('STUN through the core: ${nat.externalAddress}, ${nat.latencyMs} ms');
+    }
+    tool.dispose();
+    stun.close();
 
     step = 'the stop';
     // the button again

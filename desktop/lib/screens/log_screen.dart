@@ -4,18 +4,25 @@ import 'package:flutter/widgets.dart';
 import '../daemon/daemon.dart';
 import '../l10n/strings.dart';
 import '../state/log_feed.dart';
+import '../state/stun_tool.dart';
 import '../theme/niko_theme.dart';
 import '../ui/banner.dart';
 import '../ui/controls.dart';
 import '../ui/format.dart';
 import '../ui/icons.dart';
+import 'tools_panel.dart';
 
 /// The core's log (D-LOG-01): its lines as the core writes them, the newest at the bottom and in view until the
-/// user scrolls up; a button empties the daemon's log.
+/// user scrolls up; a button empties the daemon's log. The tools stand beside it, or under it in a narrow window.
 class LogScreen extends StatefulWidget {
-  const LogScreen({super.key, required this.feed});
+  const LogScreen({super.key, required this.feed, this.stun});
 
   final LogFeed feed;
+  final StunTool? stun;
+
+  /// The content's width from which the tools stand beside the log.
+  static const double aside = 760;
+  static const double asideWidth = 340;
 
   @override
   State<LogScreen> createState() => _LogScreenState();
@@ -104,101 +111,132 @@ class _LogScreenState extends State<LogScreen> {
       LogNotice.clearFailed => (strings.logClearFailed, feed.noticeDetail, true),
       LogNotice.reportFailed => (strings.reportFailed, feed.noticeDetail, true),
     };
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(NikoSpace.s8, NikoSpace.s4, NikoSpace.s8, NikoSpace.s8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+    final head = <Widget>[
+      Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Semantics(
-                  header: true,
-                  child: Text(strings.sectionLog, style: NikoType.title.style(colors.ink)),
-                ),
-              ),
-              NikoIconButton(
-                icon: NikoIcons.trash,
-                label: strings.logClear,
-                muted: true,
-                onPressed: lines.isEmpty ? null : feed.clear,
-              ),
-              const SizedBox(width: NikoSpace.s2),
-              NikoIconButton(
-                icon: NikoIcons.copy,
-                label: strings.logCopy,
-                tonal: true,
-                onPressed: lines.isEmpty ? null : _copy,
-              ),
-              const SizedBox(width: NikoSpace.s2),
-              NikoIconButton(
-                icon: NikoIcons.export,
-                label: strings.logSave,
-                tonal: true,
-                onPressed: lines.isEmpty || feed.busy ? null : feed.saveLog,
-              ),
-            ],
-          ),
-          const SizedBox(height: NikoSpace.s4),
-          // D-LOG-02: the newest report nobody saved yet
-          if (report != null) ...[
-            NikoBanner(
-              icon: NikoIcons.alert,
-              title: report.kind == ReportKind.crash ? strings.reportCrash : strings.reportMemory,
-              text: formatMoment(report.at),
-              action: strings.reportSave,
-              onAction: feed.busy ? null : () => feed.saveReport(report),
-            ),
-            const SizedBox(height: NikoSpace.s4),
-          ],
-          if (notice != null) ...[
-            NikoBanner(icon: NikoIcons.alert, title: notice.$1, text: notice.$2, danger: notice.$3),
-            const SizedBox(height: NikoSpace.s4),
-          ],
           Expanded(
             child: Semantics(
-              container: true,
-              explicitChildNodes: true,
-              label: strings.logCore,
-              child: DecoratedBox(
-                decoration: BoxDecoration(color: colors.surface1, borderRadius: BorderRadius.circular(NikoRadius.md)),
-                child: lines.isEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.all(NikoSpace.s4),
-                        child: Text(strings.logEmpty, style: NikoType.code.style(colors.ink2)),
-                      )
-                    // the lines can be selected with the pointer and copied with Ctrl+C, as text anywhere
-                    : DefaultSelectionStyle(
-                        selectionColor: colors.ink.withValues(alpha: 0.24),
-                        cursorColor: colors.ink,
-                        child: SelectableRegion(
-                          selectionControls: emptyTextSelectionControls,
-                          child: NotificationListener<ScrollNotification>(
-                            onNotification: _scrolled,
-                            child: ListView.builder(
-                              controller: _scroll,
-                              padding: const EdgeInsets.all(NikoSpace.s4),
-                              itemCount: lines.length,
-                              itemBuilder: (context, index) {
-                                final line = lines[index];
-                                return Text(
-                                  line.text,
-                                  style: NikoType.code.style(switch (line.level) {
-                                    LogSeverity.panic || LogSeverity.fatal || LogSeverity.error => colors.danger,
-                                    LogSeverity.debug || LogSeverity.trace => colors.ink2,
-                                    _ => colors.ink,
-                                  }),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-              ),
+              header: true,
+              child: Text(strings.sectionLog, style: NikoType.title.style(colors.ink)),
             ),
+          ),
+          NikoIconButton(
+            icon: NikoIcons.trash,
+            label: strings.logClear,
+            muted: true,
+            onPressed: lines.isEmpty ? null : feed.clear,
+          ),
+          const SizedBox(width: NikoSpace.s2),
+          NikoIconButton(
+            icon: NikoIcons.copy,
+            label: strings.logCopy,
+            tonal: true,
+            onPressed: lines.isEmpty ? null : _copy,
+          ),
+          const SizedBox(width: NikoSpace.s2),
+          NikoIconButton(
+            icon: NikoIcons.export,
+            label: strings.logSave,
+            tonal: true,
+            onPressed: lines.isEmpty || feed.busy ? null : feed.saveLog,
           ),
         ],
       ),
+      const SizedBox(height: NikoSpace.s4),
+      // D-LOG-02: the newest report nobody saved yet
+      if (report != null) ...[
+        NikoBanner(
+          icon: NikoIcons.alert,
+          title: report.kind == ReportKind.crash ? strings.reportCrash : strings.reportMemory,
+          text: formatMoment(report.at),
+          action: strings.reportSave,
+          onAction: feed.busy ? null : () => feed.saveReport(report),
+        ),
+        const SizedBox(height: NikoSpace.s4),
+      ],
+      if (notice != null) ...[
+        NikoBanner(icon: NikoIcons.alert, title: notice.$1, text: notice.$2, danger: notice.$3),
+        const SizedBox(height: NikoSpace.s4),
+      ],
+    ];
+    final box = Semantics(
+      container: true,
+      explicitChildNodes: true,
+      label: strings.logCore,
+      child: DecoratedBox(
+        decoration: BoxDecoration(color: colors.surface1, borderRadius: BorderRadius.circular(NikoRadius.md)),
+        child: lines.isEmpty
+            ? Padding(
+                padding: const EdgeInsets.all(NikoSpace.s4),
+                child: Text(strings.logEmpty, style: NikoType.code.style(colors.ink2)),
+              )
+            // the lines can be selected with the pointer and copied with Ctrl+C, as text anywhere
+            : DefaultSelectionStyle(
+                selectionColor: colors.ink.withValues(alpha: 0.24),
+                cursorColor: colors.ink,
+                child: SelectableRegion(
+                  selectionControls: emptyTextSelectionControls,
+                  child: NotificationListener<ScrollNotification>(
+                    onNotification: _scrolled,
+                    child: ListView.builder(
+                      controller: _scroll,
+                      padding: const EdgeInsets.all(NikoSpace.s4),
+                      itemCount: lines.length,
+                      itemBuilder: (context, index) {
+                        final line = lines[index];
+                        return Text(
+                          line.text,
+                          style: NikoType.code.style(switch (line.level) {
+                            LogSeverity.panic || LogSeverity.fatal || LogSeverity.error => colors.danger,
+                            LogSeverity.debug || LogSeverity.trace => colors.ink2,
+                            _ => colors.ink,
+                          }),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+      ),
+    );
+    final stun = widget.stun;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(NikoSpace.s8, NikoSpace.s4, NikoSpace.s8, NikoSpace.s8),
+      child: stun == null
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [...head, Expanded(child: box)],
+            )
+          : LayoutBuilder(
+              builder: (context, constraints) => constraints.maxWidth >= LogScreen.aside
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [...head, Expanded(child: box)],
+                          ),
+                        ),
+                        const SizedBox(width: NikoSpace.s6),
+                        SizedBox(
+                          width: LogScreen.asideWidth,
+                          child: SingleChildScrollView(child: ToolsPanel(stun: stun)),
+                        ),
+                      ],
+                    )
+                  // narrow: the tools under the log, in at most two fifths of what the title and the banners leave,
+                  // scrolled within
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        ...head,
+                        Expanded(flex: 3, child: box),
+                        const SizedBox(height: NikoSpace.s4),
+                        Flexible(flex: 2, child: SingleChildScrollView(child: ToolsPanel(stun: stun))),
+                      ],
+                    ),
+            ),
     );
   }
 }

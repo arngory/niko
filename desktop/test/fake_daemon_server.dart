@@ -37,6 +37,22 @@ class FakeDaemonServer {
   final closed = <String>[];
   int closedAll = 0;
 
+  /// The STUN servers the window tested, and the steps the daemon answers each test with (the core's numbers: the
+  /// mapping keeps 1 reserved); a failed test is a final step with its error.
+  final stunServers = <String>[];
+  List<STUNTestProgress> stunSteps = [
+    STUNTestProgress(phase: 0, externalAddr: '203.0.113.7:40312', latencyMs: 31),
+    STUNTestProgress(
+      phase: 3,
+      externalAddr: '203.0.113.7:40312',
+      latencyMs: 31,
+      natMapping: 2,
+      natFiltering: 3,
+      natTypeSupported: true,
+      isFinal: true,
+    ),
+  ];
+
   void log(LogLevel level, String message) {
     final line = Log_Message(level: level, message: message);
     savedLog.add(line);
@@ -283,6 +299,16 @@ class _Started extends StartedServiceBase {
       }
     } finally {
       daemon._open--;
+    }
+  }
+
+  @override
+  Stream<STUNTestProgress> startSTUNTest(ServiceCall call, STUNTestRequest request) async* {
+    // as the daemon's waitForStarted: os.ErrInvalid while the core is not running
+    if (daemon._phase != ServiceStatus_Type.STARTED) throw GrpcError.unknown('invalid argument');
+    daemon.stunServers.add(request.server);
+    for (final step in daemon.stunSteps) {
+      yield step;
     }
   }
 
