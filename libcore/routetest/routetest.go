@@ -95,6 +95,9 @@ func Run(ctx context.Context, q Query) (*Result, error) {
 		return nil, err
 	}
 	// the lookups below: the binder's caller waits for them
+	// the caller's: a core stopped or a caller gone ends the walk below; the lookups' own limit does not (a lookup
+	// that answered just before it still gives an answer)
+	caller := ctx
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 
@@ -144,7 +147,7 @@ func Run(ctx context.Context, q Query) (*Result, error) {
 
 	for index, rule := range router.Rules() {
 		// a core stopped or a caller gone: no answer from rules being closed (their rule sets emptied)
-		if err := ctx.Err(); err != nil {
+		if err := caller.Err(); err != nil {
 			return nil, err
 		}
 		metadata.ResetRuleCache()
