@@ -31,6 +31,12 @@ class LogScreen extends StatefulWidget {
 class _LogScreenState extends State<LogScreen> {
   final _scroll = ScrollController();
 
+  // the log and the tools move between the wide and the narrow layout, kept: the typed server, the log's place and
+  // what is selected in it are not lost when the window crosses the width
+  final _boxKey = GlobalKey();
+  final _toolsKey = GlobalKey();
+  bool? _wide;
+
   // the end is kept in view while the user is at it
   bool _follow = true;
   int _resets = 0;
@@ -81,6 +87,13 @@ class _LogScreenState extends State<LogScreen> {
         _toEnd(jumps - 1);
       }
     });
+  }
+
+  // the layout for this width; a change of it keeps the end in view if it was
+  bool _layout(bool wide) {
+    if (_wide != null && _wide != wide && _follow) _toEnd();
+    _wide = wide;
+    return wide;
   }
 
   bool _scrolled(ScrollNotification notification) {
@@ -160,6 +173,7 @@ class _LogScreenState extends State<LogScreen> {
       ],
     ];
     final box = Semantics(
+      key: _boxKey,
       container: true,
       explicitChildNodes: true,
       label: strings.logCore,
@@ -208,7 +222,7 @@ class _LogScreenState extends State<LogScreen> {
               children: [...head, Expanded(child: box)],
             )
           : LayoutBuilder(
-              builder: (context, constraints) => constraints.maxWidth >= LogScreen.aside
+              builder: (context, constraints) => _layout(constraints.maxWidth >= LogScreen.aside)
                   ? Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -221,7 +235,7 @@ class _LogScreenState extends State<LogScreen> {
                         const SizedBox(width: NikoSpace.s6),
                         SizedBox(
                           width: LogScreen.asideWidth,
-                          child: SingleChildScrollView(child: ToolsPanel(stun: stun)),
+                          child: SingleChildScrollView(child: ToolsPanel(key: _toolsKey, stun: stun)),
                         ),
                       ],
                     )
@@ -233,7 +247,7 @@ class _LogScreenState extends State<LogScreen> {
                         ...head,
                         Expanded(flex: 3, child: box),
                         const SizedBox(height: NikoSpace.s4),
-                        Flexible(flex: 2, child: SingleChildScrollView(child: ToolsPanel(stun: stun))),
+                        Flexible(flex: 2, child: SingleChildScrollView(child: ToolsPanel(key: _toolsKey, stun: stun))),
                       ],
                     ),
             ),

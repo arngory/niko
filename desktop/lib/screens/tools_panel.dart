@@ -96,7 +96,10 @@ class _ToolsPanelState extends State<ToolsPanel> {
             ),
             if (!stun.available) ...[
               const SizedBox(height: NikoSpace.s3),
-              Text(strings.stunNeedsCore, style: NikoType.bodySm.style(colors.ink2)),
+              Text(
+                stun.stopped ? strings.stunStopped : strings.stunNeedsCore,
+                style: NikoType.bodySm.style(colors.ink2),
+              ),
             ],
             if (stun.error.isNotEmpty) ...[
               const SizedBox(height: NikoSpace.s3),

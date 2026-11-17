@@ -280,6 +280,9 @@ void main() {
       expect(result.natTypeSupported, isTrue);
       expect(tool.error, isEmpty);
       expect(trace, contains(endsWith('stun: 203.0.113.7:40312, final')));
+      // the stream is let end by the daemon, not cancelled across its end: the link does not drop
+      await until(() => trace.any((line) => line.endsWith('stun: done')), 'the stream\'s end');
+      expect(controller.drops, 0);
     });
 
     test('a test that failed: the daemon\'s words, and it can run again', () async {

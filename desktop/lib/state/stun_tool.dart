@@ -21,6 +21,10 @@ class StunTool extends ChangeNotifier {
   String error = '';
   bool running = false;
 
+  /// The core stopped while a test ran: its sockets closed under it, and what it went on to measure would read as a
+  /// NAT that answers nothing, so nothing of it is shown.
+  bool stopped = false;
+
   StreamSubscription<StunProgress>? _subscription;
   bool _available;
   bool _disposed = false;
@@ -28,10 +32,18 @@ class StunTool extends ChangeNotifier {
   /// The core runs: the test has a way out to go through.
   bool get available => _link.link == LinkPhase.ready && _link.service.phase == ServicePhase.started;
 
-  // the button follows the core; a test the core stopped under ends with the daemon's error
+  // the button follows the core; a test it stopped under is left to end unread (see [_finish])
   void _linkChanged() {
-    if (available == _available) return;
-    _available = available;
+    final now = available;
+    if (now == _available) return;
+    _available = now;
+    if (!now && running) {
+      _subscription = null;
+      running = false;
+      progress = null;
+      error = '';
+      stopped = true;
+    }
     notifyListeners();
   }
 
@@ -41,6 +53,7 @@ class StunTool extends ChangeNotifier {
     running = true;
     progress = null;
     error = '';
+    stopped = false;
     notifyListeners();
     late final StreamSubscription<StunProgress> subscription;
     subscription = daemon
@@ -67,12 +80,14 @@ class StunTool extends ChangeNotifier {
     _subscription = subscription;
   }
 
+  // The final step ends the test, and the daemon ends the stream right after it: the stream is let end, not
+  // cancelled, as a cancel that crosses the daemon's end makes package:http2 close the whole connection (as with the
+  // connections, see ConnectionsFeed._retire). A test always ends, so nothing waits on it for long; what the stream
+  // still says is not read.
   void _finish(StreamSubscription<StunProgress> subscription) {
     if (_subscription != subscription) return;
     _subscription = null;
     running = false;
-    // the final step ends the test: what the stream still says after it is not read
-    unawaited(subscription.cancel());
     if (!_disposed) notifyListeners();
   }
 

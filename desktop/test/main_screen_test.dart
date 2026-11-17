@@ -452,6 +452,56 @@ void main() {
       expect(find.text('Сопоставление'), findsNothing);
     });
 
+    testWidgets('the core stopped during a check: nothing of it shown, said, its late steps not read', (tester) async {
+      await openLog(tester);
+      await tester.tap(find.text('Определить'));
+      await tester.pump();
+      final steps = daemon.stunRuns.single.$2;
+      steps.add(const StunProgress(externalAddress: '203.0.113.7:40312', latencyMs: 31));
+      await tester.pump();
+      expect(find.text('203.0.113.7:40312'), findsOneWidget);
+      await core(tester, ServicePhase.stopping);
+      expect(find.text('203.0.113.7:40312'), findsNothing);
+      expect(find.text('Подключение остановилось во время проверки: подключитесь и проверьте снова'), findsOneWidget);
+      // the closed sockets read as a NAT that lets nothing in: not shown as a measurement
+      steps.add(const StunProgress(
+        externalAddress: '203.0.113.7:40312',
+        filtering: NatBehaviour.addressAndPortDependent,
+        natTypeSupported: true,
+        isFinal: true,
+      ));
+      await tester.pump();
+      expect(find.text('Фильтрация'), findsNothing);
+      await core(tester, ServicePhase.started);
+      expect(find.text('Подключение остановилось во время проверки: подключитесь и проверьте снова'), findsNothing);
+      await tester.tap(find.text('Определить'));
+      await tester.pump();
+      expect(daemon.stunRuns, hasLength(2));
+    });
+
+    testWidgets('a window crossing the width keeps the typed server and the log', (tester) async {
+      await openLog(tester);
+      daemon.logBatches.add(LogBatch([for (var i = 1; i <= 200; i++) LogLine(LogSeverity.info, 'line $i')], reset: true));
+      for (var i = 0; i < 6; i++) {
+        await tester.pump();
+      }
+      await tester.enterText(find.byType(EditableText), 'stun.example.net:3478');
+      await tester.pump();
+      expect(find.text('line 200'), findsOneWidget);
+      tester.view.physicalSize = const Size(800, 720);
+      for (var i = 0; i < 6; i++) {
+        await tester.pump();
+      }
+      expect(find.text('stun.example.net:3478'), findsOneWidget);
+      expect(find.text('line 200'), findsOneWidget);
+      tester.view.physicalSize = const Size(960, 720);
+      for (var i = 0; i < 6; i++) {
+        await tester.pump();
+      }
+      expect(find.text('stun.example.net:3478'), findsOneWidget);
+      expect(find.text('line 200'), findsOneWidget);
+    });
+
     testWidgets('the NAT tool with the core off: says to connect, and does nothing', (tester) async {
       await show(tester);
       await tester.tap(find.text('Журнал'));

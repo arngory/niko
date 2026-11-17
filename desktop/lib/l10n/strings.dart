@@ -48,6 +48,9 @@ class NikoStrings {
   String get stunNeedsCore =>
       _ru ? 'Проверка идёт через подключение: сначала подключитесь' : 'The check goes through the connection: connect first';
   String get stunFailed => _ru ? 'NAT не определён' : 'NAT not detected';
+  String get stunStopped => _ru
+      ? 'Подключение остановилось во время проверки: подключитесь и проверьте снова'
+      : 'The connection stopped during the check: connect and check again';
   String get natAddress => _ru ? 'Внешний адрес' : 'External address';
   String get natMapping => _ru ? 'Сопоставление' : 'Mapping';
   String get natFiltering => _ru ? 'Фильтрация' : 'Filtering';
