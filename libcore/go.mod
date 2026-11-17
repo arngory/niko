@@ -28,6 +28,7 @@ require (
 require (
 	github.com/enfein/mieru/v3 v3.39.0 // indirect
 	github.com/metacubex/utls v1.8.7 // indirect
+	github.com/wlynxg/anet v0.0.5 // indirect
 )
 
 require (

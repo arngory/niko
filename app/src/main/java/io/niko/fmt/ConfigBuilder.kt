@@ -30,6 +30,7 @@ import io.niko.raycontrol.RayNode
 import io.niko.raycontrol.RayBrutal
 import io.niko.raycontrol.RayChannel
 import io.niko.raycontrol.RayNodes
+import io.niko.raycontrol.RayLanDirect
 import io.niko.raycontrol.RayLanNet
 import io.niko.raycontrol.knockOptions
 import io.niko.ktx.isIpAddress
@@ -1095,9 +1096,22 @@ fun buildConfig(
         // resolved the same way whether or not a node has neighbours here), kept for the nodes the config carries
         val lanCarried = lanNodes.filter { it.spa.nodeId in lanEndpointOf }.flatMap { RayLanNet.neighbours(it, lanNow) }.toSet()
         val lanNames = RayLanNet.names(lanNodes, lanNow).filterValues { it in lanCarried }
+        // lan-v1 §3: in a trusted Wi-Fi a LAN's endpoint finds the user's devices there by multicast, with the node's
+        // password at this second (RayLanDirect); the next password's start rebuilds the config
+        val lanDirect = HashMap<String, String>()
+        var lanSwitch: Long? = null
+        for (node in lanNodes) {
+            val tag = lanEndpointOf[node.spa.nodeId] ?: continue
+            val password = RayLanNet.directPassword(node, lanNow) ?: continue
+            lanDirect.putIfAbsent(tag, password)
+            val lan = RayLanNet.of(node) ?: continue
+            val switch = lan.nextFrom - node.clockSkew
+            if (lan.nextPassword != null && switch > lanNow) lanSwitch = minOf(lanSwitch ?: switch, switch)
+        }
         if (notes) {
             RayLanNet.running = lanEndpoints.isNotEmpty()
             RayLanNet.noteRunning(lanNodes, lanNow)
+            RayLanDirect.noteRunning(lanDirect.isNotEmpty(), lanSwitch)
         }
         // the mesh nodes of raycontrol rows: no answers about their peers to the mesh (DebugPrivacy); only the
         // neighbours' flows come in, the rest are dropped before a handshake (none at all without a LAN)
@@ -1106,6 +1120,11 @@ fun buildConfig(
             // a flag of its own: the core's parser drops an empty list, which would let every flow in
             endpoint._hack_config_map["inbound_listed"] = true
             lanEndpoints[endpoint.tag]?.let { neighbours -> endpoint._hack_config_map["inbound_sources"] = neighbours.distinct().map { "$it/128" } }
+            lanDirect[endpoint.tag]?.let { password ->
+                endpoint._hack_config_map["multicast"] = listOf(mapOf(
+                    "interface" to RayLanDirect.INTERFACES, "beacon" to true, "listen" to true, "password" to password,
+                ))
+            }
         }
         // the apps reach the devices' addresses over IPv6, also with IPv6 off (the VPN takes IPv6, RayLanNet.running)
         if (lanEndpoints.isNotEmpty() && ipv6Mode == IPv6Mode.DISABLE) inbounds.filterIsInstance<Inbound_TunOptions>().forEach { tun ->

@@ -169,4 +169,46 @@ class RayLanTest {
         assertEquals("3ff:abcd::", yggAddress("3FF:ABCD:0:0:0:0:0:0"))
         assertEquals("201:1:2:3:4:5:6:0", yggAddress("201:1:2:3:4:5:6::"))
     }
+
+    @Test
+    fun directPasswordAndSignature() {
+        val before = 1_767_000_000L
+        val after = 1_767_268_800L
+        // the node's password, the next one from its `from` on (the node's clock)
+        assertEquals("A".repeat(43), lan.passwordAt(before))
+        assertEquals("B".repeat(43), lan.passwordAt(after))
+        assertEquals("A".repeat(43), RayLanNet.directPassword(node(), before) { true })
+        // not in a trusted Wi-Fi, or a LAN not shown: none
+        assertNull(RayLanNet.directPassword(node(), before) { false })
+        assertNull(RayLanNet.directPassword(node(show = false), before) { true })
+        // the running config's mark follows the direct link and the password it takes, never the password itself
+        val off = RayLanNet.signature(listOf(node()), before) { false }
+        val on = RayLanNet.signature(listOf(node()), before) { true }
+        assertFalse(off == on)
+        assertFalse(on.contains("A".repeat(43)))
+        val switched = RayLanNet.signature(listOf(node()), after) { true }
+        assertFalse(on.substringBefore("\n") == switched.substringBefore("\n"))
+    }
+
+    @Test
+    fun trustedWifi() {
+        val home = RayLanDirect.Trusted("home", "k1", "Home")
+        val office = RayLanDirect.Trusted("office", "k2", null)
+        val list = listOf(home, office)
+        // by the fingerprint: the network's key, whatever its name
+        assertTrue(RayLanDirect.matches(RayLanDirect.Current("k2", null), list, RayLanDirect.BY_FINGERPRINT))
+        assertFalse(RayLanDirect.matches(RayLanDirect.Current("k3", "Home"), list, RayLanDirect.BY_FINGERPRINT))
+        // by the SSID: the name, whatever the router; a name unknown (no permission, location off) is no match
+        assertTrue(RayLanDirect.matches(RayLanDirect.Current("k3", "Home"), list, RayLanDirect.BY_SSID))
+        assertFalse(RayLanDirect.matches(RayLanDirect.Current("k1", null), list, RayLanDirect.BY_SSID))
+        assertFalse(RayLanDirect.matches(RayLanDirect.Current("k2", null), list, RayLanDirect.BY_SSID))
+        assertFalse(RayLanDirect.matches(null, list, RayLanDirect.BY_FINGERPRINT))
+        // stored: a broken entry skipped, one network once, a name given where there was none
+        val parsed = RayLanDirect.parse(
+            """[{"name":"home","key":"k1","ssid":"Home"},{"name":"again","key":"k1"},{"ssid":"x"},5,{"key":"k2abcdefgh"}]""",
+        )
+        assertEquals(listOf("home", "k2abcdef"), parsed.map { it.name })
+        assertTrue(RayLanDirect.parse("not json").isEmpty())
+        assertTrue(RayLanDirect.parse(null).isEmpty())
+    }
 }

@@ -328,6 +328,7 @@ class BaseService {
 
         fun killProcesses() {
             RayWatchdog.stop()
+            io.niko.raycontrol.RayLanDirect.stop()
             RuleSetFiles.stop()
             data.proxy?.close()
             wakeLock?.apply {
@@ -418,6 +419,8 @@ class BaseService {
                     // naive's UDP as datagrams: a network of the app's reckoning (one Wi-Fi from the next on the same
                     // interface too) goes over TCP until decided anew
                     io.niko.raycontrol.RayDatagrams.networkChanged()
+                    // lan-v1 §3: a trusted Wi-Fi joined or left takes the devices' direct link on or off
+                    if (DataStore.lanDirect) io.niko.raycontrol.RayLanNet.reloadIfChanged(System.currentTimeMillis() / 1000)
                     //
                     val oldName = upstreamInterfaceName
                     if (oldName != link.interfaceName) {

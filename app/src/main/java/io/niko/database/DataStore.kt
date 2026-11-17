@@ -116,6 +116,11 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var lanInboundPorts by configurationStore.string(Key.LAN_INBOUND_PORTS)
     // what the running config took from the nodes' LANs (RayLanNet.signature), set by its build
     var lanRunning by configurationStore.string(Key.LAN_RUNNING)
+    // lan-v1 §3: the user's devices directly in a trusted Wi-Fi (RayLanDirect): on, how a network is known
+    // ("fingerprint" or "ssid") and the trusted ones (JSON)
+    var lanDirect by configurationStore.boolean(Key.LAN_DIRECT)
+    var lanDirectBy by configurationStore.string(Key.LAN_DIRECT_BY) { "fingerprint" }
+    var lanTrustedWifi by configurationStore.string(Key.LAN_TRUSTED_WIFI)
     // plugin package → the signer the user trusted (PluginTrust)
     var pluginTrust by configurationStore.string(Key.PLUGIN_TRUST) { "{}" }
     var yggdrasilPeersViaProxy by configurationStore.boolean(Key.YGGDRASIL_PEERS_VIA_PROXY)

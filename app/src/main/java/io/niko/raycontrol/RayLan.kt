@@ -83,6 +83,9 @@ data class RayLan(
     /** The node sent the password and the list: this device is shown to the others (§1.1, symmetry). */
     val shown get() = password != null
 
+    /** The multicast password at [nodeNow] (§3): the next one from its `from` on. */
+    fun passwordAt(nodeNow: Long) = nextPassword?.takeIf { nextFrom in 1..nodeNow } ?: password
+
     /** The user's other devices: [deviceId] is this one's (X-Raycontrol-Device). */
     fun others(deviceId: String) = devices.filter { it.id != deviceId.lowercase() }
 
@@ -230,11 +233,20 @@ object RayLanNet {
      * What a config takes from the nodes' LANs at [now]: the neighbours, the names and the rows they run on. The
      * build that runs stores it ([noteRunning]); a different one now restarts the core ([reloadIfChanged]).
      */
-    fun signature(nodes: List<RayNode>, now: Long): String = nodes.filter { of(it) != null }.joinToString("\n") { node ->
-        val lan = of(node)!!
-        val rows = node.profileIds.orEmpty().filterKeys { it.substringBefore('#') == lan.svc.toString() }.values.sorted()
-        node.spa.nodeId + " " + lan.svc + " " + rows + " " + neighbours(node, now).sorted().joinToString(",")
-    } + "\n" + names(nodes, now).entries.joinToString(",") { "${it.key}=${it.value}" }
+    fun signature(nodes: List<RayNode>, now: Long, direct: (RayNode) -> Boolean = { RayLanDirect.on(it) }): String =
+        nodes.filter { of(it) != null }.joinToString("\n") { node ->
+            val lan = of(node)!!
+            val rows = node.profileIds.orEmpty().filterKeys { it.substringBefore('#') == lan.svc.toString() }.values.sorted()
+            // lan-v1 §3: the direct link in a trusted Wi-Fi and the password it takes (a network changed, a switch)
+            val local = directPassword(node, now, direct)?.let { " direct=" + RayLanDirect.mark(it) }.orEmpty()
+            node.spa.nodeId + " " + lan.svc + " " + rows + " " + neighbours(node, now).sorted().joinToString(",") + local
+        } + "\n" + names(nodes, now).entries.joinToString(",") { "${it.key}=${it.value}" }
+
+    /** The password [node]'s LAN takes on the Wi-Fi at [now] (this device's clock), null when it does not go out there. */
+    fun directPassword(node: RayNode, now: Long, direct: (RayNode) -> Boolean = { RayLanDirect.on(it) }): String? {
+        val lan = of(node) ?: return null
+        return lan.passwordAt(now + node.clockSkew)?.takeIf { direct(node) }
+    }
 
     /** The running config's LAN: [signature] at its build, in the store both processes read. */
     fun noteRunning(nodes: List<RayNode>, now: Long) {
