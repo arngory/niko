@@ -10,8 +10,11 @@ package routetest
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net"
 	"net/netip"
+	"os"
 	"slices"
 	"strings"
 	"time"
@@ -28,6 +31,16 @@ import (
 
 // timeLimit bounds the lookups of one test: the app's own query and a resolve action's.
 const timeLimit = 20 * time.Second
+
+// timeoutError: a lookup that failed for time (a context's deadline, a socket's), not for what the DNS answered or
+// for a missing server.
+func timeoutError(err error) bool {
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, os.ErrDeadlineExceeded) {
+		return true
+	}
+	var netErr net.Error
+	return errors.As(err, &netErr) && netErr.Timeout()
+}
 
 // ErrTimeLimit: a lookup of the test failed with all of timeLimit spent; the answer is not known, and no rule or DNS
 // decided it (wraps context.DeadlineExceeded).
@@ -108,7 +121,8 @@ func Run(ctx context.Context, q Query) (*Result, error) {
 	caller := ctx
 	ctx, cancel := context.WithTimeout(ctx, timeLimit)
 	defer cancel()
-	timedOut := func() bool { return ctx.Err() != nil && caller.Err() == nil }
+	// a lookup's failure that is the limit's: a timeout, with the limit spent and the caller still there
+	timedOut := func(err error) bool { return timeoutError(err) && ctx.Err() != nil && caller.Err() == nil }
 
 	metadata := adapter.InboundContext{Inbound: inbound, InboundType: inboundType, Network: network}
 	if q.UID > 0 || len(q.Packages) > 0 {
@@ -125,7 +139,7 @@ func Run(ctx context.Context, q Query) (*Result, error) {
 		// through the VPN an app asks DNS first, and the VPN's DNS is the core's: the address it gets is what the
 		// rules see, a fake one standing for the domain
 		addresses, err := appQuery(ctx, metadata, host)
-		if err != nil && timedOut() {
+		if err != nil && timedOut(err) {
 			return nil, ErrTimeLimit
 		}
 		if err != nil {
@@ -144,9 +158,6 @@ func Run(ctx context.Context, q Query) (*Result, error) {
 		}
 	}
 	if err = prepare(ctx, &metadata); err != nil {
-		if timedOut() {
-			return nil, ErrTimeLimit
-		}
 		result.Action, result.Error, result.Destination = "fakeip", err.Error(), metadata.Destination.String()
 		return result, nil
 	}
@@ -198,7 +209,7 @@ func Run(ctx context.Context, q Query) (*Result, error) {
 				break
 			}
 			addresses, err := resolve(ctx, &metadata, a)
-			if err != nil && timedOut() {
+			if err != nil && timedOut(err) {
 				return nil, ErrTimeLimit
 			}
 			if err != nil {
