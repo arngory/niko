@@ -37,6 +37,8 @@ class StunTool extends ChangeNotifier {
     final now = available;
     if (now == _available) return;
     _available = now;
+    // the note is of the stop that just happened: the core back, it is gone
+    if (now) stopped = false;
     if (!now && running) {
       _subscription = null;
       running = false;

@@ -474,6 +474,11 @@ void main() {
       expect(find.text('Фильтрация'), findsNothing);
       await core(tester, ServicePhase.started);
       expect(find.text('Подключение остановилось во время проверки: подключитесь и проверьте снова'), findsNothing);
+      // stopped again with no check running: the plain note, not the interrupted check's
+      await core(tester, ServicePhase.stopping);
+      expect(find.text('Подключение остановилось во время проверки: подключитесь и проверьте снова'), findsNothing);
+      expect(find.text('Проверка идёт через подключение: сначала подключитесь'), findsOneWidget);
+      await core(tester, ServicePhase.started);
       await tester.tap(find.text('Определить'));
       await tester.pump();
       expect(daemon.stunRuns, hasLength(2));
