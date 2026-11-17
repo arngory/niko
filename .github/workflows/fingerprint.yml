@@ -1,6 +1,7 @@
 # The core's "chrome" fingerprint (uTLS, REALITY, Yggdrasil tls://) is the ClientHello captured from a real Chrome
-# (sing-box fork, common/tls/chromehello). This job checks it against Google Chrome stable on the runner: the
-# core must send the embedded capture, and the browser must still send it. When Chrome changes, the job fails
+# (sing-box fork, common/tls/chromehello). This job checks it against the reference Chrome: the Google Chrome of the
+# release naive's library is built of (.github/fingerprint/chrome.env), not the one the runner's image happens to
+# carry. The core must send the embedded capture, and that browser must send it too. When they differ, the job fails
 # and the new capture is in the "chrome-hello" artifact: it goes into the fork, the fork is pinned again.
 name: Chrome fingerprint
 
@@ -40,22 +41,47 @@ jobs:
       - name: Fetch sources
         run: ./run lib core/init
 
-      - name: Chrome and a display
+      # The reference Chrome is of the library's release. The current stable from Google first (the image's own
+      # lags by weeks); if that is not the release, the package chrome.env names, by its hash
+      - name: The reference Chrome and a display
         run: |
-          google-chrome --version
+          . .github/fingerprint/chrome.env
+          library="$(sed -n 's/^const ChromiumAnchorsVersion = "\([0-9]*\)\..*"$/\1/p' ../sing-box/common/certificate/chromium_anchors_neko_generated.go)"
+          [ "$library" = "$CHROME_REFERENCE_MAJOR" ] ||
+            { echo "::error::the reference Chrome is $CHROME_REFERENCE_MAJOR, naive's library is Chromium ${library:-unknown}: .github/fingerprint/chrome.env moves with the library"; exit 1; }
+          major() { "$1" --version 2> /dev/null | sed -n 's/[^0-9]*\([0-9][0-9]*\)\..*/\1/p'; }
+          echo "the image's Chrome: $(google-chrome --version)"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/chrome-stable.deb" https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb &&
+            sudo apt-get install -y -q --allow-downgrades "$RUNNER_TEMP/chrome-stable.deb" > /dev/null ||
+            echo "::warning::the current stable Chrome could not be installed: the image's is used as stable"
+          echo "stable Chrome: $(google-chrome --version)"
+          reference=
+          if [ "$(major google-chrome)" = "$CHROME_REFERENCE_MAJOR" ]; then
+            reference=google-chrome
+          elif [ -n "$CHROME_REFERENCE_DEB" ]; then
+            curl -fsSL --retry 3 -o "$RUNNER_TEMP/chrome-reference.deb" "$CHROME_REFERENCE_DEB"
+            echo "$CHROME_REFERENCE_DEB_SHA256  $RUNNER_TEMP/chrome-reference.deb" | sha256sum -c -
+            package="$(dpkg-deb -f "$RUNNER_TEMP/chrome-reference.deb" Package)"
+            sudo apt-get install -y -q --allow-downgrades "$RUNNER_TEMP/chrome-reference.deb" > /dev/null
+            [ "$(major "$package")" = "$CHROME_REFERENCE_MAJOR" ] && reference="$package"
+          fi
+          [ -n "$reference" ] ||
+            { echo "::error::no Chrome $CHROME_REFERENCE_MAJOR: stable is $(google-chrome --version), and chrome.env names no package of it"; exit 1; }
+          echo "the reference Chrome: $("$reference" --version)"
+          echo "CHROME_REFERENCE_BIN=$(command -v "$reference")" >> "$GITHUB_ENV"
           command -v xvfb-run || (sudo apt-get update -q && sudo apt-get install -y -q xvfb)
           # a name, not an address: Chrome sends what it sends to sites
           echo "127.0.0.1 niko-capture.example" | sudo tee -a /etc/hosts
 
-      - name: Core's chrome = embedded capture = Chrome stable
+      - name: Core's chrome = embedded capture = the reference Chrome
         run: |
           TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
           (cd ../sing-box && go test -count=1 ./common/tls/chromehello)
           cd libcore
-          CHROME_BIN="$(command -v google-chrome)" CHROME_HELLO_OUT="$RUNNER_TEMP/chrome-hello" \
+          CHROME_BIN="$CHROME_REFERENCE_BIN" CHROME_HELLO_OUT="$RUNNER_TEMP/chrome-hello" \
             xvfb-run -a go test -count=1 -v -ldflags=-checklinkname=0 -tags="$TAGS" -run TestChromeLive ./chromecheck
 
-      # Chrome's first flight over QUIC: its Initial packets to a port of the runner that only listens, opened by
+      # The reference Chrome's first flight over QUIC: its Initial packets to a port of the runner that only listens, opened by
       # .github/tools/quicinitial (their keys come from the connection ID the client picks: anyone on the path opens
       # them). The naive outbound's QUIC is Chromium's too: raycontrol-interop and e2e compare its first flight with
       # .github/fingerprint/chrome-quic-initial.hex, which is this capture (the chrome-hello artifact), committed by
@@ -70,7 +96,7 @@ jobs:
           cap=$!
           sleep 1
           # QUIC from the first request (no Alt-Svc round first); the name is the runner's (/etc/hosts above)
-          timeout 60 xvfb-run -a google-chrome --no-first-run --no-default-browser-check --no-proxy-server \
+          timeout 60 xvfb-run -a "$CHROME_REFERENCE_BIN" --no-first-run --no-default-browser-check --no-proxy-server \
             --user-data-dir="$RUNNER_TEMP/chrome-quic-initial" --origin-to-force-quic-on=niko-capture.example:18448 \
             https://niko-capture.example:18448/ > /dev/null 2>&1 &
           chrome=$!
@@ -81,7 +107,7 @@ jobs:
           kill "$chrome" 2> /dev/null || true
           wait "$chrome" 2> /dev/null || true
           [ "$ok" = yes ] || { echo "::error::no QUIC first flight from Chrome"; exit 1; }
-          google-chrome --version > "$out/quic-initial.source"
+          "$CHROME_REFERENCE_BIN" --version > "$out/quic-initial.source"
           {
             echo "### QUIC first flight of $(cat "$out/quic-initial.source")"
             echo '```'
@@ -107,10 +133,9 @@ jobs:
         continue-on-error: true
         run: |
           command -v tcpdump > /dev/null || (sudo apt-get update -q && sudo apt-get install -y -q tcpdump) > /dev/null
-          if ! command -v google-chrome-beta > /dev/null; then
-            curl -fsSL -o "$RUNNER_TEMP/chrome-beta.deb" https://dl.google.com/linux/direct/google-chrome-beta_current_amd64.deb &&
-              sudo apt-get install -y -q "$RUNNER_TEMP/chrome-beta.deb" > /dev/null || echo "::warning::no Chrome beta"
-          fi
+          # the current beta, over the reference's package if that was a beta: the reference steps are done
+          curl -fsSL -o "$RUNNER_TEMP/chrome-beta.deb" https://dl.google.com/linux/direct/google-chrome-beta_current_amd64.deb &&
+            sudo apt-get install -y -q "$RUNNER_TEMP/chrome-beta.deb" > /dev/null || echo "::warning::no current Chrome beta"
           # an upload too: quiche sends its first MTU probe after a hundred packets of a session, and a page load is
           # mostly acknowledgements. Three POSTs of 1 MB to Cloudflare's speed test, one after another, each awaited
           cat > "$RUNNER_TEMP/upload.html" <<'PAGE'
