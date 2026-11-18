@@ -3,7 +3,8 @@
 // outbound and a rule, a request through it. Stage 2b of docs/design/desktop.md: the button starts the config, the
 // status and the rates are seen; NikoService answers what the daemon is and where a connection would go (stage 3,
 // slice 1); then the core's log and its connections, one of which is closed from here (D-LOG-01, D-CONN-01); the NAT
-// tool against a STUN server here. Runs where NIKO_DAEMON names nikod's executable (CI: on Windows and on Linux); skipped otherwise.
+// tool against a STUN server here. Runs where NIKO_DAEMON names nikod's executable (CI: on Windows and on Linux);
+// skipped otherwise.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
