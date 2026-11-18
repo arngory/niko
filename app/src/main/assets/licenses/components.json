@@ -1,0 +1,53 @@
+{
+  "v": 1,
+  "about": "What the APK carries besides the core's Go modules (go.json, from the library's build): each component, its licenses and their texts under texts/. `gradle` names the runtime modules a component covers (group:name, * any); app:checkLicenses fails on a module none covers, and on a pattern no module matches. Kept by hand; NOTICE at the repository's root says the same in prose.",
+  "components": [
+    {"name": "Niko", "part": "app", "url": "https://github.com/arngory/niko", "licenses": ["GPL-3.0"], "texts": ["GPL-3.0.txt"]},
+    {"name": "NekoBox for Android", "part": "app", "url": "https://github.com/MatsuriDayo/NekoBoxForAndroid", "licenses": ["GPL-3.0"], "texts": ["GPL-3.0.txt"]},
+    {"name": "SagerNet", "part": "app", "url": "https://github.com/SagerNet/SagerNet", "licenses": ["GPL-3.0"], "texts": ["GPL-3.0.txt"]},
+    {"name": "shadowsocks-android", "part": "app", "url": "https://github.com/shadowsocks/shadowsocks-android", "licenses": ["GPL-3.0"], "texts": ["GPL-3.0.txt"]},
+
+    {"name": "AndroidX", "part": "library", "url": "https://developer.android.com/jetpack/androidx", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"], "gradle": ["androidx.*:*"]},
+    {"name": "Material Components for Android", "part": "library", "url": "https://github.com/material-components/material-components-android", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"], "gradle": ["com.google.android.material:material"]},
+    {"name": "Kotlin", "part": "library", "url": "https://github.com/JetBrains/kotlin", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"], "gradle": ["org.jetbrains.kotlin:*", "org.jetbrains:annotations"]},
+    {"name": "kotlinx.coroutines", "part": "library", "url": "https://github.com/Kotlin/kotlinx.coroutines", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt", "kotlinx.coroutines-NOTICE.txt"], "gradle": ["org.jetbrains.kotlinx:kotlinx-coroutines-*"], "notice_from": ["androidx.concurrent:concurrent-futures-ktx"]},
+    {"name": "kotlinx.serialization", "part": "library", "url": "https://github.com/Kotlin/kotlinx.serialization", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"], "gradle": ["org.jetbrains.kotlinx:kotlinx-serialization-*"]},
+    {"name": "JSpecify", "part": "library", "url": "https://jspecify.dev", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"], "gradle": ["org.jspecify:jspecify"]},
+    {"name": "Guava", "part": "library", "url": "https://github.com/google/guava", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"], "gradle": ["com.google.guava:*", "com.google.errorprone:error_prone_annotations", "com.google.j2objc:j2objc-annotations"]},
+    {"name": "AutoValue annotations", "part": "library", "url": "https://github.com/google/auto", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"], "gradle": ["com.google.auto.value:auto-value-annotations"]},
+    {"name": "Gson", "part": "library", "url": "https://github.com/google/gson", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"], "gradle": ["com.google.code.gson:gson"]},
+    {"name": "OkHttp", "part": "library", "url": "https://github.com/square/okhttp", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"], "gradle": ["com.squareup.okhttp3:*"]},
+    {"name": "Okio", "part": "library", "url": "https://github.com/square/okio", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"], "gradle": ["com.squareup.okio:*"]},
+    {"name": "SnakeYAML", "part": "library", "url": "https://bitbucket.org/snakeyaml/snakeyaml", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"], "gradle": ["org.yaml:snakeyaml"]},
+    {"name": "ProcessPhoenix", "part": "library", "url": "https://github.com/JakeWharton/ProcessPhoenix", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"], "gradle": ["com.jakewharton:process-phoenix"]},
+    {"name": "ini4j", "part": "library", "url": "https://ini4j.sourceforge.net", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"], "gradle": ["org.ini4j:ini4j"]},
+    {"name": "ZXingLite", "part": "library", "url": "https://github.com/jenly1314/ZXingLite", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"], "gradle": ["com.github.jenly1314:zxing-lite"]},
+    {"name": "ZXing", "part": "library", "url": "https://github.com/zxing/zxing", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"], "gradle": ["com.google.zxing:*"]},
+    {"name": "EditorKit", "part": "library", "url": "https://github.com/massivemadness/EditorKit", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"], "gradle": ["com.blacksquircle.ui:*"]},
+    {"name": "material-about-library", "part": "library", "url": "https://github.com/daniel-stoneuk/material-about-library", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"], "gradle": ["com.github.daniel-stoneuk:material-about-library"]},
+    {"name": "RecyclerView-FastScroll", "part": "library", "url": "https://github.com/timusus/RecyclerView-FastScroll", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"], "gradle": ["com.simplecityapps:recyclerview-fastscroll"]},
+    {"name": "Objenesis", "part": "library", "url": "https://objenesis.org", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt", "Objenesis-NOTICE.txt"], "gradle": ["org.objenesis:objenesis"], "notice_from": ["org.objenesis:objenesis"]},
+    {"name": "Kryo", "part": "library", "url": "https://github.com/EsotericSoftware/kryo", "licenses": ["BSD-3-Clause"], "texts": ["Kryo-BSD-3-Clause.txt"], "gradle": ["com.esotericsoftware:kryo"]},
+    {"name": "ReflectASM", "part": "library", "url": "https://github.com/EsotericSoftware/reflectasm", "licenses": ["BSD-3-Clause"], "texts": ["ReflectASM-BSD-3-Clause.txt"], "gradle": ["com.esotericsoftware:reflectasm"]},
+    {"name": "MinLog", "part": "library", "url": "https://github.com/EsotericSoftware/minlog", "licenses": ["BSD-3-Clause"], "texts": ["MinLog-BSD-3-Clause.txt"], "gradle": ["com.esotericsoftware:minlog"]},
+    {"name": "Roomigrant", "part": "library", "url": "https://github.com/MatrixDev/Roomigrant", "licenses": ["MIT"], "texts": ["Roomigrant-MIT.txt"], "gradle": ["com.github.MatrixDev.Roomigrant:RoomigrantLib"]},
+    {"name": "desugar_jdk_libs (OpenJDK)", "part": "library", "url": "https://github.com/google/desugar_jdk_libs", "licenses": ["GPL-2.0 WITH Classpath-exception-2.0"], "texts": ["desugar_jdk_libs-GPL-2.0-with-Classpath-Exception.txt"], "gradle": ["com.android.tools:desugar_jdk_libs", "com.android.tools:desugar_jdk_libs_configuration"]},
+
+    {"name": "Chromium (naive's network stack)", "part": "native", "url": "https://github.com/arngory/naiveproxy", "licenses": ["BSD-3-Clause"], "texts": ["Chromium-BSD-3-Clause.txt"]},
+    {"name": "slipstream", "part": "native", "url": "https://github.com/arngory/slipstream", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"]},
+    {"name": "picoquic", "part": "native", "url": "https://github.com/EndPositive/slipstream-picoquic", "licenses": ["MIT"], "texts": ["picoquic-MIT.txt"]},
+    {"name": "picotls", "part": "native", "url": "https://github.com/h2o/picotls", "licenses": ["MIT"], "texts": ["picotls-MIT.txt"]},
+    {"name": "OpenSSL", "part": "native", "url": "https://www.openssl.org", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"]},
+    {"name": "SPCDNS", "part": "native", "url": "https://github.com/spc476/SPCDNS", "licenses": ["LGPL-3.0"], "texts": ["LGPL-3.0.txt", "GPL-3.0.txt"]},
+    {"name": "lua-resty-base-encoding", "part": "native", "url": "https://github.com/EndPositive/lua-resty-base-encoding", "licenses": ["MIT"], "texts": ["lua-resty-base-encoding-MIT.txt"]},
+    {"name": "quick_arg_parser", "part": "native", "url": "https://github.com/Dugy/quick_arg_parser", "licenses": ["MIT"], "texts": ["quick_arg_parser-MIT.txt"]},
+
+    {"name": "sing-geoip (geoip.db)", "part": "data", "url": "https://github.com/SagerNet/sing-geoip", "licenses": ["GPL-3.0"], "texts": ["GPL-3.0.txt", "GeoLite2.txt"]},
+    {"name": "sing-geosite (geosite.db)", "part": "data", "url": "https://github.com/SagerNet/sing-geosite", "licenses": ["GPL-3.0"], "texts": ["GPL-3.0.txt"]},
+    {"name": "domain-list-community", "part": "data", "url": "https://github.com/v2fly/domain-list-community", "licenses": ["MIT"], "texts": ["domain-list-community-MIT.txt"]},
+    {"name": "Yacd-meta", "part": "data", "url": "https://github.com/MetaCubeX/Yacd-meta", "licenses": ["MIT"], "texts": ["yacd-MIT.txt"]},
+
+    {"name": "Geist, Geist Mono", "part": "font", "url": "https://vercel.com/font", "licenses": ["OFL-1.1"], "texts": ["Geist-OFL-1.1.txt"]},
+    {"name": "Lucide", "part": "icons", "url": "https://lucide.dev", "licenses": ["ISC", "MIT"], "texts": ["Lucide-ISC.txt"]}
+  ]
+}
