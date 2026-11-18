@@ -653,6 +653,8 @@
     <string name="update_other_release">its signature is another release\'s</string>
     <string name="update_no_apk">the release has no APK for this device</string>
     <string name="update_bad_apk">the downloaded APK is not the signed one</string>
+    <string name="update_required">This update is required.</string>
+    <string name="update_bad_notice">the release\'s UPDATE.json is not the signed one</string>
     <string name="reset_settings">Restore default settings</string>
     <string name="reset_settings_message">Restore default settings, but data such as nodes and groups will be retained. To completely clear data, clear application data directly in the system settings.</string>
     <string name="minimize">Minimize</string>

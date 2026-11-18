@@ -107,6 +107,17 @@ jobs:
           sed -n 2p "$k/update.key" > "$k/one.key"; shape "the key line alone" "$k/one.key"
           tr '\n' ' ' < "$k/update.key" > "$k/joined.key"; shape "one line, comment and key" "$k/joined.key"
           sed 's/$/\r/' "$k/update.key" > "$k/crlf.key"; shape "CRLF" "$k/crlf.key"
+          # UPDATE.json (client-min-v1 §6): checked as release.yml's job check does, then listed in the signed sums
+          printf '%s' '{"v": 1, "mandatory": true, "min_supported": "0.0.0-check", "message": {"en": "check", "ru": "проверка"}}' > "$k/update.json"
+          python3 -I .github/scripts/update-json.py "$k/update.json" v0.0.0-check
+          printf '%s' '{"v": 1, "mandatory": true}' > "$k/silent.json"
+          if python3 -I .github/scripts/update-json.py "$k/silent.json" v0.0.0-check 2> /dev/null; then
+            echo "::error::a mandatory UPDATE.json without a message passed"; exit 1
+          fi
+          cp "$k/update.json" apks/UPDATE.json
+          shape "with UPDATE.json" "$k/update.key"
+          (cd apks && sha256sum --strict -c SHA256SUMS && grep -q ' UPDATE.json$' SHA256SUMS \
+            && [ "$(wc -l < SHA256SUMS)" = "$(( $(ls *.apk | wc -l) + 1 ))" ])
           cp -r apks "$k/apks-nokey"; (cd "$k/apks-nokey" && for f in *.apk; do mv "$f" "${f%.apk}-unsigned.apk"; done)
           if out=$(KEYSTORE_FILE="$k/ks.p12" KEYSTORE_PASS=checkkey ALIAS_NAME=check ALIAS_PASS=checkkey \
               EXPECT_CERT_SHA256="$cert" MINISIGN_KEY_FILE="$k/update.pub" UPDATE_PUB="$k/update.pub" TAG=v0.0.0-check \

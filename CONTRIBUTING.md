@@ -60,7 +60,8 @@
 ## Выпуск
 
 1. `niko.properties`: `VERSION_NAME` (semver) и `VERSION_CODE` — только растёт.
-2. `.github/release-notes/vX.Y.Z.md`: по-английски, затем по-русски, без голых `#N`.
+2. `.github/release-notes/vX.Y.Z.md`: по-английски, затем по-русски, без голых `#N`. Обязательное обновление —
+   ещё и `vX.Y.Z.update.json` (`docs/guide/release.md` §6).
 3. Владелец ставит тег на коммит `main` с зелёным CI (или запускает Release вручную и публикует черновик) и одобряет
    подпись. Подробно — `docs/guide/release.md`.
 

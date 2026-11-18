@@ -120,6 +120,55 @@ object Updates {
         return (listOfNotNull(own) + Build.SUPPORTED_ABIS).distinct()
     }
 
+    fun sha256(bytes: ByteArray): String =
+        MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+
+    /**
+     * [release]'s UPDATE.json (client-min-v1 §6), read only as SHA256SUMS lists it under the release's signature;
+     * null for a release without one. Through [client], the way the update check went.
+     */
+    fun notice(client: HTTPClient, release: JSONObject): UpdateNotice? {
+        val assets = assets(release)
+        val url = assets[UpdateNotice.NAME] ?: return null
+        val sumsUrl = assets[SUMS] ?: throw Refused(R.string.update_no_signature, "the release has no $SUMS")
+        val signatureUrl = assets[SIGNATURE] ?: throw Refused(R.string.update_no_signature, "the release has no signature")
+        client.setTimeout(SMALL_TIMEOUT_MS)
+        val sums = client.newRequest().apply { setURL(sumsUrl) }.execute().content
+        val signature = Util.getStringBox(client.newRequest().apply { setURL(signatureUrl) }.execute().contentString)
+        val listed = checkedSums(BuildConfig.UPDATE_PUBLIC_KEY, release.optString("tag_name"), sums, signature, Libcore::minisignVerify)
+        return checkedNotice(listed, client.newRequest().apply { setURL(url) }.execute().content)
+    }
+
+    /** [notice] (the file's bytes) as [listed] (the signed SHA256SUMS) has it, or Refused; null where it is not listed. */
+    fun checkedNotice(listed: Map<String, String>, notice: ByteArray): UpdateNotice? {
+        val hash = listed[UpdateNotice.NAME] ?: return null
+        if (notice.size > UpdateNotice.MAX_BYTES || sha256(notice) != hash) {
+            throw Refused(R.string.update_bad_notice, "the downloaded ${UpdateNotice.NAME} is not the signed one")
+        }
+        return UpdateNotice.parse(notice)
+    }
+
+    /**
+     * The release [tag]'s UPDATE.json from a raycontrol node's mirror, which holds every file of SHA256SUMS
+     * (app-update-v1 §3): the list and its signature checked as GitHub's, then the file against them; null where the
+     * release lists none. [file] as for [downloadFromMirror].
+     */
+    fun noticeFromMirror(context: Context, tag: String, file: (name: String, out: File, etag: String) -> Unit): UpdateNotice? {
+        val dir = File(context.cacheDir, "update").apply { mkdirs() }
+        val sumsFile = File(dir, "$tag.$SUMS")
+        val signatureFile = File(dir, "$tag.$SIGNATURE")
+        file(SUMS, sumsFile, "")
+        file(SIGNATURE, signatureFile, "")
+        val listed = checkedSums(
+            BuildConfig.UPDATE_PUBLIC_KEY, tag, sumsFile.readBytes(), signatureFile.readText(), Libcore::minisignVerify
+        )
+        if (UpdateNotice.NAME !in listed) return null
+        val out = File(dir, "$tag.${UpdateNotice.NAME}")
+        file(UpdateNotice.NAME, out, "")
+        if (out.length() > UpdateNotice.MAX_BYTES) throw Refused(R.string.update_bad_notice, "${UpdateNotice.NAME} is too large")
+        return checkedNotice(listed, out.readBytes())
+    }
+
     fun sha256(file: File): String {
         val digest = MessageDigest.getInstance("SHA-256")
         file.inputStream().use { input ->

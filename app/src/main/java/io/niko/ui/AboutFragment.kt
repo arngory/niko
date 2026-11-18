@@ -16,6 +16,7 @@ import android.widget.Toast
 import androidx.activity.result.component1
 import androidx.activity.result.component2
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.os.ConfigurationCompat
 import androidx.core.view.ViewCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.danielstone.materialaboutlibrary.MaterialAboutFragment
@@ -29,6 +30,7 @@ import io.niko.databinding.LayoutAboutBinding
 import io.niko.ktx.*
 import io.niko.plugin.PluginManager.loadString
 import io.niko.utils.PackageCache
+import io.niko.utils.UpdateNotice
 import io.niko.utils.Updates
 import io.niko.utils.isNewerVersion
 import io.niko.widget.ListListener
@@ -45,6 +47,7 @@ import io.niko.database.SagerDatabase
 import io.niko.raycontrol.RayAppMirror
 import kotlinx.coroutines.CancellationException
 import io.niko.raycontrol.RayAppRelease
+import io.niko.raycontrol.RayClient
 import io.niko.raycontrol.RayNode
 import io.niko.raycontrol.RayNodes
 import io.niko.raycontrol.RaySubscription
@@ -354,7 +357,13 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                         } else null
                         if (fromNode == null) throw e
                         Logs.w("update: GitHub not reached (${e.message}): ${fromNode.second.tag} of the node ${fromNode.first.host}")
-                        onMainDispatcher { offerFromNode(fromNode.first, fromNode.second) }
+                        val (node, nodeRelease) = fromNode
+                        val notice = readNotice {
+                            Updates.noticeFromMirror(app, nodeRelease.tag) { name, out, etag ->
+                                RaySubscription.appFile(node, nodeRelease.tag, name, out, etag)
+                            }
+                        }
+                        onMainDispatcher { offerFromNode(node, nodeRelease, notice) }
                         return@runOnIoDispatcher
                     }
                     val release = when {
@@ -377,6 +386,9 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                     // offer only strictly newer versions: a beta user is not sent back to stable
                     val haveUpdate = releaseTag.isNotBlank() && releaseUrl.isNotBlank() &&
                             isNewerVersion(releaseTag, BuildConfig.VERSION_NAME)
+                    val notice = if (haveUpdate && Updates.canInstall && release != null) {
+                        readNotice { viaWay(way) { client -> Updates.notice(client, release) } }
+                    } else null
                     runOnMainDispatcher {
                         // the user may have left the screen while the request ran
                         val context = context ?: return@runOnMainDispatcher
@@ -389,7 +401,7 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                                         R.string.update_dialog_message,
                                         SagerNet.appVersionNameForDisplay,
                                         releaseName
-                                    )
+                                    ) + noticeText(context, notice)
                                 )
                                 .apply {
                                     // the GitHub build: the APK of the release, its signature and hash checked
@@ -404,8 +416,8 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                                     } else {
                                         setPositiveButton(R.string.yes) { _, _ -> openPage() }
                                     }
+                                    withoutLater(notice)
                                 }
-                                .setNegativeButton(R.string.no, null)
                                 .show()
                         } else {
                             Toast.makeText(app, R.string.check_update_no, Toast.LENGTH_SHORT).show()
@@ -420,14 +432,45 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
             }
         }
 
+        /**
+         * The release's UPDATE.json by [read] (client-min-v1 §6), null where it has none or it does not hold: the
+         * update is offered as an ordinary one then, and the install checks the release's files again.
+         */
+        private suspend fun readNotice(read: suspend () -> UpdateNotice?): UpdateNotice? = try {
+            read()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Logs.w("update: ${UpdateNotice.NAME}: ${e.message}")
+            null
+        }
+
+        /** What [notice] adds to the update's dialog: that it is required, and the release's word in the app's language. */
+        private fun noticeText(context: Context, notice: UpdateNotice?): String {
+            if (notice == null) return ""
+            val language = ConfigurationCompat.getLocales(context.resources.configuration)[0]?.language ?: "en"
+            val lines = listOfNotNull(
+                context.getString(R.string.update_required).takeIf { notice.required(RayClient.version) },
+                notice.message(language),
+            )
+            return if (lines.isEmpty()) "" else "\n\n" + lines.joinToString("\n")
+        }
+
+        /** "No" where the update may wait; a required one has none and the dialog does not close by back or a tap outside. */
+        private fun MaterialAlertDialogBuilder.withoutLater(notice: UpdateNotice?) {
+            if (notice?.required(RayClient.version) == true) setCancelable(false)
+            else setNegativeButton(R.string.no, null)
+        }
+
         /** The update [release] that [node] holds: from its mirror, the release page beside it. */
-        private fun offerFromNode(node: RayNode, release: RayAppRelease) {
+        private fun offerFromNode(node: RayNode, release: RayAppRelease, notice: UpdateNotice?) {
             val context = context ?: return
             MaterialAlertDialogBuilder(context)
                 .setTitle(R.string.update_dialog_title)
                 .setMessage(
                     context.getString(R.string.update_dialog_message, SagerNet.appVersionNameForDisplay, release.tag) +
-                            "\n\n" + context.getString(R.string.update_from_node, node.name ?: node.host)
+                            "\n\n" + context.getString(R.string.update_from_node, node.name ?: node.host) +
+                            noticeText(context, notice)
                 )
                 .setPositiveButton(R.string.update_install) { _, _ -> installFromNode(node.spa.nodeId, release.tag, null, null) }
                 .setNeutralButton(R.string.update_release_page) { _, _ ->
@@ -435,7 +478,7 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                         Intent(Intent.ACTION_VIEW, "https://github.com/$RELEASE_REPO/releases/tag/${release.tag}".toUri())
                     )
                 }
-                .setNegativeButton(R.string.no, null)
+                .apply { withoutLater(notice) }
                 .show()
         }
 
