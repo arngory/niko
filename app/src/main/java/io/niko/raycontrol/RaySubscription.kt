@@ -193,11 +193,14 @@ object RaySubscription {
         directOrViaRelay(node, request(node, info), "the update's $name", { e -> refused(e) || e.message?.contains(APP_NOT_HELD) == true }) {
             // with a deadline (wall clock, ms) the ways not tried yet share what is left of it, the Go call stopping by
             // itself: a node that drops the direct way (its dial waits out every carrier) leaves the relays their part,
-            // and the last way takes all that remains
+            // and the last way takes all that remains. The direct way keeps half at least: a node that answers busy
+            // (429, Retry-After) is waited for there, the relays reaching the same node
             if (deadline > 0) {
                 val left = deadline - System.currentTimeMillis()
                 if (left <= 0) throw Exception("the update's $name: its time is up")
-                val within = (left / ways.coerceAtLeast(1)).coerceIn(1L, Int.MAX_VALUE.toLong()).toInt()
+                val share = left / ways.coerceAtLeast(1)
+                val direct = ways == 1 + node.relays.size
+                val within = (if (direct) maxOf(share, left / 2) else share).coerceIn(1L, Int.MAX_VALUE.toLong()).toInt()
                 ways--
                 Libcore.raycontrolAppFileWithin(it.toString(), tag, name, out.canonicalPath, etag, within)
             } else {
