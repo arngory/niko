@@ -87,6 +87,7 @@
 | Что | Где |
 |---|---|
 | приложение Android | `app/` |
+| снимки частей темы Niko (Paparazzi) | эталоны в `app/src/test/snapshots/`, CI сверяет их с `app/src/test/java/io/niko/ui/NikoSnapshotTest.kt`. Новые эталоны: удалите эту папку в PR, CI запишет их в артефакт `paparazzi-goldens`, закоммитьте его содержимое |
 | библиотека приложения на Go | `libcore/`; тесты — как в `.github/workflows/build.yml` (шаг тестов libcore: `-ldflags=-checklinkname=0` и теги `TAGS`) |
 | окно для ПК (Flutter) | `desktop/`, своя проверка `desktop.yml` |
 | общие протоколы окна и демона | `shared/proto/` (Go: `shared/tool/gen_proto_go.sh`, Dart: `desktop/tool/gen_proto.sh`) |
