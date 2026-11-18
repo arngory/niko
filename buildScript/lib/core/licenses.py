@@ -153,7 +153,10 @@ def git_source(directory):
         return None
     repository = repository_name(url) or os.path.basename(top)
     sub = os.path.relpath(os.path.realpath(directory), os.path.realpath(top))
-    return f"{repository}@{commit}" + ("" if sub == "." else "/" + sub)
+    # a checkout with changes of its own (a local build) is not that commit's source: it says so
+    changed = subprocess.run(["git", "-C", directory, "status", "--porcelain", "--untracked-files=no"],
+                             capture_output=True, text=True).stdout.strip()
+    return f"{repository}@{commit}" + ("+dirty" if changed else "") + ("" if sub == "." else "/" + sub)
 
 
 def license_files(directory):

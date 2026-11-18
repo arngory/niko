@@ -29,6 +29,10 @@ Niko is a modified version of these projects; their copyrights stay with their a
 What the app carries, with its own license
 ------------------------------------------
 
+The texts of these licenses, with each holder's copyright, are in the APK under assets/licenses/: go.json for the
+core's Go modules (from the build), components.json and texts/ for the rest (app:checkLicenses holds them to the
+build's runtime libraries).
+
 The core (libcore.aar, libgojni.so)
   The Go modules a build links in are the ones its own build info lists (`go version -m`): the build writes them,
   with the license files of each, into the APK as assets/licenses/go.json (buildScript/lib/core/licenses.py). Most
@@ -39,7 +43,7 @@ The core (libcore.aar, libgojni.so)
   - the Go runtime and standard library: BSD-3-Clause, Copyright The Go Authors
 
 Chromium (naive's network stack, libcronet in libgojni.so)
-  Chromium 158, built by https://github.com/arngory/naiveproxy for the library modules of cronet-go:
+  Chromium of the release the library modules of cronet-go carry, built by https://github.com/arngory/naiveproxy:
   BSD-3-Clause, Copyright The Chromium Authors, and the licenses of the third-party code it contains (BoringSSL,
   zlib, brotli and others).
 

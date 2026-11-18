@@ -198,11 +198,13 @@ jobs:
 
       - name: The licenses in each APK
         run: |
-          # NOTICE of the repository's root and the Go modules' licenses that libcore.aar brings
-          # (buildScript/lib/core/licenses.py): every APK carries both
+          # NOTICE of the repository's root, the Go modules' licenses that libcore.aar brings
+          # (buildScript/lib/core/licenses.py) and the other components' (assets/licenses/components.json, its
+          # texts): every APK carries them
           for apk in app/build/outputs/apk/oss/release/*.apk; do
-            unzip -l "$apk" assets/NOTICE assets/licenses/go.json > /dev/null \
-              || { echo "$apk: no assets/NOTICE or assets/licenses/go.json"; exit 1; }
+            unzip -l "$apk" assets/NOTICE assets/licenses/go.json assets/licenses/components.json \
+              assets/licenses/texts/Apache-2.0.txt > /dev/null \
+              || { echo "$apk: no assets/NOTICE or assets/licenses/{go.json,components.json,texts}"; exit 1; }
           done
           unzip -p "$(ls app/build/outputs/apk/oss/release/*.apk | head -1)" assets/NOTICE | cmp - NOTICE
 
