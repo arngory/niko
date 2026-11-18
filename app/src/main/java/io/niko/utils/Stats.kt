@@ -31,6 +31,9 @@ object Stats {
 
     private const val KEEP_MS = 2 * 60 * 60_000L
     private const val TRIM_AT = 256 * 1024L
+
+    // the age past two hours a file's oldest line may reach before a trim: not one rewrite per line
+    private const val TRIM_SLACK_MS = 10 * 60_000L
     private val LABEL = Regex("[a-z0-9_.#-]{1,32}")
 
     private val dir by lazy { File(SagerNet.application.noBackupFilesDir, "stats").apply { mkdirs() } }
@@ -161,7 +164,10 @@ object Stats {
         runCatching {
             RandomAccessFile(file, "rw").use { raf ->
                 raf.channel.lock().use {
-                    if (raf.length() > TRIM_AT) {
+                    // past the bound, or once its oldest line is more than two hours (and a slack) old
+                    val now = System.currentTimeMillis()
+                    val oldest = runCatching { raf.seek(0); raf.readLine()?.let { JSONObject(it).getLong("t") } }.getOrNull()
+                    if (raf.length() > TRIM_AT || (oldest != null && oldest < now - KEEP_MS - TRIM_SLACK_MS)) {
                         val bytes = ByteArray(raf.length().toInt())
                         raf.seek(0)
                         raf.readFully(bytes)
@@ -203,10 +209,12 @@ object Stats {
         val events = lines(eventsFile).mapNotNull { StatsReport.parseEvent(it) }
         val samples = lines(samplesFile).mapNotNull { StatsReport.parseSample(it) }
         val since = (events.map { it.t } + samples.map { it.t }).minOrNull()
-        return StatsReport.build(run, now, from, now, events, samples, since, head())
+        // whether the service's core counted traffic in the window (the speed display on when it started)
+        val trafficCounted = samples.any { s -> s.t > from && s.counters.keys.any { it.startsWith("niko_traffic_bytes_total") } }
+        return StatsReport.build(run, now, from, now, events, samples, since, head(trafficCounted))
     }
 
-    private fun head(): JSONObject {
+    private fun head(trafficCounted: Boolean): JSONObject {
         val app = JSONObject()
             .put("product", "niko")
             .put("version", BuildConfig.VERSION_NAME)
@@ -231,7 +239,7 @@ object Stats {
             .put("brutal", DataStore.raycontrolBrutal)
             .put("reset_on_network_change", DataStore.networkChangeResetConnections)
             .put("ipv6_mode", DataStore.ipv6Mode)
-            .put("traffic_counted", DataStore.speedInterval > 0)
+            .put("traffic_counted", trafficCounted)
         return JSONObject().put("app", app).put("state", state).put("settings", settings)
     }
 }

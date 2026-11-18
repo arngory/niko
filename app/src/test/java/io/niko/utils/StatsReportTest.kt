@@ -52,6 +52,16 @@ class StatsReportTest {
     }
 
     @Test
+    fun aBaselineFromLongBeforeTheWindowIsNotTaken() {
+        val core = from - 120 * min
+        // the service stopped two hours ago, its counter went on meanwhile, and it runs again inside the window
+        val samples = listOf(sample(from - 90 * min, core, 50), sample(from + 30 * min, core, 80), sample(from + 31 * min, core, 85))
+        val up = find(StatsReport.sampleCounters(samples, from, to), "niko_traffic_bytes_total")!!
+        assertEquals(5L, up.getLong("delta"))
+        assertTrue(up.getBoolean("new"))
+    }
+
+    @Test
     fun gaugesTakeTheWindowsSamplesOnly() {
         val samples = listOf(
             sample(from - min, 1, 0, rss = 999),
