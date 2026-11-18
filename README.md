@@ -10,7 +10,7 @@ invite registers the device, and the node keeps its profiles, names and keys up 
 ## Download
 
 The latest version is on the [Releases](../../releases/latest) page: APKs for arm64-v8a, armeabi-v7a, x86 and
-x86_64, with `SHA256SUMS` signed by minisign next to them. Android 6.0 and newer. The app updates itself from the
+x86_64, with `SHA256SUMS` signed by minisign next to them. Android 10 and newer. The app updates itself from the
 releases, or through its raycontrol node where GitHub is out of reach.
 
 ## Quick start
