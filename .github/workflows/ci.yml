@@ -29,6 +29,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       code: ${{ steps.diff.outputs.code }}
+      sources: ${{ steps.diff.outputs.sources }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -40,12 +41,17 @@ jobs:
           HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
           code=true
+          sources=false
           if [ -n "$BASE" ]; then
             rest=$(git diff --name-only "$BASE...$HEAD" | grep -vE '\.md$|^desktop/' || true)
             [ -n "$rest" ] || code=false
+            # the release's sources archive: its script, the release workflow, or what it fetches by a pin
+            git diff --name-only "$BASE...$HEAD" | grep -qxE '\.github/scripts/release-sources\.sh|\.github/workflows/release\.yml|buildScript/lib/core/get_source_env\.sh|buildScript/lib/slipstream/env\.sh|libcore/go\.(mod|sum)' &&
+              sources=true
           fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
-          echo "code changed: $code"
+          echo "sources=$sources" >> "$GITHUB_OUTPUT"
+          echo "code changed: $code; the sources archive's inputs changed: $sources"
 
   # no secrets: the release keys live in the environment release, and a CI build of any branch never sees them
   build:
@@ -459,10 +465,42 @@ jobs:
 
   # the check of this workflow the ruleset on main asks for: every job above passed, or was skipped as the change
   # does not need it
+  # the release's sources archive as release.yml makes it (.github/scripts/release-sources.sh), when a pull request
+  # changes what it is made of: it is made, then its layout checked
+  sources:
+    needs: changes
+    if: needs.changes.outputs.sources == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: libcore/go.mod
+          cache: false
+      - name: The sources' archive
+        run: |
+          .github/scripts/release-sources.sh check "$RUNNER_TEMP/sources"
+          archive="$RUNNER_TEMP/sources/niko-check-sources.tar.zst"
+          zstd -dc "$archive" | tar -tf - > "$RUNNER_TEMP/files"
+          for f in SOURCES.md niko/NOTICE niko/libcore/go.mod niko/libcore/vendor/modules.txt sing-box/go.mod \
+            gomobile/go.mod slipstream/CMakeLists.txt; do
+            grep -qxF "niko-check-sources/$f" "$RUNNER_TEMP/files" || { echo "::error::no $f in the archive"; exit 1; }
+          done
+          # the modules' prebuilt archives are out, the source of libcronet is named
+          if grep -E '^niko-check-sources/niko/libcore/vendor/.*\.(a|so|dll|dylib|lib)$' "$RUNNER_TEMP/files"; then
+            echo "::error::prebuilt archives in vendor/"; exit 1
+          fi
+          zstd -dc "$archive" | tar -xOf - niko-check-sources/SOURCES.md | grep -q 'naiveproxy.* at `[0-9a-f]\{40\}`' ||
+            { echo "::error::SOURCES.md names no commit of naiveproxy for libcronet"; exit 1; }
+          echo "$(wc -l < "$RUNNER_TEMP/files") files, $(du -h "$archive" | cut -f1)"
+
   result:
     name: CI result
     if: always()
-    needs: [changes, build, sign-check, smoke, e2e]
+    needs: [changes, build, sign-check, smoke, e2e, sources]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

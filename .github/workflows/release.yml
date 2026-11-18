@@ -96,6 +96,41 @@ jobs:
     with:
       ref: ${{ needs.check.outputs.sha }}
 
+  # the release's Corresponding Source (GPL-3.0): the app's tree, the core fork, the Go modules, gomobile and the
+  # slipstream client at the commits the build pins, in niko-<tag>-sources.tar.zst (.github/scripts/release-sources.sh).
+  # It fetches and copies; nothing of what it fetches runs
+  sources:
+    name: Sources
+    runs-on: ubuntu-latest
+    needs: check
+    if: needs.check.outputs.kind == 'app'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ needs.check.outputs.sha }}
+          persist-credentials: false
+
+      - name: Install Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: libcore/go.mod
+          cache: false
+
+      - name: The sources' archive
+        env:
+          TAG: ${{ needs.check.outputs.tag }}
+        run: .github/scripts/release-sources.sh "$TAG" sources
+
+      - name: Upload the sources' archive
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: sources
+          path: sources
+          if-no-files-found: error
+
   # The release keys are secrets of the environment release only (one required reviewer, the owner; v* tags and
   # main), under names no repository secret has (RELEASE_*), so a job never falls back to one. This job asks for
   # the release's one approval and signs both the APKs and SHA256SUMS; no build code runs here, the APK artifact is
@@ -161,7 +196,7 @@ jobs:
   publish:
     name: Publish Release
     runs-on: ubuntu-latest
-    needs: [check, sign]
+    needs: [check, sign, sources]
     if: needs.check.outputs.kind == 'app'
     # the one job that writes: gh release with GH_TOKEN; no build code runs here
     permissions:
@@ -180,6 +215,12 @@ jobs:
         with:
           name: APKs-signed
           path: apks
+
+      - name: Download the sources' archive
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: sources
+          path: sources
 
       # signed in the job sign under the environment release; this job holds no key and checks SHA256SUMS again as
       # the app does: the pinned public key, the trusted comment the tag
@@ -208,31 +249,35 @@ jobs:
           TAG_EXISTS: ${{ needs.check.outputs.tag_exists }}
         run: |
           flags=(--title "$TAG" --target "$SHA")
+          # the notes say where the source is (GPL-3.0): after the hand-written ones, before GitHub's generated ones
+          src="**Source code** · **Исходный код**: \`niko-$TAG-sources.tar.zst\` below · ниже: the app, the core fork, the Go modules, the slipstream client · приложение, форк ядра, модули Go, клиент slipstream (\`SOURCES.md\` inside · внутри)."
+          notes="$RUNNER_TEMP/notes.md"
           # a manual run for a tag not made yet: a release published here would make the tag, and the tag ruleset
           # lets only the owner make v* tags (docs/guide/release.md §2), so the run leaves a draft, which makes
           # none. The owner publishes it on the site, the tag is made on $SHA then, and its run stops at check
           [ "$TAG_EXISTS" = "true" ] || flags+=(--draft)
           # hand-written notes for the tag if present, otherwise GitHub's generated ones
           if [ -f ".github/release-notes/$TAG.md" ]; then
-            flags+=(--notes-file ".github/release-notes/$TAG.md")
+            { cat ".github/release-notes/$TAG.md"; printf '\n%s\n' "$src"; } > "$notes"
+            flags+=(--notes-file "$notes")
           else
-            flags+=(--generate-notes)
+            flags+=(--generate-notes --notes "$src")
           fi
           [ "$PRERELEASE" = "true" ] && flags+=(--prerelease)
           if gh release view "$TAG" > /dev/null 2>&1; then
             # the release is there already: the tag was made on the site, which makes an empty release with it
             # (v1.57.0 went out with no title and no notes so). It gets the files, and the title and the notes
             # of the repository too; without a notes file, what was written by hand stays
-            gh release upload "$TAG" apks/* --clobber
+            gh release upload "$TAG" apks/* sources/* --clobber
             # the pre-release mark follows the tag here too, whatever was ticked on the site: the app's update
             # check reads "latest" for stable builds and the mark for preview ones, and a node's mirror expects
             # the mark to agree with the dash in the tag
             edit=(--title "$TAG" --prerelease="$PRERELEASE")
             [ "$PRERELEASE" = "true" ] && edit+=(--latest=false)
-            [ -f ".github/release-notes/$TAG.md" ] && edit+=(--notes-file ".github/release-notes/$TAG.md")
+            [ -f ".github/release-notes/$TAG.md" ] && edit+=(--notes-file "$notes")
             gh release edit "$TAG" "${edit[@]}"
           else
-            gh release create "$TAG" apks/* "${flags[@]}"
+            gh release create "$TAG" apks/* sources/* "${flags[@]}"
           fi
           if [ "$(gh release view "$TAG" --json isDraft --jq .isDraft)" = "true" ]; then
             echo "::notice::$TAG is a draft with the signed files: publish it on the site (Releases, $TAG, Edit, Publish release), which makes the tag on $SHA"
