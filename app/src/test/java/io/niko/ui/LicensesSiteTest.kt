@@ -2,6 +2,7 @@ package io.niko.ui
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LicensesSiteTest {
@@ -45,5 +46,38 @@ class LicensesSiteTest {
     @Test
     fun theToolchainIsGoDev() {
         assertEquals("https://go.dev/", Licenses.site("go", "go1.26.11", ""))
+    }
+}
+
+class LicensesChunksTest {
+
+    @Test
+    fun aLongTextGoesInPiecesThatJoinBack() {
+        // Chromium's notice: some 260 KB of paragraphs
+        val text = (1..3000).joinToString("\n\n") { "Library $it\nCopyright (c) $it The Authors. All rights reserved." }
+        val pieces = Licenses.chunks(text)
+        assertEquals(text, pieces.joinToString("\n"))
+        assertTrue("${pieces.size} pieces", pieces.size > 50)
+        assertTrue("a piece too long", pieces.all { it.length <= 4 * 2000 + 200 })
+    }
+
+    @Test
+    fun aTextWithoutBlankLinesIsCutAtLines() {
+        val text = (1..2000).joinToString("\n") { "line $it of a text without paragraphs" }
+        val pieces = Licenses.chunks(text)
+        assertEquals(text, pieces.joinToString("\n"))
+        assertTrue(pieces.size > 1)
+    }
+
+    @Test
+    fun aShortTextIsOnePiece() {
+        assertEquals(listOf("MIT License"), Licenses.chunks("MIT License"))
+        assertEquals(listOf(""), Licenses.chunks(""))
+    }
+
+    @Test
+    fun blankLinesInARowSurviveACut() {
+        val text = "x".repeat(2100) + "\n\n\n\nnext\n\n"
+        assertEquals(text, Licenses.chunks(text).joinToString("\n"))
     }
 }

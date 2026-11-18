@@ -207,6 +207,9 @@ jobs:
               || { echo "$apk: no assets/NOTICE or assets/licenses/{go.json,components.json,texts}"; exit 1; }
           done
           unzip -p "$(ls app/build/outputs/apk/oss/release/*.apk | head -1)" assets/NOTICE | cmp - NOTICE
+          # Chromium's own credits of the code libcronet holds, which the cronet-go modules carry: in go.json
+          unzip -p "$(ls app/build/outputs/apk/oss/release/*.apk | head -1)" assets/licenses/go.json |
+            python3 -I -c 'import json, sys; d = json.load(sys.stdin); sys.exit(0 if any(f["name"] == "NOTICE.chromium.txt" for m in d["modules"] for f in m["files"]) else "go.json: no NOTICE.chromium.txt of the cronet-go modules")'
 
       - name: Upload lint report
         if: ${{ inputs.lint && !cancelled() }}

@@ -30,7 +30,9 @@ ASSET = "assets/licenses/go.json"
 LICENSE_FILE = re.compile(r"^(UN)?LICEN[CS]E|^COPYING|^COPYRIGHT|^NOTICE|^PATENTS", re.IGNORECASE)
 # of those, the ones that are no license by themselves: notices that go along with one
 NOTICE_FILE = re.compile(r"^NOTICE|^PATENTS|^COPYRIGHT", re.IGNORECASE)
-TOO_LARGE = 256 * 1024
+# a file larger is not a license file read by mistake: Chromium's NOTICE, which the cronet-go modules carry
+# (NOTICE.chromium.txt, the credits of every library Chromium builds in), is some 260 KB
+TOO_LARGE = 512 * 1024
 
 # what this repository builds of its own: under its LICENSE at the root
 OWN = {"gobind", "libcore"}

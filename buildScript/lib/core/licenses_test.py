@@ -99,6 +99,22 @@ License, supplemented by the additional permissions listed below."""
 
 
 class Repository(unittest.TestCase):
+    def test_large_notice(self):
+        # the cronet-go modules' NOTICE.chromium.txt (266 209 bytes): read, not refused, and no license by itself
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, "LICENSE"), "w") as f:
+                f.write(BSD3)
+            with open(os.path.join(d, "NOTICE.chromium.txt"), "w") as f:
+                f.write("Chromium\n" + "x" * 266209)
+            names = [name for name, _ in licenses.license_files(d)]
+            self.assertEqual(names, ["LICENSE", "NOTICE.chromium.txt"])
+            self.assertTrue(licenses.NOTICE_FILE.match("NOTICE.chromium.txt"))
+            with open(os.path.join(d, "NOTICE.chromium.txt"), "a") as f:
+                f.write("x" * licenses.TOO_LARGE)
+            with self.assertRaises(SystemExit):
+                licenses.license_files(d)
+
     def test_no_credentials(self):
         # what a clone URL may carry stays out of the JSON
         for url in ("https://github.com/arngory/sing-box.git",

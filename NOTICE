@@ -43,9 +43,11 @@ The core (libcore.aar, libgojni.so)
   - the Go runtime and standard library: BSD-3-Clause, Copyright The Go Authors
 
 Chromium (naive's network stack, libcronet in libgojni.so)
-  Chromium of the release the library modules of cronet-go carry, built by https://github.com/arngory/naiveproxy:
-  BSD-3-Clause, Copyright The Chromium Authors, and the licenses of the third-party code it contains (BoringSSL,
-  zlib, brotli and others).
+  Chromium of the release the library modules of cronet-go carry, built from https://github.com/arngory/naiveproxy
+  at the commit the cronet-go commit libcore/go.mod takes names as its submodule (branch niko; the release's
+  SOURCES.md says which): BSD-3-Clause, Copyright The Chromium Authors, and the licenses of the third-party code
+  it contains (BoringSSL, zlib, brotli and others). The modules carry Chromium's own credits of all of them,
+  NOTICE.chromium.txt, which go.json holds with the modules' other files.
 
 The slipstream client (libslipstream.so)
   https://github.com/arngory/slipstream: Apache-2.0. It contains picoquic (MIT, Copyright (c) 2017 Private
