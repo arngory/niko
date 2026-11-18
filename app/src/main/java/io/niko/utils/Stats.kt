@@ -141,13 +141,17 @@ object Stats {
 
     /**
      * A run of the service begins: its connect. The log lines count from here, so a start that fails has its own
-     * (the lines that tell why), and the connect's lines count in the run that follows.
+     * (the lines that tell why), and the connect's lines count in the run that follows. No traffic until this run's
+     * core counts it (TrafficLooper.start): a failed start's last sample carries none of the last run's.
      */
     @Synchronized
     fun beginRun() {
         runEpoch = System.currentTimeMillis()
         warnings.set(0)
         errors.set(0)
+        trafficEpoch = 0
+        trafficUp = 0
+        trafficDown = 0
         running = true
     }
 
