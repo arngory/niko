@@ -585,8 +585,8 @@
         <item name="colorControlHighlight">@color/niko_surface_2</item>
         <item name="colorError">@color/niko_danger</item>
         <!-- colorPrimary stays the accent, ink: Material's fields (focused outline, hint), filled buttons, progress
-             indicators and the fast scroller take it. The bars fill with barBackground; the status bar with
-             colorPrimaryDark and colorPrimaryVariant -->
+             indicators and the fast scroller's thumb and letter popup (on-ink letters) take it. The bars fill with
+             barBackground; the status bar with colorPrimaryDark and colorPrimaryVariant -->
         <item name="colorPrimary">@color/niko_ink</item>
         <item name="colorPrimaryDark">@color/niko_surface_0</item>
         <item name="colorPrimaryVariant">@color/niko_surface_0</item>
@@ -646,8 +646,8 @@
         <item name="colorControlHighlight">@color/niko_surface_2</item>
         <item name="colorError">@color/niko_danger</item>
         <!-- colorPrimary stays the accent, ink: Material's fields (focused outline, hint), filled buttons, progress
-             indicators and the fast scroller take it. The bars fill with barBackground; the status bar with
-             colorPrimaryDark and colorPrimaryVariant -->
+             indicators and the fast scroller's thumb and letter popup (on-ink letters) take it. The bars fill with
+             barBackground; the status bar with colorPrimaryDark and colorPrimaryVariant -->
         <item name="colorPrimary">@color/niko_ink</item>
         <item name="colorPrimaryDark">@color/niko_surface_0</item>
         <item name="colorPrimaryVariant">@color/niko_surface_0</item>
