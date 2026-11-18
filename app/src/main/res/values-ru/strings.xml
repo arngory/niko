@@ -106,6 +106,7 @@
 <string name="update_bad_apk">скачанный APK не тот, что подписан</string>
     <string name="update_required">Это обновление обязательно.</string>
     <string name="update_bad_notice">UPDATE.json выпуска не совпадает с подписанным</string>
+    <string name="update_needs_android">%1$s работает на Android %2$s и новее. На этом телефоне остаётся текущая версия, она работает как прежде.</string>
 <string name="check_update_preview">Проверить наличие обновлений предварительной версии</string>
 <string name="check_update_release">Проверить наличие обновлений релизнойной версии</string>
 <string name="circular_reference">Циклическая ссылка</string>

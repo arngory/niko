@@ -399,6 +399,8 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                             // an install began meanwhile (an earlier dialog's): no second dialog
                             if (Updates.busy) {
                                 Toast.makeText(app, R.string.update_downloading, Toast.LENGTH_SHORT).show()
+                            } else if (!notice.fitsHere()) {
+                                notForThisAndroid(nodeRelease.tag, notice)
                             } else {
                                 offerFromNode(node, nodeRelease, notice)
                             }
@@ -425,7 +427,8 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                     // offer only strictly newer versions: a beta user is not sent back to stable
                     val haveUpdate = releaseTag.isNotBlank() && releaseUrl.isNotBlank() &&
                             isNewerVersion(releaseTag, BuildConfig.VERSION_NAME)
-                    val notice = if (haveUpdate && Updates.canInstall && release != null) {
+                    // also where the release page is offered in place of the installer: its min_android is said too
+                    val notice = if (haveUpdate && Updates.enabled && release != null) {
                         readNotice { viaWay(way) { client -> Updates.notice(client, release) } }
                     } else null
                     runOnMainDispatcher {
@@ -434,6 +437,8 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                         if (haveUpdate && Updates.busy) {
                             // an install began meanwhile (an earlier dialog's): no second dialog
                             Toast.makeText(app, R.string.update_downloading, Toast.LENGTH_SHORT).show()
+                        } else if (haveUpdate && !notice.fitsHere()) {
+                            notForThisAndroid(releaseName, notice)
                         } else if (haveUpdate) {
                             val openPage = { context.startActivity(Intent(Intent.ACTION_VIEW, releaseUrl.toUri())) }
                             MaterialAlertDialogBuilder(context)
@@ -504,6 +509,20 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
             else setNegativeButton(R.string.no, null)
         }
 
+        /** Whether the release of [this] notice installs on this Android (its min_android); no notice: it does. */
+        private fun UpdateNotice?.fitsHere() = this?.fits(android.os.Build.VERSION.SDK_INT) ?: true
+
+        /** The newer [release] does not install here (its min_android): said, not offered, never mandatory. */
+        private fun notForThisAndroid(release: String, notice: UpdateNotice?) {
+            val context = context ?: return
+            val needs = UpdateNotice.androidName(notice?.minAndroid ?: return)
+            MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.update_dialog_title)
+                .setMessage(context.getString(R.string.update_needs_android, release, needs))
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
+        }
+
         /** The update [release] that [node] holds: from its mirror, the release page beside it. */
         private fun offerFromNode(node: RayNode, release: RayAppRelease, notice: UpdateNotice?) {
             val context = context ?: return
@@ -564,9 +583,13 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
             runOnIoDispatcher {
                 val message = try {
                     val file = Updates.oneDownload { download() }
+                    val tooNew = file?.let { Updates.needsNewerAndroid(app, it) }
                     if (file == null) {
                         // the download of a tap before still runs
                         null
+                    } else if (tooNew != null) {
+                        // its UPDATE.json, with min_android, was not read in time: the APK itself says
+                        app.getString(R.string.update_needs_android, "Niko ${tooNew.first}", UpdateNotice.androidName(tooNew.second))
                     } else {
                         onMainDispatcher { if (Updates.install(app, file)) null else app.getString(R.string.update_allow_install) }
                     }

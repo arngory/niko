@@ -655,6 +655,7 @@
     <string name="update_bad_apk">the downloaded APK is not the signed one</string>
     <string name="update_required">This update is required.</string>
     <string name="update_bad_notice">the release\'s UPDATE.json is not the signed one</string>
+    <string name="update_needs_android">%1$s needs Android %2$s or newer. This phone stays on the version it has, which keeps working.</string>
     <string name="reset_settings">Restore default settings</string>
     <string name="reset_settings_message">Restore default settings, but data such as nodes and groups will be retained. To completely clear data, clear application data directly in the system settings.</string>
     <string name="minimize">Minimize</string>

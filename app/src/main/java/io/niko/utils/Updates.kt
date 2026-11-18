@@ -286,6 +286,18 @@ object Updates {
     }
 
     /**
+     * The downloaded [file]'s version and the Android it needs (its minSdk), when that is newer than this phone's: its
+     * installer would refuse it with a bare error. Null when it installs here or says nothing (a notice that was not
+     * read in time, a release without min_android).
+     */
+    fun needsNewerAndroid(context: Context, file: File): Pair<String, Int>? {
+        if (Build.VERSION.SDK_INT < 24) return null
+        val info = runCatching { context.packageManager.getPackageArchiveInfo(file.path, 0) }.getOrNull() ?: return null
+        val min = info.applicationInfo?.minSdkVersion ?: return null
+        return if (Build.VERSION.SDK_INT < min) info.versionName.orEmpty() to min else null
+    }
+
+    /**
      * Hands [file] to the system's installer; false when the user has to allow this app to install apps first (the
      * settings page opened for it).
      */
