@@ -47,6 +47,7 @@ import io.niko.database.SagerDatabase
 import io.niko.raycontrol.RayAppMirror
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import io.niko.raycontrol.RayAppRelease
 import io.niko.raycontrol.RayClient
 import io.niko.raycontrol.RayNode
@@ -364,18 +365,28 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                         if (fromNode == null) throw e
                         Logs.w("update: GitHub not reached (${e.message}): ${fromNode.second.tag} of the node ${fromNode.first.host}")
                         val (node, nodeRelease) = fromNode
-                        // NOTICE_BOUND_MS for the whole read, carriers, relays and the node's busy answers within it:
-                        // past it the update is offered as an ordinary one. One read or install of the node's files
-                        // at a time (Updates.nodeFiles)
+                        // NOTICE_BOUND_MS for the whole read, the wait for the node's files (Updates.nodeFiles: one
+                        // read or install of them at a time) and carriers, relays and the node's busy answers within
+                        // it: past it the update is offered as an ordinary one
                         val notice = readNotice {
-                            Updates.nodeFiles.withLock {
-                                val deadline = System.currentTimeMillis() + Updates.NOTICE_BOUND_MS
+                            val deadline = System.currentTimeMillis() + Updates.NOTICE_BOUND_MS
+                            val locked = withTimeoutOrNull(Updates.NOTICE_BOUND_MS) { Updates.nodeFiles.lock() } != null
+                            if (!locked) null else try {
                                 Updates.noticeFromMirror(app, nodeRelease.tag) { name, out, etag ->
                                     RaySubscription.appFile(node, nodeRelease.tag, name, out, etag, deadline)
                                 }
+                            } finally {
+                                Updates.nodeFiles.unlock()
                             }
                         }
-                        onMainDispatcher { offerFromNode(node, nodeRelease, notice) }
+                        onMainDispatcher {
+                            // an install began meanwhile (an earlier dialog's): no second dialog
+                            if (Updates.busy) {
+                                Toast.makeText(app, R.string.update_downloading, Toast.LENGTH_SHORT).show()
+                            } else {
+                                offerFromNode(node, nodeRelease, notice)
+                            }
+                        }
                         return@runOnIoDispatcher
                     }
                     val release = when {
@@ -404,7 +415,10 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                     runOnMainDispatcher {
                         // the user may have left the screen while the request ran
                         val context = context ?: return@runOnMainDispatcher
-                        if (haveUpdate) {
+                        if (haveUpdate && Updates.busy) {
+                            // an install began meanwhile (an earlier dialog's): no second dialog
+                            Toast.makeText(app, R.string.update_downloading, Toast.LENGTH_SHORT).show()
+                        } else if (haveUpdate) {
                             val openPage = { context.startActivity(Intent(Intent.ACTION_VIEW, releaseUrl.toUri())) }
                             MaterialAlertDialogBuilder(context)
                                 .setTitle(R.string.update_dialog_title)
