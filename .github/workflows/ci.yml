@@ -1,8 +1,9 @@
 name: CI
 
 # A change comes to main through a pull request (CONTRIBUTING.md): the pull request's run is its check, and "CI
-# result" the one the ruleset on main asks for. A push to main runs it again on what main now is (a release is cut
-# from a commit main's run passed); a push to another branch runs nothing here, its pull request does
+# result" one of those the ruleset on main asks for (checks.yml has the others). A push to main runs it again on
+# what main now is (a release is cut from a commit main's run passed); a push to another branch runs nothing here,
+# its pull request does
 on:
   push:
     branches: [main]
@@ -45,74 +46,6 @@ jobs:
           fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
           echo "code changed: $code"
-
-  # the base and the head of what the change brings: a pull request's commits, or a push's
-  range:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      base: ${{ steps.range.outputs.base }}
-      head: ${{ steps.range.outputs.head }}
-    steps:
-      - id: range
-        env:
-          PR_BASE: ${{ github.event.pull_request.base.sha }}
-          PR_HEAD: ${{ github.event.pull_request.head.sha }}
-          BEFORE: ${{ github.event.before }}
-          SHA: ${{ github.sha }}
-        run: |
-          if [ -n "$PR_BASE" ]; then
-            base=$PR_BASE head=$PR_HEAD
-          elif [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then
-            base=$BEFORE head=$SHA
-          else
-            base=$SHA~1 head=$SHA
-          fi
-          echo "base=$base" >> "$GITHUB_OUTPUT"
-          echo "head=$head" >> "$GITHUB_OUTPUT"
-          echo "range: $base..$head"
-
-  # no bare #N in what the change brings to main: a squash merge makes its commit of the pull request's title and
-  # description, the commits' messages under it, and in a fork GitHub links a bare #N to the parent's issues
-  commits:
-    name: Commit messages
-    needs: range
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - env:
-          BASE: ${{ needs.range.outputs.base }}
-          HEAD: ${{ needs.range.outputs.head }}
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_BODY: ${{ github.event.pull_request.body }}
-        run: python3 -I .github/scripts/bare-refs.py "$BASE" "$HEAD"
-
-  # keys and tokens in the change's commits: gitleaks from its module (sum.golang.org checks what go install takes),
-  # findings shown redacted. A false finding (a test's throwaway key) goes to .gitleaks.toml's allowlist
-  secrets:
-    name: Secrets
-    needs: range
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
-        with:
-          go-version-file: libcore/go.mod
-          cache: false
-      - env:
-          BASE: ${{ needs.range.outputs.base }}
-          HEAD: ${{ needs.range.outputs.head }}
-        run: |
-          GOBIN="$RUNNER_TEMP/bin" go install github.com/zricethezav/gitleaks/v8@v8.30.1
-          "$RUNNER_TEMP/bin/gitleaks" git --no-banner --redact --verbose --log-opts="$BASE..$HEAD" .
 
   # no secrets: the release keys live in the environment release, and a CI build of any branch never sees them
   build:
@@ -513,11 +446,12 @@ jobs:
           echo "--- the naive stage"; docker exec rc-naive sh -c 'tail -n 40 /var/log/front.log; tail -n 60 /var/log/naive.log' 2>&1 || true
           docker rm -f rc-node rc-slip rc-naive > /dev/null 2>&1 || true
 
-  # the one check the ruleset on main asks for: every job above passed, or was skipped as the change does not need it
+  # the check of this workflow the ruleset on main asks for: every job above passed, or was skipped as the change
+  # does not need it
   result:
     name: CI result
     if: always()
-    needs: [changes, range, commits, secrets, build, sign-check, smoke, e2e]
+    needs: [changes, build, sign-check, smoke, e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
