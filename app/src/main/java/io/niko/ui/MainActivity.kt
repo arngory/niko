@@ -75,6 +75,9 @@ class MainActivity : ThemedActivity(),
      */
     private var linkQuestion: AlertDialog? = null
 
+    /** A link being read before its question (a profile's, a subscription's): a relaunch now is to ask too. */
+    private var linkReading = false
+
     private fun MaterialAlertDialogBuilder.showLinkQuestion(): AlertDialog = show().also { dialog ->
         linkQuestion = dialog
         dialog.setOnDismissListener { if (linkQuestion === dialog) linkQuestion = null }
@@ -170,14 +173,20 @@ class MainActivity : ThemedActivity(),
 
         // profiles of a scanned QR code that rewrite the whole config: asked here (ImportReview)
         if (intent.action == ImportReview.ACTION_REVIEW) {
-            val proxies = ImportReview.take()
-            val question = ImportReview.warning(this, proxies) ?: return
+            // the profiles stay with ImportReview until the answer: a relaunch under the question asks about them again
+            val proxies = ImportReview.peek()
+            val question = ImportReview.warning(this, proxies) ?: run {
+                ImportReview.drop(proxies)
+                return
+            }
             MaterialAlertDialogBuilder(this).setTitle(R.string.profile_import)
                 .setMessage(question)
                 .setPositiveButton(R.string.yes) { _, _ ->
+                    ImportReview.drop(proxies)
                     runOnDefaultDispatcher { proxies.forEach { finishImportProfile(it) } }
                 }
-                .setNegativeButton(android.R.string.cancel, null)
+                .setNegativeButton(android.R.string.cancel) { _, _ -> ImportReview.drop(proxies) }
+                .setOnCancelListener { ImportReview.drop(proxies) }
                 .showLinkQuestion()
             return
         }
@@ -212,13 +221,18 @@ class MainActivity : ThemedActivity(),
             return
         }
 
+        linkReading = true
         runOnDefaultDispatcher {
-            if (uri.scheme == "sn" && uri.host == "subscription" || uri.scheme == "clash" ||
-                parseSubscriptionDeepLink(uri.toString()) != null
-            ) {
-                importSubscription(uri)
-            } else {
-                importProfile(uri)
+            try {
+                if (uri.scheme == "sn" && uri.host == "subscription" || uri.scheme == "clash" ||
+                    parseSubscriptionDeepLink(uri.toString()) != null
+                ) {
+                    importSubscription(uri)
+                } else {
+                    importProfile(uri)
+                }
+            } finally {
+                onMainDispatcher { linkReading = false }
             }
         }
     }
@@ -288,19 +302,20 @@ class MainActivity : ThemedActivity(),
             ?: ("Subscription #" + System.currentTimeMillis())
 
         onMainDispatcher {
+            // an activity relaunched meanwhile asks in its successor (linkReading), not on its own dead window
+            if (!isFinishing && !isDestroyed) {
+                displayFragmentWithId(R.id.nav_group)
 
-            displayFragmentWithId(R.id.nav_group)
-
-            MaterialAlertDialogBuilder(this@MainActivity).setTitle(R.string.subscription_import)
-                .setMessage(getString(R.string.subscription_import_message, name))
-                .setPositiveButton(R.string.yes) { _, _ ->
-                    runOnDefaultDispatcher {
-                        finishImportSubscription(group)
+                MaterialAlertDialogBuilder(this@MainActivity).setTitle(R.string.subscription_import)
+                    .setMessage(getString(R.string.subscription_import_message, name))
+                    .setPositiveButton(R.string.yes) { _, _ ->
+                        runOnDefaultDispatcher {
+                            finishImportSubscription(group)
+                        }
                     }
-                }
-                .setNegativeButton(android.R.string.cancel, null)
-                .showLinkQuestion()
-
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .showLinkQuestion()
+            }
         }
 
     }
@@ -321,19 +336,22 @@ class MainActivity : ThemedActivity(),
         }
 
         onMainDispatcher {
-            MaterialAlertDialogBuilder(this@MainActivity).setTitle(R.string.profile_import)
-                // a web page can open this link: say so, with its keys, when it rewrites the whole config
-                .setMessage(
-                    ImportReview.warning(this@MainActivity, listOf(profile))
-                        ?: getString(R.string.profile_import_message, profile.displayName())
-                )
-                .setPositiveButton(R.string.yes) { _, _ ->
-                    runOnDefaultDispatcher {
-                        finishImportProfile(profile)
+            // an activity relaunched meanwhile asks in its successor (linkReading), not on its own dead window
+            if (!isFinishing && !isDestroyed) {
+                MaterialAlertDialogBuilder(this@MainActivity).setTitle(R.string.profile_import)
+                    // a web page can open this link: say so, with its keys, when it rewrites the whole config
+                    .setMessage(
+                        ImportReview.warning(this@MainActivity, listOf(profile))
+                            ?: getString(R.string.profile_import_message, profile.displayName())
+                    )
+                    .setPositiveButton(R.string.yes) { _, _ ->
+                        runOnDefaultDispatcher {
+                            finishImportProfile(profile)
+                        }
                     }
-                }
-                .setNegativeButton(android.R.string.cancel, null)
-                .showLinkQuestion()
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .showLinkQuestion()
+            }
         }
 
     }
@@ -556,7 +574,7 @@ class MainActivity : ThemedActivity(),
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putBoolean(LINK_QUESTION, linkQuestion?.isShowing == true)
+        outState.putBoolean(LINK_QUESTION, linkReading || linkQuestion?.isShowing == true)
     }
 
     override fun onDestroy() {
