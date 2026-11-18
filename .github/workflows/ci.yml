@@ -60,6 +60,7 @@ jobs:
     uses: ./.github/workflows/build.yml
     with:
       lint: true
+      snapshots: true
 
   # release.yml's signing path (.github/scripts/release-sign.sh) on this build's APKs with throwaway keys: zipalign,
   # apksigner with the expected certificate, SHA256SUMS signed and checked as the app checks it
