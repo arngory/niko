@@ -1,8 +1,12 @@
 name: CI
 
+# A change comes to main through a pull request (CONTRIBUTING.md): the pull request's run is its check, and "CI
+# result" one of those the ruleset on main asks for (checks.yml has the others). A push to main runs it again on
+# what main now is (a release is cut from a commit main's run passed); a push to another branch runs nothing here,
+# its pull request does
 on:
   push:
-    branches: ["**"]
+    branches: [main]
     # the window for the computer has its own workflow (desktop.yml); a push of it alone neither builds the app nor
     # cancels a run of this one
     paths-ignore: ["**.md", "desktop/**"]
@@ -18,8 +22,35 @@ permissions:
   contents: read
 
 jobs:
+  # what the change touches: a pull request of documents or of the window alone (desktop.yml) builds nothing here,
+  # and "CI result" takes the skipped jobs as passed
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: diff
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          code=true
+          if [ -n "$BASE" ]; then
+            rest=$(git diff --name-only "$BASE...$HEAD" | grep -vE '\.md$|^desktop/' || true)
+            [ -n "$rest" ] || code=false
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "code changed: $code"
+
   # no secrets: the release keys live in the environment release, and a CI build of any branch never sees them
   build:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     uses: ./.github/workflows/build.yml
     with:
       lint: true
@@ -414,3 +445,23 @@ jobs:
           echo "--- its VLESS stage"; docker logs rc-slip 2>&1 | grep -v 'accepted udp:\|gstatic\|googleapis\|google.com' | tail -n 120 || true
           echo "--- the naive stage"; docker exec rc-naive sh -c 'tail -n 40 /var/log/front.log; tail -n 60 /var/log/naive.log' 2>&1 || true
           docker rm -f rc-node rc-slip rc-naive > /dev/null 2>&1 || true
+
+  # the check of this workflow the ruleset on main asks for: every job above passed, or was skipped as the change
+  # does not need it
+  result:
+    name: CI result
+    if: always()
+    needs: [changes, build, sign-check, smoke, e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "jobs: $RESULTS"
+          for result in $RESULTS; do
+            case "$result" in
+              success | skipped) ;;
+              *) echo "::error::a job ended $result"; exit 1 ;;
+            esac
+          done
