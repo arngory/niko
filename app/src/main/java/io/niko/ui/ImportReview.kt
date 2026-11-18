@@ -42,21 +42,29 @@ object ImportReview {
                 context.getString(R.string.profile_import_keys, risky.flatMap(::keys).distinct().sorted().joinToString())
     }
 
-    private val pending = ArrayList<AbstractBean>()
+    /** The batch [handOff] gave the profiles, in the intent to [MainActivity]. */
+    const val EXTRA_BATCH = "io.niko.extra.REVIEW_BATCH"
 
-    /** The scanner closes at once: it hands the profiles to [MainActivity], which asks ([peek], [drop]). */
+    // the profiles waiting for their question, by batch: one scan, one question, one answer for its own profiles only
+    private val pending = HashMap<Long, List<AbstractBean>>()
+    private var next = 0L
+
+    /** [proxies] as a batch of their own, waiting for its question. */
+    internal fun hold(proxies: List<AbstractBean>): Long = synchronized(pending) {
+        (++next).also { pending[it] = proxies.toList() }
+    }
+
+    /** The scanner closes at once: it hands the profiles to [MainActivity], which asks about their batch ([peek], [drop]). */
     fun handOff(context: Context, proxies: List<AbstractBean>) {
-        synchronized(pending) { pending.addAll(proxies) }
         context.startActivity(
-            Intent(context, MainActivity::class.java).setAction(ACTION_REVIEW).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            Intent(context, MainActivity::class.java).setAction(ACTION_REVIEW).putExtra(EXTRA_BATCH, hold(proxies))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
     }
 
-    /** The profiles waiting for their question; they stay until it is answered, so that a relaunch asks again. */
-    fun peek(): List<AbstractBean> = synchronized(pending) { pending.toList() }
+    /** [batch]'s profiles; they stay until its question is answered, so that a relaunch asks again. Empty once answered. */
+    fun peek(batch: Long): List<AbstractBean> = synchronized(pending) { pending[batch].orEmpty() }
 
-    /** [proxies] answered (imported or refused): no longer waiting. */
-    fun drop(proxies: List<AbstractBean>) {
-        synchronized(pending) { pending.removeAll { waiting -> proxies.any { it === waiting } } }
-    }
+    /** [batch] answered (imported or refused) or given up: no longer waiting. False when it was not: answered already. */
+    fun drop(batch: Long): Boolean = synchronized(pending) { pending.remove(batch) != null }
 }
