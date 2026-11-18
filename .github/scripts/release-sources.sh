@@ -78,6 +78,21 @@ if [ "$cronet_hash" != "?" ] && [ "$cronet_url" != "?" ]; then
   naive_url=${naive_url:-?}
 fi
 [ "$naive_hash" != "?" ] || echo "::warning::no commit of naiveproxy for libcronet ($cronet_mod): SOURCES.md says so"
+# whose each archive is: go mod vendor copies the module of every platform, and only those libcore's go.mod replaces
+# (the APKs' android ones, the desktop's) come from that build; the others, which the APKs do not link, are upstream's
+# at the version modules.txt names
+cronet_ours=
+cronet_theirs=
+while read -r f; do
+  [ -n "$f" ] || continue
+  mod=$(cut -d/ -f1-5 <<< "$f")
+  line=$(grep -m1 "^# $mod " "$vendor/modules.txt" || true)
+  case $line in
+    *" => "*) cronet_ours+="$f"$'\n' ;;
+    "") cronet_theirs+="\`$f\` (not in \`modules.txt\`)"$'\n' ;;
+    *) cronet_theirs+="\`$f\` (\`$(awk '{ print $3 }' <<< "$line")\`)"$'\n' ;;
+  esac
+done < <(printf '%s\n' "$prebuilt" | grep '^github.com/sagernet/cronet-go/' || true)
 toolchain=$(sed -n 's/^toolchain //p' "$dst/niko/libcore/go.mod")
 
 echo "== SOURCES.md"
@@ -99,10 +114,15 @@ echo "== SOURCES.md"
   echo "## Prebuilt, not here"
   echo
   echo "- **libcronet**, the network stack of naive (Chromium's): the modules of \`github.com/sagernet/cronet-go/lib/\`"
-  echo "  carry it built, and \`vendor/\` has these archives taken out:"
-  printf '%s\n' "$prebuilt" | grep '^github.com/sagernet/cronet-go/' | sed 's/^/  - `/; s/$/`/' || echo "  - (none)"
-  echo "  They are built by $cronet_url at \`$cronet_hash\` (\`$cronet_mod\`), whose submodule \`naiveproxy\` holds"
-  echo "  Chromium's source: ${naive_url%.git} at \`$naive_hash\`."
+  echo "  carry it built, and \`vendor/\` has their archives taken out. The APKs link the android ones."
+  echo "  - The modules libcore's \`go.mod\` replaces, built by $cronet_url at \`$cronet_hash\` (\`$cronet_mod\`), whose"
+  echo "    submodule \`naiveproxy\` holds Chromium's source: ${naive_url%.git} at \`$naive_hash\`:"
+  printf '%s' "$cronet_ours" | grep . | sed 's/^/    - `/; s/$/`/' || echo "    - (none)"
+  if [ -n "$cronet_theirs" ]; then
+    echo "  - The other platforms' modules, which the APKs do not link (\`go mod vendor\` copies every platform's):"
+    echo "    upstream's, github.com/sagernet/cronet-go at the version each names:"
+    printf '%s' "$cronet_theirs" | sed 's/^/    - /'
+  fi
   others=$(printf '%s\n' "$prebuilt" | grep . | grep -v '^github.com/sagernet/cronet-go/' || true)
   if [ -n "$others" ]; then
     echo "- **Other prebuilt files** the modules carry, taken out of \`vendor/\` too (their modules' own repositories"
