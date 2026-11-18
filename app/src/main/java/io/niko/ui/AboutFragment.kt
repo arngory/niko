@@ -46,6 +46,11 @@ import io.niko.database.ProxyEntity
 import io.niko.database.SagerDatabase
 import io.niko.raycontrol.RayAppMirror
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.withTimeoutOrNull
 import io.niko.raycontrol.RayAppRelease
 import io.niko.raycontrol.RayClient
 import io.niko.raycontrol.RayNode
@@ -55,6 +60,9 @@ import libcore.HTTPClient
 import io.niko.utils.Util
 import org.json.JSONArray
 import org.json.JSONObject
+
+// reads of a release's UPDATE.json from a node's mirror, which may outlive the dialog's wait for them
+private val noticeReads = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
 class AboutFragment : ToolbarFragment(R.layout.layout_about) {
 
@@ -331,6 +339,11 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
         }
 
         fun checkUpdate(checkPreview: Boolean) {
+            // an update downloads already (a tap before): no second check, whose dialog could not install it
+            if (Updates.busy) {
+                Toast.makeText(app, R.string.update_downloading, Toast.LENGTH_SHORT).show()
+                return
+            }
             runOnIoDispatcher {
                 try {
                     // the check is GitHub's; where it is not reached at all, a raycontrol node's newest release
@@ -358,14 +371,18 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                         if (fromNode == null) throw e
                         Logs.w("update: GitHub not reached (${e.message}): ${fromNode.second.tag} of the node ${fromNode.first.host}")
                         val (node, nodeRelease) = fromNode
-                        // the node serves one download a device at a time and cuts the one under way for the next
-                        // (app-update-v1): within oneDownload, and none while an install downloads from it
+                        // the dialog waits for the read NOTICE_BOUND_MS at most (a node through a slow tunnel or
+                        // relay takes long, its calls have no bound of their own). A read that outlives the wait
+                        // stops asking once an install downloads: the node serves one download a device at a time
+                        // and cuts the one under way for the next (app-update-v1)
                         val notice = readNotice {
-                            Updates.oneDownload {
+                            val read = noticeReads.async {
                                 Updates.noticeFromMirror(app, nodeRelease.tag) { name, out, etag ->
+                                    if (Updates.busy) throw Exception("an update downloads from the node")
                                     RaySubscription.appFile(node, nodeRelease.tag, name, out, etag)
                                 }
                             }
+                            withTimeoutOrNull(Updates.NOTICE_BOUND_MS) { read.await() }
                         }
                         onMainDispatcher { offerFromNode(node, nodeRelease, notice) }
                         return@runOnIoDispatcher
