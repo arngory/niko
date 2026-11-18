@@ -78,9 +78,14 @@ class MainActivity : ThemedActivity(),
     /** A link being read before its question (a profile's, a subscription's): a relaunch now is to ask too. */
     private var linkReading = false
 
-    private fun MaterialAlertDialogBuilder.showLinkQuestion(): AlertDialog = show().also { dialog ->
-        linkQuestion = dialog
-        dialog.setOnDismissListener { if (linkQuestion === dialog) linkQuestion = null }
+    private fun MaterialAlertDialogBuilder.showLinkQuestion(): AlertDialog {
+        // one question at a time: a newer link or scan replaces one not answered yet, which counts as cancelled (a
+        // scanned batch is given up, not imported with the next one)
+        linkQuestion?.takeIf { it.isShowing }?.cancel()
+        return show().also { dialog ->
+            linkQuestion = dialog
+            dialog.setOnDismissListener { if (linkQuestion === dialog) linkQuestion = null }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -173,20 +178,22 @@ class MainActivity : ThemedActivity(),
 
         // profiles of a scanned QR code that rewrite the whole config: asked here (ImportReview)
         if (intent.action == ImportReview.ACTION_REVIEW) {
-            // the profiles stay with ImportReview until the answer: a relaunch under the question asks about them again
-            val proxies = ImportReview.peek()
+            // this scan's batch, with ImportReview until the answer: a relaunch under the question asks about it again;
+            // an answered batch is gone, and its relaunch asks nothing
+            val batch = intent.getLongExtra(ImportReview.EXTRA_BATCH, -1)
+            val proxies = ImportReview.peek(batch)
             val question = ImportReview.warning(this, proxies) ?: run {
-                ImportReview.drop(proxies)
+                ImportReview.drop(batch)
                 return
             }
             MaterialAlertDialogBuilder(this).setTitle(R.string.profile_import)
                 .setMessage(question)
                 .setPositiveButton(R.string.yes) { _, _ ->
-                    ImportReview.drop(proxies)
-                    runOnDefaultDispatcher { proxies.forEach { finishImportProfile(it) } }
+                    // imported once: only while the batch still waits
+                    if (ImportReview.drop(batch)) runOnDefaultDispatcher { proxies.forEach { finishImportProfile(it) } }
                 }
-                .setNegativeButton(android.R.string.cancel) { _, _ -> ImportReview.drop(proxies) }
-                .setOnCancelListener { ImportReview.drop(proxies) }
+                .setNegativeButton(android.R.string.cancel) { _, _ -> ImportReview.drop(batch) }
+                .setOnCancelListener { ImportReview.drop(batch) }
                 .showLinkQuestion()
             return
         }
@@ -578,10 +585,12 @@ class MainActivity : ThemedActivity(),
     }
 
     override fun onDestroy() {
-        // the question goes with the window, not leaked; onSaveInstanceState has said whether to ask again
+        // the question goes with the window, not leaked; onSaveInstanceState has said whether a relaunch asks again.
+        // An activity that goes for good (finished, not relaunched) asks nothing again: its question counts as
+        // cancelled, and a scanned batch is given up rather than left for the next scan's question
         linkQuestion?.run {
             setOnDismissListener(null)
-            dismiss()
+            if (this@MainActivity.isFinishing) cancel() else dismiss()
         }
         linkQuestion = null
         super.onDestroy()
