@@ -213,7 +213,8 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload the recorded snapshots
-        if: ${{ env.PAPARAZZI_RECORDED == '1' }}
+        # also when a test failed: what was recorded shows which
+        if: ${{ !cancelled() && env.PAPARAZZI_RECORDED == '1' }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: paparazzi-goldens
