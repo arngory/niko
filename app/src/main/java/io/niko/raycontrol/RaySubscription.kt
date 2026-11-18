@@ -195,13 +195,15 @@ object RaySubscription {
             // itself: a node that drops the direct way (its dial waits out every carrier) leaves the relays their part,
             // and the last way takes all that remains. The direct way keeps half at least: a node that answers busy
             // (429, Retry-After) is waited for there, the relays reaching the same node
+            // this way counted as tried before anything can fail it: a way that ends early leaves the next its share
+            val direct = ways == 1 + node.relays.size
+            val sharing = ways.coerceAtLeast(1)
+            ways--
             if (deadline > 0) {
                 val left = deadline - System.currentTimeMillis()
                 if (left <= 0) throw Exception("the update's $name: its time is up")
-                val share = left / ways.coerceAtLeast(1)
-                val direct = ways == 1 + node.relays.size
+                val share = left / sharing
                 val within = (if (direct) maxOf(share, left / 2) else share).coerceIn(1L, Int.MAX_VALUE.toLong()).toInt()
-                ways--
                 Libcore.raycontrolAppFileWithin(it.toString(), tag, name, out.canonicalPath, etag, within)
             } else {
                 Libcore.raycontrolAppFile(it.toString(), tag, name, out.canonicalPath, etag)
