@@ -16,6 +16,7 @@ import androidx.annotation.IdRes
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.preference.PreferenceDataStore
+import androidx.appcompat.app.AlertDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.navigation.NavigationView
 import com.google.android.material.snackbar.Snackbar
@@ -56,6 +57,9 @@ import io.niko.ktx.runOnDefaultDispatcher
 import io.niko.utils.PrivateDns
 import io.niko.utils.Util
 
+// onSaveInstanceState: a link's question was open when the activity went
+private const val LINK_QUESTION = "link_question"
+
 class MainActivity : ThemedActivity(),
     SagerConnection.Callback,
     OnPreferenceDataStoreChangeListener,
@@ -63,6 +67,21 @@ class MainActivity : ThemedActivity(),
 
     lateinit var binding: LayoutMainBinding
     lateinit var navigation: NavigationView
+
+    /**
+     * The question a link asks (import a raycontrol node, a profile, a subscription, a scanned config) while it is open.
+     * The system may relaunch the activity under it (the theme, an overlay changed while the device settles after its
+     * boot), which closes it with the window: the relaunched activity asks again (onSaveInstanceState, onCreate).
+     */
+    private var linkQuestion: AlertDialog? = null
+
+    /** A link being read before its question (a profile's, a subscription's): a relaunch now is to ask too. */
+    private var linkReading = false
+
+    private fun MaterialAlertDialogBuilder.showLinkQuestion(): AlertDialog = show().also { dialog ->
+        linkQuestion = dialog
+        dialog.setOnDismissListener { if (linkQuestion === dialog) linkQuestion = null }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -109,8 +128,12 @@ class MainActivity : ThemedActivity(),
         DataStore.configurationStore.registerChangeListener(this)
         GroupManager.userInterface = GroupInterfaceAdapter(this)
 
-        // only on a fresh start: a recreated activity (theme, rotation) would ask to import again
-        if (savedInstanceState == null && (intent?.action == Intent.ACTION_VIEW || intent?.action == ImportReview.ACTION_REVIEW)) {
+        // on a fresh start, and after a relaunch that closed the link's question unanswered; a relaunch after it was
+        // answered or cancelled (theme, rotation) does not ask again
+        val asking = savedInstanceState?.getBoolean(LINK_QUESTION) == true
+        if ((savedInstanceState == null || asking) &&
+            (intent?.action == Intent.ACTION_VIEW || intent?.action == ImportReview.ACTION_REVIEW)
+        ) {
             onNewIntent(intent)
         }
 
@@ -145,18 +168,26 @@ class MainActivity : ThemedActivity(),
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        // a relaunch asks about this link, not about the one the activity started with (LINK_QUESTION)
+        if (intent.action == Intent.ACTION_VIEW || intent.action == ImportReview.ACTION_REVIEW) setIntent(intent)
 
         // profiles of a scanned QR code that rewrite the whole config: asked here (ImportReview)
         if (intent.action == ImportReview.ACTION_REVIEW) {
-            val proxies = ImportReview.take()
-            val question = ImportReview.warning(this, proxies) ?: return
+            // the profiles stay with ImportReview until the answer: a relaunch under the question asks about them again
+            val proxies = ImportReview.peek()
+            val question = ImportReview.warning(this, proxies) ?: run {
+                ImportReview.drop(proxies)
+                return
+            }
             MaterialAlertDialogBuilder(this).setTitle(R.string.profile_import)
                 .setMessage(question)
                 .setPositiveButton(R.string.yes) { _, _ ->
+                    ImportReview.drop(proxies)
                     runOnDefaultDispatcher { proxies.forEach { finishImportProfile(it) } }
                 }
-                .setNegativeButton(android.R.string.cancel, null)
-                .show()
+                .setNegativeButton(android.R.string.cancel) { _, _ -> ImportReview.drop(proxies) }
+                .setOnCancelListener { ImportReview.drop(proxies) }
+                .showLinkQuestion()
             return
         }
 
@@ -186,17 +217,22 @@ class MainActivity : ThemedActivity(),
                     }
                 }
                 .setNegativeButton(android.R.string.cancel, null)
-                .show()
+                .showLinkQuestion()
             return
         }
 
+        linkReading = true
         runOnDefaultDispatcher {
-            if (uri.scheme == "sn" && uri.host == "subscription" || uri.scheme == "clash" ||
-                parseSubscriptionDeepLink(uri.toString()) != null
-            ) {
-                importSubscription(uri)
-            } else {
-                importProfile(uri)
+            try {
+                if (uri.scheme == "sn" && uri.host == "subscription" || uri.scheme == "clash" ||
+                    parseSubscriptionDeepLink(uri.toString()) != null
+                ) {
+                    importSubscription(uri)
+                } else {
+                    importProfile(uri)
+                }
+            } finally {
+                onMainDispatcher { linkReading = false }
             }
         }
     }
@@ -266,19 +302,20 @@ class MainActivity : ThemedActivity(),
             ?: ("Subscription #" + System.currentTimeMillis())
 
         onMainDispatcher {
+            // an activity relaunched meanwhile asks in its successor (linkReading), not on its own dead window
+            if (!isFinishing && !isDestroyed) {
+                displayFragmentWithId(R.id.nav_group)
 
-            displayFragmentWithId(R.id.nav_group)
-
-            MaterialAlertDialogBuilder(this@MainActivity).setTitle(R.string.subscription_import)
-                .setMessage(getString(R.string.subscription_import_message, name))
-                .setPositiveButton(R.string.yes) { _, _ ->
-                    runOnDefaultDispatcher {
-                        finishImportSubscription(group)
+                MaterialAlertDialogBuilder(this@MainActivity).setTitle(R.string.subscription_import)
+                    .setMessage(getString(R.string.subscription_import_message, name))
+                    .setPositiveButton(R.string.yes) { _, _ ->
+                        runOnDefaultDispatcher {
+                            finishImportSubscription(group)
+                        }
                     }
-                }
-                .setNegativeButton(android.R.string.cancel, null)
-                .show()
-
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .showLinkQuestion()
+            }
         }
 
     }
@@ -299,19 +336,22 @@ class MainActivity : ThemedActivity(),
         }
 
         onMainDispatcher {
-            MaterialAlertDialogBuilder(this@MainActivity).setTitle(R.string.profile_import)
-                // a web page can open this link: say so, with its keys, when it rewrites the whole config
-                .setMessage(
-                    ImportReview.warning(this@MainActivity, listOf(profile))
-                        ?: getString(R.string.profile_import_message, profile.displayName())
-                )
-                .setPositiveButton(R.string.yes) { _, _ ->
-                    runOnDefaultDispatcher {
-                        finishImportProfile(profile)
+            // an activity relaunched meanwhile asks in its successor (linkReading), not on its own dead window
+            if (!isFinishing && !isDestroyed) {
+                MaterialAlertDialogBuilder(this@MainActivity).setTitle(R.string.profile_import)
+                    // a web page can open this link: say so, with its keys, when it rewrites the whole config
+                    .setMessage(
+                        ImportReview.warning(this@MainActivity, listOf(profile))
+                            ?: getString(R.string.profile_import_message, profile.displayName())
+                    )
+                    .setPositiveButton(R.string.yes) { _, _ ->
+                        runOnDefaultDispatcher {
+                            finishImportProfile(profile)
+                        }
                     }
-                }
-                .setNegativeButton(android.R.string.cancel, null)
-                .show()
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .showLinkQuestion()
+            }
         }
 
     }
@@ -532,7 +572,18 @@ class MainActivity : ThemedActivity(),
         super.onStop()
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(LINK_QUESTION, linkReading || linkQuestion?.isShowing == true)
+    }
+
     override fun onDestroy() {
+        // the question goes with the window, not leaked; onSaveInstanceState has said whether to ask again
+        linkQuestion?.run {
+            setOnDismissListener(null)
+            dismiss()
+        }
+        linkQuestion = null
         super.onDestroy()
         GroupManager.userInterface = null
         DataStore.configurationStore.unregisterChangeListener(this)
