@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag (e.g. v1.4.3), must match VERSION_NAME in niko.properties. Created on the selected branch's head if it does not exist yet."
+        description: "Release tag (e.g. v1.4.3), must match VERSION_NAME in niko.properties. If it does not exist yet, the run leaves a draft with the signed files, and publishing it on the site makes the tag."
         required: true
 
 # read-only by default: only publish writes (the release and its assets). The build runs Gradle, its plugins and
@@ -23,6 +23,7 @@ jobs:
       sha: ${{ steps.tag.outputs.sha }}
       prerelease: ${{ steps.tag.outputs.prerelease }}
       kind: ${{ steps.tag.outputs.kind }}
+      tag_exists: ${{ steps.tag.outputs.tag_exists }}
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
@@ -34,12 +35,13 @@ jobs:
         id: tag
         env:
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           if [[ "$TAG" == niko-server-* ]]; then
             echo "::error::niko-server is released from arngory/niko-server (vX.Y.Z tags) since v0.1.2"
             exit 1
           fi
-          echo "kind=app" >> "$GITHUB_OUTPUT"
           version=$(grep '^VERSION_NAME=' niko.properties | cut -d= -f2)
           if [ "$TAG" != "v$version" ]; then
             echo "::error::tag $TAG does not match VERSION_NAME=$version in niko.properties"
@@ -54,12 +56,25 @@ jobs:
             exit 1
           fi
           # an existing tag must point at the commit being released
+          tag_exists=false
           if existing=$(git rev-parse -q --verify "refs/tags/$TAG^{commit}"); then
             if [ "$existing" != "$GITHUB_SHA" ]; then
               echo "::error::tag $TAG already exists on $existing, not on $GITHUB_SHA"
               exit 1
             fi
+            tag_exists=true
           fi
+          # the owner published the draft a manual run left: that made the tag, and this run of the tag finds the
+          # release out with its files, so it has nothing to build, sign or publish
+          released=$(gh release view "$TAG" --json isDraft,assets \
+            --jq '(.isDraft | not) and any(.assets[]; .name == "SHA256SUMS")' 2> /dev/null || true)
+          if [ "$released" = "true" ]; then
+            echo "::notice::$TAG is out with its files already: nothing to do"
+            echo "kind=released" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "kind=app" >> "$GITHUB_OUTPUT"
+          echo "tag_exists=$tag_exists" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
           case "$TAG" in
@@ -179,9 +194,13 @@ jobs:
           TAG: ${{ needs.check.outputs.tag }}
           SHA: ${{ needs.check.outputs.sha }}
           PRERELEASE: ${{ needs.check.outputs.prerelease }}
+          TAG_EXISTS: ${{ needs.check.outputs.tag_exists }}
         run: |
-          # a manual run creates the tag on the released commit
           flags=(--title "$TAG" --target "$SHA")
+          # a manual run for a tag not made yet: a release published here would make the tag, and the tag ruleset
+          # lets only the owner make v* tags (docs/RELEASE_SIGNING.md §2), so the run leaves a draft, which makes
+          # none. The owner publishes it on the site, the tag is made on $SHA then, and its run stops at check
+          [ "$TAG_EXISTS" = "true" ] || flags+=(--draft)
           # hand-written notes for the tag if present, otherwise GitHub's generated ones
           if [ -f ".github/release-notes/$TAG.md" ]; then
             flags+=(--notes-file ".github/release-notes/$TAG.md")
@@ -203,4 +222,8 @@ jobs:
             gh release edit "$TAG" "${edit[@]}"
           else
             gh release create "$TAG" apks/* "${flags[@]}"
+          fi
+          if [ "$(gh release view "$TAG" --json isDraft --jq .isDraft)" = "true" ]; then
+            echo "::notice::$TAG is a draft with the signed files: publish it on the site (Releases, $TAG, Edit, Publish release), which makes the tag on $SHA"
+            echo "**$TAG** is a draft with the signed files. Publish it on the site: Releases → $TAG → Edit → **Publish release**; that makes the tag on \`$SHA\`." >> "$GITHUB_STEP_SUMMARY"
           fi
