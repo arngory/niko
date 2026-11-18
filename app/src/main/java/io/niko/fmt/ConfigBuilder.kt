@@ -668,6 +668,12 @@ fun buildConfig(
                 if (rayNode != null && bean is HysteriaBean && bean.protocolVersion == 2 && !proxyEntity.needExternal()) {
                     currentOutbound._hack_config_map["keep_alive_period"] = "25s"
                     currentOutbound._hack_config_map["idle_timeout"] = "60s"
+                    // the Chrome parrot pins Chrome's idle timeout, 30 s, over the 60 s above, and both sides then
+                    // ping every 15 s, 240 wakes an hour. Under salamander every byte of every packet is masked, the
+                    // parrot's ClientHello, transport parameters and windows with them, so it hides nothing there
+                    // and costs the battery: off for obfs only, a bare QUIC handshake keeps it (owner's choice B,
+                    // docs/research/keepalive.md)
+                    if (bean.obfuscation.isNotBlank()) currentOutbound._hack_config_map["disable_chrome_parrot"] = true
                 }
                 // honest connect (experiment, off by default): an app's TCP connection opens only once the node has
                 // reached the destination, so a refusal or a dead host fails it at once instead of a connection that
