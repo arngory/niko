@@ -12,13 +12,13 @@ fun Context.launchCustomTab(link: String) {
         setColorSchemeParams(
             CustomTabsIntent.COLOR_SCHEME_LIGHT,
             CustomTabColorSchemeParams.Builder().apply {
-                setToolbarColor(getColorAttr(R.attr.colorPrimary))
+                setToolbarColor(getColorAttr(R.attr.barBackground))
             }.build()
         )
         setColorSchemeParams(
             CustomTabsIntent.COLOR_SCHEME_DARK,
             CustomTabColorSchemeParams.Builder().apply {
-                setToolbarColor(getColorAttr(R.attr.colorPrimary))
+                setToolbarColor(getColorAttr(R.attr.barBackground))
             }.build()
         )
     }.build().apply {

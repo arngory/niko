@@ -13,4 +13,10 @@
     <attr name="fabRingColor" format="color" />
     <attr name="selectedColorPrimary" format="color" />
     <attr name="whiteOrTextPrimary" format="color" />
+    <!-- the shadow under the bars (the app bar, the group and tool tabs); Niko has none: its surfaces part the layers -->
+    <attr name="barElevation" format="dimension" />
+    <!-- the bars' fill (the app bar, the group and tool tabs, Custom Tabs): colorPrimary in the colour themes; Niko keeps
+         colorPrimary the accent, ink, which Material's fields, buttons and indicators take, and fills its bars with
+         surface-0 -->
+    <attr name="barBackground" format="color" />
 </resources>

@@ -139,7 +139,9 @@ class ServiceNotification(
 
         Theme.apply(app)
         Theme.apply(service)
-        builder.color = service.getColorAttr(R.attr.colorPrimary)
+        // the notification's accent is the theme's colour; Niko's bars are surface-0, near white in the light theme and
+        // lost in the shade: its notification sets none and the system's own shows (reskin step 1)
+        if (DataStore.appTheme != Theme.NIKO) builder.color = service.getColorAttr(R.attr.colorPrimary)
 
         service.registerReceiver(this, IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_ON)

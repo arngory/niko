@@ -6,8 +6,9 @@
 Allowed: a colour of the tokens (@color/niko_<token>, generated into niko_tokens.xml by gen_tokens.py), an attribute
 of the theme (?attr/…, ?android:attr/…), @android:color/transparent and @null, and a colour state list in res/color
 whose items are allowed in turn. Not allowed: a colour of the app's own (@color/material_red_500, niko_bar), a
-platform colour, a literal #rrggbb. Where: every style whose name has "Niko" in values*/ (themes and styles), and
-every layout. The 21 colour themes of NekoBox and Black stay as they are until the owner decides (reskin plan,
+platform colour, a literal #rrggbb. Where: every style whose name has "Niko" in values*/ (themes and styles), with
+what it takes from the app's own styles above it and does not set itself (its parent, or the style its name's dots
+make it a child of: Theme.SagerNet.Niko of Theme.SagerNet), and every layout. The 21 colour themes of NekoBox and Black stay as they are until the owner decides (reskin plan,
 question 5): their styles are not "Niko".
 
 EXCEPTIONS counts what is there today and goes only down: a new colour anywhere fails, and so does an exception that
@@ -23,7 +24,6 @@ COLOUR = re.compile(r"^(@color/[A-Za-z0-9_]+|@android:color/[A-Za-z0-9_]+|#[0-9a
 
 # (file under res, colour): how many there are today. Step 1 of the reskin takes them away
 EXCEPTIONS = {
-    ("values/themes.xml", "@color/niko_bar"): 6,
     ("layout/layout_import.xml", "@color/material_red_accent_200"): 1,
     ("layout/layout_chain_settings.xml", "@android:color/darker_gray"): 1,
     ("layout/layout_edit_config.xml", "@android:color/darker_gray"): 1,
@@ -62,9 +62,45 @@ def value_problems(res, value, allowed, seen):
     return [value]
 
 
+def styles(res):
+    """Every style of the app: name -> (file under res, {item: value}, parent name or None)."""
+    out = {}
+    for folder in sorted(os.listdir(res)):
+        if not (folder == "values" or folder.startswith("values-")):
+            continue
+        for name in sorted(os.listdir(os.path.join(res, folder))):
+            if not name.endswith(".xml"):
+                continue
+            for style in ET.parse(os.path.join(res, folder, name)).getroot().findall("style"):
+                parent = style.get("parent")
+                if parent is not None:
+                    parent = parent.split("/", 1)[-1]
+                elif "." in style.get("name"):
+                    parent = style.get("name").rsplit(".", 1)[0]
+                items = {item.get("name"): item.text or "" for item in style.findall("item")}
+                # the default configuration's wins: an inheritance read for values/
+                out.setdefault(style.get("name"), (f"{folder}/{name}", items, parent))
+    return out
+
+
+def inherited(all_styles, name):
+    """(file under res, value) of what the style takes from the app's own styles above it and does not set itself."""
+    _, items, parent = all_styles[name]
+    seen = set(items)
+    out = []
+    while parent in all_styles:
+        where, above, parent = all_styles[parent]
+        for item, value in above.items():
+            if item not in seen:
+                seen.add(item)
+                out.append((where, value))
+    return out
+
+
 def found(res):
     """(file under res, colour) for every colour not allowed."""
     allowed = token_colours(res)
+    all_styles = styles(res)
     out = []
     for folder in sorted(os.listdir(res)):
         path = os.path.join(res, folder)
@@ -86,6 +122,9 @@ def found(res):
                     for item in style.findall("item"):
                         out += [(f"{folder}/{name}", v)
                                 for v in value_problems(res, item.text or "", allowed, set())]
+                    if folder == "values":
+                        for where, value in inherited(all_styles, style.get("name")):
+                            out += [(where, v) for v in value_problems(res, value, allowed, set())]
     return out
 
 

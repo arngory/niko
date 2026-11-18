@@ -11,7 +11,7 @@
         android:id="@+id/appbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/colorPrimary">
+        android:background="?attr/barBackground">
 
         <com.google.android.material.appbar.CollapsingToolbarLayout
             android:layout_width="match_parent"
@@ -23,8 +23,8 @@
                 android:id="@+id/toolbar"
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
-                android:background="?attr/colorPrimary"
-                android:elevation="4dp"
+                android:background="?attr/barBackground"
+                android:elevation="?attr/barElevation"
                 android:theme="?actionBarTheme"
                 android:touchscreenBlocksFocus="false"
                 app:layout_collapseMode="pin"
@@ -110,7 +110,8 @@
         android:scrollbarSize="0dp"
         android:visibility="gone"
         app:fastScrollAutoHide="true"
-        app:fastScrollPopupTextColor="?colorPrimary"
+        app:fastScrollPopupBgColor="?colorPrimary"
+        app:fastScrollPopupTextColor="?colorOnPrimary"
         app:fastScrollThumbColor="?colorPrimary"
         app:fastScrollThumbInactiveColor="?colorPrimary"
         app:layout_behavior="@string/appbar_scrolling_view_behavior"

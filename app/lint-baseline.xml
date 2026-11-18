@@ -289,9 +289,9 @@
 
     <issue
         id="Overdraw"
-        message="Possible overdraw: Root element paints background `?attr/colorPrimary` with a theme that also paints a background (inferred theme is `@style/Theme.Start`)"
-        errorLine1="    android:background=&quot;?attr/colorPrimary&quot;"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        message="Possible overdraw: Root element paints background `?attr/barBackground` with a theme that also paints a background (inferred theme is `@style/Theme.Start`)"
+        errorLine1="    android:background=&quot;?attr/barBackground&quot;"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/layout/layout_appbar.xml"
             line="7"

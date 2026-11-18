@@ -8,7 +8,9 @@ import androidx.activity.addCallback
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import com.google.android.material.appbar.AppBarLayout
@@ -35,6 +37,7 @@ abstract class ThemedActivity : AppCompatActivity {
         super.onCreate(savedInstanceState)
 
         uiMode = resources.configuration.uiMode
+        if (!isDialog) nikoSystemBars()
 
         if (Build.VERSION.SDK_INT >= 35) {
             ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content)) { _, insets ->
@@ -48,6 +51,26 @@ abstract class ThemedActivity : AppCompatActivity {
 //            }
                 insets
             }
+        }
+    }
+
+    /**
+     * The Niko theme's system bars (reskin step 1, D-MAIN): surface-0 as the app's own bars, with dark icons in the
+     * light theme and light ones in the dark. The navigation bar takes dark icons from API 27 only: below it, it stays
+     * dark (ink of the light theme). On API 35 the window is edge to edge and the colours are not applied; the icons
+     * still are.
+     */
+    @Suppress("DEPRECATION")
+    private fun nikoSystemBars() {
+        if (themeResId != R.style.Theme_SagerNet_Niko) return
+        val night = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        val surface = ContextCompat.getColor(this, R.color.niko_surface_0)
+        window.statusBarColor = surface
+        window.navigationBarColor = if (Build.VERSION.SDK_INT >= 27 || night) surface
+        else ContextCompat.getColor(this, R.color.niko_ink)
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = !night
+            if (Build.VERSION.SDK_INT >= 27) isAppearanceLightNavigationBars = !night
         }
     }
 

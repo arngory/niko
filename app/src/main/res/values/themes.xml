@@ -43,6 +43,8 @@
         <item name="tabIndicatorColor">@color/white</item>
         <item name="tabRippleColor">@color/white</item>
         <item name="whiteOrTextPrimary">@color/white</item>
+        <item name="barElevation">4dp</item>
+        <item name="barBackground">?colorPrimary</item>
 
         <item name="windowActionModeOverlay">true</item>
 
@@ -109,6 +111,8 @@
         <item name="tabIndicatorColor">@color/white</item>
         <item name="tabRippleColor">@color/white</item>
         <item name="whiteOrTextPrimary">@color/white</item>
+        <item name="barElevation">4dp</item>
+        <item name="barBackground">?colorPrimary</item>
 
         <item name="windowActionModeOverlay">true</item>
 
@@ -522,6 +526,38 @@
         <item name="actionOverflowButtonStyle">@style/Widget.Niko.ActionButton.Overflow</item>
     </style>
 
+    <!-- the Niko theme's bars: surface-0 with ink, in the light theme as in the dark -->
+    <style name="ThemeOverlay.Niko.ActionBar.Neutral" parent="ThemeOverlay.AppCompat.DayNight.ActionBar">
+        <item name="searchViewStyle">@style/Widget.Niko.SearchView</item>
+        <item name="actionOverflowButtonStyle">@style/Widget.Niko.ActionButton.Overflow</item>
+        <item name="colorControlNormal">@color/niko_ink</item>
+        <item name="android:textColorPrimary">@color/niko_ink</item>
+        <item name="android:textColorSecondary">@color/niko_ink_2</item>
+    </style>
+
+    <style name="Widget.Niko.TabLayout" parent="Widget.MaterialComponents.TabLayout">
+        <item name="tabTextAppearance">@style/TextAppearance.Niko.BodySm</item>
+        <item name="tabSelectedTextAppearance">@style/TextAppearance.Niko.BodySm.Selected</item>
+        <item name="tabIndicatorHeight">0dp</item>
+    </style>
+    <style name="TextAppearance.Niko.BodySm.Selected">
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <!-- snackbar: surface-3, its text body-sm ink, its action ink 600 -->
+    <style name="Widget.Niko.Snackbar" parent="Widget.MaterialComponents.Snackbar">
+        <item name="backgroundTint">@color/niko_surface_3</item>
+    </style>
+    <style name="Widget.Niko.Snackbar.TextView" parent="Widget.MaterialComponents.Snackbar.TextView">
+        <item name="android:textAppearance">@style/TextAppearance.Niko.BodySm</item>
+        <item name="android:textColor">@color/niko_ink</item>
+        <item name="android:alpha">1</item>
+    </style>
+    <style name="Widget.Niko.Snackbar.Button" parent="Widget.MaterialComponents.Button.TextButton.Snackbar">
+        <item name="android:textColor">@color/niko_ink</item>
+        <item name="android:textAppearance">@style/TextAppearance.Niko.Slot.Button</item>
+    </style>
+
     <style name="Widget.Niko.ActionButton.Overflow" parent="Widget.AppCompat.ActionButton.Overflow">
         <item name="srcCompat">@drawable/ic_l_ellipsis_vertical</item>
     </style>
@@ -534,11 +570,34 @@
 
     <!-- Niko (Theme.NIKO, the default): neutral, from the design system's tokens; the accent is the inversion, ink -->
     <style name="Theme.SagerNet.Niko">
-        <item name="colorPrimary">@color/niko_bar</item>
-        <item name="colorPrimaryDark">@color/niko_bar</item>
+        <!-- the roles of the theme, from the design system's tokens (reskin step 1, D-MAIN): surface-0 behind
+             everything, the bars included, surface-1 for containers; ink for text and the accent, ink-2 for the
+             secondary; a pressed row fills with surface-2 -->
+        <item name="android:colorBackground">@color/niko_surface_0</item>
+        <item name="android:windowBackground">@color/niko_surface_0</item>
+        <item name="colorSurface">@color/niko_surface_1</item>
+        <item name="colorOnSurface">@color/niko_ink</item>
+        <item name="colorOnBackground">@color/niko_ink</item>
+        <item name="android:textColorPrimary">@color/niko_ink</item>
+        <item name="android:textColorSecondary">@color/niko_ink_2</item>
+        <item name="colorControlNormal">@color/niko_ink_2</item>
+        <item name="colorControlActivated">@color/niko_ink</item>
+        <item name="colorControlHighlight">@color/niko_surface_2</item>
+        <item name="colorError">@color/niko_danger</item>
+        <!-- colorPrimary stays the accent, ink: Material's fields (focused outline, hint), filled buttons, progress
+             indicators and the fast scroller's thumb and letter popup (on-ink letters) take it. The bars fill with
+             barBackground; the status bar with colorPrimaryDark and colorPrimaryVariant -->
+        <item name="colorPrimary">@color/niko_ink</item>
+        <item name="colorPrimaryDark">@color/niko_surface_0</item>
+        <item name="colorPrimaryVariant">@color/niko_surface_0</item>
+        <item name="colorOnPrimary">@color/niko_on_ink</item>
         <item name="colorAccent">@color/niko_ink</item>
+        <item name="colorSecondary">@color/niko_ink</item>
+        <item name="colorSecondaryVariant">@color/niko_ink_pressed</item>
+        <item name="colorOnSecondary">@color/niko_on_ink</item>
         <item name="colorMaterial100">@color/niko_surface_2</item>
-        <item name="colorMaterial300">@color/niko_bar</item>
+        <!-- the statistics bar at the bottom: a container -->
+        <item name="colorMaterial300">@color/niko_surface_1</item>
 
         <item name="selectedColorPrimary">@color/niko_ink</item>
         <item name="fabColorBackground">@color/niko_ink</item>
@@ -550,14 +609,56 @@
         <!-- the drawer's chosen row: ink, as the design system's active section (n-nav__item.is-active), not quieter than the rest -->
         <item name="primaryOrTextSecondary">?android:textColorPrimary</item>
         <item name="primaryOrTextPrimary">?android:textColorPrimary</item>
+
+        <!-- the bars are light in the light theme: their text and icons are ink, no white of the coloured themes;
+             no shadow under them -->
+        <item name="actionBarTheme">@style/ThemeOverlay.Niko.ActionBar.Neutral</item>
+        <item name="whiteOrTextPrimary">@color/niko_ink</item>
+        <item name="barElevation">0dp</item>
+        <item name="barBackground">@color/niko_surface_0</item>
+        <!-- the group tabs as the window's header sections: the chosen one ink and 600, the others ink-2, no strip
+             (ink and ink-2 differ less than 3:1, so the weight marks it too) -->
+        <item name="tabStyle">@style/Widget.Niko.TabLayout</item>
+        <item name="tabTextColor">@color/niko_ink_2</item>
+        <item name="tabSelectedTextColor">@color/niko_ink</item>
+        <item name="tabIndicatorColor">@android:color/transparent</item>
+        <item name="tabRippleColor">@color/niko_surface_2</item>
+        <item name="snackbarStyle">@style/Widget.Niko.Snackbar</item>
+        <item name="snackbarTextViewStyle">@style/Widget.Niko.Snackbar.TextView</item>
+        <item name="snackbarButtonStyle">@style/Widget.Niko.Snackbar.Button</item>
     </style>
 
     <style name="Theme.SagerNet.Dialog.Niko">
-        <item name="colorPrimary">@color/niko_bar</item>
-        <item name="colorPrimaryDark">@color/niko_bar</item>
+        <!-- the roles of the theme, from the design system's tokens (reskin step 1, D-MAIN): surface-0 behind
+             everything, the bars included, surface-1 for containers; ink for text and the accent, ink-2 for the
+             secondary; a pressed row fills with surface-2 -->
+        <!-- a dialog's window keeps its frame (windowBackground is the theme's inset shape): only its fill is ours,
+             surface-1, as the tokens have the dialogs -->
+        <item name="android:colorBackground">@color/niko_surface_1</item>
+        <item name="colorBackgroundFloating">@color/niko_surface_1</item>
+        <item name="colorSurface">@color/niko_surface_1</item>
+        <item name="colorOnSurface">@color/niko_ink</item>
+        <item name="colorOnBackground">@color/niko_ink</item>
+        <item name="android:textColorPrimary">@color/niko_ink</item>
+        <item name="android:textColorSecondary">@color/niko_ink_2</item>
+        <item name="colorControlNormal">@color/niko_ink_2</item>
+        <item name="colorControlActivated">@color/niko_ink</item>
+        <item name="colorControlHighlight">@color/niko_surface_2</item>
+        <item name="colorError">@color/niko_danger</item>
+        <!-- colorPrimary stays the accent, ink: Material's fields (focused outline, hint), filled buttons, progress
+             indicators and the fast scroller's thumb and letter popup (on-ink letters) take it. The bars fill with
+             barBackground; the status bar with colorPrimaryDark and colorPrimaryVariant -->
+        <item name="colorPrimary">@color/niko_ink</item>
+        <item name="colorPrimaryDark">@color/niko_surface_0</item>
+        <item name="colorPrimaryVariant">@color/niko_surface_0</item>
+        <item name="colorOnPrimary">@color/niko_on_ink</item>
         <item name="colorAccent">@color/niko_ink</item>
+        <item name="colorSecondary">@color/niko_ink</item>
+        <item name="colorSecondaryVariant">@color/niko_ink_pressed</item>
+        <item name="colorOnSecondary">@color/niko_on_ink</item>
         <item name="colorMaterial100">@color/niko_surface_2</item>
-        <item name="colorMaterial300">@color/niko_bar</item>
+        <!-- the statistics bar at the bottom: a container -->
+        <item name="colorMaterial300">@color/niko_surface_1</item>
 
         <item name="selectedColorPrimary">@color/niko_ink</item>
         <item name="fabColorBackground">@color/niko_ink</item>
@@ -569,6 +670,23 @@
         <!-- the drawer's chosen row: ink, as the design system's active section (n-nav__item.is-active), not quieter than the rest -->
         <item name="primaryOrTextSecondary">?android:textColorPrimary</item>
         <item name="primaryOrTextPrimary">?android:textColorPrimary</item>
+
+        <!-- the bars are light in the light theme: their text and icons are ink, no white of the coloured themes;
+             no shadow under them -->
+        <item name="actionBarTheme">@style/ThemeOverlay.Niko.ActionBar.Neutral</item>
+        <item name="whiteOrTextPrimary">@color/niko_ink</item>
+        <item name="barElevation">0dp</item>
+        <item name="barBackground">@color/niko_surface_0</item>
+        <!-- the group tabs as the window's header sections: the chosen one ink and 600, the others ink-2, no strip
+             (ink and ink-2 differ less than 3:1, so the weight marks it too) -->
+        <item name="tabStyle">@style/Widget.Niko.TabLayout</item>
+        <item name="tabTextColor">@color/niko_ink_2</item>
+        <item name="tabSelectedTextColor">@color/niko_ink</item>
+        <item name="tabIndicatorColor">@android:color/transparent</item>
+        <item name="tabRippleColor">@color/niko_surface_2</item>
+        <item name="snackbarStyle">@style/Widget.Niko.Snackbar</item>
+        <item name="snackbarTextViewStyle">@style/Widget.Niko.Snackbar.TextView</item>
+        <item name="snackbarButtonStyle">@style/Widget.Niko.Snackbar.Button</item>
     </style>
 
     <style name="TextAppearance.Niko.ToolbarTitle" parent="TextAppearance.Widget.AppCompat.Toolbar.Title">
@@ -585,7 +703,9 @@
         <item name="subtitleTextAppearance">@style/TextAppearance.Niko.ToolbarSubtitle</item>
     </style>
 
+    <!-- the launch: surface-0, no white or black flash before the first screen -->
     <style name="Theme.Start" parent="Theme.MaterialComponents.DayNight">
+        <item name="android:windowBackground">@color/niko_surface_0</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="colorPrimary">@android:color/transparent</item>
         <item name="colorPrimaryDark">@android:color/transparent</item>
