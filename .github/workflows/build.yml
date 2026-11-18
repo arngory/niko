@@ -71,6 +71,8 @@ jobs:
           (cd ../sing-box/third_party/sing-quic && go test -count=1 -run "TestDropTooLarge|TestReadPacketSkipsOversized" ./hysteria2)
           (cd ../sing-box/third_party/masterdnsvpn && go test -count=1 ./embed ./internal/compression ./internal/dnsparser ./internal/udpserver)
           (cd libcore && go test -count=1 -ldflags=-checklinkname=0 -tags="$TAGS" . ./raysub ./rayapi ./probe ./rayprobe ./dnsprobe ./minisign ./stun ./nikoservice ./routetest)
+          # what the build's step on the Go modules' licenses takes each license for
+          python3 -I buildScript/lib/core/licenses_test.py
 
       - name: Build
         if: steps.cache.outputs.cache-hit != 'true'
@@ -191,6 +193,16 @@ jobs:
           tasks="app:testOssReleaseUnitTest app:assembleOssRelease"
           [ "${{ inputs.lint }}" = "true" ] && tasks="$tasks app:lintOssRelease"
           ./gradlew --no-daemon $tasks
+
+      - name: The licenses in each APK
+        run: |
+          # NOTICE of the repository's root and the Go modules' licenses that libcore.aar brings
+          # (buildScript/lib/core/licenses.py): every APK carries both
+          for apk in app/build/outputs/apk/oss/release/*.apk; do
+            unzip -l "$apk" assets/NOTICE assets/licenses/go.json > /dev/null \
+              || { echo "$apk: no assets/NOTICE or assets/licenses/go.json"; exit 1; }
+          done
+          unzip -p "$(ls app/build/outputs/apk/oss/release/*.apk | head -1)" assets/NOTICE | cmp - NOTICE
 
       - name: Upload lint report
         if: ${{ inputs.lint && !cancelled() }}

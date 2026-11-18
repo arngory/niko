@@ -50,3 +50,6 @@ authors.
 | [sing-box-lx](https://github.com/Leadaxe/sing-box-lx) (XHTTP, REALITY changes) | Leadaxe | GPL-3.0 |
 | [shadowsocks-android](https://github.com/shadowsocks/shadowsocks-android) | shadowsocks | GPL-3.0 |
 | [Yacd-meta](https://github.com/MetaCubeX/Yacd-meta) | MetaCubeX | MIT |
+
+Everything else the app carries (the Go modules of the core, Chromium, the slipstream client, the rule databases,
+the Android libraries, the fonts and icons), each with its license: [NOTICE](NOTICE).

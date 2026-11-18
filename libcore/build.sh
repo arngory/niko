@@ -88,6 +88,11 @@ for so in "$BUILD"/built/jni/*/libgojni.so; do
   fi
   echo ">> $(basename "$(dirname "$so")"): $built, Chromium $CHROMIUM, GODEBUG $GODEBUG_DEFAULT"
 done
+# the licenses of the Go modules each ABI's library was linked from, by its own build info, go into the AAR as
+# assets/licenses/go.json: the app shows them and NOTICE points to them. A module without a license file, or with one
+# the script does not know, stops the build here (buildScript/lib/core/licenses.py)
+python3 -I ../buildScript/lib/core/licenses.py --aar libcore.aar --out "$BUILD/licenses-go.json" \
+  "$BUILD"/built/jni/*/libgojni.so || exit 1
 rm -rf "$BUILD/built"
 
 proj=../app/libs

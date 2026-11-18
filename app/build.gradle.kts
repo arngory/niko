@@ -9,6 +9,35 @@ plugins {
 
 setupApp()
 
+// NOTICE of the repository's root in the APK as assets/NOTICE, beside assets/licenses/go.json that libcore.aar brings
+// (buildScript/lib/core/licenses.py): one file, the same text in the repository and in the app
+abstract class NoticeAsset : DefaultTask() {
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val notice: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val output: DirectoryProperty
+
+    @TaskAction
+    fun copy() {
+        val dir = output.get().asFile
+        dir.deleteRecursively()
+        dir.mkdirs()
+        notice.get().asFile.copyTo(dir.resolve("NOTICE"))
+    }
+}
+
+val noticeAsset = tasks.register<NoticeAsset>("noticeAsset") {
+    notice.set(rootProject.layout.projectDirectory.file("NOTICE"))
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(noticeAsset, NoticeAsset::output)
+    }
+}
+
 android {
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
