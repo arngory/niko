@@ -67,7 +67,15 @@ jobs:
           git -C core checkout -q "$COMMIT_SING_BOX"
           git clone --filter=blob:none "$REPOSITORY_XRAY" xray
           git -C xray checkout -q "$COMMIT_XRAY"
-          curl -fsSL --retry 3 -o /tmp/niko-server "$NIKO_SERVER_RELEASES/download/$NIKO_SERVER_TAG/niko-server-linux-amd64"
+          if [ "$SERVER" = legacy ]; then
+            # the recreated niko-server repository has no release before v0.18.3: the legacy binary is the one a
+            # raycontrol release archive carries, the archive checked by its own SHA-256 first
+            curl -fsSL --retry 3 -o /tmp/rc-legacy.tgz "$NIKO_SERVER_LEGACY_ARCHIVE"
+            echo "$NIKO_SERVER_LEGACY_ARCHIVE_SHA256  /tmp/rc-legacy.tgz" | sha256sum -c -
+            tar -xzf /tmp/rc-legacy.tgz -C /tmp niko-server
+          else
+            curl -fsSL --retry 3 -o /tmp/niko-server "$NIKO_SERVER_RELEASES/download/$NIKO_SERVER_TAG/niko-server-linux-amd64"
+          fi
           echo "$NIKO_SERVER_SHA256_AMD64  /tmp/niko-server" | sha256sum -c -
           chmod +x /tmp/niko-server
           /tmp/niko-server version
