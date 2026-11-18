@@ -3,6 +3,7 @@ package libcore
 import (
 	"fmt"
 	"libcore/device"
+	"libcore/nikolog"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -11,8 +12,6 @@ import (
 
 	"log"
 
-	"github.com/matsuridayo/libneko/neko_common"
-	"github.com/matsuridayo/libneko/neko_log"
 	"github.com/sagernet/sing-box/experimental/cachefile"
 	"github.com/sagernet/sing-box/nekoutils"
 	"github.com/sagernet/sing-box/option"
@@ -27,7 +26,7 @@ func NekoLogPrintln(s string) {
 }
 
 func NekoLogClear() {
-	neko_log.LogWriter.Truncate()
+	nikolog.Truncate()
 }
 
 // ForceGc returns the Go heap's free memory to the system (the app's onTrimMemory, releaseMemory), and says in the log
@@ -48,7 +47,6 @@ func InitCore(process, cachePath, internalAssets, externalAssets string,
 	defer device.DeferPanicToError("InitCore", func(err error) { log.Println(err) })
 	isBgProcess = strings.HasSuffix(process, ":bg")
 
-	neko_common.RunMode = neko_common.RunMode_NekoBoxForAndroid
 	intfNiko = if1
 	intfBox = if2
 	useProcfs = intfBox.UseProcFS()
@@ -75,11 +73,14 @@ func InitCore(process, cachePath, internalAssets, externalAssets string,
 	} else if maxLogSizeKb < 50 {
 		maxLogSizeKb = 50
 	}
-	neko_log.LogWriterDisable = !logEnable
-	neko_log.TruncateOnStart = isBgProcess
-	neko_log.SetupLog(int(maxLogSizeKb)*1024, filepath.Join(cachePath, "neko.log"))
-	// every line of the log without secrets (redact.go)
-	log.SetOutput(redactingWriter{neko_log.LogWriter})
+	// one file both processes append to, cut at the service's start; stderr into it (a panic's trace)
+	nikolog.Disable(!logEnable)
+	if err := nikolog.Open(filepath.Join(cachePath, "neko.log"), int64(maxLogSizeKb)*1024, isBgProcess, true); err != nil {
+		log.Println("log:", err)
+	}
+	// every line of the log without secrets (redact.go), its time in UTC
+	log.SetFlags(log.LstdFlags | log.LUTC)
+	log.SetOutput(redactingWriter{nikolog.Writer})
 	setCrashOutput(cachePath, isBgProcess)
 
 	// nekoutils
@@ -164,10 +165,9 @@ func sendFdToProtect(fd int, path string) error {
 }
 
 // SetLogEnable turns the log writer on or off in this process (initCore set it from the log level); a test run
-// turns it on for its window and back after. The flag is a plain bool of libneko read by the writer without a lock:
-// a word-sized store, at worst a line more or less around the switch.
+// turns it on for its window and back after.
 func SetLogEnable(enable bool) {
-	neko_log.LogWriterDisable = !enable
+	nikolog.Disable(!enable)
 }
 
 // LogMarker writes one line to the app's log: a test run finds its own part of the log by it, whatever the file

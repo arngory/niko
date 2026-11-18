@@ -7,7 +7,6 @@ go 1.26.0
 toolchain go1.26.11
 
 require (
-	github.com/matsuridayo/libneko v1.0.0 // replaced
 	github.com/miekg/dns v1.1.72
 	github.com/oschwald/maxminddb-golang v1.13.1
 	github.com/sagernet/quic-go v0.61.0-sing-box-mod.12
@@ -220,8 +219,6 @@ require (
 	masterdnsvpn-go v0.0.0 // indirect
 	www.bamsoftware.com/git/dnstt.git v1.20260501.0 // indirect
 )
-
-replace github.com/matsuridayo/libneko => ../../libneko
 
 replace github.com/sagernet/sing-box => ../../sing-box
 

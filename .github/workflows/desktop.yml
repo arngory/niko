@@ -142,8 +142,6 @@ jobs:
           . buildScript/lib/core/get_source_env.sh
           git clone --filter=blob:none "$REPOSITORY_SING_BOX" ../sing-box
           git -C ../sing-box checkout -q "$COMMIT_SING_BOX"
-          git clone --filter=blob:none "$REPOSITORY_LIBNEKO" ../libneko
-          git -C ../libneko checkout -q "$COMMIT_LIBNEKO"
 
       - name: The core's packages on Windows
         working-directory: ../sing-box
