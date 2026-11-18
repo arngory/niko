@@ -190,7 +190,7 @@ jobs:
         run: |
           echo "sdk.dir=${ANDROID_HOME}" > local.properties
           ./run init action gradle
-          tasks="app:testOssReleaseUnitTest app:assembleOssRelease"
+          tasks="app:checkLicenses app:testOssReleaseUnitTest app:assembleOssRelease"
           [ "${{ inputs.lint }}" = "true" ] && tasks="$tasks app:lintOssRelease"
           ./gradlew --no-daemon $tasks
 
