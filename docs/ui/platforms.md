@@ -116,7 +116,7 @@ Kotlin или обратно автоматически нельзя: надёж
 
 - Шаг 1 идёт: знак, тема Niko, шрифт, ярлыки, баннер для ТВ, короткие подписи — в ветке, заметки в
   `.github/release-notes/v1.58.0.md`.
-- Шаг 2 идёт: `desktop/` — окно на Flutter, связка с `boxdd` (см. [docs/desktop](../desktop/README.md), этап 2b).
+- Шаг 2 идёт: `desktop/` — окно на Flutter, связка с `boxdd` (см. [docs/design/desktop.md](../design/desktop.md), этап 2b).
 - От шага 4 сделано первое: `shared/tokens.json` — токены дизайн-системы в репозитории, и
   `shared/tool/gen_tokens.py` генерирует из них обе стороны: тему Flutter (`desktop/lib/theme/tokens.g.dart`) и
   цвета Android (`res/values/niko_tokens.xml` и `values-night/`, имена `niko_<токен>`; тема Niko берёт их оттуда).

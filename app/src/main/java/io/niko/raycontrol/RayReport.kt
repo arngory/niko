@@ -13,8 +13,8 @@ import kotlinx.coroutines.withContext
 import libcore.Libcore
 
 /**
- * The anonymous summary for a node (RAYCONTROL.md §14.3 with niko-r14-reply.md §2): what this device's own probes
- * saw on the current network, in coarse buckets, sent only with the user's consent (setting raycontrolReports, off
+ * The anonymous summary for a node (docs/research/raycontrol-handoff.md §14.3 with niko-r14-reply.md §2): what this
+ * device's own probes saw on the current network, in coarse buckets, sent only with the user's consent (setting raycontrolReports, off
  * by default) and only about the current network, from it, at most once a day. No device or network identifiers,
  * no times, no exact figures; the node takes the ASN from the request's address and keeps counters only.
  *

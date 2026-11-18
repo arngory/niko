@@ -3,7 +3,7 @@ import 'dart:ui' show Locale;
 import '../daemon/daemon.dart' show NatBehaviour;
 
 /// The window's words, in Russian and English. A stopgap: the texts move to the shared layer with Android's
-/// (docs/design/PLATFORMS.md, one file a language), and this file is then generated from it.
+/// (docs/ui/platforms.md, one file a language), and this file is then generated from it.
 class NikoStrings {
   const NikoStrings._(this._ru);
 

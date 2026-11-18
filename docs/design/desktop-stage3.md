@@ -3,9 +3,9 @@
 Черновик для владельца, 2026-11-17. Ничего из этого ещё не сделано. Проверено по коду: этот репозиторий на `905b14c`,
 форк ядра на `489ccbd` (тот, что закреплён в `buildScript/lib/core/get_source_env.sh`), raycontrol на `4e772ac`.
 Ссылки `файл:строка` — на эти коммиты. Пути форка даны от его корня; пути Kotlin без префикса (`fmt/…`,
-`raycontrol/…`, `database/…`) — от `app/src/main/java/io/niko/`, как в [REQUIREMENTS.md](REQUIREMENTS.md).
+`raycontrol/…`, `database/…`) — от `app/src/main/java/io/niko/`, как в [desktop-requirements.md](../spec/desktop-requirements.md).
 
-Этап 3 по [README.md](README.md): «`nikod` + `NikoService`: хранилище профилей, импорт ссылок и подписок, сборка
+Этап 3 по [desktop.md](desktop.md): «`nikod` + `NikoService`: хранилище профилей, импорт ссылок и подписок, сборка
 конфига в Go», готово, когда «golden-тесты Go = Kotlin». Ниже: что есть на самом деле, что переносить, набросок API,
 хранилище, golden-тесты, сборка `nikod`, порядок работ и что решить владельцу.
 
@@ -18,7 +18,7 @@
   `DesktopService`, `StartedService`, `ManagedService` (`desktop/lib/daemon/daemon.dart`).
 - **Релизная сборка окна с демоном не связана вовсе.** Связь есть только по TCP и только в сборке с `NIKO_DEV`
   (`desktop/lib/main.dart:14`, `:24`); без флага демона у окна нет. Транспорт для релиза (named pipe через worker или
-  AF_UNIX) не сделан, выбор отложен на этап 3 (`docs/desktop/README.md:187`). Значит, всё, что даст этап 3, до этого
+  AF_UNIX) не сделан, выбор отложен на этап 3 (`docs/design/desktop.md:187`). Значит, всё, что даст этап 3, до этого
   выбора проверяется только в режиме разработки.
 - Профилей, ссылок и подписок окно не знает. Конфиг — файл, который передаёт `tool/dev.dart`.
 
@@ -44,18 +44,18 @@
 
 ### Что в документах устарело или неверно
 
-1. `docs/desktop/README.md:64-74` — схема «окно → named pipe → worker → демон с `NikoService`» описывает цель, а
+1. `docs/design/desktop.md:64-74` — схема «окно → named pipe → worker → демон с `NikoService`» описывает цель, а
    не то, что есть. Сейчас окно ходит в демон только по TCP в режиме разработки, worker'а окно не запускает, а
    называется окно `niko_desktop.exe` (`desktop/windows/CMakeLists.txt:7`), не `sing-box.exe`. Нужна пометка
    «цель».
-2. Объёмы. `docs/desktop/README.md:91-92`: «около 6000 строк в `io.niko.raycontrol`», «около 7000 строк в
-   `io.niko.fmt`» (как парсеры ссылок); `docs/design/PLATFORMS.md:25-27`: 6300, 4800 и 2000. На `905b14c`:
+2. Объёмы. `docs/design/desktop.md:91-92`: «около 6000 строк в `io.niko.raycontrol`», «около 7000 строк в
+   `io.niko.fmt`» (как парсеры ссылок); `docs/ui/platforms.md:25-27`: 6300, 4800 и 2000. На `905b14c`:
    - `raycontrol` — 6524 строки, 25 файлов;
    - `fmt` — 4850 Kotlin и 2239 Java, всего 7089, но из них 1759 — сам `ConfigBuilder.kt`; парсеры и бины — около
      5300;
    - вне `fmt`: обычные подписки `group/` — 1296 (`RawUpdater.kt` — 921), модель конфига `SingBoxOptions.java` —
      5632, хранилище `database/` — 2212.
-3. `docs/desktop/README.md:94-96` и `:109` — «один набор входов прогоняется через Kotlin и через Go». Для парсеров
+3. `docs/design/desktop.md:94-96` и `:109` — «один набор входов прогоняется через Kotlin и через Go». Для парсеров
    ссылок это реально: такие тесты уже идут в JVM (`app/src/test/java/io/niko/fmt/LinkParsersTest.kt`). Для сборки
    конфига — нет:
    - `buildConfig` (`fmt/ConfigBuilder.kt:164`) читает `DataStore` (Room, 46 настроек), DAO Room, около 35 функций
@@ -68,43 +68,43 @@
      (`fmt/NikoParams.kt:31-53`).
 
    Чтобы Kotlin вообще прогнал входы golden-тестов, нужен шов в Kotlin (раздел 5). В плане этой работы нет.
-4. `docs/desktop/README.md:97-99` — «свой proto рядом с `boxdd`» расходится с `docs/design/PLATFORMS.md:61`: там
+4. `docs/design/desktop.md:97-99` — «свой proto рядом с `boxdd`» расходится с `docs/ui/platforms.md:61`: там
    `NikoService` в proto — часть общего слоя, из которого генерируются Kotlin и Dart. Предложение: proto в
    `shared/proto`, не в форке (раздел 3).
-5. `docs/desktop/README.md:30-31`: «Так видно, что нарисовано, что сделано и чего нет». Колонки «сделано в окне» в
-   матрице нет (`REQUIREMENTS.md:7-13`), сделанное перечислено прозой в `desktop/README.md`. Пример: D-MAIN-06
-   включает задержку через `URLTest` (`REQUIREMENTS.md:51`), окно задержку не показывает. Предложение: колонка «Окно».
-6. Матрица отстала от описи функций: 38 ID из `docs/design/FUNCTIONS.md` в `REQUIREMENTS.md` нет. Для этапа 3
+5. `docs/design/desktop.md:30-31`: «Так видно, что нарисовано, что сделано и чего нет». Колонки «сделано в окне» в
+   матрице нет (`desktop-requirements.md:7-13`), сделанное перечислено прозой в `desktop/README.md`. Пример: D-MAIN-06
+   включает задержку через `URLTest` (`desktop-requirements.md:51`), окно задержку не показывает. Предложение: колонка «Окно».
+6. Матрица отстала от описи функций: 38 ID из `docs/ui/functions.md` в `desktop-requirements.md` нет. Для этапа 3
    важны D-ADD-09…11 (импорт из файла, проверка импорта, обработчик ссылок), D-PROFILE-03…08 (тонкая настройка,
    цепочка, список, проверка группы, «поделиться», перенос), D-SUB-05…09, D-GROUP-01, D-SET-20…32,
-   D-STATE-RELOAD. Одна функция живёт под двумя ID: NAT — D-LOG-03 в матрице (`REQUIREMENTS.md:200`) и D-TOOLS-01
-   в описи (`FUNCTIONS.md:135`).
-7. `REQUIREMENTS.md:48`, `:59`, `:106-108`, `:187` — «Go: `libcore/exitaddress.go`», «`routetest.go`», то есть
+   D-STATE-RELOAD. Одна функция живёт под двумя ID: NAT — D-LOG-03 в матрице (`desktop-requirements.md:200`) и D-TOOLS-01
+   в описи (`docs/ui/functions.md:135`).
+7. `desktop-requirements.md:48`, `:59`, `:106-108`, `:187` — «Go: `libcore/exitaddress.go`», «`routetest.go`», то есть
    «нужна обёртка». Обёрткой не обойтись: эти функции берут `*libcore.BoxInstance` (`libcore/exitaddress.go:92`,
    `libcore/routetest.go:77`) и достают роутер из контекста ядра. В `boxdd` ядро живёт в `daemon.Instance`, его
    контекст — неэкспортируемое поле (`daemon/instance.go:26-40`), наружу есть только `Box()`, а у `box.Box` контекста
    нет. Нужны правка форка (`Instance.Context()`) и вынос тел функций из корневого пакета `libcore` (он для
    gomobile) в подпакеты.
-8. `REQUIREMENTS.md:128` — D-STATE-SVC «установить или режим «Прокси»», логика «есть». Режима без службы в `boxdd`
+8. `desktop-requirements.md:128` — D-STATE-SVC «установить или режим «Прокси»», логика «есть». Режима без службы в `boxdd`
    нет. Демон слушает только `\\.\pipe\ProtectedPrefix\Administrators\sing-box`
    (`experimental/boxdd/server_windows.go:26`), а канал под этим префиксом создают только администраторы и SYSTEM.
    Ядро в worker'е без прав не запускается: у `ApplicationService` такого вызова нет. «Прокси без службы» — новая
    работа. Владелец решил вариант оставить (решение 9, срез 16).
-9. `REQUIREMENTS.md:219` — BG-01 «Kotlin: `fmt/ConfigBuilder.kt`». Источник шире: решения raycontrol (п. 3),
+9. `desktop-requirements.md:219` — BG-01 «Kotlin: `fmt/ConfigBuilder.kt`». Источник шире: решения raycontrol (п. 3),
    `RuleSetFiles.kt`, `RoutePresets.kt`, `database/ProfileManager.kt`, `bg/proto/TestInstance.kt` (сборка для
    проверки профиля). Без этих входов конфиг узла не собрать.
-10. `REQUIREMENTS.md:228` — BG-10 «в `boxdd` пока не подключено». Верно, и подключать надо в форке: журнал ядра
+10. `desktop-requirements.md:228` — BG-10 «в `boxdd` пока не подключено». Верно, и подключать надо в форке: журнал ядра
     попадает в кольцо `StartedService` (`daemon/started_service.go:67`) мимо `libcore/redact.go`.
-11. `docs/desktop/README.md:86-89` (имена) верно, но неполно. На апстрим завязаны ещё: имя службы и отображаемое
+11. `docs/design/desktop.md:86-89` (имена) верно, но неполно. На апстрим завязаны ещё: имя службы и отображаемое
     имя «sing-box Service» (`cmd_service_windows.go:21`), канал `…\Administrators\sing-box`, каталог
     `C:\ProgramData\sing-box-daemon`, действия polkit `io.nekohasekai.sfl.*` (`authorize_linux.go:24-25`). Если на
     машине стоят и «sing-box for desktop», и Niko, службы, каналы и каталоги совпадут.
 12. Задача этапа «импорт подписок» пересекается с этапом 4 («raycontrol в Go: подписка узла»,
-    `docs/desktop/README.md:110`). Без узлов raycontrol компьютер умеет только чужие ссылки, а главный сценарий
+    `docs/design/desktop.md:110`). Без узлов raycontrol компьютер умеет только чужие ссылки, а главный сценарий
     Niko — узел по приглашению. Граница — решение 1: узел по приглашению входит в этап 3.
 
 Проверено и верно: сборка `boxdd.exe`, `sing-box.exe`, `libcronet.dll` и тесты Go-пакетов под Windows (`desktop.yml`);
-проверки клиента в `boxdd` (`docs/desktop/README.md:76-85`); `--listen` в режиме службы запрещён
+проверки клиента в `boxdd` (`docs/design/desktop.md:76-85`); `--listen` в режиме службы запрещён
 (`experimental/boxdd/cmd_run_windows.go:58`).
 
 ### Вызовы `boxdd`: что брать готовым и чего нет
@@ -542,7 +542,7 @@ shared/golden/
   - монитор интерфейсов для `Control`.
 - `(*daemon.Instance).Context()` — для `RouteTest`, `ExitAddress`, `DohCheck`, `NaiveDatagramState`.
 - Крючок в журнал ядра для скрытия секретов (BG-10).
-- `--listen` — только `127.0.0.1:<порт>`, проверка в коде (обещано в `docs/desktop/README.md:149`); сейчас демон
+- `--listen` — только `127.0.0.1:<порт>`, проверка в коде (обещано в `docs/design/desktop.md:149`); сейчас демон
   открывает любой адрес с предупреждением (`server.go:102-108`).
 
 `libcore/cmd/nikod/main.go` — это `boxdd.Main` с именами Niko и `nikoservice`. Один файл — и демон, и worker, как
@@ -579,7 +579,7 @@ shared/golden/
 
 ### Транспорт окна в релизе: (а) или (в)
 
-Выбор назначен на этап 3 (`docs/desktop/README.md:163-187`). Что известно:
+Выбор назначен на этап 3 (`docs/design/desktop.md:163-187`). Что известно:
 
 - (а) свой транспорт для `grpc` в Dart: у пакета есть `ClientTransportConnectorChannel` и абстрактный
   `ClientTransportConnector`, то есть свой поток вместо сокета. Канал Windows придётся открывать через FFI
@@ -601,7 +601,7 @@ shared/golden/
 
 Предложение: короткая проба (в) в CI на `windows-latest` (слушатель Go на AF_UNIX, клиент Dart, сверка PID через
 `SIO_AF_UNIX_GETPEERPID` с обеих сторон). Прошла — (в) с отдельным ревью безопасности и условиями выше; нет — (а).
-(б) остаётся запасным, как и сейчас. **Это отходит от `docs/desktop/README.md`**, где предпочтительным назван (а):
+(б) остаётся запасным, как и сейчас. **Это отходит от `docs/design/desktop.md`**, где предпочтительным назван (а):
 (в) проще (без FFI и своего транспорта), но проверка клиента переезжает в правку форка, а сервер окну надо
 проверять самому. **Владелец выбрал (в) после пробы, (а) — если проба не пройдёт** (решение 8); README поправлен.
 
@@ -733,8 +733,8 @@ shared/golden/
     в ядре); **API плагинов сохранить**. Условие безопасности: исполняемый файл плагина запускает не служба (она
     работает как SYSTEM, и запуск файла из каталога пользователя стал бы способом поднять права), а окно или worker
     от имени пользователя; ядро в службе ходит к плагину на локальный порт (срез 17).
-11. **proto — в `shared/proto`** (по рекомендации); `docs/desktop/README.md` поправлен.
-12. **Матрица — да** (по рекомендации): 38 ID из описи и колонка «Окно» в `REQUIREMENTS.md`, до среза 5.
+11. **proto — в `shared/proto`** (по рекомендации); `docs/design/desktop.md` поправлен.
+12. **Матрица — да** (по рекомендации): 38 ID из описи и колонка «Окно» в `desktop-requirements.md`, до среза 5.
 
 ## Источники
 

@@ -4,7 +4,7 @@
   gen_tokens.py            write the generated files
   gen_tokens.py --check    exit 1 if one of them is not what the tokens give (CI)
 
-One source for the phone and the computer (docs/design/PLATFORMS.md, variant В): a colour, a size or a text style is
+One source for the phone and the computer (docs/ui/platforms.md, variant В): a colour, a size or a text style is
 changed in tokens.json and regenerated, never edited in a generated file.
 
   desktop/lib/theme/tokens.g.dart                  Flutter: colours of both themes, text styles, sizes

@@ -1,63 +1,47 @@
 # Niko
 
-Proxy client for Android built on [sing-box](https://github.com/SagerNet/sing-box).
-A fork of [NekoBox for Android](https://github.com/MatsuriDayo/NekoBoxForAndroid).
+English | [Русский](README.ru.md)
 
-[Русская версия ниже](#niko-ru)
+Niko is a proxy and VPN client for Android on the [sing-box](https://github.com/SagerNet/sing-box) core. It takes
+ordinary links and subscriptions, and works best with a [raycontrol](https://github.com/arngory/raycontrol) node: an
+invite registers the device, and the node keeps its profiles, names and keys up to date. A fork of
+[NekoBox for Android](https://github.com/MatsuriDayo/NekoBoxForAndroid).
 
 ## Download
 
-APKs for arm64-v8a, armeabi-v7a, x86 and x86_64 are on the [Releases](../../releases) page, with
-`SHA256SUMS` next to them. Android 6.0+.
+The latest version is on the [Releases](../../releases/latest) page: APKs for arm64-v8a, armeabi-v7a, x86 and
+x86_64, with `SHA256SUMS` signed by minisign next to them. Android 6.0 and newer. The app updates itself from the
+releases, or through its raycontrol node where GitHub is out of reach.
+
+## Quick start
+
+1. Install the APK for your phone (most phones: arm64-v8a).
+2. Open the invite link your node's administrator sent, or add a profile: **＋** → scan a QR code, import from the
+   clipboard or a file, or enter it by hand. A subscription goes in **Groups**.
+3. Tap the connect button.
+
+Routing rules: [docs/guide/routing.md](docs/guide/routing.md).
 
 ## Protocols
 
-SOCKS 4/4a/5, HTTP(S), SSH, Shadowsocks, VMess, VLESS (REALITY, XHTTP), Trojan, Trojan-Go, AnyTLS, ShadowTLS,
-TUIC, Hysteria 1/2, WireGuard, AmneziaWG, NaïveProxy, Mieru, Yggdrasil, DNS tunnels (dnstt, MasterDnsVPN,
-slipstream). All built in: no plugins to install.
+SOCKS 4/4a/5, HTTP(S), SSH, Shadowsocks, VMess, VLESS (REALITY, XHTTP), Trojan, Trojan-Go, AnyTLS, ShadowTLS, TUIC,
+Hysteria 1/2, WireGuard, AmneziaWG, NaïveProxy, Mieru, Yggdrasil and DNS tunnels (dnstt, MasterDnsVPN, slipstream),
+all built in. Subscriptions: Shadowsocks, ClashMeta, v2rayN and sing-box outbounds.
 
-## What the fork adds
+## Building
 
-- sing-box 1.14 core with XHTTP and REALITY with post-quantum key exchange
-- Port knocking before connecting
-- TLS ClientHello fragmentation and certificate pinning
-- Remote rule-sets (`.srs`/`.json`), subscription headers, HWID for panels
-- Hysteria2 UDP and many smaller fixes; see [Releases](../../releases)
+GitHub Actions builds the Go library and the APKs ([build.yml](.github/workflows/build.yml)) and signs releases
+([docs/guide/release.md](docs/guide/release.md)). The window for the computer is in [desktop/](desktop/).
 
-## Subscriptions
+## More
 
-Shadowsocks, ClashMeta, v2rayN and sing-box outbound formats. Only servers are imported, routing
-rules from the subscription are ignored.
+- [docs/](docs/README.md): guides, how it works, specs, research
+- [CONTRIBUTING.md](CONTRIBUTING.md): how to make a change
 
-## Build
+## License
 
-See [docs/RELEASE_SIGNING.md](docs/RELEASE_SIGNING.md) (Russian).
-
----
-
-<a id="niko-ru"></a>
-
-# Niko (RU)
-
-Прокси-клиент для Android на [sing-box](https://github.com/SagerNet/sing-box). Форк
-[NekoBox for Android](https://github.com/MatsuriDayo/NekoBoxForAndroid).
-
-- **Скачать:** APK для arm64-v8a, armeabi-v7a, x86 и x86_64 на странице [Releases](../../releases), рядом
-  `SHA256SUMS`. Android 6.0+.
-- **Протоколы:** SOCKS 4/4a/5, HTTP(S), SSH, Shadowsocks, VMess, VLESS (REALITY, XHTTP), Trojan, Trojan-Go,
-  AnyTLS, ShadowTLS, TUIC, Hysteria 1/2, WireGuard, AmneziaWG, NaïveProxy, Mieru, Yggdrasil, DNS-туннели (dnstt,
-  MasterDnsVPN, slipstream). Все встроены: плагины ставить не нужно.
-- **Что добавлено в форке:** ядро sing-box 1.14 с XHTTP и постквантовым REALITY, port knocking,
-  фрагментация TLS ClientHello и пиннинг сертификатов, remote rule-set, заголовки подписок и HWID,
-  исправления UDP в Hysteria2 и многое другое (см. [Releases](../../releases)).
-- **Подписки:** форматы Shadowsocks, ClashMeta, v2rayN и outbound sing-box. Импортируются только серверы.
-
----
-
-## License / Лицензия
-
-GPL-3.0, see [LICENSE](LICENSE). Niko is a modified version of the projects below; their copyrights
-stay with their authors.
+GPL-3.0, see [LICENSE](LICENSE). Niko is a modified version of the projects below; their copyrights stay with their
+authors.
 
 | Project | Authors | License |
 | --- | --- | --- |

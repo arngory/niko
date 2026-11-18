@@ -1,5 +1,5 @@
 // NikoService: Niko's own calls to its desktop daemon, nikod, served beside the core's daemon's services through the
-// same channel and credentials (docs/desktop/STAGE3.md). Go: libcore/nikopb (shared/tool/gen_proto_go.sh); Dart:
+// same channel and credentials (docs/design/desktop-stage3.md). Go: libcore/nikopb (shared/tool/gen_proto_go.sh); Dart:
 // desktop/lib/gen (desktop/tool/gen_proto.sh).
 syntax = "proto3";
 

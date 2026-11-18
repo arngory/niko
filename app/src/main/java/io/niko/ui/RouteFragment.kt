@@ -6,6 +6,7 @@ import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.widget.Toolbar
+import androidx.core.os.ConfigurationCompat
 import androidx.core.view.ViewCompat
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
@@ -299,7 +300,10 @@ class RouteFragment : ToolbarFragment(R.layout.layout_route), Toolbar.OnMenuItem
         inner class DocumentHolder(binding: LayoutEmptyRouteBinding) : RecyclerView.ViewHolder(binding.root) {
             fun bind() {
                 itemView.setOnClickListener {
-                    it.context.launchCustomTab("https://github.com/$RELEASE_REPO/blob/main/docs/ROUTING.md")
+                    // the guide in the language the app shows: Russian, or English for any other
+                    val ru = ConfigurationCompat.getLocales(it.context.resources.configuration)[0]?.language == "ru"
+                    val guide = if (ru) "routing.ru.md" else "routing.md"
+                    it.context.launchCustomTab("https://github.com/$RELEASE_REPO/blob/main/docs/guide/$guide")
                 }
             }
         }

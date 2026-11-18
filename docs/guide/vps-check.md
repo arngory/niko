@@ -7,7 +7,7 @@
 
 ## 1. Нода
 
-По `docs/10-quickstart-debian13.md` (raycontrol), плюс:
+По [`docs/guide/quickstart-debian13.md`](https://github.com/arngory/raycontrol/blob/main/docs/guide/quickstart-debian13.md) (raycontrol), плюс:
 
 | Что | Команда (`docs/cheatsheet.md` raycontrol) |
 |---|---|

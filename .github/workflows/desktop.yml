@@ -4,7 +4,7 @@
 # from the fork of cronet-go (built by the server session), which the core loads with purego from beside its
 # executable: each architecture's directory holds the two executables and the library. The window is Flutter
 # (desktop/): analysed, tested and built on Windows and on Linux, and its link to the daemon checked against the real
-# boxdd in development mode (stage 2b of docs/desktop).
+# boxdd in development mode (stage 2b of docs/design/desktop.md).
 name: Desktop (Windows)
 
 on:
@@ -76,7 +76,7 @@ jobs:
                 -tags="$TAGS,with_naive_outbound,with_purego,with_external_windivert,with_external_usbip_drivers" \
                 -o "$out/$(basename "$pkg").exe" "./$pkg"
             done
-            # Niko's daemon: boxdd with NikoService beside it (docs/desktop/STAGE3.md, slice 1)
+            # Niko's daemon: boxdd with NikoService beside it (docs/design/desktop-stage3.md, slice 1)
             (cd "$GITHUB_WORKSPACE/libcore" && GOOS=windows GOARCH=$arch CGO_ENABLED=0 go build -trimpath \
               -ldflags="-s -w -checklinkname=0 -X libcore/nikoservice.Version=$NIKO_VERSION" \
               -tags="$TAGS,with_naive_outbound,with_purego,with_external_windivert,with_external_usbip_drivers" \
@@ -278,7 +278,7 @@ jobs:
           fi
           NIKO_DAEMON="$daemon" flutter test test/real_daemon_test.dart
 
-      # «Что решить», п. 2 of docs/desktop/README.md: what dart:io can open towards the daemon's worker here
+      # «Что решить», п. 2 of docs/design/desktop.md: what dart:io can open towards the daemon's worker here
       - name: Local sockets dart:io has on this system (informational)
         if: ${{ !cancelled() }}
         continue-on-error: true

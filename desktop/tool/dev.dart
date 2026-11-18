@@ -1,4 +1,4 @@
-// Stage 2b's way to run the window against the daemon in development mode (docs/desktop/README.md):
+// Stage 2b's way to run the window against the daemon in development mode (docs/design/desktop.md):
 //
 //   dart run tool/dev.dart --daemon <path to nikod> --config <file.json> [--port 18080]
 //
