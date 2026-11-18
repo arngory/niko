@@ -186,10 +186,18 @@ object RaySubscription {
      * subscription's way (directly, then through the node's relays); [etag] (the file's sha256 in quotes) goes on from a
      * part already in [out]. The node's 404 (it does not hold the file) is its answer, not asked through a relay.
      */
-    fun appFile(node: RayNode, tag: String, name: String, out: java.io.File, etag: String) {
+    fun appFile(node: RayNode, tag: String, name: String, out: java.io.File, etag: String, deadline: Long = 0) {
         val info = node.subscription ?: throw Exception("raycontrol node ${node.host}: its registration has no subscription")
         directOrViaRelay(node, request(node, info), "the update's $name", { e -> refused(e) || e.message?.contains(APP_NOT_HELD) == true }) {
-            Libcore.raycontrolAppFile(it.toString(), tag, name, out.canonicalPath, etag)
+            // with a deadline (wall clock, ms): each way gets what is left of it, the Go call stops by itself
+            if (deadline > 0) {
+                val left = deadline - System.currentTimeMillis()
+                if (left <= 0) throw Exception("the update's $name: its time is up")
+                val within = left.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+                Libcore.raycontrolAppFileWithin(it.toString(), tag, name, out.canonicalPath, etag, within)
+            } else {
+                Libcore.raycontrolAppFile(it.toString(), tag, name, out.canonicalPath, etag)
+            }
         }
     }
 

@@ -49,6 +49,23 @@ class UpdateNoticeTest {
         assertFalse(parse("""{"v": 1, "mandatory": false, "later": true}""")!!.mandatory)
     }
 
+    // as update-json.py counts: 1000 code points, an emoji one of them, never half a surrogate pair
+    @Test
+    fun theMessageCutByCodePoints() {
+        val emoji = "\uD83D\uDE00"
+        fun message(text: String) =
+            UpdateNotice.parse(noticeJson(text).toByteArray())!!.message("en")!!
+        // 600 emoji pass the CI check (600 code points, 1200 UTF-16 units): whole
+        assertEquals(emoji.repeat(600), message(emoji.repeat(600)))
+        // 1001 of them: the first 1000, the last one whole
+        val cut = message(emoji.repeat(1001))
+        assertEquals(1000, cut.codePointCount(0, cut.length))
+        assertEquals(emoji.repeat(1000), cut)
+    }
+
+    private fun noticeJson(text: String) = org.json.JSONObject()
+        .put("v", 1).put("mandatory", false).put("message", org.json.JSONObject().put("en", text)).toString()
+
     @Test
     fun onlyAsTheSignedListHasIt() {
         val bytes = """{"v": 1, "mandatory": true, "message": {"en": "now", "ru": "сейчас"}}""".toByteArray()

@@ -46,6 +46,8 @@ import io.niko.database.ProxyEntity
 import io.niko.database.SagerDatabase
 import io.niko.raycontrol.RayAppMirror
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import io.niko.raycontrol.RayAppRelease
 import io.niko.raycontrol.RayClient
 import io.niko.raycontrol.RayNode
@@ -331,6 +333,11 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
         }
 
         fun checkUpdate(checkPreview: Boolean) {
+            // an update downloads already (a tap before): no second check, whose dialog could not install it
+            if (Updates.busy) {
+                Toast.makeText(app, R.string.update_downloading, Toast.LENGTH_SHORT).show()
+                return
+            }
             runOnIoDispatcher {
                 try {
                     // the check is GitHub's; where it is not reached at all, a raycontrol node's newest release
@@ -358,12 +365,35 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                         if (fromNode == null) throw e
                         Logs.w("update: GitHub not reached (${e.message}): ${fromNode.second.tag} of the node ${fromNode.first.host}")
                         val (node, nodeRelease) = fromNode
+                        // NOTICE_BOUND_MS for the whole read, the wait for the node's files (Updates.nodeFiles: one
+                        // read or install of them at a time) and carriers, relays and the node's busy answers within
+                        // it: past it the update is offered as an ordinary one
                         val notice = readNotice {
-                            Updates.noticeFromMirror(app, nodeRelease.tag) { name, out, etag ->
-                                RaySubscription.appFile(node, nodeRelease.tag, name, out, etag)
+                            val deadline = System.currentTimeMillis() + Updates.NOTICE_BOUND_MS
+                            // held is set right after lock() with no suspension between: a timeout that lands
+                            // after the lock was taken still makes withTimeoutOrNull return null, and the lock must
+                            // be released then too (kotlinx.coroutines: asynchronous timeout and resources)
+                            var held = false
+                            withTimeoutOrNull(Updates.NOTICE_BOUND_MS) {
+                                Updates.nodeFiles.lock()
+                                held = true
+                            }
+                            if (!held) null else try {
+                                Updates.noticeFromMirror(app, nodeRelease.tag) { name, out, etag ->
+                                    RaySubscription.appFile(node, nodeRelease.tag, name, out, etag, deadline)
+                                }
+                            } finally {
+                                Updates.nodeFiles.unlock()
                             }
                         }
-                        onMainDispatcher { offerFromNode(node, nodeRelease, notice) }
+                        onMainDispatcher {
+                            // an install began meanwhile (an earlier dialog's): no second dialog
+                            if (Updates.busy) {
+                                Toast.makeText(app, R.string.update_downloading, Toast.LENGTH_SHORT).show()
+                            } else {
+                                offerFromNode(node, nodeRelease, notice)
+                            }
+                        }
                         return@runOnIoDispatcher
                     }
                     val release = when {
@@ -392,7 +422,10 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                     runOnMainDispatcher {
                         // the user may have left the screen while the request ran
                         val context = context ?: return@runOnMainDispatcher
-                        if (haveUpdate) {
+                        if (haveUpdate && Updates.busy) {
+                            // an install began meanwhile (an earlier dialog's): no second dialog
+                            Toast.makeText(app, R.string.update_downloading, Toast.LENGTH_SHORT).show()
+                        } else if (haveUpdate) {
                             val openPage = { context.startActivity(Intent(Intent.ACTION_VIEW, releaseUrl.toUri())) }
                             MaterialAlertDialogBuilder(context)
                                 .setTitle(R.string.update_dialog_title)
@@ -490,7 +523,11 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
         private fun installFromNode(nodeId: String, tag: String, github: JSONObject?, way: ProxyEntity?) = installWith {
             try {
                 val node = RayNodes.get(nodeId) ?: throw Exception("raycontrol node $nodeId was removed")
-                Updates.downloadFromMirror(app, tag) { name, out, etag -> RaySubscription.appFile(node, tag, name, out, etag) }
+                Updates.nodeFiles.withLock {
+                    Updates.downloadFromMirror(app, tag) { name, out, etag ->
+                        RaySubscription.appFile(node, tag, name, out, etag)
+                    }
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

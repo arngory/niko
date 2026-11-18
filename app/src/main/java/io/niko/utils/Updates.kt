@@ -14,6 +14,7 @@ import libcore.Libcore
 import org.json.JSONObject
 import java.io.File
 import java.security.MessageDigest
+import kotlinx.coroutines.sync.Mutex
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -45,6 +46,11 @@ object Updates {
      */
     const val CHECK_TIMEOUT_MS = SMALL_TIMEOUT_MS
     const val CHECK_DIRECT_TIMEOUT_MS = 20_000
+
+    // each of a release's three small files read before its dialog (notice); the read from a node's mirror, all of
+    // it (noticeFromMirror, its deadline from the caller)
+    private const val NOTICE_TIMEOUT_MS = 15_000
+    const val NOTICE_BOUND_MS = 3L * NOTICE_TIMEOUT_MS
 
     const val SUMS = "SHA256SUMS"
     const val SIGNATURE = "SHA256SUMS.minisig"
@@ -128,11 +134,13 @@ object Updates {
      * null for a release without one. Through [client], the way the update check went.
      */
     fun notice(client: HTTPClient, release: JSONObject): UpdateNotice? {
+        // a release without one costs no request: the dialog comes at once
         val assets = assets(release)
         val url = assets[UpdateNotice.NAME] ?: return null
         val sumsUrl = assets[SUMS] ?: throw Refused(R.string.update_no_signature, "the release has no $SUMS")
         val signatureUrl = assets[SIGNATURE] ?: throw Refused(R.string.update_no_signature, "the release has no signature")
-        client.setTimeout(SMALL_TIMEOUT_MS)
+        // the dialog waits for these: a short bound, past it the update is offered as an ordinary one
+        client.setTimeout(NOTICE_TIMEOUT_MS)
         val sums = client.newRequest().apply { setURL(sumsUrl) }.execute().content
         val signature = Util.getStringBox(client.newRequest().apply { setURL(signatureUrl) }.execute().contentString)
         val listed = checkedSums(BuildConfig.UPDATE_PUBLIC_KEY, release.optString("tag_name"), sums, signature, Libcore::minisignVerify)
@@ -154,19 +162,27 @@ object Updates {
      * release lists none. [file] as for [downloadFromMirror].
      */
     fun noticeFromMirror(context: Context, tag: String, file: (name: String, out: File, etag: String) -> Unit): UpdateNotice? {
-        val dir = File(context.cacheDir, "update").apply { mkdirs() }
-        val sumsFile = File(dir, "$tag.$SUMS")
-        val signatureFile = File(dir, "$tag.$SIGNATURE")
-        file(SUMS, sumsFile, "")
-        file(SIGNATURE, signatureFile, "")
-        val listed = checkedSums(
-            BuildConfig.UPDATE_PUBLIC_KEY, tag, sumsFile.readBytes(), signatureFile.readText(), Libcore::minisignVerify
-        )
-        if (UpdateNotice.NAME !in listed) return null
-        val out = File(dir, "$tag.${UpdateNotice.NAME}")
-        file(UpdateNotice.NAME, out, "")
-        if (out.length() > UpdateNotice.MAX_BYTES) throw Refused(R.string.update_bad_notice, "${UpdateNotice.NAME} is too large")
-        return checkedNotice(listed, out.readBytes())
+        // a folder of its own, not the install's (downloadFromMirror empties that of other files)
+        val dir = File(context.cacheDir, "update-notice/${System.nanoTime()}").apply { mkdirs() }
+        try {
+            val sumsFile = File(dir, SUMS)
+            val signatureFile = File(dir, SIGNATURE)
+            file(SUMS, sumsFile, "")
+            file(SIGNATURE, signatureFile, "")
+            val listed = checkedSums(
+                BuildConfig.UPDATE_PUBLIC_KEY, tag, sumsFile.readBytes(), signatureFile.readText(),
+                Libcore::minisignVerify,
+            )
+            if (UpdateNotice.NAME !in listed) return null
+            val out = File(dir, UpdateNotice.NAME)
+            file(UpdateNotice.NAME, out, "")
+            if (out.length() > UpdateNotice.MAX_BYTES) {
+                throw Refused(R.string.update_bad_notice, "${UpdateNotice.NAME} is too large")
+            }
+            return checkedNotice(listed, out.readBytes())
+        } finally {
+            dir.deleteRecursively()
+        }
     }
 
     fun sha256(file: File): String {
@@ -183,6 +199,15 @@ object Updates {
     }
 
     private val downloading = AtomicBoolean()
+
+    /** Whether an update downloads now (oneDownload): a second check would offer what it could not install. */
+    val busy: Boolean get() = downloading.get()
+
+    /**
+     * A raycontrol node serves one download a device at a time and cuts the one under way for the device's next
+     * (app-update-v1): every file asked of a node's mirror (the update's notice, the install) one after another.
+     */
+    val nodeFiles = Mutex()
 
     /**
      * [block] unless a download already runs (a tap before): null then. One at a time, whichever way it goes, and
