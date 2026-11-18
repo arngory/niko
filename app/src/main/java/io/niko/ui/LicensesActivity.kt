@@ -53,6 +53,23 @@ object Licenses {
         loaded ?: read(context.applicationContext).also { loaded = it }
     }
 
+    // licenses.py's source of a local replace: <host/owner/name>@<commit>[+dirty][/<subdirectory>]
+    private val CHECKOUT = Regex("""^([^@]+)@([0-9a-f]{40})(?:\+dirty)?(/.*)?$""")
+
+    /**
+     * A module's page: a local replace's (the core's fork and its third_party modules) is its repository's tree at
+     * that commit, not pkg.go.dev, which knows no commit of a fork's folder; a module replaced by another, the other's.
+     */
+    fun site(path: String, version: String, source: String): String? {
+        if (path == "go") return "https://go.dev/"
+        CHECKOUT.matchEntire(source)?.let { match ->
+            val (repository, commit, folder) = match.destructured
+            // a checkout without a remote names only its folder: no page then
+            return if (repository.contains('/')) "https://$repository/tree/$commit$folder" else null
+        }
+        return "https://pkg.go.dev/" + source.ifBlank { "$path@$version" }
+    }
+
     private fun JSONArray?.strings(): List<String> =
         if (this == null) emptyList() else (0 until length()).map { getString(it) }
 
@@ -96,12 +113,7 @@ object Licenses {
                     path,
                     listOf(source.ifBlank { version }, m.optJSONArray("licenses").strings().joinToString(" · "))
                         .filter { it.isNotBlank() }.joinToString("  "),
-                    when {
-                        path == "go" -> "https://go.dev/"
-                        source.startsWith("https://") -> source.substringBefore('@').removeSuffix(".git")
-                        source.isNotBlank() -> "https://pkg.go.dev/$source"
-                        else -> "https://pkg.go.dev/$path@$version"
-                    },
+                    site(path, version, source),
                 ) {
                     (0 until files.length()).map { j ->
                         val f = files.getJSONObject(j)
