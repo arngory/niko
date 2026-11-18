@@ -20,6 +20,7 @@ changed and when is in the release notes and in git.
 ## Contracts
 
 - [The computer's requirements, from the screen to the core](spec/desktop-requirements.md)
+- [Statistics for the last hour, the client's side](spec/stats-client.md)
 - The node's protocols (subscription, API, probe, relays, updates and the rest) are specified in raycontrol:
   [docs/spec](https://github.com/arngory/raycontrol/tree/main/docs/spec)
 
