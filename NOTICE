@@ -70,6 +70,13 @@ Android libraries (the app's runtime classpath)
   BSD-3-Clause: Kryo, ReflectASM, MinLog (Esoteric Software).
   MIT: Roomigrant, Copyright (c) 2018 Rostyslav Lesovyi.
 
+  The NOTICE files these libraries carry (section 4(d) of the Apache License 2.0), which the APK's packaging leaves
+  out of META-INF:
+  - Objenesis
+    Copyright 2006-2024 Joe Walnes, Henri Tremblay, Leonardo Mesquita
+  - kotlinx.coroutines library (in AndroidX concurrent-futures-ktx)
+    Copyright 2016-2024 JetBrains s.r.o and contributors
+
 Fonts
   Geist and Geist Mono, Copyright (c) 2023 Vercel, in collaboration with basement.studio: SIL Open Font License 1.1
   (app/src/main/res/font, desktop/fonts/OFL.txt).
