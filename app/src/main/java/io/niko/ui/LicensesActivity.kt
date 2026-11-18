@@ -70,6 +70,33 @@ object Licenses {
         return "https://pkg.go.dev/" + source.ifBlank { "$path@$version" }
     }
 
+    // a chunk of a long text closes at a blank line once it reaches this many characters, or at any line past four
+    // times as many: Chromium's notice (260 KB) would take one TextView seconds to lay out, all of it at once
+    private const val CHUNK = 2000
+
+    /**
+     * [text] in pieces of about [CHUNK] characters, at paragraph boundaries where it has them: a view each, laid out
+     * as it scrolls in. Joined, the pieces are [text] again.
+     */
+    fun chunks(text: String): List<String> {
+        val out = ArrayList<String>()
+        val piece = StringBuilder()
+        // a piece begun, empty lines too: its next line goes after a line break
+        var begun = false
+        for (line in text.split('\n')) {
+            if (begun) piece.append('\n')
+            piece.append(line)
+            begun = true
+            if (piece.length >= CHUNK && line.isBlank() || piece.length >= 4 * CHUNK) {
+                out += piece.toString()
+                piece.clear()
+                begun = false
+            }
+        }
+        if (begun || out.isEmpty()) out += piece.toString()
+        return out
+    }
+
     private fun JSONArray?.strings(): List<String> =
         if (this == null) emptyList() else (0 until length()).map { getString(it) }
 
@@ -222,7 +249,8 @@ class LicenseTextActivity : ThemedActivity() {
         }
         val section = intent.getIntExtra(SECTION, -1)
         val index = intent.getIntExtra(ENTRY, -1)
-        val view = findViewById<TextView>(R.id.text)
+        val list = findViewById<RecyclerView>(R.id.text)
+        list.layoutManager = LinearLayoutManager(this)
         lifecycleScope.launch(Dispatchers.IO) {
             val entry = try {
                 Licenses.sections(this@LicenseTextActivity).getOrNull(section)?.entries?.getOrNull(index)
@@ -236,8 +264,14 @@ class LicenseTextActivity : ThemedActivity() {
                 Logs.w(e)
                 null
             }
+            // several files: each under its name; in pieces, laid out as they scroll in (Licenses.chunks)
+            val pieces = files?.let { all ->
+                Licenses.chunks(if (all.size == 1) all[0].second else all.joinToString("\n\n") { (name, text) ->
+                    "── $name ──\n\n${text.trimEnd()}"
+                })
+            }
             withContext(Dispatchers.Main) {
-                if (entry == null || files == null) {
+                if (entry == null || pieces == null) {
                     finish()
                     return@withContext
                 }
@@ -245,10 +279,27 @@ class LicenseTextActivity : ThemedActivity() {
                 supportActionBar?.subtitle = entry.detail.ifBlank { null }
                 url = entry.url
                 invalidateOptionsMenu()
-                // several files: each under its name
-                view.text = if (files.size == 1) files[0].second else files.joinToString("\n\n") { (name, text) ->
-                    "── $name ──\n\n${text.trimEnd()}"
-                }
+                list.adapter = Pieces(pieces)
+            }
+        }
+    }
+
+    private class Pieces(private val pieces: List<String>) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+        override fun getItemCount() = pieces.size
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder = object :
+            RecyclerView.ViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.layout_license_piece, parent, false)) {}
+
+        override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+            (holder.itemView as TextView).text = pieces[position]
+        }
+
+        // a selectable TextView a RecyclerView attaches again keeps no selection mode ("TextView does not support
+        // text selection"): it is turned off and on, as the framework's own workaround
+        override fun onViewAttachedToWindow(holder: RecyclerView.ViewHolder) {
+            (holder.itemView as TextView).apply {
+                isEnabled = false
+                isEnabled = true
             }
         }
     }
