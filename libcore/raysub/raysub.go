@@ -24,6 +24,8 @@ import (
 	"syscall"
 	"time"
 
+	"libcore/rayclient"
+
 	"github.com/sagernet/sing-box/protocol/knock"
 
 	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
@@ -312,6 +314,7 @@ func (r *Request) get(ctx context.Context, client *http.Client, deviceKey []byte
 	}
 	request.Header.Set("X-Raycontrol-Device", r.DeviceID)
 	request.Header.Set("Authorization", authToken(deviceKey, now.Unix()/60))
+	rayclient.Apply(request.Header)
 	if r.LAN == "on" || r.LAN == "off" {
 		request.Header.Set("X-Raycontrol-LAN", r.LAN)
 	}

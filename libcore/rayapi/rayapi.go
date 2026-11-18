@@ -33,6 +33,8 @@ import (
 	"syscall"
 	"time"
 
+	"libcore/rayclient"
+
 	"github.com/sagernet/sing-box/protocol/knock"
 
 	"google.golang.org/protobuf/encoding/protowire"
@@ -364,6 +366,8 @@ func (e *Endpoint) post(ctx context.Context, client *http.Client, method string,
 	}
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Connect-Protocol-Version", "1")
+	// the client and its version, which Register is refused below a node's minimum by (client-min-v1 §4)
+	rayclient.Apply(request.Header)
 	// what decides a resend is whether the request went out, not the kind of error
 	var wrote atomic.Bool
 	request = request.WithContext(httptrace.WithClientTrace(request.Context(), &httptrace.ClientTrace{

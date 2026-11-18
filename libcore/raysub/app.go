@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"libcore/rayclient"
 )
 
 // app-update-v1 (raycontrol docs/spec/app-update-v1.md): the app's releases a node holds, their files at
@@ -163,6 +165,7 @@ func (r *Request) appGet(ctx context.Context, client *http.Client, url string, d
 	}
 	request.Header.Set("X-Raycontrol-Device", r.DeviceID)
 	request.Header.Set("Authorization", authToken(deviceKey, now.Unix()/60))
+	rayclient.Apply(request.Header)
 	if have > 0 {
 		request.Header.Set("Range", "bytes="+strconv.FormatInt(have, 10)+"-")
 		request.Header.Set("If-Range", etag)

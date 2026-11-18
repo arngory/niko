@@ -29,6 +29,8 @@ on:
       - "libcore/raycontrol_tunnel_interop_test.go"
       - "libcore/raycontrol_app_interop_test.go"
       - "libcore/raycontrol_traffic_interop_test.go"
+      - "libcore/raycontrol_clientmin_interop_test.go"
+      - "libcore/rayclient/**"
       - "libcore/raycontrol_lan_interop_test.go"
       - "libcore/raycontrol_connlimit_interop_test.go"
       - "libcore/raycontrol_pins_interop_test.go"
@@ -660,6 +662,26 @@ jobs:
           sleep 5
           go test -count=1 -v -timeout 10m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolConnLimit . || {
             docker exec rc-node /opt/rc/rayctl conn-limit || true
+            exit 1
+          }
+
+      # client-min-v1 (v0.32.0): the app's X-Raycontrol-Client counted by the node; a minimum above it answers refused
+      # with no profiles, at it the profiles come; from a day ahead they stay with `from`; none takes it away
+      - name: The node's minimum client version
+        working-directory: libcore
+        env:
+          RAYCONTROL_BUNDLE: /tmp/phone.bundle
+          RAYCONTROL_ADDRESS: ${{ steps.node.outputs.address }}
+          RAYCONTROL_CA: /tmp/rccert/root.pem
+          RAYCONTROL_RAYCTL: docker exec rc-node /opt/rc/rayctl
+        run: |
+          if [ ! -f ../raycontrol/cmd/rayctl/client.go ]; then
+            echo "::notice::this raycontrol has no minimum client version (v0.32.0 does)"
+            exit 0
+          fi
+          TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
+          go test -count=1 -v -timeout 5m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolClientMin . || {
+            docker exec rc-node /opt/rc/rayctl client || true
             exit 1
           }
 
