@@ -13,9 +13,6 @@ import java.time.temporal.ChronoUnit
  */
 object StatsReport {
 
-    /** How old the sample before a window may be to start its counters from: a few of the sampler's minutes. */
-    const val BASELINE_MS = 3 * 60_000L
-
     class Event(val t: Long, val name: String, val labels: Map<String, String>, val value: Long?)
 
     /** [counters]: metric → (epoch, value since the epoch); [gauges]: metric → value. A metric is "name;k=v,k=v". */
@@ -76,9 +73,9 @@ object StatsReport {
         val inside = sorted.filter { it.t > from }
         val out = JSONArray()
         for (key in inside.flatMap { it.counters.keys }.toSortedSet()) {
-            // the sample just before the window, not one from hours before it: a gap (the service stopped) would bring
-            // what the counter gathered meanwhile into the window
-            var prev = sorted.lastOrNull { it.t <= from && it.t >= from - BASELINE_MS && key in it.counters }?.counters?.get(key)
+            // the last sample before the window, however old: the sampler's minute stretches in deep sleep. A counter's
+            // epoch is its run (the core's, the service's), so a stop in between is a reset, not growth
+            var prev = sorted.lastOrNull { it.t <= from && key in it.counters }?.counters?.get(key)
             val isNew = prev == null
             var delta = 0L
             var resets = 0

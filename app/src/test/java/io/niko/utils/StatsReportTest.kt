@@ -52,13 +52,13 @@ class StatsReportTest {
     }
 
     @Test
-    fun aBaselineFromLongBeforeTheWindowIsNotTaken() {
+    fun aSamplerAsleepStillStartsFromItsLastSample() {
         val core = from - 120 * min
-        // the service stopped two hours ago, its counter went on meanwhile, and it runs again inside the window
-        val samples = listOf(sample(from - 90 * min, core, 50), sample(from + 30 * min, core, 80), sample(from + 31 * min, core, 85))
+        // deep sleep stretched the sampler's minute: the sample before the window is 8 minutes old, the run the same
+        val samples = listOf(sample(from - 8 * min, core, 100), sample(from + 4 * min, core, 130))
         val up = find(StatsReport.sampleCounters(samples, from, to), "niko_traffic_bytes_total")!!
-        assertEquals(5L, up.getLong("delta"))
-        assertTrue(up.getBoolean("new"))
+        assertEquals(30L, up.getLong("delta"))
+        assertFalse(up.getBoolean("new"))
     }
 
     @Test

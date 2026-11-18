@@ -41,7 +41,9 @@ object Stats {
     val samplesFile: File get() = File(dir, "samples.jsonl")
 
     private val writer = Executors.newSingleThreadExecutor { Thread(it, "niko-stats").apply { isDaemon = true } }
-    private val boot = System.currentTimeMillis()
+    // the log counters' epoch: the service's run (startSampler), so a stop in between is a reset, not growth
+    @Volatile
+    private var runEpoch = System.currentTimeMillis()
 
     /** Warnings and errors this process logged (Logs). */
     val warnings = AtomicLong()
@@ -116,8 +118,8 @@ object Stats {
             counter("niko_traffic_bytes_total;dir=down", trafficEpoch, trafficDown)
         }
         // the service's own: the window's process has no sampler (its lines are in the log, not here)
-        counter("niko_log_lines_total;level=warning,process=$process", boot, warnings.get())
-        counter("niko_log_lines_total;level=error,process=$process", boot, errors.get())
+        counter("niko_log_lines_total;level=warning,process=$process", runEpoch, warnings.get())
+        counter("niko_log_lines_total;level=error,process=$process", runEpoch, errors.get())
         val gauges = JSONObject()
         rssMb()?.let { gauges.put("niko_process_rss_mb;process=$process", it) }
         val line = JSONObject().put("t", System.currentTimeMillis()).put("c", counters).put("g", gauges)
@@ -138,6 +140,10 @@ object Stats {
     @Synchronized
     fun startSampler() {
         if (sampler?.isActive == true) return
+        // the log lines counted from this run on
+        runEpoch = System.currentTimeMillis()
+        warnings.set(0)
+        errors.set(0)
         sampler = GlobalScope.launch(Dispatchers.IO) {
             sample()
             while (isActive) {
