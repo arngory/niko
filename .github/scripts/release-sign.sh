@@ -3,7 +3,8 @@
 # ci.yml, job sign-check, with throwaway keys. No Gradle, plugin or dependency of the build runs where the keys are:
 # the APK artifact is data here. Uses only build-tools (zipalign, apksigner) and minisign.
 #
-# Argument: the APK folder (the build's Niko-<version>-<abi>-unsigned.apk). Environment:
+# Argument: the APK folder (the build's Niko-<version>-<abi>-unsigned.apk, and UPDATE.json where the release has
+# one). Environment:
 #   KEYSTORE_FILE, KEYSTORE_PASS, ALIAS_NAME, ALIAS_PASS  the APK key (PKCS12 or JKS)
 #   EXPECT_CERT_SHA256    the signer certificate's SHA-256 the APKs must carry, hex (the release key's); required
 #   MINISIGN_KEY_FILE     minisign secret key without a password (minisign -G -W); empty: SHA256SUMS goes unsigned,
@@ -47,7 +48,13 @@ for apk in "${unsigned[@]}"; do
   echo "$(basename "$out"): signed, certificate $digests"
 done
 
-(cd "$dir" && rm -f SHA256SUMS SHA256SUMS.minisig && sha256sum -- *.apk > SHA256SUMS)
+# the APKs, and the release's UPDATE.json where it has one (client-min-v1 §6): the app reads it only as listed here
+(
+  cd "$dir" && rm -f SHA256SUMS SHA256SUMS.minisig
+  files=(*.apk)
+  [ -f UPDATE.json ] && files+=(UPDATE.json)
+  sha256sum -- "${files[@]}" > SHA256SUMS
+)
 if [ -z "${MINISIGN_KEY_FILE:-}" ]; then
   if [ -n "${UPDATE_PUB:-}" ]; then
     echo "::error::the app checks updates with $UPDATE_PUB, and there is no minisign key: it would refuse this release"
