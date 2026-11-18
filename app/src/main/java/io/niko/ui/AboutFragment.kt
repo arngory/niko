@@ -257,6 +257,15 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                                 .build())
                         .addItem(
                             MaterialAboutActionItem.Builder()
+                                .icon(R.drawable.ic_l_scroll_text)
+                                .text(R.string.licenses)
+                                .subText(R.string.licenses_sum)
+                                .setOnClickAction {
+                                    startActivity(Intent(requireContext(), LicensesActivity::class.java))
+                                }
+                                .build())
+                        .addItem(
+                            MaterialAboutActionItem.Builder()
                                 .icon(R.drawable.ic_qu_shadowsocks_foreground)
                                 .text(R.string.upstream_project)
                                 .setOnClickAction {

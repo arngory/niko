@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- a group of the licenses' list: overline (label) ink-2, as the window's NikoSection -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:accessibilityHeading="true"
+    android:paddingStart="@dimen/niko_space_4"
+    android:paddingTop="@dimen/niko_space_6"
+    android:paddingEnd="@dimen/niko_space_4"
+    android:paddingBottom="@dimen/niko_space_2"
+    android:textAppearance="@style/TextAppearance.Niko.Label"
+    android:textColor="?android:attr/textColorSecondary" />

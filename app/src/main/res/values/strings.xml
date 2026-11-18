@@ -1143,4 +1143,17 @@
     <string name="local_proxy_no_auth_in_vpn">Local proxy without password in VPN mode</string>
     <string name="local_proxy_no_auth_in_vpn_sum">Unsafe: any app on the device can use the local proxy and learn the server address. Needed for the system HTTP proxy option. In VPN mode the port opens only with this or with a local proxy password set.</string>
     <string name="port_knocking_silence">Re-knock if a UDP session gets no reply, seconds (0 = off)</string>
+    <!-- About → Licenses (LicensesActivity) -->
+    <string name="licenses">Licenses</string>
+    <string name="licenses_sum">What Niko is built from, and under which licenses</string>
+    <string name="licenses_notice_sum">All of it in one text</string>
+    <string name="licenses_part_app">Niko and what it is based on</string>
+    <string name="licenses_part_library">Android libraries</string>
+    <string name="licenses_part_native">Native parts</string>
+    <string name="licenses_part_data">Data</string>
+    <string name="licenses_part_font">Fonts</string>
+    <string name="licenses_part_icons">Icons</string>
+    <string name="licenses_part_other">Other</string>
+    <string name="licenses_part_go">The core\'s Go modules</string>
+    <string name="licenses_site">Website</string>
 </resources>
