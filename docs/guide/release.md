@@ -123,7 +123,8 @@ Workflow проверит, что тег совпадает с `VERSION_NAME` и
 
 Рядом с APK выходит архив исходников `niko-<тег>-sources.tar.zst` (GPL-3.0, раздел 6): дерево приложения на коммите
 выпуска, форк ядра, модули Go (`go mod vendor`), gomobile и клиент slipstream на закреплённых коммитах. Внутри
-`SOURCES.md` говорит, что откуда, и из какого коммита `arngory/naiveproxy` собран libcronet. Его собирает задача
+`SOURCES.md` говорит, что откуда, и из какого коммита `arngory/naiveproxy` собран libcronet APK (архивы других
+платформ, которые `go mod vendor` тоже копирует, а APK не линкует, — апстрима, с версией модуля). Его собирает задача
 `sources` (`.github/scripts/release-sources.sh`), без ключей и без сборки. Строку «Source code · Исходный код» workflow
 сам дописывает в конец заметок, писать её в `.github/release-notes/<тег>.md` не нужно.
 
