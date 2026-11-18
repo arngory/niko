@@ -1,6 +1,7 @@
 package io.niko.ui
 
 import android.graphics.Typeface
+import android.util.TypedValue
 import android.view.View
 import android.widget.TextView
 import androidx.core.view.isVisible
@@ -12,7 +13,6 @@ import com.android.resources.NightMode
 import com.google.android.material.progressindicator.BaseProgressIndicator
 import io.niko.R
 import io.niko.bg.BaseService
-import io.niko.ktx.getColorAttr
 import io.niko.widget.ServiceButton
 import org.junit.Rule
 import org.junit.Test
@@ -44,6 +44,10 @@ class NikoSnapshotTest(private val mode: String) {
         findViewById<TextView>(id).text = text
     }
 
+    // as ktx's getColorAttr: that file's class does not load off Android (it looks up Socket's hidden methods)
+    private fun View.colorAttr(attr: Int): Int =
+        context.getColor(TypedValue().also { context.theme.resolveAttribute(attr, it, true) }.resourceId)
+
     private fun profile(selected: Boolean): View = paparazzi.inflate<View>(R.layout.layout_profile).apply {
         text(R.id.profile_name, "Home node")
         text(R.id.profile_address, "203.0.113.7:443")
@@ -52,7 +56,7 @@ class NikoSnapshotTest(private val mode: String) {
         text(R.id.profile_status, "128 ms")
         // as ConfigurationFragment shows a profile with traffic and a ping: the address row, the status in ok's colour
         (findViewById<View>(R.id.traffic_text).parent as View).isVisible = true
-        findViewById<TextView>(R.id.profile_status).setTextColor(context.getColorAttr(R.attr.statusOkColor))
+        findViewById<TextView>(R.id.profile_status).setTextColor(colorAttr(R.attr.statusOkColor))
         findViewById<View>(R.id.selected_view).isVisible = selected
         if (selected) findViewById<TextView>(R.id.profile_name).setTypeface(null, Typeface.BOLD)
     }
