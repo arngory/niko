@@ -719,6 +719,7 @@
     <string name="raycontrol_sub_updating">Updating the subscription…</string>
     <string name="raycontrol_sub_updated">%1$s: %2$d profiles from the subscription.</string>
     <string name="raycontrol_sub_skipped">%d links could not be read.</string>
+    <string name="raycontrol_sub_client_min">%1$s requires Niko %2$s or newer: its profiles stay as they were; update the app in About.</string>
     <string name="raycontrol_sub_failed">Subscription not updated: %s</string>
     <string name="raycontrol_card_status">%1$d profiles · updated %2$s</string>
     <string name="raycontrol_card_status_never">%1$d profiles · not updated yet</string>
@@ -756,6 +757,8 @@
     <string name="raycontrol_lan_allow">Allow</string>
     <string name="raycontrol_card_traffic_exhausted">traffic used up until %1$s</string>
     <string name="raycontrol_card_traffic_exhausted_admin">traffic used up until the admin raises the limit</string>
+    <string name="raycontrol_card_client_min">the node requires Niko %1$s or newer: tap to update</string>
+    <string name="raycontrol_card_client_min_from">from %2$s the node will require Niko %1$s or newer: tap to update</string>
     <string name="raycontrol_card_refused">the node refused this device, import it again</string>
     <string name="raycontrol_card_failing">updates fail (%d in a row)</string>
     <string name="raycontrol_card_expires">valid till %s</string>

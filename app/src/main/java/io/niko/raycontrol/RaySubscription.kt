@@ -223,8 +223,10 @@ object RaySubscription {
         val subExpires = payload.get("expires")?.takeIf { it.isJsonPrimitive }?.asLong?.minus(skew) ?: 0
         // the user's traffic is used up (traffic-limit-v1 §4): the node answers with no profiles until the reset,
         // the rows and the selection stay as they are for then; only what the card shows and the next fetch change
-        // (the answer expires by the reset, within an hour)
-        if (parsed.traffic?.exhausted == true) {
+        // (the answer expires by the reset, within an hour). The same for a device the node refused for its version
+        // (client-min-v1 §4): no profiles and no `next`, but the app's releases and the relays, the way to update
+        val refused = parsed.client?.refused == true
+        if (parsed.traffic?.exhausted == true || refused) {
             val seq = payload.get("seq").asLong
             RayNodesLock.withLock {
                 RayNodes.update(nodeId) { node ->
@@ -232,10 +234,13 @@ object RaySubscription {
                     else node.copy(
                         subSeq = seq, refreshAt = refreshAt, clockSkew = skew, failedFetches = 0, failedNetwork = null,
                         subUpdatedAt = now, subExpires = subExpires, traffic = parsed.traffic, note = parsed.note,
-                        lan = parsed.lan, lanPrevious = RayLanNet.previous(node, parsed.lan, now),
+                        client = parsed.client, lan = parsed.lan, lanPrevious = RayLanNet.previous(node, parsed.lan, now),
+                        appReleases = if (refused) parsed.appReleases else node.appReleases,
+                        relays = if (refused) parsed.relays else node.relays,
                     )
                 }
             }
+            if (refused) Logs.w("raycontrol ${node.host}: the node requires Niko ${parsed.client?.niko} (this is ${RayClient.version})")
             RayLanNet.reloadIfChanged(now)
             RayNodes.get(nodeId)?.groupId?.takeIf { it > 0 }?.let { GroupManager.postReload(it) }
             return RaySubscriptionResult(
@@ -250,7 +255,7 @@ object RaySubscription {
                         probe = parsed.probe, spaCarriers = parsed.carriers, failedFetches = 0, failedNetwork = null,
                         relays = parsed.relays, dnsProbeKey = parsed.dnsProbeKey, subUpdatedAt = now,
                         appReleases = parsed.appReleases, note = parsed.note, traffic = parsed.traffic,
-                        subExpires = subExpires, lan = parsed.lan, lanPrevious = RayLanNet.previous(node, parsed.lan, now),
+                        client = parsed.client, subExpires = subExpires, lan = parsed.lan, lanPrevious = RayLanNet.previous(node, parsed.lan, now),
                     )
                 }
             }
@@ -284,6 +289,8 @@ object RaySubscription {
         val note: String? = null,
         // the user's traffic and limit (raycontrol v0.22.0 `traffic`), null none
         val traffic: RayTraffic? = null,
+        // the node's minimum app version (client-min-v1 `client`, raycontrol v0.32.0), null none
+        val client: RayClientMin? = null,
         // the user's devices on the node's Yggdrasil (raycontrol v0.23.0 `lan`), null none
         val lan: RayLan? = null,
         // the pins of the DoH's key (cert-pin-v1), null none
@@ -362,6 +369,7 @@ object RaySubscription {
             RayAppRelease.listFromPayload(payload),
             RayNode.nodeNote(payload.get("note")?.takeIf { it.isJsonPrimitive }?.asString),
             RayTraffic.fromJson(payload.get("traffic") as? JsonObject),
+            RayClientMin.fromJson(payload.get("client") as? JsonObject),
             RayLan.fromJson(payload.get("lan") as? JsonObject),
             dohPins,
         )
@@ -731,6 +739,12 @@ object RaySubscription {
 
     /** One line for the user: what was imported, and a warning when the clocks disagree. */
     fun describe(context: Context, node: RayNode, r: RaySubscriptionResult) = buildString {
+        // client-min-v1: refused for this version, the rows kept as they were; not "0 profiles"
+        val min = RayNodes.get(node.spa.nodeId)?.client?.takeIf { it.refused && RayClient.below(it) }?.niko
+        if (min != null && r.profiles == 0) {
+            append(context.getString(R.string.raycontrol_sub_client_min, node.host, min))
+            return@buildString
+        }
         append(context.getString(R.string.raycontrol_sub_updated, node.host, r.profiles))
         if (r.skipped > 0) append(" ").append(context.getString(R.string.raycontrol_sub_skipped, r.skipped))
         if (r.clockWrong) append(" ").append(context.getString(R.string.raycontrol_clock_wrong, r.clockSkew))

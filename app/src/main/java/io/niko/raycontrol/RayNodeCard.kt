@@ -22,17 +22,25 @@ object RayNodeCard {
         data class Dnstt(val kind: String) : Fact()
         data class Clock(val skew: Long) : Fact()
         data class Traffic(val traffic: RayTraffic) : Fact()
+
+        /** This app is below the node's minimum [min] (client-min-v1): from [from] (unix s), 0 already. */
+        data class ClientMin(val min: String, val from: Long) : Fact()
     }
 
     // a skew the card mentions: SPA v2 fails at 30 s
     private const val CLOCK_OFF = 30L
 
-    /** What the card says about [node], in its order; [relay] and [dnsttKind] are this network's (null: unknown). */
-    fun facts(node: RayNode, now: Long, relay: Boolean?, dnsttKind: String?): List<Fact> = buildList {
+    /**
+     * What the card says about [node], in its order; [relay] and [dnsttKind] are this network's (null: unknown),
+     * [version] this app's.
+     */
+    fun facts(node: RayNode, now: Long, relay: Boolean?, dnsttKind: String?, version: String = RayClient.version): List<Fact> = buildList {
         when {
             node.refreshAt == RayNodes.STOPPED -> add(Fact.Refused)
             node.failedFetches > 0 -> add(Fact.Failing(node.failedFetches))
         }
+        // the node's minimum version, once this app is below it: refused already, or from a date (the node's clock)
+        clientMin(node, now, version)?.let { add(it) }
         // the user's traffic: what is used of the limit, or used up; after what keeps the subscription from coming
         node.traffic?.let { add(Fact.Traffic(it)) }
         if (node.subExpires > 0) add(Fact.Expires(node.subExpires, node.subExpires <= now))
@@ -40,6 +48,13 @@ object RayNodeCard {
         if (relay != null && node.relays.isNotEmpty()) add(Fact.Path(relay))
         dnsttKind?.let { add(Fact.Dnstt(it)) }
         if (abs(node.clockSkew) > CLOCK_OFF) add(Fact.Clock(node.clockSkew))
+    }
+
+    /** The node's minimum this [version] is below, null none: the card says it and a tap leads to the update. */
+    fun clientMin(node: RayNode, now: Long, version: String = RayClient.version): Fact.ClientMin? {
+        val client = node.client?.takeIf { RayClient.below(it, version) } ?: return null
+        val from = client.from - node.clockSkew
+        return Fact.ClientMin(client.niko ?: return null, if (client.refused || from <= now) 0 else from)
     }
 
     /**
@@ -75,6 +90,11 @@ object RayNodeCard {
                 is Fact.Dnstt -> context.getString(R.string.raycontrol_card_dnstt, kindName(context, fact.kind))
                 is Fact.Clock -> context.getString(R.string.raycontrol_card_clock, fact.skew)
                 is Fact.Traffic -> traffic(context, fact.traffic)
+                is Fact.ClientMin -> if (fact.from == 0L) context.getString(R.string.raycontrol_card_client_min, fact.min)
+                else context.getString(
+                    R.string.raycontrol_card_client_min_from, fact.min,
+                    DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(fact.from * 1000)),
+                )
             }
         }
         return status to listOfNotNull(note(node), info.takeIf { it.isNotEmpty() }).joinToString("\n")

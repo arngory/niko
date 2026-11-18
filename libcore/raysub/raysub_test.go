@@ -24,6 +24,8 @@ import (
 	"github.com/sagernet/sing-box/protocol/knock"
 
 	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
+
+	"libcore/rayclient"
 )
 
 type node struct {
@@ -39,6 +41,8 @@ type node struct {
 	app http.Handler
 	// the X-Raycontrol-LAN of the last request, "-" without one
 	sawLAN string
+	// the X-Raycontrol-Client of the last request, "" without one
+	sawClient string
 }
 
 const nodeID = "33333333333333333333333333333333"
@@ -76,6 +80,7 @@ func newNode(t *testing.T) *node {
 			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
+		n.sawClient = r.Header.Get(rayclient.Header)
 		n.sawLAN = "-"
 		if values, ok := r.Header["X-Raycontrol-Lan"]; ok {
 			n.sawLAN = strings.Join(values, ",")
@@ -168,6 +173,19 @@ func TestNekoSubscriptionLANHeader(t *testing.T) {
 	var request Request
 	if err := json.Unmarshal([]byte(`{"lan":"on"}`), &request); err != nil || request.LAN != "on" {
 		t.Fatalf("%+v %v", request, err)
+	}
+}
+
+// client-min-v1 §1: the request says which client asks, as the app set it; none while it is unset
+func TestNekoSubscriptionClientHeader(t *testing.T) {
+	t.Cleanup(func() { rayclient.Set("") })
+	n := newNode(t)
+	if _, err := Fetch(context.Background(), n.request); err != nil || n.sawClient != "" {
+		t.Fatalf("unset: %q %v", n.sawClient, err)
+	}
+	rayclient.Set("niko/1.59.0 (android; arm64-v8a)")
+	if _, err := Fetch(context.Background(), n.request); err != nil || n.sawClient != "niko/1.59.0 (android; arm64-v8a)" {
+		t.Fatalf("set: %q %v", n.sawClient, err)
 	}
 }
 

@@ -476,6 +476,9 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
                 editButton.isGone = proxyGroup.ungrouped
             }
 
+            // a tap on the lines only where a node requires a newer Niko (below); the holder is reused
+            groupTraffic.setOnClickListener(null)
+            groupTraffic.isClickable = false
             val subscription = proxyGroup.subscription
             if (subscription != null && subscription.bytesUsed > 0L) { // SIP008 & Open Online Config
                 groupTraffic.isVisible = true
@@ -518,6 +521,8 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
                 // a raycontrol node's group (a basic one, its rows the node's): Update and its lines
                 val node = if (group.type == GroupType.BASIC) RayNodes.list().firstOrNull { it.groupId == group.id } else null
                 val card = node?.let { RayNodeCard.lines(app, it, size) }
+                // client-min-v1: the node requires a newer Niko, the lines lead to the update
+                val update = node?.let { RayNodeCard.clientMin(it, System.currentTimeMillis() / 1000) } != null
                 onMainDispatcher {
                     @Suppress("DEPRECATION") when (group.type) {
                         GroupType.BASIC -> {
@@ -551,6 +556,12 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
                             groupTraffic.isVisible = true
                             groupTraffic.text = card.second
                             groupStatus.setPadding(0)
+                            if (update) groupTraffic.setOnClickListener {
+                                (activity as? MainActivity)?.apply {
+                                    displayFragment(AboutFragment.checkingUpdate())
+                                    navigation.menu.findItem(R.id.nav_about)?.isChecked = true
+                                }
+                            }
                         }
                     }
                 }

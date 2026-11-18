@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"libcore/probe"
+	"libcore/rayclient"
 	"libcore/raysub"
 )
 
@@ -76,6 +77,7 @@ func (c *Client) request(ctx context.Context, method, path string, body io.Reade
 	}
 	req.Header.Set("X-Raycontrol-Device", c.e.DeviceID)
 	req.Header.Set("Authorization", raysub.Authorization(c.e.DeviceKey, c.e.now()))
+	rayclient.Apply(req.Header)
 	return req, nil
 }
 

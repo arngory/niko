@@ -105,6 +105,9 @@ class SagerNet : Application(),
                 DataStore.logLevel > 0,
                 nativeInterface, nativeInterface, LocalResolverImpl
             )
+            // client-min-v1 §1: this version on every request to a raycontrol node, so the node can say "update"
+            val rayClient = io.niko.raycontrol.RayClient.header(this)
+            if (!Libcore.setRaycontrolClient(rayClient)) Logs.w("raycontrol: the client header $rayClient is not valid")
             // the user's node addresses stay out of this process' log
             runOnDefaultDispatcher { io.niko.raycontrol.RayNodes.syncLogRedactions() }
 

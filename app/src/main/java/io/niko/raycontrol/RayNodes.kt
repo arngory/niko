@@ -8,6 +8,7 @@ import io.niko.fmt.hysteria.HysteriaBean
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import com.google.gson.JsonPrimitive
 import io.niko.Key
 import io.niko.database.DataStore
 import io.niko.ktx.Logs
@@ -122,6 +123,44 @@ data class RayTraffic(val used: Long, val limit: Long, val since: Long, val rese
     }
 }
 
+/**
+ * The subscription's `client` (client-min-v1 §3, raycontrol v0.32.0): the node's minimum versions by product, from
+ * when they hold (unix s, 0: already) and whether the node refused this device for its version ([refused]: the
+ * answer has no profiles, the rows stay as they are, like with the traffic used up).
+ */
+data class RayClientMin(val min: Map<String, String>, val from: Long, val refused: Boolean) {
+    /** Niko's minimum, null none. */
+    val niko get() = min[RayClient.PRODUCT]
+
+    fun toJson() = JsonObject().apply {
+        addProperty("v", 1)
+        add("min", JsonObject().apply { min.forEach { (product, version) -> addProperty(product, version) } })
+        if (from > 0) addProperty("from", from)
+        if (refused) addProperty("refused", true)
+    }
+
+    companion object {
+        // the node's limits (client-min-v1 §2): up to 8 products, a version up to 64 bytes
+        private const val PRODUCTS = 8
+        private const val VERSION_LEN = 64
+        private val PRODUCT_NAME = Regex("[a-z][a-z0-9-]{0,15}")
+
+        /** `client` of version 1, else null: another version is unknown to this client. */
+        fun fromJson(o: JsonObject?): RayClientMin? {
+            if (o == null || runCatching { o.get("v")?.asInt }.getOrNull() != 1) return null
+            val min = (o.get("min") as? JsonObject)?.entrySet().orEmpty().mapNotNull { (product, version) ->
+                val v = (version as? JsonPrimitive)?.takeIf { it.isString }?.asString ?: return@mapNotNull null
+                if (!PRODUCT_NAME.matches(product) || v.isEmpty() || v.length > VERSION_LEN) null else product to v
+            }.take(PRODUCTS).toMap()
+            return RayClientMin(
+                min = min,
+                from = runCatching { o.get("from")?.asLong }.getOrNull()?.takeIf { it > 0 } ?: 0L,
+                refused = runCatching { o.get("refused")?.asBoolean }.getOrNull() == true,
+            )
+        }
+    }
+}
+
 /** An imported raycontrol node: SPA v2 parameters and this device's wrapped key. */
 data class RayNode(
     val host: String,
@@ -178,6 +217,8 @@ data class RayNode(
     val note: String? = null,
     // the user's traffic and limit (the subscription's `traffic`, raycontrol v0.22.0), null none: the card
     val traffic: RayTraffic? = null,
+    // the node's minimum app version (the subscription's `client`, client-min-v1, raycontrol v0.32.0), null none
+    val client: RayClientMin? = null,
     // lan-v1 (raycontrol v0.23.0): the user's choice to show this device to their other devices (X-Raycontrol-LAN),
     // null = never chosen (no header: the node keeps it hidden); when it was last switched (unix s)
     val lanShow: Boolean? = null,
@@ -241,6 +282,7 @@ data class RayNode(
         if (appReleases.isNotEmpty()) add("app_releases", JsonArray().apply { appReleases.forEach { add(it.toJson()) } })
         note?.let { addProperty("note", it) }
         traffic?.let { add("traffic", it.toJson()) }
+        client?.let { add("client", it.toJson()) }
         lanShow?.let { addProperty("lan_show", it) }
         if (lanShowAt > 0) addProperty("lan_show_at", lanShowAt)
         lan?.let { add("lan", it.toJson()) }
@@ -285,6 +327,7 @@ data class RayNode(
             appReleases = RayAppRelease.listFromJson(o.get("app_releases") as? JsonArray),
             note = o.get("note")?.takeIf { it.isJsonPrimitive }?.asString?.let(::nodeNote),
             traffic = RayTraffic.fromJson(o.get("traffic") as? JsonObject),
+            client = RayClientMin.fromJson(o.get("client") as? JsonObject),
             lanShow = o.get("lan_show")?.takeIf { it.isJsonPrimitive }?.let { runCatching { it.asBoolean }.getOrNull() },
             lanShowAt = o.get("lan_show_at")?.asLong ?: 0,
             lan = RayLan.fromJson(o.get("lan") as? JsonObject),
