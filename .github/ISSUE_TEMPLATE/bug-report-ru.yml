@@ -1,0 +1,59 @@
+name: Ошибка
+description: Что-то в Niko работает не так, как должно
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Не вставляйте сюда то, что позволит подключиться кому-то ещё: ссылки-приглашения и подписки, ключи, пароли,
+        адреса своих серверов. Их может показать и снимок экрана или журнал: сначала закройте их.
+  - type: input
+    id: version
+    attributes:
+      label: Версия Niko
+      description: Боковое меню › О приложении
+      placeholder: 1.58.0
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Устройство и версия Android
+      placeholder: Pixel 7, Android 15
+    validations:
+      required: true
+  - type: dropdown
+    id: source
+    attributes:
+      label: Откуда профиль
+      options:
+        - Узел raycontrol (приглашение)
+        - Подписка
+        - Ссылка или профиль, добавленный вручную
+    validations:
+      required: true
+  - type: input
+    id: protocol
+    attributes:
+      label: Протокол профиля
+      placeholder: Hysteria2, VLESS REALITY, NaïveProxy…
+  - type: textarea
+    id: what
+    attributes:
+      label: Что происходит и что вы ожидали
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Как повторить
+      placeholder: |
+        1. …
+        2. …
+  - type: textarea
+    id: logs
+    attributes:
+      label: Журналы
+      description: >-
+        Боковое меню › Журналы › ⋮ › Экспорт отладочной информации. Для узла raycontrol: ⋮ узла › Тестовый прогон,
+        затем поделиться его журналом (имена узлов и ключи в нём скрыты). Приложите файлом, а не текстом.

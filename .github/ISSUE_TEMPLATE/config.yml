@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: How to make a change / Как вносить изменения
+    url: https://github.com/arngory/niko/blob/main/CONTRIBUTING.md
+    about: Branches, pull requests, commit messages / ветки, pull request, сообщения коммитов

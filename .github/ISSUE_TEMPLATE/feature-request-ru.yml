@@ -1,0 +1,16 @@
+name: Предложение
+description: Что Niko стоит уметь
+labels: [enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: Что Niko должен делать
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: "Зачем: для какого случая"
+    validations:
+      required: true
