@@ -23,7 +23,6 @@ COLOUR = re.compile(r"^(@color/[A-Za-z0-9_]+|@android:color/[A-Za-z0-9_]+|#[0-9a
 
 # (file under res, colour): how many there are today. Step 1 of the reskin takes them away
 EXCEPTIONS = {
-    ("values/themes.xml", "@color/niko_bar"): 6,
     ("layout/layout_import.xml", "@color/material_red_accent_200"): 1,
     ("layout/layout_chain_settings.xml", "@android:color/darker_gray"): 1,
     ("layout/layout_edit_config.xml", "@android:color/darker_gray"): 1,

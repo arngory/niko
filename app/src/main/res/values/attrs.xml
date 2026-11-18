@@ -13,4 +13,6 @@
     <attr name="fabRingColor" format="color" />
     <attr name="selectedColorPrimary" format="color" />
     <attr name="whiteOrTextPrimary" format="color" />
+    <!-- the shadow under the bars (the app bar, the group and tool tabs); Niko has none: its surfaces part the layers -->
+    <attr name="barElevation" format="dimension" />
 </resources>
