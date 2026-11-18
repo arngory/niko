@@ -188,12 +188,17 @@ object RaySubscription {
      */
     fun appFile(node: RayNode, tag: String, name: String, out: java.io.File, etag: String, deadline: Long = 0) {
         val info = node.subscription ?: throw Exception("raycontrol node ${node.host}: its registration has no subscription")
+        // the ways not tried yet: the direct one, then each relay
+        var ways = 1 + node.relays.size
         directOrViaRelay(node, request(node, info), "the update's $name", { e -> refused(e) || e.message?.contains(APP_NOT_HELD) == true }) {
-            // with a deadline (wall clock, ms): each way gets what is left of it, the Go call stops by itself
+            // with a deadline (wall clock, ms) the ways not tried yet share what is left of it, the Go call stopping by
+            // itself: a node that drops the direct way (its dial waits out every carrier) leaves the relays their part,
+            // and the last way takes all that remains
             if (deadline > 0) {
                 val left = deadline - System.currentTimeMillis()
                 if (left <= 0) throw Exception("the update's $name: its time is up")
-                val within = left.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+                val within = (left / ways.coerceAtLeast(1)).coerceIn(1L, Int.MAX_VALUE.toLong()).toInt()
+                ways--
                 Libcore.raycontrolAppFileWithin(it.toString(), tag, name, out.canonicalPath, etag, within)
             } else {
                 Libcore.raycontrolAppFile(it.toString(), tag, name, out.canonicalPath, etag)
