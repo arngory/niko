@@ -27,7 +27,7 @@ import java.util.Locale
  * The resolver of a node's dnstt tunnel when its link leaves it to the client ("auto"): picked per network with
  * dnsprobe-v1 (raycontrol: a label in the tunnel's zone the node's front answers itself, MAC'd with the
  * subscription's dns_probe key) and kept for a day. Candidates: the network's own resolvers first, then public
- * resolvers of the country (raycontrol docs/13-dns-resolvers.md; no Google, Cloudflare or Quad9), the node's hint
+ * resolvers of the country (raycontrol docs/research/dns-resolvers.md; no Google, Cloudflare or Quad9), the node's hint
  * (hints.dns) moving its kind forward. No resolver answering is kept too, an hour: a pick of kind [NONE], without a
  * resolver, which leaves the tunnel on the default of before. masterdns zones answer no probe (its answers look
  * otherwise): its "auto" is the network's own and the country's public resolvers, Yandex only as the fallback
