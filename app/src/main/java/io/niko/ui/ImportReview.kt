@@ -44,7 +44,7 @@ object ImportReview {
 
     private val pending = ArrayList<AbstractBean>()
 
-    /** The scanner closes at once: it hands the profiles to [MainActivity], which asks ([take]). */
+    /** The scanner closes at once: it hands the profiles to [MainActivity], which asks ([peek], [drop]). */
     fun handOff(context: Context, proxies: List<AbstractBean>) {
         synchronized(pending) { pending.addAll(proxies) }
         context.startActivity(
@@ -52,5 +52,11 @@ object ImportReview {
         )
     }
 
-    fun take(): List<AbstractBean> = synchronized(pending) { pending.toList().also { pending.clear() } }
+    /** The profiles waiting for their question; they stay until it is answered, so that a relaunch asks again. */
+    fun peek(): List<AbstractBean> = synchronized(pending) { pending.toList() }
+
+    /** [proxies] answered (imported or refused): no longer waiting. */
+    fun drop(proxies: List<AbstractBean>) {
+        synchronized(pending) { pending.removeAll { waiting -> proxies.any { it === waiting } } }
+    }
 }
