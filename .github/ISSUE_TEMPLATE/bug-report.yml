@@ -1,0 +1,59 @@
+name: Bug report
+description: Something in Niko does not work as it should
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Never paste here what lets someone else connect: invite or subscription links, keys, passwords, the
+        addresses of your servers. A screenshot or a log may show them too: cover them first.
+  - type: input
+    id: version
+    attributes:
+      label: Niko version
+      description: Side menu › About
+      placeholder: 1.58.0
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device and Android version
+      placeholder: Pixel 7, Android 15
+    validations:
+      required: true
+  - type: dropdown
+    id: source
+    attributes:
+      label: Where the profile comes from
+      options:
+        - A raycontrol node (an invite)
+        - A subscription
+        - A link or a profile added by hand
+    validations:
+      required: true
+  - type: input
+    id: protocol
+    attributes:
+      label: Protocol of the profile
+      placeholder: Hysteria2, VLESS REALITY, NaïveProxy…
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to repeat it
+      placeholder: |
+        1. …
+        2. …
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: >-
+        Side menu › Logs › ⋮ › Export debug information. For a raycontrol node: the node's ⋮ › Test run, then share
+        its log (node names and keys come out redacted). Attach the file rather than pasting it.

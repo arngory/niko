@@ -1,0 +1,16 @@
+name: Feature request
+description: Something Niko should do
+labels: [enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What Niko should do
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: "Why: the case it is for"
+    validations:
+      required: true
