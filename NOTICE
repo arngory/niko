@@ -71,7 +71,8 @@ Android libraries (the app's runtime classpath)
   annotations, JSpecify, Gson, Guava (with failureaccess, listenablefuture, error_prone_annotations,
   j2objc-annotations), AutoValue annotations, OkHttp and Okio, SnakeYAML, process-phoenix, ini4j, ZXingLite and ZXing,
   EditorKit, material-about-library, recyclerview-fastscroll, Objenesis.
-  BSD-3-Clause: Kryo, ReflectASM, MinLog (Esoteric Software).
+  BSD-3-Clause: Kryo, ReflectASM, MinLog (Esoteric Software); ASM, which ReflectASM carries repackaged
+  (com.esotericsoftware.asm), Copyright (c) 2000-2011 INRIA, France Telecom.
   MIT: Roomigrant, Copyright (c) 2018 Rostyslav Lesovyi.
   GPL-2.0 with the Classpath Exception: desugar_jdk_libs (https://github.com/google/desugar_jdk_libs), the part of
   OpenJDK's library that Android's build compiles into the app for the older Android versions; Copyright Oracle and
