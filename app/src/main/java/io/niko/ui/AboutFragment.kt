@@ -370,8 +370,15 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                         // it: past it the update is offered as an ordinary one
                         val notice = readNotice {
                             val deadline = System.currentTimeMillis() + Updates.NOTICE_BOUND_MS
-                            val locked = withTimeoutOrNull(Updates.NOTICE_BOUND_MS) { Updates.nodeFiles.lock() } != null
-                            if (!locked) null else try {
+                            // held is set right after lock() with no suspension between: a timeout that lands
+                            // after the lock was taken still makes withTimeoutOrNull return null, and the lock must
+                            // be released then too (kotlinx.coroutines: asynchronous timeout and resources)
+                            var held = false
+                            withTimeoutOrNull(Updates.NOTICE_BOUND_MS) {
+                                Updates.nodeFiles.lock()
+                                held = true
+                            }
+                            if (!held) null else try {
                                 Updates.noticeFromMirror(app, nodeRelease.tag) { name, out, etag ->
                                     RaySubscription.appFile(node, nodeRelease.tag, name, out, etag, deadline)
                                 }
