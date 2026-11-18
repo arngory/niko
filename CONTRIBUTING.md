@@ -42,7 +42,7 @@
 - Скрипт «Commit messages», правила и исключения «Secrets» берутся из `main`, версия Go для gitleaks закреплена в
   `checks.yml`. Сами workflow идут в том виде, в каком лежат в pull request: pull request, который меняет
   `.github/workflows/`, меняет и свои проверки. Такой pull request другого участника сливает владелец.
-- Ключи релиза — только в окружении GitHub `release` (`docs/RELEASE_SIGNING.md`). `*.keystore`, `*.jks`, `*.b64`,
+- Ключи релиза — только в окружении GitHub `release` (`docs/guide/release.md`). `*.keystore`, `*.jks`, `*.b64`,
   `local.properties`, `docs/local/` — в `.gitignore`.
 - Адреса в тестах и примерах — только документационные: `192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`,
   `2001:db8::/32`, домены `*.example`, `*.test`. Захваченные с узлов данные — только с одноразовых узлов CI.
@@ -62,7 +62,7 @@
 1. `niko.properties`: `VERSION_NAME` (semver) и `VERSION_CODE` — только растёт.
 2. `.github/release-notes/vX.Y.Z.md`: по-английски, затем по-русски, без голых `#N`.
 3. Владелец ставит тег на коммит `main` с зелёным CI (или запускает Release вручную и публикует черновик) и одобряет
-   подпись. Подробно — `docs/RELEASE_SIGNING.md`.
+   подпись. Подробно — `docs/guide/release.md`.
 
 ## В этом репозитории
 
@@ -73,8 +73,8 @@
 | окно для ПК (Flutter) | `desktop/`, своя проверка `desktop.yml` |
 | общие протоколы окна и демона | `shared/proto/` (Go: `shared/tool/gen_proto_go.sh`, Dart: `desktop/tool/gen_proto.sh`) |
 | ядро | форк `arngory/sing-box`, закреплён в `buildScript/lib/core/get_source_env.sh` |
-| сборка и подпись | `.github/workflows/build.yml`, `docs/RELEASE_SIGNING.md` |
-| документы | `docs/` (дизайн, ПК, исследования, выпуск) |
+| сборка и подпись | `.github/workflows/build.yml`, `docs/guide/release.md` |
+| документы | [`docs/`](docs/README.ru.md): инструкции, как устроено, контракты, решения, план |
 
 Узел (raycontrol, niko-server) живёт в своих репозиториях. Совместимость клиента и узла держат спецификации
 raycontrol (`docs/spec/`) и interop CI здесь (`raycontrol-interop.yml`, `niko-server-interop.yml`,

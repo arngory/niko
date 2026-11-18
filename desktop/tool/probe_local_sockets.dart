@@ -1,4 +1,4 @@
-// What dart:io can open towards a local daemon on this system (docs/desktop/README.md, «Что решить», п. 2): the
+// What dart:io can open towards a local daemon on this system (docs/design/desktop.md, «Что решить», п. 2): the
 // daemon's worker listens on a named pipe on Windows and on a unix socket elsewhere. Prints what works; never fails.
 import 'dart:io';
 

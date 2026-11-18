@@ -1,8 +1,8 @@
 # Niko для компьютера: окно
 
 Flutter, Windows сначала, Linux потом. Ядро и логика Niko живут в демоне (`boxdd` из форка ядра, дальше `nikod`);
-окно только показывает и просит. Как устроено целиком — [docs/desktop/README.md](../docs/desktop/README.md), что
-за каждым элементом экрана — [REQUIREMENTS.md](../docs/desktop/REQUIREMENTS.md).
+окно только показывает и просит. Как устроено целиком — [docs/design/desktop.md](../docs/design/desktop.md), что
+за каждым элементом экрана — [desktop-requirements.md](../docs/spec/desktop-requirements.md).
 
 Сейчас окно умеет то, что даёт уже готовый демон (`boxdd`), без `NikoService`:
 

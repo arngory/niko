@@ -1,5 +1,5 @@
 // Package nikoservice is NikoService, Niko's own service in its desktop daemon nikod, beside the core's daemon's
-// (docs/desktop/STAGE3.md, slice 1: the daemon's info and the route tester; the store, profiles and the config
+// (docs/design/desktop-stage3.md, slice 1: the daemon's info and the route tester; the store, profiles and the config
 // builder come in later slices).
 package nikoservice
 

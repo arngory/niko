@@ -1,5 +1,5 @@
 /// Where the daemon listens in development: `boxdd run --listen 127.0.0.1:<port>`, gRPC over TCP with no check of
-/// the client at all (docs/desktop/README.md, «Что решить», п. 1). So the address is 127.0.0.1 and nothing else: not
+/// the client at all (docs/design/desktop.md, «Что решить», п. 1). So the address is 127.0.0.1 and nothing else: not
 /// a name, not another address of this machine, not another machine.
 class DevEndpoint {
   const DevEndpoint._(this.port);

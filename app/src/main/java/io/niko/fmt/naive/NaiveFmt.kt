@@ -108,7 +108,7 @@ fun NaiveBean.buildNaiveConfig(port: Int): String {
 /**
  * The core's naive outbound: Chromium's network stack (cronet) in the core, so the TLS and HTTP/2 of the tunnel are
  * Chrome's by construction, its sockets come from the core's dialer (the VPN's protect, a knock detour) and no
- * plugin process runs (review S8, FINGERPRINT.md §2).
+ * plugin process runs (review S8, docs/design/fingerprint.md §2).
  */
 fun buildSingBoxOutboundNaiveBean(bean: NaiveBean): SingBoxOptions.Outbound = SingBoxOptions.Outbound().apply {
     type = "naive"

@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** The buckets of the anonymous summary (RAYCONTROL.md §14.3, niko-r14-reply.md §2). */
+/** The buckets of the anonymous summary (docs/research/raycontrol-handoff.md §14.3, niko-r14-reply.md §2). */
 class RayReportTest {
 
     private fun score(tcpOk: Boolean = true, kbps: Long = 8000, stalledAt: Long = -1, udpOk: Boolean = true, loss: Double = 0.0) =
