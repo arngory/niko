@@ -113,6 +113,15 @@ class StatsReportTest {
     }
 
     @Test
+    fun aFullFileKeepsTheNewestHalfOfTheLastTwoHours() {
+        val since = 1_000L
+        val lines = listOf("""{"t":999,"n":"old"}""", "not json") + (1..10).map { """{"t":${1000 + it},"n":"e$it"}""" }
+        val kept = StatsReport.trimmed(lines, since, maxBytes = 3 * (lines.last().length + 1))
+        assertEquals(listOf("e8", "e9", "e10"), kept.map { JSONObject(it).getString("n") })
+        assertEquals(10, StatsReport.trimmed(lines, since, maxBytes = 10_000).size)
+    }
+
+    @Test
     fun linesParseBackAndBadOnesAreSkipped() {
         val e = StatsReport.parseEvent("""{"t":5,"p":"bg","n":"watchdog","l":{"action":"switch"},"v":7}""")!!
         assertEquals("watchdog", e.name)

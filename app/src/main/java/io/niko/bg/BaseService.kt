@@ -90,6 +90,9 @@ class BaseService {
         // the next start is stopRunner's restart (a reload under the running VPN), not a fresh one
         var restarting = false
 
+        // the next stop is a start that failed (counted as service_fail), not one the user or the system asked for
+        var failing = false
+
         val binder = Binder(this)
         var connectingJob: Job? = null
 
@@ -369,7 +372,8 @@ class BaseService {
             this as Service
 
             data.changeState(State.Stopping)
-            if (!restart && msg == null) io.niko.utils.Stats.event("service_stop")
+            if (!restart && msg == null && !data.failing) io.niko.utils.Stats.event("service_stop")
+            data.failing = false
             // a stop for good: a later start is the user's or the system's, not the watchdog's
             if (!restart) RayWatchdog.stop(final = true)
 
@@ -540,6 +544,7 @@ class BaseService {
             fun failed(msg: String?, why: String) {
                 if (data.state != State.Connecting) return
                 io.niko.utils.Stats.event("service_fail", mapOf("why" to why, "profile" to io.niko.utils.Stats.kind(profile)))
+                data.failing = true
                 stopRunner(false, msg)
             }
             data.connectingJob = runOnMainDispatcher {

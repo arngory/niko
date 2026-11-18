@@ -112,6 +112,7 @@ object Stats {
             counter("niko_traffic_bytes_total;dir=up", trafficEpoch, trafficUp)
             counter("niko_traffic_bytes_total;dir=down", trafficEpoch, trafficDown)
         }
+        // the service's own: the window's process has no sampler (its lines are in the log, not here)
         counter("niko_log_lines_total;level=warning,process=$process", boot, warnings.get())
         counter("niko_log_lines_total;level=error,process=$process", boot, errors.get())
         val gauges = JSONObject()
@@ -165,9 +166,8 @@ object Stats {
                         raf.seek(0)
                         raf.readFully(bytes)
                         val since = System.currentTimeMillis() - KEEP_MS
-                        val kept = String(bytes).lineSequence().filter { l ->
-                            l.isNotBlank() && runCatching { JSONObject(l).getLong("t") >= since }.getOrDefault(false)
-                        }.joinToString("") { "$it\n" }
+                        val kept = StatsReport.trimmed(String(bytes).lines(), since, (TRIM_AT / 2).toInt())
+                            .joinToString("") { "$it\n" }
                         raf.setLength(0)
                         raf.seek(0)
                         raf.write(kept.toByteArray())
@@ -179,7 +179,22 @@ object Stats {
         }
     }
 
-    private fun lines(file: File): List<String> = runCatching { file.readLines() }.getOrDefault(emptyList())
+    /**
+     * [file]'s lines under a shared lock (the other process's trim does not show half a file), read on the writer's
+     * thread: in one process a second lock on the file would throw rather than wait.
+     */
+    private fun lines(file: File): List<String> = runCatching {
+        writer.submit<List<String>> {
+            if (!file.exists()) return@submit emptyList()
+            RandomAccessFile(file, "r").use { raf ->
+                raf.channel.lock(0, Long.MAX_VALUE, true).use {
+                    val bytes = ByteArray(raf.length().toInt())
+                    raf.readFully(bytes)
+                    String(bytes).lines().filter { it.isNotBlank() }
+                }
+            }
+        }.get()
+    }.getOrDefault(emptyList())
 
     /** The report for the last [minutes] (5 to 120) under [run], what the app is and does now in its head. */
     fun report(run: String, minutes: Int = 60): JSONObject {

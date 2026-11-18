@@ -35,6 +35,22 @@ object StatsReport {
         )
     }.getOrNull()
 
+    /**
+     * What a full records file keeps: the lines of the last two hours ([since] on), and of those at most [maxBytes],
+     * the newest. Half the file's bound, so the next trim is far off and a busy hour does not rewrite it every line.
+     */
+    fun trimmed(lines: List<String>, since: Long, maxBytes: Int): List<String> {
+        val recent = lines.filter { l -> l.isNotBlank() && runCatching { JSONObject(l).getLong("t") >= since }.getOrDefault(false) }
+        var size = 0
+        val kept = ArrayDeque<String>()
+        for (l in recent.asReversed()) {
+            size += l.toByteArray().size + 1
+            if (size > maxBytes) break
+            kept.addFirst(l)
+        }
+        return kept.toList()
+    }
+
     fun utc(ms: Long): String = Instant.ofEpochMilli(ms).truncatedTo(ChronoUnit.SECONDS).toString()
 
     /** "name;k=v,k=v" → name and labels */

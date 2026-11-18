@@ -46,7 +46,7 @@
 | `niko_watchdog_total` | `action`: `recover`, `switch`, `no_alternative`, `ygg_peers`, `credential`, `dns_resolvers`, `doh_token`, `connections_failing` |
 | `niko_url_test_total` | `profile`, `outcome`: `ok`, `fail` |
 | `niko_traffic_bytes_total` | `dir`: `up`, `down`. Только когда включено отображение скорости (`traffic_counted`) |
-| `niko_log_lines_total` | `level`: `warning`, `error`; `process` |
+| `niko_log_lines_total` | `level`: `warning`, `error`; `process`: `bg`, только процесс службы (у процесса окна снимков нет, его строки — в журнале) |
 | `niko_process_rss_mb` (замер) | `process` |
 | `niko_url_test_ms` (время) | `profile`, `outcome` |
 
