@@ -5,7 +5,8 @@
     android:layout_width="match_parent"
     android:layout_height="?attr/actionBarSize"
     android:background="?attr/barBackground"
-    android:elevation="?attr/barElevation">
+    android:elevation="?attr/barElevation"
+    app:elevation="?attr/barElevation">
 
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"

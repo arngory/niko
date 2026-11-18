@@ -45,6 +45,16 @@
         <item name="whiteOrTextPrimary">@color/white</item>
         <item name="barElevation">4dp</item>
         <item name="barBackground">?colorPrimary</item>
+        <item name="whiteOrTextSecondary">@color/white</item>
+        <item name="statusOkColor">@color/material_green_500</item>
+        <item name="statusErrorColor">@color/material_red_500</item>
+        <item name="fabElevation">6dp</item>
+        <item name="fabHoveredFocusedTranslationZ">6dp</item>
+        <item name="fabRingThickness">8dp</item>
+        <item name="fabHalo">@null</item>
+        <item name="drawerBackground">?android:windowBackground</item>
+        <item name="drawerIconColor">?android:textColorPrimary</item>
+        <item name="materialCardViewStyle">@style/Widget.SagerNet.Card</item>
 
         <item name="windowActionModeOverlay">true</item>
 
@@ -113,6 +123,16 @@
         <item name="whiteOrTextPrimary">@color/white</item>
         <item name="barElevation">4dp</item>
         <item name="barBackground">?colorPrimary</item>
+        <item name="whiteOrTextSecondary">@color/white</item>
+        <item name="statusOkColor">@color/material_green_500</item>
+        <item name="statusErrorColor">@color/material_red_500</item>
+        <item name="fabElevation">6dp</item>
+        <item name="fabHoveredFocusedTranslationZ">6dp</item>
+        <item name="fabRingThickness">8dp</item>
+        <item name="fabHalo">@null</item>
+        <item name="drawerBackground">?android:windowBackground</item>
+        <item name="drawerIconColor">?android:textColorPrimary</item>
+        <item name="materialCardViewStyle">@style/Widget.SagerNet.Card</item>
 
         <item name="windowActionModeOverlay">true</item>
 
@@ -558,6 +578,23 @@
         <item name="android:textAppearance">@style/TextAppearance.Niko.Slot.Button</item>
     </style>
 
+    <!-- a card, a group of rows: surface-1, radius-md, no shadow: its surface parts it from the ground -->
+    <style name="Widget.Niko.Card" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">@color/niko_surface_1</item>
+        <item name="cardCornerRadius">@dimen/niko_radius_md</item>
+        <item name="cardElevation">0dp</item>
+    </style>
+    <!-- the colour themes' cards: Material's, with the shadow NekoBox's layouts gave each of them -->
+    <style name="Widget.SagerNet.Card" parent="Widget.MaterialComponents.CardView">
+        <item name="cardElevation">2dp</item>
+    </style>
+
+    <!-- the statistics bar at the bottom (StatsBar, D-MAIN-02, D-MAIN-06): no shadow, a hairline of line along its top -->
+    <style name="Widget.Niko.StatsBar" parent="Widget.MaterialComponents.BottomAppBar">
+        <item name="elevation">0dp</item>
+        <item name="android:foreground">@drawable/niko_hairline_top</item>
+    </style>
+
     <style name="Widget.Niko.ActionButton.Overflow" parent="Widget.AppCompat.ActionButton.Overflow">
         <item name="srcCompat">@drawable/ic_l_ellipsis_vertical</item>
     </style>
@@ -600,9 +637,17 @@
         <item name="colorMaterial300">@color/niko_surface_1</item>
 
         <item name="selectedColorPrimary">@color/niko_ink</item>
-        <item name="fabColorBackground">@color/niko_ink</item>
-        <item name="fabIconTint">@color/niko_on_ink</item>
-        <item name="fabRingColor">@color/niko_line_strong</item>
+        <!-- the connect button as the window's (ConnectButton, D-MAIN-04): surface-2 with an ink icon at rest, ink with
+             on-ink while connected, danger-soft with danger after a failed start; a hairline halo at its edge, the ring
+             while connecting an ink arc of stroke-bold; no shadow -->
+        <item name="fabColorBackground">@color/niko_fab_fill</item>
+        <item name="fabIconTint">@color/niko_fab_icon</item>
+        <item name="fabRingColor">@color/niko_ink</item>
+        <item name="fabHalo">@drawable/niko_fab_halo</item>
+        <item name="fabElevation">0dp</item>
+        <item name="fabHoveredFocusedTranslationZ">0dp</item>
+        <!-- twice stroke-bold -->
+        <item name="fabRingThickness">4dp</item>
 
         <item name="accentOrTextSecondary">?android:textColorSecondary</item>
         <item name="accentOrTextPrimary">?android:textColorPrimary</item>
@@ -616,6 +661,16 @@
         <item name="whiteOrTextPrimary">@color/niko_ink</item>
         <item name="barElevation">0dp</item>
         <item name="barBackground">@color/niko_surface_0</item>
+        <!-- the statistics bar: surface-1 (colorMaterial300), no shadow, a hairline along its top; the speeds ink-2 -->
+        <item name="bottomAppBarStyle">@style/Widget.Niko.StatsBar</item>
+        <item name="whiteOrTextSecondary">@color/niko_ink_2</item>
+        <!-- a profile's state is said in words, its colour only adds to them: no green; ink-2, danger for a failure -->
+        <item name="statusOkColor">@color/niko_ink_2</item>
+        <item name="statusErrorColor">@color/niko_danger</item>
+        <item name="materialCardViewStyle">@style/Widget.Niko.Card</item>
+        <!-- the drawer: surface-1, its rows ink (the chosen one 600), their icons ink-2 -->
+        <item name="drawerBackground">@color/niko_surface_1</item>
+        <item name="drawerIconColor">@color/niko_ink_2</item>
         <!-- the group tabs as the window's header sections: the chosen one ink and 600, the others ink-2, no strip
              (ink and ink-2 differ less than 3:1, so the weight marks it too) -->
         <item name="tabStyle">@style/Widget.Niko.TabLayout</item>
@@ -661,9 +716,17 @@
         <item name="colorMaterial300">@color/niko_surface_1</item>
 
         <item name="selectedColorPrimary">@color/niko_ink</item>
-        <item name="fabColorBackground">@color/niko_ink</item>
-        <item name="fabIconTint">@color/niko_on_ink</item>
-        <item name="fabRingColor">@color/niko_line_strong</item>
+        <!-- the connect button as the window's (ConnectButton, D-MAIN-04): surface-2 with an ink icon at rest, ink with
+             on-ink while connected, danger-soft with danger after a failed start; a hairline halo at its edge, the ring
+             while connecting an ink arc of stroke-bold; no shadow -->
+        <item name="fabColorBackground">@color/niko_fab_fill</item>
+        <item name="fabIconTint">@color/niko_fab_icon</item>
+        <item name="fabRingColor">@color/niko_ink</item>
+        <item name="fabHalo">@drawable/niko_fab_halo</item>
+        <item name="fabElevation">0dp</item>
+        <item name="fabHoveredFocusedTranslationZ">0dp</item>
+        <!-- twice stroke-bold -->
+        <item name="fabRingThickness">4dp</item>
 
         <item name="accentOrTextSecondary">?android:textColorSecondary</item>
         <item name="accentOrTextPrimary">?android:textColorPrimary</item>
@@ -677,6 +740,16 @@
         <item name="whiteOrTextPrimary">@color/niko_ink</item>
         <item name="barElevation">0dp</item>
         <item name="barBackground">@color/niko_surface_0</item>
+        <!-- the statistics bar: surface-1 (colorMaterial300), no shadow, a hairline along its top; the speeds ink-2 -->
+        <item name="bottomAppBarStyle">@style/Widget.Niko.StatsBar</item>
+        <item name="whiteOrTextSecondary">@color/niko_ink_2</item>
+        <!-- a profile's state is said in words, its colour only adds to them: no green; ink-2, danger for a failure -->
+        <item name="statusOkColor">@color/niko_ink_2</item>
+        <item name="statusErrorColor">@color/niko_danger</item>
+        <item name="materialCardViewStyle">@style/Widget.Niko.Card</item>
+        <!-- the drawer: surface-1, its rows ink (the chosen one 600), their icons ink-2 -->
+        <item name="drawerBackground">@color/niko_surface_1</item>
+        <item name="drawerIconColor">@color/niko_ink_2</item>
         <!-- the group tabs as the window's header sections: the chosen one ink and 600, the others ink-2, no strip
              (ink and ink-2 differ less than 3:1, so the weight marks it too) -->
         <item name="tabStyle">@style/Widget.Niko.TabLayout</item>
