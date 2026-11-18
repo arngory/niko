@@ -3,6 +3,7 @@ package io.niko.ui
 import android.graphics.Typeface
 import android.util.TypedValue
 import android.view.View
+import android.view.ViewGroup
 import android.widget.TextView
 import androidx.core.view.isVisible
 import androidx.drawerlayout.widget.DrawerLayout
@@ -37,19 +38,23 @@ class NikoSnapshotTest(private val mode: String) {
     val paparazzi = Paparazzi(
         deviceConfig = DeviceConfig.PIXEL_5.copy(nightMode = if (mode == "dark") NightMode.NIGHT else NightMode.NOTNIGHT),
         theme = "Theme.SagerNet.Niko",
-        // the screen's width, as a list shows a card; the height its content's
-        renderingMode = SessionParams.RenderingMode.V_SCROLL,
+        renderingMode = SessionParams.RenderingMode.SHRINK,
     )
 
     private fun View.text(id: Int, text: String) {
         findViewById<TextView>(id).text = text
     }
 
+    /** [layout] at the screen's width, as a list shows it: shrunk to its content, a row's spacers take nothing. */
+    private fun card(layout: Int): View = paparazzi.inflate<View>(layout).apply {
+        layoutParams = ViewGroup.LayoutParams(resources.displayMetrics.widthPixels, ViewGroup.LayoutParams.WRAP_CONTENT)
+    }
+
     // as ktx's getColorAttr: that file's class does not load off Android (it looks up Socket's hidden methods)
     private fun View.colorAttr(attr: Int): Int =
         context.getColor(TypedValue().also { context.theme.resolveAttribute(attr, it, true) }.resourceId)
 
-    private fun profile(selected: Boolean): View = paparazzi.inflate<View>(R.layout.layout_profile).apply {
+    private fun profile(selected: Boolean): View = card(R.layout.layout_profile).apply {
         text(R.id.profile_name, "Home node")
         text(R.id.profile_address, "203.0.113.7:443")
         text(R.id.traffic_text, "↑ 1.2 MB ↓ 34 MB")
@@ -69,7 +74,7 @@ class NikoSnapshotTest(private val mode: String) {
     fun profileCardSelected() = paparazzi.snapshot(profile(selected = true))
 
     @Test
-    fun groupCard() = paparazzi.snapshot(paparazzi.inflate<View>(R.layout.layout_group_item).apply {
+    fun groupCard() = paparazzi.snapshot(card(R.layout.layout_group_item).apply {
         text(R.id.group_name, "Home node")
         text(R.id.group_user, "3 profiles")
         text(R.id.group_traffic, "↑ 1.2 MB ↓ 34 MB")
