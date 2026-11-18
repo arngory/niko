@@ -28,20 +28,26 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       # the commits the pull request brings: those of its head not on its base as the base is now (the event's
-      # base.sha can be older, and main's commits since would count)
+      # base.sha can be older, and main's commits since would count). The script is the base's, not the pull
+      # request's (the pull request's only while the base has none)
       - env:
           BASE_REF: ${{ github.base_ref }}
           HEAD: ${{ github.event.pull_request.head.sha }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
-        run: python3 -I .github/scripts/bare-refs.py "origin/$BASE_REF" "$HEAD"
+        run: |
+          script="$RUNNER_TEMP/bare-refs.py"
+          git show "origin/$BASE_REF:.github/scripts/bare-refs.py" > "$script" 2> /dev/null ||
+            cp .github/scripts/bare-refs.py "$script"
+          python3 -I "$script" "origin/$BASE_REF" "$HEAD"
 
   # keys and tokens in the pull request's commits: gitleaks from its module (sum.golang.org checks what go install
   # takes), findings shown redacted. Its rules and ignored findings are the base's .gitleaks.toml and .gitleaksignore,
   # not the pull request's (gitleaks reads a .gitleaksignore at the root of what it scans by itself, so the pull
   # request's goes), and a gitleaks:allow comment is not taken: an exception is a pull request of its own and counts
-  # from the next one. What this does not cover: a pull request that changes this workflow changes its own check
-  # (CONTRIBUTING.md: another's such pull request the owner merges)
+  # from the next one. Everything else this file runs is fixed here or the base's (the commits job's script, this
+  # job's Go), so what it does not cover is the workflow itself: a pull request that changes this file changes its
+  # own checks (CONTRIBUTING.md: another's such pull request the owner merges)
   secrets:
     name: Secrets
     runs-on: ubuntu-latest
@@ -51,9 +57,10 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      # the Go that builds gitleaks is this file's, not a go.mod's the pull request can change
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
-          go-version-file: libcore/go.mod
+          go-version: "1.26.11"
           cache: false
       - env:
           BASE_REF: ${{ github.base_ref }}

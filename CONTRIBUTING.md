@@ -39,7 +39,8 @@
   коммитам pull request. Ложное срабатывание (одноразовый ключ теста) — в allowlist `.gitleaks.toml` (там пример) с
   комментарием, откуда ключ, отдельным pull request: проверка берёт `.gitleaks.toml` и `.gitleaksignore` из `main`,
   так что исключение действует со следующего pull request. Комментарии `gitleaks:allow` не учитываются.
-- Проверки идут из workflow в том виде, в каком он лежит в pull request: pull request, который меняет
+- Скрипт «Commit messages», правила и исключения «Secrets» берутся из `main`, версия Go для gitleaks закреплена в
+  `checks.yml`. Сами workflow идут в том виде, в каком лежат в pull request: pull request, который меняет
   `.github/workflows/`, меняет и свои проверки. Такой pull request другого участника сливает владелец.
 - Ключи релиза — только в окружении GitHub `release` (`docs/RELEASE_SIGNING.md`). `*.keystore`, `*.jks`, `*.b64`,
   `local.properties`, `docs/local/` — в `.gitignore`.
