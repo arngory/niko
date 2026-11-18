@@ -12,6 +12,7 @@ import com.android.resources.NightMode
 import com.google.android.material.progressindicator.BaseProgressIndicator
 import io.niko.R
 import io.niko.bg.BaseService
+import io.niko.ktx.getColorAttr
 import io.niko.widget.ServiceButton
 import org.junit.Rule
 import org.junit.Test
@@ -49,6 +50,9 @@ class NikoSnapshotTest(private val mode: String) {
         text(R.id.traffic_text, "↑ 1.2 MB ↓ 34 MB")
         text(R.id.profile_type, "Naïve")
         text(R.id.profile_status, "128 ms")
+        // as ConfigurationFragment shows a profile with traffic and a ping: the address row, the status in ok's colour
+        (findViewById<View>(R.id.traffic_text).parent as View).isVisible = true
+        findViewById<TextView>(R.id.profile_status).setTextColor(context.getColorAttr(R.attr.statusOkColor))
         findViewById<View>(R.id.selected_view).isVisible = selected
         if (selected) findViewById<TextView>(R.id.profile_name).setTypeface(null, Typeface.BOLD)
     }
