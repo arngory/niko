@@ -540,6 +540,8 @@ class BaseService {
             }
 
             data.changeState(State.Connecting)
+            // the statistics' run: the connect's log lines count in it, a failed start's too (stopSampler's last sample)
+            io.niko.utils.Stats.beginRun()
             // a stop requested meanwhile ends the connect quietly: stopRunner reports the state
             fun failed(msg: String?, why: String) {
                 if (data.state != State.Connecting) return

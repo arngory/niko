@@ -41,9 +41,13 @@ object Stats {
     val samplesFile: File get() = File(dir, "samples.jsonl")
 
     private val writer = Executors.newSingleThreadExecutor { Thread(it, "niko-stats").apply { isDaemon = true } }
-    // the log counters' epoch: the service's run (startSampler), so a stop in between is a reset, not growth
+    // the log counters' epoch: the service's run from its connect on (beginRun), so a stop in between is a reset,
+    // not growth
     @Volatile
     private var runEpoch = System.currentTimeMillis()
+
+    // a run begun and not yet ended by stopSampler's last sample: a failed start ends one too
+    private var running = false
 
     /** Warnings and errors this process logged (Logs). */
     val warnings = AtomicLong()
@@ -135,15 +139,23 @@ object Stats {
 
     private var sampler: Job? = null
 
+    /**
+     * A run of the service begins: its connect. The log lines count from here, so a start that fails has its own
+     * (the lines that tell why), and the connect's lines count in the run that follows.
+     */
+    @Synchronized
+    fun beginRun() {
+        runEpoch = System.currentTimeMillis()
+        warnings.set(0)
+        errors.set(0)
+        running = true
+    }
+
     /** A sample a minute while the service runs ([stopSampler] at its stop takes the last). */
     @OptIn(DelicateCoroutinesApi::class)
     @Synchronized
     fun startSampler() {
         if (sampler?.isActive == true) return
-        // the log lines counted from this run on
-        runEpoch = System.currentTimeMillis()
-        warnings.set(0)
-        errors.set(0)
         sampler = GlobalScope.launch(Dispatchers.IO) {
             sample()
             while (isActive) {
@@ -153,11 +165,13 @@ object Stats {
         }
     }
 
+    /** The run's end: the last sample, also of a start that failed before its sampler began. */
     @Synchronized
     fun stopSampler() {
-        val running = sampler ?: return
-        running.cancel()
+        sampler?.cancel()
         sampler = null
+        if (!running) return
+        running = false
         sample()
     }
 
