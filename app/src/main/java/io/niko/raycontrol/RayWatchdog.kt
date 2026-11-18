@@ -182,6 +182,7 @@ object RayWatchdog {
      */
     fun connectionsFailing() {
         if (online == false) return
+        io.niko.utils.Stats.event("watchdog", mapOf("action" to "connections_failing"))
         poke(Jitter.upTo(2_000L))
     }
 
@@ -272,6 +273,7 @@ object RayWatchdog {
             dnsRecheck = false
             if (RayDnsResolvers.runningStale()) {
                 Logs.i("raycontrol: the DNS tunnel's resolvers are another network's, restarting with this one's")
+                io.niko.utils.Stats.event("watchdog", mapOf("action" to "dns_resolvers"))
                 restart(currentCoroutineContext()[Job])
                 return PERIOD
             }
@@ -325,6 +327,7 @@ object RayWatchdog {
                             dohRetryAt = now + Jitter.around(dohBackoff)
                             dohBackoff = minOf(dohBackoff * 2, DOH_BACKOFF_MAX)
                             Logs.i("raycontrol ${node.host}: fetching the subscription for a new DoH token")
+                        io.niko.utils.Stats.event("watchdog", mapOf("action" to "doh_token"))
                             if (refetch(node)) return 60_000L
                         }
                     }
@@ -333,6 +336,7 @@ object RayWatchdog {
             if (stale && now - staleSince > STALE_MAX) {
                 // the old credential still works but not for long (raycontrol R4-1: 2 days after the switch)
                 Logs.i("raycontrol: restarting with the new credential before the old one expires")
+                io.niko.utils.Stats.event("watchdog", mapOf("action" to "credential"))
                 stale = false
                 restart(currentCoroutineContext()[Job])
                 return PERIOD
@@ -343,6 +347,7 @@ object RayWatchdog {
         if (stale) {
             // the old credential stopped working: the row already holds the new one
             Logs.i("raycontrol: the running credential fails, restarting with the stored one")
+            io.niko.utils.Stats.event("watchdog", mapOf("action" to "credential"))
             stale = false
             restart(currentCoroutineContext()[Job])
             return PERIOD
@@ -374,6 +379,7 @@ object RayWatchdog {
     private suspend fun recover(node: RayNode, key: String) {
         val nodeId = node.spa.nodeId
         Logs.i("raycontrol ${node.host}: the profile does not work, fetching the subscription")
+        io.niko.utils.Stats.event("watchdog", mapOf("action" to "recover"))
         val restarted = try {
             // restarts the core itself (as ours) when the running row changed
             RaySubscription.refresh(nodeId, reload = RaySubscription.Reload.WATCHDOG).restarted
@@ -398,6 +404,7 @@ object RayWatchdog {
         // a Yggdrasil profile tries the node's public peers once on this network before another profile (R4-18)
         if (RayChannel.tryYggVia(current, currentKey)) {
             Logs.i("raycontrol ${current.host}: the direct Yggdrasil peer fails here, adding the node's public peers")
+            io.niko.utils.Stats.event("watchdog", mapOf("action" to "ygg_peers"))
             restart(currentCoroutineContext()[Job])
             return
         }
@@ -409,6 +416,7 @@ object RayWatchdog {
         val failedId = node.profileIds?.get(key) ?: return
         val best = RayChannel.failover(node, key) ?: run {
             Logs.w("raycontrol ${node.host}: no other profile of the node works on this network")
+            io.niko.utils.Stats.event("watchdog", mapOf("action" to "no_alternative"))
             return
         }
         currentCoroutineContext().ensureActive()
@@ -416,6 +424,7 @@ object RayWatchdog {
         // the user picked another profile meanwhile: theirs stands
         if (DataStore.selectedProxy != failedId) return
         Logs.i("raycontrol ${node.host}: switching from $key to $best, which works on this network")
+        io.niko.utils.Stats.event("watchdog", mapOf("action" to "switch"))
         DataStore.selectedProxy = id
         restart(currentCoroutineContext()[Job])
     }

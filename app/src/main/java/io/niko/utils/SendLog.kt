@@ -66,6 +66,21 @@ object SendLog {
         )
     }
 
+    /** "Statistics for the last hour" under [run] (stats-v1, Stats.report): a JSON file to share. */
+    fun sendStats(context: Context, run: String) {
+        val file = File(File(app.cacheDir, "log").also { it.mkdirs() }, "niko-stats-$run.json")
+        file.writeText(Stats.report(run).toString(2))
+        context.startActivity(
+            Intent.createChooser(
+                Intent(Intent.ACTION_SEND).setType("application/json")
+                    .setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    .putExtra(
+                        Intent.EXTRA_STREAM, FileProvider.getUriForFile(context, BuildConfig.APPLICATION_ID + ".cache", file)
+                    ), context.getString(R.string.stats_hour_share)
+            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+    }
+
     // Get log bytes from neko.log
     fun getNekoLog(max: Long): ByteArray {
         return try {

@@ -13,8 +13,19 @@ class UrlTest {
     val link = DataStore.connectionTestURL
     private val timeout = 5000
 
+    /** The test here; its time or its failure goes into "Statistics for the last hour" (by the profile's kind). */
     suspend fun doTest(profile: ProxyEntity): Int {
-        return TestInstance(profile, link, timeout).doTest()
+        val kind = mapOf("profile" to io.niko.utils.Stats.kind(profile))
+        val ms = try {
+            TestInstance(profile, link, timeout).doTest()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            io.niko.utils.Stats.event("url_test", kind + ("outcome" to "fail"))
+            throw e
+        }
+        io.niko.utils.Stats.event("url_test", kind + ("outcome" to "ok"), ms.toLong())
+        return ms
     }
 
     /**
