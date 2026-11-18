@@ -35,6 +35,22 @@ object StatsReport {
         )
     }.getOrNull()
 
+    /**
+     * What a full records file keeps: the lines of the last two hours ([since] on), and of those at most [maxBytes],
+     * the newest. Half the file's bound, so the next trim is far off and a busy hour does not rewrite it every line.
+     */
+    fun trimmed(lines: List<String>, since: Long, maxBytes: Int): List<String> {
+        val recent = lines.filter { l -> l.isNotBlank() && runCatching { JSONObject(l).getLong("t") >= since }.getOrDefault(false) }
+        var size = 0
+        val kept = ArrayDeque<String>()
+        for (l in recent.asReversed()) {
+            size += l.toByteArray().size + 1
+            if (size > maxBytes) break
+            kept.addFirst(l)
+        }
+        return kept.toList()
+    }
+
     fun utc(ms: Long): String = Instant.ofEpochMilli(ms).truncatedTo(ChronoUnit.SECONDS).toString()
 
     /** "name;k=v,k=v" → name and labels */
@@ -57,6 +73,8 @@ object StatsReport {
         val inside = sorted.filter { it.t > from }
         val out = JSONArray()
         for (key in inside.flatMap { it.counters.keys }.toSortedSet()) {
+            // the last sample before the window, however old: the sampler's minute stretches in deep sleep. A counter's
+            // epoch is its run (the core's, the service's), so a stop in between is a reset, not growth
             var prev = sorted.lastOrNull { it.t <= from && key in it.counters }?.counters?.get(key)
             val isNew = prev == null
             var delta = 0L

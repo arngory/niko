@@ -7,7 +7,7 @@
 ## Что записывается
 
 Только слова из фиксированных списков и числа. Адресов, ключей, доменов и имён нет. Вид профиля — тип (`naive`,
-`hysteria2`, `vless`), не его имя. Записи хранятся два часа, в `no_backup/stats/`.
+`hysteria2`, `vless`), не его имя. Записи хранятся около двух часов (до десяти минут сверх), в `no_backup/stats/`.
 
 - **События** — оба процесса:
   - запуск, сбой и его вид, остановка службы;
@@ -25,7 +25,7 @@
 |---|---|
 | `app` | `product`, `version`, `version_code`, `android_api`, `abi`, `core` |
 | `state` | `service`, `mode` (`vpn`/`proxy`), `profile` (вид), `from_node` |
-| `settings` | `auto_switch`, `brutal`, `reset_on_network_change`, `ipv6_mode`, `traffic_counted` |
+| `settings` | `auto_switch`, `brutal`, `reset_on_network_change`, `ipv6_mode`; `traffic_counted` — считало ли ядро трафик в окне (по снимкам, а не по нынешней настройке) |
 | `coverage` | `window_minutes`; `service_minutes` — минуты окна, когда служба работала |
 | `counters[]` | `{name, labels, delta, reset, new}`, как у ноды |
 | `gauges[]` | `{name, labels, end, min, max}`, как у ноды |
@@ -46,7 +46,7 @@
 | `niko_watchdog_total` | `action`: `recover`, `switch`, `no_alternative`, `ygg_peers`, `credential`, `dns_resolvers`, `doh_token`, `connections_failing` |
 | `niko_url_test_total` | `profile`, `outcome`: `ok`, `fail` |
 | `niko_traffic_bytes_total` | `dir`: `up`, `down`. Только когда включено отображение скорости (`traffic_counted`) |
-| `niko_log_lines_total` | `level`: `warning`, `error`; `process` |
+| `niko_log_lines_total` | `level`: `warning`, `error`; `process`: `bg`, только процесс службы (у процесса окна снимков нет, его строки — в журнале) |
 | `niko_process_rss_mb` (замер) | `process` |
 | `niko_url_test_ms` (время) | `profile`, `outcome` |
 

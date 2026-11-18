@@ -31,6 +31,9 @@ object Stats {
 
     private const val KEEP_MS = 2 * 60 * 60_000L
     private const val TRIM_AT = 256 * 1024L
+
+    // the age past two hours a file's oldest line may reach before a trim: not one rewrite per line
+    private const val TRIM_SLACK_MS = 10 * 60_000L
     private val LABEL = Regex("[a-z0-9_.#-]{1,32}")
 
     private val dir by lazy { File(SagerNet.application.noBackupFilesDir, "stats").apply { mkdirs() } }
@@ -38,7 +41,9 @@ object Stats {
     val samplesFile: File get() = File(dir, "samples.jsonl")
 
     private val writer = Executors.newSingleThreadExecutor { Thread(it, "niko-stats").apply { isDaemon = true } }
-    private val boot = System.currentTimeMillis()
+    // the log counters' epoch: the service's run (startSampler), so a stop in between is a reset, not growth
+    @Volatile
+    private var runEpoch = System.currentTimeMillis()
 
     /** Warnings and errors this process logged (Logs). */
     val warnings = AtomicLong()
@@ -112,8 +117,9 @@ object Stats {
             counter("niko_traffic_bytes_total;dir=up", trafficEpoch, trafficUp)
             counter("niko_traffic_bytes_total;dir=down", trafficEpoch, trafficDown)
         }
-        counter("niko_log_lines_total;level=warning,process=$process", boot, warnings.get())
-        counter("niko_log_lines_total;level=error,process=$process", boot, errors.get())
+        // the service's own: the window's process has no sampler (its lines are in the log, not here)
+        counter("niko_log_lines_total;level=warning,process=$process", runEpoch, warnings.get())
+        counter("niko_log_lines_total;level=error,process=$process", runEpoch, errors.get())
         val gauges = JSONObject()
         rssMb()?.let { gauges.put("niko_process_rss_mb;process=$process", it) }
         val line = JSONObject().put("t", System.currentTimeMillis()).put("c", counters).put("g", gauges)
@@ -134,6 +140,10 @@ object Stats {
     @Synchronized
     fun startSampler() {
         if (sampler?.isActive == true) return
+        // the log lines counted from this run on
+        runEpoch = System.currentTimeMillis()
+        warnings.set(0)
+        errors.set(0)
         sampler = GlobalScope.launch(Dispatchers.IO) {
             sample()
             while (isActive) {
@@ -160,14 +170,16 @@ object Stats {
         runCatching {
             RandomAccessFile(file, "rw").use { raf ->
                 raf.channel.lock().use {
-                    if (raf.length() > TRIM_AT) {
+                    // past the bound, or once its oldest line is more than two hours (and a slack) old
+                    val now = System.currentTimeMillis()
+                    val oldest = runCatching { raf.seek(0); raf.readLine()?.let { JSONObject(it).getLong("t") } }.getOrNull()
+                    if (raf.length() > TRIM_AT || (oldest != null && oldest < now - KEEP_MS - TRIM_SLACK_MS)) {
                         val bytes = ByteArray(raf.length().toInt())
                         raf.seek(0)
                         raf.readFully(bytes)
                         val since = System.currentTimeMillis() - KEEP_MS
-                        val kept = String(bytes).lineSequence().filter { l ->
-                            l.isNotBlank() && runCatching { JSONObject(l).getLong("t") >= since }.getOrDefault(false)
-                        }.joinToString("") { "$it\n" }
+                        val kept = StatsReport.trimmed(String(bytes).lines(), since, (TRIM_AT / 2).toInt())
+                            .joinToString("") { "$it\n" }
                         raf.setLength(0)
                         raf.seek(0)
                         raf.write(kept.toByteArray())
@@ -179,7 +191,22 @@ object Stats {
         }
     }
 
-    private fun lines(file: File): List<String> = runCatching { file.readLines() }.getOrDefault(emptyList())
+    /**
+     * [file]'s lines under a shared lock (the other process's trim does not show half a file), read on the writer's
+     * thread: in one process a second lock on the file would throw rather than wait.
+     */
+    private fun lines(file: File): List<String> = runCatching {
+        writer.submit<List<String>> {
+            if (!file.exists()) return@submit emptyList()
+            RandomAccessFile(file, "r").use { raf ->
+                raf.channel.lock(0, Long.MAX_VALUE, true).use {
+                    val bytes = ByteArray(raf.length().toInt())
+                    raf.readFully(bytes)
+                    String(bytes).lines().filter { it.isNotBlank() }
+                }
+            }
+        }.get()
+    }.getOrDefault(emptyList())
 
     /** The report for the last [minutes] (5 to 120) under [run], what the app is and does now in its head. */
     fun report(run: String, minutes: Int = 60): JSONObject {
@@ -188,10 +215,12 @@ object Stats {
         val events = lines(eventsFile).mapNotNull { StatsReport.parseEvent(it) }
         val samples = lines(samplesFile).mapNotNull { StatsReport.parseSample(it) }
         val since = (events.map { it.t } + samples.map { it.t }).minOrNull()
-        return StatsReport.build(run, now, from, now, events, samples, since, head())
+        // whether the service's core counted traffic in the window (the speed display on when it started)
+        val trafficCounted = samples.any { s -> s.t > from && s.counters.keys.any { it.startsWith("niko_traffic_bytes_total") } }
+        return StatsReport.build(run, now, from, now, events, samples, since, head(trafficCounted))
     }
 
-    private fun head(): JSONObject {
+    private fun head(trafficCounted: Boolean): JSONObject {
         val app = JSONObject()
             .put("product", "niko")
             .put("version", BuildConfig.VERSION_NAME)
@@ -216,7 +245,7 @@ object Stats {
             .put("brutal", DataStore.raycontrolBrutal)
             .put("reset_on_network_change", DataStore.networkChangeResetConnections)
             .put("ipv6_mode", DataStore.ipv6Mode)
-            .put("traffic_counted", DataStore.speedInterval > 0)
+            .put("traffic_counted", trafficCounted)
         return JSONObject().put("app", app).put("state", state).put("settings", settings)
     }
 }
