@@ -17,7 +17,7 @@ MAX_BYTES = 16 * 1024
 MAX_MESSAGE = 1000
 SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$")
 LANGUAGE = re.compile(r"^[a-z]{2}$")
-KEYS = {"v", "mandatory", "min_supported", "message"}
+KEYS = {"v", "mandatory", "min_supported", "min_android", "message"}
 
 
 def semver_key(version):
@@ -57,6 +57,9 @@ def check(raw, tag):
             return f"min_supported is {min_supported!r}, want a version such as 1.59.0"
         if semver_key(min_supported) > semver_key(version):
             return f"min_supported {min_supported} is above the release {version}: the release itself would be unsupported"
+    min_android = notice.get("min_android")
+    if min_android is not None and (type(min_android) is not int or not 21 <= min_android <= 1000):
+        return f"min_android is {min_android!r}, want an API level such as 29"
     message = notice.get("message", {})
     if not isinstance(message, dict):
         return "message is not an object of languages"

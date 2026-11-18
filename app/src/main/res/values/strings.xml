@@ -655,6 +655,7 @@
     <string name="update_bad_apk">the downloaded APK is not the signed one</string>
     <string name="update_required">This update is required.</string>
     <string name="update_bad_notice">the release\'s UPDATE.json is not the signed one</string>
+    <string name="update_needs_android">%1$s needs Android %2$s or newer. This phone stays on the version it has, which keeps working.</string>
     <string name="reset_settings">Restore default settings</string>
     <string name="reset_settings_message">Restore default settings, but data such as nodes and groups will be retained. To completely clear data, clear application data directly in the system settings.</string>
     <string name="minimize">Minimize</string>
@@ -1156,6 +1157,11 @@
     <string name="licenses_part_other">Other</string>
     <string name="licenses_part_go">The core\'s Go modules</string>
     <string name="licenses_site">Website</string>
+    <string name="insert_tab">Insert a tab</string>
+    <string name="redo">Redo</string>
+    <string name="format_config">Format</string>
+    <string name="more_options">More options</string>
+    <string name="flashlight">Flashlight</string>
     <string name="stats_hour">Statistics for the last hour</string>
     <string name="stats_hour_help">What the app did in the last hour, as a JSON file: starts and failures, networks, the watchdog\'s steps, URL tests, traffic, memory. Without addresses, keys, domains or names. Give it the run id of the node\'s rayctl stats -id to read both together.</string>
     <string name="stats_hour_share">Share</string>

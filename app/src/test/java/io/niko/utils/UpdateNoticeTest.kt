@@ -33,6 +33,22 @@ class UpdateNoticeTest {
     }
 
     @Test
+    fun aReleaseAboveThisAndroidIsNotOffered() {
+        val notice = parse("""{"v": 1, "mandatory": true, "min_android": 31}""")!!
+        assertEquals(31, notice.minAndroid)
+        assertFalse(notice.fits(29))
+        assertTrue(notice.fits(31))
+        assertTrue(parse("""{"v": 1, "mandatory": false}""")!!.fits(23))
+        assertNull(parse("""{"v": 1, "mandatory": false, "min_android": "31"}"""))
+        assertNull(parse("""{"v": 1, "mandatory": false, "min_android": 0}"""))
+        assertNull(parse("""{"v": 1, "mandatory": false, "min_android": 20}"""))
+        assertEquals("10", UpdateNotice.androidName(29))
+        assertEquals("12L", UpdateNotice.androidName(32))
+        assertEquals("16", UpdateNotice.androidName(36))
+        assertEquals("API 40", UpdateNotice.androidName(40))
+    }
+
+    @Test
     fun whatIsNotOne() {
         assertNull(parse("""{"v": 2, "mandatory": true}"""))
         assertNull(parse("""{"v": 1}"""))
