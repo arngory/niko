@@ -46,11 +46,7 @@ import io.niko.database.ProxyEntity
 import io.niko.database.SagerDatabase
 import io.niko.raycontrol.RayAppMirror
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.sync.withLock
 import io.niko.raycontrol.RayAppRelease
 import io.niko.raycontrol.RayClient
 import io.niko.raycontrol.RayNode
@@ -60,9 +56,6 @@ import libcore.HTTPClient
 import io.niko.utils.Util
 import org.json.JSONArray
 import org.json.JSONObject
-
-// reads of a release's UPDATE.json from a node's mirror, which may outlive the dialog's wait for them
-private val noticeReads = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
 class AboutFragment : ToolbarFragment(R.layout.layout_about) {
 
@@ -371,18 +364,16 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                         if (fromNode == null) throw e
                         Logs.w("update: GitHub not reached (${e.message}): ${fromNode.second.tag} of the node ${fromNode.first.host}")
                         val (node, nodeRelease) = fromNode
-                        // the dialog waits for the read NOTICE_BOUND_MS at most (a node through a slow tunnel or
-                        // relay takes long, its calls have no bound of their own). A read that outlives the wait
-                        // stops asking once an install downloads: the node serves one download a device at a time
-                        // and cuts the one under way for the next (app-update-v1)
+                        // NOTICE_BOUND_MS for the whole read, carriers, relays and the node's busy answers within it:
+                        // past it the update is offered as an ordinary one. One read or install of the node's files
+                        // at a time (Updates.nodeFiles)
                         val notice = readNotice {
-                            val read = noticeReads.async {
+                            Updates.nodeFiles.withLock {
+                                val deadline = System.currentTimeMillis() + Updates.NOTICE_BOUND_MS
                                 Updates.noticeFromMirror(app, nodeRelease.tag) { name, out, etag ->
-                                    if (Updates.busy) throw Exception("an update downloads from the node")
-                                    RaySubscription.appFile(node, nodeRelease.tag, name, out, etag)
+                                    RaySubscription.appFile(node, nodeRelease.tag, name, out, etag, deadline)
                                 }
                             }
-                            withTimeoutOrNull(Updates.NOTICE_BOUND_MS) { read.await() }
                         }
                         onMainDispatcher { offerFromNode(node, nodeRelease, notice) }
                         return@runOnIoDispatcher
@@ -511,7 +502,11 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
         private fun installFromNode(nodeId: String, tag: String, github: JSONObject?, way: ProxyEntity?) = installWith {
             try {
                 val node = RayNodes.get(nodeId) ?: throw Exception("raycontrol node $nodeId was removed")
-                Updates.downloadFromMirror(app, tag) { name, out, etag -> RaySubscription.appFile(node, tag, name, out, etag) }
+                Updates.nodeFiles.withLock {
+                    Updates.downloadFromMirror(app, tag) { name, out, etag ->
+                        RaySubscription.appFile(node, tag, name, out, etag)
+                    }
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

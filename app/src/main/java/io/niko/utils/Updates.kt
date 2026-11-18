@@ -14,6 +14,7 @@ import libcore.Libcore
 import org.json.JSONObject
 import java.io.File
 import java.security.MessageDigest
+import kotlinx.coroutines.sync.Mutex
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -47,7 +48,7 @@ object Updates {
     const val CHECK_DIRECT_TIMEOUT_MS = 20_000
 
     // each of a release's three small files read before its dialog (notice); the read from a node's mirror, all of
-    // it (noticeFromMirror, bounded by its caller)
+    // it (noticeFromMirror, its deadline from the caller)
     private const val NOTICE_TIMEOUT_MS = 15_000
     const val NOTICE_BOUND_MS = 3L * NOTICE_TIMEOUT_MS
 
@@ -161,8 +162,7 @@ object Updates {
      * release lists none. [file] as for [downloadFromMirror].
      */
     fun noticeFromMirror(context: Context, tag: String, file: (name: String, out: File, etag: String) -> Unit): UpdateNotice? {
-        // a folder of its own, not the install's (downloadFromMirror empties that of other files): a read that outlives
-        // its dialog's wait and an install never write one file
+        // a folder of its own, not the install's (downloadFromMirror empties that of other files)
         val dir = File(context.cacheDir, "update-notice/${System.nanoTime()}").apply { mkdirs() }
         try {
             val sumsFile = File(dir, SUMS)
@@ -202,6 +202,12 @@ object Updates {
 
     /** Whether an update downloads now (oneDownload): a second check would offer what it could not install. */
     val busy: Boolean get() = downloading.get()
+
+    /**
+     * A raycontrol node serves one download a device at a time and cuts the one under way for the device's next
+     * (app-update-v1): every file asked of a node's mirror (the update's notice, the install) one after another.
+     */
+    val nodeFiles = Mutex()
 
     /**
      * [block] unless a download already runs (a tap before): null then. One at a time, whichever way it goes, and

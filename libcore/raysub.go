@@ -39,12 +39,26 @@ func RaycontrolFetchSubscription(requestJSON string) (string, error) {
 // quotes, from the release's signed SHA256SUMS) a part already in outPath is gone on from. A transfer goes on while it
 // moves, for two hours at most. Its sockets are protected from the app's own VPN when the service runs.
 func RaycontrolAppFile(requestJSON, tag, name, outPath, etag string) error {
+	return raycontrolAppFile(requestJSON, tag, name, outPath, etag, 2*time.Hour)
+}
+
+// RaycontrolAppFileWithin is RaycontrolAppFile bounded by timeoutMs in all: every carrier, the waits after the node's
+// busy answer, a transfer asked again. For the small files the update's dialog waits for (UPDATE.json, SHA256SUMS and
+// its signature), so that a node through a slow tunnel does not hold it for minutes.
+func RaycontrolAppFileWithin(requestJSON, tag, name, outPath, etag string, timeoutMs int32) error {
+	if timeoutMs <= 0 {
+		return context.DeadlineExceeded
+	}
+	return raycontrolAppFile(requestJSON, tag, name, outPath, etag, time.Duration(timeoutMs)*time.Millisecond)
+}
+
+func raycontrolAppFile(requestJSON, tag, name, outPath, etag string, within time.Duration) error {
 	var request raysub.Request
 	if err := json.Unmarshal([]byte(requestJSON), &request); err != nil {
 		return err
 	}
 	request.Control = protectControl()
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Hour)
+	ctx, cancel := context.WithTimeout(context.Background(), within)
 	defer cancel()
 	return raysub.AppFile(ctx, request, "niko", tag, name, outPath, etag)
 }
