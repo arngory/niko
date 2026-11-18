@@ -427,7 +427,8 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                     // offer only strictly newer versions: a beta user is not sent back to stable
                     val haveUpdate = releaseTag.isNotBlank() && releaseUrl.isNotBlank() &&
                             isNewerVersion(releaseTag, BuildConfig.VERSION_NAME)
-                    val notice = if (haveUpdate && Updates.canInstall && release != null) {
+                    // also where the release page is offered in place of the installer: its min_android is said too
+                    val notice = if (haveUpdate && Updates.enabled && release != null) {
                         readNotice { viaWay(way) { client -> Updates.notice(client, release) } }
                     } else null
                     runOnMainDispatcher {
@@ -582,9 +583,13 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
             runOnIoDispatcher {
                 val message = try {
                     val file = Updates.oneDownload { download() }
+                    val tooNew = file?.let { Updates.needsNewerAndroid(app, it) }
                     if (file == null) {
                         // the download of a tap before still runs
                         null
+                    } else if (tooNew != null) {
+                        // its UPDATE.json, with min_android, was not read in time: the APK itself says
+                        app.getString(R.string.update_needs_android, "Niko ${tooNew.first}", UpdateNotice.androidName(tooNew.second))
                     } else {
                         onMainDispatcher { if (Updates.install(app, file)) null else app.getString(R.string.update_allow_install) }
                     }

@@ -41,6 +41,7 @@ class UpdateNoticeTest {
         assertTrue(parse("""{"v": 1, "mandatory": false}""")!!.fits(23))
         assertNull(parse("""{"v": 1, "mandatory": false, "min_android": "31"}"""))
         assertNull(parse("""{"v": 1, "mandatory": false, "min_android": 0}"""))
+        assertNull(parse("""{"v": 1, "mandatory": false, "min_android": 20}"""))
         assertEquals("10", UpdateNotice.androidName(29))
         assertEquals("12L", UpdateNotice.androidName(32))
         assertEquals("16", UpdateNotice.androidName(36))

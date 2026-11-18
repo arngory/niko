@@ -60,7 +60,7 @@ data class UpdateNotice(
             }
             val minAndroid = when (val v = o.opt("min_android")) {
                 null -> null
-                is Int -> v.takeIf { it in 1..1000 } ?: return null
+                is Int -> v.takeIf { it in 21..1000 } ?: return null
                 else -> return null
             }
             val messages = o.optJSONObject("message")
