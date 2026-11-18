@@ -1,9 +1,9 @@
 // The window's link against the real daemon: Niko's nikod (the core's boxdd with NikoService beside it), `nikod run
 // --listen 127.0.0.1:<port>` (development mode) started here, a ready config with a proxy on 127.0.0.1, a direct
-// outbound and a rule, a request through it. Stage 2b of docs/desktop: the button starts the config, the status and
-// the rates are seen; NikoService answers what the daemon is and where a connection would go (stage 3, slice 1); then
-// the core's log and its connections, one of which is closed from here (D-LOG-01, D-CONN-01); the NAT tool against a
-// STUN server here. Runs where NIKO_DAEMON names nikod's executable (CI: on Windows and on Linux); skipped otherwise.
+// outbound and a rule, a request through it. Stage 2b of docs/design/desktop.md: the button starts the config, the
+// status and the rates are seen; NikoService answers what the daemon is and where a connection would go (stage 3,
+// slice 1); then the core's log and its connections, one of which is closed from here (D-LOG-01, D-CONN-01); the NAT
+// tool against a STUN server here. Runs where NIKO_DAEMON names nikod's executable (CI: on Windows and on Linux); skipped otherwise.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';

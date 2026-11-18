@@ -1,5 +1,5 @@
 name: niko_desktop
-description: "Niko for the computer: the window. The core and Niko's logic run in the daemon (docs/desktop)."
+description: "Niko for the computer: the window. The core and Niko's logic run in the daemon (docs/design/desktop.md)."
 publish_to: 'none'
 version: 0.1.0+1
 
