@@ -44,8 +44,8 @@ find "$dst" -name .git -prune -exec rm -rf {} +
 echo "== the Go modules"
 # libcore's go.mod points at ../../sing-box: sing-box/ here
 (cd "$dst/niko/libcore" && go mod vendor)
-# the archives of prebuilt code some modules carry (libcronet's, one per platform): not a source; SOURCES.md names
-# them and what they are built from
+# the prebuilt code some modules carry (libcronet's archives, one per platform; sing-tun's wintun.dll): not a
+# source; SOURCES.md names each and, for libcronet, what it is built from
 vendor="$dst/niko/libcore/vendor"
 prebuilt=$(cd "$vendor" && find . -type f \( -name '*.a' -o -name '*.so' -o -name '*.dll' -o -name '*.dylib' -o -name '*.lib' \) |
   sed 's#^\./##' | sort)
@@ -100,9 +100,15 @@ echo "== SOURCES.md"
   echo
   echo "- **libcronet**, the network stack of naive (Chromium's): the modules of \`github.com/sagernet/cronet-go/lib/\`"
   echo "  carry it built, and \`vendor/\` has these archives taken out:"
-  printf '%s\n' "$prebuilt" | grep . | sed 's/^/  - `/; s/$/`/' || echo "  - (none)"
+  printf '%s\n' "$prebuilt" | grep '^github.com/sagernet/cronet-go/' | sed 's/^/  - `/; s/$/`/' || echo "  - (none)"
   echo "  They are built by $cronet_url at \`$cronet_hash\` (\`$cronet_mod\`), whose submodule \`naiveproxy\` holds"
   echo "  Chromium's source: ${naive_url%.git} at \`$naive_hash\`."
+  others=$(printf '%s\n' "$prebuilt" | grep . | grep -v '^github.com/sagernet/cronet-go/' || true)
+  if [ -n "$others" ]; then
+    echo "- **Other prebuilt files** the modules carry, taken out of \`vendor/\` too (their modules' own repositories"
+    echo "  say where they come from):"
+    printf '%s\n' "$others" | sed 's/^/  - `/; s/$/`/'
+  fi
   echo "- **OpenSSL** for the slipstream client: \`slipstream/.github/scripts/android-openssl.sh\` downloads its release"
   echo "  and checks its hash."
   echo "- **The rule databases** (geoip.db, geosite.db) and the panel (yacd): data, downloaded by"

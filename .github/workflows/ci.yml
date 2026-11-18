@@ -486,7 +486,7 @@ jobs:
           archive="$RUNNER_TEMP/sources/niko-check-sources.tar.zst"
           zstd -dc "$archive" | tar -tf - > "$RUNNER_TEMP/files"
           for f in SOURCES.md niko/NOTICE niko/libcore/go.mod niko/libcore/vendor/modules.txt sing-box/go.mod \
-            gomobile/go.mod slipstream/CMakeLists.txt; do
+            gomobile/go.mod slipstream/android/CMakeLists.txt; do
             grep -qxF "niko-check-sources/$f" "$RUNNER_TEMP/files" || { echo "::error::no $f in the archive"; exit 1; }
           done
           # the modules' prebuilt archives are out, the source of libcronet is named
