@@ -108,12 +108,12 @@ for mode in no yes; do
   timeout 30 adb shell cmd uimode night "$mode" > /dev/null 2>&1
   restart
   timeout 30 adb exec-out screencap -p > "$shots/main-$mode.png" 2> /dev/null
-  # connected: the connect button's look and the statistics bar
+  # connected: the connect button's look and the statistics bar. Stopped by force: the bar's speeds change every
+  # second, and uiautomator's dump waits for a screen that holds still
   if tap_text "Connect"; then
     sleep 8
     timeout 30 adb exec-out screencap -p > "$shots/connected-$mode.png" 2> /dev/null
-    tap_text "Stop" || echo "no Stop to tap ($mode)"
-    sleep 3
+    restart
   else
     echo "no connect button to tap ($mode)"
   fi
@@ -138,9 +138,9 @@ timeout 30 adb exec-out screencap -p > "$shots/main-font-1.3.png" 2> /dev/null
 timeout 20 adb shell input tap "$menu_x" "$menu_y"; sleep 2
 timeout 30 adb exec-out screencap -p > "$shots/drawer-font-1.3.png" 2> /dev/null
 timeout 30 adb shell settings put system font_scale 1.0
-# "Force RTL layout direction" of the developer options: the setting and the property the framework reads (root)
-timeout 30 adb shell settings put global debug.force_rtl 1
-timeout 30 adb shell setprop debug.force_rtl 1
+# right to left: the app in Arabic (its own locale, Android 13+), as the developer options' "Force RTL" does not take
+# without the system's configuration changing
+timeout 30 adb shell cmd locale set-app-locales "$pkg" --locales ar || echo "no app locale: $?"
 restart
 timeout 30 adb exec-out screencap -p > "$shots/main-rtl.png" 2> /dev/null
 width=$(timeout 10 adb shell wm size | tr -d '\r' | sed -n 's/.*: *\([0-9]*\)x[0-9]*$/\1/p' | tail -1)
@@ -148,8 +148,7 @@ if [ -n "$width" ]; then
   timeout 20 adb shell input tap "$((width - menu_x))" "$menu_y"; sleep 2
   timeout 30 adb exec-out screencap -p > "$shots/drawer-rtl.png" 2> /dev/null
 fi
-timeout 30 adb shell settings put global debug.force_rtl 0
-timeout 30 adb shell setprop debug.force_rtl 0
+timeout 30 adb shell cmd locale set-app-locales "$pkg" --locales en-US > /dev/null 2>&1
 ls -la "$shots"
 
 if adb logcat -d | grep -E "FATAL EXCEPTION|ANR in $pkg" -A 20 | grep -B2 -A20 "$pkg"; then

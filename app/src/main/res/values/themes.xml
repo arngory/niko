@@ -55,6 +55,9 @@
         <item name="drawerBackground">?android:windowBackground</item>
         <item name="drawerIconColor">?android:textColorPrimary</item>
         <item name="materialCardViewStyle">@style/Widget.SagerNet.Card</item>
+        <!-- the Black themes' drawer is inflated in every theme (MainActivity keeps one of the two): its chosen row's
+             fill (color/navigation_item) is this, which only the Black themes give a colour -->
+        <item name="itemShapeFillColor">@android:color/transparent</item>
 
         <item name="windowActionModeOverlay">true</item>
 
@@ -133,6 +136,9 @@
         <item name="drawerBackground">?android:windowBackground</item>
         <item name="drawerIconColor">?android:textColorPrimary</item>
         <item name="materialCardViewStyle">@style/Widget.SagerNet.Card</item>
+        <!-- the Black themes' drawer is inflated in every theme (MainActivity keeps one of the two): its chosen row's
+             fill (color/navigation_item) is this, which only the Black themes give a colour -->
+        <item name="itemShapeFillColor">@android:color/transparent</item>
 
         <item name="windowActionModeOverlay">true</item>
 
@@ -593,6 +599,11 @@
     <style name="Widget.Niko.StatsBar" parent="Widget.MaterialComponents.BottomAppBar">
         <item name="elevation">0dp</item>
         <item name="android:foreground">@drawable/niko_hairline_top</item>
+        <!-- the cradle no wider than the connect button, which is drawn over it: no gap around the button for the
+             hairline to cross -->
+        <item name="fabCradleMargin">0dp</item>
+        <item name="fabCradleRoundedCornerRadius">0dp</item>
+        <item name="fabCradleVerticalOffset">0dp</item>
     </style>
 
     <style name="Widget.Niko.ActionButton.Overflow" parent="Widget.AppCompat.ActionButton.Overflow">
