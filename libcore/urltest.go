@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptrace"
+	"sync/atomic"
 	"time"
 )
 
@@ -23,10 +24,14 @@ func urlTest(client *http.Client, link string, timeout int32) (int32, error) {
 	defer cancel()
 	var latency time.Duration
 	for i := 0; i < 2; i++ {
-		var sent, answered time.Time
+		// the transport calls these from its own goroutines (the write loop, the read loop), and Do can return
+		// before the write loop's result is read: atomic, not plain variables. Times since base, on the
+		// monotonic clock (a wall clock set meanwhile does not count)
+		base := time.Now()
+		var sent, answered atomic.Int64
 		trace := &httptrace.ClientTrace{
-			WroteHeaders:         func() { sent = time.Now() },
-			GotFirstResponseByte: func() { answered = time.Now() },
+			WroteHeaders:         func() { sent.Store(int64(time.Since(base)) + 1) },
+			GotFirstResponseByte: func() { answered.Store(int64(time.Since(base)) + 1) },
 		}
 		request, err := http.NewRequestWithContext(httptrace.WithClientTrace(ctx, trace), http.MethodGet, link, nil)
 		if err != nil {
@@ -39,10 +44,11 @@ func urlTest(client *http.Client, link string, timeout int32) (int32, error) {
 		// what is left of a small body, so the second request goes on the same connection
 		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 64<<10))
 		response.Body.Close()
-		if sent.IsZero() || answered.IsZero() {
+		start, end := sent.Load(), answered.Load()
+		if start == 0 || end == 0 {
 			return 0, errors.New("url test: no answer timed")
 		}
-		latency = answered.Sub(sent)
+		latency = time.Duration(end - start)
 	}
 	return int32(latency.Milliseconds()), nil
 }
