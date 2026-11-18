@@ -60,6 +60,10 @@ def check(raw, tag):
     min_android = notice.get("min_android")
     if min_android is not None and (type(min_android) is not int or not 21 <= min_android <= 1000):
         return f"min_android is {min_android!r}, want an API level such as 29"
+    # the apps before 1.60 do not read min_android: a required update they cannot install, nor close
+    if min_android is not None and (mandatory or min_supported is not None):
+        return ("min_android with mandatory or min_supported: the apps before 1.60 on an older Android would get an "
+                "update they cannot install and cannot close (docs/guide/release.md, section 6)")
     message = notice.get("message", {})
     if not isinstance(message, dict):
         return "message is not an object of languages"
