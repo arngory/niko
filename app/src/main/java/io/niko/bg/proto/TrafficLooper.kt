@@ -58,6 +58,10 @@ class TrafficLooper
     }
 
     fun start() {
+        // "Statistics for the last hour" counts this core's traffic from here
+        io.niko.utils.Stats.trafficEpoch = System.currentTimeMillis()
+        io.niko.utils.Stats.trafficUp = 0
+        io.niko.utils.Stats.trafficDown = 0
         job = sc.launch { loop() }
     }
 
@@ -94,7 +98,11 @@ class TrafficLooper
         val delayMs = DataStore.speedInterval.toLong()
         val showDirectSpeed = DataStore.showDirectSpeed
         val profileTrafficStatistics = DataStore.profileTrafficStatistics
-        if (delayMs == 0L) return
+        if (delayMs == 0L) {
+            // no speed display, no counting: the statistics say traffic_counted false
+            io.niko.utils.Stats.trafficEpoch = 0
+            return
+        }
 
         var trafficUpdater: TrafficUpdater? = null
         var proxy: ProxyInstance?
@@ -168,6 +176,9 @@ class TrafficLooper
                 mainTx += it.tx - it.txBase
                 mainRx += it.rx - it.rxBase
             }
+
+            io.niko.utils.Stats.trafficUp = mainTx
+            io.niko.utils.Stats.trafficDown = mainRx
 
             // speed
             val speed = SpeedDisplayData(

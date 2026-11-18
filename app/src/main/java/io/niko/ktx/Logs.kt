@@ -30,26 +30,32 @@ object Logs {
     }
 
     fun w(message: String) {
+        io.niko.utils.Stats.warnings.incrementAndGet()
         Libcore.nekoLogPrintln("[Warning] [${mkTag()}] $message")
     }
 
     fun w(message: String, exception: Throwable) {
+        io.niko.utils.Stats.warnings.incrementAndGet()
         Libcore.nekoLogPrintln("[Warning] [${mkTag()}] $message" + "\n" + exception.stackTraceToString())
     }
 
     fun w(exception: Throwable) {
+        io.niko.utils.Stats.warnings.incrementAndGet()
         Libcore.nekoLogPrintln("[Warning] [${mkTag()}] " + exception.stackTraceToString())
     }
 
     fun e(message: String) {
+        io.niko.utils.Stats.errors.incrementAndGet()
         Libcore.nekoLogPrintln("[Error] [${mkTag()}] $message")
     }
 
     fun e(message: String, exception: Throwable) {
+        io.niko.utils.Stats.errors.incrementAndGet()
         Libcore.nekoLogPrintln("[Error] [${mkTag()}] $message" + "\n" + exception.stackTraceToString())
     }
 
     fun e(exception: Throwable) {
+        io.niko.utils.Stats.errors.incrementAndGet()
         Libcore.nekoLogPrintln("[Error] [${mkTag()}] " + exception.stackTraceToString())
     }
 
