@@ -18,13 +18,4 @@ popd
 
 ####
 
-if [ ! -d "libneko" ]; then
-  git clone --no-checkout "$REPOSITORY_LIBNEKO" libneko
-fi
-pushd libneko
-git checkout "$COMMIT_LIBNEKO"
-popd
-
-####
-
 popd

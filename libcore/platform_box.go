@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"libcore/nikolog"
 	"libcore/procfs"
 	"log"
 	"net/netip"
 	"strings"
 	"syscall"
 
-	"github.com/matsuridayo/libneko/neko_log"
 	"github.com/sagernet/sing-box/adapter"
 	sblog "github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -270,7 +270,7 @@ func (w *boxPlatformInterfaceWrapper) CreateBridge(options adapter.BridgeOptions
 var disableSingBoxLog = false
 
 func (w *boxPlatformInterfaceWrapper) Write(p []byte) (n int, err error) {
-	// use neko_log
+	// into the log (log.SetOutput: nikolog, redacted)
 	if !disableSingBoxLog {
 		log.Print(string(p))
 	}
@@ -290,5 +290,5 @@ func (w *boxPlatformLogWriterWrapper) WriteMessage(level uint8, message string) 
 	if !strings.HasSuffix(message, "\n") {
 		message += "\n"
 	}
-	neko_log.LogWriter.Write([]byte(RedactLog(message)))
+	nikolog.Writer.Write([]byte(RedactLog(message)))
 }

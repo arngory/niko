@@ -14,8 +14,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/matsuridayo/libneko/protect_server"
-	"github.com/matsuridayo/libneko/speedtest"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/certificate"
 	"github.com/sagernet/sing-box/boxapi"
@@ -296,17 +294,17 @@ func UrlTest(i *BoxInstance, link string, timeout int32) (latency int32, err err
 		if i.v2api != nil {
 			connectionTracker = i.v2api.StatsService()
 		}
-		return speedtest.UrlTest(boxapi.CreateProxyHttpClient(i.Box, connectionTracker), link, timeout, speedtest.UrlTestStandard_RTT)
+		return urlTest(boxapi.CreateProxyHttpClient(i.Box, connectionTracker), link, timeout)
 	}
 	// test direct
 	if mainInstance == nil {
-		return speedtest.UrlTest(boxapi.CreateProxyHttpClient(nil, nil), link, timeout, speedtest.UrlTestStandard_RTT)
+		return urlTest(boxapi.CreateProxyHttpClient(nil, nil), link, timeout)
 	}
 	// test mainInstance
 	if mainInstance.v2api != nil {
 		connectionTracker = mainInstance.v2api.StatsService()
 	}
-	return speedtest.UrlTest(boxapi.CreateProxyHttpClient(mainInstance.Box, connectionTracker), link, timeout, speedtest.UrlTestStandard_RTT)
+	return urlTest(boxapi.CreateProxyHttpClient(mainInstance.Box, connectionTracker), link, timeout)
 }
 
 var protectCloser io.Closer
@@ -317,8 +315,8 @@ func goServeProtect(start bool) {
 		protectCloser = nil
 	}
 	if start {
-		protectCloser = protect_server.ServeProtect("protect_path", false, 0, func(fd int) {
-			intfBox.AutoDetectInterfaceControl(int32(fd))
+		protectCloser = serveProtect("protect_path", func(fd int) error {
+			return intfBox.AutoDetectInterfaceControl(int32(fd))
 		})
 	}
 }
