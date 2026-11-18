@@ -37,9 +37,11 @@ jobs:
         run: python3 -I .github/scripts/bare-refs.py "origin/$BASE_REF" "$HEAD"
 
   # keys and tokens in the pull request's commits: gitleaks from its module (sum.golang.org checks what go install
-  # takes), findings shown redacted. Its rules are the base's .gitleaks.toml, not the pull request's: a pull request
-  # cannot make its own exception, a change of the allowlist counts from the next one, and a gitleaks:allow comment
-  # is not taken
+  # takes), findings shown redacted. Its rules and ignored findings are the base's .gitleaks.toml and .gitleaksignore,
+  # not the pull request's (gitleaks reads a .gitleaksignore at the root of what it scans by itself, so the pull
+  # request's goes), and a gitleaks:allow comment is not taken: an exception is a pull request of its own and counts
+  # from the next one. What this does not cover: a pull request that changes this workflow changes its own check
+  # (CONTRIBUTING.md: another's such pull request the owner merges)
   secrets:
     name: Secrets
     runs-on: ubuntu-latest
@@ -57,10 +59,12 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
           HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
-          config="$RUNNER_TEMP/gitleaks.toml"
+          config="$RUNNER_TEMP/gitleaks.toml" ignore="$RUNNER_TEMP/gitleaksignore"
           if ! git show "origin/$BASE_REF:.gitleaks.toml" > "$config" 2> /dev/null; then
             printf '[extend]\nuseDefault = true\n' > "$config"
           fi
+          git show "origin/$BASE_REF:.gitleaksignore" > "$ignore" 2> /dev/null || : > "$ignore"
+          rm -f .gitleaks.toml .gitleaksignore
           GOBIN="$RUNNER_TEMP/bin" go install github.com/zricethezav/gitleaks/v8@v8.30.1
           "$RUNNER_TEMP/bin/gitleaks" git --no-banner --redact --verbose --config "$config" --ignore-gitleaks-allow \
-            --log-opts="origin/$BASE_REF..$HEAD" .
+            --gitleaks-ignore-path "$ignore" --log-opts="origin/$BASE_REF..$HEAD" .
