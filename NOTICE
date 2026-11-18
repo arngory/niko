@@ -69,6 +69,9 @@ Android libraries (the app's runtime classpath)
   EditorKit, material-about-library, recyclerview-fastscroll, Objenesis.
   BSD-3-Clause: Kryo, ReflectASM, MinLog (Esoteric Software).
   MIT: Roomigrant, Copyright (c) 2018 Rostyslav Lesovyi.
+  GPL-2.0 with the Classpath Exception: desugar_jdk_libs (https://github.com/google/desugar_jdk_libs), the part of
+  OpenJDK's library that Android's build compiles into the app for the older Android versions; Copyright Oracle and
+  the OpenJDK authors.
 
   The NOTICE files these libraries carry (section 4(d) of the Apache License 2.0), which the APK's packaging leaves
   out of META-INF:
