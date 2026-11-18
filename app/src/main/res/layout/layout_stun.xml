@@ -64,6 +64,7 @@
 
                         <EditText
                             android:id="@+id/nat_stun_server"
+                            android:importantForAutofill="no"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:ems="10"
