@@ -52,6 +52,16 @@ class StatsReportTest {
     }
 
     @Test
+    fun aSamplerAsleepStillStartsFromItsLastSample() {
+        val core = from - 120 * min
+        // deep sleep stretched the sampler's minute: the sample before the window is 8 minutes old, the run the same
+        val samples = listOf(sample(from - 8 * min, core, 100), sample(from + 4 * min, core, 130))
+        val up = find(StatsReport.sampleCounters(samples, from, to), "niko_traffic_bytes_total")!!
+        assertEquals(30L, up.getLong("delta"))
+        assertFalse(up.getBoolean("new"))
+    }
+
+    @Test
     fun gaugesTakeTheWindowsSamplesOnly() {
         val samples = listOf(
             sample(from - min, 1, 0, rss = 999),
@@ -110,6 +120,15 @@ class StatsReportTest {
         val whole = StatsReport.build("r-1", to, from, to, emptyList(), emptyList(), from - min, head)
         assertFalse(whole.getBoolean("partial"))
         assertFalse(whole.has("partial_why"))
+    }
+
+    @Test
+    fun aFullFileKeepsTheNewestHalfOfTheLastTwoHours() {
+        val since = 1_000L
+        val lines = listOf("""{"t":999,"n":"old"}""", "not json") + (1..10).map { """{"t":${1000 + it},"n":"e$it"}""" }
+        val kept = StatsReport.trimmed(lines, since, maxBytes = 3 * (lines.last().length + 1))
+        assertEquals(listOf("e8", "e9", "e10"), kept.map { JSONObject(it).getString("n") })
+        assertEquals(10, StatsReport.trimmed(lines, since, maxBytes = 10_000).size)
     }
 
     @Test
