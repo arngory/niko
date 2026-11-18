@@ -121,6 +121,10 @@ jobs:
           if python3 -I .github/scripts/update-json.py "$k/silent.json" v0.0.0-check 2> /dev/null; then
             echo "::error::a mandatory UPDATE.json without a message passed"; exit 1
           fi
+          printf '%s' '{"v": 1, "mandatory": true, "min_android": 29, "message": {"en": "x", "ru": "x"}}' > "$k/trap.json"
+          if python3 -I .github/scripts/update-json.py "$k/trap.json" v0.0.0-check 2> /dev/null; then
+            echo "::error::a mandatory UPDATE.json with min_android passed"; exit 1
+          fi
           cp "$k/update.json" apks/UPDATE.json
           shape "with UPDATE.json" "$k/update.key"
           (cd apks && sha256sum --strict -c SHA256SUMS && grep -q ' UPDATE.json$' SHA256SUMS \
