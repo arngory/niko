@@ -399,6 +399,8 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                             // an install began meanwhile (an earlier dialog's): no second dialog
                             if (Updates.busy) {
                                 Toast.makeText(app, R.string.update_downloading, Toast.LENGTH_SHORT).show()
+                            } else if (!notice.fitsHere()) {
+                                notForThisAndroid(nodeRelease.tag, notice)
                             } else {
                                 offerFromNode(node, nodeRelease, notice)
                             }
@@ -434,6 +436,8 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                         if (haveUpdate && Updates.busy) {
                             // an install began meanwhile (an earlier dialog's): no second dialog
                             Toast.makeText(app, R.string.update_downloading, Toast.LENGTH_SHORT).show()
+                        } else if (haveUpdate && !notice.fitsHere()) {
+                            notForThisAndroid(releaseName, notice)
                         } else if (haveUpdate) {
                             val openPage = { context.startActivity(Intent(Intent.ACTION_VIEW, releaseUrl.toUri())) }
                             MaterialAlertDialogBuilder(context)
@@ -502,6 +506,20 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
         private fun MaterialAlertDialogBuilder.withoutLater(notice: UpdateNotice?) {
             if (notice?.required(RayClient.version) == true) setCancelable(false)
             else setNegativeButton(R.string.no, null)
+        }
+
+        /** Whether the release of [this] notice installs on this Android (its min_android); no notice: it does. */
+        private fun UpdateNotice?.fitsHere() = this?.fits(android.os.Build.VERSION.SDK_INT) ?: true
+
+        /** The newer [release] does not install here (its min_android): said, not offered, never mandatory. */
+        private fun notForThisAndroid(release: String, notice: UpdateNotice?) {
+            val context = context ?: return
+            val needs = UpdateNotice.androidName(notice?.minAndroid ?: return)
+            MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.update_dialog_title)
+                .setMessage(context.getString(R.string.update_needs_android, release, needs))
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
         }
 
         /** The update [release] that [node] holds: from its mirror, the release page beside it. */

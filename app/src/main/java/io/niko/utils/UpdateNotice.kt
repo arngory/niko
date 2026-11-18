@@ -8,7 +8,16 @@ import org.json.JSONObject
  * SHA256SUMS, so it is read only after that signature and the file's hash hold (Updates.notice). A release without
  * one is an ordinary update.
  */
-data class UpdateNotice(val mandatory: Boolean, val minSupported: String?, val message: Map<String, String>) {
+data class UpdateNotice(
+    val mandatory: Boolean,
+    val minSupported: String?,
+    val message: Map<String, String>,
+    /** The lowest Android the release installs on (its minSdk, an API level); null: what this one takes. */
+    val minAndroid: Int? = null,
+) {
+
+    /** Whether the release installs on Android [sdk]: below its min_android it is not offered, nor ever mandatory. */
+    fun fits(sdk: Int) = minAndroid == null || sdk >= minAndroid
 
     /** Whether [version] (this app's) must update: no "later" then. */
     fun required(version: String) = mandatory || (minSupported != null && compareVersions(version, minSupported) < 0)
@@ -30,6 +39,14 @@ data class UpdateNotice(val mandatory: Boolean, val minSupported: String?, val m
             if (text.codePointCount(0, text.length) <= MAX_MESSAGE) text
             else text.substring(0, text.offsetByCodePoints(0, MAX_MESSAGE))
 
+        /** Android's version for an API level, as people know it: 29 is 10. */
+        fun androidName(api: Int): String = when (api) {
+            in 29..31 -> "${api - 19}"
+            32 -> "12L"
+            in 33..36 -> "${api - 20}"
+            else -> "API $api"
+        }
+
         /** UPDATE.json of version 1, else null: another version, or what does not read as one. */
         fun parse(bytes: ByteArray): UpdateNotice? {
             if (bytes.size > MAX_BYTES) return null
@@ -41,12 +58,17 @@ data class UpdateNotice(val mandatory: Boolean, val minSupported: String?, val m
                 is String -> v.takeIf { SEMVER.matches(it) } ?: return null
                 else -> return null
             }
+            val minAndroid = when (val v = o.opt("min_android")) {
+                null -> null
+                is Int -> v.takeIf { it in 1..1000 } ?: return null
+                else -> return null
+            }
             val messages = o.optJSONObject("message")
             val message = messages?.keys()?.asSequence().orEmpty().mapNotNull { language ->
                 val text = (messages?.opt(language) as? String)?.trim()
                 if (LANGUAGE.matches(language) && !text.isNullOrEmpty()) language to cut(text) else null
             }.toMap()
-            return UpdateNotice(mandatory, minSupported, message)
+            return UpdateNotice(mandatory, minSupported, message, minAndroid)
         }
     }
 }

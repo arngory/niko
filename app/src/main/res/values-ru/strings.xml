@@ -1083,4 +1083,5 @@
     <string name="licenses_part_other">Прочее</string>
     <string name="licenses_part_go">Модули Go ядра</string>
     <string name="licenses_site">Сайт</string>
+    <string name="update_needs_android">%1$s работает на Android %2$s и новее. На этом телефоне остаётся текущая версия, она работает как прежде.</string>
 </resources>
