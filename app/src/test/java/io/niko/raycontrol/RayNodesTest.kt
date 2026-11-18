@@ -79,6 +79,11 @@ class RayNodesTest {
         assertEquals(bare, RayNode.fromJson(bare.toJson()))
         assertFalse(bare.toJson().has("relays"))
         assertFalse(bare.toJson().has("note"))
+        assertFalse(bare.toJson().has("client"))
+        val ahead = node.copy(client = RayClientMin(mapOf("niko" to "1.59.0"), from = 1_768_435_200, refused = false))
+        assertEquals(ahead, RayNode.fromJson(ahead.toJson()))
+        val refused = node.copy(client = RayClientMin(mapOf("niko" to "1.59.0", "rayctl" to "0.32.0"), from = 0, refused = true))
+        assertEquals(refused, RayNode.fromJson(refused.toJson()))
     }
 
     @Test
@@ -174,6 +179,27 @@ class RayNodesTest {
         // the card: in an isolate, none without a note
         assertEquals("\u2068До 100 ГБ в месяц 🙂\u2069", RayNodeCard.note(node))
         assertNull(RayNodeCard.note(node.copy(note = null)))
+    }
+
+    // client-min-v1 §3: the node's minimum by product, from when, and the refusal of this device
+    @Test
+    fun theNodesMinimumVersion() {
+        fun parse(json: String) = RayClientMin.fromJson(com.google.gson.JsonParser.parseString(json).asJsonObject)
+        val min = parse("""{"v": 1, "min": {"niko": "1.59.0"}, "from": 1768435200}""")!!
+        assertEquals("1.59.0", min.niko)
+        assertEquals(1_768_435_200L, min.from)
+        assertFalse(min.refused)
+        assertEquals(min, RayClientMin.fromJson(min.toJson()))
+        assertTrue(parse("""{"v": 1, "min": {"niko": "1.59.0"}, "refused": true}""")!!.refused)
+        // another version is unknown; a product or version off the node's grammar and limits is left out
+        assertNull(parse("""{"v": 2, "min": {"niko": "1.59.0"}}"""))
+        assertNull(RayClientMin.fromJson(null))
+        val odd = parse("""{"v": 1, "min": {"Niko": "1.0.0", "niko": "${"9".repeat(65)}", "x": 5, "ok": "1.0.0"}, "from": -1}""")!!
+        assertEquals(mapOf("ok" to "1.0.0"), odd.min)
+        assertNull(odd.niko)
+        assertEquals(0L, odd.from)
+        val many = (0 until 12).joinToString(",") { "\"p$it\": \"1.0.$it\"" }
+        assertEquals(8, parse("""{"v": 1, "min": {$many}}""")!!.min.size)
     }
 
     @Test

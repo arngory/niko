@@ -55,6 +55,13 @@ import org.json.JSONObject
 
 class AboutFragment : ToolbarFragment(R.layout.layout_about) {
 
+    companion object {
+        private const val CHECK_UPDATE = "check_update"
+
+        /** The screen with the update check begun: a raycontrol node requires a newer Niko (client-min-v1). */
+        fun checkingUpdate() = AboutFragment().apply { arguments = Bundle().apply { putBoolean(CHECK_UPDATE, true) } }
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
@@ -63,8 +70,13 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
         ViewCompat.setOnApplyWindowInsetsListener(view, ListListener)
         toolbar.setTitle(R.string.menu_about)
 
+        // once: the screen made again (a rotation) does not check again
+        val check = savedInstanceState == null && arguments?.getBoolean(CHECK_UPDATE) == true
+        arguments?.remove(CHECK_UPDATE)
         parentFragmentManager.beginTransaction()
-            .replace(R.id.about_fragment_holder, AboutContent())
+            .replace(R.id.about_fragment_holder, AboutContent().apply {
+                if (check) arguments = Bundle().apply { putBoolean(CHECK_UPDATE, true) }
+            })
             .commitAllowingStateLoss()
 
         runOnDefaultDispatcher {
@@ -258,6 +270,11 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
 
             view.findViewById<RecyclerView>(R.id.mal_recyclerview).apply {
                 overScrollMode = RecyclerView.OVER_SCROLL_NEVER
+            }
+            // opened from a node's card that requires a newer Niko (AboutFragment.checkingUpdate): the check, once
+            if (arguments?.getBoolean(CHECK_UPDATE) == true) {
+                arguments?.remove(CHECK_UPDATE)
+                checkUpdate(isPreview)
             }
         }
 

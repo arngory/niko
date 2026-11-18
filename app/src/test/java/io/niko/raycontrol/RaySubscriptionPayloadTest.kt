@@ -63,6 +63,30 @@ class RaySubscriptionPayloadTest {
         assertNull(parsed.note)
     }
 
+    // client-min-v1 §4: a device below the node's minimum gets no profiles, `client.refused`, and still the app's
+    // releases and the relays (the way to update); a device at it gets `client.min` for its information
+    @Test
+    fun theNodesMinimumVersion() {
+        val time = payload.get("time").asLong
+        assertNull(RaySubscription.parse(withAuto(payload), emptyMap(), time).client)
+        val told = withAuto(payload).apply {
+            add("client", JsonParser.parseString("""{"v": 1, "min": {"niko": "1.59.0"}, "from": 1768435200}"""))
+        }
+        val parsed = RaySubscription.parse(told, emptyMap(), time)
+        assertEquals(RayClientMin(mapOf("niko" to "1.59.0"), 1_768_435_200, refused = false), parsed.client)
+        assertTrue(parsed.beans.isNotEmpty())
+        val refused = told.deepCopy().apply {
+            add("profiles", com.google.gson.JsonArray())
+            add("client", JsonParser.parseString("""{"v": 1, "min": {"niko": "1.59.0"}, "refused": true}"""))
+            add("app", JsonParser.parseString("""{"niko": [{"tag": "v1.59.0", "prerelease": false}]}"""))
+        }
+        val gone = RaySubscription.parse(refused, emptyMap(), time)
+        assertEquals(true, gone.client?.refused)
+        assertTrue(gone.beans.isEmpty())
+        assertEquals(parsed.relays, gone.relays)
+        assertEquals(listOf(RayAppRelease("v1.59.0", prerelease = false)), gone.appReleases)
+    }
+
     @Test
     fun theNodesNote() {
         val noted = withAuto(payload).apply { addProperty("note", "Лимит 100 ГБ\u202E\n😀") }

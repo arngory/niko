@@ -700,6 +700,7 @@
     <string name="raycontrol_sub_updating">Обновляю подписку…</string>
     <string name="raycontrol_sub_updated">%1$s: профилей из подписки: %2$d.</string>
     <string name="raycontrol_sub_skipped">Не удалось прочитать ссылок: %d.</string>
+    <string name="raycontrol_sub_client_min">%1$s требует Niko %2$s или новее: профили ноды остались прежними; обновите приложение в разделе «О приложении».</string>
     <string name="raycontrol_sub_failed">Подписка не обновлена: %s</string>
     <string name="raycontrol_card_status">Профилей: %1$d · обновлена %2$s</string>
     <string name="raycontrol_card_status_never">Профилей: %1$d · ещё не обновлялась</string>
@@ -737,6 +738,8 @@
     <string name="raycontrol_lan_allow">Разрешить</string>
     <string name="raycontrol_card_traffic_exhausted">трафик исчерпан до %1$s</string>
     <string name="raycontrol_card_traffic_exhausted_admin">трафик исчерпан, пока администратор не поднимет лимит</string>
+    <string name="raycontrol_card_client_min">нода требует Niko %1$s или новее: нажмите, чтобы обновить</string>
+    <string name="raycontrol_card_client_min_from">с %2$s нода потребует Niko %1$s или новее: нажмите, чтобы обновить</string>
     <string name="raycontrol_card_refused">нода отклонила это устройство, импортируйте его заново</string>
     <string name="raycontrol_card_failing">обновление не проходит (%d раз подряд)</string>
     <string name="raycontrol_card_expires">действует до %s</string>
