@@ -51,8 +51,9 @@ else
   echo "the app died during the rotations"; fail=1
 fi
 
-echo "== screenshots (light and dark): the main screen, the drawer, the settings"
-# for the eye, not a check: smoke-screens/ in the artifact. The night mode is the system's, as most users have it
+echo "== screenshots (light and dark): the main screen, connected, the drawer, the settings"
+# for the eye, not a check: smoke-screens/ in the artifact. The night mode is the system's, as most users have it.
+# The main screen shows a profile's card (a link's profile, chosen), and once connected the statistics bar
 shots=smoke-screens
 mkdir -p "$shots"
 here=$(cd "$(dirname "$0")" && pwd)
@@ -72,11 +73,50 @@ tap_text() {
   # shellcheck disable=SC2086 # x and y
   timeout 20 adb shell input tap $xy
 }
-for mode in no yes; do
-  timeout 30 adb shell cmd uimode night "$mode" > /dev/null 2>&1
+# tap_button TEXT: the positive button of the dialog that shows this text
+tap_button() {
+  local i xy
+  for i in 1 2 3 4 5; do
+    timeout 30 adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1
+    timeout 30 adb pull /sdcard/ui.xml "$shots/ui.xml" > /dev/null 2>&1
+    xy=$(python3 -I "$here/ui-button.py" "$shots/ui.xml" "$1")
+    rm -f "$shots/ui.xml"
+    # shellcheck disable=SC2086 # x and y
+    [ -n "$xy" ] && { timeout 20 adb shell input tap $xy; return; }
+    sleep 2
+  done
+  return 1
+}
+# restart: the app afresh, on its main screen
+restart() {
   adb shell am force-stop "$pkg"; sleep 1
   timeout 60 adb shell am start -W -n "$pkg/$pkg.ui.MainActivity" > /dev/null; sleep 4
+}
+# a profile from a link, never reached (a documentation address): its card on the main screen, chosen
+link='vless://00000000-0000-4000-8000-000000000001@192.0.2.10:443?encryption=none&security=tls&sni=smoke.example&type=tcp#Smoke'
+timeout 60 adb shell "am start -W -n $pkg/$pkg.ui.MainActivity -a android.intent.action.VIEW -d '$link'" > /dev/null
+sleep 3
+if tap_button "Import profile"; then
+  sleep 3
+  tap_text "Smoke" || echo "no card of the imported profile to choose"
+else
+  echo "no question to import the link"
+fi
+# the VPN's consent, as the user's tap on the system's dialog gives it
+timeout 20 adb shell appops set "$pkg" ACTIVATE_VPN allow || echo "appops ACTIVATE_VPN: $?"
+for mode in no yes; do
+  timeout 30 adb shell cmd uimode night "$mode" > /dev/null 2>&1
+  restart
   timeout 30 adb exec-out screencap -p > "$shots/main-$mode.png" 2> /dev/null
+  # connected: the connect button's look and the statistics bar
+  if tap_text "Connect"; then
+    sleep 8
+    timeout 30 adb exec-out screencap -p > "$shots/connected-$mode.png" 2> /dev/null
+    tap_text "Stop" || echo "no Stop to tap ($mode)"
+    sleep 3
+  else
+    echo "no connect button to tap ($mode)"
+  fi
   timeout 20 adb shell input tap "$menu_x" "$menu_y"; sleep 2
   timeout 30 adb exec-out screencap -p > "$shots/drawer-$mode.png" 2> /dev/null
   # the settings, for the rows' icons
@@ -89,6 +129,27 @@ for mode in no yes; do
   fi
 done
 timeout 30 adb shell cmd uimode night no > /dev/null 2>&1
+
+echo "== screenshots with a larger font (1.3) and right to left: the main screen and the drawer, light"
+# the profile's card and the bars must not cut their text at 1.3; right to left, the navigation button is at the right
+timeout 30 adb shell settings put system font_scale 1.3
+restart
+timeout 30 adb exec-out screencap -p > "$shots/main-font-1.3.png" 2> /dev/null
+timeout 20 adb shell input tap "$menu_x" "$menu_y"; sleep 2
+timeout 30 adb exec-out screencap -p > "$shots/drawer-font-1.3.png" 2> /dev/null
+timeout 30 adb shell settings put system font_scale 1.0
+# "Force RTL layout direction" of the developer options: the setting and the property the framework reads (root)
+timeout 30 adb shell settings put global debug.force_rtl 1
+timeout 30 adb shell setprop debug.force_rtl 1
+restart
+timeout 30 adb exec-out screencap -p > "$shots/main-rtl.png" 2> /dev/null
+width=$(timeout 10 adb shell wm size | tr -d '\r' | sed -n 's/.*: *\([0-9]*\)x[0-9]*$/\1/p' | tail -1)
+if [ -n "$width" ]; then
+  timeout 20 adb shell input tap "$((width - menu_x))" "$menu_y"; sleep 2
+  timeout 30 adb exec-out screencap -p > "$shots/drawer-rtl.png" 2> /dev/null
+fi
+timeout 30 adb shell settings put global debug.force_rtl 0
+timeout 30 adb shell setprop debug.force_rtl 0
 ls -la "$shots"
 
 if adb logcat -d | grep -E "FATAL EXCEPTION|ANR in $pkg" -A 20 | grep -B2 -A20 "$pkg"; then

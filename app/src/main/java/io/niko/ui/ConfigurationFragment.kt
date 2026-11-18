@@ -7,6 +7,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.Typeface
 import android.os.Bundle
 import android.os.SystemClock
 import android.provider.OpenableColumns
@@ -69,7 +70,6 @@ import io.niko.ktx.alert
 import io.niko.ktx.app
 import io.niko.ktx.dp2px
 import io.niko.ktx.getColorAttr
-import io.niko.ktx.getColour
 import io.niko.ktx.isIpAddress
 import io.niko.ktx.onMainDispatcher
 import io.niko.ktx.readableMessage
@@ -735,19 +735,19 @@ class ConfigurationFragment @JvmOverloads constructor(
 
                     1 -> {
                         profileStatusText = getString(R.string.available, profile.ping)
-                        profileStatusColor = context.getColour(R.color.material_green_500)
+                        profileStatusColor = context.getColorAttr(R.attr.statusOkColor)
                     }
 
                     2 -> {
-                        profileStatusText = profile.error
-                        profileStatusColor = context.getColour(R.color.material_red_500)
+                        profileStatusText = profile.error ?: getString(R.string.unavailable)
+                        profileStatusColor = context.getColorAttr(R.attr.statusErrorColor)
                     }
 
                     3 -> {
                         val err = profile.error ?: ""
                         val msg = Protocols.genFriendlyMsg(err)
                         profileStatusText = if (msg != err) msg else getString(R.string.unavailable)
-                        profileStatusColor = context.getColour(R.color.material_red_500)
+                        profileStatusColor = context.getColorAttr(R.attr.statusErrorColor)
                     }
                 }
 
@@ -1580,11 +1580,18 @@ class ConfigurationFragment @JvmOverloads constructor(
 
             val trafficText: TextView = view.findViewById(R.id.traffic_text)
             val selectedView: LinearLayout = view.findViewById(R.id.selected_view)
+            private val nameTypeface: Typeface? = profileName.typeface
             val editButton: ImageView = view.findViewById(R.id.edit)
             val shareLayout: LinearLayout = view.findViewById(R.id.share)
             val shareLayer: LinearLayout = view.findViewById(R.id.share_layer)
             val shareButton: ImageView = view.findViewById(R.id.shareIcon)
             val removeButton: ImageView = view.findViewById(R.id.remove)
+
+            // the chosen profile: the strip, and its name in 600, so that it is not told by a colour alone
+            private fun markSelected(selected: Boolean) {
+                selectedView.visibility = if (selected) View.VISIBLE else View.INVISIBLE
+                profileName.setTypeface(nameTypeface, if (selected) Typeface.BOLD else Typeface.NORMAL)
+            }
 
             fun bind(proxyEntity: ProxyEntity, trafficData: TrafficData? = null) {
                 val pf = parentFragment as? ConfigurationFragment ?: return
@@ -1605,7 +1612,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                                 lastSelected = DataStore.selectedProxy
                                 DataStore.selectedProxy = proxyEntity.id
                                 onMainDispatcher {
-                                    selectedView.visibility = View.VISIBLE
+                                    markSelected(true)
                                 }
                             }
 
@@ -1672,11 +1679,13 @@ class ConfigurationFragment @JvmOverloads constructor(
                     }
                 } else if (proxyEntity.status == 1) {
                     profileStatus.text = getString(R.string.available, proxyEntity.ping)
-                    profileStatus.setTextColor(requireContext().getColour(R.color.material_green_500))
+                    profileStatus.setTextColor(requireContext().getColorAttr(R.attr.statusOkColor))
                 } else {
-                    profileStatus.setTextColor(requireContext().getColour(R.color.material_red_500))
+                    // a failure is said in words, its colour only adds to them
+                    profileStatus.setTextColor(requireContext().getColorAttr(R.attr.statusErrorColor))
                     if (proxyEntity.status == 2) {
-                        profileStatus.text = proxyEntity.error
+                        profileStatus.text = proxyEntity.error.takeUnless { it.isNullOrBlank() }
+                            ?: getString(R.string.unavailable)
                     }
                 }
 
@@ -1723,7 +1732,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                     onMainDispatcher {
                         editButton.isEnabled = !started
                         removeButton.isEnabled = !started
-                        selectedView.visibility = if (selected) View.VISIBLE else View.INVISIBLE
+                        markSelected(selected)
                     }
 
                     fun showShare(anchor: View) {

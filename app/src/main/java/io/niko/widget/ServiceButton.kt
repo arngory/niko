@@ -1,6 +1,7 @@
 package io.niko.widget
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.drawable.Drawable
 import android.os.Build
 import android.util.AttributeSet
@@ -79,6 +80,20 @@ class ServiceButton @JvmOverloads constructor(
     private val animationQueue = ArrayDeque<AnimatedState>()
 
     private var checked = false
+
+    // after a start that failed, until the next state: state_failed (the Niko theme's danger-soft look)
+    private var failed = false
+
+    // the icon's colours by state (app:tint). FloatingActionButton tints the icon with the colour of the state it has
+    // when the list or the icon is set, and not again when the state changes: the button keeps the list and sets each
+    // new state's colour itself (drawableStateChanged). Null for a list of one colour, as the colour themes have
+    private var iconTints: ColorStateList? = null
+
+    init {
+        iconTints = supportImageTintList?.takeIf { it.isStateful }
+        applyIconTint()
+    }
+
     private var delayedAnimation: Job? = null
     private lateinit var progress: BaseProgressIndicator<*>
     fun initProgress(progress: BaseProgressIndicator<*>) {
@@ -99,15 +114,33 @@ class ServiceButton @JvmOverloads constructor(
     }
 
     override fun onCreateDrawableState(extraSpace: Int): IntArray {
-        val drawableState = super.onCreateDrawableState(extraSpace + 1)
+        val drawableState = super.onCreateDrawableState(extraSpace + 2)
         if (checked) View.mergeDrawableStates(
             drawableState,
             intArrayOf(android.R.attr.state_checked)
         )
+        if (failed) View.mergeDrawableStates(drawableState, intArrayOf(R.attr.state_failed))
         return drawableState
     }
 
-    fun changeState(state: BaseService.State, previousState: BaseService.State, animate: Boolean) {
+    override fun drawableStateChanged() {
+        super.drawableStateChanged()
+        applyIconTint()
+    }
+
+    // called by the super constructor too, before iconTints is set: nothing to do then
+    private fun applyIconTint() {
+        val tints = iconTints ?: return
+        supportImageTintList = ColorStateList.valueOf(tints.getColorForState(drawableState, tints.defaultColor))
+    }
+
+    /** [failed]: the service stopped on an error (the snackbar says which); the button shows it until the next state. */
+    fun changeState(
+        state: BaseService.State,
+        previousState: BaseService.State,
+        animate: Boolean,
+        failed: Boolean = false,
+    ) {
         when (state) {
             BaseService.State.Connecting -> changeState(iconConnecting, animate)
             BaseService.State.Connected -> changeState(iconConnected, animate)
@@ -117,6 +150,7 @@ class ServiceButton @JvmOverloads constructor(
             else -> changeState(iconStopped, animate)
         }
         checked = state == BaseService.State.Connected
+        this.failed = failed && state == BaseService.State.Stopped
         refreshDrawableState()
         val description = context.getText(if (state.canStop) R.string.stop else R.string.connect)
         contentDescription = description

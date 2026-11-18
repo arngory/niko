@@ -19,4 +19,21 @@
          colorPrimary the accent, ink, which Material's fields, buttons and indicators take, and fills its bars with
          surface-0 -->
     <attr name="barBackground" format="color" />
+    <!-- the statistics bar's speeds (tx, rx) on colorMaterial300: white in the colour themes, ink-2 in Niko -->
+    <attr name="whiteOrTextSecondary" format="color" />
+    <!-- a profile's state on its card and in the test's dialog: reachable (its ping), failed -->
+    <attr name="statusOkColor" format="color" />
+    <attr name="statusErrorColor" format="color" />
+    <!-- the connect button's shadow: at rest and pressed, and hovered or focused; Niko has none -->
+    <attr name="fabElevation" format="dimension" />
+    <attr name="fabHoveredFocusedTranslationZ" format="dimension" />
+    <!-- the ring of the connect button's progress, twice as thick as it shows: its inner half is under the button -->
+    <attr name="fabRingThickness" format="dimension" />
+    <!-- drawn over the connect button: Niko's halo, a hairline at its edge; @null in the colour themes -->
+    <attr name="fabHalo" format="reference" />
+    <!-- the connect button after a start that failed, until the next state (ServiceButton) -->
+    <attr name="state_failed" format="boolean" />
+    <!-- the drawer's fill, and the icons of its rows not chosen -->
+    <attr name="drawerBackground" format="reference|color" />
+    <attr name="drawerIconColor" format="color" />
 </resources>
