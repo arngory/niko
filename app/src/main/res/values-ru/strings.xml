@@ -1071,4 +1071,16 @@
     <string name="copy_success">Скопировано</string>
     <string name="app_list_permission_denied">Не удалось получить список приложений.\nОбычно система ограничила доступ к списку установленных приложений.\nВыдайте разрешение в настройках системы.</string>
     <string name="open_app_settings">Открыть настройки системы</string>
+    <string name="licenses">Лицензии</string>
+    <string name="licenses_sum">Из чего собран Niko и на каких условиях</string>
+    <string name="licenses_notice_sum">Всё одним текстом</string>
+    <string name="licenses_part_app">Niko и то, на чём он основан</string>
+    <string name="licenses_part_library">Библиотеки Android</string>
+    <string name="licenses_part_native">Нативные части</string>
+    <string name="licenses_part_data">Данные</string>
+    <string name="licenses_part_font">Шрифты</string>
+    <string name="licenses_part_icons">Значки</string>
+    <string name="licenses_part_other">Прочее</string>
+    <string name="licenses_part_go">Модули Go ядра</string>
+    <string name="licenses_site">Сайт</string>
 </resources>
