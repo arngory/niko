@@ -1,0 +1,94 @@
+Niko
+=====
+
+Niko is free software under the GNU General Public License, version 3 or (at your option) any later version: see
+LICENSE. The authors are listed in AUTHORS.
+
+The source of a release is the tag of its version in https://github.com/arngory/niko, with the repositories and
+commits that tag names for its build:
+
+- the core, sing-box: https://github.com/arngory/sing-box at COMMIT_SING_BOX (buildScript/lib/core/get_source_env.sh)
+- the Go modules: libcore/go.mod and libcore/go.sum, as the Go module proxy serves them
+- the slipstream client: https://github.com/arngory/slipstream at COMMIT_SLIPSTREAM (buildScript/lib/slipstream/env.sh)
+  and its submodules, OpenSSL by the version its .github/scripts/android-openssl.sh names
+- naive's network stack: the library modules of https://github.com/arngory/cronet-go that libcore/go.mod names
+
+
+Based on
+--------
+
+Niko is a modified version of these projects; their copyrights stay with their authors.
+
+- NekoBox for Android, https://github.com/MatsuriDayo/NekoBoxForAndroid: GPL-3.0, MatsuriDayo
+- SagerNet, https://github.com/SagerNet/SagerNet: GPL-3.0, Copyright (C) 2021 nekohasekai
+- sing-box, https://github.com/SagerNet/sing-box, and sing-quic: GPL-3.0, Copyright (C) 2022 nekohasekai
+- sing-box-lx, https://github.com/Leadaxe/sing-box-lx (XHTTP, REALITY changes): GPL-3.0, Leadaxe
+- shadowsocks-android, https://github.com/shadowsocks/shadowsocks-android: GPL-3.0
+
+
+What the app carries, with its own license
+------------------------------------------
+
+The texts of these licenses, with each holder's copyright, are in the APK under assets/licenses/: go.json for the
+core's Go modules (from the build), components.json and texts/ for the rest (app:checkLicenses holds them to the
+build's runtime libraries).
+
+The core (libcore.aar, libgojni.so)
+  The Go modules a build links in are the ones its own build info lists (`go version -m`): the build writes them,
+  with the license files of each, into the APK as assets/licenses/go.json (buildScript/lib/core/licenses.py). Most
+  are under GPL-3.0, MIT, BSD-2-Clause, BSD-3-Clause, Apache-2.0 or ISC. Of the others:
+  - yggdrasil-go (the fork https://github.com/arngory/yggdrasil-go): LGPL-3.0 with a linking exception
+  - ironwood, phony, yamux: MPL-2.0, used unchanged at the versions libcore/go.mod names
+  - dnstt: CC0-1.0; aurora: Unlicense
+  - the Go runtime and standard library: BSD-3-Clause, Copyright The Go Authors
+
+Chromium (naive's network stack, libcronet in libgojni.so)
+  Chromium of the release the library modules of cronet-go carry, built by https://github.com/arngory/naiveproxy:
+  BSD-3-Clause, Copyright The Chromium Authors, and the licenses of the third-party code it contains (BoringSSL,
+  zlib, brotli and others).
+
+The slipstream client (libslipstream.so)
+  https://github.com/arngory/slipstream: Apache-2.0. It contains picoquic (MIT, Copyright (c) 2017 Private
+  Octopus), picotls (MIT, Copyright (c) 2016 DeNA Co., Ltd., Kazuho Oku), OpenSSL (Apache-2.0),
+  lua-resty-base-encoding (MIT), quick_arg_parser (MIT, Copyright (c) 2021 Dugy) and SPCDNS (LGPL-3.0, Copyright
+  2010 by Sean Conner).
+  SPCDNS is linked statically: the source of the client and of SPCDNS at the commits above and the build script
+  (buildScript/lib/slipstream/build.sh) are public, so the client can be rebuilt with a modified SPCDNS and put in
+  place of the one in the app.
+
+Rule databases (assets/sing-box/geoip.db, geosite.db)
+  From https://github.com/SagerNet/sing-geoip and https://github.com/SagerNet/sing-geosite (GPL-3.0). geoip.db is
+  made from https://github.com/Dreamacro/maxmind-geoip: this product includes GeoLite2 data created by MaxMind,
+  available from https://www.maxmind.com. geosite.db is made from
+  https://github.com/v2fly/domain-list-community (MIT).
+
+The Clash API dashboard (assets/yacd.zip)
+  Yacd-meta, https://github.com/MetaCubeX/Yacd-meta, a fork of yacd, https://github.com/haishanh/yacd: MIT.
+
+Android libraries (the app's runtime classpath)
+  Apache-2.0: AndroidX (AppCompat, Core, Fragment, Navigation, Preference, RecyclerView, Room, WorkManager and the
+  others they bring), Material Components for Android, Kotlin, kotlinx.coroutines, kotlinx.serialization, JetBrains
+  annotations, JSpecify, Gson, Guava (with failureaccess, listenablefuture, error_prone_annotations,
+  j2objc-annotations), AutoValue annotations, OkHttp and Okio, SnakeYAML, process-phoenix, ini4j, ZXingLite and ZXing,
+  EditorKit, material-about-library, recyclerview-fastscroll, Objenesis.
+  BSD-3-Clause: Kryo, ReflectASM, MinLog (Esoteric Software); ASM, which ReflectASM carries repackaged
+  (com.esotericsoftware.asm), Copyright (c) 2000-2011 INRIA, France Telecom.
+  MIT: Roomigrant, Copyright (c) 2018 Rostyslav Lesovyi.
+  GPL-2.0 with the Classpath Exception: desugar_jdk_libs (https://github.com/google/desugar_jdk_libs), the part of
+  OpenJDK's library that Android's build compiles into the app for the older Android versions; Copyright Oracle and
+  the OpenJDK authors.
+
+  The NOTICE files these libraries carry (section 4(d) of the Apache License 2.0), which the APK's packaging leaves
+  out of META-INF:
+  - Objenesis
+    Copyright 2006-2024 Joe Walnes, Henri Tremblay, Leonardo Mesquita
+  - kotlinx.coroutines library (in AndroidX concurrent-futures-ktx)
+    Copyright 2016-2024 JetBrains s.r.o and contributors
+
+Fonts
+  Geist and Geist Mono, Copyright (c) 2023 Vercel, in collaboration with basement.studio: SIL Open Font License 1.1
+  (app/src/main/res/font, desktop/fonts/OFL.txt).
+
+Icons
+  Lucide, https://lucide.dev, Copyright (c) 2026 Lucide Icons and Contributors: ISC; the icons it took from Feather,
+  Copyright (c) 2013-present Cole Bemis: MIT (shared/icons/LICENSE).

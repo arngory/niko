@@ -49,3 +49,6 @@ GPL-3.0, см. [LICENSE](LICENSE). Niko — изменённая версия п
 | [sing-box-lx](https://github.com/Leadaxe/sing-box-lx) (изменения XHTTP и REALITY) | Leadaxe | GPL-3.0 |
 | [shadowsocks-android](https://github.com/shadowsocks/shadowsocks-android) | shadowsocks | GPL-3.0 |
 | [Yacd-meta](https://github.com/MetaCubeX/Yacd-meta) | MetaCubeX | MIT |
+
+Всё остальное, что несёт приложение (модули Go в ядре, Chromium, клиент slipstream, базы правил, библиотеки Android,
+шрифты и значки), с лицензией каждого: [NOTICE](NOTICE).
