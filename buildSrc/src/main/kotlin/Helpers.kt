@@ -45,7 +45,8 @@ fun Project.setupCommon() {
         buildToolsVersion = "35.0.1"
         compileSdk = 35
         defaultConfig {
-            minSdk = 23
+            // Android 10, as Chrome since 139: naive is Chromium 158
+            minSdk = 29
             targetSdk = 35
         }
         buildTypes {

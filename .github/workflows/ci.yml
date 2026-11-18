@@ -132,11 +132,16 @@ jobs:
           fi
           grep -q 'holds no secret key line' <<< "$out" || { echo "$out"; echo "::error::refused for another reason"; exit 1; }
 
-  # the release APK on an emulator: it starts, survives configuration changes and leaks no activity
+  # the release APK on an emulator: it starts, survives configuration changes and leaks no activity; on the oldest
+  # Android the app takes (minSdk) and on the newest it targets (edge to edge)
   smoke:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [29, 35]
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
@@ -155,7 +160,7 @@ jobs:
       - name: Start, rotate, leave
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
-          api-level: 34
+          api-level: ${{ matrix.api }}
           arch: x86_64
           target: google_apis
           disable-animations: true
@@ -165,7 +170,7 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: smoke-screens
+          name: smoke-screens-api${{ matrix.api }}
           path: smoke-screens
           if-no-files-found: ignore
 

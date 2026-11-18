@@ -345,6 +345,7 @@ class BaseService {
         }
 
         fun killProcesses() {
+            io.niko.utils.Stats.stopSampler()
             RayWatchdog.stop()
             io.niko.raycontrol.RayLanDirect.stop()
             RuleSetFiles.stop()
@@ -368,6 +369,7 @@ class BaseService {
             this as Service
 
             data.changeState(State.Stopping)
+            if (!restart && msg == null) io.niko.utils.Stats.event("service_stop")
             // a stop for good: a later start is the user's or the system's, not the watchdog's
             if (!restart) RayWatchdog.stop(final = true)
 
@@ -409,8 +411,9 @@ class BaseService {
             }.onFailure { Logs.w(it) }
         }
 
+        /** the system shuts down: the last sample of "Statistics for the last hour" */
         fun persistStats() {
-            // TODO NEW save app stats?
+            io.niko.utils.Stats.sample()
         }
 
         // networks
@@ -428,6 +431,7 @@ class BaseService {
                     // stays the one that went: asked, it fails at once. Null would be this process's default, which
                     // is the VPN itself, and the core's direct DNS would come back to the core
                     DataStore.vpnService?.updateUnderlyingNetwork(network = null)
+                    if (upstreamInterfaceName != null && !upstreamLost) io.niko.utils.Stats.event("network_lost")
                     if (upstreamInterfaceName != null) upstreamLost = true
                     return@start
                 }
@@ -448,6 +452,7 @@ class BaseService {
                     upstreamLost = false
                     if (oldName != null && upstreamInterfaceName != null && oldName != upstreamInterfaceName) {
                         Logs.d("Network changed: $oldName -> $upstreamInterfaceName")
+                        io.niko.utils.Stats.event("network_change", mapOf("to" to io.niko.utils.Stats.transport(it)))
                         if (DataStore.networkChangeResetConnections) {
                             Libcore.resetAllConnections(true)
                         }
@@ -458,6 +463,7 @@ class BaseService {
                         // sockets of a network that went away all the same. The watchdog heard of it already
                         // (RayWatchdog.network: a network that comes back)
                         Logs.d("Network back: $upstreamInterfaceName")
+                        io.niko.utils.Stats.event("network_back", mapOf("to" to io.niko.utils.Stats.transport(it)))
                         if (DataStore.networkChangeResetConnections) {
                             Libcore.resetAllConnections(true)
                         }
@@ -531,8 +537,10 @@ class BaseService {
 
             data.changeState(State.Connecting)
             // a stop requested meanwhile ends the connect quietly: stopRunner reports the state
-            fun failed(msg: String?) {
-                if (data.state == State.Connecting) stopRunner(false, msg)
+            fun failed(msg: String?, why: String) {
+                if (data.state != State.Connecting) return
+                io.niko.utils.Stats.event("service_fail", mapOf("why" to why, "profile" to io.niko.utils.Stats.kind(profile)))
+                stopRunner(false, msg)
             }
             data.connectingJob = runOnMainDispatcher {
                 try {
@@ -549,12 +557,18 @@ class BaseService {
 
                     proxy.processes = GuardedProcessPool {
                         Logs.w(it)
+                        io.niko.utils.Stats.event("service_fail", mapOf("why" to "process"))
                         stopRunner(false, it.readableMessage)
                     }
 
                     startProcesses()
                     if (data.state != State.Connecting) return@runOnMainDispatcher
                     data.changeState(State.Connected)
+                    io.niko.utils.Stats.event(
+                        "service_start",
+                        mapOf("mode" to if (data.isVpn) "vpn" else "proxy", "profile" to io.niko.utils.Stats.kind(profile)),
+                    )
+                    io.niko.utils.Stats.startSampler()
                     RayWatchdog.start({ probeRunning() }) { dohRunning() }
                     // the rules' downloaded rule-sets: the stale ones through the proxy, once it has settled
                     RuleSetFiles.updateSoon()
@@ -562,12 +576,12 @@ class BaseService {
                     lateInit()
                 } catch (_: CancellationException) { // if the job was cancelled, it is canceller's responsibility to call stopRunner
                 } catch (_: UnknownHostException) {
-                    failed(getString(R.string.invalid_server))
+                    failed(getString(R.string.invalid_server), "invalid_server")
                 } catch (e: PluginManager.PluginNotFoundException) {
                     Toast.makeText(this@Interface, e.readableMessage, Toast.LENGTH_SHORT).show()
                     Logs.w(e)
                     data.binder.missingPlugin(e.plugin)
-                    failed(null)
+                    failed(null, "plugin_missing")
                 } catch (exc: Throwable) {
                     if (exc.javaClass.name.endsWith("proxyerror")) {
                         // error from golang
@@ -575,7 +589,10 @@ class BaseService {
                     } else {
                         Logs.w(exc)
                     }
-                    failed("${getString(R.string.service_failed)}: ${exc.readableMessage}")
+                    failed(
+                        "${getString(R.string.service_failed)}: ${exc.readableMessage}",
+                        if (exc.javaClass.name.endsWith("proxyerror")) "core" else "other",
+                    )
                 } finally {
                     data.connectingJob = null
                 }
