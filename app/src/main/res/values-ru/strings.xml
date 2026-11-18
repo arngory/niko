@@ -1083,4 +1083,7 @@
     <string name="licenses_part_other">Прочее</string>
     <string name="licenses_part_go">Модули Go ядра</string>
     <string name="licenses_site">Сайт</string>
+    <string name="stats_hour">Статистика за час</string>
+    <string name="stats_hour_help">Что приложение делало за последний час, файлом JSON: запуски и сбои, сети, шаги сторожа, проверки URL, трафик, память. Без адресов, ключей, доменов и имён. Укажите тот же ID прогона, что у rayctl stats -id на ноде, чтобы читать обе стороны вместе.</string>
+    <string name="stats_hour_share">Поделиться</string>
 </resources>

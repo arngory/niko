@@ -82,6 +82,33 @@ class LogcatFragment : ToolbarFragment(R.layout.layout_logcat),
         }
     }
 
+    /** "Statistics for the last hour" under a run id, the node's rayctl stats -id taking the same (Stats). */
+    private fun statsHour() {
+        val input = android.widget.EditText(requireContext()).apply {
+            setText(io.niko.raycontrol.RayTestRun.defaultId())
+            setSingleLine()
+        }
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.stats_hour)
+            .setMessage(R.string.stats_hour_help)
+            .setView(input)
+            .setPositiveButton(R.string.stats_hour_share) { _, _ ->
+                val run = input.text.toString().trim()
+                if (!io.niko.raycontrol.RayTestRun.validId(run)) {
+                    snackbar(R.string.raycontrol_test_run_bad_id).show()
+                    return@setPositiveButton
+                }
+                val context = requireContext().applicationContext
+                runOnDefaultDispatcher {
+                    runCatching { SendLog.sendStats(context, run) }.onFailure { e ->
+                        onMainDispatcher { if (isAdded) snackbar(e.readableMessage).show() }
+                    }
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
     override fun onMenuItemClick(item: MenuItem): Boolean {
         when (item.itemId) {
             R.id.action_clear_logcat -> {
@@ -112,6 +139,8 @@ class LogcatFragment : ToolbarFragment(R.layout.layout_logcat),
             R.id.action_refresh -> {
                 reloadSession()
             }
+
+            R.id.action_stats_hour -> statsHour()
         }
         return true
     }

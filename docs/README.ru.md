@@ -19,6 +19,7 @@
 ## Контракты
 
 - [Требования компьютера от экрана до ядра](spec/desktop-requirements.md)
+- [Статистика за час, сторона клиента](spec/stats-client.md)
 - Протоколы ноды (подписка, API, пробы, relay, обновления и остальное) описаны в raycontrol:
   [docs/spec](https://github.com/arngory/raycontrol/tree/main/docs/spec)
 
