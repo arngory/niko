@@ -37,7 +37,8 @@ class NikoSnapshotTest(private val mode: String) {
     val paparazzi = Paparazzi(
         deviceConfig = DeviceConfig.PIXEL_5.copy(nightMode = if (mode == "dark") NightMode.NIGHT else NightMode.NOTNIGHT),
         theme = "Theme.SagerNet.Niko",
-        renderingMode = SessionParams.RenderingMode.SHRINK,
+        // the screen's width, as a list shows a card; the height its content's
+        renderingMode = SessionParams.RenderingMode.V_SCROLL,
     )
 
     private fun View.text(id: Int, text: String) {
