@@ -46,6 +46,9 @@ object Updates {
     const val CHECK_TIMEOUT_MS = SMALL_TIMEOUT_MS
     const val CHECK_DIRECT_TIMEOUT_MS = 20_000
 
+    // each of a release's three small files read before its dialog (notice)
+    private const val NOTICE_TIMEOUT_MS = 15_000
+
     const val SUMS = "SHA256SUMS"
     const val SIGNATURE = "SHA256SUMS.minisig"
 
@@ -128,11 +131,13 @@ object Updates {
      * null for a release without one. Through [client], the way the update check went.
      */
     fun notice(client: HTTPClient, release: JSONObject): UpdateNotice? {
+        // a release without one costs no request: the dialog comes at once
         val assets = assets(release)
         val url = assets[UpdateNotice.NAME] ?: return null
         val sumsUrl = assets[SUMS] ?: throw Refused(R.string.update_no_signature, "the release has no $SUMS")
         val signatureUrl = assets[SIGNATURE] ?: throw Refused(R.string.update_no_signature, "the release has no signature")
-        client.setTimeout(SMALL_TIMEOUT_MS)
+        // the dialog waits for these: a short bound, past it the update is offered as an ordinary one
+        client.setTimeout(NOTICE_TIMEOUT_MS)
         val sums = client.newRequest().apply { setURL(sumsUrl) }.execute().content
         val signature = Util.getStringBox(client.newRequest().apply { setURL(signatureUrl) }.execute().contentString)
         val listed = checkedSums(BuildConfig.UPDATE_PUBLIC_KEY, release.optString("tag_name"), sums, signature, Libcore::minisignVerify)

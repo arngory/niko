@@ -25,6 +25,11 @@ data class UpdateNotice(val mandatory: Boolean, val minSupported: String?, val m
         private val SEMVER = Regex("""^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$""")
         private val LANGUAGE = Regex("^[a-z]{2}$")
 
+        // MAX_MESSAGE characters as update-json.py counts them (code points), never half a surrogate pair
+        private fun cut(text: String) =
+            if (text.codePointCount(0, text.length) <= MAX_MESSAGE) text
+            else text.substring(0, text.offsetByCodePoints(0, MAX_MESSAGE))
+
         /** UPDATE.json of version 1, else null: another version, or what does not read as one. */
         fun parse(bytes: ByteArray): UpdateNotice? {
             if (bytes.size > MAX_BYTES) return null
@@ -39,7 +44,7 @@ data class UpdateNotice(val mandatory: Boolean, val minSupported: String?, val m
             val messages = o.optJSONObject("message")
             val message = messages?.keys()?.asSequence().orEmpty().mapNotNull { language ->
                 val text = (messages?.opt(language) as? String)?.trim()
-                if (LANGUAGE.matches(language) && !text.isNullOrEmpty()) language to text.take(MAX_MESSAGE) else null
+                if (LANGUAGE.matches(language) && !text.isNullOrEmpty()) language to cut(text) else null
             }.toMap()
             return UpdateNotice(mandatory, minSupported, message)
         }

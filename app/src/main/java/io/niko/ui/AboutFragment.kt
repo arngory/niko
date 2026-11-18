@@ -358,9 +358,13 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                         if (fromNode == null) throw e
                         Logs.w("update: GitHub not reached (${e.message}): ${fromNode.second.tag} of the node ${fromNode.first.host}")
                         val (node, nodeRelease) = fromNode
+                        // the node serves one download a device at a time and cuts the one under way for the next
+                        // (app-update-v1): within oneDownload, and none while an install downloads from it
                         val notice = readNotice {
-                            Updates.noticeFromMirror(app, nodeRelease.tag) { name, out, etag ->
-                                RaySubscription.appFile(node, nodeRelease.tag, name, out, etag)
+                            Updates.oneDownload {
+                                Updates.noticeFromMirror(app, nodeRelease.tag) { name, out, etag ->
+                                    RaySubscription.appFile(node, nodeRelease.tag, name, out, etag)
+                                }
                             }
                         }
                         onMainDispatcher { offerFromNode(node, nodeRelease, notice) }
