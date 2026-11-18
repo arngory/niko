@@ -11,6 +11,12 @@ on:
         description: Run Android lint (new issues beyond app/lint-baseline.xml fail the build)
         type: boolean
         default: false
+      snapshots:
+        description: >-
+          Compare Paparazzi's snapshots with the goldens, or record them when there are none (ci.yml). Off, the
+          unit tests draw them without comparing: a release is not held by pixels its commit's CI already checked
+        type: boolean
+        default: false
 
 # read-only: Gradle, its plugins and the dependencies run here; the caller can only narrow this
 permissions:
@@ -192,9 +198,12 @@ jobs:
         run: |
           echo "sdk.dir=${ANDROID_HOME}" > local.properties
           ./run init action gradle
-          # the unit tests, Paparazzi's among them: against the goldens in app/src/test/snapshots; with none there
-          # (deleted to take new ones) they are recorded, uploaded below and the job fails until they are committed
-          if compgen -G "app/src/test/snapshots/images/*.png" > /dev/null; then
+          # the unit tests, Paparazzi's among them: in ci.yml against the goldens in app/src/test/snapshots; with none
+          # there (deleted to take new ones) they are recorded, uploaded below and the job fails until they are
+          # committed. Without inputs.snapshots (release.yml) they are drawn, not compared, and never recorded
+          if [ "${{ inputs.snapshots }}" != "true" ]; then
+            tests=app:testOssReleaseUnitTest
+          elif compgen -G "app/src/test/snapshots/images/*.png" > /dev/null; then
             tests=app:verifyPaparazziOssRelease
           else
             tests=app:recordPaparazziOssRelease
