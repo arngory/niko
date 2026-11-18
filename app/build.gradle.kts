@@ -1,5 +1,7 @@
 @file:Suppress("UnstableApiUsage")
 
+import java.util.zip.ZipFile
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -117,4 +119,65 @@ dependencies {
     ksp("com.github.MatrixDev.Roomigrant:RoomigrantCompiler:0.3.4")
 
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.3")
+}
+
+// assets/licenses/components.json covers what the APK's code is built from besides the core: every module of the
+// release's runtime classpath and of library desugaring is named by a component's `gradle` patterns, and every pattern
+// still names one; every text a component cites is in assets/licenses/texts, and no other; a module whose Java
+// resources carry a NOTICE (section 4(d) of the Apache License: the APK's packaging leaves META-INF/NOTICE out) is in
+// a component's `notice_from`, whose texts quote it. The release's build runs it
+tasks.register("checkLicenses") {
+    group = "verification"
+    description = "Every runtime module of the APK under a component of assets/licenses/components.json"
+    val licenses = file("src/main/assets/licenses")
+    inputs.dir(licenses)
+    doLast {
+        @Suppress("UNCHECKED_CAST")
+        val components = (groovy.json.JsonSlurper().parse(licenses.resolve("components.json")) as Map<String, Any>)
+            .getValue("components") as List<Map<String, Any>>
+        fun strings(c: Map<String, Any>, key: String) = (c[key] as? List<*>).orEmpty().map { it as String }
+        fun matches(pattern: String, module: String) =
+            Regex(pattern.split("*").joinToString(".*") { Regex.escape(it) }).matches(module)
+
+        val runtime = configurations.getByName("ossReleaseRuntimeClasspath")
+        val modules = (listOf(runtime, configurations.getByName("coreLibraryDesugaring"))).flatMap { configuration ->
+            configuration.incoming.resolutionResult.allComponents.mapNotNull { it.id as? ModuleComponentIdentifier }
+        }.map { "${it.group}:${it.module}" }.toSortedSet()
+        val patterns = components.flatMap { c -> strings(c, "gradle").map { it to c["name"] } }
+        val problems = mutableListOf<String>()
+        modules.filter { m -> patterns.none { matches(it.first, m) } }
+            .forEach { problems += "$it: no component of components.json covers it" }
+        patterns.filter { p -> modules.none { matches(p.first, it) } }
+            .forEach { problems += "${it.second}: ${it.first} matches no runtime module" }
+
+        val cited = components.flatMap { strings(it, "texts") }.toSet()
+        val texts = licenses.resolve("texts").list().orEmpty().toSet()
+        (cited - texts).forEach { problems += "texts/$it: cited, not there" }
+        (texts - cited).forEach { problems += "texts/$it: cited by no component" }
+
+        // the Java resources the APK's packaging merges: a jar's own, an AAR's classes.jar
+        val javaRes = runtime.incoming.artifactView {
+            attributes { attribute(Attribute.of("artifactType", String::class.java), "android-java-res") }
+        }.artifacts
+        val noticed = components.flatMap { strings(it, "notice_from") }.toSet()
+        for (artifact in javaRes) {
+            val id = artifact.id.componentIdentifier as? ModuleComponentIdentifier ?: continue
+            val file = artifact.file
+            val carries = if (file.isDirectory) {
+                file.resolve("META-INF").listFiles().orEmpty().any { it.name.startsWith("NOTICE") }
+            } else {
+                ZipFile(file).use { zip ->
+                    zip.entries().asSequence().any { it.name.startsWith("META-INF/NOTICE") }
+                }
+            }
+            val module = "${id.group}:${id.module}"
+            if (carries && module !in noticed) problems += "$module carries META-INF/NOTICE: quote it in a text and " +
+                "name the module in that component's notice_from (and in NOTICE)"
+        }
+        noticed.filter { it !in modules }.forEach { problems += "notice_from $it: no such runtime module" }
+
+        if (problems.isNotEmpty()) throw GradleException("assets/licenses:\n  " + problems.joinToString("\n  "))
+        logger.lifecycle("assets/licenses: ${modules.size} modules under ${components.size} components, " +
+            "${texts.size} texts")
+    }
 }
