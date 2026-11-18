@@ -1083,4 +1083,9 @@
     <string name="licenses_part_other">Прочее</string>
     <string name="licenses_part_go">Модули Go ядра</string>
     <string name="licenses_site">Сайт</string>
+    <string name="insert_tab">Вставить табуляцию</string>
+    <string name="redo">Повторить</string>
+    <string name="format_config">Форматировать</string>
+    <string name="more_options">Ещё</string>
+    <string name="flashlight">Фонарик</string>
 </resources>

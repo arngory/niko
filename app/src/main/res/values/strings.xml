@@ -1156,4 +1156,9 @@
     <string name="licenses_part_other">Other</string>
     <string name="licenses_part_go">The core\'s Go modules</string>
     <string name="licenses_site">Website</string>
+    <string name="insert_tab">Insert a tab</string>
+    <string name="redo">Redo</string>
+    <string name="format_config">Format</string>
+    <string name="more_options">More options</string>
+    <string name="flashlight">Flashlight</string>
 </resources>
