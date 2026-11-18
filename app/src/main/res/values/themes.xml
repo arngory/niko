@@ -44,6 +44,7 @@
         <item name="tabRippleColor">@color/white</item>
         <item name="whiteOrTextPrimary">@color/white</item>
         <item name="barElevation">4dp</item>
+        <item name="barBackground">?colorPrimary</item>
 
         <item name="windowActionModeOverlay">true</item>
 
@@ -111,6 +112,7 @@
         <item name="tabRippleColor">@color/white</item>
         <item name="whiteOrTextPrimary">@color/white</item>
         <item name="barElevation">4dp</item>
+        <item name="barBackground">?colorPrimary</item>
 
         <item name="windowActionModeOverlay">true</item>
 
@@ -582,10 +584,13 @@
         <item name="colorControlActivated">@color/niko_ink</item>
         <item name="colorControlHighlight">@color/niko_surface_2</item>
         <item name="colorError">@color/niko_danger</item>
-        <item name="colorPrimary">@color/niko_surface_0</item>
+        <!-- colorPrimary stays the accent, ink: Material's fields (focused outline, hint), filled buttons, progress
+             indicators and the fast scroller take it. The bars fill with barBackground; the status bar with
+             colorPrimaryDark and colorPrimaryVariant -->
+        <item name="colorPrimary">@color/niko_ink</item>
         <item name="colorPrimaryDark">@color/niko_surface_0</item>
         <item name="colorPrimaryVariant">@color/niko_surface_0</item>
-        <item name="colorOnPrimary">@color/niko_ink</item>
+        <item name="colorOnPrimary">@color/niko_on_ink</item>
         <item name="colorAccent">@color/niko_ink</item>
         <item name="colorSecondary">@color/niko_ink</item>
         <item name="colorSecondaryVariant">@color/niko_ink_pressed</item>
@@ -610,6 +615,7 @@
         <item name="actionBarTheme">@style/ThemeOverlay.Niko.ActionBar.Neutral</item>
         <item name="whiteOrTextPrimary">@color/niko_ink</item>
         <item name="barElevation">0dp</item>
+        <item name="barBackground">@color/niko_surface_0</item>
         <!-- the group tabs as the window's header sections: the chosen one ink and 600, the others ink-2, no strip
              (ink and ink-2 differ less than 3:1, so the weight marks it too) -->
         <item name="tabStyle">@style/Widget.Niko.TabLayout</item>
@@ -639,10 +645,13 @@
         <item name="colorControlActivated">@color/niko_ink</item>
         <item name="colorControlHighlight">@color/niko_surface_2</item>
         <item name="colorError">@color/niko_danger</item>
-        <item name="colorPrimary">@color/niko_surface_0</item>
+        <!-- colorPrimary stays the accent, ink: Material's fields (focused outline, hint), filled buttons, progress
+             indicators and the fast scroller take it. The bars fill with barBackground; the status bar with
+             colorPrimaryDark and colorPrimaryVariant -->
+        <item name="colorPrimary">@color/niko_ink</item>
         <item name="colorPrimaryDark">@color/niko_surface_0</item>
         <item name="colorPrimaryVariant">@color/niko_surface_0</item>
-        <item name="colorOnPrimary">@color/niko_ink</item>
+        <item name="colorOnPrimary">@color/niko_on_ink</item>
         <item name="colorAccent">@color/niko_ink</item>
         <item name="colorSecondary">@color/niko_ink</item>
         <item name="colorSecondaryVariant">@color/niko_ink_pressed</item>
@@ -667,6 +676,7 @@
         <item name="actionBarTheme">@style/ThemeOverlay.Niko.ActionBar.Neutral</item>
         <item name="whiteOrTextPrimary">@color/niko_ink</item>
         <item name="barElevation">0dp</item>
+        <item name="barBackground">@color/niko_surface_0</item>
         <!-- the group tabs as the window's header sections: the chosen one ink and 600, the others ink-2, no strip
              (ink and ink-2 differ less than 3:1, so the weight marks it too) -->
         <item name="tabStyle">@style/Widget.Niko.TabLayout</item>
