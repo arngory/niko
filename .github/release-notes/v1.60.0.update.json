@@ -1,6 +1,7 @@
 {
   "v": 1,
   "mandatory": false,
+  "min_android": 29,
   "message": {
     "en": "Niko 1.60 needs Android 10 or newer. On Android 6–9 it does not install: stay on 1.59, which keeps working.",
     "ru": "Niko 1.60 работает на Android 10 и новее. На Android 6–9 она не установится: оставайтесь на 1.59, она работает как прежде."
