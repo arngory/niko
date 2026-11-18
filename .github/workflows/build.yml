@@ -192,9 +192,38 @@ jobs:
         run: |
           echo "sdk.dir=${ANDROID_HOME}" > local.properties
           ./run init action gradle
-          tasks="app:checkLicenses app:testOssReleaseUnitTest app:assembleOssRelease"
+          # the unit tests, Paparazzi's among them: against the goldens in app/src/test/snapshots; with none there
+          # (deleted to take new ones) they are recorded, uploaded below and the job fails until they are committed
+          if compgen -G "app/src/test/snapshots/images/*.png" > /dev/null; then
+            tests=app:verifyPaparazziOssRelease
+          else
+            tests=app:recordPaparazziOssRelease
+            echo "PAPARAZZI_RECORDED=1" >> "$GITHUB_ENV"
+          fi
+          tasks="app:checkLicenses $tests app:assembleOssRelease"
           [ "${{ inputs.lint }}" = "true" ] && tasks="$tasks app:lintOssRelease"
           ./gradlew --no-daemon $tasks
+
+      - name: Upload the snapshots' differences
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: paparazzi-failures
+          path: app/build/paparazzi/failures
+          if-no-files-found: ignore
+
+      - name: Upload the recorded snapshots
+        if: ${{ env.PAPARAZZI_RECORDED == '1' }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: paparazzi-goldens
+          path: app/src/test/snapshots
+
+      - name: Recorded snapshots to commit
+        if: ${{ env.PAPARAZZI_RECORDED == '1' }}
+        run: |
+          echo "::error::no goldens in app/src/test/snapshots: recorded into the artifact paparazzi-goldens, commit them"
+          exit 1
 
       - name: The licenses in each APK
         run: |

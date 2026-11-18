@@ -7,6 +7,7 @@ plugins {
     id("kotlin-android")
     id("com.google.devtools.ksp")
     id("kotlin-parcelize")
+    id("app.cash.paparazzi")
 }
 
 setupApp()
