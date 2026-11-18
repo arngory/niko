@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <lint>
+    <!-- minSdk 29 left version checks for older Android behind: removed in a follow-up -->
+    <issue id="ObsoleteSdkInt" severity="ignore" />
     <issue id="UnusedAttribute" severity="ignore" />
     <issue id="UnknownNullness" severity="ignore" />
     <issue id="DiscouragedPrivateApi" severity="ignore" />
