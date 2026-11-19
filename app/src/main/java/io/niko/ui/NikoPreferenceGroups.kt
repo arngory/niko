@@ -69,12 +69,25 @@ object NikoPreferenceGroups {
         private val path = Path()
         private val rect = RectF()
 
-        // a row's place in its group: whether a group title (or the list's edge) comes before it, after it
-        private fun place(rows: List<Preference>, position: Int): Pair<Boolean, Boolean>? {
-            val row = rows.getOrNull(position) ?: return null
-            if (row is PreferenceCategory) return null
-            val first = rows.getOrNull(position - 1).let { it == null || it is PreferenceCategory }
-            val last = rows.getOrNull(position + 1).let { it == null || it is PreferenceCategory }
+        /**
+         * A row's place in its group: whether a group title (or the list's edge) comes before it, after it. [rows] is
+         * checked against the adapter's own positions for the row and its neighbours: where the adapter lays the
+         * screen out otherwise (an expand button, a nested group that is not a category), those rows get no group
+         * rather than the wrong one.
+         */
+        private fun place(parent: RecyclerView, rows: List<Preference>, position: Int): Pair<Boolean, Boolean>? {
+            val adapter = parent.adapter ?: return null
+            val positions = adapter as? PreferenceGroup.PreferencePositionCallback ?: return null
+            val count = adapter.itemCount
+            // past the list's edge, or the preference the adapter shows there
+            fun matches(at: Int) = at !in 0 until count ||
+                rows.getOrNull(at)?.let { positions.getPreferenceAdapterPosition(it) == at } == true
+            if (position !in 0 until count || !matches(position - 1) || !matches(position) || !matches(position + 1)) {
+                return null
+            }
+            if (rows[position] is PreferenceCategory) return null
+            val first = position == 0 || rows[position - 1] is PreferenceCategory
+            val last = position == count - 1 || rows[position + 1] is PreferenceCategory
             return first to last
         }
 
@@ -84,7 +97,7 @@ object NikoPreferenceGroups {
             outRect.left = side
             outRect.right = side
             // a group's end: a little air before the next group's title
-            if (place(rows(screen()), position)?.second == true) outRect.bottom = gap
+            if (place(parent, rows(screen()), position)?.second == true) outRect.bottom = gap
         }
 
         override fun onDraw(canvas: Canvas, parent: RecyclerView, state: RecyclerView.State) {
@@ -93,7 +106,7 @@ object NikoPreferenceGroups {
                 val child = parent.getChildAt(i)
                 val position = parent.getChildAdapterPosition(child)
                 if (position == RecyclerView.NO_POSITION) continue
-                val (first, last) = place(rows, position) ?: continue
+                val (first, last) = place(parent, rows, position) ?: continue
                 val top = child.top + child.translationY
                 val bottom = child.bottom + child.translationY
                 rect.set(child.left.toFloat(), top, child.right.toFloat(), bottom)
