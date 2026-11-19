@@ -86,7 +86,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-ADD-02 | Поле «Вставить» | — | UI | есть | есть: импорт из буфера | нет |
 | D-ADD-03 | Распознано: приглашение, подписка или ссылка профиля | `NikoService.Import` | Kotlin: `raycontrol/RayImport.kt`, `fmt/UniversalFmt.kt`, парсеры `fmt/*`, `group/RawUpdater.kt` | есть | есть | нет |
 | D-ADD-04 | Из буфера | — | UI, дальше D-ADD-03 | есть | есть | нет |
-| D-ADD-05 | QR из файла или снимка экрана | — | нет; на Android камера (`ui/ScannerActivity.kt`) | есть | есть: QR из картинки (`ui/ScannerActivity.kt`) | нет |
+| D-ADD-05 | QR из файла или снимка экрана | — | Kotlin: `ui/ScannerActivity.kt`, QR с камеры и из картинки | есть | есть: QR из картинки (`ui/ScannerActivity.kt`) | нет |
 | D-ADD-06 | PIN приглашения, 6 цифр | `NikoService.Register` | Kotlin + Go: `raycontrol/RayImport.kt`, `libcore/rayapi` | есть | есть | нет |
 | D-ADD-07 | Что будет добавлено | `NikoService.Import` (dry run) | Kotlin: `ui/ImportReview.kt` | расходится: подсказка внизу обрезана кнопкой | есть | нет |
 | D-ADD-08 | Добавить | `NikoService.Register` / `Import` | Kotlin + Go | есть | есть | нет |
