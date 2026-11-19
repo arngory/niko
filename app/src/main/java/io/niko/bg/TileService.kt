@@ -6,7 +6,6 @@ import android.content.Intent
 import android.graphics.drawable.Icon
 import android.os.Build
 import android.service.quicksettings.Tile
-import androidx.annotation.RequiresApi
 import io.niko.Key
 import io.niko.R
 import io.niko.SagerNet
@@ -16,7 +15,6 @@ import io.niko.database.SagerDatabase
 import io.niko.ui.VpnRequestActivity
 import android.service.quicksettings.TileService as BaseTileService
 
-@RequiresApi(24)
 class TileService : BaseTileService(), SagerConnection.Callback {
     private val iconIdle by lazy { Icon.createWithResource(this, R.drawable.ic_service_idle) }
     private val iconBusy by lazy { Icon.createWithResource(this, R.drawable.ic_service_busy) }

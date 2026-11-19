@@ -1,7 +1,6 @@
 package io.niko.ui
 
 import android.Manifest
-import android.os.Build
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
@@ -208,7 +207,7 @@ private fun Fragment.directSection(density: Float): DirectSection {
         val activity = activity ?: return@setOnClickListener
         // the background permission is asked apart, after the foreground one (Android 11+ sends to the settings)
         val asked = if (!RayLanDirect.locationGranted()) arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
-        else if (Build.VERSION.SDK_INT >= 29) arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION) else return@setOnClickListener
+        else arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
         ActivityCompat.requestPermissions(activity, asked, 0)
     }
     trust.setOnClickListener {

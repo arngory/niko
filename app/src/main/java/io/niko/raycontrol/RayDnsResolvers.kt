@@ -1,6 +1,5 @@
 package io.niko.raycontrol
 
-import android.os.Build
 import android.telephony.TelephonyManager
 import androidx.core.content.getSystemService
 import com.google.gson.JsonObject
@@ -70,9 +69,7 @@ object RayDnsResolvers {
         val link = SagerNet.underlyingNetwork?.let { SagerNet.connectivity.getLinkProperties(it) } ?: return emptyList()
         val out = link.dnsServers.filterNot { it.isLinkLocalAddress }.mapNotNull { it.hostAddress?.substringBefore('%') }
             .map { Candidate(if (':' in it) "[$it]" else it, "net") }.toMutableList()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            link.privateDnsServerName?.takeIf { it.isNotBlank() }?.let { out += Candidate("tls://$it", "dot") }
-        }
+        link.privateDnsServerName?.takeIf { it.isNotBlank() }?.let { out += Candidate("tls://$it", "dot") }
         return out
     }
 
