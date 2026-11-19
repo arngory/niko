@@ -42,6 +42,38 @@ object RayApi {
     /** The tries an invite has left when Register refused for its PIN (permission_denied, api-v1.md §4), or null. */
     fun pinLeft(e: Throwable): Int? = e.message?.let { PIN_LEFT.find(it) }?.groupValues?.get(1)?.toIntOrNull()
 
+    // the core's message for Register refused an integration's invite (rayapi.Error, its InviteRole detail)
+    private val INVITE_ROLE = Regex("raycontrol api: failed_precondition: invite role ([a-z_]+)")
+
+    /**
+     * The role of an integration's invite that the node refused this app, leaving it unused (raycontrol#56, a
+     * failed_precondition with an InviteRole detail), or null.
+     */
+    fun inviteRole(e: Throwable): String? = e.message?.let { INVITE_ROLE.find(it) }?.groupValues?.get(1)
+
+    /** The roles of an app's device; others (billing, support: integrations-v1) are for a bot, with no subscription. */
+    val APP_ROLES = setOf("user", "admin")
+
+    /** A registration or package that is not for this app: nothing of it is kept. */
+    sealed class NotForApp(message: String) : Exception(message)
+
+    /** A role that is not an app's ([APP_ROLES]): a bot's (integrations-v1). */
+    class IntegrationRole(val role: String) : NotForApp("raycontrol: the invite is for an integration ($role), not for an app")
+
+    /** A package with no subscription for a node whose kept package has one: a bot's from a node before roles. */
+    class NoSubscription : NotForApp("raycontrol: the package has no subscription, and the one kept for its node has")
+
+    /**
+     * The role of a registration's [answer]; none or a blank one (a node before roles) is user. One that is not an
+     * app's throws [IntegrationRole] before anything is kept: such a package has no subscription, and kept it would
+     * replace this device's own registration at the same node.
+     */
+    fun appRole(answer: JsonObject): String {
+        val role = roleOf(answer) ?: "user"
+        if (role !in APP_ROLES) throw IntegrationRole(role)
+        return role
+    }
+
     // the node's refusal of a switch with a grace while the previous key is still in its own (raycontrol v0.24.0,
     // failed_precondition): "... its previous seal key is still accepted until 2026-11-10T07:14:05Z (...)"
     private val GRACE_UNTIL = Regex("still accepted until (\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})Z")
@@ -144,12 +176,26 @@ object RayApi {
         // (api-v1 §4.1), and the right PIN after it must come with the same key. A key of no further use (the invite
         // used by another, expired, revoked) goes with its window, which runs from this try
         val answer = JsonParser.parseString(Libcore.raycontrolRegister(request.toString())).asJsonObject
+        val role = try {
+            appRole(answer)
+        } catch (e: IntegrationRole) {
+            // the invite is used: its key is of no further use
+            forgetPending(invite.inviteId)
+            throw e
+        }
         val registration = Rcdev1.parse(answer.get("bundle").asString)
         // the channel is pinned to the invite's node; its package may name a new address (a moved node): that is kept
         if (registration.spa.nodeId != invite.spa.nodeId) {
             forgetPending(invite.inviteId)
             throw Exception("raycontrol invite for ${invite.host}: the node answered with a package of another node; " +
                 "the invite is used: ask the administrator to revoke this device")
+        }
+        // the package itself, as RayNodes.import will check it: refused, the invite is used all the same
+        try {
+            RayNodes.checkForApp(registration, RayNodes.get(registration.spa.nodeId))
+        } catch (e: NotForApp) {
+            forgetPending(invite.inviteId)
+            throw e
         }
         val identity = answer.getAsJsonObject("identity")
         val key = identity.get("key").asString.decodeBase64()?.toByteArray()
@@ -164,7 +210,7 @@ object RayApi {
         )
         // forgotten once the node is kept: until then a retry sends the same key and gets the same package
         forgetPending(invite.inviteId)
-        return node to (answer.get("role")?.asString ?: "user")
+        return node to role
     }
 
     // how long a kept registration key is sent again, from its last try. The node answers a retry the same for 15 min

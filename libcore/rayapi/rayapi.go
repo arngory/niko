@@ -87,13 +87,20 @@ type Error struct {
 	// PinLeft: the tries an invite has left (api-v1.md §4, the PinTries
 	// detail of Register's permission_denied); nil without one
 	PinLeft *int `json:"-"`
+	// InviteRole: the role of an invite for an integration (billing, support) that the node refuses this app,
+	// unused (api-v1.md §4, the InviteRole detail of Register's failed_precondition); empty without one
+	InviteRole string `json:"-"`
 }
 
-// The message the app reads: the code first (RayApi.code), then the PIN tries if any (RayApi.pinLeft).
+// The message the app reads: the code first (RayApi.code), then the PIN tries if any (RayApi.pinLeft), the role of
+// an integration's invite if any (RayApi.inviteRole).
 func (e *Error) Error() string {
 	s := "raycontrol api: " + e.Code
 	if e.PinLeft != nil {
 		s += ": pin tries left " + strconv.Itoa(*e.PinLeft)
+	}
+	if e.InviteRole != "" {
+		s += ": invite role " + e.InviteRole
 	}
 	if e.Message != "" {
 		s += ": " + e.Message
@@ -121,6 +128,44 @@ func (e *Error) pinTries() *int {
 		}
 	}
 	return nil
+}
+
+// inviteRole reads an InviteRole detail (message InviteRole { string role = 1; }): its value, else the debug JSON
+// connect may add; "" without one. Only a plain word is taken: the app shows it.
+func (e *Error) inviteRole() string {
+	for _, d := range e.Details {
+		if strings.TrimPrefix(d.Type, "type.googleapis.com/") != "raycontrol.device.v1.InviteRole" {
+			continue
+		}
+		role := ""
+		if raw, ok := decodeBase64(d.Value); ok {
+			role, _ = protoStringField1(raw)
+		}
+		if role == "" {
+			var debug struct {
+				Role string `json:"role"`
+			}
+			if json.Unmarshal(d.Debug, &debug) == nil {
+				role = debug.Role
+			}
+		}
+		if plainWord(role) {
+			return role
+		}
+	}
+	return ""
+}
+
+func plainWord(s string) bool {
+	if s == "" || len(s) > 32 {
+		return false
+	}
+	for _, c := range s {
+		if (c < 'a' || c > 'z') && c != '_' {
+			return false
+		}
+	}
+	return true
 }
 
 // decodeBase64 takes the standard or the URL alphabet, with or without padding (connect's details).
@@ -156,6 +201,33 @@ func protoInt32Field1(raw []byte) (int, bool) {
 		n = protowire.ConsumeFieldValue(number, wire, raw)
 		if n < 0 {
 			return 0, false
+		}
+		raw = raw[n:]
+	}
+	return value, true
+}
+
+// protoStringField1 reads field 1 of a message as a string (wire type bytes); "" when absent.
+func protoStringField1(raw []byte) (string, bool) {
+	value := ""
+	for len(raw) > 0 {
+		number, wire, n := protowire.ConsumeTag(raw)
+		if n < 0 {
+			return "", false
+		}
+		raw = raw[n:]
+		if number == 1 && wire == protowire.BytesType {
+			v, n := protowire.ConsumeBytes(raw)
+			if n < 0 {
+				return "", false
+			}
+			value = string(v)
+			raw = raw[n:]
+			continue
+		}
+		n = protowire.ConsumeFieldValue(number, wire, raw)
+		if n < 0 {
+			return "", false
 		}
 		raw = raw[n:]
 	}
@@ -401,6 +473,7 @@ func (e *Endpoint) post(ctx context.Context, client *http.Client, method string,
 			apiErr = &Error{Code: "http_" + strconv.Itoa(response.StatusCode)}
 		}
 		apiErr.PinLeft = apiErr.pinTries()
+		apiErr.InviteRole = apiErr.inviteRole()
 		return nil, apiErr
 	}
 	return answer, nil

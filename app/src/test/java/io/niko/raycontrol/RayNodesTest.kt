@@ -22,6 +22,25 @@ class RayNodesTest {
         pastNames = mapOf("n4k2.example.com" to 1_700_000_000, "203.0.113.2" to 1_700_000_000),
     )
 
+    // a bot's package (integrations-v1) is not kept, by the role it names or, from a node before roles were named,
+    // by the subscription it lacks where the node's kept package has one: it would replace this device's own
+    @Test
+    fun keepsOnlyAnAppsPackage() {
+        val sub = RaySubscriptionInfo(443, "11".repeat(32), "22".repeat(32), "33".repeat(32))
+        val app = RayRegistration(node.host, spa, "0123456789abcdef", "44".repeat(32), node.services, sub)
+        RayNodes.checkForApp(app, null)
+        RayNodes.checkForApp(app, node.copy(subscription = sub))
+        RayNodes.checkForApp(app.copy(role = "admin"), node.copy(subscription = sub))
+        for (role in listOf("billing", "support")) {
+            val refused = runCatching { RayNodes.checkForApp(app.copy(role = role), null) }.exceptionOrNull()
+            assertTrue(refused is RayApi.IntegrationRole && refused.role == role)
+        }
+        val bare = app.copy(subscription = null)
+        RayNodes.checkForApp(bare, null)
+        RayNodes.checkForApp(bare, node.copy(subscription = null))
+        assertTrue(runCatching { RayNodes.checkForApp(bare, node.copy(subscription = sub)) }.exceptionOrNull() is RayApi.NoSubscription)
+    }
+
     // a fake QUIC Initial must not name anything the node's front serves on UDP 443: the names of every line the
     // subscription carries, a rotation's next name with the current one, whichever of the two the profile holds
     @Test

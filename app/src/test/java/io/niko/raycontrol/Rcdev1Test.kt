@@ -4,6 +4,7 @@ import com.google.gson.JsonParser
 import okio.ByteString.Companion.encodeUtf8
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -22,6 +23,17 @@ class Rcdev1Test {
     """.trimIndent()
 
     private fun pack(text: String) = Rcdev1.PREFIX + text.encodeUtf8().base64Url().trimEnd('=')
+
+    // a package names its device's role (integrations-v1): admin or a bot's; a user's names none
+    @Test
+    fun parsesRole() {
+        assertNull(Rcdev1.parse(pack(json)).role)
+        val device = "\"device_id\": \"0123456789abcdef\","
+        assertEquals("billing", Rcdev1.parse(pack(json.replace(device, "$device \"role\": \"billing\","))).role)
+        assertNull(Rcdev1.parse(pack(json.replace(device, "$device \"role\": \" \","))).role)
+        // any value as text, as a registration's answer is read
+        assertEquals("2", Rcdev1.parse(pack(json.replace(device, "$device \"role\": 2,"))).role)
+    }
 
     @Test
     fun parsesRegistration() {
