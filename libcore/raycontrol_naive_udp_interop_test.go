@@ -194,7 +194,7 @@ func TestRaycontrolNaiveUDP(t *testing.T) {
 			tlsOptions["certificate_public_key_sha256"] = pins
 		}
 		return map[string]any{
-			"type": "naive", "tag": "naive", "server": u.Hostname(), "server_port": port,
+			"type": "naive", "tag": "naive", "server": linkServer(t, u), "server_port": port,
 			"username": u.User.Username(), "password": password, "tls": tlsOptions,
 			"udp_over_tcp": map[string]any{"enabled": true, "version": 2},
 			"udp_datagram": datagrams, "udp_datagram_allowed": allowed,

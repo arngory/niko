@@ -60,7 +60,15 @@ func naiveSameBut(t *testing.T, a, b string) error {
 	if err != nil {
 		return err
 	}
-	if ua.Scheme != ub.Scheme || ua.Host != ub.Host || ua.User.Username() != ub.User.Username() {
+	// by name (names-v1, raycontrol v0.34.0) a line's host is its own sni, which the rotation changes: the address
+	// stays, in niko-ip; by address the host is the same
+	hostOf := func(u *url.URL) string {
+		if u.Query().Get("niko-ip") != "" && strings.EqualFold(u.Hostname(), u.Query().Get("sni")) {
+			return "sni:" + u.Port()
+		}
+		return u.Host
+	}
+	if ua.Scheme != ub.Scheme || hostOf(ua) != hostOf(ub) || ua.User.Username() != ub.User.Username() {
 		return fmt.Errorf("%s://%s@%s and %s://%s@%s", ua.Scheme, ua.User.Username(), ua.Host, ub.Scheme, ub.User.Username(), ub.Host)
 	}
 	qa, qb := ua.Query(), ub.Query()
@@ -206,7 +214,7 @@ func TestRaycontrolNaiveSNI(t *testing.T) {
 			"log":      map[string]any{"level": "warn"},
 			"inbounds": []any{map[string]any{"type": "mixed", "tag": "in", "listen": "127.0.0.1", "listen_port": localPort}},
 			"outbounds": []any{map[string]any{
-				"type": "naive", "tag": "naive", "server": u.Hostname(), "server_port": port,
+				"type": "naive", "tag": "naive", "server": linkServer(t, u), "server_port": port,
 				"username": u.User.Username(), "password": password, "quic": u.Scheme == "naive+quic", "tls": tlsOptions,
 			}},
 			"route": map[string]any{"final": "naive"},

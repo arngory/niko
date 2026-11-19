@@ -658,6 +658,11 @@ func profileConfig(t *testing.T, link, node, resolver, ca, deviceKey string, dow
 	}
 	q := u.Query()
 	port, _ := strconv.Atoi(u.Port())
+	// names-v1 (raycontrol v0.34.0): a link by the node's name or a service's carries the node's addresses in
+	// niko-ip. The stand has no DNS for its names, so the profile dials the first address, as the app's knock does
+	// when the name does not resolve; the name stays the TLS name where it was one
+	// (a Yggdrasil line keeps its mesh address: its niko-ygg peer is what goes by name)
+	server := linkServer(t, u)
 	var endpoints, extra []any
 	var outbound map[string]any
 	switch {
@@ -684,7 +689,7 @@ func profileConfig(t *testing.T, link, node, resolver, ca, deviceKey string, dow
 			tls["certificate_path"] = ca
 		}
 		outbound = map[string]any{
-			"type": "hysteria2", "server": u.Hostname(), "server_port": port, "password": u.User.Username(),
+			"type": "hysteria2", "server": server, "server_port": port, "password": u.User.Username(),
 			"up_mbps": 20, "down_mbps": downMbps, "tls": tls,
 		}
 		if q.Get("obfs") != "" {
@@ -693,7 +698,7 @@ func profileConfig(t *testing.T, link, node, resolver, ca, deviceKey string, dow
 	case u.Scheme == "vless" && q.Get("security") == "reality":
 		kind = "reality"
 		outbound = map[string]any{
-			"type": "vless", "server": u.Hostname(), "server_port": port, "uuid": u.User.Username(),
+			"type": "vless", "server": server, "server_port": port, "uuid": u.User.Username(),
 			"flow": q.Get("flow"), "encryption": q.Get("encryption"), "packet_encoding": "",
 			"tls": map[string]any{
 				"enabled": true, "server_name": q.Get("sni"),
@@ -775,7 +780,7 @@ func profileConfig(t *testing.T, link, node, resolver, ca, deviceKey string, dow
 			tunnel["tag"] = "tunnel"
 			extra = append(extra, tunnel)
 			outbound = map[string]any{
-				"type": "vless", "server": u.Hostname(), "server_port": port, "uuid": u.User.Username(),
+				"type": "vless", "server": server, "server_port": port, "uuid": u.User.Username(),
 				"encryption": q.Get("encryption"), "detour": "tunnel",
 			}
 		}
@@ -789,10 +794,13 @@ func profileConfig(t *testing.T, link, node, resolver, ca, deviceKey string, dow
 		if err != nil {
 			t.Fatal(err)
 		}
-		// raycontrol v0.19.1: the peer is dialled at the node's address, the service's name only its TLS name; a
-		// name here would have to resolve and the app's knock would not reach it (the app dials the node either way,
-		// yggPeerAtNode, but an older app does not)
-		if peer.Hostname() != node || peer.Query().Get("sni") == "" {
+		// raycontrol v0.19.1: the peer is dialled at the node's address, the service's name only its TLS name. By
+		// name (names-v1) it is the service's name, which the app's knock resolves to the node's addresses
+		if q.Get("niko-ip") != "" {
+			if net.ParseIP(peer.Hostname()) != nil || peer.Query().Get("sni") == "" {
+				t.Errorf("the Yggdrasil peer by name %s: want the service's name with it as sni", peer.Redacted())
+			}
+		} else if peer.Hostname() != node || peer.Query().Get("sni") == "" {
 			t.Errorf("the Yggdrasil peer %s: want the node's address %s with its name as sni", peer.Redacted(), node)
 		}
 		peer.Host = net.JoinHostPort(node, peer.Port())
@@ -818,6 +826,21 @@ func profileConfig(t *testing.T, link, node, resolver, ca, deviceKey string, dow
 	}
 	raw, _ := json.Marshal(c)
 	return kind, string(raw)
+}
+
+// linkServer is the address a profile of the stand dials for link u: its host, or by name (names-v1, raycontrol
+// v0.34.0) the first of the node's addresses in niko-ip, as the app's knock takes when the name does not resolve: the
+// stand has no DNS for its names. The name stays the profile's TLS name (sni).
+func linkServer(t *testing.T, u *url.URL) string {
+	t.Helper()
+	server := u.Hostname()
+	if ips := u.Query().Get("niko-ip"); ips != "" && net.ParseIP(server) == nil {
+		server = strings.Split(ips, ",")[0]
+		if net.ParseIP(server) == nil {
+			t.Fatalf("niko-ip %q", ips)
+		}
+	}
+	return server
 }
 
 // probeThrough measures the channel through instance's tunnel at the probe name as the app does
