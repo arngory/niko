@@ -112,6 +112,8 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textAppearance="@style/TextAppearance.Niko.Code"
+                    android:fontFamily="@font/geist_mono"
+                    app:fontFamily="@font/geist_mono"
                     android:textColor="?attr/accentOrTextSecondary" />
 
                 <TextView
