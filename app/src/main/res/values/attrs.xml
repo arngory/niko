@@ -43,4 +43,6 @@
     <attr name="nikoTonalButtonStyle" format="reference" />
     <!-- a chip that is on or off (show the system's apps) -->
     <attr name="nikoFilterChipStyle" format="reference" />
+    <!-- a tool's Start (STUN): Niko's tonal button, the colour themes' borderless one -->
+    <attr name="nikoToolButtonStyle" format="reference" />
 </resources>

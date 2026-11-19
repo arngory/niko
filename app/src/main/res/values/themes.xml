@@ -68,6 +68,7 @@
         <item name="chipStyle">@style/Widget.MaterialComponents.Chip.Choice.SagerNet</item>
         <item name="nikoFilterChipStyle">@style/Widget.MaterialComponents.Chip.Filter</item>
         <item name="nikoTonalButtonStyle">@style/Widget.SagerNet.Button.Colored</item>
+        <item name="nikoToolButtonStyle">@style/Widget.SagerNet.Button.Tool</item>
         <item name="borderlessButtonStyle">@style/Widget.SagerNet.Button.Borderless</item>
 
         <item name="itemShapeAppearance">
@@ -152,6 +153,7 @@
         <item name="chipStyle">@style/Widget.MaterialComponents.Chip.Choice.SagerNet</item>
         <item name="nikoFilterChipStyle">@style/Widget.MaterialComponents.Chip.Filter</item>
         <item name="nikoTonalButtonStyle">@style/Widget.SagerNet.Button.Colored</item>
+        <item name="nikoToolButtonStyle">@style/Widget.SagerNet.Button.Tool</item>
         <item name="borderlessButtonStyle">@style/Widget.SagerNet.Button.Borderless</item>
 
         <item name="itemShapeAppearance">
@@ -701,6 +703,7 @@
         <!-- buttons and chips as capsules (reskin step 2, niko_controls.xml) -->
         <item name="materialButtonStyle">@style/Widget.Niko.Button</item>
         <item name="nikoTonalButtonStyle">@style/Widget.Niko.Button.Tonal</item>
+        <item name="nikoToolButtonStyle">@style/Widget.Niko.Button.Tonal</item>
         <item name="borderlessButtonStyle">@style/Widget.Niko.Button.Ghost</item>
         <item name="chipStyle">@style/Widget.Niko.Chip</item>
         <item name="nikoFilterChipStyle">@style/Widget.Niko.Chip.Filter</item>
@@ -791,6 +794,7 @@
         <!-- buttons and chips as capsules (reskin step 2, niko_controls.xml) -->
         <item name="materialButtonStyle">@style/Widget.Niko.Button</item>
         <item name="nikoTonalButtonStyle">@style/Widget.Niko.Button.Tonal</item>
+        <item name="nikoToolButtonStyle">@style/Widget.Niko.Button.Tonal</item>
         <item name="borderlessButtonStyle">@style/Widget.Niko.Button.Ghost</item>
         <item name="chipStyle">@style/Widget.Niko.Chip</item>
         <item name="nikoFilterChipStyle">@style/Widget.Niko.Chip.Filter</item>

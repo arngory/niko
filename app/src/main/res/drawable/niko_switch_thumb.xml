@@ -1,12 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- the thumb: a 20dp circle inside the 32dp track's height, 6dp from its edge -->
+<!-- the thumb: a 20dp circle in the middle of the 32dp track's height. Its width is the circle's: the switch is
+     max(switchMinWidth, 2 × thumb + the track's padding) wide, 52dp, and the thumb travels 20dp, 6dp from each end -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:width="32dp" android:height="32dp">
-        <shape android:shape="rectangle">
-            <solid android:color="@android:color/transparent" />
-        </shape>
-    </item>
-    <item android:bottom="6dp" android:left="6dp" android:right="6dp" android:top="6dp">
+    <item android:bottom="6dp" android:top="6dp">
         <shape android:shape="oval">
             <size android:width="20dp" android:height="20dp" />
             <solid android:color="@color/niko_switch_thumb" />
