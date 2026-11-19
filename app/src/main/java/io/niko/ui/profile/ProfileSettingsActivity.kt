@@ -42,6 +42,7 @@ import io.niko.fmt.parseKnockSequence
 import io.niko.ktx.*
 import io.niko.ui.ThemedActivity
 import io.niko.widget.ListListener
+import io.niko.ui.NikoPreferenceGroups
 import kotlinx.parcelize.Parcelize
 import kotlin.properties.Delegates
 
@@ -414,6 +415,7 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
             super.onViewCreated(view, savedInstanceState)
 
             ViewCompat.setOnApplyWindowInsetsListener(listView, ListListener)
+            NikoPreferenceGroups.install(this)
 
             activity?.apply {
                 viewCreated(view, savedInstanceState)

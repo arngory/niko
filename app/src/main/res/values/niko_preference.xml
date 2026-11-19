@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The settings in the Niko look (reskin step 2, D-SET): rows in groups of surface-1 (NikoPreferenceGroups), a row's
+     title body and its summary body-sm in ink-2, a group's title a label (mono, capitals) in ink-2; switches as
+     capsules of ink; a dropdown's list on surface-1 with a hairline. -->
+<resources>
+
+    <style name="PreferenceThemeOverlay.Niko" parent="PreferenceThemeOverlay">
+        <item name="android:textAppearanceListItem">@style/TextAppearance.Niko.Body</item>
+        <item name="android:textAppearanceListItemSecondary">@style/TextAppearance.Niko.BodySm</item>
+        <item name="preferenceCategoryTitleTextAppearance">@style/TextAppearance.Niko.Label</item>
+        <item name="preferenceCategoryTitleTextColor">@color/niko_ink_2</item>
+        <!-- a row's padding inside its group: space-4 -->
+        <item name="android:listPreferredItemPaddingStart">@dimen/niko_space_4</item>
+        <item name="android:listPreferredItemPaddingEnd">@dimen/niko_space_4</item>
+        <item name="android:listPreferredItemPaddingLeft">@dimen/niko_space_4</item>
+        <item name="android:listPreferredItemPaddingRight">@dimen/niko_space_4</item>
+        <item name="android:spinnerStyle">@style/Widget.Niko.Spinner</item>
+    </style>
+
+    <!-- SwitchPreference's (android.widget.Switch) -->
+    <style name="Widget.Niko.Switch" parent="@android:style/Widget.Material.CompoundButton.Switch">
+        <item name="android:thumb">@drawable/niko_switch_thumb</item>
+        <item name="android:track">@drawable/niko_switch_track</item>
+        <item name="android:switchMinWidth">52dp</item>
+        <item name="android:thumbTint">@null</item>
+        <item name="android:trackTint">@null</item>
+        <item name="android:background">@null</item>
+    </style>
+
+    <!-- the lists' switches (SwitchCompat: routes, apps) -->
+    <style name="Widget.Niko.SwitchCompat" parent="Widget.AppCompat.CompoundButton.Switch">
+        <item name="android:thumb">@drawable/niko_switch_thumb</item>
+        <item name="track">@drawable/niko_switch_track</item>
+        <item name="switchMinWidth">52dp</item>
+        <item name="showText">false</item>
+    </style>
+
+    <style name="Widget.Niko.Spinner" parent="Widget.AppCompat.Spinner">
+        <item name="android:popupBackground">@drawable/niko_popup</item>
+        <item name="android:popupElevation">0dp</item>
+    </style>
+
+</resources>

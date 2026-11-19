@@ -37,6 +37,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         super.onViewCreated(view, savedInstanceState)
 
         listView.layoutManager = FixedLinearLayoutManager(listView)
+        NikoPreferenceGroups.install(this)
     }
 
     private val reloadListener = Preference.OnPreferenceChangeListener { _, _ ->

@@ -333,6 +333,7 @@ class GroupSettingsActivity(
             super.onViewCreated(view, savedInstanceState)
 
             ViewCompat.setOnApplyWindowInsetsListener(listView, ListListener)
+            NikoPreferenceGroups.install(this)
         }
 
         override fun onOptionsItemSelected(item: MenuItem) = when (item.itemId) {

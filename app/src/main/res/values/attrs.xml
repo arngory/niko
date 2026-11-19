@@ -36,4 +36,7 @@
     <!-- the drawer's fill, and the icons of its rows not chosen -->
     <attr name="drawerBackground" format="reference|color" />
     <attr name="drawerIconColor" format="color" />
+    <!-- the settings' rows in groups: surface-1 containers of radius-md with hairlines between rows (the Niko theme,
+         NikoPreferenceGroups); off in the colour themes -->
+    <attr name="nikoGroupedPreferences" format="boolean" />
 </resources>

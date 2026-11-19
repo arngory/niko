@@ -692,6 +692,11 @@
         <item name="snackbarStyle">@style/Widget.Niko.Snackbar</item>
         <item name="snackbarTextViewStyle">@style/Widget.Niko.Snackbar.TextView</item>
         <item name="snackbarButtonStyle">@style/Widget.Niko.Snackbar.Button</item>
+        <!-- the settings and the switches (reskin step 2, niko_preference.xml) -->
+        <item name="preferenceTheme">@style/PreferenceThemeOverlay.Niko</item>
+        <item name="nikoGroupedPreferences">true</item>
+        <item name="android:switchStyle">@style/Widget.Niko.Switch</item>
+        <item name="switchStyle">@style/Widget.Niko.SwitchCompat</item>
     </style>
 
     <style name="Theme.SagerNet.Dialog.Niko">
