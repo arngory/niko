@@ -60,7 +60,7 @@ class NikoSnapshotTest(private val mode: String) {
         layoutParams = ViewGroup.LayoutParams(resources.displayMetrics.widthPixels, ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 
-    // as ktx's getColorAttr: that file's class does not load off Android (it looks up Socket's hidden methods)
+    // as ktx's getColorAttr, kept here so the snapshots do not load ktx's Utils (it reaches the app's DataStore and core)
     private fun View.colorAttr(attr: Int): Int =
         context.getColor(TypedValue().also { context.theme.resolveAttribute(attr, it, true) }.resourceId)
 
