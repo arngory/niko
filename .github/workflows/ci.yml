@@ -30,6 +30,7 @@ jobs:
     outputs:
       code: ${{ steps.diff.outputs.code }}
       sources: ${{ steps.diff.outputs.sources }}
+      golden: ${{ steps.diff.outputs.golden }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -42,16 +43,22 @@ jobs:
         run: |
           code=true
           sources=false
+          golden=true
           if [ -n "$BASE" ]; then
             rest=$(git diff --name-only "$BASE...$HEAD" | grep -vE '\.md$|^desktop/' || true)
             [ -n "$rest" ] || code=false
             # the release's sources archive: its script, the release workflow, or what it fetches by a pin
             git diff --name-only "$BASE...$HEAD" | grep -qxE '\.github/scripts/release-sources\.sh|\.github/workflows/release\.yml|buildScript/lib/core/get_source_env\.sh|buildScript/lib/slipstream/env\.sh|libcore/go\.(mod|sum)' &&
               sources=true
+            # the golden fixtures and what makes or reads them (docs/design/desktop-stage3.md §5): the app's parsers
+            # and what they stand on, the stores and subscriptions to come, libcore, the pinned core
+            grep -qE '^(shared/golden/|app/src/main/java/io/niko/(fmt|raycontrol|group|database|ktx|utils)/|app/src/test/java/io/niko/golden/|app/build\.gradle\.kts$|libcore/|buildScript/lib/core/get_source_env\.sh$|\.github/workflows/ci\.yml$)' <<< "$rest" ||
+              golden=false
           fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
           echo "sources=$sources" >> "$GITHUB_OUTPUT"
-          echo "code changed: $code; the sources archive's inputs changed: $sources"
+          echo "golden=$golden" >> "$GITHUB_OUTPUT"
+          echo "code changed: $code; the sources archive's inputs changed: $sources; the golden fixtures' inputs changed: $golden"
 
   # no secrets: the release keys live in the environment release, and a CI build of any branch never sees them
   build:
@@ -61,6 +68,69 @@ jobs:
     with:
       lint: true
       snapshots: true
+
+  # the golden fixtures (docs/design/desktop-stage3.md §5): the app's parsers write and check shared/golden
+  # (io.niko.golden), libcore/nikofmt reads the same files and must give the same beans. A link added without its .json
+  # gets it from Kotlin here, uploaded as the artifact golden-links, and the job fails until it is committed (as
+  # build.yml records missing snapshots). After the build for the libcore.aar the unit tests compile against, and also
+  # when the build failed: its unit tests take the golden ones too, and fail there on a missing fixture as well
+  golden:
+    needs: [changes, build]
+    if: ${{ !cancelled() && needs.changes.outputs.golden == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - name: Download LibCore
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: libcore
+          path: app/libs
+      - name: Install Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: libcore/go.mod
+          cache: false
+      - name: The app's parsers write and check the fixtures
+        run: |
+          echo "sdk.dir=${ANDROID_HOME}" > local.properties
+          ./gradlew --no-daemon app:testOssReleaseUnitTest --tests 'io.niko.golden.*'
+      - name: Go reads the same fixtures
+        # also after Kotlin failed: against the fixtures it wrote, or the committed ones
+        if: ${{ !cancelled() }}
+        working-directory: libcore
+        run: go test -count=1 ./nikofmt/...
+      - name: The fixtures Kotlin wrote
+        id: written
+        if: ${{ !cancelled() }}
+        run: |
+          git ls-files --others --exclude-standard -- shared/golden > "$RUNNER_TEMP/golden.list"
+          if [ -s "$RUNNER_TEMP/golden.list" ]; then
+            mkdir -p "$RUNNER_TEMP/golden"
+            xargs -a "$RUNNER_TEMP/golden.list" -d '\n' cp --parents -t "$RUNNER_TEMP/golden"
+            cat "$RUNNER_TEMP/golden.list"
+            echo "any=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Upload the written fixtures
+        if: ${{ !cancelled() && steps.written.outputs.any == 'true' }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: golden-links
+          # shared/golden/... from the repository's root
+          path: ${{ runner.temp }}/golden
+      - name: Written fixtures to commit
+        if: ${{ !cancelled() && steps.written.outputs.any == 'true' }}
+        run: |
+          echo "::error::fixtures were missing in shared/golden: the app's parsers wrote them into the artifact golden-links, check and commit them"
+          exit 1
 
   # release.yml's signing path (.github/scripts/release-sign.sh) on this build's APKs with throwaway keys: zipalign,
   # apksigner with the expected certificate, SHA256SUMS signed and checked as the app checks it
@@ -510,7 +580,7 @@ jobs:
   result:
     name: CI result
     if: always()
-    needs: [changes, build, sign-check, smoke, e2e, sources]
+    needs: [changes, build, golden, sign-check, smoke, e2e, sources]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
