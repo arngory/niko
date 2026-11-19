@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- a switch's thumb: on-ink on the ink track, ink-2 on the off one -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:alpha="0.4" android:color="@color/niko_on_ink" android:state_checked="true" android:state_enabled="false" />
+    <item android:alpha="0.4" android:color="@color/niko_ink_2" android:state_enabled="false" />
+    <item android:color="@color/niko_on_ink" android:state_checked="true" />
+    <item android:color="@color/niko_ink_2" />
+</selector>

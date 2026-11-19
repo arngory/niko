@@ -3,10 +3,20 @@ package io.niko.ui
 import android.graphics.Typeface
 import android.util.TypedValue
 import android.view.View
+import android.view.ContextThemeWrapper
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.core.view.isVisible
 import androidx.drawerlayout.widget.DrawerLayout
+import androidx.preference.EditTextPreference
+import androidx.preference.ListPreference
+import androidx.preference.Preference
+import androidx.preference.PreferenceCategory
+import androidx.preference.PreferenceGroupAdapter
+import androidx.preference.PreferenceManager
+import androidx.preference.SwitchPreference
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import app.cash.paparazzi.DeviceConfig
 import app.cash.paparazzi.Paparazzi
 import com.android.ide.common.rendering.api.SessionParams
@@ -50,7 +60,7 @@ class NikoSnapshotTest(private val mode: String) {
         layoutParams = ViewGroup.LayoutParams(resources.displayMetrics.widthPixels, ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 
-    // as ktx's getColorAttr: that file's class does not load off Android (it looks up Socket's hidden methods)
+    // as ktx's getColorAttr, kept here so the snapshots do not load ktx's Utils (it reaches the app's DataStore and core)
     private fun View.colorAttr(attr: Int): Int =
         context.getColor(TypedValue().also { context.theme.resolveAttribute(attr, it, true) }.resourceId)
 
@@ -93,6 +103,57 @@ class NikoSnapshotTest(private val mode: String) {
             fab.changeState(state, BaseService.State.Stopped, animate = false, failed = failed)
         }
     }
+
+    /**
+     * Settings' rows (D-SET, reskin step 2) as PreferenceFragmentCompat shows them: its theme overlay, the library's
+     * adapter and NikoPreferenceGroups' groups; a switch on and off, a choice, a text, a row that cannot change.
+     */
+    private fun settings(): View {
+        val context = ContextThemeWrapper(paparazzi.context, R.style.PreferenceThemeOverlay_Niko)
+        val screen = PreferenceManager(context).createPreferenceScreen(context)
+        fun category(title: String) = PreferenceCategory(context).also {
+            it.title = title
+            screen.addPreference(it)
+        }
+        fun <T : Preference> T.row(title: String, icon: Int? = null): T = apply {
+            this.title = title
+            isPersistent = false
+            if (icon != null) setIcon(icon)
+        }
+        category("General").apply {
+            addPreference(SwitchPreference(context).row("Connect on start", R.drawable.ic_l_power).apply {
+                summary = "Connects when the phone starts"
+                isChecked = true
+            })
+            addPreference(SimpleMenuPreference(context).row("Service mode", R.drawable.ic_l_router).apply {
+                entries = arrayOf("VPN", "Proxy only")
+                entryValues = arrayOf("vpn", "proxy")
+                value = "vpn"
+                summaryProvider = ListPreference.SimpleSummaryProvider.getInstance()
+            })
+            addPreference(SwitchPreference(context).row("Traffic statistics").apply { isChecked = false })
+        }
+        category("Inbound").apply {
+            addPreference(EditTextPreference(context).row("Mixed port", R.drawable.ic_l_cable).apply {
+                summary = "2080"
+            })
+            addPreference(SwitchPreference(context).row("Allow connections from the LAN").apply {
+                summary = "Only with a password"
+                isChecked = true
+                isEnabled = false
+            })
+        }
+        return RecyclerView(context).apply {
+            layoutManager = LinearLayoutManager(context)
+            adapter = PreferenceGroupAdapter(screen)
+            layoutParams = ViewGroup.LayoutParams(resources.displayMetrics.widthPixels, ViewGroup.LayoutParams.WRAP_CONTENT)
+            setBackgroundColor(context.getColor(R.color.niko_surface_0))
+            NikoPreferenceGroups.decorate(this) { screen }
+        }
+    }
+
+    @Test
+    fun settingsRows() = paparazzi.snapshot(settings())
 
     @Test
     fun mainStopped() = paparazzi.snapshot(main(BaseService.State.Stopped))

@@ -337,6 +337,7 @@ class RouteSettingsActivity(
             super.onViewCreated(view, savedInstanceState)
 
             ViewCompat.setOnApplyWindowInsetsListener(listView, ListListener)
+            NikoPreferenceGroups.install(this)
 
             activity?.apply {
                 viewCreated(view, savedInstanceState)
