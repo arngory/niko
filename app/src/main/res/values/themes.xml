@@ -3,7 +3,8 @@
     <style name="Theme.SagerNet" parent="Theme.MaterialComponents.DayNight.NoActionBar">
 
         <!-- Geist, the design system's font, for every theme: the theme's own text and the text appearances that name a
-             font of their own (Material's buttons and headlines, the toolbar's title) -->
+             font of their own (Material's buttons and headlines, the toolbar's title). A TextView takes the theme's
+             fontFamily over its text appearance's, so a view in Geist Mono (Code, Label) names the font itself too -->
         <item name="android:fontFamily">@font/geist</item>
         <item name="fontFamily">@font/geist</item>
         <item name="textAppearanceHeadline4">@style/TextAppearance.Niko.Slot.Headline4</item>
@@ -88,7 +89,8 @@
     <style name="Theme.SagerNet.Dialog" parent="Theme.MaterialComponents.DayNight.Dialog.Alert">
 
         <!-- Geist, the design system's font, for every theme: the theme's own text and the text appearances that name a
-             font of their own (Material's buttons and headlines, the toolbar's title) -->
+             font of their own (Material's buttons and headlines, the toolbar's title). A TextView takes the theme's
+             fontFamily over its text appearance's, so a view in Geist Mono (Code, Label) names the font itself too -->
         <item name="android:fontFamily">@font/geist</item>
         <item name="fontFamily">@font/geist</item>
         <item name="textAppearanceHeadline4">@style/TextAppearance.Niko.Slot.Headline4</item>
