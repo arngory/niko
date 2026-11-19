@@ -46,7 +46,8 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 Пути Kotlin даны от `app/src/main/java/io/niko/`. Вызовы демона:
 
 - `boxdd` — `experimental/boxdd/desktop_service.proto` и `daemon/*.proto` форка ядра.
-- `NikoService` — новый API, его ещё нет.
+- `NikoService` — новый API: `shared/proto/niko/v1/niko_service.proto`, пока в нём `GetInfo` и `RouteTest`, отвечает
+  демон `nikod` (этап 3, срез 1). Остальные вызовы матрицы в нём — план.
 
 ## Верхняя панель (D-NAV)
 
@@ -301,4 +302,4 @@ masterdns, Yggdrasil. Отличия:
 
 - **naive:** `libcronet.dll` рядом с exe. Тесты под Windows проходят.
 - **Slipstream:** отдельная программа. Для Android она собирается как `libslipstream.so`; сборки под Windows нет.
-- **naive UDP через HTTP/3** (naive-udp-v1, #129) появится в ядре сразу для обеих платформ.
+- **naive UDP через HTTP/3** (naive-udp-v1) — в ядре (`libcore/naive_datagram.go`), для обеих платформ.
