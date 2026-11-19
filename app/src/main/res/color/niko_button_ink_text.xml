@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- the words and icon of the tonal and the ghost button: ink -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:alpha="0.4" android:color="@color/niko_ink" android:state_enabled="false" />
+    <item android:color="@color/niko_ink" />
+</selector>

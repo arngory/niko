@@ -66,6 +66,9 @@
         <item name="windowNoTitle">true</item>
 
         <item name="chipStyle">@style/Widget.MaterialComponents.Chip.Choice.SagerNet</item>
+        <item name="nikoFilterChipStyle">@style/Widget.MaterialComponents.Chip.Filter</item>
+        <item name="nikoTonalButtonStyle">@style/Widget.SagerNet.Button.Colored</item>
+        <item name="borderlessButtonStyle">@style/Widget.SagerNet.Button.Borderless</item>
 
         <item name="itemShapeAppearance">
             @style/ShapeAppearance.MaterialComponents.MediumComponent
@@ -147,6 +150,9 @@
         <item name="windowNoTitle">true</item>
 
         <item name="chipStyle">@style/Widget.MaterialComponents.Chip.Choice.SagerNet</item>
+        <item name="nikoFilterChipStyle">@style/Widget.MaterialComponents.Chip.Filter</item>
+        <item name="nikoTonalButtonStyle">@style/Widget.SagerNet.Button.Colored</item>
+        <item name="borderlessButtonStyle">@style/Widget.SagerNet.Button.Borderless</item>
 
         <item name="itemShapeAppearance">
             @style/ShapeAppearance.MaterialComponents.MediumComponent
@@ -692,6 +698,12 @@
         <item name="snackbarStyle">@style/Widget.Niko.Snackbar</item>
         <item name="snackbarTextViewStyle">@style/Widget.Niko.Snackbar.TextView</item>
         <item name="snackbarButtonStyle">@style/Widget.Niko.Snackbar.Button</item>
+        <!-- buttons and chips as capsules (reskin step 2, niko_controls.xml) -->
+        <item name="materialButtonStyle">@style/Widget.Niko.Button</item>
+        <item name="nikoTonalButtonStyle">@style/Widget.Niko.Button.Tonal</item>
+        <item name="borderlessButtonStyle">@style/Widget.Niko.Button.Ghost</item>
+        <item name="chipStyle">@style/Widget.Niko.Chip</item>
+        <item name="nikoFilterChipStyle">@style/Widget.Niko.Chip.Filter</item>
         <!-- the settings and the switches (reskin step 2, niko_preference.xml) -->
         <item name="preferenceTheme">@style/PreferenceThemeOverlay.Niko</item>
         <item name="nikoGroupedPreferences">true</item>
@@ -776,6 +788,12 @@
         <item name="snackbarStyle">@style/Widget.Niko.Snackbar</item>
         <item name="snackbarTextViewStyle">@style/Widget.Niko.Snackbar.TextView</item>
         <item name="snackbarButtonStyle">@style/Widget.Niko.Snackbar.Button</item>
+        <!-- buttons and chips as capsules (reskin step 2, niko_controls.xml) -->
+        <item name="materialButtonStyle">@style/Widget.Niko.Button</item>
+        <item name="nikoTonalButtonStyle">@style/Widget.Niko.Button.Tonal</item>
+        <item name="borderlessButtonStyle">@style/Widget.Niko.Button.Ghost</item>
+        <item name="chipStyle">@style/Widget.Niko.Chip</item>
+        <item name="nikoFilterChipStyle">@style/Widget.Niko.Chip.Filter</item>
     </style>
 
     <style name="TextAppearance.Niko.ToolbarTitle" parent="TextAppearance.Widget.AppCompat.Toolbar.Title">

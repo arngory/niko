@@ -35,9 +35,8 @@
                     android:id="@+id/profile_name"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textAppearance="?android:attr/textAppearanceSmall"
+                    android:textAppearance="@style/TextAppearance.Niko.Body"
                     android:textColor="?android:attr/textColorPrimary"
-                    android:textStyle="bold"
                     tools:text="@string/profile_name" />
             </LinearLayout>
 
@@ -112,7 +111,7 @@
                     android:id="@+id/profile_type"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textAppearance="?android:attr/textAppearanceSmall"
+                    android:textAppearance="@style/TextAppearance.Niko.Code"
                     android:textColor="?attr/accentOrTextSecondary" />
 
                 <TextView
@@ -121,7 +120,7 @@
                     android:id="@+id/route_outbound"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textAppearance="?android:attr/textAppearanceSmall"
+                    android:textAppearance="@style/TextAppearance.Niko.BodySm"
                     android:textColor="?attr/accentOrTextSecondary" />
 
             </LinearLayout>

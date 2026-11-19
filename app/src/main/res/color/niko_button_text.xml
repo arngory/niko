@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- the primary button's words and icon: on-ink -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:alpha="0.4" android:color="@color/niko_on_ink" android:state_enabled="false" />
+    <item android:color="@color/niko_on_ink" />
+</selector>
