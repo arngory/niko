@@ -1,0 +1,1 @@
+vless://00000000-0000-4000-8000-000000000009@inner:1?niko-dns=masterdnsvpn%3Bauto%3BM.Example.com%3Bx&niko-dns-spare=S1.Example.NET%2Cm.example.com%2Cbad_zone%2Cs1.example.net%2Ca.example.net%2Cb.example.net%2Cc.example.net%2Cd.example.net&niko-dnsauth=v2&niko-dnskey=+key+&niko-mdseal=v1&type=raw#quirks

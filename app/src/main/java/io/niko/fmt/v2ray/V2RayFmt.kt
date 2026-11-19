@@ -57,8 +57,15 @@ fun parseV2Ray(link: String): StandardV2RayBean {
         Logs.i("try Kitsunebi: " + e.readableMessage)
     }
 
-    // "std" format
+    return parseV2RayStandard(link)
+}
 
+/**
+ * The "std" forms of a vmess:// or vless:// link: v2fly's (a password in the user info) and Xray's share link
+ * ([parseDuckSoft]). [parseV2Ray] tries VMess's base64 forms first, which a vless:// link never is; the golden tests
+ * (io.niko.golden) call this directly, as those forms decode with android.util.Base64.
+ */
+fun parseV2RayStandard(link: String): StandardV2RayBean {
     val bean = VMessBean().apply { if (link.startsWith("vless://")) alterId = -1 }
     val url = link.replace("vmess://", "https://").replace("vless://", "https://").toHttpUrl()
 

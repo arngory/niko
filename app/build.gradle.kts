@@ -41,6 +41,14 @@ androidComponents {
     }
 }
 
+// the golden fixtures the unit tests read (io.niko.golden, docs/design/desktop-stage3.md §5): a change to them, or the
+// flag that writes them anew, runs the tests again instead of taking the last run as up to date
+tasks.withType<Test>().configureEach {
+    inputs.dir(rootProject.layout.projectDirectory.dir("shared/golden")).withPropertyName("golden")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.property("goldenUpdate", providers.environmentVariable("NIKO_GOLDEN_UPDATE").orElse(""))
+}
+
 android {
     compileOptions {
         isCoreLibraryDesugaringEnabled = true

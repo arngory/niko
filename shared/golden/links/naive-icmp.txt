@@ -1,0 +1,1 @@
+naive+https://niko:examplepass0000000000000@203.0.113.7:443?icmp=1&niko-ack=1&niko-node=aaaaaaaabbbbbbbbccccccccdddddddd&niko-pin=examplePinLeafAAAAAAAAAAAAAAAAAAAAAAAAAAAAA%2CexamplePinNextAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&niko-svc=6&sni=naive.example.com&uot=2#naive-icmp

@@ -1,0 +1,1 @@
+vless://00000000-0000-4000-8000-000000000008@inner:1?niko-dns=dnstt%3Bauto%3Bt.example.com%3Bcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd&niko-dnsauth=v1&niko-svc=9&type=raw#no-node

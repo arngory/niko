@@ -1,0 +1,1 @@
+vless://00000000-0000-4000-8000-000000000008@inner:1?encryption=mlkem768x25519plus.native.0rtt.exampleKeyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&niko-dns=slipstream%3Bauto%3Bs.example.com%3B11&niko-dnsauth=v1&niko-node=aaaaaaaabbbbbbbbccccccccdddddddd&niko-slip=v1%3BexampleSlipPinAAAAAAAAAAAAAAAAAAAAAAAAAAAAA%3Bk3v9q2xw%3Bexample.com&niko-svc=11&type=raw#slip
