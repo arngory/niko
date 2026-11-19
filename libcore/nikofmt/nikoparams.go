@@ -253,16 +253,22 @@ func parseYggParam(spec string) (peer, seed string, err error) {
 			}
 		}
 	}
-	if !found || len(key) != 64 || !onlyOf(key, "0123456789abcdefABCDEF") {
+	if !found || len(key) != 64 || !onlyOf(key, anyHex) {
 		return "", "", errors.New("niko-ygg: the peer needs the node's key")
 	}
-	if len(seed) != 64 || !onlyOf(seed, "0123456789abcdef") {
+	if len(seed) != 64 || !onlyOf(seed, lowerHex) {
 		return "", "", errors.New("niko-ygg: the seed must be 64 hex digits")
 	}
 	return peer, seed, nil
 }
 
 // onlyOf reports whether every character of s is one of set (ASCII), so its length in bytes is Java's too.
+// the digits of a hex key or seed: a seed in lowercase, the node's key in either case
+const (
+	lowerHex = "0123456789abcdef"
+	anyHex   = lowerHex + "ABCDEF"
+)
+
 func onlyOf(s, set string) bool {
 	for _, r := range s {
 		if !strings.ContainsRune(set, r) {

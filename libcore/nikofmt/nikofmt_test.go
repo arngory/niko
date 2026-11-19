@@ -8,7 +8,8 @@ import (
 // A node leaves a DNS tunnel's resolver to the client (niko-dns=dnstt;;zone;key): the app takes its setting, which the
 // golden fixtures cannot hold (the JVM test has no settings store), so the setting is checked here.
 func TestResolverLeftToTheClient(t *testing.T) {
-	const key = "1897511c59aa74b806c0a6f8b14bedb1bfed381bbde6001615d838ddc4255bab"
+	// a stand-in for the node's public key: any 64 hex digits
+	const key = "abababababababababababababababababababababababababababababababab"
 	for _, tc := range []struct {
 		link     string
 		settings Settings
