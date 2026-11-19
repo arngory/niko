@@ -17,6 +17,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
@@ -43,6 +44,8 @@ type node struct {
 	sawLAN string
 	// the X-Raycontrol-Client of the last request, "" without one
 	sawClient string
+	// the X-Raycontrol-Features of the last request, and the server name of its TLS
+	sawFeatures, sawSNI string
 }
 
 const nodeID = "33333333333333333333333333333333"
@@ -81,6 +84,10 @@ func newNode(t *testing.T) *node {
 			return
 		}
 		n.sawClient = r.Header.Get(rayclient.Header)
+		n.sawFeatures = r.Header.Get("X-Raycontrol-Features")
+		if r.TLS != nil {
+			n.sawSNI = r.TLS.ServerName
+		}
 		n.sawLAN = "-"
 		if values, ok := r.Header["X-Raycontrol-Lan"]; ok {
 			n.sawLAN = strings.Join(values, ",")
@@ -172,6 +179,30 @@ func TestNekoSubscriptionLANHeader(t *testing.T) {
 	// the app passes it in the request's JSON
 	var request Request
 	if err := json.Unmarshal([]byte(`{"lan":"on"}`), &request); err != nil || request.LAN != "on" {
+		t.Fatalf("%+v %v", request, err)
+	}
+}
+
+// names-v1 §4–5: the request says the client takes names; with the node's addresses it goes by the node's name to
+// an address of the answer that is the node's, else (a forged answer, none) to the node's own, and says why
+func TestNekoSubscriptionNames(t *testing.T) {
+	n := newNode(t)
+	if _, err := Fetch(context.Background(), n.request); err != nil || n.sawFeatures != "names" || n.sawSNI != "" {
+		t.Fatalf("by address: features %q, SNI %q, %v", n.sawFeatures, n.sawSNI, err)
+	}
+	request := n.request
+	request.Host, request.Addrs = "n3kq7p.example.com", []string{"127.0.0.1"}
+	for answer, forged := range map[string]bool{"127.0.0.1": false, "198.51.100.1": true} {
+		request.Lookup = func(context.Context, string) ([]netip.Addr, error) {
+			return []netip.Addr{netip.MustParseAddr(answer)}, nil
+		}
+		result, err := Fetch(context.Background(), request)
+		if err != nil || n.sawSNI != "n3kq7p.example.com" || (result.Names != "") != forged {
+			t.Fatalf("answer %s: SNI %q, names %q, %v", answer, n.sawSNI, result.Names, err)
+		}
+	}
+	// the app passes the addresses in the request's JSON
+	if err := json.Unmarshal([]byte(`{"host":"n3kq7p.example.com","addrs":["127.0.0.1"]}`), &request); err != nil || len(request.Addrs) != 1 {
 		t.Fatalf("%+v %v", request, err)
 	}
 }

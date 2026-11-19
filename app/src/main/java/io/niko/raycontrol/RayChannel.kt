@@ -293,7 +293,7 @@ object RayChannel {
     private fun probeRequest(node: RayNode, info: RayProbeInfo, deep: Boolean, mobile: Boolean): JsonObject? {
         val sub = node.subscription ?: return null
         return JsonObject().apply {
-            addProperty("host", node.host)
+            RayNames.reach(this, node)
             addProperty("port", sub.port)
             addProperty("pin", sub.pin)
             addProperty("device_id", node.deviceId)

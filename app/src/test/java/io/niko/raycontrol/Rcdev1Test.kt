@@ -35,6 +35,22 @@ class Rcdev1Test {
         assertEquals("2", Rcdev1.parse(pack(json.replace(device, "$device \"role\": 2,"))).role)
     }
 
+    // names-v1 §3: the node's name comes with its addresses; a name alone, or a broken one, is not taken
+    @Test
+    fun parsesNameAndAddresses() {
+        assertNull(Rcdev1.parse(pack(json)).dnsName)
+        val device = "\"device_id\": \"0123456789abcdef\","
+        val named = Rcdev1.parse(pack(json.replace(device, "$device \"dns_name\": \"N3KQ7P.example.com.\", \"addrs\": [\"203.0.113.7\", \"[2001:DB8::7]\", \"x\"],")))
+        assertEquals("n3kq7p.example.com", named.dnsName)
+        assertEquals(listOf("203.0.113.7", "2001:db8::7"), named.addrs)
+        val alone = Rcdev1.parse(pack(json.replace(device, "$device \"dns_name\": \"n3kq7p.example.com\",")))
+        assertNull(alone.dnsName)
+        assertTrue(alone.addrs.isEmpty())
+        val broken = Rcdev1.parse(pack(json.replace(device, "$device \"dns_name\": \"203.0.113.7\", \"addrs\": [\"203.0.113.7\"],")))
+        assertNull(broken.dnsName)
+        assertEquals(listOf("203.0.113.7"), broken.addrs)
+    }
+
     @Test
     fun parsesRegistration() {
         val registration = Rcdev1.parse("  " + pack(json) + "\n")
@@ -110,5 +126,39 @@ class Rcdev1Test {
         assertEquals(listOf("udp", "tls"), (listed.knockOptions()["spa_v2"] as Map<*, *>)["carriers"])
         assertEquals("[\"udp\",\"tls\"]", listed.spaJson().get("carriers").toString())
         assertEquals(listed, RayNode.fromJson(JsonParser.parseString(listed.toJson().toString()).asJsonObject))
+
+        // names-v1: the node's name and addresses are kept, matched, and handed to the knock (not a relay's)
+        assertFalse(node.knockOptions().containsKey("node_addresses"))
+        assertNull(node.reachName)
+        val named = node.copy(dnsName = "n3kq7p.example.com", addrs = listOf("203.0.113.7"), subAddrs = listOf("2001:db8::7", "203.0.113.7"))
+        assertEquals(named, RayNode.fromJson(JsonParser.parseString(named.toJson().toString()).asJsonObject))
+        assertEquals(listOf("203.0.113.7", "2001:db8::7"), named.knownAddrs)
+        // the node's host, when an address, is one of them (a row may dial it as it is); last, after the signed lists
+        assertEquals(listOf("203.0.113.7", "2001:db8::7", "198.51.100.3"), named.copy(host = "198.51.100.3").knownAddrs)
+        assertEquals("n3kq7p.example.com", named.reachName)
+        assertTrue(named.matchesHost("N3KQ7P.example.com."))
+        assertEquals(listOf("203.0.113.7", "2001:db8::7"), named.knockOptions()["node_addresses"])
+        val relay = RayRelay("r1", "198.51.100.9", named.spa)
+        assertFalse(named.knockOptions(relay).containsKey("node_addresses"))
+        // a name without addresses to fall back to is not reached by
+        assertNull(node.copy(dnsName = "n3kq7p.example.com").reachName)
+        val request = com.google.gson.JsonObject().also { RayNames.reach(it, named) }
+        assertEquals("n3kq7p.example.com", request.get("host").asString)
+        assertEquals("[\"203.0.113.7\",\"2001:db8::7\"]", request.get("addrs").toString())
+        val old = com.google.gson.JsonObject().also { RayNames.reach(it, node) }
+        assertEquals("203.0.113.7", old.get("host").asString)
+        assertFalse(old.has("addrs"))
+    }
+
+    // names-v1 §4: the links' niko-ip, IPv6 bare, are the node's addresses too
+    @Test
+    fun addressesOfLinks() {
+        assertEquals(
+            listOf("203.0.113.7", "2001:db8::7"),
+            RayNames.ofLink("vless://u@n3kq7p.example.com:443?security=reality&niko-ip=203.0.113.7,2001:db8::7#x"),
+        )
+        assertEquals(listOf("2001:db8::7"), RayNames.ofLink("hysteria2://p@h.example.com:443?niko-ip=2001%3Adb8%3A%3A7"))
+        assertTrue(RayNames.ofLink("naive+https://u:p@h.example.com:443").isEmpty())
+        assertTrue(RayNames.ofLink(null).isEmpty())
     }
 }

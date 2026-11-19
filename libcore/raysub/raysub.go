@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"libcore/rayclient"
+	"libcore/raynames"
 
 	"github.com/sagernet/sing-box/protocol/knock"
 
@@ -52,11 +53,27 @@ type Request struct {
 	// LAN is the device's consent to lan-v1 (raycontrol v0.23.0): "on" shows it to the user's other devices, "off"
 	// hides it, sent as X-Raycontrol-LAN; "" sends no header, and the node keeps what it had
 	LAN string `json:"lan,omitempty"`
+	// Addrs: names-v1, the node's addresses from its signed data, with Host its name (raynames): the request goes to
+	// an address of one lookup of Host that is one of them, else to them
+	Addrs []string `json:"addrs,omitempty"`
 	// a socket control that keeps the sockets out of the app's own VPN (nil in tests)
 	Control func(network, address string, conn syscall.RawConn) error `json:"-"`
 	// overrides for tests
 	Now     func() time.Time `json:"-"`
 	Timeout time.Duration    `json:"-"`
+	Lookup  raynames.Lookup  `json:"-"`
+	// the name the address of Host stands for (names-v1), and how long its connection may take
+	serverName  string
+	dialTimeout time.Duration
+}
+
+// at: r for one of the targets of its node (raynames.Targets)
+func (r Request) at(target raynames.Target, last bool) Request {
+	r.Host, r.serverName = target.Address, target.ServerName
+	if !last {
+		r.dialTimeout = raynames.DialTimeout
+	}
+	return r
 }
 
 type Next struct {
@@ -168,12 +185,17 @@ type Result struct {
 	// the TCP carrier was needed to open the port (a ClientHello or bare, SPACarrier)
 	SPAOverTCP bool   `json:"spa_over_tcp"`
 	SPACarrier string `json:"spa_carrier"`
+	// names-v1: why the node was not reached at an address its name resolved to (a forged answer, none)
+	Names string `json:"names,omitempty"`
 }
 
 type envelope struct {
 	Payload string            `json:"payload"`
 	Sig     map[string]string `json:"sig"`
 }
+
+// Features: what this client takes beyond the subscription's base (names-v1 §4), X-Raycontrol-Features
+const Features = "names"
 
 var ErrNotFound = errors.New("raycontrol subscription: the node does not know this device (revoked, disabled or wrong key)")
 
@@ -185,8 +207,34 @@ type statusError int
 
 func (e statusError) Error() string { return "HTTP " + strconv.Itoa(int(e)) }
 
-// Fetch opens the port with SPA v2 (UDP, then the TCP carrier) and returns the verified payload.
+// Fetch opens the port with SPA v2 (UDP, then the TCP carrier) and returns the verified payload: at each of the
+// node's addresses for the request in turn (names-v1), until one answers.
 func Fetch(ctx context.Context, r Request) (*Result, error) {
+	targets, warning := raynames.Targets(ctx, r.Lookup, r.Host, r.Addrs)
+	var lastErr error
+	for i, target := range targets {
+		result, err := fetch(ctx, r.at(target, i == len(targets)-1))
+		if result != nil {
+			result.Names = warning
+		}
+		if err == nil || !errors.Is(err, ErrNoAnswer) || ctx.Err() != nil {
+			return result, withNames(err, warning)
+		}
+		lastErr = err
+	}
+	return nil, withNames(lastErr, warning)
+}
+
+// withNames: err after names-v1's warning about the node's name, if any; before it, so that the app's reading of
+// the error from its start ("raycontrol api: <code>: ...") stays as it was
+func withNames(err error, warning string) error {
+	if err == nil || warning == "" {
+		return err
+	}
+	return fmt.Errorf("names: %s; %w", warning, err)
+}
+
+func fetch(ctx context.Context, r Request) (*Result, error) {
 	now := time.Now
 	if r.Now != nil {
 		now = r.Now
@@ -231,12 +279,16 @@ func Fetch(ctx context.Context, r Request) (*Result, error) {
 }
 
 func (r *Request) dialer() *net.Dialer {
-	return &net.Dialer{Timeout: 10 * time.Second, Control: r.Control}
+	timeout := r.dialTimeout
+	if timeout == 0 {
+		timeout = 10 * time.Second
+	}
+	return &net.Dialer{Timeout: timeout, Control: r.Control}
 }
 
 // knock sends one SPA v2 packet over the carrier and waits for the rules to apply.
 func (r *Request) knock(ctx context.Context, carrier knock.Carrier, now time.Time) error {
-	return knock.SendSPAv2(ctx, r.dialer(), r.Host, r.SPA, carrier, now)
+	return knock.SendSPAv2Named(ctx, r.dialer(), r.Host, r.serverName, r.SPA, carrier, now)
 }
 
 var errPin = errors.New("raycontrol subscription: the server key does not match the pin")
@@ -249,8 +301,8 @@ func noRedirect(*http.Request, []*http.Request) error { return http.ErrUseLastRe
 var NoRedirect = noRedirect
 
 func (r *Request) httpClient(timeout time.Duration) *http.Client {
-	serverName := ""
-	if net.ParseIP(r.Host) == nil {
+	serverName := r.serverName
+	if serverName == "" && net.ParseIP(r.Host) == nil {
 		serverName = r.Host
 	}
 	return &http.Client{
@@ -318,6 +370,8 @@ func (r *Request) get(ctx context.Context, client *http.Client, deviceKey []byte
 	if r.LAN == "on" || r.LAN == "off" {
 		request.Header.Set("X-Raycontrol-LAN", r.LAN)
 	}
+	// names-v1: links by the node's names with its addresses as niko-ip (the node skips words it does not know)
+	request.Header.Set("X-Raycontrol-Features", Features)
 	response, err := client.Do(request)
 	if err != nil {
 		if errors.Is(err, errPin) {

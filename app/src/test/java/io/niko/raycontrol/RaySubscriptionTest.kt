@@ -267,6 +267,9 @@ class RaySubscriptionTest {
         assertTrue(!RayNode(admin.host, admin.spa, admin.deviceId, "w", admin.services).isAdmin)
         assertEquals("not_found", RayApi.code(Exception("raycontrol api: not_found")))
         assertEquals("unauthenticated", RayApi.code(Exception("go error: raycontrol api: unauthenticated: device revoked")))
+        // names-v1: libcore's warning about the node's name comes before the node's answer, which reads as before
+        assertEquals("not_found", RayApi.code(Exception("names: no address for n3kq7p.example.com, the node's own addresses instead; raycontrol api: not_found")))
+        assertTrue(RayApi.unimplemented(Exception("names: x; raycontrol api: http_404")))
         assertNull(RayApi.code(Exception("raycontrol api: the node did not answer: dial tcp")))
         // a method an older node does not have: Connect's code, or the bare 404 of its service handler
         assertTrue(RayApi.unimplemented(Exception("raycontrol api: unimplemented: no GetAppMirror")))

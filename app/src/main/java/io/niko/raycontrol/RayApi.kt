@@ -100,7 +100,7 @@ object RayApi {
         val key = DeviceKeyVault.unwrap(identity.keyWrapped)
         try {
             return JsonObject().apply {
-                addProperty("host", node.host)
+                RayNames.reach(this, node)
                 addProperty("port", api.port)
                 addProperty("pin", api.pin)
                 add("identity", JsonObject().apply {

@@ -24,6 +24,7 @@ func RaycontrolFetchSubscription(requestJSON string) (string, error) {
 		return "", err
 	}
 	request.Control = protectControl()
+	request.Lookup = nodeLookup
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 	result, err := raysub.Fetch(ctx, request)
@@ -58,6 +59,7 @@ func raycontrolAppFile(requestJSON, tag, name, outPath, etag string, within time
 		return err
 	}
 	request.Control = protectControl()
+	request.Lookup = nodeLookup
 	ctx, cancel := context.WithTimeout(context.Background(), within)
 	defer cancel()
 	return raysub.AppFile(ctx, request, "niko", tag, name, outPath, etag)
@@ -127,6 +129,7 @@ func apiEndpoint(endpointJSON string) (rayapi.Endpoint, error) {
 		return endpoint, err
 	}
 	endpoint.Control = protectControl()
+	endpoint.Lookup = nodeLookup
 	return endpoint, nil
 }
 

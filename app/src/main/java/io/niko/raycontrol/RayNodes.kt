@@ -231,7 +231,24 @@ data class RayNode(
     // (this device's clock, unix s): the node's front still serves a naive name for a while after the subscription
     // dropped it (up to 3 previous ones a service, raycontrol R4-42), so a fake QUIC Initial must not name it either
     val pastNames: Map<String, Long> = emptyMap(),
+    // names-v1 (RayNames): the node's name and addresses as its package (or the last subscription) gives them, and
+    // the addresses of the last subscription; none from a node before raycontrol v0.34.0
+    val dnsName: String? = null,
+    val addrs: List<String> = emptyList(),
+    val subAddrs: List<String> = emptyList(),
 ) {
+    /**
+     * names-v1: the node's addresses its signed data names, the package's and the last subscription's, with its host
+     * when that is an address (a row may dial it as it is); none for a node before raycontrol v0.34.0, which goes as
+     * before.
+     */
+    val knownAddrs: List<String>
+        get() = if (addrs.isEmpty() && subAddrs.isEmpty()) emptyList()
+        else (addrs + subAddrs + RayNames.addrs(listOf(host))).distinct()
+
+    /** names-v1: the node's name when it has addresses to fall back to, null otherwise (reached by [host] as before). */
+    val reachName get() = dnsName?.takeIf { knownAddrs.isNotEmpty() }
+
     /** What the node is called in the app: its admin's name, else "raycontrol · <host>" as before. */
     val displayName get() = groupName(host, name)
 
@@ -250,7 +267,9 @@ data class RayNode(
     val keyRef get() = "raycontrol:${spa.nodeId}:$deviceId"
 
     fun matchesHost(address: String?) =
-        !address.isNullOrBlank() && address.trim().removePrefix("[").removeSuffix("]").equals(host, ignoreCase = true)
+        !address.isNullOrBlank() && address.trim().removePrefix("[").removeSuffix("]").removeSuffix(".").let {
+            it.equals(host, ignoreCase = true) || it.equals(dnsName, ignoreCase = true)
+        }
 
     fun toJson() = JsonObject().apply {
         addProperty("host", host)
@@ -288,6 +307,9 @@ data class RayNode(
         lan?.let { add("lan", it.toJson()) }
         lanPrevious?.takeIf { it.isNotEmpty() }?.let { list -> add("lan_previous", JsonArray().apply { list.forEach { add(it.toJson()) } }) }
         if (pastNames.isNotEmpty()) add("past_names", JsonObject().apply { pastNames.forEach { (k, v) -> addProperty(k, v) } })
+        dnsName?.let { addProperty("dns_name", it) }
+        if (addrs.isNotEmpty()) add("addrs", JsonArray().apply { addrs.forEach { add(it) } })
+        if (subAddrs.isNotEmpty()) add("sub_addrs", JsonArray().apply { subAddrs.forEach { add(it) } })
     }
 
     /** The relay with this address, for a profile row through it. */
@@ -335,6 +357,9 @@ data class RayNode(
             pastNames = (o.get("past_names") as? JsonObject)?.entrySet()?.mapNotNull { (name, at) ->
                 runCatching { name.trim().lowercase() to at.asLong }.getOrNull()?.takeIf { it.first.isNotEmpty() }
             }?.toMap().orEmpty(),
+            dnsName = RayNames.name(o.get("dns_name")?.takeIf { it.isJsonPrimitive }?.asString),
+            addrs = RayNames.addrs((o.get("addrs") as? JsonArray)?.mapNotNull { runCatching { it.asString }.getOrNull() }),
+            subAddrs = RayNames.addrs((o.get("sub_addrs") as? JsonArray)?.mapNotNull { runCatching { it.asString }.getOrNull() }),
         )
 
         /** The group name of the node at [host] called [name] (null: none given). */
@@ -509,6 +534,9 @@ fun RayNode.knockOptions(relay: RayRelay? = null): Map<String, Any> = mapOf(
     else spaCarriers?.let { mapOf("carriers" to it) } ?: emptyMap()),
     // a UDP session without replies sends a new packet once
     "silence" to "15s",
+) + (
+    // names-v1: the node's own addresses, the only ones its names are knocked and dialled at (a relay is its own)
+    if (relay == null && knownAddrs.isNotEmpty()) mapOf("node_addresses" to knownAddrs) else emptyMap()
 )
 
 /**
@@ -581,7 +609,8 @@ object RayNodes {
      */
     fun syncLogRedactions(nodes: List<RayNode> = runCatching { list() }.getOrDefault(emptyList())) {
         val hosts = nodes.flatMap { node ->
-            RayRows.nodeHosts(node.host, node.doh, node.links.values.flatMap { listOfNotNull(it.link, it.next) })
+            RayRows.nodeHosts(node.host, node.doh, node.links.values.flatMap { listOfNotNull(it.link, it.next) }) +
+                listOfNotNull(node.dnsName) + node.knownAddrs
         }
         // subscription links carry their token in the path (panels: /sub/<token>)
         val paths = runCatching { SagerDatabase.groupDao.allGroups() }.getOrDefault(emptyList())
@@ -610,6 +639,9 @@ object RayNodes {
                 val b = registration.subscription
                 a != null && b != null && a.pin == b.pin && a.ed25519 == b.ed25519 && a.mldsa65 == b.mldsa65
             } ?: 0,
+            // names-v1: the package's name and addresses; a package without them (an older node's) keeps none
+            dnsName = registration.dnsName,
+            addrs = registration.addrs,
         )
         save(list().filter { it.spa.nodeId != node.spa.nodeId } + node)
         node
@@ -707,6 +739,7 @@ object RayNodes {
      */
     fun names(node: RayNode, now: Long = System.currentTimeMillis() / 1000): Set<String> {
         val names = mutableSetOf(node.host.lowercase())
+        node.dnsName?.let { names += it }
         node.doh?.let { runCatching { java.net.URI(it).host }.getOrNull() }?.let { names += it.lowercase() }
         for (id in node.profileIds.orEmpty().values) {
             SagerDatabase.proxyDao.getById(id)?.requireBean()?.let { names += servedNames(it) }
