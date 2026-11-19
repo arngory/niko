@@ -1,0 +1,1 @@
+hysteria2://auth@[2001:db8::2]:20000?mport=20000-30000&sni=b.example.com&insecure=0#mport

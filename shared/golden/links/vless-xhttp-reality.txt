@@ -1,0 +1,1 @@
+vless://00000000-0000-4000-8000-000000000005@203.0.113.9:443?encryption=none&security=reality&type=xhttp&sni=www.example.com&fp=chrome&pbk=examplePublicKeyAAAAAAAAAAAAAAAAAAAAAAAAAAA&sid=0123456789abcdef&host=cdn.example.com&path=%2Fxh&mode=stream-one&extra=%7B%22xPaddingBytes%22%3A%22100-1000%22%2C%22xmux%22%3A%7B%22maxConcurrency%22%3A%2216-32%22%7D%7D#xhttp-reality
