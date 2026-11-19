@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/sing-box/protocol/knock"
 	"libcore/device"
 	"libcore/probe"
+	"libcore/raynames"
 	"libcore/rayprobe"
 
 	"github.com/sagernet/sing-box/boxapi"
@@ -27,6 +28,8 @@ type probeRequest struct {
 	SPA      knock.SPAv2Options `json:"spa"` // device_key set
 	// through a tunnel: the probe name (probe.tunnel), dialled through the instance
 	Tunnel string `json:"tunnel,omitempty"`
+	// names-v1: the node's addresses from its signed data, with Host its name (raynames)
+	Addrs []string `json:"addrs,omitempty"`
 
 	DownBytes int64 `json:"down_bytes,omitempty"`
 	UpBytes   int64 `json:"up_bytes,omitempty"`
@@ -171,19 +174,21 @@ func RaycontrolProbe(requestJSON string) (result string, err error) {
 		return "", err
 	}
 	dialer := &net.Dialer{Timeout: 10 * time.Second, Control: protectControl()}
-	serverName := ""
-	if net.ParseIP(r.Host) == nil {
-		serverName = r.Host
-	}
-	e := &rayprobe.Endpoint{
-		Address: net.JoinHostPort(r.Host, strconv.Itoa(r.Port)), Pin: r.Pin, ServerName: serverName,
-		DeviceID: r.DeviceID, DeviceKey: key, Dial: dialer.DialContext,
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
+	// names-v1: the first of the node's addresses for one lookup of its name; the probe measures one path
+	targets, _ := raynames.Targets(ctx, nodeLookup, r.Host, r.Addrs)
+	host, serverName := targets[0].Address, targets[0].ServerName
+	if serverName == "" && net.ParseIP(host) == nil {
+		serverName = host
+	}
+	e := &rayprobe.Endpoint{
+		Address: net.JoinHostPort(host, strconv.Itoa(r.Port)), Pin: r.Pin, ServerName: serverName,
+		DeviceID: r.DeviceID, DeviceKey: key, Dial: dialer.DialContext,
+	}
 	var out *probeResult
 	for _, carrier := range r.SPA.TryCarriers() {
-		if err = knock.SendSPAv2(ctx, dialer, r.Host, r.SPA, carrier, time.Now()); err != nil {
+		if err = knock.SendSPAv2Named(ctx, dialer, host, serverName, r.SPA, carrier, time.Now()); err != nil {
 			return "", err
 		}
 		if out = r.run(ctx, e); out.answered() {

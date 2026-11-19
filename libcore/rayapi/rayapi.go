@@ -34,6 +34,7 @@ import (
 	"time"
 
 	"libcore/rayclient"
+	"libcore/raynames"
 
 	"github.com/sagernet/sing-box/protocol/knock"
 
@@ -72,6 +73,22 @@ type Endpoint struct {
 	HandshakeTimeout time.Duration `json:"-"`
 	// no SPA (tests)
 	NoSPA bool `json:"-"`
+	// Addrs: names-v1, the node's addresses from its signed data, with Host its name (raynames): the call goes to an
+	// address of one lookup of Host that is one of them, else to them
+	Addrs  []string        `json:"addrs,omitempty"`
+	Lookup raynames.Lookup `json:"-"`
+	// the name the address of Host stands for (names-v1), and how long its connection may take
+	serverName  string
+	dialTimeout time.Duration
+}
+
+// at: e for one of the targets of its node (raynames.Targets)
+func (e Endpoint) at(target raynames.Target, last bool) Endpoint {
+	e.Host, e.serverName = target.Address, target.ServerName
+	if !last {
+		e.dialTimeout = raynames.DialTimeout
+	}
+	return e
 }
 
 // Error is a ConnectRPC error of the node: Code is not_found,
@@ -317,7 +334,11 @@ func (id Identity) tlsCertificate() (tls.Certificate, *x509.Certificate, error) 
 }
 
 func (e *Endpoint) dialer() *net.Dialer {
-	return &net.Dialer{Timeout: 10 * time.Second, Control: e.Control}
+	timeout := e.dialTimeout
+	if timeout == 0 {
+		timeout = 10 * time.Second
+	}
+	return &net.Dialer{Timeout: timeout, Control: e.Control}
 }
 
 // client makes the HTTP client of one Call; callCtx ends with the Call, and
@@ -351,6 +372,8 @@ func (e *Endpoint) client(callCtx context.Context) (*http.Client, error) {
 			}
 			return nil
 		},
+		// names-v1 §5 p. 7: the node's name when it is reached by it (its one certificate answers any)
+		ServerName: e.serverName,
 	}
 	timeout := e.Timeout
 	if timeout == 0 {
@@ -399,8 +422,31 @@ func (e *Endpoint) client(callCtx context.Context) (*http.Client, error) {
 // JSON body (protobuf JSON mapping) and returns the JSON answer. SPA goes
 // over UDP, once more, then over TCP while no connection can be made; once
 // the request went out it is never sent again (ErrAnswerLost), since calls
-// such as Register or RotateService must not run twice.
+// such as Register or RotateService must not run twice. The node's addresses
+// for the call (names-v1) are tried in turn while none could be connected to.
 func Call(ctx context.Context, e Endpoint, method string, body []byte) ([]byte, error) {
+	targets, warning := raynames.Targets(ctx, e.Lookup, e.Host, e.Addrs)
+	var lastErr error
+	for i, target := range targets {
+		answer, err := call(ctx, e.at(target, i == len(targets)-1), method, body)
+		if err == nil || !errors.Is(err, ErrNoAnswer) || ctx.Err() != nil {
+			return answer, withNames(err, warning)
+		}
+		lastErr = err
+	}
+	return nil, withNames(lastErr, warning)
+}
+
+// withNames: err after names-v1's warning about the node's name, if any; before it, so that the app's reading of
+// the error from its start ("raycontrol api: <code>: ...") stays as it was
+func withNames(err error, warning string) error {
+	if err == nil || warning == "" {
+		return err
+	}
+	return fmt.Errorf("names: %s; %w", warning, err)
+}
+
+func call(ctx context.Context, e Endpoint, method string, body []byte) ([]byte, error) {
 	callCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	client, err := e.client(callCtx)
@@ -414,7 +460,7 @@ func Call(ctx context.Context, e Endpoint, method string, body []byte) ([]byte, 
 	var lastErr error
 	// UDP twice (the slot may turn), then the others the node takes (a ClientHello, then bare TCP for an older node)
 	for _, carrier := range e.SPA.FetchCarriers() {
-		if err = knock.SendSPAv2(ctx, e.dialer(), e.Host, e.SPA, carrier, time.Now()); err != nil {
+		if err = knock.SendSPAv2Named(ctx, e.dialer(), e.Host, e.serverName, e.SPA, carrier, time.Now()); err != nil {
 			return nil, err
 		}
 		answer, err := e.post(ctx, client, method, body)

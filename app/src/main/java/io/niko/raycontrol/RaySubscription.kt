@@ -150,6 +150,8 @@ object RaySubscription {
             if (answered(e) || node.relays.isEmpty()) throw e
             for (relay in node.relays) {
                 val via = request.deepCopy().apply {
+                    // the relay by its address; the node's own addresses are not the relay's
+                    remove("addrs")
                     addProperty("host", relay.host)
                     add("spa", relay.spaJson(node, RayNodes.deviceKeyHex(node)))
                 }
@@ -168,7 +170,7 @@ object RaySubscription {
 
     /** The subscription request to [node] (raysub.Request): its port, pin, signatures and this device's SPA. */
     private fun request(node: RayNode, info: RaySubscriptionInfo) = JsonObject().apply {
-        addProperty("host", node.host)
+        RayNames.reach(this, node)
         addProperty("port", info.port)
         addProperty("pin", info.pin)
         addProperty("device_id", node.deviceId)
@@ -274,6 +276,9 @@ object RaySubscription {
                         relays = parsed.relays, dnsProbeKey = parsed.dnsProbeKey, subUpdatedAt = now,
                         appReleases = parsed.appReleases, note = parsed.note, traffic = parsed.traffic,
                         client = parsed.client, subExpires = subExpires, lan = parsed.lan, lanPrevious = RayLanNet.previous(node, parsed.lan, now),
+                        // names-v1: the subscription's name and addresses; a node rolled back before v0.34.0 sends
+                        // none, and the package's are kept (§8)
+                        dnsName = parsed.dnsName ?: node.dnsName, subAddrs = parsed.addrs,
                     )
                 }
             }
@@ -313,6 +318,9 @@ object RaySubscription {
         val lan: RayLan? = null,
         // the pins of the DoH's key (cert-pin-v1), null none
         val dohPins: String? = null,
+        // names-v1: the node's name, and its addresses (the payload's and its links' niko-ip), none before v0.34.0
+        val dnsName: String? = null,
+        val addrs: List<String> = emptyList(),
     )
 
     /**
@@ -335,9 +343,12 @@ object RaySubscription {
         // dnsprobe-v1: the key that probes the resolvers of the node's DNS tunnels (only for a user with one)
         val dnsProbeKey = (payload.get("dns_probe") as? JsonObject)?.takeIf { it.get("v")?.asInt == 1 }
             ?.get("key")?.takeIf { it.isJsonPrimitive }?.asString
+        // names-v1: the node's addresses as the links name them (niko-ip), the payload's beside them
+        val linkAddrs = mutableListOf<String>()
         profiles.zip(profileKeys(profiles)).forEach { (profile, key) ->
             try {
                 val pair = linksOf(profile, nodeNow)
+                linkAddrs += RayNames.ofLink(pair.link) + RayNames.ofLink(pair.next)
                 // DoH is not a proxy: it becomes the remote DNS while a profile of the node runs
                 val kind = profile.get("svc")?.takeIf { it.isJsonPrimitive }?.asInt?.let { kinds[it] }
                 if (isDoh(pair.activeLink, kind)) {
@@ -382,6 +393,8 @@ object RaySubscription {
         val carriers = ((payload.get("spa") as? JsonObject)?.get("carriers") as? JsonArray)
             ?.mapNotNull { runCatching { it.asString }.getOrNull() }?.takeIf { it.isNotEmpty() }
         val name = RayNode.nodeName(payload.get("name")?.takeIf { it.isJsonPrimitive }?.asString)
+        val (dnsName, payloadAddrs) = RayNames.of(payload)
+        val addrs = (payloadAddrs + linkAddrs).distinct()
         return Parsed(
             beans, links, doh, skipped, relays, dnsProbeKey, probe, carriers, payload.get("hints") as? JsonObject, name,
             RayAppRelease.listFromPayload(payload),
@@ -390,6 +403,9 @@ object RaySubscription {
             RayClientMin.fromJson(payload.get("client") as? JsonObject),
             RayLan.fromJson(payload.get("lan") as? JsonObject),
             dohPins,
+            // the name only with addresses (§3)
+            dnsName.takeIf { addrs.isNotEmpty() },
+            addrs,
         )
     }
 

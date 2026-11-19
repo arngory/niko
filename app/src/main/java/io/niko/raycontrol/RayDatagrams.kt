@@ -225,7 +225,7 @@ object RayDatagrams {
     private fun request(node: RayNode, info: RayProbeInfo): JsonObject? {
         val sub = node.subscription ?: return null
         return JsonObject().apply {
-            addProperty("host", node.host)
+            RayNames.reach(this, node)
             addProperty("port", sub.port)
             addProperty("pin", sub.pin)
             addProperty("device_id", node.deviceId)

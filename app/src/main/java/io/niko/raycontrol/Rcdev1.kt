@@ -141,6 +141,9 @@ data class RayRegistration(
     // the device's role as its package names it: admin, or a bot's (billing, support: integrations-v1); none for user
     // and from a node before roles were named
     val role: String? = null,
+    // names-v1 (RayNames): the node's name, and its addresses; none from a node before raycontrol v0.34.0
+    val dnsName: String? = null,
+    val addrs: List<String> = emptyList(),
 ) {
     override fun toString() = "RayRegistration(host=$host, node=${spa.nodeId}, device=$deviceId)"
 }
@@ -382,7 +385,10 @@ object Rcdev1 {
                 }
             },
             role = roleOf(o),
-        )
+        ).let { registration ->
+            val (dnsName, addrs) = RayNames.of(o)
+            registration.copy(dnsName = dnsName, addrs = addrs)
+        }
     }
 
     /** The fields an rcdev1 package and an rcinv1 invite share (spa-v2.md §8). */

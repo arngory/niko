@@ -608,7 +608,10 @@ fun buildConfig(
                 // dialled at the node's address with its name as the TLS name: SPA opens that address, and the name
                 // is not looked up in the clear
                 val yggNode = yggPeerAsGiven?.let { RayNodes.forHost(yggPeerHost(it)) ?: RayNodes.ownerOf(proxyEntity.id)?.first }
-                val yggPeer = yggPeerAsGiven?.let { peer -> yggNode?.let { yggPeerAtNode(peer, it.host) } ?: peer }
+                // names-v1: a node with its name keeps the peer's name, which the knock resolves to one of its addresses
+                val yggPeer = yggPeerAsGiven?.let { peer ->
+                    yggNode?.let { node -> if (node.reachName != null) peer else yggPeerAtNode(peer, node.host) } ?: peer
+                }
                 // a raycontrol node (imported rcdev1) this hop dials; a DNS tunnel never reaches its address
                 // a profile row through a relay in front of the node (relay-v1 §4): knocked at the relay
                 val rayRelay = if (DnsTunnel.of(bean).enabled || yggPeer != null) null
