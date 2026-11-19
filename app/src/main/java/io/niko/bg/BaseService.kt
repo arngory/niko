@@ -61,14 +61,12 @@ class BaseService {
                 Action.RELOAD -> service.reload(intent.getBooleanExtra(Action.EXTRA_FORCE, false))
                 // Action.SWITCH_WAKE_LOCK -> runOnDefaultDispatcher { service.switchWakeLock() }
                 PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                        if (SagerNet.power.isDeviceIdleMode) {
-                            proxy?.box?.sleep()
-                        } else {
-                            proxy?.box?.wake()
-                            if (DataStore.wakeResetConnections) {
-                                Libcore.resetAllConnections(true)
-                            }
+                    if (SagerNet.power.isDeviceIdleMode) {
+                        proxy?.box?.sleep()
+                    } else {
+                        proxy?.box?.wake()
+                        if (DataStore.wakeResetConnections) {
+                            Libcore.resetAllConnections(true)
                         }
                     }
                 }
@@ -343,8 +341,7 @@ class BaseService {
 
         fun startRunner() {
             this as Context
-            if (Build.VERSION.SDK_INT >= 26) startForegroundService(Intent(this, javaClass))
-            else startService(Intent(this, javaClass))
+            startForegroundService(Intent(this, javaClass))
         }
 
         fun killProcesses() {
@@ -522,9 +519,7 @@ class BaseService {
                     addAction(Intent.ACTION_SHUTDOWN)
                     addAction(Action.CLOSE)
                     // addAction(Action.SWITCH_WAKE_LOCK)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                        addAction(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED)
-                    }
+                    addAction(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED)
                     addAction(Action.RESET_UPSTREAM_CONNECTIONS)
                 }
                 // every sender is this app (its UI process or its own notification actions)
