@@ -227,6 +227,9 @@ class RaySubscriptionTest {
             val refused = runCatching { RayApi.appRole(answer(role)) }.exceptionOrNull()
             assertTrue(refused is RayApi.IntegrationRole && refused.role == role)
         }
+        // any value is read as text, as rcdev1 reads it: not an app's role
+        val number = runCatching { RayApi.appRole(JsonObject().apply { addProperty("role", 2) }) }.exceptionOrNull()
+        assertTrue(number is RayApi.IntegrationRole && number.role == "2")
         // a switch with a grace refused while the previous key is in its own (raycontrol v0.24.0): the node's time
         val inGrace = Exception("raycontrol api: failed_precondition: not now: dns: its previous seal key is still accepted " +
             "until 2026-11-10T07:14:05Z (clients that have not fetched their subscription since the last switch use it); " +

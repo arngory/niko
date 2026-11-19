@@ -45,11 +45,14 @@ object RayApi {
     /** The roles of an app's device; others (billing, support: integrations-v1) are for a bot, with no subscription. */
     val APP_ROLES = setOf("user", "admin")
 
-    /** A registration whose role is not an app's ([APP_ROLES]): the invite is used, this device keeps nothing. */
-    class IntegrationRole(val role: String) : Exception("raycontrol: the invite is for an integration ($role), not for an app")
+    /** A registration or package that is not for this app: nothing of it is kept. */
+    sealed class NotForApp(message: String) : Exception(message)
+
+    /** A role that is not an app's ([APP_ROLES]): a bot's (integrations-v1). */
+    class IntegrationRole(val role: String) : NotForApp("raycontrol: the invite is for an integration ($role), not for an app")
 
     /** A package with no subscription for a node whose kept package has one: a bot's from a node before roles. */
-    class NoSubscription : Exception("raycontrol: the package has no subscription, and the one kept for its node has")
+    class NoSubscription : NotForApp("raycontrol: the package has no subscription, and the one kept for its node has")
 
     /**
      * The role of a registration's [answer]; none or a blank one (a node before roles) is user. One that is not an
@@ -57,7 +60,7 @@ object RayApi {
      * replace this device's own registration at the same node.
      */
     fun appRole(answer: JsonObject): String {
-        val role = answer.get("role")?.takeIf { it.isJsonPrimitive }?.asString?.takeIf { it.isNotBlank() } ?: "user"
+        val role = roleOf(answer) ?: "user"
         if (role !in APP_ROLES) throw IntegrationRole(role)
         return role
     }
@@ -177,6 +180,13 @@ object RayApi {
             forgetPending(invite.inviteId)
             throw Exception("raycontrol invite for ${invite.host}: the node answered with a package of another node; " +
                 "the invite is used: ask the administrator to revoke this device")
+        }
+        // the package itself, as RayNodes.import will check it: refused, the invite is used all the same
+        try {
+            RayNodes.checkForApp(registration, RayNodes.get(registration.spa.nodeId))
+        } catch (e: NotForApp) {
+            forgetPending(invite.inviteId)
+            throw e
         }
         val identity = answer.getAsJsonObject("identity")
         val key = identity.get("key").asString.decodeBase64()?.toByteArray()

@@ -107,7 +107,7 @@ object RayImport {
     fun failure(context: Context, e: Throwable): String = when {
         // an invite for a bot (integrations-v1), used by this registration
         e is RayApi.IntegrationRole -> context.getString(R.string.raycontrol_invite_integration, e.role)
-        e is RayApi.NoSubscription -> context.getString(R.string.raycontrol_package_no_subscription)
+        e is RayApi.NoSubscription -> context.getString(R.string.raycontrol_invite_no_subscription)
         // used, expired, revoked, a wrong key, or the clock off by more than 2 minutes
         RayApi.code(e) == "not_found" -> context.getString(R.string.raycontrol_invite_refused)
         // the request reached the node: the invite may be used by this very registration (rayapi.ErrAnswerLost)

@@ -381,8 +381,7 @@ object Rcdev1 {
                     throw IllegalArgumentException("rcdev1: ${e.message}")
                 }
             },
-            role = (o.get("role") as? com.google.gson.JsonPrimitive)?.takeIf { it.isString }?.asString?.trim()
-                ?.takeIf { it.isNotEmpty() },
+            role = roleOf(o),
         )
     }
 
@@ -414,6 +413,13 @@ object Rcdev1 {
         )
     }
 }
+
+/**
+ * The role [o] names (a registration's answer, an rcdev1 package): any value as text, trimmed; none or a blank one
+ * is null. Read the same in both, so that the same value is judged the same.
+ */
+internal fun roleOf(o: JsonObject): String? =
+    (o.get("role") as? com.google.gson.JsonPrimitive)?.asString?.trim()?.takeIf { it.isNotEmpty() }
 
 internal fun JsonObject.string(name: String): String =
     get(name)?.takeIf { it.isJsonPrimitive }?.asString ?: throw IllegalArgumentException("missing $name")

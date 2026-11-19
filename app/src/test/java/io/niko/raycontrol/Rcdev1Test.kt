@@ -31,6 +31,8 @@ class Rcdev1Test {
         val device = "\"device_id\": \"0123456789abcdef\","
         assertEquals("billing", Rcdev1.parse(pack(json.replace(device, "$device \"role\": \"billing\","))).role)
         assertNull(Rcdev1.parse(pack(json.replace(device, "$device \"role\": \" \","))).role)
+        // any value as text, as a registration's answer is read
+        assertEquals("2", Rcdev1.parse(pack(json.replace(device, "$device \"role\": 2,"))).role)
     }
 
     @Test

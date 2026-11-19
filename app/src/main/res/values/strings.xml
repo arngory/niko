@@ -816,6 +816,7 @@
     <string name="raycontrol_invite_pin_cancelled">Registration cancelled: the invite needs its PIN.</string>
     <string name="raycontrol_invite_pin_withdrawn">Wrong PIN and no tries left: the invite is withdrawn. Ask the administrator for a new one.</string>
     <string name="raycontrol_invite_integration">This invite is for an integration (%1$s), not for the app. It is used now: ask the administrator to revoke the device it registered and to issue the integration a new invite.</string>
+    <string name="raycontrol_invite_no_subscription">The node registered this device by the invite, but its package has no subscription, while the one kept for this node has: it may be a bot\'s invite. It was not kept, and the invite is used now: ask the administrator to revoke the device it registered.</string>
     <string name="raycontrol_package_integration">This device package is for an integration (%1$s), not for the app: it was not kept.</string>
     <string name="raycontrol_package_no_subscription">This package has no subscription, while the one kept for its node has: it may be a bot\'s. It was not kept, and this device\'s own registration stays.</string>
     <string name="raycontrol_invite_refused">The node refused the invite: it is used, expired or revoked, or the clock of this device is off by more than 2 minutes. If the invite was fresh, someone else may have used it: tell the administrator.</string>
