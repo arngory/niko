@@ -42,6 +42,23 @@ object RayApi {
     /** The tries an invite has left when Register refused for its PIN (permission_denied, api-v1.md §4), or null. */
     fun pinLeft(e: Throwable): Int? = e.message?.let { PIN_LEFT.find(it) }?.groupValues?.get(1)?.toIntOrNull()
 
+    /** The roles of an app's device; others (billing, support: integrations-v1) are for a bot, with no subscription. */
+    val APP_ROLES = setOf("user", "admin")
+
+    /** A registration whose role is not an app's ([APP_ROLES]): the invite is used, this device keeps nothing. */
+    class IntegrationRole(val role: String) : Exception("raycontrol: the invite is for an integration ($role), not for an app")
+
+    /**
+     * The role of a registration's [answer]; none or a blank one (a node before roles) is user. One that is not an
+     * app's throws [IntegrationRole] before anything is kept: such a package has no subscription, and kept it would
+     * replace this device's own registration at the same node.
+     */
+    fun appRole(answer: JsonObject): String {
+        val role = answer.get("role")?.takeIf { it.isJsonPrimitive }?.asString?.takeIf { it.isNotBlank() } ?: "user"
+        if (role !in APP_ROLES) throw IntegrationRole(role)
+        return role
+    }
+
     // the node's refusal of a switch with a grace while the previous key is still in its own (raycontrol v0.24.0,
     // failed_precondition): "... its previous seal key is still accepted until 2026-11-10T07:14:05Z (...)"
     private val GRACE_UNTIL = Regex("still accepted until (\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})Z")
@@ -144,6 +161,13 @@ object RayApi {
         // (api-v1 §4.1), and the right PIN after it must come with the same key. A key of no further use (the invite
         // used by another, expired, revoked) goes with its window, which runs from this try
         val answer = JsonParser.parseString(Libcore.raycontrolRegister(request.toString())).asJsonObject
+        val role = try {
+            appRole(answer)
+        } catch (e: IntegrationRole) {
+            // the invite is used: its key is of no further use
+            forgetPending(invite.inviteId)
+            throw e
+        }
         val registration = Rcdev1.parse(answer.get("bundle").asString)
         // the channel is pinned to the invite's node; its package may name a new address (a moved node): that is kept
         if (registration.spa.nodeId != invite.spa.nodeId) {
@@ -164,7 +188,7 @@ object RayApi {
         )
         // forgotten once the node is kept: until then a retry sends the same key and gets the same package
         forgetPending(invite.inviteId)
-        return node to (answer.get("role")?.asString ?: "user")
+        return node to role
     }
 
     // how long a kept registration key is sent again, from its last try. The node answers a retry the same for 15 min

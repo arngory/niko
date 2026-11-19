@@ -1,5 +1,6 @@
 package io.niko.raycontrol
 
+import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.niko.fmt.DnsTunnel
 import io.niko.fmt.applyNikoParams
@@ -216,6 +217,16 @@ class RaySubscriptionTest {
         assertEquals(0, RayApi.pinLeft(Exception("raycontrol api: permission_denied: pin tries left 0")))
         assertEquals(null, RayApi.pinLeft(Exception("raycontrol api: permission_denied: not an admin")))
         assertEquals(null, RayApi.pinLeft(Exception("raycontrol api: not_found")))
+        // a registration's role: an app's is kept, an integration's (billing, support) refused before anything is kept
+        fun answer(role: String?) = JsonObject().apply { role?.let { addProperty("role", it) } }
+        assertEquals("user", RayApi.appRole(answer(null)))
+        assertEquals("user", RayApi.appRole(answer("")))
+        assertEquals("user", RayApi.appRole(answer("user")))
+        assertEquals("admin", RayApi.appRole(answer("admin")))
+        for (role in listOf("billing", "support")) {
+            val refused = runCatching { RayApi.appRole(answer(role)) }.exceptionOrNull()
+            assertTrue(refused is RayApi.IntegrationRole && refused.role == role)
+        }
         // a switch with a grace refused while the previous key is in its own (raycontrol v0.24.0): the node's time
         val inGrace = Exception("raycontrol api: failed_precondition: not now: dns: its previous seal key is still accepted " +
             "until 2026-11-10T07:14:05Z (clients that have not fetched their subscription since the last switch use it); " +
