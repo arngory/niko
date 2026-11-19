@@ -2,7 +2,6 @@ package io.niko.raycontrol
 
 import android.content.Context
 import android.net.NetworkCapabilities
-import android.os.Build
 import android.telephony.TelephonyManager
 import androidx.core.content.getSystemService
 import com.google.gson.JsonArray
@@ -347,7 +346,7 @@ object RayChannel {
         }
         val digest = MessageDigest.getInstance("SHA-256").digest(parts.joinToString("|").toByteArray())
         val metered = !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
-        val roaming = Build.VERSION.SDK_INT >= 28 && !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_ROAMING)
+        val roaming = !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_ROAMING)
         return ChannelNetwork(digest.take(8).joinToString("") { "%02x".format(it) }, mobile, kind, metered, roaming)
     }
 
