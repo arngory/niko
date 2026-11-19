@@ -48,6 +48,9 @@ object RayApi {
     /** A registration whose role is not an app's ([APP_ROLES]): the invite is used, this device keeps nothing. */
     class IntegrationRole(val role: String) : Exception("raycontrol: the invite is for an integration ($role), not for an app")
 
+    /** A package with no subscription for a node whose kept package has one: a bot's from a node before roles. */
+    class NoSubscription : Exception("raycontrol: the package has no subscription, and the one kept for its node has")
+
     /**
      * The role of a registration's [answer]; none or a blank one (a node before roles) is user. One that is not an
      * app's throws [IntegrationRole] before anything is kept: such a package has no subscription, and kept it would

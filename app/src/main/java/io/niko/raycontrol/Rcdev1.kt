@@ -138,6 +138,9 @@ data class RayRegistration(
     val services: List<RayService>,
     val subscription: RaySubscriptionInfo? = null,
     val api: RayApiInfo? = null,
+    // the device's role as its package names it: admin, or a bot's (billing, support: integrations-v1); none for user
+    // and from a node before roles were named
+    val role: String? = null,
 ) {
     override fun toString() = "RayRegistration(host=$host, node=${spa.nodeId}, device=$deviceId)"
 }
@@ -378,6 +381,8 @@ object Rcdev1 {
                     throw IllegalArgumentException("rcdev1: ${e.message}")
                 }
             },
+            role = (o.get("role") as? com.google.gson.JsonPrimitive)?.takeIf { it.isString }?.asString?.trim()
+                ?.takeIf { it.isNotEmpty() },
         )
     }
 

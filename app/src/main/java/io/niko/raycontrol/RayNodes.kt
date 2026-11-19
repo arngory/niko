@@ -597,6 +597,7 @@ object RayNodes {
         val wrapped = DeviceKeyVault.wrap(hexToBytes(registration.deviceKey))
         // a new registration of the same node keeps its profile group and rows
         val old = list().firstOrNull { it.spa.nodeId == registration.spa.nodeId }
+        checkForApp(registration, old)
         val node = RayNode(
             registration.host, registration.spa, registration.deviceId, wrapped, registration.services,
             registration.subscription, groupId = old?.groupId ?: 0, profileIds = if (old == null) emptyMap() else old.profileIds,
@@ -612,6 +613,17 @@ object RayNodes {
         )
         save(list().filter { it.spa.nodeId != node.spa.nodeId } + node)
         node
+    }
+
+    /**
+     * Throws unless [registration] is a package for this app, before anything is kept: one that names a bot's role
+     * ([RayApi.IntegrationRole]), or one with no subscription where the node's kept package [old] has one
+     * ([RayApi.NoSubscription]: a bot's package from a node before roles were named). Kept, either would replace this
+     * device's own registration at the node with one that brings no profiles.
+     */
+    fun checkForApp(registration: RayRegistration, old: RayNode?) {
+        registration.role?.let { if (it !in RayApi.APP_ROLES) throw RayApi.IntegrationRole(it) }
+        if (registration.subscription == null && old?.subscription != null) throw RayApi.NoSubscription()
     }
 
     /**

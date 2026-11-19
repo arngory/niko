@@ -89,9 +89,16 @@ object RayImport {
             show(context.getString(R.string.raycontrol_invite_registered, node.host, role))
             node
         } else {
-            RayNodes.import(Rcdev1.parse(text)).also {
-                show(context.getString(R.string.raycontrol_node_imported, it.host, it.services.size))
+            // a bot's package (integrations-v1) is not kept: it would replace this device's own at the node
+            val imported = try {
+                RayNodes.import(Rcdev1.parse(text))
+            } catch (e: RayApi.IntegrationRole) {
+                return show(context.getString(R.string.raycontrol_package_integration, e.role))
+            } catch (e: RayApi.NoSubscription) {
+                return show(context.getString(R.string.raycontrol_package_no_subscription))
             }
+            show(context.getString(R.string.raycontrol_node_imported, imported.host, imported.services.size))
+            imported
         }
         if (node.subscription != null) show(RaySubscription.refreshForUser(context, node))
     }
@@ -100,6 +107,7 @@ object RayImport {
     fun failure(context: Context, e: Throwable): String = when {
         // an invite for a bot (integrations-v1), used by this registration
         e is RayApi.IntegrationRole -> context.getString(R.string.raycontrol_invite_integration, e.role)
+        e is RayApi.NoSubscription -> context.getString(R.string.raycontrol_package_no_subscription)
         // used, expired, revoked, a wrong key, or the clock off by more than 2 minutes
         RayApi.code(e) == "not_found" -> context.getString(R.string.raycontrol_invite_refused)
         // the request reached the node: the invite may be used by this very registration (rayapi.ErrAnswerLost)
