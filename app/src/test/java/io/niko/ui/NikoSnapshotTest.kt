@@ -1,6 +1,7 @@
 package io.niko.ui
 
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
 import android.view.View
 import android.view.ContextThemeWrapper
@@ -113,7 +114,11 @@ class NikoSnapshotTest(private val mode: String) {
 
     @Test
     fun appRow() = paparazzi.snapshot(card(R.layout.layout_apps_item).apply {
-        findViewById<ImageView>(R.id.itemicon).setImageResource(android.R.drawable.sym_def_app_icon)
+        // an app's icon: a plain tile (the framework's default icon is adaptive, which layoutlib does not draw)
+        findViewById<ImageView>(R.id.itemicon).setImageDrawable(GradientDrawable().apply {
+            cornerRadius = resources.getDimension(R.dimen.niko_radius_sm)
+            setColor(context.getColor(R.color.niko_surface_3))
+        })
         text(R.id.title, "Browser")
         text(R.id.desc, "org.example.browser (10123)")
         findViewById<SwitchCompat>(R.id.itemcheck).isChecked = true
