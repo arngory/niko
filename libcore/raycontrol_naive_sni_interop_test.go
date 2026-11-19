@@ -206,7 +206,7 @@ func TestRaycontrolNaiveSNI(t *testing.T) {
 			"log":      map[string]any{"level": "warn"},
 			"inbounds": []any{map[string]any{"type": "mixed", "tag": "in", "listen": "127.0.0.1", "listen_port": localPort}},
 			"outbounds": []any{map[string]any{
-				"type": "naive", "tag": "naive", "server": u.Hostname(), "server_port": port,
+				"type": "naive", "tag": "naive", "server": linkServer(t, u), "server_port": port,
 				"username": u.User.Username(), "password": password, "quic": u.Scheme == "naive+quic", "tls": tlsOptions,
 			}},
 			"route": map[string]any{"final": "naive"},

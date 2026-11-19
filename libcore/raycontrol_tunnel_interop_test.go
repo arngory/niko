@@ -662,13 +662,7 @@ func profileConfig(t *testing.T, link, node, resolver, ca, deviceKey string, dow
 	// niko-ip. The stand has no DNS for its names, so the profile dials the first address, as the app's knock does
 	// when the name does not resolve; the name stays the TLS name where it was one
 	// (a Yggdrasil line keeps its mesh address: its niko-ygg peer is what goes by name)
-	server := u.Hostname()
-	if ips := q.Get("niko-ip"); ips != "" && net.ParseIP(server) == nil {
-		server = strings.Split(ips, ",")[0]
-		if net.ParseIP(server) == nil {
-			t.Fatalf("niko-ip %q", ips)
-		}
-	}
+	server := linkServer(t, u)
 	var endpoints, extra []any
 	var outbound map[string]any
 	switch {
@@ -832,6 +826,21 @@ func profileConfig(t *testing.T, link, node, resolver, ca, deviceKey string, dow
 	}
 	raw, _ := json.Marshal(c)
 	return kind, string(raw)
+}
+
+// linkServer is the address a profile of the stand dials for link u: its host, or by name (names-v1, raycontrol
+// v0.34.0) the first of the node's addresses in niko-ip, as the app's knock takes when the name does not resolve: the
+// stand has no DNS for its names. The name stays the profile's TLS name (sni).
+func linkServer(t *testing.T, u *url.URL) string {
+	t.Helper()
+	server := u.Hostname()
+	if ips := u.Query().Get("niko-ip"); ips != "" && net.ParseIP(server) == nil {
+		server = strings.Split(ips, ",")[0]
+		if net.ParseIP(server) == nil {
+			t.Fatalf("niko-ip %q", ips)
+		}
+	}
+	return server
 }
 
 // probeThrough measures the channel through instance's tunnel at the probe name as the app does
