@@ -57,6 +57,21 @@ func writePinTries(w http.ResponseWriter, left int) {
 	})
 }
 
+// writeInviteRole answers as the node does an app's Register of an integration's invite (raycontrol#56):
+// failed_precondition with an InviteRole{role} detail, the invite left unused.
+func writeInviteRole(w http.ResponseWriter, role string) {
+	message := append([]byte{0x0a, byte(len(role))}, role...)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	json.NewEncoder(w).Encode(map[string]any{
+		"code": "failed_precondition", "message": "the invite is for an integration (" + role + "), not for an app",
+		"details": []any{map[string]any{
+			"type": "raycontrol.device.v1.InviteRole", "value": base64.RawStdEncoding.EncodeToString(message),
+			"debug": map[string]any{"role": role},
+		}},
+	})
+}
+
 func writeError(w http.ResponseWriter, status int, code string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -84,10 +99,15 @@ func newNode(t *testing.T) *node {
 		minute, _ := strconv.ParseInt(req.Minute, 10, 64)
 		clientPin := certPin(r.TLS.PeerCertificates[0])
 		now := time.Now().Unix() / 60
-		known := req.InviteID == "inv1" || (req.InviteID == "inv-pin" && n.pinTries > 0)
+		known := req.InviteID == "inv1" || req.InviteID == "inv-bot" || (req.InviteID == "inv-pin" && n.pinTries > 0)
 		if !known || minute < now-2 || minute > now+2 ||
 			!hmacEqual(req.Mac, RegisterMAC(n.inviteKey, minute, clientPin)) {
 			writeError(w, http.StatusNotFound, "not_found")
+			return
+		}
+		// an integration's invite after the mac, before the PIN: refused this app, unused
+		if req.InviteID == "inv-bot" {
+			writeInviteRole(w, "billing")
 			return
 		}
 		// api-v1.md §4: the PIN after the mac; none costs no try, a wrong one does, the last withdraws the invite
@@ -422,6 +442,40 @@ func TestNekoAPIRegisterPin(t *testing.T) {
 	// a PIN that is not 6 digits never goes out
 	if _, err = Register(context.Background(), Invite{SPA: knock.SPAv2Options{DeviceKey: hex.EncodeToString(n.inviteKey)}, PinCode: "12345"}, nil); !errors.Is(err, ErrPinFormat) {
 		t.Fatalf("short PIN: %v", err)
+	}
+}
+
+// An integration's invite (raycontrol#56): refused with the role the app reads, the invite unused.
+func TestNekoAPIRegisterInviteRole(t *testing.T) {
+	n := newNode(t)
+	id, _ := NewIdentity()
+	_, err := register(context.Background(), n.endpoint(id), "inv-bot", n.inviteKey, "", time.Now())
+	var apiErr *Error
+	if !errors.As(err, &apiErr) || apiErr.Code != "failed_precondition" || apiErr.InviteRole != "billing" || apiErr.PinLeft != nil {
+		t.Fatalf("not an integration's invite: %v", err)
+	}
+	if !strings.HasPrefix(err.Error(), "raycontrol api: failed_precondition: invite role billing") {
+		t.Fatalf("the app reads %q", err.Error())
+	}
+	// the value, else the debug JSON; a role that is not a plain word is not shown
+	detail := func(value string, debug string) *Error {
+		return &Error{Details: []struct {
+			Type  string          `json:"type"`
+			Value string          `json:"value"`
+			Debug json.RawMessage `json:"debug"`
+		}{{Type: "type.googleapis.com/raycontrol.device.v1.InviteRole", Value: value, Debug: json.RawMessage(debug)}}}
+	}
+	for _, c := range []struct {
+		value, debug, want string
+	}{
+		{base64.RawStdEncoding.EncodeToString([]byte("\x0a\x07support")), "null", "support"},
+		{"", `{"role":"billing"}`, "billing"},
+		{base64.RawStdEncoding.EncodeToString([]byte("\x0a\x05Bad R")), "null", ""},
+		{"", "null", ""},
+	} {
+		if got := detail(c.value, c.debug).inviteRole(); got != c.want {
+			t.Fatalf("%q %s: %q, want %q", c.value, c.debug, got, c.want)
+		}
 	}
 }
 

@@ -104,8 +104,14 @@ object RayImport {
     }
 
     /** A failed registration for the user (api-v1.md §4, §7). */
-    fun failure(context: Context, e: Throwable): String = when {
-        // an invite for a bot (integrations-v1), used by this registration
+    fun failure(context: Context, e: Throwable): String {
+        // an invite for a bot (integrations-v1) the node refused this app, unused
+        RayApi.inviteRole(e)?.let { return context.getString(R.string.raycontrol_invite_integration_unused, it) }
+        return failureOther(context, e)
+    }
+
+    private fun failureOther(context: Context, e: Throwable): String = when {
+        // an invite for a bot used by a node before it refused them
         e is RayApi.IntegrationRole -> context.getString(R.string.raycontrol_invite_integration, e.role)
         e is RayApi.NoSubscription -> context.getString(R.string.raycontrol_invite_no_subscription)
         // used, expired, revoked, a wrong key, or the clock off by more than 2 minutes

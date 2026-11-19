@@ -42,6 +42,15 @@ object RayApi {
     /** The tries an invite has left when Register refused for its PIN (permission_denied, api-v1.md §4), or null. */
     fun pinLeft(e: Throwable): Int? = e.message?.let { PIN_LEFT.find(it) }?.groupValues?.get(1)?.toIntOrNull()
 
+    // the core's message for Register refused an integration's invite (rayapi.Error, its InviteRole detail)
+    private val INVITE_ROLE = Regex("raycontrol api: failed_precondition: invite role ([a-z_]+)")
+
+    /**
+     * The role of an integration's invite that the node refused this app, leaving it unused (raycontrol#56, a
+     * failed_precondition with an InviteRole detail), or null.
+     */
+    fun inviteRole(e: Throwable): String? = e.message?.let { INVITE_ROLE.find(it) }?.groupValues?.get(1)
+
     /** The roles of an app's device; others (billing, support: integrations-v1) are for a bot, with no subscription. */
     val APP_ROLES = setOf("user", "admin")
 
