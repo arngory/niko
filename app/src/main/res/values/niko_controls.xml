@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Buttons and chips in the Niko look (reskin step 2): capsules (radius-full), no shadow. A button is control high,
+     its words body 600: the primary ink with on-ink (m-btn), the tonal surface-2 with ink, a tool's action
+     (m-btn, tonal), the ghost no fill with ink (m-btn, ghost); a press fills a shade deeper. A chip is a tag or a
+     segment: surface-2 with ink, ink with on-ink when chosen. The theme hands them out (Theme.SagerNet.Niko):
+     materialButtonStyle, nikoTonalButtonStyle, nikoToolButtonStyle, borderlessButtonStyle, chipStyle,
+     nikoFilterChipStyle. -->
+<resources>
+
+    <!-- a capsule: half its height at each end, whatever the height -->
+    <style name="ShapeAppearance.Niko.Full" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
+    <style name="Widget.Niko.Button" parent="Widget.MaterialComponents.Button">
+        <item name="shapeAppearance">@style/ShapeAppearance.Niko.Full</item>
+        <!-- the fill is the whole button: no inset above and below it -->
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:minHeight">@dimen/niko_size_control</item>
+        <item name="android:paddingStart">@dimen/niko_space_6</item>
+        <item name="android:paddingEnd">@dimen/niko_space_6</item>
+        <item name="android:textAppearance">@style/TextAppearance.Niko.Slot.Button</item>
+        <item name="backgroundTint">@color/niko_button_fill</item>
+        <item name="android:textColor">@color/niko_button_text</item>
+        <item name="iconTint">@color/niko_button_text</item>
+        <item name="rippleColor">@color/niko_ink_pressed</item>
+        <item name="elevation">0dp</item>
+        <item name="android:stateListAnimator">@null</item>
+    </style>
+
+    <style name="Widget.Niko.Button.Tonal">
+        <item name="backgroundTint">@color/niko_button_tonal_fill</item>
+        <item name="android:textColor">@color/niko_button_ink_text</item>
+        <item name="iconTint">@color/niko_button_ink_text</item>
+        <item name="rippleColor">@color/niko_surface_3</item>
+    </style>
+
+    <!-- the words alone: the padding narrower, space-4 -->
+    <style name="Widget.Niko.Button.Ghost">
+        <item name="android:paddingStart">@dimen/niko_space_4</item>
+        <item name="android:paddingEnd">@dimen/niko_space_4</item>
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="android:textColor">@color/niko_button_ink_text</item>
+        <item name="iconTint">@color/niko_button_ink_text</item>
+        <item name="rippleColor">@color/niko_surface_2</item>
+    </style>
+
+    <style name="TextAppearance.Niko.Chip" parent="TextAppearance.Niko.BodySm">
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <!-- a chip to choose with (chipStyle): one of a group, or a tag to press -->
+    <style name="Widget.Niko.Chip" parent="Widget.MaterialComponents.Chip.Choice">
+        <item name="shapeAppearance">@style/ShapeAppearance.Niko.Full</item>
+        <item name="chipBackgroundColor">@color/niko_chip_fill</item>
+        <item name="chipStrokeWidth">0dp</item>
+        <item name="android:textColor">@color/niko_chip_text</item>
+        <item name="android:textAppearance">@style/TextAppearance.Niko.Chip</item>
+        <item name="textStartPadding">@dimen/niko_space_3</item>
+        <item name="textEndPadding">@dimen/niko_space_3</item>
+        <item name="rippleColor">@color/niko_surface_3</item>
+    </style>
+
+    <!-- a chip that is on or off (nikoFilterChipStyle): the same, a check before its words when on -->
+    <style name="Widget.Niko.Chip.Filter" parent="Widget.MaterialComponents.Chip.Filter">
+        <item name="shapeAppearance">@style/ShapeAppearance.Niko.Full</item>
+        <item name="chipBackgroundColor">@color/niko_chip_fill</item>
+        <item name="chipStrokeWidth">0dp</item>
+        <item name="android:textColor">@color/niko_chip_text</item>
+        <item name="android:textAppearance">@style/TextAppearance.Niko.Chip</item>
+        <item name="textStartPadding">@dimen/niko_space_3</item>
+        <item name="textEndPadding">@dimen/niko_space_3</item>
+        <item name="rippleColor">@color/niko_surface_3</item>
+        <item name="checkedIcon">@drawable/ic_l_check</item>
+        <item name="checkedIconTint">@color/niko_chip_text</item>
+    </style>
+
+    <!-- the colour themes' buttons, as their layouts had them -->
+    <style name="Widget.SagerNet.Button.Colored" parent="Widget.AppCompat.Button.Colored">
+        <item name="android:textColor">?whiteOrTextPrimary</item>
+    </style>
+    <style name="Widget.SagerNet.Button.Borderless" parent="Widget.MaterialComponents.Button.TextButton">
+        <item name="android:textColor">?accentOrTextSecondary</item>
+    </style>
+    <style name="Widget.SagerNet.Button.Tool" parent="Widget.AppCompat.Button.Borderless">
+        <item name="android:textColor">?primaryOrTextPrimary</item>
+    </style>
+
+</resources>

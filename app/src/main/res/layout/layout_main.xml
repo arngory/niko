@@ -46,6 +46,8 @@
                     android:ellipsize="marquee"
                     android:singleLine="true"
                     android:textAppearance="@style/TextAppearance.Niko.Code"
+                    android:fontFamily="@font/geist_mono"
+                    app:fontFamily="@font/geist_mono"
                     android:textColor="?whiteOrTextSecondary" />
 
                 <TextView
@@ -57,6 +59,8 @@
                     android:ellipsize="marquee"
                     android:singleLine="true"
                     android:textAppearance="@style/TextAppearance.Niko.Code"
+                    android:fontFamily="@font/geist_mono"
+                    app:fontFamily="@font/geist_mono"
                     android:textColor="?whiteOrTextSecondary" />
 
                 <TextView

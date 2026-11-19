@@ -39,4 +39,10 @@
     <!-- the settings' rows in groups: surface-1 containers of radius-md with hairlines between rows (the Niko theme,
          NikoPreferenceGroups); off in the colour themes -->
     <attr name="nikoGroupedPreferences" format="boolean" />
+    <!-- a tool's action (the backup, the debug screen): Niko's tonal button, the colour themes' coloured one -->
+    <attr name="nikoTonalButtonStyle" format="reference" />
+    <!-- a chip that is on or off (show the system's apps) -->
+    <attr name="nikoFilterChipStyle" format="reference" />
+    <!-- a tool's Start (STUN): Niko's tonal button, the colour themes' borderless one -->
+    <attr name="nikoToolButtonStyle" format="reference" />
 </resources>

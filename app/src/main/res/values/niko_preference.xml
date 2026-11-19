@@ -14,7 +14,10 @@
         <item name="android:listPreferredItemPaddingEnd">@dimen/niko_space_4</item>
         <item name="android:listPreferredItemPaddingLeft">@dimen/niko_space_4</item>
         <item name="android:listPreferredItemPaddingRight">@dimen/niko_space_4</item>
+        <!-- the dropdown: a Spinner inflated through AppCompat's factory is an AppCompatSpinner, which takes
+             spinnerStyle; android:spinnerStyle for a framework one -->
         <item name="android:spinnerStyle">@style/Widget.Niko.Spinner</item>
+        <item name="spinnerStyle">@style/Widget.Niko.Spinner</item>
     </style>
 
     <!-- SwitchPreference's (android.widget.Switch) -->

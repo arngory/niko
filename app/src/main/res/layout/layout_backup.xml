@@ -7,11 +7,10 @@
 
     <Button
         android:id="@+id/reset_settings"
-        style="@style/Widget.AppCompat.Button.Colored"
+        style="?attr/nikoTonalButtonStyle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/reset_settings"
-        android:textColor="?whiteOrTextPrimary" />
+        android:text="@string/reset_settings" />
 
     <CheckBox
         android:id="@+id/backup_configurations"
@@ -40,19 +39,18 @@
 
     <Button
         android:id="@+id/action_export"
-        style="@style/Widget.AppCompat.Button.Colored"
+        style="?attr/nikoTonalButtonStyle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/action_export"
-        android:textColor="?whiteOrTextPrimary" />
+        android:text="@string/action_export" />
 
     <Button
         android:id="@+id/action_share"
-        style="@style/Widget.AppCompat.Button.Colored"
+        style="?attr/nikoTonalButtonStyle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/share"
-        android:textColor="?whiteOrTextPrimary" />
+        android:layout_marginTop="@dimen/niko_space_2"
+        android:text="@string/share" />
 
     <TextView
         android:layout_width="wrap_content"
@@ -63,12 +61,11 @@
 
     <Button
         android:id="@+id/action_import_file"
-        style="@style/Widget.AppCompat.Button.Colored"
+        style="?attr/nikoTonalButtonStyle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="@string/action_import_file"
-        android:textColor="?whiteOrTextPrimary" />
+        android:text="@string/action_import_file" />
 
 
 </LinearLayout>

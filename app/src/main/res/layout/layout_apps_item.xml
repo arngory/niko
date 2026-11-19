@@ -38,21 +38,23 @@
 
             <TextView
                 android:id="@+id/title"
+                android:textAppearance="@style/TextAppearance.Niko.Body"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
-                android:textColor="?android:attr/textColorSecondary"
-                android:textSize="18sp"
+                android:textColor="?android:attr/textColorPrimary"
                 tools:text="Package label" />
 
             <TextView
                 android:id="@+id/desc"
+                android:textAppearance="@style/TextAppearance.Niko.Code"
+                android:fontFamily="@font/geist_mono"
+                app:fontFamily="@font/geist_mono"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:breakStrategy="high_quality"
                 android:ellipsize="end"
-                android:textColor="?android:attr/textColorTertiary"
-                android:textSize="12sp"
+                android:textColor="?android:attr/textColorSecondary"
                 tools:text="com.package.name (10000)" />
 
         </LinearLayout>

@@ -1,11 +1,15 @@
 package io.niko.ui
 
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
 import android.view.View
 import android.view.ContextThemeWrapper
 import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.appcompat.widget.SwitchCompat
 import androidx.core.view.isVisible
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.preference.EditTextPreference
@@ -21,6 +25,9 @@ import app.cash.paparazzi.DeviceConfig
 import app.cash.paparazzi.Paparazzi
 import com.android.ide.common.rendering.api.SessionParams
 import com.android.resources.NightMode
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.chip.Chip
+import com.google.android.material.chip.ChipGroup
 import com.google.android.material.progressindicator.BaseProgressIndicator
 import io.niko.R
 import io.niko.bg.BaseService
@@ -89,6 +96,83 @@ class NikoSnapshotTest(private val mode: String) {
         text(R.id.group_user, "3 profiles")
         text(R.id.group_traffic, "↑ 1.2 MB ↓ 34 MB")
         text(R.id.group_status, "Updated 5 min ago")
+    })
+
+    @Test
+    fun routeCard() = paparazzi.snapshot(card(R.layout.layout_route_item).apply {
+        text(R.id.profile_name, "Russian sites")
+        text(R.id.profile_type, "geosite:category-ru\ngeoip:ru")
+        text(R.id.route_outbound, "Bypass")
+        findViewById<SwitchCompat>(R.id.enable).isChecked = true
+    })
+
+    @Test
+    fun assetCard() = paparazzi.snapshot(card(R.layout.layout_asset_item).apply {
+        text(R.id.asset_name, "geosite.db")
+        text(R.id.asset_status, "Local version: 20261118")
+    })
+
+    @Test
+    fun appRow() = paparazzi.snapshot(card(R.layout.layout_apps_item).apply {
+        // an app's icon: a plain tile (the framework's default icon is adaptive, which layoutlib does not draw)
+        findViewById<ImageView>(R.id.itemicon).setImageDrawable(GradientDrawable().apply {
+            cornerRadius = resources.getDimension(R.dimen.niko_radius_sm)
+            setColor(context.getColor(R.color.niko_surface_3))
+        })
+        text(R.id.title, "Browser")
+        text(R.id.desc, "org.example.browser (10123)")
+        findViewById<SwitchCompat>(R.id.itemcheck).isChecked = true
+    })
+
+    /** A column of [content] on surface-0 at the screen's width, space-4 around it and space-2 between. */
+    private fun column(content: LinearLayout.() -> Unit): View = LinearLayout(paparazzi.context).apply {
+        orientation = LinearLayout.VERTICAL
+        val space = resources.getDimensionPixelSize(R.dimen.niko_space_4)
+        setPadding(space, space, space, space)
+        setBackgroundColor(context.getColor(R.color.niko_surface_0))
+        layoutParams = ViewGroup.LayoutParams(resources.displayMetrics.widthPixels, ViewGroup.LayoutParams.WRAP_CONTENT)
+        content()
+    }
+
+    private fun LinearLayout.item(view: View) = addView(
+        view,
+        LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            bottomMargin = resources.getDimensionPixelSize(R.dimen.niko_space_2)
+        },
+    )
+
+    /** Buttons (reskin step 2) from the theme: the primary, the tonal (a tool's action), the ghost, a disabled one. */
+    @Test
+    fun buttons() = paparazzi.snapshot(column {
+        fun button(text: String, style: Int, enabled: Boolean = true) = item(MaterialButton(context, null, style).apply {
+            this.text = text
+            isEnabled = enabled
+        })
+        button("Open app settings", R.attr.materialButtonStyle)
+        button("Start", R.attr.nikoTonalButtonStyle)
+        button("Update", R.attr.borderlessButtonStyle)
+        button("Open app settings", R.attr.materialButtonStyle, enabled = false)
+    })
+
+    /** Chips from the theme: a group to choose one of (the per-app mode), on and off (the system's apps), a tag. */
+    @Test
+    fun chips() = paparazzi.snapshot(column {
+        item(ChipGroup(context).apply {
+            isSingleSelection = true
+            for (mode in listOf("Off", "Proxy", "Bypass")) addView(Chip(context).apply {
+                text = mode
+                isChecked = mode == "Bypass"
+            })
+        })
+        item(Chip(context, null, R.attr.nikoFilterChipStyle).apply {
+            text = "Show system apps"
+            isChecked = true
+        })
+        item(Chip(context, null, R.attr.nikoFilterChipStyle).apply { text = "Show system apps" })
+        item(Chip(context).apply {
+            text = "Auto select"
+            isCheckable = false
+        })
     })
 
     /** The main screen with its connect button in [state] ([failed]: after a start that failed). */

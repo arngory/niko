@@ -44,7 +44,7 @@
                     android:id="@+id/asset_name"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textAppearance="?android:attr/textAppearanceMedium"
+                    android:textAppearance="@style/TextAppearance.Niko.Body"
                     android:textColor="?android:attr/textColorPrimary"
                     android:textStyle="bold" />
             </LinearLayout>
@@ -71,7 +71,7 @@
                     android:id="@+id/asset_status"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textAppearance="?android:attr/textAppearanceSmall"
+                    android:textAppearance="@style/TextAppearance.Niko.BodySm"
                     android:textColor="?attr/accentOrTextSecondary" />
 
             </LinearLayout>
@@ -82,8 +82,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
-                android:text="@string/group_update"
-                android:textColor="?accentOrTextSecondary" />
+                android:text="@string/group_update" />
         </LinearLayout>
 
     </LinearLayout>
