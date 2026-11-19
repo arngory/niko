@@ -25,12 +25,8 @@ object PluginTrust {
     /** SHA-256 of the package's current signing certificates, hex with colons, sorted and joined by commas. */
     fun signer(packageName: String): String? = try {
         val pm = SagerNet.application.packageManager
-        @Suppress("DEPRECATION")
-        val signatures = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+        val signatures =
             pm.getPackageInfo(packageName, PackageManager.GET_SIGNING_CERTIFICATES).signingInfo?.apkContentsSigners
-        } else {
-            pm.getPackageInfo(packageName, PackageManager.GET_SIGNATURES).signatures
-        }
         signatures?.takeIf { it.isNotEmpty() }?.map { digest(it.toByteArray()) }?.sorted()?.joinToString(",")
     } catch (_: PackageManager.NameNotFoundException) {
         null

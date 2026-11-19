@@ -28,11 +28,8 @@ object Updates {
     /** Whether this build installs its updates itself: it carries the key its releases are signed with. */
     val enabled get() = BuildConfig.UPDATE_PUBLIC_KEY.isNotBlank()
 
-    /**
-     * Whether it can on this device: Android 7.0 and later, whose installer takes the APK by a content:// address (6.0's
-     * takes file:// only); the release page otherwise.
-     */
-    val canInstall get() = enabled && Build.VERSION.SDK_INT >= 24
+    /** Whether it can on this device: the installer takes the APK by a content:// address; the release page otherwise. */
+    val canInstall get() = enabled
 
     // the signed list and its signature are small: a minute for each whole. The APK is some tens of MB, through the
     // core at its slowest (a DNS tunnel) for longer than any bound: it goes on while it moves, and stops when nothing
@@ -291,7 +288,6 @@ object Updates {
      * read in time, a release without min_android).
      */
     fun needsNewerAndroid(context: Context, file: File): Pair<String, Int>? {
-        if (Build.VERSION.SDK_INT < 24) return null
         val info = runCatching { context.packageManager.getPackageArchiveInfo(file.path, 0) }.getOrNull() ?: return null
         val min = info.applicationInfo?.minSdkVersion ?: return null
         return if (Build.VERSION.SDK_INT < min) info.versionName.orEmpty() to min else null
@@ -302,7 +298,7 @@ object Updates {
      * settings page opened for it).
      */
     fun install(context: Context, file: File): Boolean {
-        if (Build.VERSION.SDK_INT >= 26 && !context.packageManager.canRequestPackageInstalls()) {
+        if (!context.packageManager.canRequestPackageInstalls()) {
             context.startActivity(
                 Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, "package:${context.packageName}".toUri())
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

@@ -3,9 +3,6 @@ package io.niko
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.wifi.WifiManager
-import android.os.Build
-import android.os.Build.VERSION_CODES
-import androidx.annotation.RequiresApi
 import io.niko.SagerNet
 import io.niko.bg.ServiceNotification
 import io.niko.database.DataStore
@@ -58,11 +55,8 @@ class NativeInterface : BoxPlatformInterface, NikoInterface {
         return DataStore.vpnService!!.startVpn(singTunOptionsJson, tunPlatformOptionsJson).toLong()
     }
 
-    override fun useProcFS(): Boolean {
-        return Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
-    }
+    override fun useProcFS(): Boolean = false
 
-    @RequiresApi(Build.VERSION_CODES.Q)
     override fun findConnectionOwner(
         ipProto: Int, srcIp: String, srcPort: Int, destIp: String, destPort: Int
     ): Int {

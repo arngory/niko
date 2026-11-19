@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
-import android.os.Build
 import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import com.google.gson.JsonArray
@@ -106,7 +105,7 @@ object RayLanDirect {
         ContextCompat.checkSelfPermission(app, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
     /** The SSID read when the app is not on the screen: "all the time" on Android 10+. */
-    fun backgroundGranted() = Build.VERSION.SDK_INT < 29 || ContextCompat.checkSelfPermission(
+    fun backgroundGranted() = ContextCompat.checkSelfPermission(
         app, Manifest.permission.ACCESS_BACKGROUND_LOCATION,
     ) == PackageManager.PERMISSION_GRANTED
 

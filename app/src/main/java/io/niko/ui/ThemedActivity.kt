@@ -66,11 +66,10 @@ abstract class ThemedActivity : AppCompatActivity {
         val night = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         val surface = ContextCompat.getColor(this, R.color.niko_surface_0)
         window.statusBarColor = surface
-        window.navigationBarColor = if (Build.VERSION.SDK_INT >= 27 || night) surface
-        else ContextCompat.getColor(this, R.color.niko_ink)
+        window.navigationBarColor = surface
         WindowCompat.getInsetsController(window, window.decorView).apply {
             isAppearanceLightStatusBars = !night
-            if (Build.VERSION.SDK_INT >= 27) isAppearanceLightNavigationBars = !night
+            isAppearanceLightNavigationBars = !night
         }
     }
 

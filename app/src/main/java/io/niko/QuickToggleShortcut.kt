@@ -23,9 +23,7 @@ package io.niko
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.content.pm.ShortcutManager
-import android.os.Build
 import android.os.Bundle
 import androidx.core.content.getSystemService
 import androidx.core.content.pm.ShortcutInfoCompat
@@ -44,74 +42,30 @@ class QuickToggleShortcut : Activity(), SagerConnection.Callback {
     companion object {
         private const val LEGACY_ALIAS = "io.niko.QuickToggleShortcutLegacy"
         private const val EXTRA_TOKEN = "token"
-        private const val ACTION_INSTALL_SHORTCUT = "com.android.launcher.action.INSTALL_SHORTCUT"
 
         /** Intent for a pinned shortcut that toggles [profileId], or the selected profile for -1. */
         fun shortcutIntent(context: Context, profileId: Long = -1L): Intent {
-            val intent = if (Build.VERSION.SDK_INT >= 26) {
-                Intent(context, QuickToggleShortcut::class.java)
-            } else {
-                // the launcher starts it with its own identity, so it has to go through the exported alias
-                Intent().setClassName(context, LEGACY_ALIAS)
-                    .putExtra(EXTRA_TOKEN, DataStore.shortcutToken)
-            }
+            val intent = Intent(context, QuickToggleShortcut::class.java)
             intent.action = Intent.ACTION_MAIN
             if (profileId >= 0) intent.putExtra("profile", profileId)
             return intent
         }
 
-        /**
-         * The default launcher, the only app allowed to see a token-carrying shortcut before
-         * Android 8. Any app can declare a HOME activity, so it has to be the chosen one.
-         */
-        private fun defaultLauncher(context: Context): String? {
-            val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
-            return context.packageManager.resolveActivity(home, PackageManager.MATCH_DEFAULT_ONLY)
-                ?.activityInfo?.packageName?.takeIf { it != "android" } // "android": no default chosen
-        }
-
-        /** Pins a shortcut that toggles [profileId]; false when there is no launcher to send it to. */
-        @Suppress("DEPRECATION")
-        fun pinProfileShortcut(context: Context, profileId: Long, label: String): Boolean {
-            if (Build.VERSION.SDK_INT >= 26) {
-                return ShortcutManagerCompat.requestPinShortcut(
-                    context, ShortcutInfoCompat.Builder(context, "shortcut-profile-$profileId")
-                        .setShortLabel(label)
-                        .setLongLabel(label)
-                        .setIcon(IconCompat.createWithResource(context, R.drawable.ic_qu_toggle_launcher))
-                        .setIntent(shortcutIntent(context, profileId))
-                        .build(), null
-                )
-            }
-            // ShortcutManagerCompat would send the token in an implicit broadcast any app can receive
-            val launcher = defaultLauncher(context) ?: return false
-            val install = Intent(ACTION_INSTALL_SHORTCUT).setPackage(launcher)
-            if (context.packageManager.queryBroadcastReceivers(install, 0).isEmpty()) return false
-            context.sendBroadcast(
-                install
-                    .putExtra(Intent.EXTRA_SHORTCUT_INTENT, shortcutIntent(context, profileId))
-                    .putExtra(Intent.EXTRA_SHORTCUT_NAME, label)
-                    .putExtra(
-                        Intent.EXTRA_SHORTCUT_ICON_RESOURCE,
-                        Intent.ShortcutIconResource.fromContext(context, R.drawable.ic_qu_toggle_launcher)
-                    )
+        /** Pins a shortcut that toggles [profileId]; false when the launcher takes no pinned shortcuts. */
+        fun pinProfileShortcut(context: Context, profileId: Long, label: String): Boolean =
+            ShortcutManagerCompat.requestPinShortcut(
+                context, ShortcutInfoCompat.Builder(context, "shortcut-profile-$profileId")
+                    .setShortLabel(label)
+                    .setLongLabel(label)
+                    .setIcon(IconCompat.createWithResource(context, R.drawable.ic_qu_toggle_launcher))
+                    .setIntent(shortcutIntent(context, profileId))
+                    .build(), null
             )
-            return true
-        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (intent.action == Intent.ACTION_CREATE_SHORTCUT) {
-            // before Android 8 the result carries the token, so it goes to the default launcher only
-            if (Build.VERSION.SDK_INT < 26 && callingActivity?.packageName.let {
-                    it == null || it != defaultLauncher(this)
-                }
-            ) {
-                setResult(RESULT_CANCELED)
-                finish()
-                return
-            }
             setResult(RESULT_OK, ShortcutManagerCompat.createShortcutResultIntent(this,
                 ShortcutInfoCompat.Builder(this, "toggle")
                     .setIntent(shortcutIntent(this))
@@ -123,14 +77,12 @@ class QuickToggleShortcut : Activity(), SagerConnection.Callback {
         } else if (intent.component?.className == LEGACY_ALIAS &&
             intent.getStringExtra(EXTRA_TOKEN) != DataStore.shortcutToken
         ) {
-            // any app can start the exported alias
+            // any app can start the exported alias: a shortcut pinned before Android 8 carries the token
             finish()
         } else {
             profileId = intent.getLongExtra("profile", -1L)
             connection.connect(this, this)
-            if (Build.VERSION.SDK_INT >= 25) {
-                getSystemService<ShortcutManager>()!!.reportShortcutUsed(if (profileId >= 0) "shortcut-profile-$profileId" else "toggle")
-            }
+            getSystemService<ShortcutManager>()!!.reportShortcutUsed(if (profileId >= 0) "shortcut-profile-$profileId" else "toggle")
         }
     }
 

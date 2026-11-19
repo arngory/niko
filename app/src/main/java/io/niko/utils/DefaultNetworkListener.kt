@@ -75,7 +75,7 @@ object DefaultNetworkListener {
     suspend fun start(key: Any, listener: (Network?) -> Unit) =
         networkActor.send(NetworkMessage.Start(key, listener))
 
-    suspend fun get() = if (fallback) @TargetApi(23) {
+    suspend fun get() = if (fallback) {
         SagerNet.connectivity.activeNetwork
             ?: throw UnknownHostException() // failed to listen, return current if available
     } else NetworkMessage.Get().run {
@@ -107,10 +107,6 @@ object DefaultNetworkListener {
     private val request = NetworkRequest.Builder().apply {
         addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
         addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)
-        if (Build.VERSION.SDK_INT == 23) {  // workarounds for OEM bugs
-            removeCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-            removeCapability(NetworkCapabilities.NET_CAPABILITY_CAPTIVE_PORTAL)
-        }
     }.build()
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -133,18 +129,8 @@ object DefaultNetworkListener {
                         request, Callback, mainHandler
                     )
                 }
-                in 28 until 31 -> @TargetApi(28) {  // we want REQUEST here instead of LISTEN
+                else -> {  // we want REQUEST here instead of LISTEN
                     SagerNet.connectivity.requestNetwork(request, Callback, mainHandler)
-                }
-                in 26 until 28 -> @TargetApi(26) {
-                    SagerNet.connectivity.registerDefaultNetworkCallback(Callback, mainHandler)
-                }
-                in 24 until 26 -> @TargetApi(24) {
-                    SagerNet.connectivity.registerDefaultNetworkCallback(Callback)
-                }
-                else -> {
-                    SagerNet.connectivity.requestNetwork(request, Callback)
-                    // known bug on API 23: https://stackoverflow.com/a/33509180/2245107
                 }
             }
         } catch (e: Exception) {

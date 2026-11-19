@@ -202,24 +202,22 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                             }
                         }
                         .apply {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                val pm = app.getSystemService(Context.POWER_SERVICE) as PowerManager
-                                if (!pm.isIgnoringBatteryOptimizations(app.packageName)) {
-                                    addItem(
-                                        MaterialAboutActionItem.Builder()
-                                            .icon(R.drawable.ic_l_battery_warning)
-                                            .text(R.string.ignore_battery_optimizations)
-                                            .subText(R.string.ignore_battery_optimizations_sum)
-                                            .setOnClickAction {
-                                                requestIgnoreBatteryOptimizations.launch(
-                                                    Intent(
-                                                        Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                                                        "package:${app.packageName}".toUri()
-                                                    )
+                            val pm = app.getSystemService(Context.POWER_SERVICE) as PowerManager
+                            if (!pm.isIgnoringBatteryOptimizations(app.packageName)) {
+                                addItem(
+                                    MaterialAboutActionItem.Builder()
+                                        .icon(R.drawable.ic_l_battery_warning)
+                                        .text(R.string.ignore_battery_optimizations)
+                                        .subText(R.string.ignore_battery_optimizations_sum)
+                                        .setOnClickAction {
+                                            requestIgnoreBatteryOptimizations.launch(
+                                                Intent(
+                                                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                                                    "package:${app.packageName}".toUri()
                                                 )
-                                            }
-                                            .build())
-                                }
+                                            )
+                                        }
+                                        .build())
                             }
                             // what stops the app in the background besides Doze: "Restricted" battery use and the
                             // vendor's own manager (the node's watchdog and the subscription updates run there)

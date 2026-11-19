@@ -9,7 +9,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Network
 import android.net.ProxyInfo
-import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.os.PowerManager
 import io.niko.*
@@ -153,7 +152,7 @@ class VpnService : BaseVpnService(),
         }
 
         updateUnderlyingNetwork(builder)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) builder.setMetered(metered)
+        builder.setMetered(metered)
 
         // app route
         val packageName = packageName
@@ -218,14 +217,14 @@ class VpnService : BaseVpnService(),
         }
 
         // Android cannot pass credentials to the system HTTP proxy
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && DataStore.appendHttpProxy &&
+        if (DataStore.appendHttpProxy &&
             localProxyUsers(true) == null
         ) {
             builder.setHttpProxy(ProxyInfo.buildDirectProxy(LOCALHOST, DataStore.mixedPort))
         }
 
         metered = DataStore.meteredNetwork
-        if (Build.VERSION.SDK_INT >= 29) builder.setMetered(metered)
+        builder.setMetered(metered)
         conn = builder.establish() ?: throw NullConnectionException()
 
         return conn!!.fd
@@ -236,10 +235,8 @@ class VpnService : BaseVpnService(),
      * network went away, and the VPN names the system's default, whatever it becomes, in place of the one that is gone.
      */
     fun updateUnderlyingNetwork(builder: Builder? = null, network: Network? = SagerNet.underlyingNetwork) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
-            val networks = network?.let { arrayOf(it) }
-            builder?.setUnderlyingNetworks(networks) ?: setUnderlyingNetworks(networks)
-        }
+        val networks = network?.let { arrayOf(it) }
+        builder?.setUnderlyingNetworks(networks) ?: setUnderlyingNetworks(networks)
     }
 
     override fun onRevoke() = stopRunner()

@@ -21,7 +21,6 @@ object BackgroundLimits {
 
     /** Battery use "Restricted" for this app: lifted on its App info page, under Battery. */
     fun restricted(context: Context): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return false
         val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager ?: return false
         return manager.isBackgroundRestricted
     }
