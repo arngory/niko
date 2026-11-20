@@ -198,6 +198,8 @@ data class RayNode(
     // the subscription's spa.carriers (raycontrol v0.10.1): the SPA carriers the node takes, in the order to try
     // them; null = an older node (UDP, ClientHello, bare TCP)
     val spaCarriers: List<String>? = null,
+    // the subscription's spa.versions (spa-v3 §5); null before the first subscription, when the package's count
+    val spaVersions: List<Int>? = null,
     // fetches of the subscription failed in a row on that network (the backoff of the retries); 0 after a success
     val failedFetches: Int = 0,
     val failedNetwork: String? = null,
@@ -255,8 +257,11 @@ data class RayNode(
     /** The node in a line of text: its name and address, or the address alone. */
     val label get() = name?.let { "$it · $host" } ?: host
 
-    /** The node's SPA parameters for the core, with the carriers it takes. */
-    fun spaJson(): JsonObject = spa.toJson().apply {
+    /** The SPA versions the node takes: the last subscription's, the device package's before it (spa-v3 §5). */
+    val knockVersions get() = spaVersions ?: spa.versions
+
+    /** The node's SPA parameters for the core, with the carriers and the versions it takes. */
+    fun spaJson(): JsonObject = spa.copy(versions = knockVersions).toJson().apply {
         spaCarriers?.let { carriers -> add("carriers", JsonArray().apply { carriers.forEach { add(it) } }) }
     }
 
@@ -291,6 +296,7 @@ data class RayNode(
         identityNext?.let { add("identity_next", it.toJson()) }
         probe?.let { add("probe", it.toJson()) }
         spaCarriers?.let { carriers -> add("spa_carriers", JsonArray().apply { carriers.forEach { add(it) } }) }
+        spaVersions?.let { versions -> add("spa_versions", JsonArray().apply { versions.forEach { add(it) } }) }
         if (failedFetches > 0) addProperty("failed_fetches", failedFetches)
         failedNetwork?.let { addProperty("failed_network", it) }
         if (relays.isNotEmpty()) add("relays", JsonArray().apply { relays.forEach { add(it.toJson()) } })
@@ -339,6 +345,7 @@ data class RayNode(
             identityNext = (o.get("identity_next") as? JsonObject)?.let { RayIdentity.fromJson(it) },
             probe = (o.get("probe") as? JsonObject)?.let { RayProbeInfo.fromJson(it) },
             spaCarriers = (o.get("spa_carriers") as? JsonArray)?.mapNotNull { runCatching { it.asString }.getOrNull() },
+            spaVersions = (o.get("spa_versions") as? JsonArray)?.let { spaVersions(JsonObject().apply { add("versions", it) }) },
             failedFetches = o.get("failed_fetches")?.asInt ?: 0,
             failedNetwork = o.get("failed_network")?.takeIf { it.isJsonPrimitive }?.asString,
             relays = RayRelay.listFromJson(o.get("relays") as? JsonArray),
@@ -529,14 +536,18 @@ fun RayNode.knockOptions(relay: RayRelay? = null): Map<String, Any> = mapOf(
             "len_min" to p.lenMin,
             "len_max" to p.lenMax,
             "device_key_ref" to keyRef,
+        ) + (
+            // spa-v3: the relay's own word (relays[].spa.versions), the node's last signed one
+            (if (relay != null) relay.spa.versions else knockVersions).takeIf { 3 in it }?.let { mapOf("versions" to it) } ?: emptyMap()
         )
     } + (if (relay != null) mapOf("relay" to mapOf("exit_node_id" to spa.nodeId, "id" to relay.id))
     else spaCarriers?.let { mapOf("carriers" to it) } ?: emptyMap()),
     // a UDP session without replies sends a new packet once
     "silence" to "15s",
 ) + (
-    // names-v1: the node's own addresses, the only ones its names are knocked and dialled at; through a relay, the
-    // relay's (relay-names-v1 §8: a row by the relay's name dials the name, which resolves to the relay)
+    // names-v1: the node's own addresses, the only ones its names are knocked and dialled at (with SPA v3 a DNS
+    // answer too, spa-v3 §6, these after it); through a relay, the relay's (relay-names-v1 §8: a row by the relay's
+    // name dials the name, which resolves to the relay)
     if (relay != null) RayNames.addrs(listOf(relay.host)).takeIf { it.isNotEmpty() }?.let { mapOf("node_addresses" to it) } ?: emptyMap()
     else if (knownAddrs.isNotEmpty()) mapOf("node_addresses" to knownAddrs) else emptyMap()
 )

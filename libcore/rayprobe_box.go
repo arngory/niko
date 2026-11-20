@@ -177,7 +177,7 @@ func RaycontrolProbe(requestJSON string) (result string, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	// names-v1: the first of the node's addresses for one lookup of its name; the probe measures one path
-	targets, _ := raynames.Targets(ctx, nodeLookup, r.Host, r.Addrs)
+	targets, _ := raynames.Targets(ctx, nodeLookup, r.Host, r.Addrs, knock.TakesV3(r.SPA))
 	host, serverName := targets[0].Address, targets[0].ServerName
 	if serverName == "" && net.ParseIP(host) == nil {
 		serverName = host
@@ -187,13 +187,27 @@ func RaycontrolProbe(requestJSON string) (result string, err error) {
 		DeviceID: r.DeviceID, DeviceKey: key, Dial: dialer.DialContext,
 	}
 	var out *probeResult
-	for _, carrier := range r.SPA.TryCarriers() {
-		if err = knock.SendSPAv2Named(ctx, dialer, host, serverName, r.SPA, carrier, time.Now()); err != nil {
+	spa := r.SPA
+	for _, carrier := range spa.TryCarriers() {
+		if err = knock.SendSPAv2Named(ctx, dialer, host, serverName, spa, carrier, time.Now()); err != nil {
 			return "", err
 		}
 		if out = r.run(ctx, e); out.answered() {
 			out.SPACarrier = carrier.String()
 			break
+		}
+	}
+	// spa-v3 §6 p. 3: v3 opened nothing at an address of the signed data (a node rolled back), v2 there once
+	if (out == nil || !out.answered()) && ctx.Err() == nil && targets[0].Signed && knock.KnocksV3(spa, host) {
+		spa = spa.V2()
+		for _, carrier := range spa.TryCarriers() {
+			if err = knock.SendSPAv2Named(ctx, dialer, host, serverName, spa, carrier, time.Now()); err != nil {
+				return "", err
+			}
+			if out = r.run(ctx, e); out.answered() {
+				out.SPACarrier = carrier.String()
+				break
+			}
 		}
 	}
 	raw, err := json.Marshal(out)

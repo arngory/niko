@@ -301,6 +301,17 @@ done
 [ "$from" = "$node" ] && [ "$carried" = yes ] ||
   fail "through the VPN: from '${from:-nowhere}', token $carried, want the node's $node (nc said: $last)"
 echo "through the tunnel: the runner's server saw the request from $from"
+# spa-v3: the CI node (-host an address, behind its perimeter) takes v3, and the core knocks it so; a v3 the
+# perimeter refused would be hidden by the fallback to v2 (spa-v3 §6 p. 3), which must not happen here
+timeout 30 adb pull "$applog" "$out/neko-spa.log" > /dev/null 2>&1
+if grep -q "SPA v3 did not open" "$out/neko-spa.log" 2>/dev/null; then
+  grep "SPA v" "$out/neko-spa.log" | tail -n 10
+  fail "the node's perimeter did not open for SPA v3: the core fell back to v2"
+fi
+# the knock's own debug line (protocol/knock spa2.go): "SPA v3 to <address> port <n>", "SPA v3 over tls to ..."
+v3=$(grep -cE "SPA v3 (to|over) " "$out/neko-spa.log" 2>/dev/null)
+echo "SPA v3 knocks in the core's log: ${v3:-0}"
+[ "${v3:-0}" -gt 0 ] || echo "::warning::no SPA v3 knock in the core's log (does the node's subscription carry spa.versions?)"
 
 echo "== memory: the VPN through Hysteria2, idle, under load (down, then up to a slow sink) and after it"
 sleep 10

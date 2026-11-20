@@ -161,6 +161,17 @@ class RaySubscriptionPayloadTest {
         assertTrue(relayHost !in parsed.addrs)
     }
 
+    /** spa-v3 §5: the subscription's spa.versions, [2] without the field (a node before v0.35.0). */
+    @Test
+    fun theSpaVersions() {
+        assertEquals(listOf(2), RaySubscription.parse(withAuto(payload), emptyMap(), payload.get("time").asLong).spaVersions)
+        val v3 = withAuto(payload).apply {
+            (get("spa") as? JsonObject ?: JsonObject().also { add("spa", it) })
+                .add("versions", com.google.gson.JsonArray().apply { add(2); add(3) })
+        }
+        assertEquals(listOf(2, 3), RaySubscription.parse(v3, emptyMap(), payload.get("time").asLong).spaVersions)
+    }
+
     /** dnsauth-v2: the subscription's dnsauth.v with 2 signs the node's DNS tunnels by the hint; without it, by v1. */
     @Test
     fun theHintWhenTheSubscriptionAnnouncesIt() {

@@ -109,6 +109,8 @@ class SagerNet : Application(),
             if (!Libcore.setRaycontrolClient(rayClient)) Logs.w("raycontrol: the client header $rayClient is not valid")
             // the user's node addresses stay out of this process' log
             runOnDefaultDispatcher { io.niko.raycontrol.RayNodes.syncLogRedactions() }
+            // SPA v3 at a DNS64 address: the network's NAT64 prefix, for the core and libcore's requests here
+            runOnDefaultDispatcher { DefaultNetworkListener.start(Nat64) { Nat64.sync(it) } }
 
             // fix multi process issue in Android 9+
             JavaUtil.handleWebviewDir(this)

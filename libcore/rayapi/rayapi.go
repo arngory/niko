@@ -425,10 +425,17 @@ func (e *Endpoint) client(callCtx context.Context) (*http.Client, error) {
 // such as Register or RotateService must not run twice. The node's addresses
 // for the call (names-v1) are tried in turn while none could be connected to.
 func Call(ctx context.Context, e Endpoint, method string, body []byte) ([]byte, error) {
-	targets, warning := raynames.Targets(ctx, e.Lookup, e.Host, e.Addrs)
+	targets, warning := raynames.Targets(ctx, e.Lookup, e.Host, e.Addrs, !e.NoSPA && knock.TakesV3(e.SPA))
 	var lastErr error
 	for i, target := range targets {
-		answer, err := call(ctx, e.at(target, i == len(targets)-1), method, body)
+		at := e.at(target, i == len(targets)-1)
+		answer, err := call(ctx, at, method, body)
+		// spa-v3 §6 p. 3: v3 opened nothing at an address of the signed data (a node rolled back before v0.35.0),
+		// v2 there once; a request goes out only once, so not after ErrAnswerLost
+		if errors.Is(err, ErrNoAnswer) && ctx.Err() == nil && !at.NoSPA && target.Signed && knock.KnocksV3(at.SPA, at.Host) {
+			at.SPA = at.SPA.V2()
+			answer, err = call(ctx, at, method, body)
+		}
 		if err == nil || !errors.Is(err, ErrNoAnswer) || ctx.Err() != nil {
 			return answer, withNames(err, warning)
 		}

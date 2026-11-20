@@ -124,6 +124,37 @@ class RayNodesTest {
         assertEquals(mapOf("exit_node_id" to spa.nodeId, "id" to "r1"), via["relay"])
         // the node's carriers are its own, not the relay's
         assertNull(via["carriers"])
+        // no versions: v2, as before raycontrol v0.35.0
+        assertNull(direct["versions"])
+        assertNull(via["versions"])
+    }
+
+    /**
+     * spa-v3 §5: the versions the node takes go to the knock and to libcore's requests; the last subscription's word
+     * over the device package's, the relay's own for a relay.
+     */
+    @Test
+    fun spaVersions() {
+        val v3 = listOf(2, 3)
+        val fromPackage = node.copy(spa = spa.copy(versions = v3))
+        @Suppress("UNCHECKED_CAST")
+        fun versions(n: RayNode, r: RayRelay? = null) = (n.knockOptions(r)["spa_v2"] as Map<String, Any>)["versions"]
+        assertEquals(v3, versions(fromPackage))
+        assertEquals("[2,3]", fromPackage.spaJson().get("versions").toString())
+        // a subscription without the field (a node rolled back): v2 again
+        val rolledBack = fromPackage.copy(spaVersions = listOf(2))
+        assertNull(versions(rolledBack))
+        assertNull(rolledBack.spaJson().get("versions"))
+        assertEquals(node.copy(spaVersions = v3), RayNode.fromJson(node.copy(spaVersions = v3).toJson()))
+        // a relay by its own word: none until it says so
+        assertNull(versions(fromPackage, relay))
+        val relayV3 = relay.copy(spa = relay.spa.copy(versions = v3))
+        assertEquals(v3, versions(node, relayV3))
+        assertEquals(relayV3, RayRelay.fromJson(relayV3.toJson()))
+        assertEquals("[2,3]", relayV3.spaJson(node, "00".repeat(32)).get("versions").toString())
+        // an unknown version is left out, 2 is always there
+        assertEquals(listOf(2, 3), spaVersions(com.google.gson.JsonParser.parseString("""{"versions":[3,4,"x"]}""").asJsonObject))
+        assertEquals(listOf(2), spaVersions(null))
     }
 
     @Test

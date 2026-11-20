@@ -210,10 +210,17 @@ func (e statusError) Error() string { return "HTTP " + strconv.Itoa(int(e)) }
 // Fetch opens the port with SPA v2 (UDP, then the TCP carrier) and returns the verified payload: at each of the
 // node's addresses for the request in turn (names-v1), until one answers.
 func Fetch(ctx context.Context, r Request) (*Result, error) {
-	targets, warning := raynames.Targets(ctx, r.Lookup, r.Host, r.Addrs)
+	targets, warning := raynames.Targets(ctx, r.Lookup, r.Host, r.Addrs, knock.TakesV3(r.SPA))
 	var lastErr error
 	for i, target := range targets {
-		result, err := fetch(ctx, r.at(target, i == len(targets)-1))
+		at := r.at(target, i == len(targets)-1)
+		result, err := fetch(ctx, at)
+		// spa-v3 §6 p. 3: v3 opened nothing at an address of the signed data (a node rolled back before v0.35.0),
+		// v2 there once
+		if errors.Is(err, ErrNoAnswer) && ctx.Err() == nil && target.Signed && knock.KnocksV3(at.SPA, at.Host) {
+			at.SPA = at.SPA.V2()
+			result, err = fetch(ctx, at)
+		}
 		if result != nil {
 			result.Names = warning
 		}
