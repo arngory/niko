@@ -42,3 +42,4 @@
 - [Цена keepalive в покое](research/keepalive.md), 2026-11-17
 - [Память на эмуляторе](research/memory.md), 2026-11
 - [Маршрутизация по приложениям: списки, нода, обновление](research/routing-apps.md), 2026-11-16
+- [Проба: экраны Android на Views или на Compose](research/ui-probe.md), 2026-11-20

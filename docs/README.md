@@ -43,3 +43,4 @@ changed and when is in the release notes and in git.
 - [Keepalive cost at rest](research/keepalive.md), 2026-11-17
 - [Memory on the emulator](research/memory.md), 2026-11
 - [Routing by app: lists, the node, updates](research/routing-apps.md), 2026-11-16
+- [UI probe: Android screens on Views or on Compose](research/ui-probe.md), 2026-11-20
