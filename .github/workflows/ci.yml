@@ -102,7 +102,7 @@ jobs:
       - name: The app's parsers write and check the fixtures
         run: |
           echo "sdk.dir=${ANDROID_HOME}" > local.properties
-          ./gradlew --no-daemon app:testOssReleaseUnitTest --tests 'io.niko.golden.*'
+          .github/scripts/gradle.sh --no-daemon app:testOssReleaseUnitTest --tests 'io.niko.golden.*'
       - name: Go reads the same fixtures
         # also after Kotlin failed: against the fixtures it wrote, or the committed ones
         if: ${{ !cancelled() }}

@@ -211,7 +211,8 @@ jobs:
           fi
           tasks="app:checkLicenses $tests app:assembleOssRelease"
           [ "${{ inputs.lint }}" = "true" ] && tasks="$tasks app:lintOssRelease"
-          ./gradlew --no-daemon $tasks
+          # a buildSrc whose plugins the repositories did not find runs once more (.github/scripts/gradle.sh)
+          .github/scripts/gradle.sh --no-daemon $tasks
 
       - name: Upload the snapshots' differences
         if: ${{ failure() }}
