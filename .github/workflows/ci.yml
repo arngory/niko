@@ -240,13 +240,22 @@ jobs:
           target: google_apis
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
-          script: bash .github/scripts/smoke.sh apks
+          # then the UI probe (ui-probe.sh, docs/research/ui-probe.md): the same screen with Views and with Compose,
+          # their start and memory against each other, until the owner chooses
+          script: bash .github/scripts/smoke.sh apks && bash .github/scripts/ui-probe.sh apks ui-probe
       - name: The screens
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: smoke-screens-api${{ matrix.api }}
           path: smoke-screens
+          if-no-files-found: ignore
+      - name: The UI probe's numbers and screens
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ui-probe-api${{ matrix.api }}
+          path: ui-probe
           if-no-files-found: ignore
 
   # the app end to end (e2e.sh) on an emulator, against a CI node under rayd serve -supervise as raycontrol-interop's,
