@@ -194,7 +194,7 @@ class MainActivity : ThemedActivity(),
         // a raycontrol invite or device package: any page or app can open such a link, so ask first
         // rcinv2: in upper case for the QR code, a scheme Android keeps as it comes
         val scheme = uri.scheme?.lowercase()
-        if (scheme == "rcinv1" || scheme == "rcinv2" || scheme == "rcdev1") {
+        if (scheme == "rcinv1" || scheme == "rcinv2" || scheme == "rcinv3" || scheme == "rcdev1") {
             val text = uri.toString()
             // a link (or a scanned QR code) always asks; replacing a stored node says so (RayImport.replaceQuestion)
             val question = try {

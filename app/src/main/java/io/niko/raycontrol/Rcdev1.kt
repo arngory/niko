@@ -162,6 +162,11 @@ data class RayInvite(
     val expires: Long,
     // the invite needs a PIN too, told by another channel (api-v1.md §3, raycontrol v0.13)
     val pinRequired: Boolean = false,
+    // names-v1: the node's name, and its addresses (an RCINV3 invite's host): the device registers by the name
+    val dnsName: String? = null,
+    val addrs: List<String> = emptyList(),
+    // the SPA versions the node takes (spa-v3 §5): [2, 3] from an RCINV3 invite's flag, else [2]
+    val spaVersions: List<Int> = listOf(2),
 ) {
     override fun toString() = "RayInvite(host=$host, node=${spa.nodeId}, invite=$inviteId)"
 }
@@ -187,12 +192,20 @@ object Rcinv1 {
                 throw IllegalArgumentException("$name: ${e.message}")
             }
         }
+        val (dnsName, addrs) = RayNames.of(o)
         return RayInvite(
             r.host, r.spa, r.deviceId, r.deviceKey, r.services, api, o.long("expires"),
             pinRequired = (o.get("pin") as? com.google.gson.JsonPrimitive)?.takeIf { it.isBoolean }?.asBoolean == true,
+            dnsName = dnsName, addrs = addrs,
+            spaVersions = spaVersions(o.getAsJsonObject("spa")),
         )
     }
 }
+
+/** spa.versions (spa-v3 §5): the versions the node takes, 2 always; an unknown one is left out. */
+internal fun spaVersions(spa: JsonObject?): List<Int> =
+    (listOf(2) + (spa?.get("versions") as? JsonArray)?.mapNotNull { runCatching { it.asInt }.getOrNull() }.orEmpty())
+        .filter { it == 2 || it == 3 }.distinct().sorted()
 
 /**
  * The short invite `RCINV2:` (api-v1.md §3a, raycontrol v0.13): rcinv1's invite in a fixed binary layout, base32 in
@@ -213,27 +226,46 @@ object Rcinv2 {
     /** Throws IllegalArgumentException with a readable reason. */
     fun parse(text: String): RayInvite {
         val found = token.find(text)?.value ?: throw IllegalArgumentException("rcinv2: no invite in the text")
-        val b = java.nio.ByteBuffer.wrap(base32(found.substringAfter(':')))
-        fun need(n: Int) = require(b.remaining() >= n) { "rcinv2: cut short" }
+        return read(found.substringAfter(':'), 2)
+    }
+
+    /**
+     * The binary layout of rcinv2 ([version] 2) and rcinv3 (3, api-v1.md §3b: the node's name after the host, and
+     * whether the node takes SPA v3), in base32 [code], into the rcinv1 JSON.
+     */
+    internal fun read(code: String, version: Int): RayInvite {
+        val name = "rcinv$version"
+        val b = java.nio.ByteBuffer.wrap(base32(code, name))
+        fun need(n: Int) = require(b.remaining() >= n) { "$name: cut short" }
         fun bytes(n: Int) = ByteArray(n).also { need(n); b.get(it) }
         fun hex(n: Int) = bytes(n).joinToString("") { "%02x".format(it) }
         fun u16() = run { need(2); b.short.toInt() and 0xffff }
         fun u32() = run { need(4); b.int.toLong() and 0xffffffffL }
+        fun hostName(what: String): String {
+            need(1)
+            val text = String(bytes(b.get().toInt() and 0xff), Charsets.US_ASCII)
+            require(text.length in 1..253 && text.split('.').all { label.matches(it) }) { "$name: invalid $what" }
+            return text
+        }
         need(2)
-        require(b.get().toInt() == 2) { "rcinv2: unsupported version" }
+        require(b.get().toInt() == version) { "$name: unsupported version" }
         val flags = b.get().toInt() and 0xff
-        require(flags and 0x07.inv() == 0) { "rcinv2: unknown flags" }
-        val host = when ((flags shr 1) and 0x03) {
+        // rcinv3: bit 3, the node's name follows the host; bit 4, the node takes SPA v3
+        require(flags and (if (version == 3) 0x1f else 0x07).inv() == 0) { "$name: unknown flags" }
+        val hostKind = (flags shr 1) and 0x03
+        val host = when (hostKind) {
             0 -> bytes(4).joinToString(".") { (it.toInt() and 0xff).toString() }
             1 -> ipv6(bytes(16))
-            2 -> {
-                need(1)
-                val name = String(bytes(b.get().toInt() and 0xff), Charsets.US_ASCII)
-                require(name.length in 1..253 && name.split('.').all { label.matches(it) }) { "rcinv2: invalid host name" }
-                name
-            }
-            else -> throw IllegalArgumentException("rcinv2: unknown kind of host")
+            2 -> hostName("host name")
+            else -> throw IllegalArgumentException("$name: unknown kind of host")
         }
+        val dnsName = if (flags and 0x08 != 0) {
+            // only beside an address, which is its fallback; never one that reads as an address
+            require(hostKind != 2) { "$name: a node name beside a host name" }
+            hostName("node name").also { n ->
+                require(RayNames.name(n) != null && !n.substringAfterLast('.').all { it in '0'..'9' }) { "$name: invalid node name" }
+            }
+        } else null
         val o = JsonObject().apply {
             addProperty("v", 1)
             addProperty("host", host)
@@ -257,22 +289,28 @@ object Rcinv2 {
             val apiPin = okio.ByteString.of(*bytes(32)).base64Url().trimEnd('=')
             add("api", JsonObject().apply { addProperty("port", apiPort); addProperty("pin", apiPin) })
             val expires = u32()
-            require(expires != 0L && apiPort != 0) { "rcinv2: no expiry or no API port" }
+            require(expires != 0L && apiPort != 0) { "$name: no expiry or no API port" }
             addProperty("expires", expires)
             if (flags and 0x01 != 0) addProperty("pin", true)
+            // the package's dns_name with the host for its address (names-v1 §3)
+            dnsName?.let {
+                addProperty("dns_name", it.lowercase())
+                add("addrs", com.google.gson.JsonArray().apply { add(host) })
+            }
+            if (flags and 0x10 != 0) getAsJsonObject("spa").add("versions", com.google.gson.JsonArray().apply { add(2); add(3) })
         }
-        require(!b.hasRemaining()) { "rcinv2: bytes after its end" }
-        return Rcinv1.fromJson(o, "rcinv2")
+        require(!b.hasRemaining()) { "$name: bytes after its end" }
+        return Rcinv1.fromJson(o, name)
     }
 
     /** RFC 4648 base32 without padding, either case. */
-    private fun base32(text: String): ByteArray {
+    private fun base32(text: String, name: String): ByteArray {
         val out = java.io.ByteArrayOutputStream()
         var buffer = 0
         var bits = 0
         for (c in text.uppercase()) {
             val v = ALPHABET.indexOf(c)
-            require(v >= 0) { "rcinv2: not base32" }
+            require(v >= 0) { "$name: not base32" }
             buffer = (buffer shl 5) or v
             bits += 5
             if (bits >= 8) {
@@ -281,7 +319,7 @@ object Rcinv2 {
             }
         }
         // the rest must be the padding bits of the last character, zero
-        require(bits < 5 && buffer and ((1 shl bits) - 1) == 0) { "rcinv2: not base32" }
+        require(bits < 5 && buffer and ((1 shl bits) - 1) == 0) { "$name: not base32" }
         return out.toByteArray()
     }
 
@@ -306,6 +344,26 @@ object Rcinv2 {
         }
         fun part(from: Int, to: Int) = groups.subList(from, to).joinToString(":") { Integer.toHexString(it) }
         return if (bestStart < 0) part(0, 8) else part(0, bestStart) + "::" + part(bestStart + bestLen, 8)
+    }
+}
+
+/**
+ * The invite by name `RCINV3:` (api-v1.md §3b, raycontrol v0.35.0): rcinv2's layout with the node's name after the
+ * host and a flag that the node takes SPA v3. The device registers by the name, the host its address to fall back to,
+ * as with a device package (names-v1 §5).
+ */
+object Rcinv3 {
+    const val PREFIX = "RCINV3:"
+    private val token = Regex("""(?<![A-Za-z0-9_-])RCINV3:[A-Za-z2-7]+""", RegexOption.IGNORE_CASE)
+
+    fun matches(text: String) = token.containsMatchIn(text)
+
+    fun token(text: String) = token.find(text)?.value ?: text.trim()
+
+    /** Throws IllegalArgumentException with a readable reason. */
+    fun parse(text: String): RayInvite {
+        val found = token.find(text)?.value ?: throw IllegalArgumentException("rcinv3: no invite in the text")
+        return Rcinv2.read(found.substringAfter(':'), 3)
     }
 }
 

@@ -1,5 +1,6 @@
 package io.niko.raycontrol
 
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.niko.Key
@@ -143,7 +144,9 @@ object RayApi {
         // the node checks the expiry too; this only saves a pointless try
         if (invite.expires in 1 until now() - 120) throw Exception("raycontrol invite for ${invite.host}: expired")
         val request = JsonObject().apply {
-            addProperty("host", invite.host)
+            // rcinv3: by the node's name, its host the address to fall back to (names-v1 §5); else by the host
+            addProperty("host", invite.dnsName ?: invite.host)
+            invite.dnsName?.let { add("addrs", JsonArray().apply { invite.addrs.forEach { a -> add(a) } }) }
             add("spa", spaJson(invite.spa, invite.inviteKey))
             addProperty("device_id", invite.inviteId)
             add("api", invite.api.toJson())
