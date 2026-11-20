@@ -180,6 +180,8 @@
                 <!-- the short invite (api-v1.md §3a); its QR code holds it in upper case, which Android, matching a
                      scheme as written, takes from Niko's own scanner and a paste, not from another app's link -->
                 <data android:scheme="rcinv2" />
+                <!-- the invite by name (api-v1.md §3b), as rcinv2 -->
+                <data android:scheme="rcinv3" />
 
             </intent-filter>
 

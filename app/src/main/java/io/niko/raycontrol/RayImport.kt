@@ -10,17 +10,22 @@ object RayImport {
 
     fun matches(text: String) = isInvite(text) || Rcdev1.matches(text)
 
-    /** An invite in [text]: rcinv1, or the short rcinv2 (api-v1.md §3a). */
-    fun isInvite(text: String) = Rcinv2.matches(text) || Rcinv1.matches(text)
+    /** An invite in [text]: rcinv1, the short rcinv2 (api-v1.md §3a), or rcinv3 by the node's name (§3b). */
+    fun isInvite(text: String) = Rcinv3.matches(text) || Rcinv2.matches(text) || Rcinv1.matches(text)
 
-    /** The invite in [text], either format. Throws IllegalArgumentException with a readable reason. */
-    fun parseInvite(text: String): RayInvite = if (Rcinv2.matches(text)) Rcinv2.parse(text) else Rcinv1.parse(text)
+    /** The invite in [text], any format. Throws IllegalArgumentException with a readable reason. */
+    fun parseInvite(text: String): RayInvite = when {
+        Rcinv3.matches(text) -> Rcinv3.parse(text)
+        Rcinv2.matches(text) -> Rcinv2.parse(text)
+        else -> Rcinv1.parse(text)
+    }
 
     /**
      * The bare token in [text], e.g. to pass a scanned QR code on as a link: the first candidate that parses, so a
      * token wrapped over lines comes out whole.
      */
     fun token(text: String): String {
+        if (Rcinv3.matches(text)) return Rcinv3.token(text)
         if (Rcinv2.matches(text)) return Rcinv2.token(text)
         val invite = Rcinv1.matches(text)
         val all = if (invite) Rcinv1.candidates(text) else Rcdev1.candidates(text)

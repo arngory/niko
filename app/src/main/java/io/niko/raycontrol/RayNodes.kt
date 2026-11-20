@@ -535,8 +535,10 @@ fun RayNode.knockOptions(relay: RayRelay? = null): Map<String, Any> = mapOf(
     // a UDP session without replies sends a new packet once
     "silence" to "15s",
 ) + (
-    // names-v1: the node's own addresses, the only ones its names are knocked and dialled at (a relay is its own)
-    if (relay == null && knownAddrs.isNotEmpty()) mapOf("node_addresses" to knownAddrs) else emptyMap()
+    // names-v1: the node's own addresses, the only ones its names are knocked and dialled at; through a relay, the
+    // relay's (relay-names-v1 §8: a row by the relay's name dials the name, which resolves to the relay)
+    if (relay != null) RayNames.addrs(listOf(relay.host)).takeIf { it.isNotEmpty() }?.let { mapOf("node_addresses" to it) } ?: emptyMap()
+    else if (knownAddrs.isNotEmpty()) mapOf("node_addresses" to knownAddrs) else emptyMap()
 )
 
 /**
@@ -720,6 +722,16 @@ object RayNodes {
     }
 
     fun forHost(address: String?): RayNode? = if (address.isNullOrBlank()) null else list().firstOrNull { it.matchesHost(address) }
+
+    /**
+     * The node and the relay of a row of the node's subscription through that relay, by the row's key: a row through
+     * the relay by its name (relay-names-v1 §8) dials the name, not the relay's address.
+     */
+    fun relayOfRow(profileId: Long): Pair<RayNode, RayRelay>? {
+        val (node, key) = ownerOf(profileId) ?: return null
+        val id = RayRelays.relayOfKey(key) ?: return null
+        return node.relays.firstOrNull { it.id == id }?.let { node to it }
+    }
 
     /** The node behind the relay at this address, and the relay (a profile row through a relay, relay-v1 §4). */
     fun forRelayHost(address: String?): Pair<RayNode, RayRelay>? {
