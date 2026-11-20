@@ -24,7 +24,6 @@ import io.niko.database.SagerDatabase
 import io.niko.ktx.Logs
 import io.niko.ktx.app
 import io.niko.ktx.readableMessage
-import io.niko.ktx.getColorAttr
 import io.niko.ktx.runOnMainDispatcher
 import io.niko.ui.SwitchActivity
 import io.niko.utils.Theme
@@ -138,9 +137,8 @@ class ServiceNotification(
 
         Theme.apply(app)
         Theme.apply(service)
-        // the notification's accent is the theme's colour; Niko's bars are surface-0, near white in the light theme and
-        // lost in the shade: its notification sets none and the system's own shows (reskin step 1)
-        if (DataStore.appTheme != Theme.NIKO) builder.color = service.getColorAttr(R.attr.colorPrimary)
+        // no accent of its own: Niko's bars are surface-0, near white in the light theme and lost in the shade, so the
+        // system's own colour shows (reskin step 1)
 
         service.registerReceiver(this, IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_ON)

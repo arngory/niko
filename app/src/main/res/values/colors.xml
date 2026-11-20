@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- The Niko theme (Theme.NIKO) takes the design system's colours from niko_tokens.xml (generated from
+    <!-- The Niko theme takes the design system's colours from niko_tokens.xml (generated from
          shared/tokens.json, light there, dark in values-night). What is no token stands here: the bars stay dark in
          both modes, with white on them, as the app's layouts are made for a coloured bar -->
     <color name="niko_bar">#1C1C1C</color>

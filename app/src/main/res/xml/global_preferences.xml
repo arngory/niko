@@ -8,10 +8,6 @@
             app:key="isAutoConnect"
             app:summary="@string/auto_connect_summary"
             app:title="@string/auto_connect" />
-        <io.niko.ui.ColorPickerPreference
-            android:title="@string/theme"
-            app:icon="@drawable/ic_l_palette"
-            app:key="appTheme" />
         <io.niko.ui.SimpleMenuPreference
             app:defaultValue="0"
             app:entries="@array/night_mode"

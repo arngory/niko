@@ -11,7 +11,6 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.widget.SwitchCompat
 import androidx.core.view.isVisible
-import androidx.drawerlayout.widget.DrawerLayout
 import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.Preference
@@ -180,8 +179,6 @@ class NikoSnapshotTest(private val mode: String) {
         // the whole screen, not shrunk to its content
         paparazzi.unsafeUpdateConfig(renderingMode = SessionParams.RenderingMode.NORMAL)
         return paparazzi.inflate<View>(R.layout.layout_main).apply {
-            // the drawer of the colour themes' Black goes, as MainActivity does: one drawer to an edge
-            (this as DrawerLayout).removeView(findViewById(R.id.nav_view_black))
             val fab = findViewById<ServiceButton>(R.id.fab)
             fab.initProgress(findViewById<BaseProgressIndicator<*>>(R.id.fabProgress))
             fab.changeState(state, BaseService.State.Stopped, animate = false, failed = failed)
