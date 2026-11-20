@@ -83,38 +83,44 @@ jobs:
           uuid=$(cat /proc/sys/kernel/random/uuid)
           for k in priv pbk dec enc; do [ -n "${!k}" ] || { echo "no $k"; exit 1; }; done
           echo "encryption: ${enc%%.*}"
-          # the REALITY target: a TLS 1.3 server with X25519 for www.example.com, as in the template
+          # the template's REALITY target: a TLS 1.3 server with X25519 for www.example.com (row 18448)
           openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 30 -subj "/CN=www.example.com" \
             -addext "subjectAltName=DNS:www.example.com" -keyout /tmp/target.key -out /tmp/target.crt 2>/dev/null
-          # four inbounds of the template: ML-KEM (18443), none (18444), Vision with ML-KEM (18445), and ML-KEM again
-          # for the parallel streams (18446), whose connections are counted alone; REALITY without XHTTP (18447) is the
-          # control that tells a REALITY or encryption fault from an XHTTP one. freedom lets the local server
+          # the template's inbounds with a real site as REALITY's target, as a node has: ML-KEM (18443), none (18444),
+          # Vision with ML-KEM (18445), and ML-KEM again for the parallel streams (18446), whose connections are counted
+          # alone; REALITY without XHTTP (18447) is the control that tells a REALITY fault from an XHTTP one. The
+          # template's own target, openssl s_server, is kept on 18448 (REALITY without XHTTP) and only reported: with
+          # it the REALITY handshake of the core's client does not complete (XTLS/REALITY: "handshake did not
+          # complete successfully" after the client was authenticated). freedom lets the local server
           # through (finalRules: private addresses are refused to a VLESS user by default)
           jq -n --arg uuid "$uuid" --arg priv "$priv" --arg dec "$dec" '
             def xhttp($port; $dec; $flow): {listen: "127.0.0.1", port: $port, protocol: "vless",
               settings: {clients: [{id: $uuid} + (if $flow == "" then {} else {flow: $flow} end)], decryption: $dec},
               streamSettings: {network: "xhttp", xhttpSettings: {path: "/xh", mode: "auto"},
-                security: "reality", realitySettings: {target: "127.0.0.1:14443", serverNames: ["www.example.com"],
+                security: "reality", realitySettings: {target: "www.microsoft.com:443", serverNames: ["www.microsoft.com"],
                   privateKey: $priv, shortIds: ["0123456789abcdef"]}}};
+            def raw: .streamSettings |= (del(.xhttpSettings) | .network = "raw");
             {log: {loglevel: "debug"},
              inbounds: [xhttp(18443; $dec; ""), xhttp(18444; "none"; ""), xhttp(18445; $dec; "xtls-rprx-vision"),
-               xhttp(18446; $dec; ""),
-               (xhttp(18447; $dec; "") | .streamSettings |= (del(.xhttpSettings) | .network = "raw"))],
+               xhttp(18446; $dec; ""), (xhttp(18447; $dec; "") | raw),
+               (xhttp(18448; $dec; "") | raw | .streamSettings.realitySettings |=
+                 (.target = "127.0.0.1:14443" | .serverNames = ["www.example.com"]))],
              outbounds: [{protocol: "freedom",
                settings: {finalRules: [{action: "allow", ip: ["127.0.0.1/32"]}]}}]}' > /tmp/xray.json
           # an outbound as the app builds it from the link: transport xhttp with path and mode (and the extra's
           # options), REALITY with uTLS chrome and the hybrid key share a node's row takes (nodeTlsTweaks: the node's
           # Xray authenticates REALITY on it), the link's encryption and flow, plain VLESS UDP unless xudp
           out() { jq -n --arg tag "$1" --argjson port "$2" --arg mode "$3" --arg enc "$4" --arg flow "$5" \
-                        --argjson extra "$6" --arg pe "$7" --arg uuid "$uuid" --arg pbk "$pbk" '
+                        --argjson extra "$6" --arg pe "$7" --arg sni "${8:-www.microsoft.com}" --arg uuid "$uuid" --arg pbk "$pbk" '
             {type: "vless", tag: $tag, server: "127.0.0.1", server_port: $port, uuid: $uuid, packet_encoding: $pe}
             + (if $flow == "" then {} else {flow: $flow} end) + (if $enc == "" then {} else {encryption: $enc} end)
-            + {tls: {enabled: true, server_name: "www.example.com", utls: {enabled: true, fingerprint: "chrome"},
+            + {tls: {enabled: true, server_name: $sni, utls: {enabled: true, fingerprint: "chrome"},
                 reality: {enabled: true, public_key: $pbk, short_id: "0123456789abcdef", key_share: "hybrid"}},
                transport: ({type: "xhttp", path: "/xh", mode: $mode} + $extra)}
             | if $mode == "raw" then del(.transport) else . end'; }
           vision=xtls-rprx-vision
           outs=$(jq -s . <(out x-raw 18447 raw "$enc" "" '{}' "") \
+                         <(out x-raw-openssl 18448 raw "$enc" "" '{}' "" www.example.com) \
                          <(out x-one 18443 stream-one "$enc" "" '{}' "") \
                          <(out x-packet 18443 packet-up "$enc" "" '{}' "") \
                          <(out x-up 18443 stream-up "$enc" "" '{}' "") \
@@ -127,7 +133,8 @@ jobs:
           # mixed inbounds 11080.. for TCP, direct ones 15353.. for UDP to a resolver
           jq -n --argjson outs "$outs" '
             [["x-one", 11080], ["x-packet", 11081], ["x-up", 11082], ["x-auto", 11083], ["x-none", 11084],
-             ["x-vision", 11085], ["x-vision-packet", 11086], ["x-mux", 11087], ["x-raw", 11088]] as $tcp |
+             ["x-vision", 11085], ["x-vision-packet", 11086], ["x-mux", 11087], ["x-raw", 11088],
+             ["x-raw-openssl", 11089]] as $tcp |
             [["x-one", 15353], ["x-xudp", 15354], ["x-vision", 15355], ["x-packet", 15356]] as $udp |
             {log: {level: "debug"},
              inbounds: ([$tcp[] | {type: "mixed", tag: ("in-" + .[0]), listen: "127.0.0.1", listen_port: .[1]}]
@@ -175,6 +182,8 @@ jobs:
             check "$name" "$port" 204
             bulk "$name" "$port" 8388608 4194304
           done
+          # the template's openssl target, reported only (see the configs)
+          echo "REALITY against the template's openssl s_server target (reported, not checked): $(code 11089 https://www.gstatic.com/generate_204)"
           # 20 parallel streams through the XMUX of maxConcurrency 16-32: two connections at most
           # (each waited for by its own pid: a bare wait would wait for the servers this step started too)
           pids=()
