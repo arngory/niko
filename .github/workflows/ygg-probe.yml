@@ -105,7 +105,17 @@ jobs:
             echo "$name | $url | core: $(head -c 120 /tmp/out) | yggstack: $(head -c 120 /tmp/out.ref) | $title"
           done
           echo "answered: $ok of 5 through the core, $ref of 5 through yggstack"
+          # the reference counts only while it is up with peers, and a core with no peer where yggstack has some fails
+          # whatever the services say
+          core_peers=$(grep -c 'Connected outbound' /tmp/node.log || true)
+          ref_peers=$(grep -c 'Connected outbound' /tmp/yggstack.log || true)
+          echo "peers: $core_peers through the core, $ref_peers through yggstack"
+          if [ "$core_peers" -eq 0 ] && [ "$ref_peers" -gt 0 ]; then echo "the core has no peer"; exit 1; fi
           if [ "$ok" -ge 3 ]; then exit 0; fi
+          if ! pgrep -x yggstack > /dev/null || [ "$ref_peers" -eq 0 ]; then
+            echo "the reference is not up (yggstack running: $(pgrep -x yggstack > /dev/null && echo yes || echo no))"
+            exit 1
+          fi
           if [ "$ref" -lt 3 ]; then
             echo "::warning::the services do not answer yggstack either ($ref of 5): the network, not the core"
             exit 0
