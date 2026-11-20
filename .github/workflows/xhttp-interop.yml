@@ -10,7 +10,7 @@ name: XHTTP interop
 # Go target held to X25519 (a site without X25519MLKEM768); openssl held to TLS_AES_128_GCM_SHA256 (OpenSSL itself
 # prefers AES-256, Go and most fronts AES-128). A target that acknowledges neither SNI nor ALPN (openssl's) failed
 # every handshake with xtls/reality 4bb46b2, which acknowledged SNI itself ("padding: -4"); the node's fork stops
-# that from raycontrol d097293 on (Xray fd9d28f).
+# that from raycontrol v0.35.0 on (Xray fd9d28f).
 # Checked: stream-one with XMUX by default and with maxConcurrency, packet-up, stream-up, auto (stream-one under
 # REALITY, as Xray's), encryption none and ML-KEM, Vision over XHTTP with ML-KEM, downloads and uploads counted at
 # a local server, parallel streams on one connection, VLESS UDP (plain and XUDP), and the client's recovery after
