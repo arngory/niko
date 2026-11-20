@@ -36,7 +36,7 @@ Hysteria 1/2, WireGuard, AmneziaWG, NaïveProxy, Mieru, Yggdrasil и DNS-тун�
 ## Дальше
 
 - [docs/](docs/README.ru.md): инструкции, как устроено, спецификации, исследования
-- [CONTRIBUTING.md](CONTRIBUTING.md): как вносить изменения
+- [CONTRIBUTING.ru.md](CONTRIBUTING.ru.md): как вносить изменения
 
 ## Лицензия
 
