@@ -2,6 +2,8 @@ package io.niko.fmt
 
 import io.niko.fmt.naive.buildSingBoxOutboundNaiveBean
 import io.niko.fmt.naive.parseNaive
+import io.niko.fmt.v2ray.buildSingBoxOutboundStandardV2RayBean
+import io.niko.fmt.v2ray.parseV2RayStandard
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -79,5 +81,28 @@ class NodeTlsTest {
         assertTrue(nodeTlsTweaks("vless", mapOf("enabled" to false)).isEmpty())
         // a typed outbound keeps no tls among its raw options: the tweaks alone
         assertEquals(mapOf("x" to 1), mergeTls(null, mapOf("x" to 1)))
+    }
+
+    // the node's REALITY row straight over TCP gets the spare connection; XHTTP, plain TLS and other types do not
+    @Test
+    fun prewarmOnlyRealityOverTcp() {
+        val reality = "vless://00000000-0000-4000-8000-000000000001@203.0.113.2:443?encryption=none&flow=xtls-rprx-vision" +
+            "&security=reality&sni=www.example.com&fp=chrome&pbk=examplePublicKeyAAAAAAAAAAAAAAAAAAAAAAAAAAA&sid=0123"
+        // allowInsecure set keeps buildSingBoxOutboundTLS off DataStore's global switch, which a unit test has not
+        fun prewarm(link: String) = parseV2RayStandard(link).apply { initializeDefaultValues(); allowInsecure = true }
+            .let { buildSingBoxOutboundStandardV2RayBean(it) }.let { nodePrewarm(it.type, it.asMap()) }
+        assertEquals(NODE_PREWARM_IDLE, prewarm(reality))
+        assertNull(prewarm(reality.replace("security=reality", "security=reality&type=xhttp&path=%2Fxh&mode=stream-one")))
+        assertNull(prewarm("vless://00000000-0000-4000-8000-000000000001@203.0.113.2:443?security=tls&sni=www.example.com"))
+        assertNull(prewarm("vless://00000000-0000-4000-8000-000000000001@203.0.113.2:443?security=none"))
+        assertNull(nodePrewarm("trojan", mapOf("tls" to mapOf("enabled" to true, "reality" to mapOf("enabled" to true)))))
+    }
+
+    // names-v1: the node's DoH by its name for the knock to resolve; a node without one as before
+    @Test
+    fun nodeDohByName() {
+        assertEquals("n3kq7p.example.com" to null, nodeDohDial("203.0.113.2", "n3kq7p.example.com"))
+        assertEquals("203.0.113.2" to null, nodeDohDial("203.0.113.2", null))
+        assertEquals("node.example.com" to "dns-direct", nodeDohDial("node.example.com", null))
     }
 }
