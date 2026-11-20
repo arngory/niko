@@ -98,8 +98,8 @@ jobs:
           # the template's inbounds, REALITY's target the Go one (127.0.0.1:14443): ML-KEM (18443), none (18444),
           # Vision with ML-KEM (18445), and ML-KEM again for the parallel streams (18446), whose connections are counted
           # alone; REALITY without XHTTP (18447) is the control that tells a REALITY fault from an XHTTP one. Reported
-          # only, REALITY without XHTTP: openssl s_server (18448, 14445) and the Go target with X25519 alone (18449,
-          # 14444). freedom lets the local server
+          # only, REALITY without XHTTP: openssl s_server (18448, 14445), the Go target with X25519 alone (18449,
+          # 14444) and openssl held to TLS_AES_128_GCM_SHA256 (18450, 14446). freedom lets the local server
           # through (finalRules: private addresses are refused to a VLESS user by default)
           jq -n --arg uuid "$uuid" --arg priv "$priv" --arg dec "$dec" '
             def xhttp($port; $dec; $flow): {listen: "127.0.0.1", port: $port, protocol: "vless",
@@ -251,6 +251,6 @@ jobs:
         run: |
           echo "--- xray"; grep -viE 'accepted|tunneling request|proxy/freedom' /tmp/xray.log | head -n 80 || true
           echo "--- client"; grep -vE '^\s*$' /tmp/client.log | grep -E 'ERROR|WARN|x-raw|x-one' | head -n 80 || true
-          echo "--- targets"; tail -n 5 /tmp/target-go.log /tmp/target-classical.log /tmp/target.log || true
+          echo "--- targets"; tail -n 5 /tmp/target-go.log /tmp/target-classical.log /tmp/target.log /tmp/target-aes128.log || true
           pkill -x xray || true; pkill -x sing-box || true; pkill -f bulk-http.py || true; pkill -x openssl || true
           pkill -x reality-target || true
