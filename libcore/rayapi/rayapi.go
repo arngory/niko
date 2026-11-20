@@ -548,8 +548,9 @@ type Invite struct {
 	// instead of "the invite is used". Nil: a new one (neko)
 	Identity *Identity `json:"identity,omitempty"`
 	// Addrs: names-v1, the node's addresses with Host its name (an RCINV3 invite, api-v1.md §3b: its host); the
-	// registration goes to them as Endpoint.Addrs has it (neko)
-	Addrs []string `json:"addrs,omitempty"`
+	// registration goes to them as Endpoint.Addrs has it, its name looked up with Lookup (neko)
+	Addrs  []string        `json:"addrs,omitempty"`
+	Lookup raynames.Lookup `json:"-"`
 }
 
 // Registered is the outcome of Register: the device's own rcdev1 package and
@@ -617,7 +618,7 @@ func Register(ctx context.Context, invite Invite, control func(network, address 
 		return nil, err
 	}
 	endpoint := Endpoint{Host: invite.Host, Port: invite.API.Port, Pin: invite.API.Pin, Identity: identity, SPA: invite.SPA,
-		Control: control, Addrs: invite.Addrs}
+		Control: control, Addrs: invite.Addrs, Lookup: invite.Lookup}
 	return register(ctx, endpoint, invite.InviteID, inviteKey, invite.PinCode, time.Now())
 }
 

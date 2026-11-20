@@ -72,6 +72,8 @@ func RaycontrolRegister(inviteJSON string) (string, error) {
 	if err := json.Unmarshal([]byte(inviteJSON), &invite); err != nil {
 		return "", err
 	}
+	// RCINV3: the node's name looked up as the other requests do (the core's local DNS, not this process' own)
+	invite.Lookup = nodeLookup
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 	registered, err := rayapi.Register(ctx, invite, protectControl())
