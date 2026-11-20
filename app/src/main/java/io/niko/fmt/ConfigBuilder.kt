@@ -651,6 +651,11 @@ fun buildConfig(
                     currentOutbound._hack_config_map["tls"] =
                         mergeTls(currentOutbound._hack_config_map["tls"] as? Map<*, *>, tlsTweaks)
                 }
+                // REALITY straight to the node: one connection opened ahead for the next request, closed after a
+                // short idle (nodePrewarm). A test measures a profile's own first connection, so it runs without
+                if (!forTest && rayNode != null && !proxyEntity.needExternal()) {
+                    nodePrewarm(outboundType, currentOutbound.asMap())?.let { currentOutbound._hack_config_map["prewarm"] = it }
+                }
 
                 // Brutal at the rates measured on this network (RayBrutal, setting raycontrolBrutal), each direction
                 // apart; none measured: BBR. The main config only: a test runs as the profile says
@@ -1683,6 +1688,22 @@ internal fun nodeTlsTweaks(outboundType: String?, tls: Map<*, *>?, replacedFinge
     return tweaks
 }
 
+/** How long the spare connection to a node stays open unused (the owner's decision of 2026-11-19: 10-15 s). */
+internal const val NODE_PREWARM_IDLE = "12s"
+
+/**
+ * The core's prewarm for an outbound to a raycontrol node: VLESS with REALITY straight over TCP, where the next
+ * request then goes out on a connection already through TCP and the REALITY handshake (protocol/vless/prewarm.go of
+ * the core). The node's Xray waits 60 s for the request after the handshake. Null for anything else: a transport
+ * (XHTTP, ...) keeps connections of its own, and other servers' patience is not known.
+ */
+internal fun nodePrewarm(outboundType: String?, outbound: Map<*, *>): String? {
+    if (outboundType != "vless" || outbound["transport"] != null) return null
+    val tls = outbound["tls"] as? Map<*, *> ?: return null
+    if (tls["enabled"] != true || (tls["reality"] as? Map<*, *>)?.get("enabled") != true) return null
+    return NODE_PREWARM_IDLE
+}
+
 /**
  * Whether a naive outbound over QUIC is to take the phone's roots as it does over HTTP/2: only where the setting of
  * trusted roots is the system's store (under the lists naive gets none of the phone's roots, and the option would
@@ -1751,19 +1772,32 @@ private fun rotatingUdpPorts(node: RayNode, entity: ProxyEntity, bean: AbstractB
 }
 
 /**
- * The node's DoH as the remote DNS (raycontrol niko-r3-note.md §2 p. 2): RFC 8484 over h2 to the node's own
- * address, the one SPA opened, with the DoH name as SNI and post-quantum key exchange only.
+ * The node's DoH as the remote DNS (raycontrol niko-r3-note.md §2 p. 2): RFC 8484 over h2 to the node, through the
+ * knock that opens it, with the DoH name as SNI and post-quantum key exchange only. A node with a name (names-v1) is
+ * dialled by it as its rows are: the knock resolves the name once per attempt and takes only the node's addresses
+ * (node_addresses), its own as the fallback; none of the system's resolving before it ([nodeDohDial]).
  */
 private fun nodeDohServer(node: RayNode, knockTag: String): DNSServerOptions {
     val url = node.doh!!.toHttpUrlOrNull() ?: throw Exception("raycontrol node ${node.host}: bad DoH URL")
+    val (host, resolver) = nodeDohDial(node.host, node.reachName)
     return DNSServerOptions().apply {
         type = "https"
         tag = "dns-remote"
-        server = node.host
+        server = host
         server_port = url.port
         path = url.encodedPath + (url.encodedQuery?.let { "?$it" } ?: "")
         detour = knockTag
-        if (!node.host.isIpAddress()) domain_resolver = "dns-direct"
+        resolver?.let { domain_resolver = it }
         _hack_config_map["tls"] = nodeDohTls(url.host, node.dohPins)
     }
+}
+
+/**
+ * Where the node's DoH dials and who resolves it: the node's name for the knock to resolve (names-v1, its addresses
+ * known), else its host, a name of which only the direct DNS can resolve (a node before names-v1), an address none.
+ */
+internal fun nodeDohDial(host: String, reachName: String?): Pair<String, String?> = when {
+    reachName != null -> reachName to null
+    host.isIpAddress() -> host to null
+    else -> host to "dns-direct"
 }
