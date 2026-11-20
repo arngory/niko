@@ -2,6 +2,12 @@ name: Yggdrasil probe
 
 # Live check of the core's Yggdrasil endpoint: peers with the public peers and
 # opens services inside the network. Runs when this file changes or by hand.
+# The services and the peers are other people's: yggstack (the Yggdrasil
+# project's own node with a SOCKS proxy) runs beside the core with the same
+# peers, and the check fails only when it reaches the services and the core
+# does not. When neither does, the network is down for both: a warning. A
+# yggstack that is not running, or has no peer up where the core has some,
+# is no reference: the check fails.
 on:
   push:
     paths: [".github/workflows/ygg-probe.yml", "buildScript/lib/core/get_source_env.sh"]
@@ -20,6 +26,10 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      # yggstack 1.0.6 (yggdrasil-go v0.5.15, as the core's fork)
+      REPOSITORY_YGGSTACK: https://github.com/yggdrasil-network/yggstack
+      COMMIT_YGGSTACK: 91fc38063dd7044c1c18318d8907bcc68e95db0d
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
@@ -28,6 +38,8 @@ jobs:
           . buildScript/lib/core/get_source_env.sh
           git clone --filter=blob:none "$REPOSITORY_SING_BOX" core
           git -C core checkout -q "$COMMIT_SING_BOX"
+          git clone --filter=blob:none "$REPOSITORY_YGGSTACK" yggstack
+          git -C yggstack checkout -q "$COMMIT_YGGSTACK"
 
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
@@ -37,6 +49,10 @@ jobs:
       - name: Build core
         working-directory: core
         run: go build -o /tmp/sing-box -ldflags=-checklinkname=0 -tags=with_yggdrasil,with_gvisor,badlinkname,tfogo_checklinkname0 ./cmd/sing-box
+
+      - name: Build yggstack
+        working-directory: yggstack
+        run: CGO_ENABLED=0 go build -o /tmp/yggstack -trimpath ./cmd/yggstack && /tmp/yggstack -version | head -2
 
       - name: Public peers
         run: |
@@ -58,6 +74,10 @@ jobs:
           }' > /tmp/node.json
           /tmp/sing-box check -c /tmp/node.json
           nohup /tmp/sing-box run -c /tmp/node.json > /tmp/node.log 2>&1 &
+          # the reference: the same peers, a key of its own, no multicast, SOCKS on 14081
+          /tmp/yggstack -genconf -json | jq --rawfile peers /tmp/peers.txt '.Peers = ($peers | split("\n") |
+            map(select(length > 0))) | .MulticastInterfaces = [] | .NodeInfoPrivacy = true' > /tmp/yggstack.json
+          nohup /tmp/yggstack -useconffile /tmp/yggstack.json -socks 127.0.0.1:14081 > /tmp/yggstack.log 2>&1 &
           sleep 45
           echo "connected peers: $(grep -c 'Connected outbound' /tmp/node.log)"
           grep -oE 'Connected outbound: [^,]+' /tmp/node.log | sed 's/.*@//' | sort -u > /tmp/up.txt
@@ -66,28 +86,53 @@ jobs:
           echo "address:"
           grep -m1 'Yggdrasil address' /tmp/node.log || true
 
-      # live services of other people: one of them may be down, so the step wants most of them, not all
+      # live services of other people: one of them may be down, so the step wants most of them, not all. Each is
+      # asked through the core (14080) and through yggstack (14081) at once, so both see the network as it is then
       - name: Services inside the network
         run: |
-          ok=0
-          probe() {
-            rm -f /tmp/body
-            out=$(curl -sS -m 30 -o /tmp/body -w '%{http_code} %{time_total}s' -x socks5h://127.0.0.1:14080 "$2" 2>&1) &&
-              ok=$((ok + 1))
+          services=("IP checker|http://[200:56bd:a9e9:c1fa:8f99:1d3c:3c84:6507]/"
+                    "Project homepage|http://[300:8101:e046:d91e::5]/"
+                    "Web directory|http://[21e:a51c:885b:7db0:166e:927:98cd:d186]/"
+                    "Search|http://[200:b48d:469e:c7c7:3e13:c41d:ba4d:d2b8]/"
+                    "Map|http://[227:bc24:9a82:e290:7f4a:f992:2ef6:5b34]/")
+          ask() { curl -sS -m 30 -o "$3" -w '%{http_code} %{time_total}s' -x "socks5h://127.0.0.1:$1" "$2" 2>&1; }
+          ok=0 ref=0
+          for s in "${services[@]}"; do
+            name=${s%%|*} url=${s#*|}
+            rm -f /tmp/body /tmp/body.ref
+            ask 14080 "$url" /tmp/body > /tmp/out & a=$!
+            ask 14081 "$url" /tmp/body.ref > /tmp/out.ref & b=$!
+            wait $a && ok=$((ok + 1)); wait $b && ref=$((ref + 1))
             title=$(grep -oiE '<title>[^<]*' /tmp/body 2>/dev/null | head -1 | cut -c8-80)
-            echo "$1 | $2 | $out | $title"
-          }
-          probe "IP checker" 'http://[200:56bd:a9e9:c1fa:8f99:1d3c:3c84:6507]/'
-          head -c 300 /tmp/body 2>/dev/null || true; echo
-          probe "Project homepage" 'http://[300:8101:e046:d91e::5]/'
-          probe "Web directory" 'http://[21e:a51c:885b:7db0:166e:927:98cd:d186]/'
-          probe "Search" 'http://[200:b48d:469e:c7c7:3e13:c41d:ba4d:d2b8]/'
-          probe "Map" 'http://[227:bc24:9a82:e290:7f4a:f992:2ef6:5b34]/'
-          echo "answered: $ok of 5"
-          [ "$ok" -ge 3 ]
+            echo "$name | $url | core: $(head -c 120 /tmp/out) | yggstack: $(head -c 120 /tmp/out.ref) | $title"
+          done
+          echo "answered: $ok of 5 through the core, $ref of 5 through yggstack"
+          # the peers up now: each key@address by its last Connected or Disconnected line
+          up() { awk '/(Connected|Disconnected) outbound: /{ match($0, /outbound: [^,]+/); p = substr($0, RSTART + 10, RLENGTH - 10)
+                       up[p] = ($0 ~ /Disconnected outbound: /) ? 0 : 1 } END { n = 0; for (p in up) n += up[p]; print n }' "$1"; }
+          core_peers=$(up /tmp/node.log) ref_peers=$(up /tmp/yggstack.log)
+          echo "peers up: $core_peers through the core, $ref_peers through yggstack"
+          if ! pgrep -x yggstack > /dev/null; then echo "the reference is not running"; exit 1; fi
+          # the reference counts only with peers up: a core with none where yggstack has some fails whatever the
+          # services say, yggstack with none where the core has some is no reference, neither with any is the network
+          if [ "$core_peers" -eq 0 ] && [ "$ref_peers" -gt 0 ]; then echo "the core has no peer up"; exit 1; fi
+          if [ "$ok" -ge 3 ]; then exit 0; fi
+          if [ "$core_peers" -eq 0 ] && [ "$ref_peers" -eq 0 ]; then
+            echo "::warning::no public peer is up for the core or yggstack: the runner's network, not the core"
+            exit 0
+          fi
+          if [ "$ref_peers" -eq 0 ]; then echo "the reference has no peer up"; exit 1; fi
+          if [ "$ref" -lt 3 ]; then
+            echo "::warning::the services do not answer yggstack either ($ref of 5): the network, not the core"
+            exit 0
+          fi
+          echo "the core reaches $ok of 5 where yggstack reaches $ref"; exit 1
 
       - name: Node log
         if: always()
         run: |
           grep -E 'Connected|ERROR|WARN' /tmp/node.log | cut -c1-200 | head -150 || true
+          echo "yggstack: $(grep -c 'Connected outbound' /tmp/yggstack.log) peers connected"
+          grep -iE 'error|panic' /tmp/yggstack.log | cut -c1-200 | head -20 || true
           pkill -x sing-box || true
+          pkill -x yggstack || true
