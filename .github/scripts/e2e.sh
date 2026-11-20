@@ -775,6 +775,12 @@ id=$public
 echo "== memory: a URL test of the group on the screen (a core for each profile in the service's process, five at once)"
 timeout 60 adb shell am start -n "$pkg/$pkg.ui.MainActivity" > /dev/null 2>&1
 sleep 5
+# on the main screen (ui/home), its Connection tile opens the profiles and their group's menu
+timeout 30 adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1
+timeout 30 adb pull /sdcard/ui.xml "$out/ui.xml" > /dev/null 2>&1
+xy=$(python3 -I "$here/e2e-memory.py" tap "$out/ui.xml" "Connection")
+# shellcheck disable=SC2086 # x and y
+[ -n "$xy" ] && timeout 20 adb shell input tap $xy && sleep 3
 memory ui-before-test go
 # the group's actions are in the bar's own overflow, the system's "More options" (its ⋮ of their own is gone)
 if tap_on "More options" && sleep 2 && tap_on "URL Test"; then
