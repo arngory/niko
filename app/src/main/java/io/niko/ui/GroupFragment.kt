@@ -399,7 +399,7 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
                             }
                         }
                         .setNegativeButton(android.R.string.cancel, null)
-                        .show()
+                        .show().danger()
                 }
             }
 

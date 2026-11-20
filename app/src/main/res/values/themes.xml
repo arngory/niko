@@ -372,6 +372,17 @@
         <item name="nikoGroupedPreferences">true</item>
         <item name="android:switchStyle">@style/Widget.Niko.Switch</item>
         <item name="switchStyle">@style/Widget.Niko.SwitchCompat</item>
+        <!-- reskin step 3 (niko_dialogs.xml): dialogs, text fields and menus -->
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Niko.MaterialAlertDialog</item>
+        <item name="alertDialogTheme">@style/ThemeOverlay.Niko.MaterialAlertDialog</item>
+        <item name="textInputStyle">@style/Widget.Niko.TextField</item>
+        <item name="editTextStyle">@style/Widget.Niko.EditText</item>
+        <item name="android:editTextStyle">@style/Widget.Niko.EditText</item>
+        <item name="popupMenuStyle">@style/Widget.Niko.PopupMenu</item>
+        <item name="android:popupMenuStyle">@style/Widget.Niko.PopupMenu</item>
+        <item name="actionOverflowMenuStyle">@style/Widget.Niko.PopupMenu.Overflow</item>
+        <item name="textAppearanceLargePopupMenu">@style/TextAppearance.Niko.Body</item>
+        <item name="textAppearanceSmallPopupMenu">@style/TextAppearance.Niko.Body</item>
     </style>
 
     <style name="Theme.SagerNet.Dialog.Niko">
@@ -458,6 +469,17 @@
         <item name="borderlessButtonStyle">@style/Widget.Niko.Button.Ghost</item>
         <item name="chipStyle">@style/Widget.Niko.Chip</item>
         <item name="nikoFilterChipStyle">@style/Widget.Niko.Chip.Filter</item>
+        <!-- reskin step 3 (niko_dialogs.xml): dialogs, text fields and menus -->
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Niko.MaterialAlertDialog</item>
+        <item name="alertDialogTheme">@style/ThemeOverlay.Niko.MaterialAlertDialog</item>
+        <item name="textInputStyle">@style/Widget.Niko.TextField</item>
+        <item name="editTextStyle">@style/Widget.Niko.EditText</item>
+        <item name="android:editTextStyle">@style/Widget.Niko.EditText</item>
+        <item name="popupMenuStyle">@style/Widget.Niko.PopupMenu</item>
+        <item name="android:popupMenuStyle">@style/Widget.Niko.PopupMenu</item>
+        <item name="actionOverflowMenuStyle">@style/Widget.Niko.PopupMenu.Overflow</item>
+        <item name="textAppearanceLargePopupMenu">@style/TextAppearance.Niko.Body</item>
+        <item name="textAppearanceSmallPopupMenu">@style/TextAppearance.Niko.Body</item>
     </style>
 
     <style name="TextAppearance.Niko.ToolbarTitle" parent="TextAppearance.Widget.AppCompat.Toolbar.Title">
@@ -470,6 +492,8 @@
         <item name="android:fontFamily">@font/geist</item>
     </style>
     <style name="Widget.Niko.Toolbar" parent="Widget.MaterialComponents.Toolbar">
+        <!-- the overflow's menu as the app's (ThemeOverlay.Niko.Popup), not the bar's dark overlay -->
+        <item name="popupTheme">@style/ThemeOverlay.Niko.Popup</item>
         <item name="titleTextAppearance">@style/TextAppearance.Niko.ToolbarTitle</item>
         <item name="subtitleTextAppearance">@style/TextAppearance.Niko.ToolbarSubtitle</item>
     </style>

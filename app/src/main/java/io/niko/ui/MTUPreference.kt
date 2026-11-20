@@ -9,6 +9,7 @@ import androidx.preference.ListPreference
 import androidx.preference.PreferenceViewHolder
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.niko.R
+import io.niko.ktx.setField
 
 class MTUPreference
 @JvmOverloads constructor(
@@ -32,9 +33,10 @@ class MTUPreference
             }
 
             MaterialAlertDialogBuilder(context).setTitle("MTU")
-                .setView(view)
+                .setField(view)
                 .setPositiveButton(android.R.string.ok) { _, _ ->
-                    val mtu = view.text.toString().toInt()
+                    // an empty field or a number too long for an Int was a crash
+                    val mtu = view.text.toString().toIntOrNull() ?: return@setPositiveButton
                     if (mtu < 1000 || mtu > 10000) return@setPositiveButton
                     value = mtu.toString()
                 }

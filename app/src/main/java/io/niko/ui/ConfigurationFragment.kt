@@ -68,6 +68,7 @@ import io.niko.ktx.Logs
 import io.niko.ktx.SubscriptionFoundException
 import io.niko.ktx.alert
 import io.niko.ktx.app
+import io.niko.ktx.danger
 import io.niko.ktx.dp2px
 import io.niko.ktx.getColorAttr
 import io.niko.ktx.isIpAddress
@@ -611,7 +612,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                                     }
                                 }
                                 .setNegativeButton(R.string.no, null)
-                                .show()
+                                .show().danger()
                         }
                     }
                 }
@@ -663,7 +664,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                                     }
                                 }
                                 .setNegativeButton(R.string.no, null)
-                                .show()
+                                .show().danger()
                         }
                     }
                 }

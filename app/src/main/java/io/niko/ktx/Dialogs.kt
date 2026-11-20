@@ -3,7 +3,10 @@ package io.niko.ktx
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.view.View
+import android.widget.FrameLayout
 import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.niko.R
@@ -16,6 +19,18 @@ fun Context.alert(text: String): AlertDialog {
 }
 
 fun Fragment.alert(text: String) = requireContext().alert(text)
+
+/** A confirmation that deletes or resets (m-dialog's danger action): its positive button in danger, after show(). */
+fun AlertDialog.danger(): AlertDialog = apply {
+    getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(ContextCompat.getColor(context, R.color.niko_danger))
+}
+
+/** [view], a dialog's one field, inset as the dialog's title and words are (space-6), space-2 below them. */
+fun MaterialAlertDialogBuilder.setField(view: View): MaterialAlertDialogBuilder = setView(FrameLayout(context).apply {
+    val side = resources.getDimensionPixelSize(R.dimen.niko_space_6)
+    setPadding(side, resources.getDimensionPixelSize(R.dimen.niko_space_2), side, 0)
+    addView(view)
+})
 
 /**
  * The first of [start], then what [next] gives for it and so on, that [match] takes: at most [depth] steps, so a
