@@ -2,8 +2,13 @@ name: XHTTP interop
 
 # The core's XHTTP client (sing-box-lx, transport/v2rayxhttp) against the Xray the node runs: the fork raycontrol
 # pins in deploy/versions.env (v0.34.0: 46b58d4). The server's template (XHTTP over REALITY, mode auto, VLESS
-# encryption with ML-KEM, its REALITY target an openssl s_server for www.example.com), with the client's outbound as
-# the app builds it from a link (fmt/v2ray: transport xhttp with path and mode, the link's extra as its options).
+# encryption with ML-KEM), with the client's outbound as the app builds it from a link (fmt/v2ray: transport xhttp
+# with path and mode, the link's extra as its options; REALITY with the hybrid key share of a node's rows). REALITY's
+# target is a local TLS 1.3 server in Go's crypto/tls (.github/tools/reality-target), whose groups are those of the
+# node's Go front and of most sites: X25519MLKEM768 first. The template's own target, openssl s_server with X25519
+# alone, is not checked: with it XTLS/REALITY authenticates the core's client but the handshake does not complete.
+# Three REALITY rows only report what they find, to tell why: openssl with the app's hybrid share, openssl with the
+# fingerprint's default shares, and the Go target held to X25519 (a site without X25519MLKEM768).
 # Checked: stream-one with XMUX by default and with maxConcurrency, packet-up, stream-up, auto (stream-one under
 # REALITY, as Xray's), encryption none and ML-KEM, Vision over XHTTP with ML-KEM, downloads and uploads counted at
 # a local server, parallel streams on one connection, VLESS UDP (plain and XUDP), and the client's recovery after
@@ -17,6 +22,7 @@ on:
       - ".github/xray-interop.env"
       - ".github/scripts/bulk-http.py"
       - ".github/scripts/udp-dns-probe.py"
+      - ".github/tools/reality-target/**"
   workflow_dispatch:
 
 permissions:
@@ -70,6 +76,8 @@ jobs:
       - name: Build core
         working-directory: core
         run: go build -o /tmp/sing-box -ldflags=-checklinkname=0 -tags=with_utls,with_quic,with_xhttp,badlinkname,tfogo_checklinkname0 ./cmd/sing-box
+      - name: Build the REALITY target
+        run: go build -o /tmp/reality-target ./.github/tools/reality-target/main.go
 
       - name: Keys and configs
         run: |
@@ -83,44 +91,46 @@ jobs:
           uuid=$(cat /proc/sys/kernel/random/uuid)
           for k in priv pbk dec enc; do [ -n "${!k}" ] || { echo "no $k"; exit 1; }; done
           echo "encryption: ${enc%%.*}"
-          # the template's REALITY target: a TLS 1.3 server with X25519 for www.example.com (row 18448)
+          # the template's REALITY target, reported only: a TLS 1.3 server with X25519 for www.example.com
           openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 30 -subj "/CN=www.example.com" \
             -addext "subjectAltName=DNS:www.example.com" -keyout /tmp/target.key -out /tmp/target.crt 2>/dev/null
-          # the template's inbounds with a real site as REALITY's target, as a node has: ML-KEM (18443), none (18444),
+          # the template's inbounds, REALITY's target the Go one (127.0.0.1:14443): ML-KEM (18443), none (18444),
           # Vision with ML-KEM (18445), and ML-KEM again for the parallel streams (18446), whose connections are counted
-          # alone; REALITY without XHTTP (18447) is the control that tells a REALITY fault from an XHTTP one. The
-          # template's own target, openssl s_server, is kept on 18448 (REALITY without XHTTP) and only reported: with
-          # it the REALITY handshake of the core's client does not complete (XTLS/REALITY: "handshake did not
-          # complete successfully" after the client was authenticated). freedom lets the local server
+          # alone; REALITY without XHTTP (18447) is the control that tells a REALITY fault from an XHTTP one. Reported
+          # only, REALITY without XHTTP: openssl s_server (18448, 14445) and the Go target with X25519 alone (18449,
+          # 14444). freedom lets the local server
           # through (finalRules: private addresses are refused to a VLESS user by default)
           jq -n --arg uuid "$uuid" --arg priv "$priv" --arg dec "$dec" '
             def xhttp($port; $dec; $flow): {listen: "127.0.0.1", port: $port, protocol: "vless",
               settings: {clients: [{id: $uuid} + (if $flow == "" then {} else {flow: $flow} end)], decryption: $dec},
               streamSettings: {network: "xhttp", xhttpSettings: {path: "/xh", mode: "auto"},
-                security: "reality", realitySettings: {target: "www.microsoft.com:443", serverNames: ["www.microsoft.com"],
+                security: "reality", realitySettings: {target: "127.0.0.1:14443", serverNames: ["www.example.com"],
                   privateKey: $priv, shortIds: ["0123456789abcdef"]}}};
             def raw: .streamSettings |= (del(.xhttpSettings) | .network = "raw");
             {log: {loglevel: "debug"},
              inbounds: [xhttp(18443; $dec; ""), xhttp(18444; "none"; ""), xhttp(18445; $dec; "xtls-rprx-vision"),
                xhttp(18446; $dec; ""), (xhttp(18447; $dec; "") | raw),
-               (xhttp(18448; $dec; "") | raw | .streamSettings.realitySettings |=
-                 (.target = "127.0.0.1:14443" | .serverNames = ["www.example.com"]))],
+               (xhttp(18448; $dec; "") | raw | .streamSettings.realitySettings.target = "127.0.0.1:14445"),
+               (xhttp(18449; $dec; "") | raw | .streamSettings.realitySettings.target = "127.0.0.1:14444")],
              outbounds: [{protocol: "freedom",
                settings: {finalRules: [{action: "allow", ip: ["127.0.0.1/32"]}]}}]}' > /tmp/xray.json
           # an outbound as the app builds it from the link: transport xhttp with path and mode (and the extra's
           # options), REALITY with uTLS chrome and the hybrid key share a node's row takes (nodeTlsTweaks: the node's
           # Xray authenticates REALITY on it), the link's encryption and flow, plain VLESS UDP unless xudp
           out() { jq -n --arg tag "$1" --argjson port "$2" --arg mode "$3" --arg enc "$4" --arg flow "$5" \
-                        --argjson extra "$6" --arg pe "$7" --arg sni "${8:-www.microsoft.com}" --arg uuid "$uuid" --arg pbk "$pbk" '
+                        --argjson extra "$6" --arg pe "$7" --arg ks "${8-hybrid}" --arg uuid "$uuid" --arg pbk "$pbk" '
             {type: "vless", tag: $tag, server: "127.0.0.1", server_port: $port, uuid: $uuid, packet_encoding: $pe}
             + (if $flow == "" then {} else {flow: $flow} end) + (if $enc == "" then {} else {encryption: $enc} end)
-            + {tls: {enabled: true, server_name: $sni, utls: {enabled: true, fingerprint: "chrome"},
-                reality: {enabled: true, public_key: $pbk, short_id: "0123456789abcdef", key_share: "hybrid"}},
+            + {tls: {enabled: true, server_name: "www.example.com", utls: {enabled: true, fingerprint: "chrome"},
+                reality: ({enabled: true, public_key: $pbk, short_id: "0123456789abcdef"}
+                  + (if $ks == "" then {} else {key_share: $ks} end))},
                transport: ({type: "xhttp", path: "/xh", mode: $mode} + $extra)}
             | if $mode == "raw" then del(.transport) else . end'; }
           vision=xtls-rprx-vision
           outs=$(jq -s . <(out x-raw 18447 raw "$enc" "" '{}' "") \
-                         <(out x-raw-openssl 18448 raw "$enc" "" '{}' "" www.example.com) \
+                         <(out x-raw-openssl 18448 raw "$enc" "" '{}' "") \
+                         <(out x-raw-openssl-default 18448 raw "$enc" "" '{}' "" "") \
+                         <(out x-raw-classical-target 18449 raw "$enc" "" '{}' "") \
                          <(out x-one 18443 stream-one "$enc" "" '{}' "") \
                          <(out x-packet 18443 packet-up "$enc" "" '{}' "") \
                          <(out x-up 18443 stream-up "$enc" "" '{}' "") \
@@ -134,7 +144,7 @@ jobs:
           jq -n --argjson outs "$outs" '
             [["x-one", 11080], ["x-packet", 11081], ["x-up", 11082], ["x-auto", 11083], ["x-none", 11084],
              ["x-vision", 11085], ["x-vision-packet", 11086], ["x-mux", 11087], ["x-raw", 11088],
-             ["x-raw-openssl", 11089]] as $tcp |
+             ["x-raw-openssl", 11089], ["x-raw-openssl-default", 11090], ["x-raw-classical-target", 11091]] as $tcp |
             [["x-one", 15353], ["x-xudp", 15354], ["x-vision", 15355], ["x-packet", 15356]] as $udp |
             {log: {level: "debug"},
              inbounds: ([$tcp[] | {type: "mixed", tag: ("in-" + .[0]), listen: "127.0.0.1", listen_port: .[1]}]
@@ -148,7 +158,10 @@ jobs:
 
       - name: Interop
         run: |
-          nohup openssl s_server -accept 127.0.0.1:14443 -tls1_3 -groups X25519 -www \
+          # REALITY's targets: the Go one (checked), the Go one held to X25519 and the template's openssl (reported)
+          nohup /tmp/reality-target -listen 127.0.0.1:14443 -name www.example.com > /tmp/target-go.log 2>&1 &
+          nohup /tmp/reality-target -listen 127.0.0.1:14444 -name www.example.com -classical > /tmp/target-classical.log 2>&1 &
+          nohup openssl s_server -accept 127.0.0.1:14445 -tls1_3 -groups X25519 -www \
             -cert /tmp/target.crt -key /tmp/target.key > /tmp/target.log 2>&1 &
           nohup python3 -I .github/scripts/bulk-http.py 18080 > /tmp/bulk.log 2>&1 &
           nohup /tmp/xray run -c /tmp/xray.json > /tmp/xray.log 2>&1 &
@@ -182,8 +195,10 @@ jobs:
             check "$name" "$port" 204
             bulk "$name" "$port" 8388608 4194304
           done
-          # the template's openssl target, reported only (see the configs)
-          echo "REALITY against the template's openssl s_server target (reported, not checked): $(code 11089 https://www.gstatic.com/generate_204)"
+          # reported only (see the header): why the template's openssl target fails
+          echo "reported: openssl s_server target, the app's hybrid share: $(code 11089 https://www.gstatic.com/generate_204)"
+          echo "reported: openssl s_server target, the fingerprint's default shares: $(code 11090 https://www.gstatic.com/generate_204)"
+          echo "reported: Go target with X25519 alone, the app's hybrid share: $(code 11091 https://www.gstatic.com/generate_204)"
           # 20 parallel streams through the XMUX of maxConcurrency 16-32: two connections at most
           # (each waited for by its own pid: a bare wait would wait for the servers this step started too)
           pids=()
@@ -228,5 +243,6 @@ jobs:
         run: |
           echo "--- xray"; grep -viE 'accepted|tunneling request|proxy/freedom' /tmp/xray.log | head -n 80 || true
           echo "--- client"; grep -vE '^\s*$' /tmp/client.log | grep -E 'ERROR|WARN|x-raw|x-one' | head -n 80 || true
-          echo "--- target"; tail -n 5 /tmp/target.log || true
+          echo "--- targets"; tail -n 5 /tmp/target-go.log /tmp/target-classical.log /tmp/target.log || true
           pkill -x xray || true; pkill -x sing-box || true; pkill -f bulk-http.py || true; pkill -x openssl || true
+          pkill -x reality-target || true
