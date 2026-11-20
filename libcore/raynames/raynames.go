@@ -24,6 +24,9 @@ const (
 type Target struct {
 	Address    string
 	ServerName string
+	// Signed: the address is the node's signed data's (its addrs, or the host given as an address), not only a DNS
+	// answer: SPA v2 may follow a v3 that opened nothing only here (spa-v3 §6 p. 3, 4)
+	Signed bool
 }
 
 // Lookup resolves a name: in the app the core's "local" DNS (libcore's NodeLookup: Android's resolver on the network
@@ -34,8 +37,9 @@ type Lookup func(ctx context.Context, name string) ([]netip.Addr, error)
 // Targets: host resolved once, the addresses of the answer that are the node's (known, its signed addresses), in
 // the answer's order; else, and when host does not resolve in LookupTimeout, the node's own (§5 p. 3–5). Without
 // known addresses (a node before raycontrol v0.34.0, or one whose -host is a name), or for an address, host alone
-// as before.
-func Targets(ctx context.Context, lookup Lookup, host string, known []string) (targets []Target, warning string) {
+// as before; but a node that takes SPA v3 (v3) and has a name alone gets its answer's addresses, each named by the
+// knock, which is never v2 at the name (spa-v3 §6 p. 2, 4).
+func Targets(ctx context.Context, lookup Lookup, host string, known []string, v3 bool) (targets []Target, warning string) {
 	host = strings.TrimSuffix(strings.Trim(host, "[]"), ".")
 	var addresses []netip.Addr
 	for _, raw := range known {
@@ -44,7 +48,11 @@ func Targets(ctx context.Context, lookup Lookup, host string, known []string) (t
 			addresses = append(addresses, addr.Unmap())
 		}
 	}
-	if _, err := netip.ParseAddr(host); err == nil || len(addresses) == 0 {
+	_, err := netip.ParseAddr(host)
+	if err == nil {
+		return []Target{{Address: host, Signed: true}}, ""
+	}
+	if len(addresses) == 0 && !v3 {
 		return []Target{{Address: host}}, ""
 	}
 	if lookup == nil {
@@ -55,6 +63,22 @@ func Targets(ctx context.Context, lookup Lookup, host string, known []string) (t
 	lookupCtx, cancel := context.WithTimeout(ctx, LookupTimeout)
 	answer, err := lookup(lookupCtx, host)
 	cancel()
+	if len(addresses) == 0 {
+		// SPA v3, a name alone: every address of the answer
+		for _, addr := range answer {
+			if addr = addr.Unmap(); addr.IsValid() && !addr.IsUnspecified() && !addr.IsMulticast() && !slices.Contains(addresses, addr) {
+				addresses = append(addresses, addr)
+			}
+		}
+		for _, addr := range addresses {
+			targets = append(targets, Target{Address: addr.String(), ServerName: host})
+		}
+		if len(targets) == 0 {
+			// the knock refuses a name: no v2 where the lookup failed
+			return []Target{{Address: host}}, "no address for " + host + " to knock at with SPA v3"
+		}
+		return targets, ""
+	}
 	var picked []netip.Addr
 	for _, addr := range answer {
 		if addr = addr.Unmap(); slices.Contains(addresses, addr) && !slices.Contains(picked, addr) {
@@ -73,7 +97,7 @@ func Targets(ctx context.Context, lookup Lookup, host string, known []string) (t
 			"forged, the knock goes to the node's own"
 	}
 	for _, addr := range addresses {
-		targets = append(targets, Target{Address: addr.String(), ServerName: host})
+		targets = append(targets, Target{Address: addr.String(), ServerName: host, Signed: true})
 	}
 	return targets, warning
 }

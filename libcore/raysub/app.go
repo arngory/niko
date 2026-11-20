@@ -17,6 +17,8 @@ import (
 
 	"libcore/rayclient"
 	"libcore/raynames"
+
+	"github.com/sagernet/sing-box/protocol/knock"
 )
 
 // app-update-v1 (raycontrol docs/spec/app-update-v1.md): the app's releases a node holds, their files at
@@ -65,7 +67,7 @@ func AppFile(ctx context.Context, r Request, app, tag, name, out, etag string) e
 		return err
 	}
 	// names-v1: the first of the node's addresses for one lookup of its name (a download goes on at one address)
-	targets, _ := raynames.Targets(ctx, r.Lookup, r.Host, r.Addrs)
+	targets, _ := raynames.Targets(ctx, r.Lookup, r.Host, r.Addrs, knock.TakesV3(r.SPA))
 	r = r.at(targets[0], true)
 	// no bound for the whole: the idle bound in appGet
 	client := r.httpClient(0)
