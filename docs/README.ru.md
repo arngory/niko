@@ -31,7 +31,7 @@
 ## Сопровождение
 
 - [Выпуск и подпись](guide/release.md)
-- [CONTRIBUTING.md](../CONTRIBUTING.md): ветки, pull request, сообщения, закрепления
+- [CONTRIBUTING.ru.md](../CONTRIBUTING.ru.md): ветки, pull request, сообщения, закрепления
 - [Решения](decisions.md) и [что впереди](roadmap.md)
 
 ## Исследования (с датой, в том виде, как написаны)
