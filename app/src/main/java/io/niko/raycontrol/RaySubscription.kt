@@ -274,6 +274,8 @@ object RaySubscription {
                 RayNodes.update(nodeId) { node ->
                     node.copy(
                         probe = parsed.probe, spaCarriers = parsed.carriers, failedFetches = 0, failedNetwork = null,
+                        // spa-v3 §5: the subscription's word over the package's, a rolled-back node's [2] too
+                        spaVersions = parsed.spaVersions,
                         relays = parsed.relays, dnsProbeKey = parsed.dnsProbeKey, subUpdatedAt = now,
                         appReleases = parsed.appReleases, note = parsed.note, traffic = parsed.traffic,
                         client = parsed.client, subExpires = subExpires, lan = parsed.lan, lanPrevious = RayLanNet.previous(node, parsed.lan, now),
@@ -322,6 +324,8 @@ object RaySubscription {
         // names-v1: the node's name, and its addresses (the payload's and its links' niko-ip), none before v0.34.0
         val dnsName: String? = null,
         val addrs: List<String> = emptyList(),
+        // spa.versions (spa-v3 §5): [2, 3] from a node that takes v3, [2] without the field
+        val spaVersions: List<Int> = listOf(2),
     )
 
     /**
@@ -413,6 +417,7 @@ object RaySubscription {
             // the name only with addresses (§3)
             dnsName.takeIf { addrs.isNotEmpty() },
             addrs,
+            spaVersions(payload.get("spa") as? JsonObject),
         )
     }
 

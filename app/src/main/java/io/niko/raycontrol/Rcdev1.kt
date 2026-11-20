@@ -15,6 +15,8 @@ data class RaySpaParams(
     val portRange: Int,
     val lenMin: Int,
     val lenMax: Int,
+    // the versions the node takes (spa-v3 §5, raycontrol v0.35.0): [2, 3] from a node that takes v3, else [2]
+    val versions: List<Int> = listOf(2),
 ) {
     fun toJson() = JsonObject().apply {
         addProperty("node_id", nodeId)
@@ -25,7 +27,11 @@ data class RaySpaParams(
         addProperty("port_range", portRange)
         addProperty("len_min", lenMin)
         addProperty("len_max", lenMax)
+        if (3 in versions) add("versions", JsonArray().apply { versions.forEach { add(it) } })
     }
+
+    /** SPA v3: the node opens a knock at its own address only, so any address of its name may be knocked at. */
+    val v3 get() = 3 in versions
 
     companion object {
         fun fromJson(o: JsonObject) = RaySpaParams(
@@ -37,6 +43,7 @@ data class RaySpaParams(
             portRange = o.long("port_range").toInt(),
             lenMin = o.long("len_min").toInt(),
             lenMax = o.long("len_max").toInt(),
+            versions = spaVersions(o),
         ).also { it.validate() }
     }
 
@@ -165,8 +172,6 @@ data class RayInvite(
     // names-v1: the node's name, and its addresses (an RCINV3 invite's host): the device registers by the name
     val dnsName: String? = null,
     val addrs: List<String> = emptyList(),
-    // the SPA versions the node takes (spa-v3 §5): [2, 3] from an RCINV3 invite's flag, else [2]
-    val spaVersions: List<Int> = listOf(2),
 ) {
     override fun toString() = "RayInvite(host=$host, node=${spa.nodeId}, invite=$inviteId)"
 }
@@ -197,7 +202,6 @@ object Rcinv1 {
             r.host, r.spa, r.deviceId, r.deviceKey, r.services, api, o.long("expires"),
             pinRequired = (o.get("pin") as? com.google.gson.JsonPrimitive)?.takeIf { it.isBoolean }?.asBoolean == true,
             dnsName = dnsName, addrs = addrs,
-            spaVersions = spaVersions(o.getAsJsonObject("spa")),
         )
     }
 }

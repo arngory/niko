@@ -213,7 +213,14 @@ func Fetch(ctx context.Context, r Request) (*Result, error) {
 	targets, warning := raynames.Targets(ctx, r.Lookup, r.Host, r.Addrs)
 	var lastErr error
 	for i, target := range targets {
-		result, err := fetch(ctx, r.at(target, i == len(targets)-1))
+		at := r.at(target, i == len(targets)-1)
+		result, err := fetch(ctx, at)
+		// spa-v3 §6 p. 3: v3 opened nothing at an address of the signed data (a node rolled back before v0.35.0),
+		// v2 there once
+		if errors.Is(err, ErrNoAnswer) && ctx.Err() == nil && knock.KnocksV3(at.SPA, at.Host) {
+			at.SPA = at.SPA.V2()
+			result, err = fetch(ctx, at)
+		}
 		if result != nil {
 			result.Names = warning
 		}
