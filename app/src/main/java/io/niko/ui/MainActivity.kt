@@ -13,6 +13,8 @@ import android.view.MenuItem
 import androidx.core.net.toUri
 import androidx.activity.addCallback
 import androidx.annotation.IdRes
+import androidx.compose.runtime.mutableStateOf
+import androidx.fragment.app.Fragment
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.preference.PreferenceDataStore
@@ -54,6 +56,12 @@ import io.niko.ktx.onMainDispatcher
 import io.niko.ktx.parseProxies
 import io.niko.ktx.readableMessage
 import io.niko.ktx.runOnDefaultDispatcher
+import io.niko.ui.home.HomeActions
+import io.niko.ui.home.HomeFragment
+import io.niko.ui.home.HomeLoader
+import io.niko.ui.home.HomeState
+import io.niko.ui.home.HomeView
+import io.niko.ktx.Logs
 import io.niko.utils.PrivateDns
 import io.niko.utils.Util
 
@@ -78,6 +86,78 @@ class MainActivity : ThemedActivity(),
     /** A link being read before its question (a profile's, a subscription's): a relaunch now is to ask too. */
     private var linkReading = false
 
+    /**
+     * What the main screen (ui/home) draws: the service's state and speeds from its callbacks here, the rest read by
+     * [refreshHome]. Written on the main thread only.
+     */
+    val homeState = mutableStateOf(HomeState())
+    val homeView = mutableStateOf(HomeView.of(DataStore.homeView))
+
+    /** What the main screen asks for: the connect button's toggle, the old screens behind its rows and tiles. */
+    val homeActions = object : HomeActions {
+        override fun toggle() = if (DataStore.serviceState.canStop) SagerNet.stopService() else connect.launch(null)
+
+        override fun view(view: HomeView) {
+            homeView.value = view
+            DataStore.homeView = view.key
+        }
+
+        // as the setting does: a running service stops, the new mode takes effect on the next connect
+        override fun mode(vpn: Boolean) {
+            if (DataStore.serviceState.started) SagerNet.stopService()
+            DataStore.serviceMode = if (vpn) Key.MODE_VPN else Key.MODE_PROXY
+        }
+
+        override fun profiles() {
+            displayFragmentWithId(R.id.nav_configuration)
+        }
+
+        override fun subscriptions() {
+            displayFragmentWithId(R.id.nav_group)
+        }
+
+        override fun route() {
+            displayFragmentWithId(R.id.nav_route)
+        }
+
+        override fun apps() = startActivity(Intent(this@MainActivity, AppManagerActivity::class.java))
+
+        override fun settings() {
+            displayFragmentWithId(R.id.nav_settings)
+        }
+
+        override fun nodes() {
+            displayFragmentWithId(R.id.nav_group)
+        }
+
+        override fun log() {
+            displayFragmentWithId(R.id.nav_logcat)
+        }
+
+        override fun help() {
+            displayFragmentWithId(R.id.nav_faq)
+        }
+    }
+
+    /** Reads what the main screen shows from the database, off the main thread; the service's fields stay as they are. */
+    fun refreshHome() {
+        runOnDefaultDispatcher {
+            val loaded = try {
+                HomeLoader.load(app, HomeState())
+            } catch (e: Exception) {
+                Logs.w(e)
+                return@runOnDefaultDispatcher
+            }
+            onMainDispatcher {
+                val now = homeState.value
+                homeState.value = loaded.copy(
+                    service = now.service, error = now.error, connectedSince = now.connectedSince,
+                    upRate = now.upRate, downRate = now.downRate,
+                )
+            }
+        }
+    }
+
     private fun MaterialAlertDialogBuilder.showLinkQuestion(): AlertDialog {
         // one question at a time: a newer link or scan replaces one not answered yet, which counts as cancelled (a
         // scanned batch is given up, not imported with the next one)
@@ -97,13 +177,14 @@ class MainActivity : ThemedActivity(),
         navigation.setNavigationItemSelectedListener(this)
 
         if (savedInstanceState == null) {
-            displayFragmentWithId(R.id.nav_configuration)
+            displayFragmentWithId(R.id.nav_home)
         }
+        // the main screen first (D-NAV): back from any other comes to it, back on it leaves the app
         onBackPressedDispatcher.addCallback {
-            if (supportFragmentManager.findFragmentById(R.id.fragment_holder) is ConfigurationFragment) {
+            if (supportFragmentManager.findFragmentById(R.id.fragment_holder) is HomeFragment) {
                 moveTaskToBack(true)
             } else {
-                displayFragmentWithId(R.id.nav_configuration)
+                displayFragmentWithId(R.id.nav_home)
             }
         }
 
@@ -428,11 +509,12 @@ class MainActivity : ThemedActivity(),
 
 
     @SuppressLint("CommitTransaction")
-    fun displayFragment(fragment: ToolbarFragment) {
+    fun displayFragment(fragment: Fragment) {
         if (fragment is ConfigurationFragment) {
             binding.stats.allowShow = true
             binding.fab.show()
-        } else if (!DataStore.showBottomBar) {
+        } else if (fragment is HomeFragment || !DataStore.showBottomBar) {
+            // the main screen has its own button and state
             binding.stats.allowShow = false
             binding.stats.performHide()
             binding.fab.hide()
@@ -445,6 +527,7 @@ class MainActivity : ThemedActivity(),
 
     fun displayFragmentWithId(@IdRes id: Int): Boolean {
         when (id) {
+            R.id.nav_home -> displayFragment(HomeFragment())
             R.id.nav_configuration -> {
                 displayFragment(ConfigurationFragment())
             }
@@ -478,6 +561,24 @@ class MainActivity : ThemedActivity(),
         binding.fab.changeState(state, DataStore.serviceState, animate, failed = msg != null)
         binding.stats.changeState(state)
         if (msg != null) snackbar(getString(R.string.vpn_error, msg)).show()
+
+        // the main screen: why the last start failed stays until the next one; the time online from the service's
+        // process, which wrote it as the core came up (BaseService)
+        val home = homeState.value
+        val connected = state == BaseService.State.Connected
+        homeState.value = home.copy(
+            service = state,
+            error = when {
+                msg != null -> msg
+                state == BaseService.State.Connecting || connected -> null
+                else -> home.error
+            },
+            connectedSince = if (connected) {
+                DataStore.connectedSince.takeIf { it > 0 } ?: home.connectedSince.takeIf { it > 0 } ?: System.currentTimeMillis()
+            } else 0,
+            upRate = if (connected) home.upRate else 0,
+            downRate = if (connected) home.downRate else 0,
+        )
     }
 
     override fun snackbarInternal(text: CharSequence): Snackbar {
@@ -529,6 +630,7 @@ class MainActivity : ThemedActivity(),
     // ONLY do UI update here, write DB in bg process
     override fun cbSpeedUpdate(stats: SpeedDisplayData) {
         binding.stats.updateSpeed(stats.txRateProxy, stats.rxRateProxy)
+        homeState.value = homeState.value.copy(upRate = stats.txRateProxy, downRate = stats.rxRateProxy)
     }
 
     override fun cbTrafficUpdate(data: TrafficData) {
@@ -545,9 +647,14 @@ class MainActivity : ThemedActivity(),
             ProfileManager.postUpdate(old, true)
             ProfileManager.postUpdate(id, true)
         }
+        refreshHome()
     }
 
     override fun onPreferenceDataStoreChanged(store: PreferenceDataStore, key: String) {
+        // what the main screen shows of the settings (any thread: refreshHome posts to the main one)
+        when (key) {
+            Key.PROFILE_ID, Key.SERVICE_MODE, Key.MIXED_PORT, Key.PROXY_APPS, Key.BYPASS_MODE, Key.INDIVIDUAL -> refreshHome()
+        }
         when (key) {
             Key.SERVICE_MODE -> onBinderDied()
             Key.PROXY_APPS, Key.BYPASS_MODE, Key.INDIVIDUAL -> {

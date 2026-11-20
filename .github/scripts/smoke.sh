@@ -51,9 +51,10 @@ else
   echo "the app died during the rotations"; fail=1
 fi
 
-echo "== screenshots (light and dark): the main screen, connected, the drawer, the settings"
+echo "== screenshots (light and dark): the main screen's two views, connected, the mode's sheet, the drawer, the settings"
 # for the eye, not a check: smoke-screens/ in the artifact. The night mode is the system's, as most users have it.
-# The main screen shows a profile's card (a link's profile, chosen), and once connected the statistics bar
+# The main screen (ui/home) shows the chosen profile (a link's) and once connected the time and speeds; the drawer is
+# the old screens' (the profiles' toolbar), until they are drawn from the canvas too
 shots=smoke-screens
 mkdir -p "$shots"
 here=$(cd "$(dirname "$0")" && pwd)
@@ -72,6 +73,11 @@ tap_text() {
   [ -n "$xy" ] || return 1
   # shellcheck disable=SC2086 # x and y
   timeout 20 adb shell input tap $xy
+}
+# profiles: the main screen's Connection tile opens the profiles, whose toolbar has the drawer's button
+profiles() {
+  tap_text "Connection" || { echo "no Connection tile on the main screen"; return 1; }
+  sleep 3
 }
 # tap_button TEXT: the positive button of the dialog that shows this text
 tap_button() {
@@ -117,6 +123,23 @@ for mode in no yes; do
   else
     echo "no connect button to tap ($mode)"
   fi
+  # the other view, kept by the app: back to the simple one after it
+  if tap_text "Advanced"; then
+    sleep 2
+    timeout 30 adb exec-out screencap -p > "$shots/advanced-$mode.png" 2> /dev/null
+    tap_text "Simple" || echo "no Simple in the view switch ($mode)"
+    sleep 2
+  else
+    echo "no Advanced in the view switch ($mode)"
+  fi
+  if tap_text "Mode"; then
+    sleep 2
+    timeout 30 adb exec-out screencap -p > "$shots/mode-$mode.png" 2> /dev/null
+    adb shell input keyevent KEYCODE_BACK; sleep 1
+  else
+    echo "no Mode tile to tap ($mode)"
+  fi
+  profiles
   timeout 20 adb shell input tap "$menu_x" "$menu_y"; sleep 2
   timeout 30 adb exec-out screencap -p > "$shots/drawer-$mode.png" 2> /dev/null
   # the settings, for the rows' icons
@@ -135,6 +158,7 @@ echo "== screenshots with a larger font (1.3) and right to left: the main screen
 timeout 30 adb shell settings put system font_scale 1.3
 restart
 timeout 30 adb exec-out screencap -p > "$shots/main-font-1.3.png" 2> /dev/null
+profiles
 timeout 20 adb shell input tap "$menu_x" "$menu_y"; sleep 2
 timeout 30 adb exec-out screencap -p > "$shots/drawer-font-1.3.png" 2> /dev/null
 timeout 30 adb shell settings put system font_scale 1.0
@@ -143,6 +167,7 @@ timeout 30 adb shell settings put system font_scale 1.0
 timeout 30 adb shell cmd locale set-app-locales "$pkg" --locales ar || echo "no app locale: $?"
 restart
 timeout 30 adb exec-out screencap -p > "$shots/main-rtl.png" 2> /dev/null
+profiles
 width=$(timeout 10 adb shell wm size | tr -d '\r' | sed -n 's/.*: *\([0-9]*\)x[0-9]*$/\1/p' | tail -1)
 if [ -n "$width" ]; then
   timeout 20 adb shell input tap "$((width - menu_x))" "$menu_y"; sleep 2

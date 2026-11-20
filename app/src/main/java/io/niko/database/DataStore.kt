@@ -141,6 +141,10 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     val yggdrasilPrivateKey: String
         get() = persistentToken(Key.YGGDRASIL_PRIVATE_KEY) { Libcore.yggdrasilGenerateKey() }
     var showBottomBar by configurationStore.boolean(Key.SHOW_BOTTOM_BAR)
+    var homeView by configurationStore.string(Key.HOME_VIEW) { "simple" }
+
+    /** Written by the service's process as the core comes up and goes down, read by the main screen. */
+    var connectedSince by configurationStore.long(Key.CONNECTED_SINCE)
 
     var allowInsecureOnRequest by configurationStore.boolean(Key.ALLOW_INSECURE_ON_REQUEST)
     var networkChangeResetConnections by configurationStore.boolean(Key.NETWORK_CHANGE_RESET_CONNECTIONS) { true }

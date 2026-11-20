@@ -96,6 +96,9 @@ class BaseService {
 
         fun changeState(s: State, msg: String? = null) {
             if (state == s && msg == null) return
+            // the main screen's time online: from the moment the core came up, gone with it
+            if (s == State.Connected && state != State.Connected) DataStore.connectedSince = System.currentTimeMillis()
+            if (s == State.Stopped || s == State.Idle) DataStore.connectedSince = 0
             state = s
             DataStore.serviceState = s
             binder.stateChanged(s, msg)
