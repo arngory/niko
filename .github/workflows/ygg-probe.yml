@@ -5,7 +5,9 @@ name: Yggdrasil probe
 # The services and the peers are other people's: yggstack (the Yggdrasil
 # project's own node with a SOCKS proxy) runs beside the core with the same
 # peers, and the check fails only when it reaches the services and the core
-# does not. When neither does, the network is down for both: a warning.
+# does not. When neither does, the network is down for both: a warning. A
+# yggstack that is not running, or has no peer up where the core has some,
+# is no reference: the check fails.
 on:
   push:
     paths: [".github/workflows/ygg-probe.yml", "buildScript/lib/core/get_source_env.sh"]
@@ -105,17 +107,21 @@ jobs:
             echo "$name | $url | core: $(head -c 120 /tmp/out) | yggstack: $(head -c 120 /tmp/out.ref) | $title"
           done
           echo "answered: $ok of 5 through the core, $ref of 5 through yggstack"
-          # the reference counts only while it is up with peers, and a core with no peer where yggstack has some fails
-          # whatever the services say
-          core_peers=$(grep -c 'Connected outbound' /tmp/node.log || true)
-          ref_peers=$(grep -c 'Connected outbound' /tmp/yggstack.log || true)
-          echo "peers: $core_peers through the core, $ref_peers through yggstack"
-          if [ "$core_peers" -eq 0 ] && [ "$ref_peers" -gt 0 ]; then echo "the core has no peer"; exit 1; fi
+          # the peers up now: each key@address by its last Connected or Disconnected line
+          up() { awk '/(Connected|Disconnected) outbound: /{ match($0, /outbound: [^,]+/); p = substr($0, RSTART + 10, RLENGTH - 10)
+                       up[p] = ($0 ~ /Disconnected outbound: /) ? 0 : 1 } END { n = 0; for (p in up) n += up[p]; print n }' "$1"; }
+          core_peers=$(up /tmp/node.log) ref_peers=$(up /tmp/yggstack.log)
+          echo "peers up: $core_peers through the core, $ref_peers through yggstack"
+          if ! pgrep -x yggstack > /dev/null; then echo "the reference is not running"; exit 1; fi
+          # the reference counts only with peers up: a core with none where yggstack has some fails whatever the
+          # services say, yggstack with none where the core has some is no reference, neither with any is the network
+          if [ "$core_peers" -eq 0 ] && [ "$ref_peers" -gt 0 ]; then echo "the core has no peer up"; exit 1; fi
           if [ "$ok" -ge 3 ]; then exit 0; fi
-          if ! pgrep -x yggstack > /dev/null || [ "$ref_peers" -eq 0 ]; then
-            echo "the reference is not up (yggstack running: $(pgrep -x yggstack > /dev/null && echo yes || echo no))"
-            exit 1
+          if [ "$core_peers" -eq 0 ] && [ "$ref_peers" -eq 0 ]; then
+            echo "::warning::no public peer is up for the core or yggstack: the runner's network, not the core"
+            exit 0
           fi
+          if [ "$ref_peers" -eq 0 ]; then echo "the reference has no peer up"; exit 1; fi
           if [ "$ref" -lt 3 ]; then
             echo "::warning::the services do not answer yggstack either ($ref of 5): the network, not the core"
             exit 0
