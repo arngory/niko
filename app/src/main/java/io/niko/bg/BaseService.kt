@@ -96,7 +96,8 @@ class BaseService {
 
         fun changeState(s: State, msg: String? = null) {
             if (state == s && msg == null) return
-            // the main screen's time online: from the moment the core came up, gone with it
+            // the main screen's time online: from the moment the core came up, gone with it (a reload or the
+            // watchdog's restart starts it anew: it is the core's time up, which the status shows)
             if (s == State.Connected && state != State.Connected) DataStore.connectedSince = System.currentTimeMillis()
             if (s == State.Stopped || s == State.Idle) DataStore.connectedSince = 0
             state = s

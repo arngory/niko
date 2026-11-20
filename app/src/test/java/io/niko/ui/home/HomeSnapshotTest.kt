@@ -82,4 +82,8 @@ class HomeSnapshotTest(private val mode: String) {
 
     @Test
     fun simpleEmpty() = shot(HomeState(), HomeView.Simple)
+
+    /** Configs there, none chosen: the sheet asks to choose one, not to add the first. */
+    @Test
+    fun simpleNoneChosen() = shot(HomeState(profiles = 20, subscriptions = 1), HomeView.Simple)
 }
