@@ -138,8 +138,10 @@ class Rcdev1Test {
         assertEquals("n3kq7p.example.com", named.reachName)
         assertTrue(named.matchesHost("N3KQ7P.example.com."))
         assertEquals(listOf("203.0.113.7", "2001:db8::7"), named.knockOptions()["node_addresses"])
+        // through a relay, the relay's address: a row by the relay's name (relay-names-v1 §8) dials that name
         val relay = RayRelay("r1", "198.51.100.9", named.spa)
-        assertFalse(named.knockOptions(relay).containsKey("node_addresses"))
+        assertEquals(listOf("198.51.100.9"), named.knockOptions(relay)["node_addresses"])
+        assertFalse(named.knockOptions(relay.copy(host = "relay.example.net")).containsKey("node_addresses"))
         // a name without addresses to fall back to is not reached by
         assertNull(node.copy(dnsName = "n3kq7p.example.com").reachName)
         val request = com.google.gson.JsonObject().also { RayNames.reach(it, named) }

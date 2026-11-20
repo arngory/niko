@@ -11,6 +11,7 @@ import androidx.work.multiprocess.RemoteWorkManager
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import com.google.gson.JsonPrimitive
 import io.niko.GroupType
 import io.niko.R
 import io.niko.SagerNet
@@ -366,12 +367,18 @@ object RaySubscription {
                 DnsTunnel.signWithHint(bean, dnsAuthV2)
                 beans[key] = bean
                 links[key] = pair
+                // relay-names-v1 §8: the node's own line through the relay by its name where it sends one, else the
+                // profile's line with the relay's address for the host, as before
+                val viaLinks = viaLinksOf(profile)
+                val nextViaLinks = viaLinksOf(profile.get("next") as? JsonObject)
                 for (relay in viaOf(profile).mapNotNull { id -> relays.firstOrNull { it.id == id } }) {
                     val name = "${bean.name} · ${relay.id}"
+                    val byName = viaLinks[relay.id]
                     val via = RayLinks(
                         name = name,
-                        link = RayRelays.viaLink(pair.link, relay) ?: continue,
-                        next = pair.next?.let { RayRelays.viaLink(it, relay) },
+                        link = byName ?: RayRelays.viaLink(pair.link, relay) ?: continue,
+                        // the same switch as the profile's: next.via_links, or via_links as it is when it has none
+                        next = pair.next?.let { if (byName != null) nextViaLinks[relay.id] ?: byName else RayRelays.viaLink(it, relay) },
                         from = pair.from,
                         nextActive = pair.nextActive,
                     )
@@ -576,7 +583,15 @@ object RaySubscription {
         // `next` is not accepted before `from` (REALITY keys): only from shortly before it, for a clock behind
         val nodeNow = System.currentTimeMillis() / 1000 + node.clockSkew
         if (!l.nextActive && nodeNow < l.from - 120) return false
-        return setActive(nodeId, key, !l.nextActive)
+        // one switch for the profile: its own row and its rows through the relays move together (relay-names-v1 §8)
+        val profile = key.substringBefore(RayRelays.VIA)
+        var running = false
+        for ((k, other) in node.links) {
+            if (k != profile && !k.startsWith(profile + RayRelays.VIA)) continue
+            if (other.next == null || other.nextActive != l.nextActive) continue
+            running = setActive(nodeId, k, !l.nextActive) || running
+        }
+        return running
     }
 
     /** Puts `next` ([nextActive]) or `link` into the key's row. Returns whether the running row changed. */
@@ -654,6 +669,14 @@ object RaySubscription {
 
     /** rotation (R4): from `next.from` on (the node's clock), the next credential replaces the current one */
     fun currentLink(profile: JsonObject, nodeNow: Long) = linksOf(profile, nodeNow).activeLink
+
+    /**
+     * A profile's or its `next`'s lines through its relays by their names (relay-names-v1 §8, `via_links`): relay id →
+     * link. Only the relays of `via` are looked up in it: an id that is not there is never read.
+     */
+    fun viaLinksOf(o: JsonObject?): Map<String, String> = (o?.get("via_links") as? JsonObject)?.entrySet()
+        ?.mapNotNull { (id, v) -> (v as? JsonPrimitive)?.takeIf { it.isString }?.asString?.takeIf { it.isNotBlank() }?.let { id to it } }
+        ?.toMap().orEmpty()
 
     /** The relays a profile also goes through (its `via`). */
     fun viaOf(profile: JsonObject): List<String> = (profile.get("via") as? JsonArray)
