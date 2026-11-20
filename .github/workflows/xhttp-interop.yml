@@ -217,7 +217,8 @@ jobs:
           pids=()
           for i in $(seq 1 5); do (code 11080 https://www.gstatic.com/generate_204 > "/tmp/five.$i") & pids+=($!); done
           wait "${pids[@]}"
-          five=$(cat /tmp/five.* | grep -c '^204$' || true)
+          # (curl's code has no newline: each file is read as a line of its own)
+          five=$(for f in /tmp/five.*; do cat "$f"; echo; done | grep -c '^204$' || true)
           echo "five at once, XMUX by default: $five of 5"
           [ "$five" = 5 ] || fail=1
           # VLESS UDP: a DNS query to 1.1.1.1
