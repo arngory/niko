@@ -36,9 +36,14 @@
         <item name="elevation">0dp</item>
     </style>
 
+    <!-- its parent is also a text appearance (Body2) and sets the font, sans-serif, on the view itself: that wins over
+         the text appearance's, so Geist is set here too -->
     <style name="MaterialAlertDialog.Niko.Body.Text" parent="MaterialAlertDialog.MaterialComponents.Body.Text">
         <item name="android:textAppearance">@style/TextAppearance.Niko.Body</item>
         <item name="android:textColor">@color/niko_ink_2</item>
+        <item name="fontFamily">@font/geist</item>
+        <item name="android:fontFamily">@font/geist</item>
+        <item name="android:letterSpacing">0</item>
     </style>
 
     <!-- a dialog's button: the ghost button's words, ink, no capitals -->
