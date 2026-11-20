@@ -14,18 +14,19 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- Niko's viewfinder (niko_camera.xml): light corners, a hairline frame and a light scanning line -->
+    <!-- Niko's viewfinder: light ink corners, a hairline frame and a scanning line over the scrim; the screen is dark
+         in either mode (ScannerActivity), so the night tokens give the light ink and the denser scrim -->
     <com.king.zxing.ViewfinderView
         android:id="@+id/viewfinderView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:cornerColor="@color/niko_on_camera"
-        app:frameColor="@color/niko_on_camera_soft"
+        app:cornerColor="@color/niko_ink"
+        app:frameColor="@color/niko_ink_2"
         app:frameLineWidth="@dimen/niko_stroke_hairline"
-        app:labelTextColor="@color/niko_on_camera"
-        app:laserColor="@color/niko_on_camera"
+        app:labelTextColor="@color/niko_ink"
+        app:laserColor="@color/niko_ink"
         app:laserStyle="line"
-        app:maskColor="@color/niko_camera_scrim" />
+        app:maskColor="@color/niko_scrim" />
 
     <ImageView
         android:id="@+id/ivFlashlight"

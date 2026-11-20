@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- The QR scanner's viewfinder over the camera (layout_scanner): the same in the light and the dark theme, as the
-     picture under it is neither; the light of the tokens (surface-1 of the light theme) on a scrim of 60 %. -->
-<resources>
-    <color name="niko_on_camera">#F8F8F8</color>
-    <color name="niko_on_camera_soft">#66F8F8F8</color>
-    <color name="niko_camera_scrim">#99000000</color>
-</resources>

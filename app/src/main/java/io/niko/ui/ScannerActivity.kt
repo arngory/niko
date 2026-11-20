@@ -12,6 +12,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.getSystemService
 import androidx.core.net.toUri
 import com.google.zxing.RGBLuminanceSource
@@ -42,6 +43,8 @@ class ScannerActivity : ThemedActivity(),
     lateinit var cameraScan: CameraScan
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // a camera's screen is dark whatever the app's mode: the viewfinder's ink is light over the night scrim
+        delegate.localNightMode = AppCompatDelegate.MODE_NIGHT_YES
         super.onCreate(savedInstanceState)
 
         getSystemService<ShortcutManager>()!!.reportShortcutUsed("scan")
