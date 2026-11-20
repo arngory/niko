@@ -47,6 +47,13 @@ class RayRelaysTest {
         assertEquals(listOf(relay), RayRelay.listFromJson(payload.getAsJsonArray("relays")))
         assertEquals(listOf("r1"), RaySubscription.viaOf(payload.getAsJsonArray("profiles")[0].asJsonObject))
     }
+
+    @Test
+    fun viaLinksOf() {
+        val o = JsonParser.parseString("""{"via_links":{"r1":"vless://a@b:443","r2":"","r3":5,"r4":{}}}""").asJsonObject
+        assertEquals(mapOf("r1" to "vless://a@b:443"), RaySubscription.viaLinksOf(o))
+        assertEquals(emptyMap<String, String>(), RaySubscription.viaLinksOf(null))
+    }
 }
 
 class RayRelayProbeTest {

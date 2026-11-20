@@ -614,8 +614,9 @@ fun buildConfig(
                 }
                 // a raycontrol node (imported rcdev1) this hop dials; a DNS tunnel never reaches its address
                 // a profile row through a relay in front of the node (relay-v1 §4): knocked at the relay
+                // a row through a relay by its address, or by the relay's name (relay-names-v1 §8): by its key then
                 val rayRelay = if (DnsTunnel.of(bean).enabled || yggPeer != null) null
-                else RayNodes.forRelayHost(bean.serverAddress)
+                else RayNodes.forRelayHost(bean.serverAddress) ?: RayNodes.relayOfRow(proxyEntity.id)
                 // a row of a node's subscription belongs to it whatever its host: naive dials a name of its own (its
                 // SNI, a wildcard name of the node), which is not the node's address, and still needs the node's SPA
                 val rayNode = when {

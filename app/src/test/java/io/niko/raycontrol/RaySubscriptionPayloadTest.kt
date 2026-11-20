@@ -114,6 +114,53 @@ class RaySubscriptionPayloadTest {
         assertEquals("443", (parsed.beans.getValue("4#via-r1") as HysteriaBean).serverPorts)
     }
 
+    /**
+     * relay-names-v1 §8 (raycontrol v0.35.0, internal/sub/conformance_test.go): a line through r1 by its name comes from
+     * via_links, its next from next.via_links or else via_links as it is; a profile without one keeps the host swap;
+     * an id not in via is never read; the relay's address is not taken for the node's.
+     */
+    @Test
+    fun theRowsThroughTheRelayByItsName() {
+        val relayHost = payload.getAsJsonArray("relays")[0].asJsonObject.get("host").asString
+        fun byName(link: String, name: String) =
+            link.replace("@203.0.113.2:", "@$name:").replace("#", "&niko-ip=$relayHost#")
+        val named = withAuto(payload)
+        val profiles = named.getAsJsonArray("profiles").map { it.asJsonObject }
+        val reality = profiles.first { it.get("svc").asInt == 3 }
+        val hy2m = profiles.first { it.get("svc").asInt == 9 }
+        val realityVia = byName(reality.get("link").asString, "x7q.example.test")
+        val hy2mVia = byName(hy2m.get("link").asString, "k2m.example.test")
+        val hy2mNextVia = hy2mVia.replace("2e4110bb", "3f5221cc")
+        reality.add("via_links", JsonObject().apply {
+            addProperty("r1", realityVia)
+            addProperty("r9", "vless://u@r9.example.test:443#x")
+        })
+        reality.add("next", JsonObject().apply {
+            addProperty("link", reality.get("link").asString)
+            addProperty("from", payload.get("time").asLong + 600)
+        })
+        hy2m.add("via_links", JsonObject().apply { addProperty("r1", hy2mVia) })
+        hy2m.add("next", JsonObject().apply {
+            addProperty("link", hy2m.get("link").asString.replace("2e4110bb", "3f5221cc"))
+            addProperty("from", payload.get("time").asLong + 600)
+            add("via_links", JsonObject().apply { addProperty("r1", hy2mNextVia) })
+        })
+        val parsed = RaySubscription.parse(named, emptyMap(), payload.get("time").asLong)
+        val realityRow = parsed.links.getValue("3#via-r1")
+        assertEquals(realityVia, realityRow.link)
+        // no next.via_links: the line by name stays across the switch
+        assertEquals(realityVia, realityRow.next)
+        assertEquals("x7q.example.test", parsed.beans.getValue("3#via-r1").serverAddress)
+        val hy2mRow = parsed.links.getValue("9#via-r1")
+        assertEquals(hy2mVia, hy2mRow.link)
+        assertEquals(hy2mNextVia, hy2mRow.next)
+        assertEquals("k2m.example.test", parsed.beans.getValue("9#via-r1").serverAddress)
+        // hy2o sent none: the relay's address for the host, as before
+        assertEquals(relayHost, parsed.beans.getValue("4#via-r1").serverAddress)
+        assertNull(parsed.links["3#via-r9"])
+        assertTrue(relayHost !in parsed.addrs)
+    }
+
     /** dnsauth-v2: the subscription's dnsauth.v with 2 signs the node's DNS tunnels by the hint; without it, by v1. */
     @Test
     fun theHintWhenTheSubscriptionAnnouncesIt() {

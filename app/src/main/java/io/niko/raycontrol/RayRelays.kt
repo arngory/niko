@@ -98,9 +98,12 @@ object RayRelays {
      * The key of a profile row through a relay: the profile's own key and the relay's id. The part before the first
      * '#' stays the service id, so hints, probes and rates take the row as its service's.
      */
-    fun viaKey(key: String, relayId: String) = "$key#via-$relayId"
+    fun viaKey(key: String, relayId: String) = "$key$VIA$relayId"
 
-    fun relayOfKey(key: String): String? = key.substringAfter("#via-", "").takeIf { it.isNotEmpty() }
+    fun relayOfKey(key: String): String? = key.substringAfter(VIA, "").takeIf { it.isNotEmpty() }
+
+    /** What a row's key has between the profile's key and the relay's id. */
+    const val VIA = "#via-"
 
     /**
      * The profile's link through the relay: the relay's host; UDP (Hysteria2) on 443 without port rotation, which
