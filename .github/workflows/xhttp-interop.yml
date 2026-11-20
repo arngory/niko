@@ -7,8 +7,9 @@ name: XHTTP interop
 # target is a local TLS 1.3 server in Go's crypto/tls (.github/tools/reality-target), whose groups are those of the
 # node's Go front and of most sites: X25519MLKEM768 first. The template's own target, openssl s_server with X25519
 # alone, is not checked: with it XTLS/REALITY authenticates the core's client but the handshake does not complete.
-# Three REALITY rows only report what they find, to tell why: openssl with the app's hybrid share, openssl with the
-# fingerprint's default shares, and the Go target held to X25519 (a site without X25519MLKEM768).
+# Four REALITY rows only report what they find, to tell why: openssl with the app's hybrid share, openssl with the
+# fingerprint's default shares, the Go target held to X25519 (a site without X25519MLKEM768), and openssl held to
+# TLS_AES_128_GCM_SHA256 (OpenSSL itself prefers AES-256, Go and most fronts AES-128).
 # Checked: stream-one with XMUX by default and with maxConcurrency, packet-up, stream-up, auto (stream-one under
 # REALITY, as Xray's), encryption none and ML-KEM, Vision over XHTTP with ML-KEM, downloads and uploads counted at
 # a local server, parallel streams on one connection, VLESS UDP (plain and XUDP), and the client's recovery after
@@ -111,7 +112,8 @@ jobs:
              inbounds: [xhttp(18443; $dec; ""), xhttp(18444; "none"; ""), xhttp(18445; $dec; "xtls-rprx-vision"),
                xhttp(18446; $dec; ""), (xhttp(18447; $dec; "") | raw),
                (xhttp(18448; $dec; "") | raw | .streamSettings.realitySettings.target = "127.0.0.1:14445"),
-               (xhttp(18449; $dec; "") | raw | .streamSettings.realitySettings.target = "127.0.0.1:14444")],
+               (xhttp(18449; $dec; "") | raw | .streamSettings.realitySettings.target = "127.0.0.1:14444"),
+               (xhttp(18450; $dec; "") | raw | .streamSettings.realitySettings.target = "127.0.0.1:14446")],
              outbounds: [{protocol: "freedom",
                settings: {finalRules: [{action: "allow", ip: ["127.0.0.1/32"]}]}}]}' > /tmp/xray.json
           # an outbound as the app builds it from the link: transport xhttp with path and mode (and the extra's
@@ -131,6 +133,7 @@ jobs:
                          <(out x-raw-openssl 18448 raw "$enc" "" '{}' "") \
                          <(out x-raw-openssl-default 18448 raw "$enc" "" '{}' "" "") \
                          <(out x-raw-classical-target 18449 raw "$enc" "" '{}' "") \
+                         <(out x-raw-openssl-aes128 18450 raw "$enc" "" '{}' "") \
                          <(out x-one 18443 stream-one "$enc" "" '{}' "") \
                          <(out x-packet 18443 packet-up "$enc" "" '{}' "") \
                          <(out x-up 18443 stream-up "$enc" "" '{}' "") \
@@ -144,7 +147,8 @@ jobs:
           jq -n --argjson outs "$outs" '
             [["x-one", 11080], ["x-packet", 11081], ["x-up", 11082], ["x-auto", 11083], ["x-none", 11084],
              ["x-vision", 11085], ["x-vision-packet", 11086], ["x-mux", 11087], ["x-raw", 11088],
-             ["x-raw-openssl", 11089], ["x-raw-openssl-default", 11090], ["x-raw-classical-target", 11091]] as $tcp |
+             ["x-raw-openssl", 11089], ["x-raw-openssl-default", 11090], ["x-raw-classical-target", 11091],
+             ["x-raw-openssl-aes128", 11092]] as $tcp |
             [["x-one", 15353], ["x-xudp", 15354], ["x-vision", 15355], ["x-packet", 15356]] as $udp |
             {log: {level: "debug"},
              inbounds: ([$tcp[] | {type: "mixed", tag: ("in-" + .[0]), listen: "127.0.0.1", listen_port: .[1]}]
@@ -163,6 +167,8 @@ jobs:
           nohup /tmp/reality-target -listen 127.0.0.1:14444 -name www.example.com -classical > /tmp/target-classical.log 2>&1 &
           nohup openssl s_server -accept 127.0.0.1:14445 -tls1_3 -groups X25519 -www \
             -cert /tmp/target.crt -key /tmp/target.key > /tmp/target.log 2>&1 &
+          nohup openssl s_server -accept 127.0.0.1:14446 -tls1_3 -groups X25519 -ciphersuites TLS_AES_128_GCM_SHA256 -www \
+            -cert /tmp/target.crt -key /tmp/target.key > /tmp/target-aes128.log 2>&1 &
           nohup python3 -I .github/scripts/bulk-http.py 18080 > /tmp/bulk.log 2>&1 &
           nohup /tmp/xray run -c /tmp/xray.json > /tmp/xray.log 2>&1 &
           nohup /tmp/sing-box run -c /tmp/client.json > /tmp/client.log 2>&1 &
@@ -199,6 +205,7 @@ jobs:
           echo "reported: openssl s_server target, the app's hybrid share: $(code 11089 https://www.gstatic.com/generate_204)"
           echo "reported: openssl s_server target, the fingerprint's default shares: $(code 11090 https://www.gstatic.com/generate_204)"
           echo "reported: Go target with X25519 alone, the app's hybrid share: $(code 11091 https://www.gstatic.com/generate_204)"
+          echo "reported: openssl s_server target held to TLS_AES_128_GCM_SHA256: $(code 11092 https://www.gstatic.com/generate_204)"
           # 20 parallel streams through the XMUX of maxConcurrency 16-32: two connections at most
           # (each waited for by its own pid: a bare wait would wait for the servers this step started too)
           pids=()
