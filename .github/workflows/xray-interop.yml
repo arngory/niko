@@ -163,8 +163,9 @@ jobs:
           # prewarm: four requests in a row, each after the first on the connection opened ahead; after the spare's
           # idle (12 s) a request dials anew
           for i in 1 2 3 4; do check "REALITY + Vision, prewarm, request $i" 11086 204; sleep 1; done
-          used=$(grep -c "prewarm: the connection opened ahead" /tmp/client.log || true)
-          echo "prewarm: $used requests on a connection opened ahead (want 3)"
+          used=$(grep -c "prewarm: the connection opened ahead$" /tmp/client.log || true)
+          dropped=$(grep -c "prewarm: a spare closed meanwhile" /tmp/client.log || true)
+          echo "prewarm: $used requests on a connection opened ahead (want 3), $dropped spares found closed"
           [ "$used" -ge 3 ] || fail=1
           # a spare older than a server's patience for the request (Xray's handshake policy is 4 s upstream, 60 s
           # in the node's fork): taken or replaced, the request goes through
