@@ -1,0 +1,210 @@
+name: XHTTP interop
+
+# The core's XHTTP client (sing-box-lx, transport/v2rayxhttp) against the Xray the node runs: the fork raycontrol
+# pins in deploy/versions.env (v0.34.0: 46b58d4). The server's template (XHTTP over REALITY, mode auto, VLESS
+# encryption with ML-KEM, its REALITY target an openssl s_server for www.example.com), with the client's outbound as
+# the app builds it from a link (fmt/v2ray: transport xhttp with path and mode, the link's extra as its options).
+# Checked: stream-one with XMUX by default and with maxConcurrency, packet-up, stream-up, auto (stream-one under
+# REALITY, as Xray's), encryption none and ML-KEM, Vision over XHTTP with ML-KEM, downloads and uploads counted at
+# a local server, parallel streams on one connection, VLESS UDP (plain and XUDP), and the client's recovery after
+# the server went away and came back.
+on:
+  push:
+    paths:
+      - ".github/workflows/xhttp-interop.yml"
+      - "buildScript/lib/core/get_source_env.sh"
+      - ".github/raycontrol.env"
+      - ".github/xray-interop.env"
+      - ".github/scripts/bulk-http.py"
+      - ".github/scripts/udp-dns-probe.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# one run per branch for pushes: a newer push cancels the push run it supersedes (one full run per commit); a
+# manual run has a group of its own and is never cancelled by them
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  interop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Fetch sources
+        run: |
+          . buildScript/lib/core/get_source_env.sh
+          . .github/raycontrol.env
+          . .github/xray-interop.env
+          git clone --filter=blob:none "$REPOSITORY_RAYCONTROL" raycontrol
+          git -C raycontrol checkout -q "$COMMIT_RAYCONTROL"
+          # the node's Xray: the one its raycontrol ships; a raycontrol without the pin takes the client's interop Xray
+          XRAY_REPOSITORY=$(sed -n 's/^XRAY_REPOSITORY="\(.*\)"$/\1/p' raycontrol/deploy/versions.env)
+          XRAY_COMMIT=$(sed -n 's/^XRAY_COMMIT="\(.*\)"$/\1/p' raycontrol/deploy/versions.env)
+          if [ -n "$XRAY_REPOSITORY" ] && [ -n "$XRAY_COMMIT" ]; then
+            REPOSITORY_XRAY=$XRAY_REPOSITORY COMMIT_XRAY=$XRAY_COMMIT
+          fi
+          echo "the node's Xray: $REPOSITORY_XRAY at $COMMIT_XRAY"
+          git clone --filter=blob:none "$REPOSITORY_XRAY" xray
+          git -C xray checkout -q "$COMMIT_XRAY"
+          git clone --filter=blob:none "$REPOSITORY_SING_BOX" core
+          git -C core checkout -q "$COMMIT_SING_BOX"
+          git -C core log --oneline -1
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: xray/go.mod
+          cache: false
+      - name: Build Xray
+        working-directory: xray
+        run: CGO_ENABLED=0 go build -o /tmp/xray -trimpath ./main && /tmp/xray version | head -1
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: core/go.mod
+          cache: false
+      - name: Build core
+        working-directory: core
+        run: go build -o /tmp/sing-box -ldflags=-checklinkname=0 -tags=with_utls,with_quic,with_xhttp,badlinkname,tfogo_checklinkname0 ./cmd/sing-box
+
+      - name: Keys and configs
+        run: |
+          x=$(/tmp/xray x25519)
+          priv=$(echo "$x" | awk -F': ' '/^PrivateKey/{print $2}')
+          pbk=$(echo "$x" | awk -F': ' '/^Password/{print $2}')
+          # the template's VLESS encryption: mlkem768x25519plus, the X25519 authentication of `xray vlessenc`
+          v=$(/tmp/xray vlessenc | sed -n '/^Authentication: X25519/,/^$/p')
+          dec=$(echo "$v" | awk -F'"' '/"decryption"/{print $4}')
+          enc=$(echo "$v" | awk -F'"' '/"encryption"/{print $4}')
+          uuid=$(cat /proc/sys/kernel/random/uuid)
+          for k in priv pbk dec enc; do [ -n "${!k}" ] || { echo "no $k"; exit 1; }; done
+          echo "encryption: ${enc%%.*}"
+          # the REALITY target: a TLS 1.3 server with X25519 for www.example.com, as in the template
+          openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 30 -subj "/CN=www.example.com" \
+            -addext "subjectAltName=DNS:www.example.com" -keyout /tmp/target.key -out /tmp/target.crt 2>/dev/null
+          # four inbounds of the template: ML-KEM (18443), none (18444), Vision with ML-KEM (18445), and ML-KEM again
+          # for the parallel streams (18446), whose connections are counted alone. freedom lets the local server
+          # through (finalRules: private addresses are refused to a VLESS user by default)
+          jq -n --arg uuid "$uuid" --arg priv "$priv" --arg dec "$dec" '
+            def xhttp($port; $dec; $flow): {listen: "127.0.0.1", port: $port, protocol: "vless",
+              settings: {clients: [{id: $uuid} + (if $flow == "" then {} else {flow: $flow} end)], decryption: $dec},
+              streamSettings: {network: "xhttp", xhttpSettings: {path: "/xh", mode: "auto"},
+                security: "reality", realitySettings: {target: "127.0.0.1:14443", serverNames: ["www.example.com"],
+                  privateKey: $priv, shortIds: ["0123456789abcdef"]}}};
+            {log: {loglevel: "warning"},
+             inbounds: [xhttp(18443; $dec; ""), xhttp(18444; "none"; ""), xhttp(18445; $dec; "xtls-rprx-vision"),
+               xhttp(18446; $dec; "")],
+             outbounds: [{protocol: "freedom",
+               settings: {finalRules: [{action: "allow", ip: ["127.0.0.1/32"]}]}}]}' > /tmp/xray.json
+          # an outbound as the app builds it from the link: transport xhttp with path and mode (and the extra's
+          # options), REALITY with uTLS chrome, the link's encryption and flow, plain VLESS UDP unless xudp
+          out() { jq -n --arg tag "$1" --argjson port "$2" --arg mode "$3" --arg enc "$4" --arg flow "$5" \
+                        --argjson extra "$6" --arg pe "$7" --arg uuid "$uuid" --arg pbk "$pbk" '
+            {type: "vless", tag: $tag, server: "127.0.0.1", server_port: $port, uuid: $uuid, packet_encoding: $pe}
+            + (if $flow == "" then {} else {flow: $flow} end) + (if $enc == "" then {} else {encryption: $enc} end)
+            + {tls: {enabled: true, server_name: "www.example.com", utls: {enabled: true, fingerprint: "chrome"},
+                reality: {enabled: true, public_key: $pbk, short_id: "0123456789abcdef"}},
+               transport: ({type: "xhttp", path: "/xh", mode: $mode} + $extra)}'; }
+          vision=xtls-rprx-vision
+          outs=$(jq -s . <(out x-one 18443 stream-one "$enc" "" '{}' "") \
+                         <(out x-packet 18443 packet-up "$enc" "" '{}' "") \
+                         <(out x-up 18443 stream-up "$enc" "" '{}' "") \
+                         <(out x-auto 18443 auto "$enc" "" '{}' "") \
+                         <(out x-none 18444 stream-one "" "" '{}' "") \
+                         <(out x-vision 18445 stream-one "$enc" "$vision" '{}' "") \
+                         <(out x-vision-packet 18445 packet-up "$enc" "$vision" '{}' "") \
+                         <(out x-mux 18446 stream-one "$enc" "" '{"xmux": {"max_concurrency": "16-32"}}' "") \
+                         <(out x-xudp 18443 stream-one "$enc" "" '{}' xudp))
+          # mixed inbounds 11080.. for TCP, direct ones 15353.. for UDP to a resolver
+          jq -n --argjson outs "$outs" '
+            [["x-one", 11080], ["x-packet", 11081], ["x-up", 11082], ["x-auto", 11083], ["x-none", 11084],
+             ["x-vision", 11085], ["x-vision-packet", 11086], ["x-mux", 11087]] as $tcp |
+            [["x-one", 15353], ["x-xudp", 15354], ["x-vision", 15355], ["x-packet", 15356]] as $udp |
+            {log: {level: "warn"},
+             inbounds: ([$tcp[] | {type: "mixed", tag: ("in-" + .[0]), listen: "127.0.0.1", listen_port: .[1]}]
+               + [$udp[] | {type: "direct", tag: ("udp-" + .[0]), listen: "127.0.0.1", listen_port: .[1],
+                   network: "udp", override_address: "1.1.1.1", override_port: 53}]),
+             outbounds: ($outs + [{type: "direct", tag: "direct"}]),
+             route: {rules: ([$tcp[] | {inbound: ["in-" + .[0]], outbound: .[0]}]
+               + [$udp[] | {inbound: ["udp-" + .[0]], outbound: .[0]}])}}' > /tmp/client.json
+          /tmp/xray run -test -c /tmp/xray.json
+          /tmp/sing-box check -c /tmp/client.json
+
+      - name: Interop
+        run: |
+          nohup openssl s_server -accept 127.0.0.1:14443 -tls1_3 -groups X25519 -www \
+            -cert /tmp/target.crt -key /tmp/target.key > /tmp/target.log 2>&1 &
+          nohup python3 -I .github/scripts/bulk-http.py 18080 > /tmp/bulk.log 2>&1 &
+          nohup /tmp/xray run -c /tmp/xray.json > /tmp/xray.log 2>&1 &
+          nohup /tmp/sing-box run -c /tmp/client.json > /tmp/client.log 2>&1 &
+          sleep 3
+          fail=0
+          code() { curl -s -m 30 -o /dev/null -w '%{http_code}' -x "socks5h://127.0.0.1:$1" "$2" || true; }
+          check() { got=$(code "$2" https://www.gstatic.com/generate_204); echo "$1: $got (want $3)"; [ "$got" = "$3" ] || fail=1; }
+          # a download of $3 bytes, its digest against the server's; an upload of $4 bytes, against the sink's answer
+          bulk() {
+            want=$(curl -s -m 60 -D - -o /tmp/dl.bin -x "socks5h://127.0.0.1:$2" "http://127.0.0.1:18080/bytes/$3" |
+              awk 'tolower($1)=="x-sha256:"{print $2}' | tr -d '\r')
+            got=$(sha256sum /tmp/dl.bin | cut -d' ' -f1); size=$(stat -c %s /tmp/dl.bin)
+            if [ -n "$want" ] && [ "$got" = "$want" ] && [ "$size" = "$3" ]; then echo "$1: download $3 bytes ok"
+            else echo "$1: download got $size bytes ($got, want $want)"; fail=1; fi
+            head -c "$4" /dev/urandom > /tmp/ul.bin
+            want="$4 $(sha256sum /tmp/ul.bin | cut -d' ' -f1)"
+            got=$(curl -s -m 60 -x "socks5h://127.0.0.1:$2" --data-binary @/tmp/ul.bin \
+              -H 'Content-Type: application/octet-stream' http://127.0.0.1:18080/sink || true)
+            if [ "$got" = "$want" ]; then echo "$1: upload $4 bytes ok"; else echo "$1: upload got '$got' (want '$want')"; fail=1; fi
+          }
+          for row in "stream-one, XMUX by default:11080" "packet-up:11081" "stream-up:11082" \
+                     "auto (stream-one under REALITY):11083" "encryption none:11084" \
+                     "Vision over XHTTP, ML-KEM:11085" "Vision over XHTTP packet-up, ML-KEM:11086" \
+                     "stream-one, XMUX maxConcurrency 16-32:11087"; do
+            name=${row%:*}; port=${row##*:}
+            check "$name" "$port" 204
+            bulk "$name" "$port" 8388608 4194304
+          done
+          # 20 parallel streams through the XMUX of maxConcurrency 16-32: two connections at most
+          for i in $(seq 1 20); do
+            (n=$(curl -s -m 60 -o /dev/null -w '%{size_download}' -x socks5h://127.0.0.1:11087 \
+              http://127.0.0.1:18080/bytes/1048576 || true); echo "$n" > "/tmp/par.$i") &
+          done
+          wait
+          ok=$(cat /tmp/par.* | grep -c '^1048576$' || true)
+          conns=$(ss -Htn state established '( dport = :18446 )' | wc -l)
+          echo "parallel: $ok of 20 streams whole over $conns connection(s)"
+          [ "$ok" = 20 ] || fail=1
+          [ "$conns" -ge 1 ] && [ "$conns" -le 2 ] || { echo "parallel: want 1-2 connections"; fail=1; }
+          # the template's own check: five at once through the default XMUX
+          for i in $(seq 1 5); do (code 11080 https://www.gstatic.com/generate_204 > "/tmp/five.$i") & done
+          wait
+          five=$(cat /tmp/five.* | grep -c '^204$' || true)
+          echo "five at once, XMUX by default: $five of 5"
+          [ "$five" = 5 ] || fail=1
+          # VLESS UDP: a DNS query to 1.1.1.1
+          udp() { got=$(python3 -I .github/scripts/udp-dns-probe.py "$2"); echo "$1: $got (want answer)"; [ "$got" = answer ] || fail=1; }
+          udp "UDP, plain VLESS (a link without packetEncoding), stream-one" 15353
+          udp "UDP in XUDP, stream-one" 15354
+          udp "UDP, plain VLESS, Vision over XHTTP" 15355
+          udp "UDP, plain VLESS, packet-up" 15356
+          # the server goes away: requests fail; it comes back: the client recovers without a restart
+          pkill -x xray; sleep 1
+          check "server gone (must fail)" 11080 000
+          nohup /tmp/xray run -c /tmp/xray.json >> /tmp/xray.log 2>&1 &
+          start=$(date +%s); got=000
+          while [ $(( $(date +%s) - start )) -lt 60 ]; do
+            got=$(code 11080 https://www.gstatic.com/generate_204); [ "$got" = 204 ] && break; sleep 1
+          done
+          echo "server back: $got after $(( $(date +%s) - start )) s (want 204 within 60 s)"
+          [ "$got" = 204 ] || fail=1
+          exit $fail
+
+      - name: Logs
+        if: always()
+        run: |
+          echo "--- xray"; tail -n 40 /tmp/xray.log || true
+          echo "--- client"; grep -vE '^\s*$' /tmp/client.log | tail -n 60 || true
+          echo "--- target"; tail -n 5 /tmp/target.log || true
+          pkill -x xray || true; pkill -x sing-box || true; pkill -f bulk-http.py || true; pkill -x openssl || true
