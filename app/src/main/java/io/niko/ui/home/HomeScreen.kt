@@ -170,14 +170,24 @@ private fun Simple(state: HomeState, now: Long, actions: HomeActions, modifier: 
                 Tile(R.drawable.ic_l_route, stringResource(R.string.home_route), routeValue(state.route), actions::route, Modifier.weight(1f))
             }
         }
-        Sheet(Modifier.navigationBarsPadding()) { NodeRow(state.profile, actions, bottom = NikoSpace.s6) }
+        Sheet(Modifier.navigationBarsPadding()) { NodeRow(state.profile, state.profiles, actions, bottom = NikoSpace.s6) }
     }
 }
 
 /** The node or profile in use on the sheet (D-MAIN-10, 13): its name, its expiry and traffic, its ping. */
 @Composable
-private fun NodeRow(profile: HomeProfile?, actions: HomeActions, bottom: androidx.compose.ui.unit.Dp, advanced: Boolean = false) {
+private fun NodeRow(profile: HomeProfile?, profiles: Int, actions: HomeActions, bottom: androidx.compose.ui.unit.Dp, advanced: Boolean = false) {
     // in the connection card the row comes after the state's, with the hairline above it
+    if (profile == null && profiles > 0) {
+        // configs there, none chosen (none yet, or the chosen one deleted): the list to choose from
+        ListRow(
+            stringResource(R.string.home_choose_profile), titleBold = true, bottom = bottom, divider = advanced,
+            sub = { Sub("${stringResource(R.string.home_profiles)} $profiles") },
+            trail = { Icon(R.drawable.ic_l_chevrons_up_down, Niko.colors.ink2) },
+            onClick = actions::profiles,
+        )
+        return
+    }
     if (profile == null) {
         ListRow(
             stringResource(R.string.home_no_profile), titleBold = true, bottom = bottom, divider = advanced,
@@ -220,7 +230,7 @@ private fun Advanced(state: HomeState, now: Long, actions: HomeActions, modifier
         ) {
             ListGroup {
                 ConnectionCard(state, now, label, tone, actions)
-                NodeRow(state.profile, actions, bottom = NikoSpace.s3, advanced = true)
+                NodeRow(state.profile, state.profiles, actions, bottom = NikoSpace.s3, advanced = true)
             }
             Section(stringResource(R.string.home_section_main)) {
                 ListRow(stringResource(R.string.home_mode), trail = { Trail(modeValue(state.mode)) }, onClick = onMode)
