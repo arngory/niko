@@ -97,7 +97,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             }
 
             MaterialAlertDialogBuilder(requireContext()).setTitle("Log buffer size (kb)")
-                .setView(view)
+                .setField(view)
                 .setPositiveButton(android.R.string.ok) { _, _ ->
                     DataStore.logBufSize = view.text.toString().toIntOrNull()?.takeIf { it > 0 } ?: 0
                     needRestart()
@@ -282,7 +282,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.raycontrol_test_run)
             .setMessage(R.string.raycontrol_test_run_help)
-            .setView(input)
+            .setField(input)
             .setPositiveButton(R.string.raycontrol_test_run_start) { _, _ ->
                 val id = input.text.toString().trim()
                 if (!io.niko.raycontrol.RayTestRun.validId(id)) {
@@ -501,7 +501,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                 if (DataStore.serviceState.started) SagerNet.reloadService()
             }
             .setNegativeButton(android.R.string.cancel, null)
-            .show()
+            .show().danger()
     }
 
     override fun onResume() {

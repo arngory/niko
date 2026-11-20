@@ -6,6 +6,7 @@ import android.util.TypedValue
 import android.view.View
 import android.view.ContextThemeWrapper
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -27,9 +28,14 @@ import com.android.resources.NightMode
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.progressindicator.BaseProgressIndicator
+import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import io.niko.R
 import io.niko.bg.BaseService
+import io.niko.ktx.danger
+import io.niko.ktx.setField
 import io.niko.widget.ServiceButton
 import org.junit.Rule
 import org.junit.Test
@@ -173,6 +179,57 @@ class NikoSnapshotTest(private val mode: String) {
             isCheckable = false
         })
     })
+
+    /** Text fields (reskin step 3): a label alone, a value, an error, a plain EditText as dialogs build in code. */
+    @Test
+    fun textFields() = paparazzi.snapshot(column {
+        fun field(label: String, value: String = "", error: String? = null) = addView(
+            TextInputLayout(context).apply {
+                hint = label
+                addView(TextInputEditText(this.context).apply { setText(value) })
+                this.error = error
+            },
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                bottomMargin = resources.getDimensionPixelSize(R.dimen.niko_space_2)
+            },
+        )
+        field("Server")
+        field("Server", "node.example.com")
+        field("Port", "70000", error = "Not a port")
+        addView(EditText(context).apply { hint = "Ports, as 80,443" }, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+        ))
+    })
+
+    /** A dialog (m-dialog) as the app builds one, shown in its window's frame: [build] adds to the builder. */
+    private fun dialog(build: MaterialAlertDialogBuilder.() -> Unit, after: (androidx.appcompat.app.AlertDialog) -> Unit = {}): View {
+        val dialog = MaterialAlertDialogBuilder(paparazzi.context).apply(build).create()
+        dialog.create()
+        after(dialog)
+        return dialog.window!!.decorView
+    }
+
+    /** A confirmation that deletes: its action in danger (ktx's danger). */
+    @Test
+    fun dialogConfirm() = paparazzi.snapshot(dialog({
+        setTitle("Clear the group?")
+        setMessage("Its 12 profiles are removed from the phone.")
+        setPositiveButton("Clear", null)
+        setNegativeButton("Cancel", null)
+    }) { it.danger() })
+
+    /** A dialog with a field (ktx's setField): its title, a text field, two actions and a third at the start. */
+    @Test
+    fun dialogField() = paparazzi.snapshot(dialog({
+        setTitle("Route test")
+        setField(TextInputLayout(context).apply {
+            hint = "Domain or address"
+            addView(TextInputEditText(this.context).apply { setText("example.com") })
+        })
+        setPositiveButton("Test", null)
+        setNegativeButton("Cancel", null)
+        setNeutralButton("Clear", null)
+    }))
 
     /** The main screen with its connect button in [state] ([failed]: after a start that failed). */
     private fun main(state: BaseService.State, failed: Boolean = false): View {

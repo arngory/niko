@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dialogs, text fields and menus in the Niko look (reskin step 3). A dialog (m-dialog) is surface-1 with radius-md
+     and no shadow over a scrim of 30 % (65 % in the dark theme); its title the design system's 600 24/30, its buttons
+     ghost: ink, 600, no capitals. A text field (m-field) is surface-2 with radius-sm, control high; an ink line of
+     stroke-bold in focus, danger with its text below on an error. A menu is the dropdown's list: surface-1, radius-md,
+     a hairline instead of a shadow. The theme hands them out (Theme.SagerNet.Niko): materialAlertDialogTheme,
+     textInputStyle, editTextStyle, popupMenuStyle. -->
+<resources>
+
+    <!-- the scrim behind a dialog: 30 % of black in the light theme (values-night: 65 %) -->
+    <item name="niko_scrim" format="float" type="dimen">0.3</item>
+
+    <style name="ShapeAppearance.Niko.Medium" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/niko_radius_md</item>
+    </style>
+
+    <style name="ThemeOverlay.Niko.MaterialAlertDialog" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+        <item name="colorSurface">@color/niko_surface_1</item>
+        <item name="colorPrimary">@color/niko_ink</item>
+        <item name="colorAccent">@color/niko_ink</item>
+        <item name="colorOnSurface">@color/niko_ink</item>
+        <item name="android:backgroundDimAmount">@dimen/niko_scrim</item>
+        <item name="android:windowElevation">0dp</item>
+        <item name="alertDialogStyle">@style/MaterialAlertDialog.Niko</item>
+        <item name="materialAlertDialogTitleTextStyle">@style/MaterialAlertDialog.Niko.Title.Text</item>
+        <item name="materialAlertDialogBodyTextStyle">@style/MaterialAlertDialog.Niko.Body.Text</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.Niko.Button.Dialog</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.Niko.Button.Dialog</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Widget.Niko.Button.Dialog.Flush</item>
+    </style>
+
+    <style name="MaterialAlertDialog.Niko" parent="MaterialAlertDialog.MaterialComponents">
+        <item name="shapeAppearance">@style/ShapeAppearance.Niko.Medium</item>
+        <item name="backgroundTint">@color/niko_surface_1</item>
+        <item name="elevation">0dp</item>
+    </style>
+
+    <style name="MaterialAlertDialog.Niko.Body.Text" parent="MaterialAlertDialog.MaterialComponents.Body.Text">
+        <item name="android:textAppearance">@style/TextAppearance.Niko.Body</item>
+        <item name="android:textColor">@color/niko_ink_2</item>
+    </style>
+
+    <!-- a dialog's button: the ghost button's words, ink, no capitals -->
+    <style name="Widget.Niko.Button.Dialog" parent="Widget.MaterialComponents.Button.TextButton.Dialog">
+        <item name="android:textAppearance">@style/TextAppearance.Niko.Slot.Button</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textColor">@color/niko_button_ink_text</item>
+        <item name="rippleColor">@color/niko_surface_2</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Niko.Full</item>
+    </style>
+
+    <style name="Widget.Niko.Button.Dialog.Flush" parent="Widget.MaterialComponents.Button.TextButton.Dialog.Flush">
+        <item name="android:textAppearance">@style/TextAppearance.Niko.Slot.Button</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textColor">@color/niko_button_ink_text</item>
+        <item name="rippleColor">@color/niko_surface_2</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Niko.Full</item>
+    </style>
+
+    <!-- a text field: filled with surface-2, its four corners radius-sm, no line at rest -->
+    <style name="Widget.Niko.TextField" parent="Widget.MaterialComponents.TextInputLayout.FilledBox">
+        <item name="materialThemeOverlay">@style/ThemeOverlay.Niko.TextField</item>
+        <item name="boxBackgroundColor">@color/niko_surface_2</item>
+        <item name="boxCornerRadiusTopStart">@dimen/niko_radius_sm</item>
+        <item name="boxCornerRadiusTopEnd">@dimen/niko_radius_sm</item>
+        <item name="boxCornerRadiusBottomStart">@dimen/niko_radius_sm</item>
+        <item name="boxCornerRadiusBottomEnd">@dimen/niko_radius_sm</item>
+        <item name="boxStrokeWidth">0dp</item>
+        <item name="boxStrokeWidthFocused">@dimen/niko_stroke_bold</item>
+        <item name="boxStrokeColor">@color/niko_field_stroke</item>
+        <item name="boxStrokeErrorColor">@color/niko_danger</item>
+        <item name="errorTextColor">@color/niko_danger</item>
+        <item name="errorIconTint">@color/niko_danger</item>
+        <item name="hintTextColor">@color/niko_ink_2</item>
+        <item name="android:textColorHint">@color/niko_ink_2</item>
+        <item name="endIconTint">@color/niko_ink_2</item>
+        <item name="startIconTint">@color/niko_ink_2</item>
+        <item name="helperTextTextColor">@color/niko_ink_2</item>
+        <item name="counterTextColor">@color/niko_ink_2</item>
+        <item name="hintTextAppearance">@style/TextAppearance.Niko.BodySm</item>
+    </style>
+
+    <!-- what a field's text takes: ink, its cursor and selection handles ink too -->
+    <style name="ThemeOverlay.Niko.TextField" parent="ThemeOverlay.MaterialComponents.TextInputEditText.FilledBox">
+        <item name="colorPrimary">@color/niko_ink</item>
+        <item name="colorControlActivated">@color/niko_ink</item>
+        <item name="android:textColor">@color/niko_ink</item>
+    </style>
+
+    <!-- a plain EditText (a dialog's field built in code, EditTextPreference's): the same field without a label -->
+    <style name="Widget.Niko.EditText" parent="Widget.AppCompat.EditText">
+        <item name="android:background">@drawable/niko_field</item>
+        <item name="android:minHeight">@dimen/niko_size_control</item>
+        <item name="android:paddingStart">@dimen/niko_space_3</item>
+        <item name="android:paddingEnd">@dimen/niko_space_3</item>
+        <item name="android:paddingTop">@dimen/niko_space_2</item>
+        <item name="android:paddingBottom">@dimen/niko_space_2</item>
+        <item name="android:textAppearance">@style/TextAppearance.Niko.Body</item>
+        <item name="android:textColor">@color/niko_ink</item>
+        <item name="android:textColorHint">@color/niko_ink_2</item>
+    </style>
+
+    <!-- a menu: the dropdown's list (niko_popup), Niko's text -->
+    <style name="Widget.Niko.PopupMenu" parent="Widget.MaterialComponents.PopupMenu">
+        <item name="android:popupBackground">@drawable/niko_popup</item>
+        <item name="android:popupElevation">0dp</item>
+    </style>
+
+    <style name="Widget.Niko.PopupMenu.Overflow" parent="Widget.MaterialComponents.PopupMenu.Overflow">
+        <item name="android:popupBackground">@drawable/niko_popup</item>
+        <item name="android:popupElevation">0dp</item>
+    </style>
+
+    <style name="ThemeOverlay.Niko.Popup" parent="ThemeOverlay.MaterialComponents">
+        <item name="colorSurface">@color/niko_surface_1</item>
+        <item name="android:textColorPrimary">@color/niko_ink</item>
+        <item name="android:textColorSecondary">@color/niko_ink_2</item>
+        <item name="colorControlHighlight">@color/niko_surface_2</item>
+        <item name="popupMenuStyle">@style/Widget.Niko.PopupMenu</item>
+        <item name="android:popupMenuStyle">@style/Widget.Niko.PopupMenu</item>
+        <item name="actionOverflowMenuStyle">@style/Widget.Niko.PopupMenu.Overflow</item>
+        <item name="textAppearanceLargePopupMenu">@style/TextAppearance.Niko.Body</item>
+        <item name="textAppearanceSmallPopupMenu">@style/TextAppearance.Niko.Body</item>
+        <item name="android:fontFamily">@font/geist</item>
+        <item name="fontFamily">@font/geist</item>
+    </style>
+
+</resources>

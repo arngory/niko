@@ -73,7 +73,7 @@ class BackupFragment : NamedFragment(R.layout.layout_backup) {
                     DataStore.replaceSettings()
                     triggerFullRestart(requireContext())
                 }
-                .show()
+                .show().danger()
         }
 
         binding.actionExport.setOnClickListener {

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A plain EditText as m-field (Widget.Niko.EditText): surface-2 with radius-sm; in focus an ink line of stroke-bold
+     at its foot, as the filled text field (Widget.Niko.TextField) draws it. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <layer-list>
+            <item>
+                <shape>
+                    <solid android:color="@color/niko_surface_2" />
+                    <corners android:radius="@dimen/niko_radius_sm" />
+                </shape>
+            </item>
+            <item
+                android:height="@dimen/niko_stroke_bold"
+                android:gravity="bottom|fill_horizontal"
+                android:left="@dimen/niko_radius_sm"
+                android:right="@dimen/niko_radius_sm">
+                <shape>
+                    <solid android:color="@color/niko_ink" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    <item>
+        <shape>
+            <solid android:color="@color/niko_surface_2" />
+            <corners android:radius="@dimen/niko_radius_sm" />
+        </shape>
+    </item>
+</selector>

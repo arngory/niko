@@ -122,7 +122,7 @@ class RouteFragment : ToolbarFragment(R.layout.layout_route), Toolbar.OnMenuItem
                         }
                     }
                     .setNegativeButton(R.string.no, null)
-                    .show()
+                    .show().danger()
             }
             R.id.action_route_preset_ru -> {
                 val hours = DataStore.ruleSetUpdateHours.coerceIn(1, 24 * 30)
