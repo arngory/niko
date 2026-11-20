@@ -1,15 +1,16 @@
 name: XHTTP interop
 
 # The core's XHTTP client (sing-box-lx, transport/v2rayxhttp) against the Xray the node runs: the fork raycontrol
-# pins in deploy/versions.env (v0.34.0: 46b58d4). The server's template (XHTTP over REALITY, mode auto, VLESS
+# pins in deploy/versions.env. The server's template (XHTTP over REALITY, mode auto, VLESS
 # encryption with ML-KEM), with the client's outbound as the app builds it from a link (fmt/v2ray: transport xhttp
 # with path and mode, the link's extra as its options; REALITY with the hybrid key share of a node's rows). REALITY's
 # target is a local TLS 1.3 server in Go's crypto/tls (.github/tools/reality-target), whose groups are those of the
-# node's Go front and of most sites: X25519MLKEM768 first. The template's own target, openssl s_server with X25519
-# alone, is not checked: with it XTLS/REALITY authenticates the core's client but the handshake does not complete.
-# Four REALITY rows only report what they find, to tell why: openssl with the app's hybrid share, openssl with the
-# fingerprint's default shares, the Go target held to X25519 (a site without X25519MLKEM768), and openssl held to
-# TLS_AES_128_GCM_SHA256 (OpenSSL itself prefers AES-256, Go and most fronts AES-128).
+# node's Go front and of most sites: X25519MLKEM768 first. Four REALITY rows check other targets: the template's
+# own, openssl s_server with X25519 alone, with the app's hybrid share and with the fingerprint's default shares; the
+# Go target held to X25519 (a site without X25519MLKEM768); openssl held to TLS_AES_128_GCM_SHA256 (OpenSSL itself
+# prefers AES-256, Go and most fronts AES-128). A target that acknowledges neither SNI nor ALPN (openssl's) failed
+# every handshake with xtls/reality 4bb46b2, which acknowledged SNI itself ("padding: -4"); the node's fork stops
+# that from raycontrol d097293 on (Xray fd9d28f).
 # Checked: stream-one with XMUX by default and with maxConcurrency, packet-up, stream-up, auto (stream-one under
 # REALITY, as Xray's), encryption none and ML-KEM, Vision over XHTTP with ML-KEM, downloads and uploads counted at
 # a local server, parallel streams on one connection, VLESS UDP (plain and XUDP), and the client's recovery after
@@ -92,13 +93,13 @@ jobs:
           uuid=$(cat /proc/sys/kernel/random/uuid)
           for k in priv pbk dec enc; do [ -n "${!k}" ] || { echo "no $k"; exit 1; }; done
           echo "encryption: ${enc%%.*}"
-          # the template's REALITY target, reported only: a TLS 1.3 server with X25519 for www.example.com
+          # the template's REALITY target: a TLS 1.3 server with X25519 for www.example.com
           openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 30 -subj "/CN=www.example.com" \
             -addext "subjectAltName=DNS:www.example.com" -keyout /tmp/target.key -out /tmp/target.crt 2>/dev/null
           # the template's inbounds, REALITY's target the Go one (127.0.0.1:14443): ML-KEM (18443), none (18444),
           # Vision with ML-KEM (18445), and ML-KEM again for the parallel streams (18446), whose connections are counted
-          # alone; REALITY without XHTTP (18447) is the control that tells a REALITY fault from an XHTTP one. Reported
-          # only, REALITY without XHTTP: openssl s_server (18448, 14445), the Go target with X25519 alone (18449,
+          # alone; REALITY without XHTTP (18447) is the control that tells a REALITY fault from an XHTTP one. Other
+          # targets, REALITY without XHTTP: openssl s_server (18448, 14445), the Go target with X25519 alone (18449,
           # 14444) and openssl held to TLS_AES_128_GCM_SHA256 (18450, 14446). freedom lets the local server
           # through (finalRules: private addresses are refused to a VLESS user by default)
           jq -n --arg uuid "$uuid" --arg priv "$priv" --arg dec "$dec" '
@@ -162,7 +163,7 @@ jobs:
 
       - name: Interop
         run: |
-          # REALITY's targets: the Go one (checked), the Go one held to X25519 and the template's openssl (reported)
+          # REALITY's targets: the Go one, the Go one held to X25519 and the template's openssl
           nohup /tmp/reality-target -listen 127.0.0.1:14443 -name www.example.com > /tmp/target-go.log 2>&1 &
           nohup /tmp/reality-target -listen 127.0.0.1:14444 -name www.example.com -classical > /tmp/target-classical.log 2>&1 &
           nohup openssl s_server -accept 127.0.0.1:14445 -tls1_3 -groups X25519 -www \
@@ -201,11 +202,11 @@ jobs:
             check "$name" "$port" 204
             bulk "$name" "$port" 8388608 4194304
           done
-          # reported only (see the header): why the template's openssl target fails
-          echo "reported: openssl s_server target, the app's hybrid share: $(code 11089 https://www.gstatic.com/generate_204)"
-          echo "reported: openssl s_server target, the fingerprint's default shares: $(code 11090 https://www.gstatic.com/generate_204)"
-          echo "reported: Go target with X25519 alone, the app's hybrid share: $(code 11091 https://www.gstatic.com/generate_204)"
-          echo "reported: openssl s_server target held to TLS_AES_128_GCM_SHA256: $(code 11092 https://www.gstatic.com/generate_204)"
+          # the other targets (see the header)
+          check "openssl s_server target, the app's hybrid share" 11089 204
+          check "openssl s_server target, the fingerprint's default shares" 11090 204
+          check "Go target with X25519 alone, the app's hybrid share" 11091 204
+          check "openssl s_server target held to TLS_AES_128_GCM_SHA256" 11092 204
           # 20 parallel streams through the XMUX of maxConcurrency 16-32: two connections at most
           # (each waited for by its own pid: a bare wait would wait for the servers this step started too)
           pids=()
