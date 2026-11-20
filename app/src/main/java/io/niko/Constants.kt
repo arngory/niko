@@ -71,6 +71,12 @@ object Key {
     const val ACQUIRE_WAKE_LOCK = "acquireWakeLock"
     const val SHOW_BOTTOM_BAR = "showBottomBar"
 
+    // the main screen's view, Простой or Расширенный (D-NAV-01; ui/home/HomeState.kt)
+    const val HOME_VIEW = "homeView"
+
+    // when the core came up, for the main screen's time online (ms since the epoch, 0 while it is down)
+    const val CONNECTED_SINCE = "connectedSince"
+
     const val ALLOW_INSECURE_ON_REQUEST = "allowInsecureOnRequest"
 
     const val TUN_IMPLEMENTATION = "tunImplementation"

@@ -504,6 +504,9 @@ data class ProxyEntity(
         @Query("SELECT COUNT(*) FROM proxy_entities WHERE groupId = :groupId")
         fun countByGroup(groupId: Long): Long
 
+        @Query("SELECT COUNT(*) FROM proxy_entities")
+        fun count(): Long
+
         @Query("SELECT  MAX(userOrder) + 1 FROM proxy_entities WHERE groupId = :groupId")
         fun nextOrder(groupId: Long): Long?
 
