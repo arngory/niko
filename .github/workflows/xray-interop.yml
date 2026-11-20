@@ -166,6 +166,10 @@ jobs:
           used=$(grep -c "prewarm: the connection opened ahead" /tmp/client.log || true)
           echo "prewarm: $used requests on a connection opened ahead (want 3)"
           [ "$used" -ge 3 ] || fail=1
+          # a spare older than a server's patience for the request (Xray's handshake policy is 4 s upstream, 60 s
+          # in the node's fork): taken or replaced, the request goes through
+          sleep 6
+          check "REALITY + Vision, prewarm, a spare 6 s old" 11086 204
           sleep 14
           check "REALITY + Vision, prewarm, after the spare's idle" 11086 204
           # a DNS query to 1.1.1.1 over UDP through REALITY + Vision
