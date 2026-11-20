@@ -135,6 +135,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/niko_space_2"
+                    android:baselineAligned="false"
                     android:orientation="horizontal">
 
                     <include
@@ -177,6 +178,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="?android:attr/selectableItemBackground"
+            android:baselineAligned="false"
             android:gravity="center_vertical"
             android:minHeight="56dp"
             android:orientation="horizontal"
