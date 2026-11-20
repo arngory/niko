@@ -87,7 +87,8 @@ jobs:
           openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 30 -subj "/CN=www.example.com" \
             -addext "subjectAltName=DNS:www.example.com" -keyout /tmp/target.key -out /tmp/target.crt 2>/dev/null
           # four inbounds of the template: ML-KEM (18443), none (18444), Vision with ML-KEM (18445), and ML-KEM again
-          # for the parallel streams (18446), whose connections are counted alone. freedom lets the local server
+          # for the parallel streams (18446), whose connections are counted alone; REALITY without XHTTP (18447) is the
+          # control that tells a REALITY or encryption fault from an XHTTP one. freedom lets the local server
           # through (finalRules: private addresses are refused to a VLESS user by default)
           jq -n --arg uuid "$uuid" --arg priv "$priv" --arg dec "$dec" '
             def xhttp($port; $dec; $flow): {listen: "127.0.0.1", port: $port, protocol: "vless",
@@ -95,9 +96,10 @@ jobs:
               streamSettings: {network: "xhttp", xhttpSettings: {path: "/xh", mode: "auto"},
                 security: "reality", realitySettings: {target: "127.0.0.1:14443", serverNames: ["www.example.com"],
                   privateKey: $priv, shortIds: ["0123456789abcdef"]}}};
-            {log: {loglevel: "warning"},
+            {log: {loglevel: "debug"},
              inbounds: [xhttp(18443; $dec; ""), xhttp(18444; "none"; ""), xhttp(18445; $dec; "xtls-rprx-vision"),
-               xhttp(18446; $dec; "")],
+               xhttp(18446; $dec; ""),
+               (xhttp(18447; $dec; "") | .streamSettings |= (del(.xhttpSettings) | .network = "raw"))],
              outbounds: [{protocol: "freedom",
                settings: {finalRules: [{action: "allow", ip: ["127.0.0.1/32"]}]}}]}' > /tmp/xray.json
           # an outbound as the app builds it from the link: transport xhttp with path and mode (and the extra's
@@ -108,9 +110,11 @@ jobs:
             + (if $flow == "" then {} else {flow: $flow} end) + (if $enc == "" then {} else {encryption: $enc} end)
             + {tls: {enabled: true, server_name: "www.example.com", utls: {enabled: true, fingerprint: "chrome"},
                 reality: {enabled: true, public_key: $pbk, short_id: "0123456789abcdef"}},
-               transport: ({type: "xhttp", path: "/xh", mode: $mode} + $extra)}'; }
+               transport: ({type: "xhttp", path: "/xh", mode: $mode} + $extra)}
+            | if $mode == "raw" then del(.transport) else . end'; }
           vision=xtls-rprx-vision
-          outs=$(jq -s . <(out x-one 18443 stream-one "$enc" "" '{}' "") \
+          outs=$(jq -s . <(out x-raw 18447 raw "$enc" "" '{}' "") \
+                         <(out x-one 18443 stream-one "$enc" "" '{}' "") \
                          <(out x-packet 18443 packet-up "$enc" "" '{}' "") \
                          <(out x-up 18443 stream-up "$enc" "" '{}' "") \
                          <(out x-auto 18443 auto "$enc" "" '{}' "") \
@@ -122,9 +126,9 @@ jobs:
           # mixed inbounds 11080.. for TCP, direct ones 15353.. for UDP to a resolver
           jq -n --argjson outs "$outs" '
             [["x-one", 11080], ["x-packet", 11081], ["x-up", 11082], ["x-auto", 11083], ["x-none", 11084],
-             ["x-vision", 11085], ["x-vision-packet", 11086], ["x-mux", 11087]] as $tcp |
+             ["x-vision", 11085], ["x-vision-packet", 11086], ["x-mux", 11087], ["x-raw", 11088]] as $tcp |
             [["x-one", 15353], ["x-xudp", 15354], ["x-vision", 15355], ["x-packet", 15356]] as $udp |
-            {log: {level: "warn"},
+            {log: {level: "debug"},
              inbounds: ([$tcp[] | {type: "mixed", tag: ("in-" + .[0]), listen: "127.0.0.1", listen_port: .[1]}]
                + [$udp[] | {type: "direct", tag: ("udp-" + .[0]), listen: "127.0.0.1", listen_port: .[1],
                    network: "udp", override_address: "1.1.1.1", override_port: 53}]),
@@ -142,6 +146,8 @@ jobs:
           nohup /tmp/xray run -c /tmp/xray.json > /tmp/xray.log 2>&1 &
           nohup /tmp/sing-box run -c /tmp/client.json > /tmp/client.log 2>&1 &
           sleep 3
+          # every check runs and says what it found: the step fails at its end
+          set +e
           fail=0
           code() { curl -s -m 30 -o /dev/null -w '%{http_code}' -x "socks5h://127.0.0.1:$1" "$2" || true; }
           check() { got=$(code "$2" https://www.gstatic.com/generate_204); echo "$1: $got (want $3)"; [ "$got" = "$3" ] || fail=1; }
@@ -149,7 +155,8 @@ jobs:
           bulk() {
             want=$(curl -s -m 60 -D - -o /tmp/dl.bin -x "socks5h://127.0.0.1:$2" "http://127.0.0.1:18080/bytes/$3" |
               awk 'tolower($1)=="x-sha256:"{print $2}' | tr -d '\r')
-            got=$(sha256sum /tmp/dl.bin | cut -d' ' -f1); size=$(stat -c %s /tmp/dl.bin)
+            got=$(sha256sum /tmp/dl.bin 2>/dev/null | cut -d' ' -f1); size=$(stat -c %s /tmp/dl.bin 2>/dev/null || echo 0)
+            rm -f /tmp/dl.bin
             if [ -n "$want" ] && [ "$got" = "$want" ] && [ "$size" = "$3" ]; then echo "$1: download $3 bytes ok"
             else echo "$1: download got $size bytes ($got, want $want)"; fail=1; fi
             head -c "$4" /dev/urandom > /tmp/ul.bin
@@ -158,7 +165,8 @@ jobs:
               -H 'Content-Type: application/octet-stream' http://127.0.0.1:18080/sink || true)
             if [ "$got" = "$want" ]; then echo "$1: upload $4 bytes ok"; else echo "$1: upload got '$got' (want '$want')"; fail=1; fi
           }
-          for row in "stream-one, XMUX by default:11080" "packet-up:11081" "stream-up:11082" \
+          for row in "REALITY without XHTTP (the control):11088" \
+                     "stream-one, XMUX by default:11080" "packet-up:11081" "stream-up:11082" \
                      "auto (stream-one under REALITY):11083" "encryption none:11084" \
                      "Vision over XHTTP, ML-KEM:11085" "Vision over XHTTP packet-up, ML-KEM:11086" \
                      "stream-one, XMUX maxConcurrency 16-32:11087"; do
@@ -204,7 +212,7 @@ jobs:
       - name: Logs
         if: always()
         run: |
-          echo "--- xray"; tail -n 40 /tmp/xray.log || true
-          echo "--- client"; grep -vE '^\s*$' /tmp/client.log | tail -n 60 || true
+          echo "--- xray"; grep -viE 'accepted|tunneling request|proxy/freedom' /tmp/xray.log | head -n 80 || true
+          echo "--- client"; grep -vE '^\s*$' /tmp/client.log | grep -E 'ERROR|WARN|x-raw|x-one' | head -n 80 || true
           echo "--- target"; tail -n 5 /tmp/target.log || true
           pkill -x xray || true; pkill -x sing-box || true; pkill -f bulk-http.py || true; pkill -x openssl || true
