@@ -139,8 +139,13 @@ class MainActivity : ThemedActivity(),
         }
     }
 
+    // refreshHome's reads, counted (it is called from any thread: the store's listener)
+    private val homeGeneration = java.util.concurrent.atomic.AtomicInteger()
+
     /** Reads what the main screen shows from the database, off the main thread; the service's fields stay as they are. */
     fun refreshHome() {
+        // the latest asked wins: an older read that finishes after it would bring back what it replaced
+        val generation = homeGeneration.incrementAndGet()
         runOnDefaultDispatcher {
             val loaded = try {
                 HomeLoader.load(app, HomeState())
@@ -149,6 +154,7 @@ class MainActivity : ThemedActivity(),
                 return@runOnDefaultDispatcher
             }
             onMainDispatcher {
+                if (generation != homeGeneration.get()) return@onMainDispatcher
                 val now = homeState.value
                 homeState.value = loaded.copy(
                     service = now.service, error = now.error, connectedSince = now.connectedSince,
@@ -518,6 +524,10 @@ class MainActivity : ThemedActivity(),
             binding.stats.allowShow = false
             binding.stats.performHide()
             binding.fab.hide()
+        } else {
+            // the setting keeps the bar on the other screens (the app no longer opens on the profiles, which showed it)
+            binding.stats.allowShow = true
+            binding.fab.show()
         }
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_holder, fragment)
