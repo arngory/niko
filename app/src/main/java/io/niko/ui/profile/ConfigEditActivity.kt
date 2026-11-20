@@ -8,11 +8,13 @@ import android.view.MenuItem
 import android.view.ViewGroup.MarginLayoutParams
 import android.widget.LinearLayout
 import androidx.appcompat.app.AlertDialog
+import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
 import androidx.core.widget.addTextChangedListener
 import com.blacksquircle.ui.editorkit.insert
+import com.blacksquircle.ui.editorkit.model.ColorScheme
 import com.blacksquircle.ui.language.json.JsonLanguage
 import com.github.shadowsocks.plugin.Empty
 import com.github.shadowsocks.plugin.fragment.AlertDialogFragment
@@ -21,7 +23,6 @@ import io.niko.Key
 import io.niko.R
 import io.niko.database.DataStore
 import io.niko.databinding.LayoutEditConfigBinding
-import io.niko.ktx.getColorAttr
 import io.niko.ktx.readableMessage
 import io.niko.ktx.toStringPretty
 import io.niko.ui.ThemedActivity
@@ -50,6 +51,46 @@ class ConfigEditActivity : ThemedActivity() {
 
     lateinit var binding: LayoutEditConfigBinding
 
+    /**
+     * The editor in Niko's tokens, light or dark with the theme (editorkit's own schemes are fixed, Darcula by default):
+     * ink on surface-0, the gutter surface-1 with a hairline; the design system has no hues, so JSON's values are ink
+     * and its punctuation and comments ink-2.
+     */
+    private fun nikoScheme(): ColorScheme {
+        fun c(id: Int) = getColor(id)
+        val ink = c(R.color.niko_ink)
+        val ink2 = c(R.color.niko_ink_2)
+        return ColorScheme(
+            textColor = ink,
+            cursorColor = ink,
+            backgroundColor = c(R.color.niko_surface_0),
+            gutterColor = c(R.color.niko_surface_1),
+            gutterDividerColor = c(R.color.niko_line),
+            gutterCurrentLineNumberColor = ink,
+            gutterTextColor = ink2,
+            selectedLineColor = c(R.color.niko_surface_1),
+            selectionColor = c(R.color.niko_surface_3),
+            suggestionQueryColor = ink,
+            findResultBackgroundColor = c(R.color.niko_surface_3),
+            delimiterBackgroundColor = c(R.color.niko_surface_2),
+            numberColor = ink,
+            operatorColor = ink2,
+            keywordColor = ink,
+            typeColor = ink,
+            langConstColor = ink,
+            preprocessorColor = ink2,
+            variableColor = ink,
+            methodColor = ink,
+            stringColor = ink,
+            commentColor = ink2,
+            tagColor = ink,
+            tagNameColor = ink,
+            attrNameColor = ink,
+            attrValueColor = ink,
+            entityRefColor = ink2,
+        )
+    }
+
     @SuppressLint("InlinedApi")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,6 +115,8 @@ class ConfigEditActivity : ThemedActivity() {
 
         binding.editor.apply {
             language = JsonLanguage()
+            colorScheme = nikoScheme()
+            typeface = ResourcesCompat.getFont(context, R.font.geist_mono)
             setHorizontallyScrolling(true)
             if (useConfigStore) {
                 setTextContent(DataStore.configurationStore.getString(key) ?: "")
@@ -121,7 +164,6 @@ class ConfigEditActivity : ThemedActivity() {
         }
         extendedKeyboard.setHasFixedSize(true)
         extendedKeyboard.submitList("{},:_\"".map { it.toString() })
-        extendedKeyboard.setBackgroundColor(getColorAttr(R.attr.primaryOrTextPrimary))
 
         val keyboardContainer = findViewById<LinearLayout>(R.id.keyboard_container)
         ViewCompat.setOnApplyWindowInsetsListener(keyboardContainer) { v, windowInsets ->

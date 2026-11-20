@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -13,10 +14,18 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <!-- Niko's viewfinder (niko_camera.xml): light corners, a hairline frame and a light scanning line -->
     <com.king.zxing.ViewfinderView
         android:id="@+id/viewfinderView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"
+        app:cornerColor="@color/niko_on_camera"
+        app:frameColor="@color/niko_on_camera_soft"
+        app:frameLineWidth="@dimen/niko_stroke_hairline"
+        app:labelTextColor="@color/niko_on_camera"
+        app:laserColor="@color/niko_on_camera"
+        app:laserStyle="line"
+        app:maskColor="@color/niko_camera_scrim" />
 
     <ImageView
         android:id="@+id/ivFlashlight"

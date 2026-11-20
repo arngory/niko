@@ -1,7 +1,6 @@
 package io.niko.ui
 
 import android.annotation.SuppressLint
-import android.graphics.Color
 import android.os.Bundle
 import android.text.SpannableString
 import android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
@@ -41,33 +40,24 @@ class LogcatFragment : ToolbarFragment(R.layout.layout_logcat),
         reloadSession()
     }
 
-    private fun getColorForLine(line: String): ForegroundColorSpan {
-        var color = ForegroundColorSpan(Color.GRAY)
-        when {
-            line.contains("INFO[") || line.contains(" [Info]") -> {
-                color = ForegroundColorSpan((0xFF86C166).toInt())
-            }
-
-            line.contains("ERROR[") || line.contains(" [Error]") -> {
-                color = ForegroundColorSpan(Color.RED)
-            }
-
-            line.contains("WARN[") || line.contains(" [Warning]") -> {
-                color = ForegroundColorSpan(Color.RED)
-            }
+    private fun colorFor(tone: LogTone): Int = requireContext().getColor(
+        when (tone) {
+            LogTone.Danger -> R.color.niko_danger
+            LogTone.Quiet -> R.color.niko_ink_2
+            LogTone.Plain -> R.color.niko_ink
         }
-        return color
-    }
+    )
 
     private fun reloadSession() {
         val span = SpannableString(
             String(SendLog.getNekoLog(50 * 1024))
         )
         var offset = 0
+        val colors = LogTone.entries.associateWith { colorFor(it) }
         for (line in span.lines()) {
-            val color = getColorForLine(line)
             span.setSpan(
-                color, offset, offset + line.length, SPAN_EXCLUSIVE_EXCLUSIVE
+                ForegroundColorSpan(colors.getValue(LogTone.of(line))), offset, offset + line.length,
+                SPAN_EXCLUSIVE_EXCLUSIVE,
             )
             offset += line.length + 1
         }
@@ -88,7 +78,7 @@ class LogcatFragment : ToolbarFragment(R.layout.layout_logcat),
         com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.stats_hour)
             .setMessage(R.string.stats_hour_help)
-            .setView(input)
+            .setField(input)
             .setPositiveButton(R.string.stats_hour_share) { _, _ ->
                 val run = input.text.toString().trim()
                 if (!io.niko.raycontrol.RayTestRun.validId(run)) {
@@ -142,4 +132,23 @@ class LogcatFragment : ToolbarFragment(R.layout.layout_logcat),
         return true
     }
 
+}
+
+/**
+ * A log line's colour, as the desktop's log has it (log_screen.dart): an error, a fatal one or a panic in danger, a
+ * debug or trace line ink-2, the rest ink. The core's lines carry their level as "ERROR[0012]", libcore's as " [Error]".
+ */
+enum class LogTone {
+    Danger, Quiet, Plain;
+
+    companion object {
+        private val danger = listOf("ERROR[", "FATAL[", "PANIC[", " [Error]", " [Fatal]", " [Panic]")
+        private val quiet = listOf("DEBUG[", "TRACE[", " [Debug]", " [Trace]")
+
+        fun of(line: String): LogTone = when {
+            danger.any { line.contains(it) } -> Danger
+            quiet.any { line.contains(it) } -> Quiet
+            else -> Plain
+        }
+    }
 }

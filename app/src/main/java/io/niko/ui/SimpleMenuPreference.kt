@@ -22,7 +22,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.Spinner
-import androidx.core.content.ContextCompat
 import androidx.preference.DropDownPreference
 import androidx.preference.PreferenceViewHolder
 import io.niko.R
@@ -70,15 +69,11 @@ open class SimpleMenuPreference
 
         override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
             val view: View = super.getDropDownView(position, convertView, parent)
+            // the chosen entry on surface-2 (colorMaterial100); the others on the list's own surface-1 (niko_popup)
             if (position == currentPosition) {
                 view.setBackgroundColor(context.getColorAttr(R.attr.colorMaterial100))
             } else {
-                view.setBackgroundColor(
-                    ContextCompat.getColor(
-                        context,
-                        R.color.preference_simple_menu_background
-                    )
-                )
+                view.background = null
             }
             return view
         }
