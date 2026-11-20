@@ -308,7 +308,8 @@ if grep -q "SPA v3 did not open" "$out/neko-spa.log" 2>/dev/null; then
   grep "SPA v" "$out/neko-spa.log" | tail -n 10
   fail "the node's perimeter did not open for SPA v3: the core fell back to v2"
 fi
-v3=$(grep -c "SPA v3 " "$out/neko-spa.log" 2>/dev/null)
+# the knock's own debug line (protocol/knock spa2.go): "SPA v3 to <address> port <n>", "SPA v3 over tls to ..."
+v3=$(grep -cE "SPA v3 (to|over) " "$out/neko-spa.log" 2>/dev/null)
 echo "SPA v3 knocks in the core's log: ${v3:-0}"
 [ "${v3:-0}" -gt 0 ] || echo "::warning::no SPA v3 knock in the core's log (does the node's subscription carry spa.versions?)"
 
