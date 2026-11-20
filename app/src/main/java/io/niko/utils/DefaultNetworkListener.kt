@@ -2,6 +2,7 @@ package io.niko.utils
 
 import android.annotation.TargetApi
 import android.net.ConnectivityManager
+import android.net.LinkProperties
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
@@ -95,6 +96,11 @@ object DefaultNetworkListener {
         ) { // it's a good idea to refresh capabilities
             runBlocking { networkActor.send(NetworkMessage.Update(network)) }
         }
+
+        // the network's NAT64 prefix comes later than the network itself (a router advertisement, ipv4only.arpa),
+        // as a change of its link (Nat64)
+        override fun onLinkPropertiesChanged(network: Network, linkProperties: LinkProperties) =
+            runBlocking { networkActor.send(NetworkMessage.Update(network)) }
 
         override fun onLost(network: Network) =
             runBlocking { networkActor.send(NetworkMessage.Lost(network)) }
