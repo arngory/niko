@@ -91,8 +91,8 @@ dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.recyclerview:recyclerview:1.4.0")
     implementation("androidx.activity:activity-ktx:1.10.1")
-    // the UI probe's Compose half (ui/probe, docs/research/ui-probe.md): foundation and ui only, no Material: the
-    // Niko design system draws its own components
+    // the screens drawn from the canvas (ui/compose, docs/research/ui-probe.md): foundation and ui only, no Material:
+    // the Niko design system draws its own components
     implementation(platform("androidx.compose:compose-bom:2024.10.01"))
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.ui:ui")

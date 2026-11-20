@@ -90,16 +90,6 @@
             android:name="io.niko.ui.BlankActivity"
             android:configChanges="uiMode" />
 
-        <!-- the UI probe (docs/research/ui-probe.md): started by adb's shell alone, which holds DUMP and no app does -->
-        <activity
-            android:name="io.niko.ui.probe.ProbeViewsActivity"
-            android:exported="true"
-            android:permission="android.permission.DUMP" />
-        <activity
-            android:name="io.niko.ui.probe.ProbeComposeActivity"
-            android:exported="true"
-            android:permission="android.permission.DUMP" />
-
         <activity
             android:name="io.niko.ui.MainActivity"
             android:configChanges="uiMode"

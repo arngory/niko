@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- UI probe: the bottom sheet, its top corners rounded (m-sheet) -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="@color/niko_surface_1" />
-    <corners
-        android:topLeftRadius="@dimen/niko_radius_md"
-        android:topRightRadius="@dimen/niko_radius_md" />
-</shape>

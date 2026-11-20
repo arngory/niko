@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- UI probe: the connect button's halo, a hairline space-4 outside it (m-connect::before) -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
-    <stroke android:width="@dimen/niko_stroke_hairline" android:color="@color/niko_line_strong" />
-</shape>
