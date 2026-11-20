@@ -103,13 +103,14 @@ jobs:
              outbounds: [{protocol: "freedom",
                settings: {finalRules: [{action: "allow", ip: ["127.0.0.1/32"]}]}}]}' > /tmp/xray.json
           # an outbound as the app builds it from the link: transport xhttp with path and mode (and the extra's
-          # options), REALITY with uTLS chrome, the link's encryption and flow, plain VLESS UDP unless xudp
+          # options), REALITY with uTLS chrome and the hybrid key share a node's row takes (nodeTlsTweaks: the node's
+          # Xray authenticates REALITY on it), the link's encryption and flow, plain VLESS UDP unless xudp
           out() { jq -n --arg tag "$1" --argjson port "$2" --arg mode "$3" --arg enc "$4" --arg flow "$5" \
                         --argjson extra "$6" --arg pe "$7" --arg uuid "$uuid" --arg pbk "$pbk" '
             {type: "vless", tag: $tag, server: "127.0.0.1", server_port: $port, uuid: $uuid, packet_encoding: $pe}
             + (if $flow == "" then {} else {flow: $flow} end) + (if $enc == "" then {} else {encryption: $enc} end)
             + {tls: {enabled: true, server_name: "www.example.com", utls: {enabled: true, fingerprint: "chrome"},
-                reality: {enabled: true, public_key: $pbk, short_id: "0123456789abcdef"}},
+                reality: {enabled: true, public_key: $pbk, short_id: "0123456789abcdef", key_share: "hybrid"}},
                transport: ({type: "xhttp", path: "/xh", mode: $mode} + $extra)}
             | if $mode == "raw" then del(.transport) else . end'; }
           vision=xtls-rprx-vision
@@ -175,19 +176,23 @@ jobs:
             bulk "$name" "$port" 8388608 4194304
           done
           # 20 parallel streams through the XMUX of maxConcurrency 16-32: two connections at most
+          # (each waited for by its own pid: a bare wait would wait for the servers this step started too)
+          pids=()
           for i in $(seq 1 20); do
             (n=$(curl -s -m 60 -o /dev/null -w '%{size_download}' -x socks5h://127.0.0.1:11087 \
               http://127.0.0.1:18080/bytes/1048576 || true); echo "$n" > "/tmp/par.$i") &
+            pids+=($!)
           done
-          wait
+          wait "${pids[@]}"
           ok=$(cat /tmp/par.* | grep -c '^1048576$' || true)
           conns=$(ss -Htn state established '( dport = :18446 )' | wc -l)
           echo "parallel: $ok of 20 streams whole over $conns connection(s)"
           [ "$ok" = 20 ] || fail=1
           [ "$conns" -ge 1 ] && [ "$conns" -le 2 ] || { echo "parallel: want 1-2 connections"; fail=1; }
           # the template's own check: five at once through the default XMUX
-          for i in $(seq 1 5); do (code 11080 https://www.gstatic.com/generate_204 > "/tmp/five.$i") & done
-          wait
+          pids=()
+          for i in $(seq 1 5); do (code 11080 https://www.gstatic.com/generate_204 > "/tmp/five.$i") & pids+=($!); done
+          wait "${pids[@]}"
           five=$(cat /tmp/five.* | grep -c '^204$' || true)
           echo "five at once, XMUX by default: $five of 5"
           [ "$five" = 5 ] || fail=1
