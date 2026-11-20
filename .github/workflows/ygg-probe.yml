@@ -6,8 +6,8 @@ name: Yggdrasil probe
 # project's own node with a SOCKS proxy) runs beside the core with the same
 # peers, and the check fails only when it reaches the services and the core
 # does not. When neither does, the network is down for both: a warning. A
-# yggstack that is not running, or has no peer up where the core has some,
-# is no reference: the check fails.
+# yggstack that is not running fails the check; one with no peer up where the
+# core has some is no reference, and fails it when the core falls short.
 on:
   push:
     paths: [".github/workflows/ygg-probe.yml", "buildScript/lib/core/get_source_env.sh"]
