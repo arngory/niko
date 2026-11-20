@@ -9,6 +9,7 @@
         <item name="android:textAppearanceListItemSecondary">@style/TextAppearance.Niko.BodySm</item>
         <item name="preferenceCategoryTitleTextAppearance">@style/TextAppearance.Niko.Label</item>
         <item name="preferenceCategoryTitleTextColor">@color/niko_ink_2</item>
+        <item name="preferenceCategoryStyle">@style/Preference.Category.Niko</item>
         <!-- a row's padding inside its group: space-4 -->
         <item name="android:listPreferredItemPaddingStart">@dimen/niko_space_4</item>
         <item name="android:listPreferredItemPaddingEnd">@dimen/niko_space_4</item>
@@ -18,6 +19,12 @@
              spinnerStyle; android:spinnerStyle for a framework one -->
         <item name="android:spinnerStyle">@style/Widget.Niko.Spinner</item>
         <item name="spinnerStyle">@style/Widget.Niko.Spinner</item>
+    </style>
+
+    <!-- a group's title in its own layout (niko_preference_category): no icon's space, Geist Mono -->
+    <style name="Preference.Category.Niko" parent="Preference.Category">
+        <item name="android:layout">@layout/niko_preference_category</item>
+        <item name="iconSpaceReserved">false</item>
     </style>
 
     <!-- SwitchPreference's (android.widget.Switch) -->

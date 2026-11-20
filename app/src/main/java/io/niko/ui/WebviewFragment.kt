@@ -15,6 +15,7 @@ import io.niko.R
 import io.niko.SagerNet
 import io.niko.database.DataStore
 import io.niko.databinding.LayoutWebviewBinding
+import io.niko.ktx.setField
 import io.niko.ktx.snackbar
 import io.niko.utils.WebViewUtil
 
@@ -38,6 +39,8 @@ class WebviewFragment : ToolbarFragment(R.layout.layout_webview), Toolbar.OnMenu
         // webview
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
         mWebView = binding.webview
+        // surface-0 until the dashboard paints, not the white of a WebView in the dark theme
+        mWebView.setBackgroundColor(requireContext().getColor(R.color.niko_surface_0))
         mWebView.settings.domStorageEnabled = true
         mWebView.settings.javaScriptEnabled = true
         mWebView.webViewClient = object : WebViewClient() {
@@ -82,7 +85,7 @@ class WebviewFragment : ToolbarFragment(R.layout.layout_webview), Toolbar.OnMenu
                     setText(DataStore.yacdURL)
                 }
                 MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.set_panel_url)
-                    .setView(view)
+                    .setField(view)
                     .setPositiveButton(android.R.string.ok) { _, _ ->
                         DataStore.yacdURL = view.text.toString()
                         mWebView.loadUrl(dashboardUrl())

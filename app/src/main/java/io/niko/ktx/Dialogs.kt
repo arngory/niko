@@ -4,7 +4,9 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.view.View
+import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.LinearLayout
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -31,6 +33,22 @@ fun MaterialAlertDialogBuilder.setField(view: View): MaterialAlertDialogBuilder 
     setPadding(side, resources.getDimensionPixelSize(R.dimen.niko_space_2), side, 0)
     addView(view)
 })
+
+/** [views] as a dialog's body: inset as [setField], space-2 below each so that fields do not touch. */
+fun Context.dialogColumn(vararg views: View): LinearLayout = LinearLayout(this).apply {
+    orientation = LinearLayout.VERTICAL
+    val side = resources.getDimensionPixelSize(R.dimen.niko_space_6)
+    val gap = resources.getDimensionPixelSize(R.dimen.niko_space_2)
+    setPadding(side, gap, side, 0)
+    for (view in views) {
+        val params = when (val own = view.layoutParams) {
+            is LinearLayout.LayoutParams -> own
+            null -> LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            else -> LinearLayout.LayoutParams(own)
+        }
+        addView(view, params.apply { bottomMargin = gap })
+    }
+}
 
 /**
  * The first of [start], then what [next] gives for it and so on, that [match] takes: at most [depth] steps, so a

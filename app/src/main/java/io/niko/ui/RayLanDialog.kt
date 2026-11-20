@@ -20,6 +20,7 @@ import io.niko.R
 import io.niko.SagerNet
 import io.niko.database.DataStore
 import io.niko.fmt.MeshPorts
+import io.niko.ktx.dialogColumn
 import io.niko.ktx.onMainDispatcher
 import io.niko.ktx.runOnDefaultDispatcher
 import io.niko.ktx.snackbar
@@ -77,16 +78,7 @@ private fun Fragment.lanDialog(node: RayNode, hasRow: Boolean) {
     }
     val portsHelp = TextView(context).apply { setText(R.string.raycontrol_lan_ports_help) }
     val directSection = directSection(density)
-    val view = LinearLayout(context).apply {
-        orientation = LinearLayout.VERTICAL
-        val pad = (20 * density).toInt()
-        setPadding(pad, pad / 2, pad, 0)
-        addView(show)
-        addView(status)
-        addView(ports)
-        addView(portsHelp)
-        addView(directSection.view)
-    }
+    val view = context.dialogColumn(show, status, ports, portsHelp, directSection.view)
     MaterialAlertDialogBuilder(context)
         .setTitle(R.string.raycontrol_lan)
         .setView(android.widget.ScrollView(context).apply { addView(view) })

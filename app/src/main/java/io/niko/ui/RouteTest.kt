@@ -4,7 +4,6 @@ import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.CheckBox
 import android.widget.EditText
-import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -13,6 +12,7 @@ import io.niko.fmt.TAG_BLOCK
 import io.niko.fmt.TAG_BYPASS
 import io.niko.fmt.TAG_PROXY
 import io.niko.ktx.Logs
+import io.niko.ktx.dialogColumn
 import io.niko.ktx.dp2px
 import io.niko.ktx.onMainDispatcher
 import io.niko.ktx.readableMessage
@@ -34,7 +34,7 @@ fun Fragment.showRouteTest() {
         hint = getString(R.string.route_test_target_hint)
         isSingleLine = true
     }
-    val app = AutoCompleteTextView(context).apply {
+    val app = AutoCompleteTextView(context, null, 0, R.style.Widget_Niko_AutoComplete).apply {
         hint = getString(R.string.route_test_app_hint)
         isSingleLine = true
         threshold = 1
@@ -57,14 +57,7 @@ fun Fragment.showRouteTest() {
         text = getString(R.string.route_test_dns_query)
         isChecked = true
     }
-    val layout = LinearLayout(context).apply {
-        orientation = LinearLayout.VERTICAL
-        setPadding(padding, padding / 2, padding, 0)
-        addView(target)
-        addView(app)
-        addView(udp)
-        addView(dns)
-    }
+    val layout = context.dialogColumn(target, app, udp, dns)
     MaterialAlertDialogBuilder(context)
         .setTitle(R.string.route_test)
         .setView(layout)

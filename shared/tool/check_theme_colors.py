@@ -8,8 +8,8 @@ of the theme (?attr/…, ?android:attr/…), @android:color/transparent and @nul
 whose items are allowed in turn. Not allowed: a colour of the app's own (@color/material_red_500, niko_bar), a
 platform colour, a literal #rrggbb. Where: every style whose name has "Niko" in values*/ (themes and styles), with
 what it takes from the app's own styles above it and does not set itself (its parent, or the style its name's dots
-make it a child of: Theme.SagerNet.Niko of Theme.SagerNet), and every layout. The 21 colour themes of NekoBox and Black stay as they are until the owner decides (reskin plan,
-question 5): their styles are not "Niko".
+make it a child of: Theme.SagerNet.Niko of Theme.SagerNet), and every layout. NekoBox's 21 colour themes and Black
+are gone since 1.62.0 (reskin step 3).
 
 EXCEPTIONS counts what is there today and goes only down: a new colour anywhere fails, and so does an exception that
 is no longer there (take it out of the list).
@@ -24,9 +24,6 @@ COLOUR = re.compile(r"^(@color/[A-Za-z0-9_]+|@android:color/[A-Za-z0-9_]+|#[0-9a
 
 # (file under res, colour): how many there are today. Step 1 of the reskin takes them away
 EXCEPTIONS = {
-    ("layout/layout_import.xml", "@color/material_red_accent_200"): 1,
-    ("layout/layout_chain_settings.xml", "@android:color/darker_gray"): 1,
-    ("layout/layout_edit_config.xml", "@android:color/darker_gray"): 1,
 }
 
 

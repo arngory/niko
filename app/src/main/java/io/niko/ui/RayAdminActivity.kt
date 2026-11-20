@@ -35,6 +35,7 @@ import io.niko.databinding.LayoutRayAdminBinding
 import io.niko.databinding.LayoutRayAdminItemBinding
 import io.niko.ktx.FixedLinearLayoutManager
 import io.niko.ktx.Logs
+import io.niko.ktx.dialogColumn
 import io.niko.ktx.getColorAttr
 import io.niko.ktx.onMainDispatcher
 import io.niko.ktx.readableMessage
@@ -1260,12 +1261,7 @@ class RayAdminActivity : ThemedActivity() {
         }
     }
 
-    private fun padded(vararg views: android.view.View) = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        val pad = (20 * resources.displayMetrics.density).toInt()
-        setPadding(pad, pad / 2, pad, 0)
-        views.forEach { addView(it) }
-    }
+    private fun padded(vararg views: android.view.View) = dialogColumn(*views)
 
     private fun confirm(message: String, yes: () -> Unit) {
         MaterialAlertDialogBuilder(this)

@@ -17,8 +17,8 @@
     <LinearLayout
         android:id="@+id/list_cell"
         android:layout_width="match_parent"
-        android:layout_height="0.5dp"
-        android:background="@android:color/darker_gray"
+        android:layout_height="@dimen/niko_stroke_hairline"
+        android:background="@color/niko_line"
         android:orientation="horizontal" />
 
     <com.simplecityapps.recyclerview_fastscroll.views.FastScrollRecyclerView

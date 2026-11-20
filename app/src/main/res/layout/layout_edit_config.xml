@@ -10,10 +10,10 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content" />
 
-    <LinearLayout
+    <View
         android:layout_width="match_parent"
-        android:layout_height="0.5dp"
-        android:background="@android:color/darker_gray" />
+        android:layout_height="@dimen/niko_stroke_hairline"
+        android:background="@color/niko_line" />
 
     <FrameLayout
         android:layout_width="match_parent"
@@ -42,7 +42,8 @@
         android:id="@+id/keyboard_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:elevation="2dp"
+        android:background="@color/niko_surface_1"
+        android:foreground="@drawable/niko_hairline_top"
         android:orientation="horizontal">
 
         <ImageView
@@ -50,16 +51,15 @@
             android:contentDescription="@string/insert_tab"
             android:layout_width="36dp"
             android:layout_height="36dp"
-            android:background="?primaryOrTextPrimary"
+            android:background="?selectableItemBackground"
             android:padding="8dp"
             android:src="@drawable/ic_l_arrow_right_to_line"
-            app:tint="?colorOnSurface" />
+            app:tint="?android:textColorPrimary" />
 
         <io.niko.ui.ExtendedKeyboard
             android:id="@+id/extended_keyboard"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="?colorSecondaryVariant"
             android:orientation="horizontal"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
             tools:itemCount="6"
@@ -70,36 +70,30 @@
             android:contentDescription="@string/undo"
             android:layout_width="36dp"
             android:layout_height="36dp"
-            android:background="?primaryOrTextPrimary"
+            android:background="?selectableItemBackground"
             android:padding="8dp"
             android:src="@drawable/ic_l_undo_2"
-            app:tint="?colorOnSurface" />
+            app:tint="?android:textColorPrimary" />
 
         <ImageView
             android:id="@+id/action_redo"
             android:contentDescription="@string/redo"
             android:layout_width="36dp"
             android:layout_height="36dp"
-            android:background="?primaryOrTextPrimary"
+            android:background="?selectableItemBackground"
             android:padding="8dp"
             android:src="@drawable/ic_l_redo_2"
-            app:tint="?colorOnSurface" />
+            app:tint="?android:textColorPrimary" />
 
         <ImageView
             android:id="@+id/action_format"
             android:contentDescription="@string/format_config"
             android:layout_width="36dp"
             android:layout_height="36dp"
-            android:background="?primaryOrTextPrimary"
+            android:background="?selectableItemBackground"
             android:padding="8dp"
             android:src="@drawable/ic_l_align_left"
-            app:tint="?colorOnSurface" />
-
-        <ImageView
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="?primaryOrTextPrimary"
-            android:importantForAccessibility="no" />
+            app:tint="?android:textColorPrimary" />
 
     </LinearLayout>
 

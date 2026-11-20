@@ -106,6 +106,23 @@
         <item name="android:textColorHint">@color/niko_ink_2</item>
     </style>
 
+    <!-- an AutoCompleteTextView built in code (the route tester's app): the plain field, its suggestions the menu's
+         list. Not the theme's autoCompleteTextViewStyle: the config editor (editorkit) is one too, and lays out its own
+         gutter -->
+    <style name="Widget.Niko.AutoComplete" parent="Widget.AppCompat.AutoCompleteTextView">
+        <item name="android:background">@drawable/niko_field</item>
+        <item name="android:popupBackground">@drawable/niko_popup</item>
+        <item name="android:popupElevation">0dp</item>
+        <item name="android:minHeight">@dimen/niko_size_control</item>
+        <item name="android:paddingStart">@dimen/niko_space_3</item>
+        <item name="android:paddingEnd">@dimen/niko_space_3</item>
+        <item name="android:paddingTop">@dimen/niko_space_2</item>
+        <item name="android:paddingBottom">@dimen/niko_space_2</item>
+        <item name="android:textAppearance">@style/TextAppearance.Niko.Body</item>
+        <item name="android:textColor">@color/niko_ink</item>
+        <item name="android:textColorHint">@color/niko_ink_2</item>
+    </style>
+
     <!-- a menu: the dropdown's list (niko_popup), Niko's text -->
     <style name="Widget.Niko.PopupMenu" parent="Widget.MaterialComponents.PopupMenu">
         <item name="android:popupBackground">@drawable/niko_popup</item>

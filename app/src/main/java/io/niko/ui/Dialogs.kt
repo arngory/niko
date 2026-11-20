@@ -4,12 +4,11 @@ import android.content.Context
 import android.text.InputFilter
 import android.text.InputType
 import android.widget.EditText
-import android.widget.FrameLayout
 import android.widget.TextView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.niko.R
 import io.niko.ktx.Logs
-import io.niko.ktx.dp2px
+import io.niko.ktx.setField
 import io.niko.ktx.readableMessage
 import io.niko.ktx.runOnMainDispatcher
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -43,10 +42,6 @@ object Dialogs {
                 hint = "000000"
                 isSingleLine = true
             }
-            val frame = FrameLayout(context).apply {
-                setPadding(dp2px(24), dp2px(8), dp2px(24), 0)
-                addView(input)
-            }
             var answered = false
             val answer = { pin: String? ->
                 if (!answered) {
@@ -61,7 +56,7 @@ object Dialogs {
             MaterialAlertDialogBuilder(context)
                 .setTitle(context.getString(R.string.raycontrol_invite_pin_title, host))
                 .setMessage(message)
-                .setView(frame)
+                .setField(input)
                 .setPositiveButton(android.R.string.ok) { _, _ -> answer(input.text.toString()) }
                 .setNegativeButton(android.R.string.cancel) { _, _ -> answer(null) }
                 .setOnDismissListener { answer(null) }
