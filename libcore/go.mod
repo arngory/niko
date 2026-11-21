@@ -246,4 +246,4 @@ replace github.com/sagernet/cronet-go/lib/windows_amd64 => github.com/arngory/cr
 
 replace github.com/sagernet/cronet-go/lib/windows_arm64 => github.com/arngory/cronet-go/lib/windows_arm64 v0.0.0-20261118091355-747109c6b573
 
-replace github.com/Arceliar/ironwood => github.com/arngory/ironwood v0.0.0-20261121051425-88ef67cb0e82
+replace github.com/Arceliar/ironwood => github.com/arngory/ironwood v0.0.0-20261121063706-f70babd98f13
