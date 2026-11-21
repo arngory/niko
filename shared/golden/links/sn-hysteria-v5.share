@@ -1,0 +1,1 @@
+hysteria://hy.example.org:443/?mport=443%2C5000-6000&peer=hy.example.org&auth=fake-auth&upmbps=10&downmbps=50&alpn=hysteria&obfs=xplus&obfsParam=obfs#Hysteria%20v5

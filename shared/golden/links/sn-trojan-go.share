@@ -1,0 +1,1 @@
+trojan-go://fake-tg-password@203.0.113.146:443/?sni=tg.example.com&type=ws&host=tg.example.com&path=%2Ftg&encryption=ss%3Baes-128-gcm%3Afake-ss#Trojan-Go%20sn

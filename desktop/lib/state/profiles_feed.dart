@@ -35,6 +35,13 @@ class ProfilesFeed extends ChangeNotifier {
   static const undoFor = Duration(seconds: 8);
   Timer? _undoTimer;
 
+  /// The name of the profile whose link was copied last, while its notice shows; null after [noticeFor].
+  String? copied;
+
+  /// How long the notice of a copied link shows.
+  static const noticeFor = Duration(seconds: 4);
+  Timer? _copiedTimer;
+
   bool _shown = false;
   bool _disposed = false;
   StreamSubscription<StoreChange>? _subscription;
@@ -188,6 +195,25 @@ class ProfilesFeed extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
+  /// Copies the link to share a profile by (NikoService.ShareProfile) with [copy], and says so for [noticeFor].
+  Future<void> share(ProfileRow row, Future<void> Function(String link) copy) async {
+    final daemon = _link.daemon;
+    if (daemon == null) return;
+    try {
+      await copy(await daemon.shareLink(row.id));
+      _copiedTimer?.cancel();
+      copied = row.name;
+      _copiedTimer = Timer(noticeFor, () {
+        copied = null;
+        if (!_disposed) notifyListeners();
+      });
+      error = '';
+    } catch (e) {
+      error = '$e';
+    }
+    if (!_disposed) notifyListeners();
+  }
+
   /// Puts the profile deleted last back where it was, selected again if it was.
   Future<void> undo() async {
     final daemon = _link.daemon;
@@ -225,6 +251,7 @@ class ProfilesFeed extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _undoTimer?.cancel();
+    _copiedTimer?.cancel();
     hide();
     super.dispose();
   }

@@ -1,0 +1,1 @@
+vless://00000000-0000-4000-8000-000000000004@203.0.113.8:443/?type=tcp&encryption=none&flow=xtls-rprx-vision&sni=www.example.org&security=reality&pbk=exampleXrayPublicKeyAAAAAAAAAAAAAAAAAAAAAAA&sid=6ba85179&packetEncoding=xudp#Xray%20REALITY

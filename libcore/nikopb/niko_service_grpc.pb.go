@@ -36,6 +36,7 @@ const (
 	NikoService_DeleteGroup_FullMethodName    = "/niko.v1.NikoService/DeleteGroup"
 	NikoService_Select_FullMethodName         = "/niko.v1.NikoService/Select"
 	NikoService_GetSelected_FullMethodName    = "/niko.v1.NikoService/GetSelected"
+	NikoService_ShareProfile_FullMethodName   = "/niko.v1.NikoService/ShareProfile"
 	NikoService_Recognize_FullMethodName      = "/niko.v1.NikoService/Recognize"
 	NikoService_Import_FullMethodName         = "/niko.v1.NikoService/Import"
 )
@@ -78,6 +79,10 @@ type NikoServiceClient interface {
 	Select(ctx context.Context, in *ProfileId, opts ...grpc.CallOption) (*Empty, error)
 	// The selected profile; id 0: none.
 	GetSelected(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ProfileId, error)
+	// The link to share a profile by (D-PROFILE-07), as the app writes it: a link of its type's own, else sn://.
+	// NOT_FOUND; FAILED_PRECONDITION where its secrets cannot be opened on this machine; UNIMPLEMENTED for a kind with
+	// no link (a plugin's profile).
+	ShareProfile(ctx context.Context, in *ProfileId, opts ...grpc.CallOption) (*ShareLink, error)
 	// What an input is and what its import would add; nothing is written, and no store is needed.
 	Recognize(ctx context.Context, in *ImportInput, opts ...grpc.CallOption) (*ImportPreview, error)
 	// Imports an input: the task's progress, then its result, the last message (done). Share links and sn:// now; a
@@ -232,6 +237,16 @@ func (c *nikoServiceClient) GetSelected(ctx context.Context, in *Empty, opts ...
 	return out, nil
 }
 
+func (c *nikoServiceClient) ShareProfile(ctx context.Context, in *ProfileId, opts ...grpc.CallOption) (*ShareLink, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ShareLink)
+	err := c.cc.Invoke(ctx, NikoService_ShareProfile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *nikoServiceClient) Recognize(ctx context.Context, in *ImportInput, opts ...grpc.CallOption) (*ImportPreview, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ImportPreview)
@@ -299,6 +314,10 @@ type NikoServiceServer interface {
 	Select(context.Context, *ProfileId) (*Empty, error)
 	// The selected profile; id 0: none.
 	GetSelected(context.Context, *Empty) (*ProfileId, error)
+	// The link to share a profile by (D-PROFILE-07), as the app writes it: a link of its type's own, else sn://.
+	// NOT_FOUND; FAILED_PRECONDITION where its secrets cannot be opened on this machine; UNIMPLEMENTED for a kind with
+	// no link (a plugin's profile).
+	ShareProfile(context.Context, *ProfileId) (*ShareLink, error)
 	// What an input is and what its import would add; nothing is written, and no store is needed.
 	Recognize(context.Context, *ImportInput) (*ImportPreview, error)
 	// Imports an input: the task's progress, then its result, the last message (done). Share links and sn:// now; a
@@ -352,6 +371,9 @@ func (UnimplementedNikoServiceServer) Select(context.Context, *ProfileId) (*Empt
 }
 func (UnimplementedNikoServiceServer) GetSelected(context.Context, *Empty) (*ProfileId, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetSelected not implemented")
+}
+func (UnimplementedNikoServiceServer) ShareProfile(context.Context, *ProfileId) (*ShareLink, error) {
+	return nil, status.Error(codes.Unimplemented, "method ShareProfile not implemented")
 }
 func (UnimplementedNikoServiceServer) Recognize(context.Context, *ImportInput) (*ImportPreview, error) {
 	return nil, status.Error(codes.Unimplemented, "method Recognize not implemented")
@@ -607,6 +629,24 @@ func _NikoService_GetSelected_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NikoService_ShareProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProfileId)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).ShareProfile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_ShareProfile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).ShareProfile(ctx, req.(*ProfileId))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _NikoService_Recognize_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ImportInput)
 	if err := dec(in); err != nil {
@@ -690,6 +730,10 @@ var NikoService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetSelected",
 			Handler:    _NikoService_GetSelected_Handler,
+		},
+		{
+			MethodName: "ShareProfile",
+			Handler:    _NikoService_ShareProfile_Handler,
 		},
 		{
 			MethodName: "Recognize",

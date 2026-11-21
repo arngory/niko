@@ -2,6 +2,7 @@ package io.niko.golden
 
 import com.google.gson.JsonElement
 import com.google.gson.JsonParser
+import io.niko.database.ProxyEntity
 import io.niko.fmt.AbstractBean
 import io.niko.fmt.http.parseHttp
 import io.niko.fmt.hysteria.parseHysteria1
@@ -44,6 +45,10 @@ import java.io.File
  * NekoBean (sn://neko), whose JSONObject Gson writes by the JSON library's own fields. The sn:// links are the app's
  * own (toUniversalLink), but for a few in the layout of an older bean version (sn-*-v<N>) and the legacy form without
  * zlib (sn-legacy-*).
+ *
+ * Each bean also has its `<name>.share`: the link the app shares for it (ProxyEntity.toStdLink, what "share" copies or
+ * shows as a QR code), written and checked the same way. libcore/nikofmt must write the same link (share_test.go);
+ * an sn:// one is compared in its Kryo bytes, as the zlib of the JVM and of Go differ.
  */
 class LinksGoldenTest {
 
@@ -67,7 +72,8 @@ class LinksGoldenTest {
                 problems += "$name.txt: one link per file"
                 continue
             }
-            val actual = JavaUtil.gson.toJson(parse(link))
+            val bean = parse(link)
+            val actual = JavaUtil.gson.toJson(bean)
             val json = File(dir, "$name.json")
             when {
                 update -> json.writeText(actual + "\n")
@@ -82,10 +88,27 @@ class LinksGoldenTest {
                     if (expected != got) problems += "$name: ${differences(expected, got)}\n  the bean now: $actual"
                 }
             }
+            val share = File(dir, "$name.share")
+            if (bean == null) {
+                if (share.exists()) problems += "$name.share: a link the app drops has nothing to share"
+                continue
+            }
+            val shared = ProxyEntity().putBean(bean).toStdLink()
+            when {
+                update -> share.writeText(shared + "\n")
+                !share.exists() -> {
+                    share.writeText(shared + "\n")
+                    recorded += "$name.share"
+                }
+
+                share.readText().trim() != shared -> problems += "$name.share: expected ${share.readText().trim()}, got $shared"
+            }
         }
-        val orphans = dir.listFiles { f -> f.name.endsWith(".json") }.orEmpty()
-            .filter { !File(dir, it.name.removeSuffix(".json") + ".txt").exists() }
-        orphans.forEach { problems += "${it.name}: no ${it.name.removeSuffix(".json")}.txt" }
+        for (ext in listOf(".json", ".share")) {
+            val orphans = dir.listFiles { f -> f.name.endsWith(ext) }.orEmpty()
+                .filter { !File(dir, it.name.removeSuffix(ext) + ".txt").exists() }
+            orphans.forEach { problems += "${it.name}: no ${it.name.removeSuffix(ext)}.txt" }
+        }
         if (recorded.isNotEmpty()) {
             problems += "written, check and commit: ${recorded.joinToString()} (in $dir)"
         }

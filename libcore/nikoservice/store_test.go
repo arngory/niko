@@ -431,3 +431,21 @@ func TestSelect(t *testing.T) {
 		t.Fatalf("after the deletion: %v %v", got, err)
 	}
 }
+
+func TestShareProfile(t *testing.T) {
+	client := serve(t, storeServer(t.TempDir()))
+	ctx := context.Background()
+	runImport(t, client, naiveLink+"\n"+socksLink, 0)
+	for id, want := range map[int64]string{
+		1: "naive+https://niko:examplepass0000000000000@203.0.113.7/?sni=naive.example.com#naive",
+		2: "socks5://user:fake-pass@198.51.100.40:1080/#SOCKS5",
+	} {
+		got, err := client.ShareProfile(ctx, &nikopb.ProfileId{Id: id})
+		if err != nil || got.Link != want {
+			t.Fatalf("profile %d: %v %v, want %s", id, got, err, want)
+		}
+	}
+	if _, err := client.ShareProfile(ctx, &nikopb.ProfileId{Id: 7}); code(err) != codes.NotFound {
+		t.Fatalf("no such profile: %v", err)
+	}
+}

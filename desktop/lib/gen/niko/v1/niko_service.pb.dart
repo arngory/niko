@@ -185,7 +185,8 @@ class Info extends $pb.GeneratedMessage {
   @$pb.TagNumber(3)
   void clearStoreSchema() => $_clearField(3);
 
-  /// the version of this API: what the window may ask. 2: the store, Watch and the import; 3: Select and GetSelected
+  /// the version of this API: what the window may ask. 2: the store, Watch and the import; 3: Select and GetSelected;
+  /// 4: ShareProfile
   @$pb.TagNumber(4)
   $core.int get api => $_getIZ(3);
   @$pb.TagNumber(4)
@@ -1344,6 +1345,61 @@ class ProfileId extends $pb.GeneratedMessage {
   $core.bool hasId() => $_has(0);
   @$pb.TagNumber(1)
   void clearId() => $_clearField(1);
+}
+
+class ShareLink extends $pb.GeneratedMessage {
+  factory ShareLink({
+    $core.String? link,
+  }) {
+    final result = ShareLink._();
+    if (link != null) result.link = link;
+    return result;
+  }
+
+  ShareLink._();
+
+  factory ShareLink.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ShareLink()..mergeFromBuffer(data, registry);
+  factory ShareLink.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ShareLink()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ShareLink',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: ShareLink.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'link')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ShareLink clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ShareLink copyWith(void Function(ShareLink) updates) =>
+      super.copyWith((message) => updates(message as ShareLink)) as ShareLink;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ShareLink() / ShareLink.new instead')
+  static ShareLink create() => ShareLink._();
+  static $pb.GeneratedMessage $_createMessage() => ShareLink._();
+  @$core.override
+  ShareLink createEmptyInstance() => ShareLink._();
+  @$core.pragma('dart2js:noInline')
+  static ShareLink getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ShareLink>(ShareLink.$_createMessage);
+  static ShareLink? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get link => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set link($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasLink() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearLink() => $_clearField(1);
 }
 
 class ProfileIds extends $pb.GeneratedMessage {

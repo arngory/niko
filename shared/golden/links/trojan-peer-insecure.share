@@ -1,0 +1,1 @@
+trojan://fake-password@198.51.100.81:8443/?type=tcp&security=tls&sni=sni.example.net&allowInsecure=1#peer

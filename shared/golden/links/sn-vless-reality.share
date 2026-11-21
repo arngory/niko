@@ -1,0 +1,1 @@
+vless://00000000-0000-4000-8000-000000000143@203.0.113.143:443/?type=tcp&encryption=mlkem768x25519plus.native.0rtt.fakeKey&flow=xtls-rprx-vision&sni=www.example.org&security=reality&pbk=exampleRealityPublicKeyAAAAAAAAAAAAAAAAAAAAA&sid=0123abcd&pqv=fakeMldsa65Key&packetEncoding=xudp#VLESS%20REALITY%20sn

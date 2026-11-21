@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import '../daemon/daemon.dart';
@@ -56,6 +57,7 @@ class NodesScreen extends StatelessWidget {
                     divider: i > 0,
                     onPressed: () => feed.select(p.id),
                     onDelete: () => feed.delete(p),
+                    onShare: () => feed.share(p, copyText),
                   );
                 },
               ),
@@ -97,6 +99,9 @@ class NodesScreen extends StatelessWidget {
                 if (feed.deleted case final gone?) ...[
                   const SizedBox(height: NikoSpace.s4),
                   _Snackbar(text: strings.profileDeleted(gone.saved.row.name), action: strings.undo, onAction: feed.undo),
+                ] else if (feed.copied case final name?) ...[
+                  const SizedBox(height: NikoSpace.s4),
+                  _Snackbar(text: strings.linkCopied(name)),
                 ],
               ],
             ),
@@ -226,6 +231,7 @@ class _ProfileRow extends StatelessWidget {
     required this.divider,
     required this.onPressed,
     required this.onDelete,
+    required this.onShare,
   });
 
   final ProfileRow profile;
@@ -233,6 +239,7 @@ class _ProfileRow extends StatelessWidget {
   final bool divider;
   final VoidCallback onPressed;
   final VoidCallback onDelete;
+  final VoidCallback onShare;
 
   @override
   Widget build(BuildContext context) {
@@ -291,6 +298,13 @@ class _ProfileRow extends StatelessWidget {
       child: Row(
         children: [
           Expanded(child: body),
+          NikoIconButton(
+            icon: NikoIcons.copy,
+            label: strings.profileShare(profile.name),
+            muted: true,
+            small: true,
+            onPressed: onShare,
+          ),
           Padding(
             padding: const EdgeInsets.only(right: NikoSpace.s2),
             child: NikoIconButton(
@@ -307,13 +321,13 @@ class _ProfileRow extends StatelessWidget {
   }
 }
 
-/// m-snackbar: what was done, on surface-3, and the way back.
+/// m-snackbar: what was done, on surface-3, and the way back where there is one.
 class _Snackbar extends StatelessWidget {
-  const _Snackbar({required this.text, required this.action, required this.onAction});
+  const _Snackbar({required this.text, this.action, this.onAction});
 
   final String text;
-  final String action;
-  final VoidCallback onAction;
+  final String? action;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -332,7 +346,10 @@ class _Snackbar extends StatelessWidget {
               child: Row(
                 children: [
                   Expanded(child: Text(text, maxLines: 2, style: NikoType.bodySm.style(colors.ink))),
-                  NikoGhostButton(label: action, onPressed: onAction),
+                  if (action case final label?)
+                    NikoGhostButton(label: label, onPressed: onAction)
+                  else
+                    const SizedBox(height: NikoSize.control),
                 ],
               ),
             ),
@@ -356,3 +373,6 @@ class _Hairline extends CustomPainter {
   @override
   bool shouldRepaint(_Hairline oldDelegate) => color != oldDelegate.color;
 }
+
+/// Puts text on the system clipboard.
+Future<void> copyText(String text) => Clipboard.setData(ClipboardData(text: text));

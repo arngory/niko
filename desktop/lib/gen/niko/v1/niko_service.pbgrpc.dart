@@ -145,6 +145,16 @@ class NikoServiceClient extends $grpc.Client {
     return $createUnaryCall(_$getSelected, request, options: options);
   }
 
+  /// The link to share a profile by (D-PROFILE-07), as the app writes it: a link of its type's own, else sn://.
+  /// NOT_FOUND; FAILED_PRECONDITION where its secrets cannot be opened on this machine; UNIMPLEMENTED for a kind with
+  /// no link (a plugin's profile).
+  $grpc.ResponseFuture<$0.ShareLink> shareProfile(
+    $0.ProfileId request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$shareProfile, request, options: options);
+  }
+
   /// What an input is and what its import would add; nothing is written, and no store is needed.
   $grpc.ResponseFuture<$0.ImportPreview> recognize(
     $0.ImportInput request, {
@@ -219,6 +229,10 @@ class NikoServiceClient extends $grpc.Client {
       '/niko.v1.NikoService/GetSelected',
       ($0.Empty value) => value.writeToBuffer(),
       $0.ProfileId.fromBuffer);
+  static final _$shareProfile = $grpc.ClientMethod<$0.ProfileId, $0.ShareLink>(
+      '/niko.v1.NikoService/ShareProfile',
+      ($0.ProfileId value) => value.writeToBuffer(),
+      $0.ShareLink.fromBuffer);
   static final _$recognize =
       $grpc.ClientMethod<$0.ImportInput, $0.ImportPreview>(
           '/niko.v1.NikoService/Recognize',
@@ -327,6 +341,13 @@ abstract class NikoServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) => $0.Empty.fromBuffer(value),
         ($0.ProfileId value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.ProfileId, $0.ShareLink>(
+        'ShareProfile',
+        shareProfile_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.ProfileId.fromBuffer(value),
+        ($0.ShareLink value) => value.writeToBuffer()));
     $addMethod($grpc.ServiceMethod<$0.ImportInput, $0.ImportPreview>(
         'Recognize',
         recognize_Pre,
@@ -444,6 +465,14 @@ abstract class NikoServiceBase extends $grpc.Service {
 
   $async.Future<$0.ProfileId> getSelected(
       $grpc.ServiceCall call, $0.Empty request);
+
+  $async.Future<$0.ShareLink> shareProfile_Pre(
+      $grpc.ServiceCall $call, $async.Future<$0.ProfileId> $request) async {
+    return shareProfile($call, await $request);
+  }
+
+  $async.Future<$0.ShareLink> shareProfile(
+      $grpc.ServiceCall call, $0.ProfileId request);
 
   $async.Future<$0.ImportPreview> recognize_Pre(
       $grpc.ServiceCall $call, $async.Future<$0.ImportInput> $request) async {

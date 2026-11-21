@@ -244,6 +244,8 @@ void main() {
       expect(preview.profiles.single.name, 'recognized');
       final saved = await controller.daemon!.profile(row.id);
       expect(saved.beanJson, contains('198.51.100.40'));
+      // its link to share, as the app writes it
+      expect(await controller.daemon!.shareLink(row.id), 'socks5://user:fake-pass@198.51.100.40:1080/#store-test');
       await controller.daemon!.deleteProfiles([row.id]);
       await until(() => storeChanges.any((c) => c.kind == StoreKind.selected && c.ids.isEmpty), 'the selection gone');
       final back = await controller.daemon!.addProfile(groupId: row.groupId, type: row.type, beanJson: saved.beanJson);

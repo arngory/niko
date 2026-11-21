@@ -1,0 +1,1 @@
+naive+quic://user:fake-pass@naive.example.com/?sni=naive.example.com&extra-headers=X-Pad%3A%201%0AX-Other%3A%202&insecure-concurrency=2&uot=2&udp=1#Naive%20sn
