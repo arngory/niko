@@ -67,9 +67,14 @@ const val OUTSIDE_VPN_PACKAGE = "niko:outside-vpn"
  * the system lets it, and its packets come into the tunnel with no owner Android names. Through the proxy it would
  * learn the node's address. This rule refuses such connections before anything is dialled. It goes below the DNS
  * hijack: a query to the tunnel's DNS is answered as any.
+ *
+ * TCP alone: Android names no owner either for a socket it no longer finds, and a UDP socket can be closed before the
+ * lookup (a datagram sent and the socket dropped). Such UDP of an app inside the VPN goes through the proxy, as before
+ * the guard; a TCP connection's socket is there when its SYN arrives, so no owner on TCP means outside the VPN.
  */
 fun outsideVpnGuard() = Rule_DefaultOptions().apply {
     inbound = listOf("tun-in")
+    network = listOf("tcp")
     package_name = listOf(OUTSIDE_VPN_PACKAGE)
     action = "reject"
 }
