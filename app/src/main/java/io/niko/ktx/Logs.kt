@@ -13,50 +13,59 @@ object Logs {
 
     // level int use logrus.go
 
+    /** libcore's log; a JVM unit test has not its native library and prints the line (the parsers log as they go). */
+    private fun printLine(line: String) {
+        try {
+            Libcore.nekoLogPrintln(line)
+        } catch (e: LinkageError) {
+            println(line)
+        }
+    }
+
     fun d(message: String) {
-        Libcore.nekoLogPrintln("[Debug] [${mkTag()}] $message")
+        printLine("[Debug] [${mkTag()}] $message")
     }
 
     fun d(message: String, exception: Throwable) {
-        Libcore.nekoLogPrintln("[Debug] [${mkTag()}] $message" + "\n" + exception.stackTraceToString())
+        printLine("[Debug] [${mkTag()}] $message" + "\n" + exception.stackTraceToString())
     }
 
     fun i(message: String) {
-        Libcore.nekoLogPrintln("[Info] [${mkTag()}] $message")
+        printLine("[Info] [${mkTag()}] $message")
     }
 
     fun i(message: String, exception: Throwable) {
-        Libcore.nekoLogPrintln("[Info] [${mkTag()}] $message" + "\n" + exception.stackTraceToString())
+        printLine("[Info] [${mkTag()}] $message" + "\n" + exception.stackTraceToString())
     }
 
     fun w(message: String) {
         io.niko.utils.Stats.warnings.incrementAndGet()
-        Libcore.nekoLogPrintln("[Warning] [${mkTag()}] $message")
+        printLine("[Warning] [${mkTag()}] $message")
     }
 
     fun w(message: String, exception: Throwable) {
         io.niko.utils.Stats.warnings.incrementAndGet()
-        Libcore.nekoLogPrintln("[Warning] [${mkTag()}] $message" + "\n" + exception.stackTraceToString())
+        printLine("[Warning] [${mkTag()}] $message" + "\n" + exception.stackTraceToString())
     }
 
     fun w(exception: Throwable) {
         io.niko.utils.Stats.warnings.incrementAndGet()
-        Libcore.nekoLogPrintln("[Warning] [${mkTag()}] " + exception.stackTraceToString())
+        printLine("[Warning] [${mkTag()}] " + exception.stackTraceToString())
     }
 
     fun e(message: String) {
         io.niko.utils.Stats.errors.incrementAndGet()
-        Libcore.nekoLogPrintln("[Error] [${mkTag()}] $message")
+        printLine("[Error] [${mkTag()}] $message")
     }
 
     fun e(message: String, exception: Throwable) {
         io.niko.utils.Stats.errors.incrementAndGet()
-        Libcore.nekoLogPrintln("[Error] [${mkTag()}] $message" + "\n" + exception.stackTraceToString())
+        printLine("[Error] [${mkTag()}] $message" + "\n" + exception.stackTraceToString())
     }
 
     fun e(exception: Throwable) {
         io.niko.utils.Stats.errors.incrementAndGet()
-        Libcore.nekoLogPrintln("[Error] [${mkTag()}] " + exception.stackTraceToString())
+        printLine("[Error] [${mkTag()}] " + exception.stackTraceToString())
     }
 
 }
