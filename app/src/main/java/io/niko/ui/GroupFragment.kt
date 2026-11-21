@@ -27,7 +27,7 @@ import io.niko.ktx.*
 import io.niko.raycontrol.RayNode
 import io.niko.raycontrol.RayNodeCard
 import io.niko.raycontrol.RayNodes
-import io.niko.raycontrol.RaySubscription
+import io.niko.ui.node.NodeFragment
 import io.niko.widget.ListListener
 import io.niko.widget.QRCodeDialog
 import io.niko.widget.UndoSnackbarManager
@@ -319,22 +319,6 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
         undoManager.flush()
     }
 
-    /** A raycontrol node's group: its subscription anew from the node, the card's progress meanwhile. */
-    private fun updateRayNode(node: RayNode, groupId: Long) {
-        if (!GroupUpdater.updating.add(groupId)) return
-        val context = requireContext().applicationContext
-        runOnDefaultDispatcher {
-            GroupManager.postReload(groupId)
-            val message = try {
-                RaySubscription.refreshForUser(context, node)
-            } finally {
-                GroupUpdater.updating.remove(groupId)
-                GroupManager.postReload(groupId)
-            }
-            onMainDispatcher { if (isAdded) snackbar(message).show() }
-        }
-    }
-
     inner class GroupHolder(binding: LayoutGroupItemBinding) :
         RecyclerView.ViewHolder(binding.root),
         PopupMenu.OnMenuItemClickListener {
@@ -414,7 +398,10 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
             proxyGroup = group
             rayNode = null
 
-            itemView.setOnClickListener { }
+            // a raycontrol node's group opens the node's card (P-Node); the others have no card
+            itemView.setOnClickListener {
+                rayNode?.let { node -> (activity as? MainActivity)?.displayFragment(NodeFragment.of(node.spa.nodeId, R.id.nav_group)) }
+            }
 
             editButton.isGone = proxyGroup.ungrouped
             updateButton.isInvisible = proxyGroup.type != GroupType.SUBSCRIPTION

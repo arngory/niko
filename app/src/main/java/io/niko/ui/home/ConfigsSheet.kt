@@ -195,13 +195,22 @@ private fun SearchField(query: String, onQuery: (String) -> Unit) {
     }
 }
 
-/** m-iconbtn (and m-iconbtn--muted): an icon alone, size-tap round, surface-2 pressed; dimmed when not enabled. */
+/**
+ * m-iconbtn (and m-iconbtn--muted): an icon alone, size-tap round, surface-2 pressed; dimmed when not enabled.
+ * [background] the surface it sits on (the sheet's surface-1 by default, a screen's surface-0).
+ */
 @Composable
-internal fun PlainIconButton(@DrawableRes icon: Int, label: String, enabled: Boolean = true, onClick: () -> Unit) {
+internal fun PlainIconButton(
+    @DrawableRes icon: Int,
+    label: String,
+    enabled: Boolean = true,
+    background: androidx.compose.ui.graphics.Color = Niko.colors.surface1,
+    onClick: () -> Unit,
+) {
     val c = Niko.colors
     val source = remember { MutableInteractionSource() }
     Box(
-        Modifier.size(NikoSize.tap).clip(CircleShape).background(if (pressed(source)) c.surface2 else c.surface1)
+        Modifier.size(NikoSize.tap).clip(CircleShape).background(if (pressed(source)) c.surface2 else background)
             .clickable(source, indication = null, enabled = enabled, role = Role.Button, onClick = onClick)
             .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,

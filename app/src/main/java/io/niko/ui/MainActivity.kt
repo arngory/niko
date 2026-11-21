@@ -27,6 +27,7 @@ import io.niko.BuildConfig
 import io.niko.GroupType
 import io.niko.Key
 import io.niko.R
+import io.niko.raycontrol.RayNodes
 import io.niko.raycontrol.Rcdev1
 import io.niko.raycontrol.RayImport
 import io.niko.SagerNet
@@ -139,8 +140,15 @@ class MainActivity : ThemedActivity(),
             displayFragmentWithId(R.id.nav_settings)
         }
 
+        // one node: its card at once; more or none: the groups, where each node's group opens its card
         override fun nodes() {
-            displayFragmentWithId(R.id.nav_group)
+            runOnDefaultDispatcher {
+                val nodes = RayNodes.list()
+                onMainDispatcher {
+                    if (nodes.size == 1) displayFragment(io.niko.ui.node.NodeFragment.of(nodes[0].spa.nodeId, R.id.nav_home))
+                    else displayFragmentWithId(R.id.nav_group)
+                }
+            }
         }
 
         override fun log() {
@@ -290,10 +298,11 @@ class MainActivity : ThemedActivity(),
         }
         // the main screen first (D-NAV): back from any other comes to it, back on it leaves the app
         onBackPressedDispatcher.addCallback {
-            if (supportFragmentManager.findFragmentById(R.id.fragment_holder) is HomeFragment) {
-                moveTaskToBack(true)
-            } else {
-                displayFragmentWithId(R.id.nav_home)
+            when (val shown = supportFragmentManager.findFragmentById(R.id.fragment_holder)) {
+                is HomeFragment -> moveTaskToBack(true)
+                // a node's card goes back where it was opened from
+                is io.niko.ui.node.NodeFragment -> shown.back()
+                else -> displayFragmentWithId(R.id.nav_home)
             }
         }
 
@@ -628,8 +637,8 @@ class MainActivity : ThemedActivity(),
     fun displayFragment(fragment: Fragment) {
         if (fragment is ConfigurationFragment) {
             showStats()
-        } else if (fragment is HomeFragment || !DataStore.showBottomBar) {
-            // the main screen has its own button and state
+        } else if (fragment is HomeFragment || fragment is io.niko.ui.node.NodeFragment || !DataStore.showBottomBar) {
+            // the main screen has its own button and state; a node's card is a screen of the main one (P-Node)
             binding.stats.allowShow = false
             binding.stats.performHide()
             binding.fab.hide()

@@ -1217,4 +1217,24 @@
     <string name="home_test_group">Test the group %s</string>
     <string name="home_stop_test">Stop the test of %s</string>
     <string name="menu_home">Home</string>
+    <string name="node_back">Back</string>
+    <string name="node_update">Update the node</string>
+    <string name="node_more">More</string>
+    <string name="node_expires">Subscription ends</string>
+    <string name="node_updated">Updated</string>
+    <string name="node_updated_never">never</string>
+    <string name="node_path">Path</string>
+    <string name="node_traffic">Traffic</string>
+    <string name="node_quota_reset">resets %s</string>
+    <string name="node_ways">Ways</string>
+    <string name="node_test_ways">Test the ways</string>
+    <string name="node_stop_test">Stop the test</string>
+    <string name="node_no_ways">The node has given no ways yet</string>
+    <string name="node_channel">Channel check</string>
+    <string name="node_lan">Local network</string>
+    <string name="node_why">Why it does not work</string>
+    <string name="node_admin">Admin panel</string>
+    <string name="node_dnstt">dnstt resolver</string>
+    <string name="node_clock">Clock</string>
+    <string name="node_clock_off">%s s from the node</string>
 </resources>

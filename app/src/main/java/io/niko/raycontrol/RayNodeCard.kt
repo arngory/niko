@@ -28,7 +28,7 @@ object RayNodeCard {
     }
 
     // a skew the card mentions: SPA v2 fails at 30 s
-    private const val CLOCK_OFF = 30L
+    const val CLOCK_OFF = 30L
 
     /**
      * What the card says about [node], in its order; [relay] and [dnsttKind] are this network's (null: unknown),
