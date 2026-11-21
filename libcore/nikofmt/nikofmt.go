@@ -2,8 +2,9 @@
 // profile beans, field for field, for the desktop daemon's profiles (docs/design/desktop-stage3.md). The fixtures the
 // app's own parsers write (shared/golden/links, the app's io.niko.golden tests) are what golden_test.go holds this
 // package to. Every link the app's import takes (ktx/Formats.kt parseProxies): naive, Hysteria 1 and 2, VLESS and
-// VMess in all their forms, Trojan, Trojan-Go, Shadowsocks, SOCKS, HTTP, TUIC, AnyTLS and mieru, sn:// to come; the
-// Niko parameters of a raycontrol node's links with them (DNS tunnels, Yggdrasil, certificate pins).
+// VMess in all their forms, Trojan, Trojan-Go, Shadowsocks, SOCKS, HTTP, TUIC, AnyTLS, mieru, and sn://, NekoBox's
+// Kryo of a whole profile (SSH, WireGuard and a custom config among them); the Niko parameters of a raycontrol node's
+// links with them (DNS tunnels, Yggdrasil, certificate pins).
 //
 // The parsing is ported as the app does it, its quirks included (each says so where it is); the URL parsing under it
 // is OkHttp's and java.net.URI's, base64 is Android's, JSON is Gson's, not Go's own. The package is for the daemon,
@@ -15,7 +16,8 @@ import (
 	"strings"
 )
 
-// ErrUnsupported is a link of a kind this package does not read: one the app does not import, or sn:// (not yet).
+// ErrUnsupported is a link of a kind this package does not read: one the app does not import, or sn://neko (a
+// plugin's profile, which comes with the plugins).
 var ErrUnsupported = errors.New("not a link this package reads")
 
 // ErrSubscriptionLink is a link the app takes for a subscription's, not a profile (parseProxies'
@@ -38,6 +40,8 @@ func ParseLink(link string, settings Settings) (Bean, error) {
 	switch {
 	case strings.HasPrefix(link, "clash://install-config?") || strings.HasPrefix(link, "sn://subscription?"):
 		return nil, ErrSubscriptionLink
+	case strings.HasPrefix(link, "sn://"):
+		set(ParseUniversal(link))
 	case strings.HasPrefix(link, "socks://") || strings.HasPrefix(link, "socks4://") ||
 		strings.HasPrefix(link, "socks4a://") || strings.HasPrefix(link, "socks5://"):
 		v, e := ParseSOCKS(link)

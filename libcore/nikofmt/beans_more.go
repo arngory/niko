@@ -159,3 +159,74 @@ func (b *AnyTLSBean) InitializeDefaultValues() {
 	setDefault(&b.AllowInsecure, false)
 	setDefault(&b.EchConfig, "")
 }
+
+// SSHBean is fmt/ssh/SSHBean.java (no share link of its own: sn:// only).
+type SSHBean struct {
+	Username             *string `json:"username,omitempty"`
+	AuthType             *int    `json:"authType,omitempty"` // none 0, password 1, private key 2
+	Password             *string `json:"password,omitempty"`
+	PrivateKey           *string `json:"privateKey,omitempty"`
+	PrivateKeyPassphrase *string `json:"privateKeyPassphrase,omitempty"`
+	PublicKey            *string `json:"publicKey,omitempty"`
+	AbstractBean
+}
+
+// SSHBean's authentications.
+const (
+	SSHAuthNone       = 0
+	SSHAuthPassword   = 1
+	SSHAuthPrivateKey = 2
+)
+
+// InitializeDefaultValues is SSHBean.initializeDefaultValues: port 22 before the superclass's 1080.
+func (b *SSHBean) InitializeDefaultValues() {
+	setDefault(&b.ServerPort, 22)
+	b.AbstractBean.InitializeDefaultValues()
+	setDefault(&b.Username, "root")
+	setDefault(&b.AuthType, SSHAuthPassword)
+	setDefault(&b.Password, "")
+	setDefault(&b.PrivateKey, "")
+	setDefault(&b.PrivateKeyPassphrase, "")
+	setDefault(&b.PublicKey, "")
+}
+
+// WireGuardBean is fmt/wireguard/WireGuardBean.java, AmneziaWG's parameters with it (sn:// only here; a .conf is a
+// subscription's).
+type WireGuardBean struct {
+	LocalAddress        *string `json:"localAddress,omitempty"`
+	PrivateKey          *string `json:"privateKey,omitempty"`
+	PeerPublicKey       *string `json:"peerPublicKey,omitempty"`
+	PeerPreSharedKey    *string `json:"peerPreSharedKey,omitempty"`
+	Mtu                 *int    `json:"mtu,omitempty"`
+	Reserved            *string `json:"reserved,omitempty"`
+	PersistentKeepalive *int    `json:"persistentKeepalive,omitempty"`
+	AmneziaWG           *string `json:"amneziaWG,omitempty"`
+	AbstractBean
+}
+
+// InitializeDefaultValues is WireGuardBean.initializeDefaultValues.
+func (b *WireGuardBean) InitializeDefaultValues() {
+	b.AbstractBean.InitializeDefaultValues()
+	setDefault(&b.LocalAddress, "")
+	setDefault(&b.PrivateKey, "")
+	setDefault(&b.PeerPublicKey, "")
+	setDefault(&b.PeerPreSharedKey, "")
+	setDefault(&b.Mtu, 1420)
+	setDefault(&b.Reserved, "")
+	setDefault(&b.PersistentKeepalive, 0)
+	setDefault(&b.AmneziaWG, "")
+}
+
+// ConfigBean is proxy/config/ConfigBean.java: a sing-box config (type 0) or outbound (type 1) of the user's own.
+type ConfigBean struct {
+	Type   *int    `json:"type,omitempty"`
+	Config *string `json:"config,omitempty"`
+	AbstractBean
+}
+
+// InitializeDefaultValues is ConfigBean.initializeDefaultValues.
+func (b *ConfigBean) InitializeDefaultValues() {
+	b.AbstractBean.InitializeDefaultValues()
+	setDefault(&b.Type, 0)
+	setDefault(&b.Config, "")
+}
