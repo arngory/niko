@@ -262,6 +262,26 @@ func (s *server) GetSelected(ctx context.Context, _ *nikopb.Empty) (*nikopb.Prof
 	return &nikopb.ProfileId{Id: u.store.Selected()}, nil
 }
 
+func (s *server) ShareProfile(ctx context.Context, request *nikopb.ProfileId) (*nikopb.ShareLink, error) {
+	u, err := s.users.user(ctx)
+	if err != nil {
+		return nil, err
+	}
+	p, err := u.store.Profile(request.Id)
+	if err != nil {
+		return nil, storeError(err)
+	}
+	bean, err := nikofmt.DecodeBean(p.Type, p.Bean)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "the profile's bean: "+err.Error())
+	}
+	link, err := nikofmt.ShareLink(bean)
+	if err != nil {
+		return nil, status.Error(codes.Unimplemented, "no link for this profile: "+err.Error())
+	}
+	return &nikopb.ShareLink{Link: link}, nil
+}
+
 func (s *server) MoveProfiles(ctx context.Context, request *nikopb.MoveRequest) (*nikopb.Empty, error) {
 	u, err := s.users.user(ctx)
 	if err != nil {

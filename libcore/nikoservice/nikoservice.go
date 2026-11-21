@@ -24,8 +24,8 @@ import (
 var Version = "dev"
 
 // API is the version of NikoService: what the window may ask of this daemon. 2: the store, Watch and the import; 3:
-// Select and GetSelected.
-const API = 3
+// Select and GetSelected; 4: ShareProfile.
+const API = 4
 
 // Service is NikoService as the daemon serves it: GetInfo for any caller the daemon verified, RouteTest for its
 // owner only (it reads the owner's core, as the daemon's own calls on the running core do). RouteTest is checked as
