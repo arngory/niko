@@ -114,8 +114,8 @@ PQInfo, и стороны сходятся на классике. «По воз�
   обновлением), плюс липкая память внутри пакета.
 - arngory/yggdrasil-go: передаёт политику из конфига (`PQRequiredKeys`), выключатель постквантовых сессий целиком
   (на случай отката).
-- Ядро (`protocol/yggdrasil`): ключи узлов из профиля (`pq=1`) — в `PQRequiredKeys`.
-- niko-server: ключи устройств с `yggdrasil.pq: true` из `users_file`.
+- Ядро (`protocol/yggdrasil`): ключи узлов из профиля с `pq=2` — в `PQRequiredKeys`.
+- niko-server: ключи устройств с `yggdrasil.pq: 2` из `users_file`.
 
 ## 6. Проверки
 
