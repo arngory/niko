@@ -1,7 +1,6 @@
 package nikoconf
 
 import (
-	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -9,9 +8,6 @@ import (
 	"regexp"
 	"slices"
 	"testing"
-
-	"github.com/sagernet/sing-box/include"
-	O "github.com/sagernet/sing-box/option"
 )
 
 // The snapshots of a computer's configs (docs/design/desktop-stage3.md §5): Go's alone, approved in review. Of the
@@ -74,7 +70,9 @@ func TestDesktopSnapshots(t *testing.T) {
 				}
 			}
 			checkSnapshot(t, filepath.Join(dir, platform+"-warnings.json"), warnings, update)
-			coreReads(t, result.Config)
+			if coreReads != nil {
+				coreReads(t, result.Config)
+			}
 		})
 	}
 	if listed != len(desktopCases) {
@@ -131,25 +129,9 @@ func checkSnapshot(t *testing.T, path string, got []byte, update bool) {
 	}
 }
 
-// coreReads: the core takes the config, its options parsed as the daemon parses a config it starts (boxdd's context,
-// include.Context: every protocol of the build's tags registered, a stub for each one left out). The parser refuses
-// a field it does not know, so a misspelt one fails here.
-func coreReads(t *testing.T, config []byte) {
-	t.Helper()
-	var options O.Options
-	if err := options.UnmarshalJSONContext(include.Context(context.Background()), config); err != nil {
-		t.Errorf("the core does not read it: %v", err)
-	}
-}
-
-// The core's parser refuses what it does not know, or coreReads checks nothing.
-func TestCoreReadsRefuses(t *testing.T) {
-	var options O.Options
-	bad := `{"inbounds":[{"type":"mixed","tag":"mixed-in","set_system_proxi":true}]}`
-	if options.UnmarshalJSONContext(include.Context(context.Background()), []byte(bad)) == nil {
-		t.Fatal("an unknown field read")
-	}
-}
+// coreReads: the core's own check of a snapshot, where the build has the core (desktop_core_test.go); nil without
+// it (ci.yml's golden job has no checkout of the core fork)
+var coreReads func(t *testing.T, config []byte)
 
 // The desktop's own parts, field by field: what the snapshots show, said here once.
 func TestDesktopParts(t *testing.T) {
