@@ -110,4 +110,11 @@ class NikoStrings {
   String get service => _ru ? 'Служба' : 'Service';
   String get config => _ru ? 'Конфиг' : 'Config';
   String get session => _ru ? 'За сессию' : 'Session';
+
+  String get inboundTitle => _ru ? 'Вход' : 'Inbound';
+  String get inboundUser => _ru ? 'Пользователь' : 'User';
+  String get inboundPort => _ru ? 'Порт' : 'Port';
+  String get inboundPassword => _ru ? 'Пароль' : 'Password';
+  String get inboundNewPassword => _ru ? 'Новый пароль' : 'New password';
+  String get inboundLan => _ru ? 'Доступ из локальной сети' : 'Access from the LAN';
 }

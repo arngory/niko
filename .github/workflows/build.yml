@@ -158,6 +158,8 @@ jobs:
         run: |
           python3 -I shared/tool/gen_tokens.py --check
           python3 -I shared/tool/gen_icons.py --check
+          # the list screens of shared/screens (ui/settings/ListScreens.kt, the window's screens.g.dart)
+          python3 -I shared/tool/gen_screens.py --check
           # a path Android cannot read builds and passes lint, then the screen that shows it does not open
           python3 -I shared/tool/check_vectors.py app/src/main/res
           # the Niko theme and the layouts take their colours from the tokens only (the reskin plan, step 1)

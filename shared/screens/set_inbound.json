@@ -1,0 +1,24 @@
+{
+  "screen": "set_inbound",
+  "canvas": "P-SetInbound",
+  "title": "inbound_title",
+  "back": "screen_back",
+  "rows": [
+    {"kind": "fields", "fields": [
+      {"key": "mixedUsername", "label": "inbound_user", "mono": true},
+      {"key": "mixedPort", "label": "inbound_port", "input": "port", "mono": true, "narrow": true}
+    ]},
+    {"kind": "field", "key": "mixedPassword", "label": "inbound_password", "input": "secret", "mono": true,
+      "action": {"id": "newPassword", "icon": "rotate-cw", "label": "inbound_new_password"}},
+    {"kind": "group", "rows": [
+      {"kind": "switch", "key": "allowAccess", "title": "inbound_lan"},
+      {"kind": "switch", "key": "localProxyNoAuthInVpn", "title": "inbound_no_auth_in_vpn", "only": "android"},
+      {"kind": "switch", "key": "appendHttpProxy", "title": "inbound_http_in_vpn", "only": "android",
+        "enabledBy": "localProxyNoAuthInVpn"}
+    ]},
+    {"kind": "section", "title": "inbound_network", "only": "android", "rows": [
+      {"kind": "switch", "key": "meteredNetwork", "title": "inbound_metered"},
+      {"kind": "switch", "key": "acquireWakeLock", "title": "inbound_wake_lock"}
+    ]}
+  ]
+}

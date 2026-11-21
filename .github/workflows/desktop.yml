@@ -236,6 +236,8 @@ jobs:
           python3 -I shared/tool/gen_tokens.py --check
           # the window's icons too (desktop/lib/ui/icons.g.dart), from the same SVGs as Android's
           python3 -I shared/tool/gen_icons.py --check
+          # the list screens and their texts (lib/settings/screens.g.dart), from shared/screens and Android's strings
+          python3 -I shared/tool/gen_screens.py --check
           . buildScript/lib/core/get_source_env.sh
           git clone -q --filter=blob:none --no-checkout "$REPOSITORY_SING_BOX" "$RUNNER_TEMP/core"
           git -C "$RUNNER_TEMP/core" checkout -q "$COMMIT_SING_BOX"

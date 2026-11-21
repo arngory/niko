@@ -11,6 +11,8 @@ import 'package:niko_desktop/state/window_settings.dart';
 import 'package:niko_desktop/ui/connect_button.dart';
 import 'package:niko_desktop/ui/controls.dart';
 
+import 'fonts.dart';
+
 /// A daemon in memory: the test says what the core does, and reads what the window asked.
 class MemoryDaemon implements Daemon {
   final status = StreamController<ServiceState>.broadcast();
@@ -192,19 +194,6 @@ class MemoryDaemon implements Daemon {
 
   @override
   Future<void> close() async {}
-}
-
-Future<void> loadFonts() async {
-  for (final MapEntry(key: family, value: files) in {
-    'Geist': ['Geist-Regular', 'Geist-Medium', 'Geist-SemiBold'],
-    'Geist Mono': ['GeistMono-Regular', 'GeistMono-Medium'],
-  }.entries) {
-    final loader = FontLoader(family);
-    for (final file in files) {
-      loader.addFont(File('fonts/$file.ttf').readAsBytes().then((bytes) => ByteData.sublistView(bytes)));
-    }
-    await loader.load();
-  }
 }
 
 void main() {

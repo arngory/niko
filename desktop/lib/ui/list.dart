@@ -23,13 +23,23 @@ class NikoSection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: NikoSpace.s2),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(NikoRadius.md),
-          child: ColoredBox(color: colors.surface1, child: Column(children: rows)),
-        ),
+        NikoGroup(rows: rows),
       ],
     );
   }
+}
+
+/// A group of rows on surface-1, its corners radius-md (m-list).
+class NikoGroup extends StatelessWidget {
+  const NikoGroup({super.key, required this.rows});
+
+  final List<Widget> rows;
+
+  @override
+  Widget build(BuildContext context) => ClipRRect(
+        borderRadius: BorderRadius.circular(NikoRadius.md),
+        child: ColoredBox(color: NikoTheme.of(context).surface1, child: Column(children: rows)),
+      );
 }
 
 /// A row that only says something (m-row with a value): a title, and the value in mono at the right.
