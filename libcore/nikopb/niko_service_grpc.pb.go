@@ -23,8 +23,19 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	NikoService_GetInfo_FullMethodName   = "/niko.v1.NikoService/GetInfo"
-	NikoService_RouteTest_FullMethodName = "/niko.v1.NikoService/RouteTest"
+	NikoService_GetInfo_FullMethodName        = "/niko.v1.NikoService/GetInfo"
+	NikoService_RouteTest_FullMethodName      = "/niko.v1.NikoService/RouteTest"
+	NikoService_Watch_FullMethodName          = "/niko.v1.NikoService/Watch"
+	NikoService_ListGroups_FullMethodName     = "/niko.v1.NikoService/ListGroups"
+	NikoService_ListProfiles_FullMethodName   = "/niko.v1.NikoService/ListProfiles"
+	NikoService_GetProfile_FullMethodName     = "/niko.v1.NikoService/GetProfile"
+	NikoService_SaveProfile_FullMethodName    = "/niko.v1.NikoService/SaveProfile"
+	NikoService_DeleteProfiles_FullMethodName = "/niko.v1.NikoService/DeleteProfiles"
+	NikoService_MoveProfiles_FullMethodName   = "/niko.v1.NikoService/MoveProfiles"
+	NikoService_SaveGroup_FullMethodName      = "/niko.v1.NikoService/SaveGroup"
+	NikoService_DeleteGroup_FullMethodName    = "/niko.v1.NikoService/DeleteGroup"
+	NikoService_Recognize_FullMethodName      = "/niko.v1.NikoService/Recognize"
+	NikoService_Import_FullMethodName         = "/niko.v1.NikoService/Import"
 )
 
 // NikoServiceClient is the client API for NikoService service.
@@ -38,6 +49,32 @@ type NikoServiceClient interface {
 	// wait for its lookups. FAILED_PRECONDITION when no core runs; ABORTED when the core stopped during the test (its
 	// answer would be a closing core's, not the running one's).
 	RouteTest(ctx context.Context, in *RouteTestRequest, opts ...grpc.CallOption) (*RouteTestResult, error)
+	// What changes in the store, and the results of its tasks: first a reset with the revision now, then each change;
+	// a reset again where some were lost. A change says what changed: the window reads it again.
+	Watch(ctx context.Context, in *WatchRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Change], error)
+	// The groups, in their order.
+	ListGroups(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*GroupList, error)
+	// The profiles of a group, or of all, in the list's order: rows, without their beans. NOT_FOUND for no such group.
+	ListProfiles(ctx context.Context, in *ListProfilesRequest, opts ...grpc.CallOption) (*ProfileList, error)
+	// A profile with its bean. NOT_FOUND; FAILED_PRECONDITION where its secrets cannot be opened on this machine.
+	GetProfile(ctx context.Context, in *ProfileId, opts ...grpc.CallOption) (*Profile, error)
+	// A profile from its type and bean: a new one (id 0) at the end of its group, or the one of its id with a new bean of
+	// the same type, where it is. INVALID_ARGUMENT for a bean that is not one of its type.
+	SaveProfile(ctx context.Context, in *Profile, opts ...grpc.CallOption) (*Profile, error)
+	// Deletes the profiles of those ids that are there.
+	DeleteProfiles(ctx context.Context, in *ProfileIds, opts ...grpc.CallOption) (*Empty, error)
+	// Puts profiles, in their order, into a group before one of its profiles or at its end.
+	MoveProfiles(ctx context.Context, in *MoveRequest, opts ...grpc.CallOption) (*Empty, error)
+	// A group of the user's own: a new one (id 0), or a new name. A subscription's group comes with subscriptions:
+	// UNIMPLEMENTED.
+	SaveGroup(ctx context.Context, in *Group, opts ...grpc.CallOption) (*Group, error)
+	// Deletes a group and its profiles; the ungrouped group stays (FAILED_PRECONDITION).
+	DeleteGroup(ctx context.Context, in *GroupId, opts ...grpc.CallOption) (*Empty, error)
+	// What an input is and what its import would add; nothing is written, and no store is needed.
+	Recognize(ctx context.Context, in *ImportInput, opts ...grpc.CallOption) (*ImportPreview, error)
+	// Imports an input: the task's progress, then its result, the last message (done). Share links and sn:// now; a
+	// subscription's link is recognized, its import comes later (UNIMPLEMENTED as the result's code).
+	Import(ctx context.Context, in *ImportRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TaskProgress], error)
 }
 
 type nikoServiceClient struct {
@@ -68,6 +105,134 @@ func (c *nikoServiceClient) RouteTest(ctx context.Context, in *RouteTestRequest,
 	return out, nil
 }
 
+func (c *nikoServiceClient) Watch(ctx context.Context, in *WatchRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Change], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &NikoService_ServiceDesc.Streams[0], NikoService_Watch_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[WatchRequest, Change]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type NikoService_WatchClient = grpc.ServerStreamingClient[Change]
+
+func (c *nikoServiceClient) ListGroups(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*GroupList, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GroupList)
+	err := c.cc.Invoke(ctx, NikoService_ListGroups_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) ListProfiles(ctx context.Context, in *ListProfilesRequest, opts ...grpc.CallOption) (*ProfileList, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ProfileList)
+	err := c.cc.Invoke(ctx, NikoService_ListProfiles_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) GetProfile(ctx context.Context, in *ProfileId, opts ...grpc.CallOption) (*Profile, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Profile)
+	err := c.cc.Invoke(ctx, NikoService_GetProfile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) SaveProfile(ctx context.Context, in *Profile, opts ...grpc.CallOption) (*Profile, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Profile)
+	err := c.cc.Invoke(ctx, NikoService_SaveProfile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) DeleteProfiles(ctx context.Context, in *ProfileIds, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, NikoService_DeleteProfiles_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) MoveProfiles(ctx context.Context, in *MoveRequest, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, NikoService_MoveProfiles_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) SaveGroup(ctx context.Context, in *Group, opts ...grpc.CallOption) (*Group, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Group)
+	err := c.cc.Invoke(ctx, NikoService_SaveGroup_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) DeleteGroup(ctx context.Context, in *GroupId, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, NikoService_DeleteGroup_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) Recognize(ctx context.Context, in *ImportInput, opts ...grpc.CallOption) (*ImportPreview, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ImportPreview)
+	err := c.cc.Invoke(ctx, NikoService_Recognize_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) Import(ctx context.Context, in *ImportRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TaskProgress], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &NikoService_ServiceDesc.Streams[1], NikoService_Import_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[ImportRequest, TaskProgress]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type NikoService_ImportClient = grpc.ServerStreamingClient[TaskProgress]
+
 // NikoServiceServer is the server API for NikoService service.
 // All implementations must embed UnimplementedNikoServiceServer
 // for forward compatibility.
@@ -79,6 +244,32 @@ type NikoServiceServer interface {
 	// wait for its lookups. FAILED_PRECONDITION when no core runs; ABORTED when the core stopped during the test (its
 	// answer would be a closing core's, not the running one's).
 	RouteTest(context.Context, *RouteTestRequest) (*RouteTestResult, error)
+	// What changes in the store, and the results of its tasks: first a reset with the revision now, then each change;
+	// a reset again where some were lost. A change says what changed: the window reads it again.
+	Watch(*WatchRequest, grpc.ServerStreamingServer[Change]) error
+	// The groups, in their order.
+	ListGroups(context.Context, *Empty) (*GroupList, error)
+	// The profiles of a group, or of all, in the list's order: rows, without their beans. NOT_FOUND for no such group.
+	ListProfiles(context.Context, *ListProfilesRequest) (*ProfileList, error)
+	// A profile with its bean. NOT_FOUND; FAILED_PRECONDITION where its secrets cannot be opened on this machine.
+	GetProfile(context.Context, *ProfileId) (*Profile, error)
+	// A profile from its type and bean: a new one (id 0) at the end of its group, or the one of its id with a new bean of
+	// the same type, where it is. INVALID_ARGUMENT for a bean that is not one of its type.
+	SaveProfile(context.Context, *Profile) (*Profile, error)
+	// Deletes the profiles of those ids that are there.
+	DeleteProfiles(context.Context, *ProfileIds) (*Empty, error)
+	// Puts profiles, in their order, into a group before one of its profiles or at its end.
+	MoveProfiles(context.Context, *MoveRequest) (*Empty, error)
+	// A group of the user's own: a new one (id 0), or a new name. A subscription's group comes with subscriptions:
+	// UNIMPLEMENTED.
+	SaveGroup(context.Context, *Group) (*Group, error)
+	// Deletes a group and its profiles; the ungrouped group stays (FAILED_PRECONDITION).
+	DeleteGroup(context.Context, *GroupId) (*Empty, error)
+	// What an input is and what its import would add; nothing is written, and no store is needed.
+	Recognize(context.Context, *ImportInput) (*ImportPreview, error)
+	// Imports an input: the task's progress, then its result, the last message (done). Share links and sn:// now; a
+	// subscription's link is recognized, its import comes later (UNIMPLEMENTED as the result's code).
+	Import(*ImportRequest, grpc.ServerStreamingServer[TaskProgress]) error
 	mustEmbedUnimplementedNikoServiceServer()
 }
 
@@ -94,6 +285,39 @@ func (UnimplementedNikoServiceServer) GetInfo(context.Context, *GetInfoRequest) 
 }
 func (UnimplementedNikoServiceServer) RouteTest(context.Context, *RouteTestRequest) (*RouteTestResult, error) {
 	return nil, status.Error(codes.Unimplemented, "method RouteTest not implemented")
+}
+func (UnimplementedNikoServiceServer) Watch(*WatchRequest, grpc.ServerStreamingServer[Change]) error {
+	return status.Error(codes.Unimplemented, "method Watch not implemented")
+}
+func (UnimplementedNikoServiceServer) ListGroups(context.Context, *Empty) (*GroupList, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListGroups not implemented")
+}
+func (UnimplementedNikoServiceServer) ListProfiles(context.Context, *ListProfilesRequest) (*ProfileList, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListProfiles not implemented")
+}
+func (UnimplementedNikoServiceServer) GetProfile(context.Context, *ProfileId) (*Profile, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetProfile not implemented")
+}
+func (UnimplementedNikoServiceServer) SaveProfile(context.Context, *Profile) (*Profile, error) {
+	return nil, status.Error(codes.Unimplemented, "method SaveProfile not implemented")
+}
+func (UnimplementedNikoServiceServer) DeleteProfiles(context.Context, *ProfileIds) (*Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteProfiles not implemented")
+}
+func (UnimplementedNikoServiceServer) MoveProfiles(context.Context, *MoveRequest) (*Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method MoveProfiles not implemented")
+}
+func (UnimplementedNikoServiceServer) SaveGroup(context.Context, *Group) (*Group, error) {
+	return nil, status.Error(codes.Unimplemented, "method SaveGroup not implemented")
+}
+func (UnimplementedNikoServiceServer) DeleteGroup(context.Context, *GroupId) (*Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteGroup not implemented")
+}
+func (UnimplementedNikoServiceServer) Recognize(context.Context, *ImportInput) (*ImportPreview, error) {
+	return nil, status.Error(codes.Unimplemented, "method Recognize not implemented")
+}
+func (UnimplementedNikoServiceServer) Import(*ImportRequest, grpc.ServerStreamingServer[TaskProgress]) error {
+	return status.Error(codes.Unimplemented, "method Import not implemented")
 }
 func (UnimplementedNikoServiceServer) mustEmbedUnimplementedNikoServiceServer() {}
 func (UnimplementedNikoServiceServer) testEmbeddedByValue()                     {}
@@ -152,6 +376,190 @@ func _NikoService_RouteTest_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NikoService_Watch_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(WatchRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(NikoServiceServer).Watch(m, &grpc.GenericServerStream[WatchRequest, Change]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type NikoService_WatchServer = grpc.ServerStreamingServer[Change]
+
+func _NikoService_ListGroups_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).ListGroups(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_ListGroups_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).ListGroups(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_ListProfiles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListProfilesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).ListProfiles(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_ListProfiles_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).ListProfiles(ctx, req.(*ListProfilesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_GetProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProfileId)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).GetProfile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_GetProfile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).GetProfile(ctx, req.(*ProfileId))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_SaveProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Profile)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).SaveProfile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_SaveProfile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).SaveProfile(ctx, req.(*Profile))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_DeleteProfiles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProfileIds)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).DeleteProfiles(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_DeleteProfiles_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).DeleteProfiles(ctx, req.(*ProfileIds))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_MoveProfiles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MoveRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).MoveProfiles(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_MoveProfiles_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).MoveProfiles(ctx, req.(*MoveRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_SaveGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Group)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).SaveGroup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_SaveGroup_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).SaveGroup(ctx, req.(*Group))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_DeleteGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GroupId)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).DeleteGroup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_DeleteGroup_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).DeleteGroup(ctx, req.(*GroupId))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_Recognize_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ImportInput)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).Recognize(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_Recognize_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).Recognize(ctx, req.(*ImportInput))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_Import_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ImportRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(NikoServiceServer).Import(m, &grpc.GenericServerStream[ImportRequest, TaskProgress]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type NikoService_ImportServer = grpc.ServerStreamingServer[TaskProgress]
+
 // NikoService_ServiceDesc is the grpc.ServiceDesc for NikoService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -167,7 +575,54 @@ var NikoService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "RouteTest",
 			Handler:    _NikoService_RouteTest_Handler,
 		},
+		{
+			MethodName: "ListGroups",
+			Handler:    _NikoService_ListGroups_Handler,
+		},
+		{
+			MethodName: "ListProfiles",
+			Handler:    _NikoService_ListProfiles_Handler,
+		},
+		{
+			MethodName: "GetProfile",
+			Handler:    _NikoService_GetProfile_Handler,
+		},
+		{
+			MethodName: "SaveProfile",
+			Handler:    _NikoService_SaveProfile_Handler,
+		},
+		{
+			MethodName: "DeleteProfiles",
+			Handler:    _NikoService_DeleteProfiles_Handler,
+		},
+		{
+			MethodName: "MoveProfiles",
+			Handler:    _NikoService_MoveProfiles_Handler,
+		},
+		{
+			MethodName: "SaveGroup",
+			Handler:    _NikoService_SaveGroup_Handler,
+		},
+		{
+			MethodName: "DeleteGroup",
+			Handler:    _NikoService_DeleteGroup_Handler,
+		},
+		{
+			MethodName: "Recognize",
+			Handler:    _NikoService_Recognize_Handler,
+		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Watch",
+			Handler:       _NikoService_Watch_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "Import",
+			Handler:       _NikoService_Import_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "niko/v1/niko_service.proto",
 }

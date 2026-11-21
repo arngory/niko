@@ -111,6 +111,13 @@ class TracedDaemon implements Daemon {
   Stream<StunProgress> stunTest(String server) =>
       _traced('stun', _inner.stunTest(server), (p) => '${p.externalAddress}${p.isFinal ? ', final' : ''}');
   @override
+  Stream<StoreChange> storeChanges() =>
+      _traced('store', _inner.storeChanges(), (c) => '${c.revision} ${c.kind.name}${c.reset ? ', reset' : ''}');
+  @override
+  Future<List<ProfileRow>> profiles({int groupId = 0}) => _inner.profiles(groupId: groupId);
+  @override
+  Future<List<int>> importLinks(String text, {int groupId = 0}) => _inner.importLinks(text, groupId: groupId);
+  @override
   Future<void> close() => _inner.close();
 }
 

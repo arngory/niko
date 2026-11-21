@@ -148,6 +148,16 @@ class RayDnsResolversTest {
             RayDnsResolvers.slipList(candidates, fallback = false, small = setOf("192.168.1.1"), whole = setOf("77.88.8.1")))
         // Yandex's small too: the list as it was, nothing measured whole to take its place
         assertEquals(before, RayDnsResolvers.slipList(candidates, fallback = false, small = small + yandex, whole = emptySet()))
+        // a phone in cn, three of its own: one small, one Yandex in its place, not both (Yandex stays the last resort)
+        val cn = listOf(
+            RayDnsResolvers.Candidate("119.29.29.29", "udp"), RayDnsResolvers.Candidate("223.5.5.5", "udp"),
+            RayDnsResolvers.Candidate("1.2.4.8", "udp"),
+        )
+        assertEquals(listOf("119.29.29.29", "223.5.5.5", "77.88.8.8"),
+            RayDnsResolvers.slipList(cn, fallback = false, small = setOf("1.2.4.8"), whole = yandex))
+        // only a Yandex measured small, none of the list: nothing left, nothing to take its place
+        assertEquals(listOf("119.29.29.29", "223.5.5.5", "1.2.4.8"),
+            RayDnsResolvers.slipList(cn, fallback = false, small = setOf("77.88.8.8"), whole = setOf("77.88.8.1")))
         // masterdns's fallback: Yandex's in the list as before, measured or not
         assertEquals(listOf("192.168.1.1", "195.208.5.1", "195.208.4.1", "62.76.76.62"),
             RayDnsResolvers.slipList(candidates, fallback = true, small = emptySet(), whole = emptySet()))

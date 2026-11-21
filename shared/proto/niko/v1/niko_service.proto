@@ -15,7 +15,43 @@ service NikoService {
   // wait for its lookups. FAILED_PRECONDITION when no core runs; ABORTED when the core stopped during the test (its
   // answer would be a closing core's, not the running one's).
   rpc RouteTest(RouteTestRequest) returns (RouteTestResult);
+
+  // The calls below are on the caller's own store (libcore/nikostore): any caller the daemon verified, each with the
+  // store of its user. Until the daemon names its caller to NikoService (a hook in the fork, desktop-stage3.md §6),
+  // only development mode's caller is known; elsewhere they are UNIMPLEMENTED. FAILED_PRECONDITION for a store a
+  // newer Niko wrote.
+
+  // What changes in the store, and the results of its tasks: first a reset with the revision now, then each change;
+  // a reset again where some were lost. A change says what changed: the window reads it again.
+  rpc Watch(WatchRequest) returns (stream Change);
+
+  // The groups, in their order.
+  rpc ListGroups(Empty) returns (GroupList);
+  // The profiles of a group, or of all, in the list's order: rows, without their beans. NOT_FOUND for no such group.
+  rpc ListProfiles(ListProfilesRequest) returns (ProfileList);
+  // A profile with its bean. NOT_FOUND; FAILED_PRECONDITION where its secrets cannot be opened on this machine.
+  rpc GetProfile(ProfileId) returns (Profile);
+  // A profile from its type and bean: a new one (id 0) at the end of its group, or the one of its id with a new bean of
+  // the same type, where it is. INVALID_ARGUMENT for a bean that is not one of its type.
+  rpc SaveProfile(Profile) returns (Profile);
+  // Deletes the profiles of those ids that are there.
+  rpc DeleteProfiles(ProfileIds) returns (Empty);
+  // Puts profiles, in their order, into a group before one of its profiles or at its end.
+  rpc MoveProfiles(MoveRequest) returns (Empty);
+  // A group of the user's own: a new one (id 0), or a new name. A subscription's group comes with subscriptions:
+  // UNIMPLEMENTED.
+  rpc SaveGroup(Group) returns (Group);
+  // Deletes a group and its profiles; the ungrouped group stays (FAILED_PRECONDITION).
+  rpc DeleteGroup(GroupId) returns (Empty);
+
+  // What an input is and what its import would add; nothing is written, and no store is needed.
+  rpc Recognize(ImportInput) returns (ImportPreview);
+  // Imports an input: the task's progress, then its result, the last message (done). Share links and sn:// now; a
+  // subscription's link is recognized, its import comes later (UNIMPLEMENTED as the result's code).
+  rpc Import(ImportRequest) returns (stream TaskProgress);
 }
+
+message Empty {}
 
 message GetInfoRequest {}
 
@@ -24,7 +60,7 @@ message Info {
   string niko_version = 1;
   // the core's version
   string core_version = 2;
-  // the schema of the daemon's store; 0: no store yet
+  // the schema of the daemon's store (nikostore's); 0: a daemon without one
   int32 store_schema = 3;
   // the version of this API: what the window may ask
   int32 api = 4;
@@ -70,4 +106,134 @@ message RouteTestResult {
   // what the rules did not see as they would see a real connection
   repeated string notes = 9;
   repeated RouteTestStep steps = 10;
+}
+
+message WatchRequest {}
+
+// What one write changed, or a task's result.
+message Change {
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    PROFILES = 1;
+    GROUPS = 2;
+    NODES = 3;
+    RULES = 4;
+    RULE_SETS = 5;
+    SETTINGS = 6;
+    TESTS = 7;
+    SELECTED = 8;
+    TASK = 9;
+  }
+  // grows with each change from the daemon's start; a reset's is the revision now
+  uint64 revision = 1;
+  // read again all that is shown: the first message, and where changes were lost
+  bool reset = 2;
+  Kind kind = 3;
+  // what changed: added, changed or removed; empty: the whole kind
+  repeated int64 ids = 4;
+  // the task's result, with kind TASK
+  TaskProgress task = 5;
+}
+
+// A task of the daemon's (an import): its steps, then its result. A task goes on to its end without the stream that
+// asked for it; its result comes in Watch too.
+message TaskProgress {
+  string task_id = 1;
+  // a line for the user
+  string line = 2;
+  // the result
+  bool done = 3;
+  // the result's gRPC code: 0 done, else what error says
+  int32 code = 4;
+  string error = 5;
+  // what the task added or changed: the profiles an import added
+  repeated int64 ids = 7;
+}
+
+message Group {
+  enum Type {
+    BASIC = 0;
+    SUBSCRIPTION = 1;
+  }
+  int64 id = 1;
+  int64 order = 2;
+  string name = 3;
+  // the default group, made with the store: an import with no group goes there; it is not deleted
+  bool ungrouped = 4;
+  Type type = 5;
+  // how many profiles it has; not saved
+  int32 profiles = 6;
+}
+
+message GroupId {
+  int64 id = 1;
+}
+
+message GroupList {
+  repeated Group groups = 1;
+}
+
+message ListProfilesRequest {
+  // 0: every group's
+  int64 group_id = 1;
+}
+
+message Profile {
+  int64 id = 1;
+  int64 group_id = 2;
+  int64 order = 3;
+  // the bean's type, as the app's TypeMap names it: naive, hysteria, vmess (VLESS too), socks...
+  string type = 4;
+  // the bean's display name and address; not saved, the bean's own are
+  string name = 5;
+  string address = 6;
+  // the whole bean: JSON with the app's field names, as the golden fixtures have it; empty in a list's rows
+  string bean_json = 7;
+}
+
+message ProfileList {
+  repeated Profile profiles = 1;
+}
+
+message ProfileId {
+  int64 id = 1;
+}
+
+message ProfileIds {
+  repeated int64 ids = 1;
+}
+
+message MoveRequest {
+  repeated int64 ids = 1;
+  // the group they go into
+  int64 group_id = 2;
+  // the profile of that group they go before; 0: at its end
+  int64 before = 3;
+}
+
+message ImportInput {
+  // a paste, the clipboard, a QR code's text
+  string text = 1;
+  // a file's content, which the window read (the daemon reads no path); taken as text where text is empty
+  bytes file = 2;
+  string file_name = 3;
+}
+
+message ImportPreview {
+  enum Kind {
+    NOTHING = 0;
+    PROFILES = 1;
+    SUBSCRIPTION = 2;
+  }
+  Kind kind = 1;
+  // the profiles an import would add, as rows without ids
+  repeated Profile profiles = 2;
+  // the subscription's link, with kind SUBSCRIPTION: its import comes later
+  string subscription = 3;
+}
+
+message ImportRequest {
+  ImportInput input = 1;
+  // the group the profiles go into; 0: the ungrouped one
+  int64 group_id = 2;
 }
