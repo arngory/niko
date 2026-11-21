@@ -7,18 +7,13 @@ abstract class SettingValues implements Listenable {
   void setFlag(String key, bool value);
   String text(String key);
   void setText(String key, String value);
-
-  /// What a row that opens something shows of it at its end (a link's [id]), null for nothing.
-  String? summary(String id);
 }
 
-/// Values held in memory alone: the probe's screens and their tests, with nothing stored.
+/// Values held in memory alone, with nothing stored: the screens' tests.
 class MemorySettingValues extends ChangeNotifier implements SettingValues {
-  MemorySettingValues({Map<String, bool> flags = const {}, Map<String, String> texts = const {}, this.summaries = const {}})
+  MemorySettingValues({Map<String, bool> flags = const {}, Map<String, String> texts = const {}})
       : _flags = {...flags},
         _texts = {...texts};
-
-  final Map<String, String> summaries;
 
   final Map<String, bool> _flags;
   final Map<String, String> _texts;
@@ -34,9 +29,6 @@ class MemorySettingValues extends ChangeNotifier implements SettingValues {
 
   @override
   String text(String key) => _texts[key] ?? '';
-
-  @override
-  String? summary(String id) => summaries[id];
 
   @override
   void setText(String key, String value) {

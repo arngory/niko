@@ -7,9 +7,9 @@ import '../ui/icons.dart';
 import '../ui/list.dart';
 import 'setting_values.dart';
 
-/// Настройки › Вход made by hand: variant А of docs/ui/platforms.md, the same screen as ListScreen draws from
-/// shared/screens/set_inbound.json (docs/research/list-screens-probe.md). The window's part of it: the VPN's
-/// switches and the phone's network are the phone's alone.
+/// Настройки › Вход, made by hand on the settings components: variant А of docs/ui/platforms.md
+/// (docs/research/list-screens-probe.md). The window's part of it: the VPN's switches and the phone's network are the
+/// phone's alone.
 class InboundScreen extends StatelessWidget {
   const InboundScreen({super.key, required this.values, required this.strings, required this.onNewPassword});
 

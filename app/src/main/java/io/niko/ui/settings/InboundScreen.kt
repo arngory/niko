@@ -10,8 +10,8 @@ import io.niko.ui.home.ListGroup
 import io.niko.ui.home.Section
 
 /**
- * Настройки › Вход (P-SetInbound, D-SET-27) made by hand: variant А of docs/ui/platforms.md, the same screen as
- * ListScreen draws from shared/screens/set_inbound.json (docs/research/list-screens-probe.md).
+ * Настройки › Вход (P-SetInbound, D-SET-27), made by hand on the settings components: variant А of
+ * docs/ui/platforms.md (docs/research/list-screens-probe.md).
  */
 @Composable
 fun InboundScreen(values: SettingValues, onBack: () -> Unit, onNewPassword: () -> Unit) =

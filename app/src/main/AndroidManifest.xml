@@ -90,17 +90,6 @@
             android:name="io.niko.ui.BlankActivity"
             android:configChanges="uiMode" />
 
-        <!-- the list-screen probe (docs/research/list-screens-probe.md): started by adb's shell alone, which holds DUMP
-             and no app does -->
-        <activity
-            android:name="io.niko.ui.probe.ListProbeHandActivity"
-            android:exported="true"
-            android:permission="android.permission.DUMP" />
-        <activity
-            android:name="io.niko.ui.probe.ListProbeSpecActivity"
-            android:exported="true"
-            android:permission="android.permission.DUMP" />
-
         <activity
             android:name="io.niko.ui.MainActivity"
             android:configChanges="uiMode"

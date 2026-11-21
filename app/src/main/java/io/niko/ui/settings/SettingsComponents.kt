@@ -58,8 +58,7 @@ import io.niko.ui.home.Text
 import io.niko.ui.home.pressed
 
 // The design system's components of the settings screens (components/bundle.css: m-field, m-switch, m-topbar), drawn
-// as HomeComponents' are. Both ways of building a list screen take them: by hand (InboundScreen) and from a
-// description (ListScreen); docs/research/list-screens-probe.md.
+// as HomeComponents' are. The list screens are made of them by hand (InboundScreen; docs/ui/platforms.md, variant А).
 
 /** What a field takes: text as typed, a port (digits, five at most), a secret (shown as dots). */
 enum class FieldInput { TEXT, PORT, SECRET }
