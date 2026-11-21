@@ -218,6 +218,17 @@ func TestSealed(t *testing.T) {
 	}
 }
 
+// What the user wrote whole is sealed as the rest: a custom config, outbound or TUIC's custom JSON may carry any secret.
+func TestSealedWritten(t *testing.T) {
+	for _, name := range []string{"customConfigJson", "customOutboundJson", "customJSON"} {
+		bean := json.RawMessage(`{"serverAddress":"192.0.2.1","` + name + `":"{\"password\":\"written-pass\"}"}`)
+		open, sealed, err := sealBean(testSealer{"test"}, bean)
+		if err != nil || sealed == "" || bytes.Contains(open, []byte("written-pass")) || !bytes.Contains(open, []byte("192.0.2.1")) {
+			t.Errorf("%s: %s %q %v", name, open, sealed, err)
+		}
+	}
+}
+
 // A crash between the temporary file and the rename: the store on the disk is the one before, the write refused, the
 // store in memory too; opened again, the old one, and the temporary file gone.
 func TestCrashBeforeRename(t *testing.T) {

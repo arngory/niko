@@ -69,8 +69,14 @@ type server struct {
 	users *users
 }
 
-func (s *server) GetInfo(context.Context, *nikopb.GetInfoRequest) (*nikopb.Info, error) {
-	return &nikopb.Info{NikoVersion: Version, CoreVersion: C.Version, StoreSchema: int32(nikostore.Schema()), Api: API}, nil
+// GetInfo: the store's schema to a caller the store serves; to one it refuses (store.go's caller), 0, as from a daemon
+// without one, so the window does not offer what each call of the store would refuse.
+func (s *server) GetInfo(ctx context.Context, _ *nikopb.GetInfoRequest) (*nikopb.Info, error) {
+	info := &nikopb.Info{NikoVersion: Version, CoreVersion: C.Version, Api: API}
+	if s.users.serves(ctx) {
+		info.StoreSchema = int32(nikostore.Schema())
+	}
+	return info, nil
 }
 
 func (s *server) RouteTest(ctx context.Context, request *nikopb.RouteTestRequest) (*nikopb.RouteTestResult, error) {
