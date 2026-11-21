@@ -240,22 +240,13 @@ jobs:
           target: google_apis
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
-          # then the list-screen probe (list-probe.sh, docs/research/list-screens-probe.md): Настройки › Вход by
-          # hand and from its description, their start, memory and frames against each other, until the owner chooses
-          script: bash .github/scripts/smoke.sh apks && bash .github/scripts/list-probe.sh list-probe
+          script: bash .github/scripts/smoke.sh apks
       - name: The screens
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: smoke-screens-api${{ matrix.api }}
           path: smoke-screens
-          if-no-files-found: ignore
-      - name: The list-screen probe's numbers and screens
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: list-probe-api${{ matrix.api }}
-          path: list-probe
           if-no-files-found: ignore
 
   # the app end to end (e2e.sh) on an emulator, against a CI node under rayd serve -supervise as raycontrol-interop's,

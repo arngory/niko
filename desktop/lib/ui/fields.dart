@@ -6,8 +6,8 @@ import 'icons.dart';
 import 'pressable.dart';
 
 // The design system's components of the settings screens (components/bundle.css: m-field, m-switch, a settings
-// page), as the phone's ui/settings/SettingsComponents.kt draws them. Both ways of building a list screen take them:
-// by hand (lib/settings/inbound_screen.dart) and from a description (lib/settings/list_screen.dart).
+// page), as the phone's ui/settings/SettingsComponents.kt draws them. The list screens are made of them by hand
+// (lib/settings/inbound_screen.dart; docs/ui/platforms.md, variant А).
 
 /// What a field takes: text as typed, a port (digits, five at most), a secret (shown as dots).
 enum FieldInput { text, port, secret }
