@@ -134,13 +134,78 @@ object RayDnsResolvers {
      * masterdns its list for this network ([masterdnsResolvers]).
      */
     fun resolverFor(node: RayNode?, engine: String): String {
-        // slipstream: the first of masterdns's list, addresses only (no ranges), a path each
-        if (engine == DnsTunnel.SLIPSTREAM) return masterdnsFor(node).map { it.resolver }.filter { '/' !in it }
-            .take(DnsTunnel.MAX_SLIP_RESOLVERS).joinToString("\n")
+        // slipstream: the first of masterdns's list, addresses only (no ranges), a path each; not those measured on
+        // this network to pass too little EDNS for its packets
+        if (engine == DnsTunnel.SLIPSTREAM) return slipResolvers(masterdnsFor(node), slipSmall(node)).joinToString("\n")
         if (engine != DNSTT) return masterdnsFor(node).joinToString("\n") { it.resolver }
         val first = heldPick(node)?.get("resolver")?.asString ?: return DNSTT_DEFAULT
         // https://, tls://, tcp://, udp:// as picked; a bare address is UDP's
         return if ("://" in first) first else "udp://$first"
+    }
+
+    /**
+     * The EDNS UDP size a resolver must pass on for slipstream: the server's QUIC packets (900) come back whole only in
+     * answers it sends from 1206 on; over 512 without room they go truncated, and slipstream takes no TCP.
+     */
+    const val SLIP_MIN_EDNS = 1206
+
+    /**
+     * slipstream's resolvers from masterdns's list [list]: addresses only (no ranges), the [small] ones out (measured to
+     * pass less than [SLIP_MIN_EDNS]), [DnsTunnel.MAX_SLIP_RESOLVERS] at most. When all of them are small the list
+     * stays as it was: a tunnel through them may still carry something, none carries nothing.
+     */
+    internal fun slipResolvers(list: List<Candidate>, small: Set<String>): List<String> {
+        val addresses = list.map { it.resolver }.filter { '/' !in it }
+        return (addresses.filter { it !in small }.ifEmpty { addresses }).take(DnsTunnel.MAX_SLIP_RESOLVERS)
+    }
+
+    /** The resolvers measured on this network to pass too little EDNS for [node]'s slipstream, while that holds. */
+    private fun slipSmall(node: RayNode?): Set<String> {
+        val network = RayChannel.network() ?: return emptySet()
+        if (node == null) return emptySet()
+        return RayChannel.dnsPick(node.spa.nodeId, network, SLIP)?.getAsJsonArray("small")
+            ?.mapNotNull { runCatching { it.asString }.getOrNull() }?.toSet().orEmpty()
+    }
+
+    private const val SLIP = DnsTunnel.SLIPSTREAM
+
+    /** The main zone of [node]'s dnstt tunnel, where its front answers probes (dnsprobe-v1); null none. */
+    private fun dnsttZone(node: RayNode): String? = node.profileIds.orEmpty().values.firstNotNullOfOrNull { id ->
+        SagerDatabase.proxyDao.getById(id)?.requireBean()?.let(DnsTunnel::of)
+            ?.takeIf { it.enabled && it.engine == DNSTT }?.zones?.firstOrNull()
+    }
+
+    /**
+     * Measures slipstream's candidates on [network] (masterdns's list with Yandex's, addresses only) with a small probe
+     * at [node]'s dnstt zone, the EDNS size each passes on as the node saw it (dnsprobe-v1); keeps, for a day, those
+     * under [SLIP_MIN_EDNS] or with none (0). A resolver that did not answer the probe is not judged. Nothing without
+     * a dnstt zone or a probe key: slipstream's zones answer no probe.
+     */
+    suspend fun measureSlip(node: RayNode, network: ChannelNetwork, progress: (String) -> Unit = {}): Set<String>? {
+        val key = node.dnsProbeKey ?: return null
+        val zone = withContext(Dispatchers.IO) { dnsttZone(node) } ?: return null
+        val candidates = masterdnsResolvers(networkCandidates() + COUNTRY[country()].orEmpty(), fallback = true)
+            .filter { '/' !in it.resolver }
+        val small = linkedSetOf<String>()
+        for (c in candidates) {
+            currentCoroutineContext().ensureActive()
+            val address = c.resolver
+            val r = probe(if (':' in address) "udp://[$address]" else "udp://$address", zone, key, large = false)
+            progress("dns $SLIP ${c.kind}: ${describe(r)}")
+            if (r?.get("ok")?.asBoolean != true) continue
+            if ((r.get("edns")?.asInt ?: 0) < SLIP_MIN_EDNS) small += address
+        }
+        // the network changed meanwhile: what was measured is neither network's
+        if (RayChannel.network()?.key != network.key) return null
+        if (small.isNotEmpty()) Logs.i("raycontrol ${node.host}: ${small.size} resolvers here pass too little EDNS for slipstream")
+        RayChannel.recordDnsPick(node.spa.nodeId, network, SLIP, JsonObject().apply {
+            addProperty("kind", "edns")
+            add("small", com.google.gson.JsonArray().apply { small.forEach(::add) })
+            addProperty("at", System.currentTimeMillis() / 1000)
+        })
+        // the running core may go through one of them: the watchdog compares and restarts
+        RayWatchdog.dnsChanged()
+        return small
     }
 
     /**
@@ -296,6 +361,13 @@ object RayDnsResolvers {
      */
     suspend fun detectForNode(node: RayNode, network: ChannelNetwork, progress: (String) -> Unit = {}): NodePick? {
         if (node.dnsProbeKey == null) return null
+        // slipstream's resolvers left to the client: measured anew too ([measureSlip])
+        val slip = withContext(Dispatchers.IO) {
+            node.profileIds.orEmpty().values.any { id ->
+                SagerDatabase.proxyDao.getById(id)?.requireBean()?.let(::autoTunnel)?.first == SLIP
+            }
+        }
+        if (slip) measureSlip(node, network, progress)?.let { progress("dns $SLIP: ${it.size} too small for it") }
         val zones = node.profileIds.orEmpty().values.firstNotNullOfOrNull { id ->
             SagerDatabase.proxyDao.getById(id)?.requireBean()?.let(::probedZones)
         } ?: return null
@@ -329,11 +401,33 @@ object RayDnsResolvers {
      * with it when it differs (RayWatchdog). Not within the hour after none answered.
      */
     fun pickSoon(node: RayNode?, tunnel: DnsTunnel) {
-        if (node?.dnsProbeKey == null || tunnel.engine != DNSTT || tunnel.resolver.trim() != AUTO) return
+        if (node?.dnsProbeKey == null || tunnel.resolver.trim() != AUTO) return
         val network = RayChannel.network() ?: return
+        // slipstream: its resolvers measured once a day per network ([measureSlip])
+        if (tunnel.engine == SLIP) {
+            if (RayChannel.dnsPick(node.spa.nodeId, network, SLIP) == null) measureSlipInBackground(node, network)
+            return
+        }
+        if (tunnel.engine != DNSTT) return
         if (RayChannel.dnsPick(node.spa.nodeId, network, DNSTT) != null) return
         val zones = tunnel.zones.takeIf { it.isNotEmpty() } ?: return
         sweepInBackground(node, network, zones)
+    }
+
+    private fun measureSlipInBackground(node: RayNode, network: ChannelNetwork) {
+        val sweep = node.spa.nodeId + " " + SLIP
+        if (!sweeping.add(sweep)) return
+        sweeps.launch {
+            try {
+                measureSlip(node, network)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logs.w("raycontrol ${node.host}: slipstream's resolvers: ${e.message}")
+            } finally {
+                sweeping.remove(sweep)
+            }
+        }
     }
 
     // a pick younger than this is not redone when its tunnel fails: a resolver that answered minutes ago is not why

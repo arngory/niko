@@ -103,4 +103,25 @@ class RayDnsResolversTest {
         assertFalse(RayDnsResolvers.followsPick(auto.copy(spare = "")))
         assertNull(RayDnsResolvers.zoneOf(auto.copy(spare = ""), "s1.example.com"))
     }
+
+    @Test
+    fun slipstreamLeavesOutResolversWithTooLittleEdns() {
+        val list = listOf(
+            RayDnsResolvers.Candidate("192.168.1.1", "net"), RayDnsResolvers.Candidate("10.0.0.0/30", "udp"),
+            RayDnsResolvers.Candidate("195.208.5.1", "udp"), RayDnsResolvers.Candidate("2001:db8::53", "net"),
+            RayDnsResolvers.Candidate("62.76.76.62", "udp"), RayDnsResolvers.Candidate("77.88.8.8", "udp"),
+            RayDnsResolvers.Candidate("77.88.8.1", "udp"),
+        )
+        // as before with none measured: addresses only, four at most
+        assertEquals(listOf("192.168.1.1", "195.208.5.1", "2001:db8::53", "62.76.76.62"),
+            RayDnsResolvers.slipResolvers(list, emptySet()))
+        // the network's resolver and one public one pass too little: the next ones take their places
+        assertEquals(listOf("195.208.5.1", "62.76.76.62", "77.88.8.8", "77.88.8.1"),
+            RayDnsResolvers.slipResolvers(list, setOf("192.168.1.1", "2001:db8::53")))
+        // all of them too small: the list stays, a tunnel through them may still carry something
+        val all = list.map { it.resolver }.toSet()
+        assertEquals(listOf("192.168.1.1", "195.208.5.1", "2001:db8::53", "62.76.76.62"),
+            RayDnsResolvers.slipResolvers(list, all))
+        assertEquals(1206, RayDnsResolvers.SLIP_MIN_EDNS)
+    }
 }
