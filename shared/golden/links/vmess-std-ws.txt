@@ -1,0 +1,1 @@
+vmess://00000000-0000-4000-8000-000000000068@203.0.113.68:443?type=ws&security=tls&path=%2Fws&host=cdn.example.com&encryption=auto&packetEncoding=xudp#std%20ws
