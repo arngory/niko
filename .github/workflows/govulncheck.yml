@@ -42,7 +42,7 @@ jobs:
       - name: govulncheck (libcore and the core it links)
         working-directory: libcore
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+          go install golang.org/x/vuln/cmd/govulncheck@v1.10.0
           TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
           # the Linux build of the same code: the analysis needs no Android toolchain, and libcore is the same Go
           "$(go env GOPATH)/bin/govulncheck" -tags "$TAGS" ./...

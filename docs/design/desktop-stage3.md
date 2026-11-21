@@ -335,7 +335,8 @@ message ImportInput {
   прокси) делает подпиской весь ввод, как `SubscriptionFoundException` на Android: итог `UNIMPLEMENTED`, ничего не
   записано, а `Recognize` отвечает `SUBSCRIPTION` с этой ссылкой. Разбор — `nikofmt.ParseText`, это `parseProxies`:
   ссылки по словам и по строкам, берётся чтение, давшее больше профилей. Параметры разбора — значения Android по
-  умолчанию, пока у компьютера нет своих настроек (срез 13). За один импорт — не больше 10 000 профилей.
+  умолчанию, пока у компьютера нет своих настроек (срез 13). За один импорт — не больше 10 000 профилей; больше
+  отклоняет уже `Recognize` (`INVALID_ARGUMENT`).
 - `ImportInput.file` читается как текст UTF-8 (как `readText`), если `text` пуст; JSON, YAML и `.zip` придут с
   подписками и копиями.
 - `ImportPreview`: `kind` (`NOTHING`, `PROFILES`, `SUBSCRIPTION`), профили строками без id и ссылка подписки. Что
@@ -469,10 +470,10 @@ JSON.
   `dpapi:<base64>`. Поля: `password`, `uuid`, `token`, `authPayload`, `obfuscation`, `encryption` (у Trojan-Go в нём
   пароль слоя Shadowsocks), `realityShortId`, `privateKey`, `privateKeyPassphrase`, `peerPreSharedKey`,
   `dnsTunnelKey`, `dnsTunnelSeal`, `yggKey`, `knockSequence` и то, что пользователь пишет целиком и где может быть
-  что угодно из этого: `customOutboundJson`, `customConfigJson`, `config`, `extraHeaders`, `plugin`
-  (`nikostore/secrets.go`). Пустые поля остаются в `bean`. `CryptProtectData` с `CRYPTPROTECT_UI_FORBIDDEN`, без
-  `CRYPTPROTECT_LOCAL_MACHINE`, с постоянной энтропией (`niko store secrets v1`), в контексте процесса демона: SYSTEM
-  у службы, пользователь — в режиме разработки. Блоб считается один раз, когда профиль записан, а не при каждой
+  что угодно из этого: `customOutboundJson`, `customConfigJson`, `customJSON` (TUIC), `config`, `extraHeaders`,
+  `plugin` (`nikostore/secrets.go`). Пустые поля остаются в `bean`. `CryptProtectData` с `CRYPTPROTECT_UI_FORBIDDEN`,
+  без `CRYPTPROTECT_LOCAL_MACHINE`, с постоянной энтропией (`niko store secrets v1`), в контексте процесса демона:
+  SYSTEM у службы, пользователь — в режиме разработки. Блоб считается один раз, когда профиль записан, а не при каждой
   перезаписи `store.json`. Профиль, чьи секреты здесь не открыть (каталог с другой машины), остаётся в списке,
   `GetProfile` отвечает `FAILED_PRECONDITION`, а блоб переписывается как был, пока профиль не сохранят заново.
   Обёртка — за интерфейсом `Sealer`: на Windows DPAPI, на Linux пока никакой (права каталога), `systemd-creds` встанет
@@ -492,7 +493,8 @@ JSON.
   (`nikostore/schema.go`) над полями верхнего уровня `store.json`. Копия перед ним — `backup/<N>-<ГГГГММДД-ччммсс,
   UTC>/store.json`; не удался переход — файл не тронут. Схема новее — `ErrNewerSchema`, окну `FAILED_PRECONDITION`.
   Путь проверен тестовым переходом 1→2 на фикстуре схемы 1 (`nikostore/testdata/store-schema1.json`); ту же
-  фикстуру, пока схема 1 текущая, читает тест без перехода. `GetInfo.store_schema` — текущая схема.
+  фикстуру, пока схема 1 текущая, читает тест без перехода. `GetInfo.store_schema` — текущая схема тому, кого
+  хранилище обслуживает; тому, кому оно откажет, — 0, как у демона без хранилища.
 
 ### Резервная копия и перенос с телефона (D-SET-19)
 
