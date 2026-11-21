@@ -24,6 +24,7 @@ on:
       - "libcore/nikoservice/**"
       - "libcore/nikostore/**"
       - "libcore/nikofmt/**"
+      - "libcore/nikoconf/**"
       - "libcore/cmd/nikod/**"
       - "libcore/go.mod"
       - "libcore/go.sum"
@@ -177,7 +178,7 @@ jobs:
         working-directory: libcore
         env:
           CGO_ENABLED: "0"
-        run: go test -count=1 -ldflags=-checklinkname=0 -tags="$TAGS" ./raysub ./rayapi ./minisign ./probe ./rayprobe ./dnsprobe ./stun ./nikoservice ./nikostore ./routetest ./nikofmt/...
+        run: go test -count=1 -ldflags=-checklinkname=0 -tags="$TAGS" ./raysub ./rayapi ./minisign ./probe ./rayprobe ./dnsprobe ./stun ./nikoservice ./nikostore ./routetest ./nikofmt/... ./nikoconf/...
 
   # The window (desktop/, Flutter): the generated files are what their sources give, the analyser is clean, the
   # tests pass, and the link to the daemon works against the real boxdd of this run in development mode: the button

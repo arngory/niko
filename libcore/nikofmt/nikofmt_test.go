@@ -5,6 +5,7 @@ import (
 	"compress/zlib"
 	"encoding/base64"
 	"go/build"
+	"reflect"
 	"testing"
 )
 
@@ -151,6 +152,35 @@ func TestGsonObject(t *testing.T) {
 		}
 		if (err == nil) != tc.ok || tc.ok && got != tc.want {
 			t.Errorf("%s: %q, %v; want %q, ok %v", tc.in, got, err, tc.want, tc.ok)
+		}
+	}
+}
+
+// GsonMap reads a custom outbound's JSON as the app's lenient Gson reads it into a Map, numbers as LONG_OR_DOUBLE.
+func TestGsonMap(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		want map[string]any // nil with ok: Gson's null
+		ok   bool
+	}{
+		{`{"type":"direct","tag":"x"}`, map[string]any{"type": "direct", "tag": "x"}, true},
+		{" // nothing\n", nil, true},
+		{`null and more`, nil, true}, // no end check after a null
+		{`{a:1,b:1.5,c:-0,d:01,e:[1,,2],f:{g:null,g:TRUE}}`, map[string]any{"a": int64(1), "b": 1.5, "c": int64(0),
+			"d": "01", "e": []any{int64(1), nil, int64(2)}, "f": map[string]any{"g": true}}, true},
+		{`{a:99999999999999999999,b:1e2}`, map[string]any{"a": 1e20, "b": 100.0}, true},
+		{`{a:1,a:2}`, nil, false}, // the map's own duplicate
+		{`{a:null,a:2}`, map[string]any{"a": int64(2)}, true},
+		{`[["a",1],["b",[]]]`, map[string]any{"a": int64(1), "b": []any{}}, true},
+		{`[["a",1,2]]`, nil, false},
+		{`{a:x} /* the end */`, map[string]any{"a": "x"}, true},
+		{`{a:x} y`, nil, false},
+		{`"s"`, nil, false},
+		{`{a:1,}`, nil, false},
+	} {
+		got, err := GsonMap(tc.in)
+		if (err == nil) != tc.ok || tc.ok && !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("%s: %#v, %v; want %#v, ok %v", tc.in, got, err, tc.want, tc.ok)
 		}
 	}
 }
