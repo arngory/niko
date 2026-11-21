@@ -836,6 +836,7 @@
     <string name="raycontrol_admin_lost">The node got the request but its answer was lost: it may have taken effect. Refresh before trying again.</string>
     <string name="raycontrol_admin_this_device">This device</string>
     <string name="raycontrol_admin_node">Node</string>
+    <string name="raycontrol_admin_warnings">Node warnings</string>
     <string name="raycontrol_admin_counts">Users: %1$d · services: %2$d · active devices: %3$d</string>
     <string name="raycontrol_admin_spa_ports">SPA ports open now</string>
     <string name="raycontrol_admin_metrics">Metrics</string>

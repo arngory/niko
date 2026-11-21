@@ -796,6 +796,7 @@
     <string name="raycontrol_admin_lost">Нода получила запрос, но ответ потерян: действие могло выполниться. Обновите список, прежде чем повторять.</string>
     <string name="raycontrol_admin_this_device">Это устройство</string>
     <string name="raycontrol_admin_node">Нода</string>
+    <string name="raycontrol_admin_warnings">Предупреждения ноды</string>
     <string name="raycontrol_admin_counts">Пользователей: %1$d · сервисов: %2$d · активных устройств: %3$d</string>
     <string name="raycontrol_admin_spa_ports">Открытые сейчас порты SPA</string>
     <string name="raycontrol_admin_metrics">Метрики</string>

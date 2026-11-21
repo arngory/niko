@@ -26,6 +26,7 @@ import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.tabs.TabLayout
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
+import com.google.gson.JsonPrimitive
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.MultiFormatWriter
@@ -250,6 +251,10 @@ class RayAdminActivity : ThemedActivity() {
             Row(getString(R.string.raycontrol_admin_this_device),
                 "${self.s("user")}/${self.s("name")} · ${self.s("role")}"),
             Row(getString(R.string.raycontrol_admin_node), "${status.s("host")} · ${status.s("version")}\n${status.s("nodeId")}"),
+        ) + listOfNotNull(
+            // what the node warns its admin of (raycontrol v0.35.1), right under it
+            warningLines(status).takeIf { it.isNotEmpty() }
+                ?.let { Row(getString(R.string.raycontrol_admin_warnings), it.joinToString("\n")) },
         ) + extra + listOfNotNull(
             Row(getString(R.string.raycontrol_admin_counts, status.l("users"), status.l("services"), status.l("activeDevices"))),
             Row(getString(R.string.raycontrol_admin_spa_ports), status.strs("spaPorts").joinToString(", ")),
@@ -1504,6 +1509,23 @@ private fun relayText(raw: String, max: Int): String = RayNode.nodeNote(raw, max
  * the phone's clock against the node's, which the answer does not carry.
  */
 private const val RELAY_QUIET_SECONDS = 30 * 60L
+
+/** The node's warnings shown: up to this many, each up to [WARNING_MAX] characters. */
+private const val MAX_WARNINGS = 16
+private const val WARNING_MAX = 300
+
+/**
+ * The node's warnings to its admin (GetStatus `warnings`, raycontrol v0.35.1; today: Hysteria2 without a Brutal
+ * ceiling), each its own line as the node words it. Cleaned as the note is (control and format characters go, line
+ * breaks become a space, a long one ends in "…") and isolated, so a warning cannot add lines or turn the text around it;
+ * one of nothing but such characters, or no string, is left out.
+ */
+internal fun warningLines(status: JsonObject): List<String> =
+    (status.get("warnings") as? JsonArray)?.toList().orEmpty()
+        .mapNotNull { (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.asString }
+        .mapNotNull { RayNode.nodeNote(it, WARNING_MAX)?.takeIf { line -> line.isNotEmpty() } }
+        .take(MAX_WARNINGS)
+        .map { "\u2068$it\u2069" }
 
 /** A relay's name, version and target are shown up to this many characters; its error up to the node's 200 bytes. */
 private const val RELAY_VERSION = 64
