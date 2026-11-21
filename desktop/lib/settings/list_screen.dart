@@ -47,6 +47,12 @@ class ListScreen extends StatelessWidget {
                         enabled: item.enabledBy == null || values.flag(item.enabledBy!),
                         divider: i > 0,
                       ),
+                    LinkItem() => NikoLinkRow(
+                        title: say(item.title),
+                        value: values.summary(item.id),
+                        onPressed: () => onAction(item.id),
+                        divider: i > 0,
+                      ),
                   },
               ];
 

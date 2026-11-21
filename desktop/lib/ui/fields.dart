@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import '../theme/niko_theme.dart';
+import 'icons.dart';
 import 'pressable.dart';
 
 // The design system's components of the settings screens (components/bundle.css: m-field, m-switch, a settings
@@ -282,4 +283,53 @@ class _Hairline extends CustomPainter {
 
   @override
   bool shouldRepaint(_Hairline oldDelegate) => color != oldDelegate.color;
+}
+
+/// m-row that opens something: the title, [value] in ink-2 and a chevron at its end; surface-2 pressed.
+class NikoLinkRow extends StatelessWidget {
+  const NikoLinkRow({super.key, required this.title, this.value, required this.onPressed, this.divider = false});
+
+  final String title;
+  final String? value;
+  final VoidCallback onPressed;
+  final bool divider;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = NikoTheme.of(context);
+    return Semantics(
+      button: true,
+      label: value == null ? title : '$title, $value',
+      excludeSemantics: true,
+      child: NikoPressable(
+        radius: 0,
+        onPressed: onPressed,
+        builder: (context, state) => CustomPaint(
+          foregroundPainter: divider ? _Hairline(colors.line) : null,
+          child: ColoredBox(
+            color: state.pressed ? colors.surface2 : const Color(0x00000000),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 56),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: NikoSpace.s4, vertical: NikoSpace.s3),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: NikoType.body.style(colors.ink)),
+                    ),
+                    if (value != null) ...[
+                      const SizedBox(width: NikoSpace.s3),
+                      Text(value!, maxLines: 1, style: NikoType.bodySm.style(colors.ink2)),
+                    ],
+                    const SizedBox(width: NikoSpace.s2),
+                    NikoIcon(NikoIcons.chevronRight, size: 20, color: colors.ink2),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

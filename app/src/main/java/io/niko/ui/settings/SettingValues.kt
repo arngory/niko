@@ -11,10 +11,17 @@ interface SettingValues {
     fun setFlag(key: String, value: Boolean)
     fun text(key: String): String
     fun setText(key: String, value: String)
+
+    /** What a row that opens something shows of it at its end (a link's [id]), null for nothing. */
+    fun summary(id: String): String? = null
 }
 
 /** Values held in memory alone: the probe's screens and their snapshots, with nothing stored. */
-class MemorySettingValues(flags: Map<String, Boolean> = emptyMap(), texts: Map<String, String> = emptyMap()) : SettingValues {
+class MemorySettingValues(
+    flags: Map<String, Boolean> = emptyMap(),
+    texts: Map<String, String> = emptyMap(),
+    private val summaries: Map<String, String> = emptyMap(),
+) : SettingValues {
     private val flags = mutableStateMapOf<String, Boolean>().apply { putAll(flags) }
     private val texts = mutableStateMapOf<String, String>().apply { putAll(texts) }
 
@@ -24,6 +31,7 @@ class MemorySettingValues(flags: Map<String, Boolean> = emptyMap(), texts: Map<S
     }
 
     override fun text(key: String) = texts[key].orEmpty()
+    override fun summary(id: String) = summaries[id]
     override fun setText(key: String, value: String) {
         texts[key] = value
     }

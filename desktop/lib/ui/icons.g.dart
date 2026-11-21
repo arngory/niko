@@ -6,6 +6,9 @@ abstract final class NikoIcons {
   /// circle-alert.svg
   static const alert = 'M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0Z M12 8L12 12 M12 16L12.01 16';
 
+  /// chevron-right.svg
+  static const chevronRight = 'M9 18l6 -6 -6 -6';
+
   /// x.svg
   static const close = 'M18 6 6 18 M6 6l12 12';
 
@@ -30,5 +33,5 @@ abstract final class NikoIcons {
   /// trash.svg
   static const trash = 'M10 11v6 M14 11v6 M19 6v14a2 2 0 0 1 -2 2H7a2 2 0 0 1 -2 -2V6 M3 6h18 M8 6V4a2 2 0 0 1 2 -2h4a2 2 0 0 1 2 2v2';
 
-  static const all = [alert, close, copy, export, menu, power, rotateCw, search, trash];
+  static const all = [alert, chevronRight, close, copy, export, menu, power, rotateCw, search, trash];
 }

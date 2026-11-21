@@ -7,7 +7,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import io.niko.ui.home.ListGroup
+import io.niko.ui.home.ListRow
 import io.niko.ui.home.Section
+import io.niko.ui.home.Trail
 
 // Variant В of docs/ui/platforms.md: a list screen of shared/screens, described once and drawn here and in the window
 // (desktop/lib/settings/list_screen.dart). shared/tool/gen_screens.py writes the descriptions as ListScreens; this
@@ -37,6 +39,9 @@ sealed interface Item
 /** A switch of the setting [key]; [enabledBy] the switch it needs on. */
 class SwitchItem(val key: String, @StringRes val title: Int, val enabledBy: String? = null) : Item
 
+/** A row that opens something: the host's summary of it (SettingValues.summary) and a chevron; pressed, onAction(id). */
+class LinkItem(val id: String, @StringRes val title: Int) : Item
+
 /** A field of the setting [key]; [action] an icon button at its end, which the screen's host answers by its id. */
 class FieldSpec(
     val key: String,
@@ -58,8 +63,8 @@ fun ListScreen(spec: ListSpec, values: SettingValues, onBack: () -> Unit, onActi
                 for (field in line.fields) SpecField(field, values, onAction, if (field.narrow) Modifier.width(NarrowField) else Modifier.weight(1f))
             }
             is FieldLine -> SpecField(line.field, values, onAction)
-            is GroupLine -> ListGroup { Items(line.items, values) }
-            is SectionLine -> Section(stringResource(line.title)) { Items(line.items, values) }
+            is GroupLine -> ListGroup { Items(line.items, values, onAction) }
+            is SectionLine -> Section(stringResource(line.title)) { Items(line.items, values, onAction) }
         }
     }
 
@@ -73,11 +78,14 @@ private fun SpecField(field: FieldSpec, values: SettingValues, onAction: (String
     )
 
 @Composable
-private fun Items(items: List<Item>, values: SettingValues) = items.forEachIndexed { i, item ->
+private fun Items(items: List<Item>, values: SettingValues, onAction: (String) -> Unit) = items.forEachIndexed { i, item ->
     when (item) {
         is SwitchItem -> SwitchRow(
             stringResource(item.title), values.flag(item.key), { values.setFlag(item.key, it) },
             enabled = item.enabledBy?.let(values::flag) ?: true, divider = i > 0,
+        )
+        is LinkItem -> ListRow(
+            stringResource(item.title), divider = i > 0, trail = { Trail(values.summary(item.id)) }, onClick = { onAction(item.id) },
         )
     }
 }
