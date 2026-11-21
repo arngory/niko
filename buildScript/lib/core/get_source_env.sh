@@ -1,5 +1,5 @@
 export REPOSITORY_SING_BOX="https://github.com/arngory/sing-box.git"
-export COMMIT_SING_BOX="4b5baa4f6432d4fa0dd0d1a27ae2a02f86be7105"
+export COMMIT_SING_BOX="2ce821017145dbc2905066a3a7a5691fa92470cc"
 # gomobile and gobind: golang/mobile as it is, from the fork that keeps it (no patches of ours); libcore/go.mod takes
 # golang.org/x/mobile at the same commit, so the binding's runtime is of the generator's commit
 export REPOSITORY_GOMOBILE="https://github.com/arngory/mobile.git"

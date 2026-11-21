@@ -157,7 +157,8 @@ jobs:
           xcrun simctl shutdown "$udid" || true
           [ -s hellos/ios/hello.hex ] && [ -s "$RUNNER_TEMP/second/ios.hex" ] || { echo "::error::no two ClientHellos from iOS"; exit 1; }
           python3 -I .github/scripts/hello.py shuffled hellos/ios/hello.hex "$RUNNER_TEMP/second/ios.hex" > hellos/ios/SHUFFLE
-          echo "Safari of ${runtime/iOS-/iOS }, the Simulator on macOS $(sw_vers -productVersion), GitHub runner ($(date -u +%F), browser-hellos.yml run $GITHUB_RUN_ID)" > hellos/ios/SOURCE
+          ios="${runtime#iOS-}"
+          echo "Safari of iOS ${ios//-/.}, the Simulator on macOS $(sw_vers -productVersion), GitHub runner ($(date -u +%F), browser-hellos.yml run $GITHUB_RUN_ID)" > hellos/ios/SOURCE
 
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: ${{ !cancelled() }}
@@ -223,8 +224,12 @@ jobs:
           if-no-files-found: ignore
 
   # 360 Secure Browser (uTLS's "360" is its version 11 of 2022) and QQ Browser, from their vendors' own download
-  # lists, installed silently on this disposable runner only; Chromium flags, two tabs, as on Linux
+  # lists, installed silently on this disposable runner only; Chromium flags, two tabs, as on Linux. Their installers
+  # run as administrator and leave services behind, so the job never runs for main (a schedule or a dispatch there):
+  # the runner holds the run's cache token, and main's cache scope is what release builds restore. A push or a
+  # dispatch on another branch writes only that branch's scope. Each installer must be https and signed by its vendor
   windows:
+    if: ${{ github.event_name != 'schedule' && github.ref != 'refs/heads/main' }}
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -240,10 +245,17 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          function Install($name, $url, $arguments, $folders, $exeName) {
+          function Install($name, $url, $signer, $arguments, $folders, $exeName) {
+            if (-not $url.StartsWith("https://")) { throw "the installer of $name is not at an https address: $url" }
             $installer = Join-Path $env:RUNNER_TEMP "$name-setup.exe"
             Write-Host "${name}: $url"
             Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $installer
+            # the vendor's own signature, or the installer does not run
+            $signature = Get-AuthenticodeSignature -FilePath $installer
+            Write-Host "${name}: signature $($signature.Status), $($signature.SignerCertificate.Subject)"
+            if ($signature.Status -ne "Valid" -or $signature.SignerCertificate.Subject -notmatch $signer) {
+              throw "the installer of $name is not signed by its vendor ($signer)"
+            }
             $p = Start-Process -FilePath $installer -ArgumentList $arguments -PassThru
             if (-not $p.WaitForExit(900000)) { $p.Kill(); Write-Host "the installer of $name ran 15 minutes: stopped" }
             Start-Sleep -Seconds 10
@@ -277,14 +289,14 @@ jobs:
           if ($list -match 'SE_64[^"'']*["'']([^"'']+\.exe)') {
             $url = $Matches[1]
             if ($url.StartsWith("//")) { $url = "https:" + $url }
-            $exe = Install "360" $url @("--silent-install") @("$env:APPDATA", "$env:LOCALAPPDATA", "${env:ProgramFiles(x86)}\360", "$env:ProgramFiles\360") "360se.exe"
+            $exe = Install "360" $url "Qihu" @("--silent-install") @("$env:APPDATA", "$env:LOCALAPPDATA", "${env:ProgramFiles(x86)}\360", "$env:ProgramFiles\360") "360se.exe"
             if (-not (Capture "360" $exe 18901 "360 Secure Browser")) { $ok = $false }
           } else { Write-Host "::error::no SE_64 in 360's download list"; $ok = $false }
           # QQ Browser's: package_url_64 (the newest; the bare QQBrowser_Setup_x64.exe beside it is an old release)
           $config = (Invoke-WebRequest -UseBasicParsing -Uri "https://go.browser.qq.com/new_sem_dl_config").Content
           if ($config -match '"package_url_64"\s*:\s*"([^"]+)"') {
             $url = $Matches[1] -replace '\\/', '/'
-            $exe = Install "qq" $url @("/S") @("$env:ProgramFiles\Tencent", "${env:ProgramFiles(x86)}\Tencent", "$env:LOCALAPPDATA\Tencent", "$env:APPDATA\Tencent") "QQBrowser.exe"
+            $exe = Install "qq" $url "Tencent" @("/S") @("$env:ProgramFiles\Tencent", "${env:ProgramFiles(x86)}\Tencent", "$env:LOCALAPPDATA\Tencent", "$env:APPDATA\Tencent") "QQBrowser.exe"
             if (-not (Capture "qq" $exe 18902 "QQ Browser")) { $ok = $false }
           } else { Write-Host "::error::no package_url_64 in QQ Browser's download config"; $ok = $false }
           if (-not $ok) { exit 1 }
