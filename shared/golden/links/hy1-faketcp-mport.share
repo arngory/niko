@@ -1,0 +1,1 @@
+hysteria://hy.example.org:443/?mport=443%2C5000-6000&upmbps=10&downmbps=50&protocol=faketcp#hop

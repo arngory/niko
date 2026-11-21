@@ -1,0 +1,1 @@
+tuic://00000000-0000-4000-8000-000000000151:fake-token@203.0.113.151:443/?congestion_control=bbr&udp_relay_mode=quic&sni=tuic.example.com&alpn=h3&allow_insecure=1&disable_sni=1#TUIC%20sn

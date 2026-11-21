@@ -1,0 +1,1 @@
+anytls://fake-anytls@anytls.example.com:8443/?insecure=1&sni=anytls.example.com&fp=firefox#AnyTLS%20sn

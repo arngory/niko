@@ -1,0 +1,1 @@
+naive+quic://user:p%40ss@[2001:db8::7]:8443/?sni=quic.example.com&cert=ROOT&extra-headers=X-Token%3A%20a%20b%0AX-Mode%3A%20fast&insecure-concurrency=2&udp=1#quic%20node

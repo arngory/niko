@@ -1,0 +1,1 @@
+trojan://fake-password@203.0.113.83:443/?type=tcp&security=tls&sni=pin.example.com#pinned

@@ -1,0 +1,1 @@
+vless://00000000-0000-4000-8000-000000000144@inner:1/?type=xhttp&encryption=none&host=x.example.com&path=%2Fxhttp&mode=packet-up&extra=%7B%22xPaddingBytes%22%3A%22100-1000%22%7D
