@@ -32,3 +32,23 @@ func TestWriteToBounded(t *testing.T) {
 		}
 	}
 }
+
+// An error names the refusals of a panel that limits devices, in brackets after the status; other headers stay out.
+func TestErrorNamesPanelRefusal(t *testing.T) {
+	for _, c := range []struct {
+		header http.Header
+		want   string
+	}{
+		{http.Header{"X-Hwid-Not-Supported": {"true"}, "X-Hwid-Active": {"true"}}, "HTTP 404 Not Found [x-hwid-not-supported]: gone"},
+		{http.Header{"X-Hwid-Max-Devices-Reached": {" TRUE "}, "X-Hwid-Limit": {"true"}},
+			"HTTP 404 Not Found [x-hwid-max-devices-reached] [x-hwid-limit]: gone"},
+		{http.Header{"X-Hwid-Not-Supported": {"false"}}, "HTTP 404 Not Found: gone"},
+		{nil, "HTTP 404 Not Found: gone"},
+	} {
+		response := &httpResponse{Response: &http.Response{Status: "404 Not Found", Header: c.header,
+			Body: io.NopCloser(strings.NewReader("gone"))}}
+		if got := response.errorString(); got != c.want {
+			t.Errorf("%v: %q, want %q", c.header, got, c.want)
+		}
+	}
+}

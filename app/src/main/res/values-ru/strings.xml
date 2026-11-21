@@ -244,6 +244,9 @@
 <string name="group_auto_select_sum">Запуск любого профиля группы подключает через профиль с наименьшей задержкой, проверка каждые 3 минуты</string>
 <string name="subscription_send_hwid">Отправлять ID устройства (HWID)</string>
 <string name="subscription_send_hwid_sum">Для панелей с лимитом устройств (Remnawave, Marzban): отправляет случайный ID этой установки, версию Android и модель устройства</string>
+<string name="subscription_hwid_limit">У провайдера исчерпан лимит устройств. Освободите место в его боте или личном кабинете и обновите подписку.</string>
+<string name="subscription_hwid_required">Провайдер требует ID устройства: включите «%s» в настройках группы.</string>
+<string name="subscription_hwid_refused">Провайдер не принял ID этого устройства.</string>
 <string name="route_domain_help">По одному в строке: example.com (с поддоменами), full:, keyword:, regexp:, geosite:ru или remote rule-set с доменами: rule-set:https://…/geosite-ru.srs</string>
 <string name="route_ip_help">По одному в строке: 1.2.3.0/24, geoip:ru, geoip:private или remote rule-set с IP: rule-set:https://…/geoip-ru.srs</string>
 <string name="rule_set_update_interval">Интервал обновления remote rule-set</string>
