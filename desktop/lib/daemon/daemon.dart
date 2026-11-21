@@ -312,6 +312,26 @@ class ProfileRow {
   final String address;
 }
 
+/// What an input is (NikoService.Recognize).
+enum ImportKind { nothing, profiles, subscription }
+
+/// What an import of an input would add: the profiles as rows without ids, or a subscription's link.
+class ImportPreview {
+  const ImportPreview({this.kind = ImportKind.nothing, this.profiles = const [], this.subscription = ''});
+
+  final ImportKind kind;
+  final List<ProfileRow> profiles;
+  final String subscription;
+}
+
+/// A profile with its bean (NikoService.GetProfile): what it takes to put it back after a deletion.
+class SavedProfile {
+  const SavedProfile({required this.row, required this.beanJson});
+
+  final ProfileRow row;
+  final String beanJson;
+}
+
 /// The daemon as the window uses it. One implementation talks gRPC ([GrpcDaemon]); tests put a server behind it.
 abstract interface class Daemon {
   /// The daemon's version: the first call, which also says whether it is there at all.
@@ -387,6 +407,21 @@ abstract interface class Daemon {
 
   /// Selects a profile, or none with 0 (NikoService.Select): what the window connects with, D-MAIN-07.
   Future<void> select(int profileId);
+
+  /// What an input is and what its import would add; nothing is written (NikoService.Recognize).
+  Future<ImportPreview> recognize(String text);
+
+  /// A profile with its bean (NikoService.GetProfile).
+  Future<SavedProfile> profile(int id);
+
+  /// A new profile at the end of its group, from its type and bean (NikoService.SaveProfile): its id.
+  Future<int> addProfile({required int groupId, required String type, required String beanJson});
+
+  /// Deletes the profiles of those ids (NikoService.DeleteProfiles).
+  Future<void> deleteProfiles(List<int> ids);
+
+  /// Puts profiles into a group before one of its profiles, or at its end with [before] 0 (NikoService.MoveProfiles).
+  Future<void> moveProfiles(List<int> ids, {required int groupId, int before = 0});
 
   /// Imports the share links in [text] into a group ([groupId] 0: the ungrouped one), D-ADD-03, -04: the ids of the
   /// profiles added. Fails with the daemon's code and words where it imported nothing: no link it reads, or a
@@ -717,6 +752,51 @@ class GrpcDaemon implements Daemon {
 
   @override
   Future<void> select(int profileId) => _niko.select(niko.ProfileId(id: Int64(profileId)), options: _short);
+
+  ProfileRow _row(niko.Profile p) => ProfileRow(
+        id: p.id.toInt(),
+        groupId: p.groupId.toInt(),
+        order: p.order.toInt(),
+        type: p.type,
+        name: p.name,
+        address: p.address,
+      );
+
+  @override
+  Future<ImportPreview> recognize(String text) async {
+    final preview = await _niko.recognize(niko.ImportInput(text: text), options: _short);
+    return ImportPreview(
+      kind: switch (preview.kind) {
+        niko.ImportPreview_Kind.PROFILES => ImportKind.profiles,
+        niko.ImportPreview_Kind.SUBSCRIPTION => ImportKind.subscription,
+        _ => ImportKind.nothing,
+      },
+      profiles: List.unmodifiable(preview.profiles.map(_row)),
+      subscription: preview.subscription,
+    );
+  }
+
+  @override
+  Future<SavedProfile> profile(int id) async {
+    final p = await _niko.getProfile(niko.ProfileId(id: Int64(id)), options: _short);
+    return SavedProfile(row: _row(p), beanJson: p.beanJson);
+  }
+
+  @override
+  Future<int> addProfile({required int groupId, required String type, required String beanJson}) async =>
+      (await _niko.saveProfile(niko.Profile(groupId: Int64(groupId), type: type, beanJson: beanJson), options: _short))
+          .id
+          .toInt();
+
+  @override
+  Future<void> deleteProfiles(List<int> ids) =>
+      _niko.deleteProfiles(niko.ProfileIds(ids: ids.map(Int64.new)), options: _short);
+
+  @override
+  Future<void> moveProfiles(List<int> ids, {required int groupId, int before = 0}) => _niko.moveProfiles(
+        niko.MoveRequest(ids: ids.map(Int64.new), groupId: Int64(groupId), before: Int64(before)),
+        options: _short,
+      );
 
   @override
   Future<List<int>> importLinks(String text, {int groupId = 0}) async {

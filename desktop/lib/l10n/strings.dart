@@ -41,6 +41,22 @@ class NikoStrings {
   String get profilesList => _ru ? 'Профили группы' : 'The group\'s profiles';
   String get storeUnreachable => _ru ? 'Профили не прочитаны' : 'The profiles were not read';
   String get storeNoLink => _ru ? 'Нет связи со службой' : 'No link to the service';
+  String get add => _ru ? 'Добавить' : 'Add';
+  String get addOverline => _ru ? 'Добавление' : 'Adding';
+  String get addTitle => _ru ? 'Вставьте ссылку' : 'Paste a link';
+  String get addSub => _ru ? 'Ссылка на профиль или несколько, по одной в строке' : 'A profile\'s link, or several, one a line';
+  String get addField => _ru ? 'Ссылка' : 'Link';
+  String get addPaste => _ru ? 'Вставить' : 'Paste';
+  String addFound(int count) => _ru ? 'Профилей в ссылке: $count' : 'Profiles in the link: $count';
+  String addButton(int count) => _ru ? 'Добавить: $count' : 'Add $count';
+  String get addSubscriptionLater =>
+      _ru ? 'Это ссылка подписки: подписки придут в следующих выпусках' : 'This is a subscription\'s link: subscriptions come in later releases';
+  String get addNothing => _ru ? 'Ссылок на профили не найдено' : 'No profile links found';
+  String get addFailed => _ru ? 'Не добавлено' : 'Not added';
+  String get cancel => _ru ? 'Отмена' : 'Cancel';
+  String profileDelete(String name) => _ru ? 'Удалить «$name»' : 'Delete “$name”';
+  String profileDeleted(String name) => _ru ? 'Профиль «$name» удалён' : 'Profile “$name” deleted';
+  String get undo => _ru ? 'Вернуть' : 'Undo';
   String get view => _ru ? 'Вид интерфейса' : 'Interface view';
   String get viewSimple => _ru ? 'Простой' : 'Simple';
   String get viewAdvanced => _ru ? 'Расширенный' : 'Advanced';

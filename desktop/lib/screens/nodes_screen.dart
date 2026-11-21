@@ -10,14 +10,16 @@ import '../ui/icons.dart';
 import '../ui/pressable.dart';
 
 /// Узлы (B-Profiles, D-MAIN-07): the groups beside the profiles of the one chosen; a profile pressed is the one the
-/// window connects with. Adding, the profile's menu and the order come with the next parts of slice 5.
+/// window connects with; one is added from a link (+) and deleted, with a way back for a while. Sharing and the
+/// order come with the next part of slice 5.
 class NodesScreen extends StatelessWidget {
-  const NodesScreen({super.key, required this.feed, required this.linked});
+  const NodesScreen({super.key, required this.feed, required this.linked, required this.onAdd});
 
   final ProfilesFeed feed;
 
   /// The window talks to the daemon: without it the store cannot be read.
   final bool linked;
+  final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +55,7 @@ class NodesScreen extends StatelessWidget {
                     selected: p.id == feed.selected,
                     divider: i > 0,
                     onPressed: () => feed.select(p.id),
+                    onDelete: () => feed.delete(p),
                   );
                 },
               ),
@@ -69,7 +72,7 @@ class NodesScreen extends StatelessWidget {
         children: [
           SizedBox(
             width: 260,
-            child: _Groups(feed: feed, strings: strings),
+            child: _Groups(feed: feed, strings: strings, onAdd: linked ? onAdd : null),
           ),
           const SizedBox(width: NikoSpace.s6),
           Expanded(
@@ -91,6 +94,10 @@ class NodesScreen extends StatelessWidget {
                   const SizedBox(height: NikoSpace.s4),
                 ],
                 profiles,
+                if (feed.deleted case final gone?) ...[
+                  const SizedBox(height: NikoSpace.s4),
+                  _Snackbar(text: strings.profileDeleted(gone.saved.row.name), action: strings.undo, onAction: feed.undo),
+                ],
               ],
             ),
           ),
@@ -106,10 +113,11 @@ String groupName(GroupRow group, NikoStrings strings) =>
 
 /// The panel of groups (m-list with its title): the one shown on surface-2.
 class _Groups extends StatelessWidget {
-  const _Groups({required this.feed, required this.strings});
+  const _Groups({required this.feed, required this.strings, required this.onAdd});
 
   final ProfilesFeed feed;
   final NikoStrings strings;
+  final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -123,8 +131,15 @@ class _Groups extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(NikoSpace.s5, NikoSpace.s5, NikoSpace.s5, NikoSpace.s3),
-              child: Semantics(header: true, child: Text(strings.groups, style: NikoType.headline.style(colors.ink))),
+              padding: const EdgeInsets.fromLTRB(NikoSpace.s5, NikoSpace.s3, NikoSpace.s3, NikoSpace.s1),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Semantics(header: true, child: Text(strings.groups, style: NikoType.headline.style(colors.ink))),
+                  ),
+                  NikoIconButton(icon: NikoIcons.plus, label: strings.add, tonal: true, onPressed: onAdd),
+                ],
+              ),
             ),
             for (final g in feed.groups)
               _GroupRow(
@@ -210,17 +225,20 @@ class _ProfileRow extends StatelessWidget {
     required this.selected,
     required this.divider,
     required this.onPressed,
+    required this.onDelete,
   });
 
   final ProfileRow profile;
   final bool selected;
   final bool divider;
   final VoidCallback onPressed;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
     final colors = NikoTheme.of(context);
-    return Semantics(
+    final strings = NikoStrings.of(Localizations.localeOf(context));
+    final body = Semantics(
       inMutuallyExclusiveGroup: true,
       checked: selected,
       label: '${profile.name}, ${typeLabel(profile.type)}, ${profile.address}',
@@ -228,45 +246,94 @@ class _ProfileRow extends StatelessWidget {
       child: NikoPressable(
         radius: 0,
         onPressed: onPressed,
-        builder: (context, state) => CustomPaint(
-          foregroundPainter: divider ? _Hairline(colors.line) : null,
-          child: ColoredBox(
-            color: state.pressed ? colors.surface2 : const Color(0x00000000),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 72),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: NikoSpace.s4, vertical: NikoSpace.s3),
-                child: Row(
-                  children: [
-                    NikoRadio(on: selected),
-                    const SizedBox(width: NikoSpace.s3),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(profile.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: NikoType.body.style(colors.ink, weight: selected ? FontWeight.w600 : null)),
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              NikoTag(typeLabel(profile.type)),
-                              const SizedBox(width: NikoSpace.s2),
-                              Flexible(
-                                child: Text(profile.address,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: NikoType.code.style(colors.ink2)),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+        builder: (context, state) => ColoredBox(
+          color: state.pressed ? colors.surface2 : const Color(0x00000000),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 72),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(NikoSpace.s4, NikoSpace.s3, NikoSpace.s2, NikoSpace.s3),
+              child: Row(
+                children: [
+                  NikoRadio(on: selected),
+                  const SizedBox(width: NikoSpace.s3),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(profile.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: NikoType.body.style(colors.ink, weight: selected ? FontWeight.w600 : null)),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            NikoTag(typeLabel(profile.type)),
+                            const SizedBox(width: NikoSpace.s2),
+                            Flexible(
+                              child: Text(profile.address,
+                                  maxLines: 1, overflow: TextOverflow.ellipsis, style: NikoType.code.style(colors.ink2)),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    return CustomPaint(
+      foregroundPainter: divider ? _Hairline(colors.line) : null,
+      child: Row(
+        children: [
+          Expanded(child: body),
+          Padding(
+            padding: const EdgeInsets.only(right: NikoSpace.s2),
+            child: NikoIconButton(
+              icon: NikoIcons.trash,
+              label: strings.profileDelete(profile.name),
+              muted: true,
+              small: true,
+              onPressed: onDelete,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// m-snackbar: what was done, on surface-3, and the way back.
+class _Snackbar extends StatelessWidget {
+  const _Snackbar({required this.text, required this.action, required this.onAction});
+
+  final String text;
+  final String action;
+  final VoidCallback onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = NikoTheme.of(context);
+    return Semantics(
+      liveRegion: true,
+      container: true,
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: DecoratedBox(
+            decoration: BoxDecoration(color: colors.surface3, borderRadius: BorderRadius.circular(NikoRadius.md)),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(NikoSpace.s4, NikoSpace.s1, NikoSpace.s1, NikoSpace.s1),
+              child: Row(
+                children: [
+                  Expanded(child: Text(text, maxLines: 2, style: NikoType.bodySm.style(colors.ink))),
+                  NikoGhostButton(label: action, onPressed: onAction),
+                ],
               ),
             ),
           ),

@@ -24,7 +24,7 @@ MIRRORED = {"arrow-left", "arrow-right-to-line", "send", "undo-2", "redo-2", "lo
 # the icons the window draws: its name for each → the SVG's (desktop/lib/ui/icons.g.dart)
 WINDOW = {
     "power": "power", "alert": "circle-alert", "close": "x", "search": "search", "trash": "trash",
-    "menu": "menu", "copy": "copy", "export": "share", "rotateCw": "rotate-cw",
+    "menu": "menu", "copy": "copy", "export": "share", "plus": "plus", "rotateCw": "rotate-cw",
     "chevronRight": "chevron-right",
 }
 # drawn by the window alone: no drawable for them (lint fails the APK on a resource nothing uses)
