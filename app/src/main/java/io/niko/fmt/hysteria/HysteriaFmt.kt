@@ -1,6 +1,5 @@
 package io.niko.fmt.hysteria
 
-import io.niko.database.DataStore
 import io.niko.fmt.LOCALHOST
 import io.niko.fmt.applyNikoParams
 import io.niko.ktx.*
@@ -291,7 +290,9 @@ fun HysteriaBean.canUseSingBox(): Boolean {
     return true
 }
 
-fun buildSingBoxOutboundHysteriaBean(bean: HysteriaBean): SingBoxOptions.SingBoxOption {
+fun buildSingBoxOutboundHysteriaBean(
+    bean: HysteriaBean, globalInsecure: Boolean = false,
+): SingBoxOptions.SingBoxOption {
     return when (bean.protocolVersion) {
         1 -> SingBoxOptions.Outbound_HysteriaOptions().apply {
             type = "hysteria"
@@ -327,7 +328,7 @@ fun buildSingBoxOutboundHysteriaBean(bean: HysteriaBean): SingBoxOptions.SingBox
                 if (bean.caText.isNotBlank()) {
                     certificate = bean.caText
                 }
-                insecure = bean.allowInsecure || DataStore.globalAllowInsecure
+                insecure = bean.allowInsecure || globalInsecure
                 enabled = true
             }
         }
@@ -368,7 +369,7 @@ fun buildSingBoxOutboundHysteriaBean(bean: HysteriaBean): SingBoxOptions.SingBox
                 if (bean.caText.isNotBlank()) {
                     certificate = bean.caText
                 }
-                insecure = bean.allowInsecure || DataStore.globalAllowInsecure
+                insecure = bean.allowInsecure || globalInsecure
                 enabled = true
             }
         }

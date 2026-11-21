@@ -1,6 +1,5 @@
 package io.niko.fmt.tuic
 
-import io.niko.database.DataStore
 import io.niko.ktx.linkBuilder
 import io.niko.ktx.toLink
 import io.niko.ktx.urlSafe
@@ -68,7 +67,9 @@ fun TuicBean.toUri(): String {
     return builder.toLink("tuic")
 }
 
-fun buildSingBoxOutboundTuicBean(bean: TuicBean): SingBoxOptions.Outbound_TUICOptions {
+fun buildSingBoxOutboundTuicBean(
+    bean: TuicBean, globalInsecure: Boolean = false,
+): SingBoxOptions.Outbound_TUICOptions {
     if (bean.protocolVersion == 4) throw Exception("TUIC v4 is no longer supported")
     return SingBoxOptions.Outbound_TUICOptions().apply {
         type = "tuic"
@@ -92,7 +93,7 @@ fun buildSingBoxOutboundTuicBean(bean: TuicBean): SingBoxOptions.Outbound_TUICOp
                 certificate = bean.caText
             }
             disable_sni = bean.disableSNI
-            insecure = bean.allowInsecure || DataStore.globalAllowInsecure
+            insecure = bean.allowInsecure || globalInsecure
             enabled = true
         }
     }
