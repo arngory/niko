@@ -302,6 +302,8 @@ class MainActivity : ThemedActivity(),
                 is HomeFragment -> moveTaskToBack(true)
                 // a node's card goes back where it was opened from
                 is io.niko.ui.node.NodeFragment -> shown.back()
+                // a page of the settings goes back to their list, a choice open closes
+                is SettingsFragment -> shown.back()
                 else -> displayFragmentWithId(R.id.nav_home)
             }
         }
