@@ -1241,4 +1241,16 @@
     <string name="node_dnstt">dnstt resolver</string>
     <string name="node_clock">Clock</string>
     <string name="node_clock_off">%s s from the node</string>
+    <string name="screen_back">Back</string>
+    <string name="inbound_title">Inbound</string>
+    <string name="inbound_user">User</string>
+    <string name="inbound_port">Port</string>
+    <string name="inbound_password">Password</string>
+    <string name="inbound_new_password">New password</string>
+    <string name="inbound_lan">Access from the LAN</string>
+    <string name="inbound_no_auth_in_vpn">No password in VPN</string>
+    <string name="inbound_http_in_vpn">HTTP proxy in VPN</string>
+    <string name="inbound_network">Network</string>
+    <string name="inbound_metered">Treat the network as metered</string>
+    <string name="inbound_wake_lock">WakeLock</string>
 </resources>

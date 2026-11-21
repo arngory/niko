@@ -1168,4 +1168,16 @@
     <string name="node_dnstt">Резолвер dnstt</string>
     <string name="node_clock">Часы</string>
     <string name="node_clock_off">%s с от узла</string>
+    <string name="screen_back">Назад</string>
+    <string name="inbound_title">Вход</string>
+    <string name="inbound_user">Пользователь</string>
+    <string name="inbound_port">Порт</string>
+    <string name="inbound_password">Пароль</string>
+    <string name="inbound_new_password">Новый пароль</string>
+    <string name="inbound_lan">Доступ из локальной сети</string>
+    <string name="inbound_no_auth_in_vpn">Без пароля в VPN</string>
+    <string name="inbound_http_in_vpn">HTTP-прокси в VPN</string>
+    <string name="inbound_network">Сеть</string>
+    <string name="inbound_metered">Считать сеть платной</string>
+    <string name="inbound_wake_lock">WakeLock</string>
 </resources>
