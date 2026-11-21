@@ -1,7 +1,7 @@
 // Package nikoconf is the app's config build (app/src/main/java/io/niko/fmt/ConfigBuilder.kt) in Go, for the desktop
 // daemon (docs/design/desktop-stage3.md §5): the same core config from the same profiles, which the golden fixtures
 // the app writes (shared/golden) hold both sides to. This file: the outbounds of a profile, as the app's builders
-// make them (Outbound); the rest of the build comes later.
+// make them (Outbound); config.go the whole config of a profile (Build), with no raycontrol node.
 //
 // The builders are ported as the app has them, their quirks included (each says so where it is). The beans are
 // libcore/nikofmt's, filled with the app's defaults by its parsers.
@@ -27,7 +27,7 @@ type object = map[string]any
 // Outbound is the core's outbound of a profile as the app builds it (ConfigBuilder.kt buildSingBoxOutbound: each
 // type's builder), its JSON object as SingBoxOption.asMap reads it back from Gson: a field the builder sets is there
 // even where empty, false or 0, one it leaves null is not. A custom outbound (ConfigBean) is its config's JSON, and
-// WireGuard's is an endpoint. Not yet what the build adds (the tag, mux, the profile's custom JSON, Niko's own
+// WireGuard's is an endpoint. Not what the build adds (Build: the tag, mux, the profile's custom JSON, Niko's own
 // parameters: knocking, pins, fragments, DNS tunnels, raycontrol's). globalInsecure is the settings' "allow
 // insecure", which only the builders that take it in the app look at (not AnyTLS's, nor naive's).
 //
