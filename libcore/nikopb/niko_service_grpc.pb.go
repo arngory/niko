@@ -84,12 +84,14 @@ type NikoServiceClient interface {
 	// NOT_FOUND; FAILED_PRECONDITION where its secrets cannot be opened on this machine; UNIMPLEMENTED for a kind with
 	// no link (a plugin's profile).
 	ShareProfile(ctx context.Context, in *ProfileId, opts ...grpc.CallOption) (*ShareLink, error)
-	// Builds the config of a profile in the daemon, as the app builds it, and starts the core with it (reloads the one
-	// running), as DesktopService.StartService starts a config with no options: the caller becomes the daemon's owner.
-	// Until the desktop has settings of its own, the app's defaults in proxy mode: the local proxy on 127.0.0.1:2080
-	// with no login, no TUN. FAILED_PRECONDITION for no profile selected or one whose secrets cannot be opened on this
-	// machine; NOT_FOUND; INVALID_ARGUMENT for a profile the build refuses; UNIMPLEMENTED for a plugin's profile;
-	// PERMISSION_DENIED where another user owns the daemon; the core's own error for a config it refuses.
+	// Builds the config of a profile in the daemon, as the app builds it, for this computer (Windows or Linux) in the
+	// mode asked, and starts the core with it (reloads the one running), as DesktopService.StartService starts a config
+	// with no options: the caller becomes the daemon's owner. Until the desktop has settings of its own, the app's
+	// defaults: in proxy mode the local proxy on 127.0.0.1:2080 with no login, not the system's proxy; in VPN mode the
+	// TUN, which the core opens only with the daemon's privileges. FAILED_PRECONDITION for no profile selected
+	// or one whose secrets cannot be opened on this machine; NOT_FOUND; INVALID_ARGUMENT for a profile the build
+	// refuses, or no such mode; UNIMPLEMENTED for a plugin's profile; PERMISSION_DENIED where another user owns the
+	// daemon; the core's own error for a config it refuses or cannot start.
 	Connect(ctx context.Context, in *ConnectRequest, opts ...grpc.CallOption) (*Empty, error)
 	// What an input is and what its import would add; nothing is written, and no store is needed.
 	Recognize(ctx context.Context, in *ImportInput, opts ...grpc.CallOption) (*ImportPreview, error)
@@ -336,12 +338,14 @@ type NikoServiceServer interface {
 	// NOT_FOUND; FAILED_PRECONDITION where its secrets cannot be opened on this machine; UNIMPLEMENTED for a kind with
 	// no link (a plugin's profile).
 	ShareProfile(context.Context, *ProfileId) (*ShareLink, error)
-	// Builds the config of a profile in the daemon, as the app builds it, and starts the core with it (reloads the one
-	// running), as DesktopService.StartService starts a config with no options: the caller becomes the daemon's owner.
-	// Until the desktop has settings of its own, the app's defaults in proxy mode: the local proxy on 127.0.0.1:2080
-	// with no login, no TUN. FAILED_PRECONDITION for no profile selected or one whose secrets cannot be opened on this
-	// machine; NOT_FOUND; INVALID_ARGUMENT for a profile the build refuses; UNIMPLEMENTED for a plugin's profile;
-	// PERMISSION_DENIED where another user owns the daemon; the core's own error for a config it refuses.
+	// Builds the config of a profile in the daemon, as the app builds it, for this computer (Windows or Linux) in the
+	// mode asked, and starts the core with it (reloads the one running), as DesktopService.StartService starts a config
+	// with no options: the caller becomes the daemon's owner. Until the desktop has settings of its own, the app's
+	// defaults: in proxy mode the local proxy on 127.0.0.1:2080 with no login, not the system's proxy; in VPN mode the
+	// TUN, which the core opens only with the daemon's privileges. FAILED_PRECONDITION for no profile selected
+	// or one whose secrets cannot be opened on this machine; NOT_FOUND; INVALID_ARGUMENT for a profile the build
+	// refuses, or no such mode; UNIMPLEMENTED for a plugin's profile; PERMISSION_DENIED where another user owns the
+	// daemon; the core's own error for a config it refuses or cannot start.
 	Connect(context.Context, *ConnectRequest) (*Empty, error)
 	// What an input is and what its import would add; nothing is written, and no store is needed.
 	Recognize(context.Context, *ImportInput) (*ImportPreview, error)

@@ -315,6 +315,10 @@ class ProfileRow {
 /// What an input is (NikoService.Recognize).
 enum ImportKind { nothing, profiles, subscription }
 
+/// How the computer's traffic reaches the core (D-NAV-02): the local proxy; or the TUN, which the core opens only with
+/// the daemon's privileges.
+enum ConnectMode { proxy, vpn }
+
 /// What an import of an input would add: the profiles as rows without ids, or a subscription's link.
 class ImportPreview {
   const ImportPreview({this.kind = ImportKind.nothing, this.profiles = const [], this.subscription = ''});
@@ -423,10 +427,11 @@ abstract interface class Daemon {
   /// The link to share a profile by, as the app writes it (NikoService.ShareProfile, D-PROFILE-07).
   Future<String> shareLink(int id);
 
-  /// Starts the core with a stored profile ([profileId] 0: the selected one), its config built by the daemon
-  /// (NikoService.Connect, D-MAIN-04). Fails with the daemon's code: no profile selected, a plugin's profile, a
-  /// service another user owns, a config the core refuses.
-  Future<void> connect(int profileId);
+  /// Starts the core with a stored profile ([profileId] 0: the selected one) in a [mode], its config built by the
+  /// daemon for this computer (NikoService.Connect, D-MAIN-04). Fails with the daemon's code: no profile selected, a
+  /// plugin's profile, a service another user owns, a config the core refuses or cannot start (a TUN without the
+  /// daemon's privileges).
+  Future<void> connect(int profileId, {ConnectMode mode = ConnectMode.proxy});
 
   /// Puts profiles into a group before one of its profiles, or at its end with [before] 0 (NikoService.MoveProfiles).
   Future<void> moveProfiles(List<int> ids, {required int groupId, int before = 0});
@@ -805,8 +810,16 @@ class GrpcDaemon implements Daemon {
       (await _niko.shareProfile(niko.ProfileId(id: Int64(id)), options: _short)).link;
 
   @override
-  Future<void> connect(int profileId) =>
-      _niko.connect(niko.ConnectRequest(profileId: Int64(profileId)), options: _long);
+  Future<void> connect(int profileId, {ConnectMode mode = ConnectMode.proxy}) => _niko.connect(
+        niko.ConnectRequest(
+          profileId: Int64(profileId),
+          mode: switch (mode) {
+            ConnectMode.proxy => niko.ConnectRequest_Mode.PROXY,
+            ConnectMode.vpn => niko.ConnectRequest_Mode.VPN,
+          },
+        ),
+        options: _long,
+      );
 
   @override
   Future<void> moveProfiles(List<int> ids, {required int groupId, int before = 0}) => _niko.moveProfiles(

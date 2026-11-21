@@ -34,7 +34,9 @@ import java.nio.file.Files
  * - `rules`: RuleEntity's fields;
  * - `settings`: ConfigSettings' fields over its defaults, `secrets` among them;
  * - `apps`: package name → uid (ConfigDevice.uid); `private_dns`: the strict Private DNS host;
- * - `for_test`, `for_export`: buildConfig's flags.
+ * - `for_test`, `for_export`: buildConfig's flags;
+ * - `platform`: `windows` or `linux` for a computer's case, which this test skips: its config is libcore/nikoconf's
+ *   alone (`linux.json`, `windows.json`; Go writes a `windows.json` of some of the app's cases too).
  *
  * The rest of ConfigDevice is fixed: ports from 20000 on, the clock at 1800000000, no plugin, libcore's protect server
  * not up, the one-time mesh key "golden-one-time-key". No raycontrol node (ConfigRay.None), no rule-set downloaded.
@@ -142,8 +144,15 @@ class ConfigGoldenTest {
             }
         }
         for (case in cases) {
+            val input = try {
+                JsonParser.parseString(File(case, "input.json").readText()).asJsonObject
+            } catch (e: Exception) {
+                problems += "${case.name}/input.json: $e"
+                continue
+            }
+            if (input.get("platform")?.asString.let { it != null && it != "android" }) continue
             val (config, warnings, error) = try {
-                build(JsonParser.parseString(File(case, "input.json").readText()).asJsonObject)
+                build(input)
             } catch (e: Exception) {
                 problems += "${case.name}/input.json: $e"
                 continue

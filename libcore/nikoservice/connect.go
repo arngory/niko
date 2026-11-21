@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"net"
+	"runtime"
 	"time"
 
 	"libcore/nikoconf"
@@ -17,16 +18,26 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// Connect (BG-01, D-MAIN-04): the config of a stored profile built here as the app builds it (nikoconf.Build), and
-// the core started with it by the daemon (boxdd's Host.StartService), as DesktopService.StartService starts a config
-// the window gives: the same owner's check, the config kept for the daemon's next start.
+// Connect (BG-01, D-MAIN-04): the config of a stored profile built here as the app builds it (nikoconf.Build), for
+// this computer and in the mode asked (D-NAV-02), and the core started with it by the daemon (boxdd's
+// Host.StartService), as DesktopService.StartService starts a config the window gives: the same owner's check, the
+// config kept for the daemon's next start.
 
 func (s *server) Connect(ctx context.Context, request *nikopb.ConnectRequest) (*nikopb.Empty, error) {
+	var mode string
+	switch request.Mode {
+	case nikopb.ConnectRequest_PROXY:
+		mode = nikoconf.ModeProxy
+	case nikopb.ConnectRequest_VPN:
+		mode = nikoconf.ModeVPN
+	default:
+		return nil, status.Errorf(codes.InvalidArgument, "no mode %d", request.Mode)
+	}
 	u, err := s.users.user(ctx)
 	if err != nil {
 		return nil, err
 	}
-	in, err := connectInput(u.store, request.ProfileId)
+	in, err := connectInput(u.store, request.ProfileId, mode)
 	if err != nil {
 		return nil, err
 	}
@@ -47,18 +58,27 @@ func (s *server) Connect(ctx context.Context, request *nikopb.ConnectRequest) (*
 	return &nikopb.Empty{}, nil
 }
 
-// connectSettings are the build's settings until the desktop has its own (slice 13): the app's defaults, in proxy mode
-// (the desktop's TUN comes with slice 8). The local proxy is then the app's, 127.0.0.1:2080, and with no password of
-// the user's it asks for no login, as the app's in proxy mode.
-func connectSettings() nikoconf.Settings {
+// connectSettings are the build's settings until the desktop has its own (slice 13): the app's defaults, in the mode
+// asked. In proxy mode the local proxy is then the app's, 127.0.0.1:2080, and with no password of the user's it asks
+// for no login, as the app's in proxy mode, and not the system's proxy (nikoconf's default until slice 8b). VPN mode
+// is the TUN of a computer's (nikoconf's desktop.go), which the core opens only with the daemon's privileges.
+func connectSettings(mode string) nikoconf.Settings {
 	settings := nikoconf.DefaultSettings()
-	settings.ServiceMode = nikoconf.ModeProxy
+	settings.ServiceMode = mode
 	return settings
 }
 
-// connectInput is the build's input for a profile (0: the selected one): the profile, its group and the profiles the
-// build takes from it.
-func connectInput(store *nikostore.Store, id int64) (nikoconf.Input, error) {
+// connectPlatform is the computer the config is built for: nikod is built for Windows and Linux.
+func connectPlatform() string {
+	if runtime.GOOS == "windows" {
+		return nikoconf.PlatformWindows
+	}
+	return nikoconf.PlatformLinux
+}
+
+// connectInput is the build's input for a profile (0: the selected one) in a mode: the profile, its group and the
+// profiles the build takes from it.
+func connectInput(store *nikostore.Store, id int64, mode string) (nikoconf.Input, error) {
 	if id == 0 {
 		if id = store.Selected(); id == 0 {
 			return nikoconf.Input{}, status.Error(codes.FailedPrecondition, "no profile is selected")
@@ -72,8 +92,8 @@ func connectInput(store *nikostore.Store, id int64) (nikoconf.Input, error) {
 	if err != nil {
 		return nikoconf.Input{}, err
 	}
-	in := nikoconf.Input{Profile: id, Profiles: []nikoconf.Profile{profile}, Settings: connectSettings(),
-		Device: desktopDevice{}}
+	in := nikoconf.Input{Profile: id, Profiles: []nikoconf.Profile{profile}, Settings: connectSettings(mode),
+		Platform: connectPlatform(), Device: desktopDevice{}}
 	var group *nikoconf.Group
 	for _, g := range store.Groups() {
 		if g.ID == profile.Group {

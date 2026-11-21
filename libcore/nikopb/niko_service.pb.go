@@ -141,6 +141,55 @@ func (Group_Type) EnumDescriptor() ([]byte, []int) {
 	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{9, 0}
 }
 
+// How the computer's traffic reaches the core (D-NAV-02).
+type ConnectRequest_Mode int32
+
+const (
+	// the local proxy; the default
+	ConnectRequest_PROXY ConnectRequest_Mode = 0
+	// the TUN: the system routes all traffic into it
+	ConnectRequest_VPN ConnectRequest_Mode = 1
+)
+
+// Enum value maps for ConnectRequest_Mode.
+var (
+	ConnectRequest_Mode_name = map[int32]string{
+		0: "PROXY",
+		1: "VPN",
+	}
+	ConnectRequest_Mode_value = map[string]int32{
+		"PROXY": 0,
+		"VPN":   1,
+	}
+)
+
+func (x ConnectRequest_Mode) Enum() *ConnectRequest_Mode {
+	p := new(ConnectRequest_Mode)
+	*p = x
+	return p
+}
+
+func (x ConnectRequest_Mode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ConnectRequest_Mode) Descriptor() protoreflect.EnumDescriptor {
+	return file_niko_v1_niko_service_proto_enumTypes[2].Descriptor()
+}
+
+func (ConnectRequest_Mode) Type() protoreflect.EnumType {
+	return &file_niko_v1_niko_service_proto_enumTypes[2]
+}
+
+func (x ConnectRequest_Mode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ConnectRequest_Mode.Descriptor instead.
+func (ConnectRequest_Mode) EnumDescriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{17, 0}
+}
+
 type ImportPreview_Kind int32
 
 const (
@@ -174,11 +223,11 @@ func (x ImportPreview_Kind) String() string {
 }
 
 func (ImportPreview_Kind) Descriptor() protoreflect.EnumDescriptor {
-	return file_niko_v1_niko_service_proto_enumTypes[2].Descriptor()
+	return file_niko_v1_niko_service_proto_enumTypes[3].Descriptor()
 }
 
 func (ImportPreview_Kind) Type() protoreflect.EnumType {
-	return &file_niko_v1_niko_service_proto_enumTypes[2]
+	return &file_niko_v1_niko_service_proto_enumTypes[3]
 }
 
 func (x ImportPreview_Kind) Number() protoreflect.EnumNumber {
@@ -271,7 +320,7 @@ type Info struct {
 	// the schema of the daemon's store (nikostore's); 0: a daemon without one
 	StoreSchema int32 `protobuf:"varint,3,opt,name=store_schema,json=storeSchema,proto3" json:"store_schema,omitempty"`
 	// the version of this API: what the window may ask. 2: the store, Watch and the import; 3: Select and GetSelected;
-	// 4: ShareProfile; 5: Connect
+	// 4: ShareProfile; 5: Connect; 6: Connect's mode, the config a computer's
 	Api           int32 `protobuf:"varint,4,opt,name=api,proto3" json:"api,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1272,7 +1321,8 @@ func (x *ShareLink) GetLink() string {
 type ConnectRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// the profile; 0: the selected one
-	ProfileId     int64 `protobuf:"varint,1,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	ProfileId     int64               `protobuf:"varint,1,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	Mode          ConnectRequest_Mode `protobuf:"varint,2,opt,name=mode,proto3,enum=niko.v1.ConnectRequest_Mode" json:"mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1312,6 +1362,13 @@ func (x *ConnectRequest) GetProfileId() int64 {
 		return x.ProfileId
 	}
 	return 0
+}
+
+func (x *ConnectRequest) GetMode() ConnectRequest_Mode {
+	if x != nil {
+		return x.Mode
+	}
+	return ConnectRequest_PROXY
 }
 
 type ProfileIds struct {
@@ -1688,10 +1745,14 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\tProfileId\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"\x1f\n" +
 	"\tShareLink\x12\x12\n" +
-	"\x04link\x18\x01 \x01(\tR\x04link\"/\n" +
+	"\x04link\x18\x01 \x01(\tR\x04link\"}\n" +
 	"\x0eConnectRequest\x12\x1d\n" +
 	"\n" +
-	"profile_id\x18\x01 \x01(\x03R\tprofileId\"\x1e\n" +
+	"profile_id\x18\x01 \x01(\x03R\tprofileId\x120\n" +
+	"\x04mode\x18\x02 \x01(\x0e2\x1c.niko.v1.ConnectRequest.ModeR\x04mode\"\x1a\n" +
+	"\x04Mode\x12\t\n" +
+	"\x05PROXY\x10\x00\x12\a\n" +
+	"\x03VPN\x10\x01\"\x1e\n" +
 	"\n" +
 	"ProfileIds\x12\x10\n" +
 	"\x03ids\x18\x01 \x03(\x03R\x03ids\"R\n" +
@@ -1747,85 +1808,87 @@ func file_niko_v1_niko_service_proto_rawDescGZIP() []byte {
 	return file_niko_v1_niko_service_proto_rawDescData
 }
 
-var file_niko_v1_niko_service_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_niko_v1_niko_service_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
 var file_niko_v1_niko_service_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_niko_v1_niko_service_proto_goTypes = []any{
 	(Change_Kind)(0),            // 0: niko.v1.Change.Kind
 	(Group_Type)(0),             // 1: niko.v1.Group.Type
-	(ImportPreview_Kind)(0),     // 2: niko.v1.ImportPreview.Kind
-	(*Empty)(nil),               // 3: niko.v1.Empty
-	(*GetInfoRequest)(nil),      // 4: niko.v1.GetInfoRequest
-	(*Info)(nil),                // 5: niko.v1.Info
-	(*RouteTestRequest)(nil),    // 6: niko.v1.RouteTestRequest
-	(*RouteTestStep)(nil),       // 7: niko.v1.RouteTestStep
-	(*RouteTestResult)(nil),     // 8: niko.v1.RouteTestResult
-	(*WatchRequest)(nil),        // 9: niko.v1.WatchRequest
-	(*Change)(nil),              // 10: niko.v1.Change
-	(*TaskProgress)(nil),        // 11: niko.v1.TaskProgress
-	(*Group)(nil),               // 12: niko.v1.Group
-	(*GroupId)(nil),             // 13: niko.v1.GroupId
-	(*GroupList)(nil),           // 14: niko.v1.GroupList
-	(*ListProfilesRequest)(nil), // 15: niko.v1.ListProfilesRequest
-	(*Profile)(nil),             // 16: niko.v1.Profile
-	(*ProfileList)(nil),         // 17: niko.v1.ProfileList
-	(*ProfileId)(nil),           // 18: niko.v1.ProfileId
-	(*ShareLink)(nil),           // 19: niko.v1.ShareLink
-	(*ConnectRequest)(nil),      // 20: niko.v1.ConnectRequest
-	(*ProfileIds)(nil),          // 21: niko.v1.ProfileIds
-	(*MoveRequest)(nil),         // 22: niko.v1.MoveRequest
-	(*ImportInput)(nil),         // 23: niko.v1.ImportInput
-	(*ImportPreview)(nil),       // 24: niko.v1.ImportPreview
-	(*ImportRequest)(nil),       // 25: niko.v1.ImportRequest
+	(ConnectRequest_Mode)(0),    // 2: niko.v1.ConnectRequest.Mode
+	(ImportPreview_Kind)(0),     // 3: niko.v1.ImportPreview.Kind
+	(*Empty)(nil),               // 4: niko.v1.Empty
+	(*GetInfoRequest)(nil),      // 5: niko.v1.GetInfoRequest
+	(*Info)(nil),                // 6: niko.v1.Info
+	(*RouteTestRequest)(nil),    // 7: niko.v1.RouteTestRequest
+	(*RouteTestStep)(nil),       // 8: niko.v1.RouteTestStep
+	(*RouteTestResult)(nil),     // 9: niko.v1.RouteTestResult
+	(*WatchRequest)(nil),        // 10: niko.v1.WatchRequest
+	(*Change)(nil),              // 11: niko.v1.Change
+	(*TaskProgress)(nil),        // 12: niko.v1.TaskProgress
+	(*Group)(nil),               // 13: niko.v1.Group
+	(*GroupId)(nil),             // 14: niko.v1.GroupId
+	(*GroupList)(nil),           // 15: niko.v1.GroupList
+	(*ListProfilesRequest)(nil), // 16: niko.v1.ListProfilesRequest
+	(*Profile)(nil),             // 17: niko.v1.Profile
+	(*ProfileList)(nil),         // 18: niko.v1.ProfileList
+	(*ProfileId)(nil),           // 19: niko.v1.ProfileId
+	(*ShareLink)(nil),           // 20: niko.v1.ShareLink
+	(*ConnectRequest)(nil),      // 21: niko.v1.ConnectRequest
+	(*ProfileIds)(nil),          // 22: niko.v1.ProfileIds
+	(*MoveRequest)(nil),         // 23: niko.v1.MoveRequest
+	(*ImportInput)(nil),         // 24: niko.v1.ImportInput
+	(*ImportPreview)(nil),       // 25: niko.v1.ImportPreview
+	(*ImportRequest)(nil),       // 26: niko.v1.ImportRequest
 }
 var file_niko_v1_niko_service_proto_depIdxs = []int32{
-	7,  // 0: niko.v1.RouteTestResult.steps:type_name -> niko.v1.RouteTestStep
+	8,  // 0: niko.v1.RouteTestResult.steps:type_name -> niko.v1.RouteTestStep
 	0,  // 1: niko.v1.Change.kind:type_name -> niko.v1.Change.Kind
-	11, // 2: niko.v1.Change.task:type_name -> niko.v1.TaskProgress
+	12, // 2: niko.v1.Change.task:type_name -> niko.v1.TaskProgress
 	1,  // 3: niko.v1.Group.type:type_name -> niko.v1.Group.Type
-	12, // 4: niko.v1.GroupList.groups:type_name -> niko.v1.Group
-	16, // 5: niko.v1.ProfileList.profiles:type_name -> niko.v1.Profile
-	2,  // 6: niko.v1.ImportPreview.kind:type_name -> niko.v1.ImportPreview.Kind
-	16, // 7: niko.v1.ImportPreview.profiles:type_name -> niko.v1.Profile
-	23, // 8: niko.v1.ImportRequest.input:type_name -> niko.v1.ImportInput
-	4,  // 9: niko.v1.NikoService.GetInfo:input_type -> niko.v1.GetInfoRequest
-	6,  // 10: niko.v1.NikoService.RouteTest:input_type -> niko.v1.RouteTestRequest
-	9,  // 11: niko.v1.NikoService.Watch:input_type -> niko.v1.WatchRequest
-	3,  // 12: niko.v1.NikoService.ListGroups:input_type -> niko.v1.Empty
-	15, // 13: niko.v1.NikoService.ListProfiles:input_type -> niko.v1.ListProfilesRequest
-	18, // 14: niko.v1.NikoService.GetProfile:input_type -> niko.v1.ProfileId
-	16, // 15: niko.v1.NikoService.SaveProfile:input_type -> niko.v1.Profile
-	21, // 16: niko.v1.NikoService.DeleteProfiles:input_type -> niko.v1.ProfileIds
-	22, // 17: niko.v1.NikoService.MoveProfiles:input_type -> niko.v1.MoveRequest
-	12, // 18: niko.v1.NikoService.SaveGroup:input_type -> niko.v1.Group
-	13, // 19: niko.v1.NikoService.DeleteGroup:input_type -> niko.v1.GroupId
-	18, // 20: niko.v1.NikoService.Select:input_type -> niko.v1.ProfileId
-	3,  // 21: niko.v1.NikoService.GetSelected:input_type -> niko.v1.Empty
-	18, // 22: niko.v1.NikoService.ShareProfile:input_type -> niko.v1.ProfileId
-	20, // 23: niko.v1.NikoService.Connect:input_type -> niko.v1.ConnectRequest
-	23, // 24: niko.v1.NikoService.Recognize:input_type -> niko.v1.ImportInput
-	25, // 25: niko.v1.NikoService.Import:input_type -> niko.v1.ImportRequest
-	5,  // 26: niko.v1.NikoService.GetInfo:output_type -> niko.v1.Info
-	8,  // 27: niko.v1.NikoService.RouteTest:output_type -> niko.v1.RouteTestResult
-	10, // 28: niko.v1.NikoService.Watch:output_type -> niko.v1.Change
-	14, // 29: niko.v1.NikoService.ListGroups:output_type -> niko.v1.GroupList
-	17, // 30: niko.v1.NikoService.ListProfiles:output_type -> niko.v1.ProfileList
-	16, // 31: niko.v1.NikoService.GetProfile:output_type -> niko.v1.Profile
-	16, // 32: niko.v1.NikoService.SaveProfile:output_type -> niko.v1.Profile
-	3,  // 33: niko.v1.NikoService.DeleteProfiles:output_type -> niko.v1.Empty
-	3,  // 34: niko.v1.NikoService.MoveProfiles:output_type -> niko.v1.Empty
-	12, // 35: niko.v1.NikoService.SaveGroup:output_type -> niko.v1.Group
-	3,  // 36: niko.v1.NikoService.DeleteGroup:output_type -> niko.v1.Empty
-	3,  // 37: niko.v1.NikoService.Select:output_type -> niko.v1.Empty
-	18, // 38: niko.v1.NikoService.GetSelected:output_type -> niko.v1.ProfileId
-	19, // 39: niko.v1.NikoService.ShareProfile:output_type -> niko.v1.ShareLink
-	3,  // 40: niko.v1.NikoService.Connect:output_type -> niko.v1.Empty
-	24, // 41: niko.v1.NikoService.Recognize:output_type -> niko.v1.ImportPreview
-	11, // 42: niko.v1.NikoService.Import:output_type -> niko.v1.TaskProgress
-	26, // [26:43] is the sub-list for method output_type
-	9,  // [9:26] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	13, // 4: niko.v1.GroupList.groups:type_name -> niko.v1.Group
+	17, // 5: niko.v1.ProfileList.profiles:type_name -> niko.v1.Profile
+	2,  // 6: niko.v1.ConnectRequest.mode:type_name -> niko.v1.ConnectRequest.Mode
+	3,  // 7: niko.v1.ImportPreview.kind:type_name -> niko.v1.ImportPreview.Kind
+	17, // 8: niko.v1.ImportPreview.profiles:type_name -> niko.v1.Profile
+	24, // 9: niko.v1.ImportRequest.input:type_name -> niko.v1.ImportInput
+	5,  // 10: niko.v1.NikoService.GetInfo:input_type -> niko.v1.GetInfoRequest
+	7,  // 11: niko.v1.NikoService.RouteTest:input_type -> niko.v1.RouteTestRequest
+	10, // 12: niko.v1.NikoService.Watch:input_type -> niko.v1.WatchRequest
+	4,  // 13: niko.v1.NikoService.ListGroups:input_type -> niko.v1.Empty
+	16, // 14: niko.v1.NikoService.ListProfiles:input_type -> niko.v1.ListProfilesRequest
+	19, // 15: niko.v1.NikoService.GetProfile:input_type -> niko.v1.ProfileId
+	17, // 16: niko.v1.NikoService.SaveProfile:input_type -> niko.v1.Profile
+	22, // 17: niko.v1.NikoService.DeleteProfiles:input_type -> niko.v1.ProfileIds
+	23, // 18: niko.v1.NikoService.MoveProfiles:input_type -> niko.v1.MoveRequest
+	13, // 19: niko.v1.NikoService.SaveGroup:input_type -> niko.v1.Group
+	14, // 20: niko.v1.NikoService.DeleteGroup:input_type -> niko.v1.GroupId
+	19, // 21: niko.v1.NikoService.Select:input_type -> niko.v1.ProfileId
+	4,  // 22: niko.v1.NikoService.GetSelected:input_type -> niko.v1.Empty
+	19, // 23: niko.v1.NikoService.ShareProfile:input_type -> niko.v1.ProfileId
+	21, // 24: niko.v1.NikoService.Connect:input_type -> niko.v1.ConnectRequest
+	24, // 25: niko.v1.NikoService.Recognize:input_type -> niko.v1.ImportInput
+	26, // 26: niko.v1.NikoService.Import:input_type -> niko.v1.ImportRequest
+	6,  // 27: niko.v1.NikoService.GetInfo:output_type -> niko.v1.Info
+	9,  // 28: niko.v1.NikoService.RouteTest:output_type -> niko.v1.RouteTestResult
+	11, // 29: niko.v1.NikoService.Watch:output_type -> niko.v1.Change
+	15, // 30: niko.v1.NikoService.ListGroups:output_type -> niko.v1.GroupList
+	18, // 31: niko.v1.NikoService.ListProfiles:output_type -> niko.v1.ProfileList
+	17, // 32: niko.v1.NikoService.GetProfile:output_type -> niko.v1.Profile
+	17, // 33: niko.v1.NikoService.SaveProfile:output_type -> niko.v1.Profile
+	4,  // 34: niko.v1.NikoService.DeleteProfiles:output_type -> niko.v1.Empty
+	4,  // 35: niko.v1.NikoService.MoveProfiles:output_type -> niko.v1.Empty
+	13, // 36: niko.v1.NikoService.SaveGroup:output_type -> niko.v1.Group
+	4,  // 37: niko.v1.NikoService.DeleteGroup:output_type -> niko.v1.Empty
+	4,  // 38: niko.v1.NikoService.Select:output_type -> niko.v1.Empty
+	19, // 39: niko.v1.NikoService.GetSelected:output_type -> niko.v1.ProfileId
+	20, // 40: niko.v1.NikoService.ShareProfile:output_type -> niko.v1.ShareLink
+	4,  // 41: niko.v1.NikoService.Connect:output_type -> niko.v1.Empty
+	25, // 42: niko.v1.NikoService.Recognize:output_type -> niko.v1.ImportPreview
+	12, // 43: niko.v1.NikoService.Import:output_type -> niko.v1.TaskProgress
+	27, // [27:44] is the sub-list for method output_type
+	10, // [10:27] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_niko_v1_niko_service_proto_init() }
@@ -1838,7 +1901,7 @@ func file_niko_v1_niko_service_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_niko_v1_niko_service_proto_rawDesc), len(file_niko_v1_niko_service_proto_rawDesc)),
-			NumEnums:      3,
+			NumEnums:      4,
 			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   1,

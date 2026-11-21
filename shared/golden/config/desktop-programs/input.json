@@ -1,0 +1,71 @@
+{
+  "platform": "windows",
+  "profile": 1,
+  "profiles": [
+    {
+      "id": 1,
+      "group": 1,
+      "order": 1,
+      "link": "ss-sip002"
+    }
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "order": 1,
+      "name": "main"
+    }
+  ],
+  "apps": {
+    "org.example.browser": 10123
+  },
+  "rules": [
+    {
+      "id": 1,
+      "name": "browser direct",
+      "enabled": true,
+      "userOrder": 1,
+      "programs": [
+        "firefox.exe",
+        "C:\\Program Files\\Mozilla Firefox\\firefox.exe",
+        " firefox.exe "
+      ],
+      "outbound": -1
+    },
+    {
+      "id": 2,
+      "name": "phone apps",
+      "enabled": true,
+      "userOrder": 2,
+      "packages": [
+        "org.example.browser"
+      ],
+      "outbound": -1
+    },
+    {
+      "id": 3,
+      "name": "messenger by its sites",
+      "enabled": true,
+      "userOrder": 3,
+      "packages": [
+        "org.example.messenger"
+      ],
+      "programs": [
+        "Telegram.exe"
+      ],
+      "domains": "t.me",
+      "outbound": 0
+    },
+    {
+      "id": 4,
+      "name": "game port blocked",
+      "enabled": true,
+      "userOrder": 4,
+      "programs": [
+        "D:\\Games\\game.exe"
+      ],
+      "port": "27015",
+      "outbound": -2
+    }
+  ]
+}

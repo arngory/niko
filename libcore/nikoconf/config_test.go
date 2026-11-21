@@ -20,7 +20,8 @@ import (
 const goldenConfigs = "../../shared/golden/config"
 
 // Each case, built here from the same input, must give the app's config by meaning (numbers as numbers, keys in any
-// order, lists in theirs), the same warnings, and an error where the app threw, with its message.
+// order, lists in theirs), the same warnings, and an error where the app threw, with its message. A computer's case
+// (an input with its platform) is Go's alone: TestDesktopSnapshots.
 func TestGoldenConfigs(t *testing.T) {
 	entries, err := os.ReadDir(goldenConfigs)
 	if err != nil {
@@ -37,6 +38,9 @@ func TestGoldenConfigs(t *testing.T) {
 			raw, err := os.ReadFile(filepath.Join(dir, "input.json"))
 			if err != nil {
 				t.Fatalf("a case without its input: %v", err)
+			}
+			if desktopPlatform(t, raw) != "" {
+				t.Skip("a computer's case")
 			}
 			want, wantErr := readOptional(t, filepath.Join(dir, "android.json")), readOptional(t, filepath.Join(dir,
 				"error.txt"))

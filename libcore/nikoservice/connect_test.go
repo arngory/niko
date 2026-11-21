@@ -3,6 +3,7 @@ package nikoservice
 import (
 	"context"
 	"encoding/json"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -35,6 +36,13 @@ func TestConnect(t *testing.T) {
 		_, err := client.Connect(ctx, &nikopb.ConnectRequest{ProfileId: id})
 		return err
 	}
+	coreReads := func(config string) {
+		t.Helper()
+		var options option.Options
+		if err := options.UnmarshalJSONContext(include.Context(context.Background()), []byte(config)); err != nil {
+			t.Fatalf("the core does not read it: %v", err)
+		}
+	}
 
 	if err := connect(0); code(err) != codes.FailedPrecondition {
 		t.Fatalf("none selected: %v", err)
@@ -46,7 +54,8 @@ func TestConnect(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// the selected profile: its outbound the proxy, the local proxy of proxy mode without a login, no TUN
+	// the selected profile: its outbound the proxy, the local proxy of proxy mode without a login and not the system's
+	// proxy, no TUN
 	if err := connect(0); err != nil {
 		t.Fatal(err)
 	}
@@ -59,17 +68,31 @@ func TestConnect(t *testing.T) {
 		t.Fatalf("the inbounds: %v", config.Inbounds)
 	}
 	if in := config.Inbounds[0]; in["type"] != "mixed" || in["tag"] != "mixed-in" || in["listen"] != "127.0.0.1" ||
-		in["listen_port"] != 2080.0 || in["users"] != nil {
+		in["listen_port"] != 2080.0 || in["users"] != nil || in["set_system_proxy"] != nil {
 		t.Fatalf("the local proxy: %v", in)
 	}
-	if config.Route["final"] != "proxy" {
+	if config.Route["final"] != "proxy" || config.Route["auto_detect_interface"] != true {
 		t.Fatalf("the route: %v", config.Route)
 	}
-	// a config the core reads
-	var options option.Options
-	if err := options.UnmarshalJSONContext(include.Context(context.Background()), []byte(started[0])); err != nil {
-		t.Fatalf("the core does not read it: %v", err)
+	coreReads(started[0])
+
+	// VPN mode: a computer's TUN, its routes the core's, and no local proxy without a password
+	if _, err := client.Connect(ctx, &nikopb.ConnectRequest{Mode: nikopb.ConnectRequest_VPN}); err != nil {
+		t.Fatal(err)
 	}
+	config = parseConfig(t, started[len(started)-1])
+	name := map[bool]string{true: "Niko", false: "niko0"}[runtime.GOOS == "windows"]
+	if len(config.Inbounds) != 1 {
+		t.Fatalf("the inbounds: %v", config.Inbounds)
+	}
+	if in := config.Inbounds[0]; in["type"] != "tun" || in["tag"] != "tun-in" || in["interface_name"] != name ||
+		in["auto_route"] != true || in["strict_route"] != true || in["stack"] != "gvisor" || in["mtu"] != 9000.0 {
+		t.Fatalf("the TUN: %v", in)
+	}
+	if config.Outbounds[0]["type"] != "socks" || config.Route["auto_detect_interface"] != true {
+		t.Fatalf("the outbound %v, the route %v", config.Outbounds[0], config.Route)
+	}
+	coreReads(started[len(started)-1])
 
 	// another profile by its id, the selection as it was
 	if err := connect(1); err != nil {
@@ -86,6 +109,9 @@ func TestConnect(t *testing.T) {
 	before := len(started)
 	if err := connect(7); code(err) != codes.NotFound {
 		t.Errorf("no such profile: %v", err)
+	}
+	if _, err := client.Connect(ctx, &nikopb.ConnectRequest{Mode: 7}); code(err) != codes.InvalidArgument {
+		t.Errorf("no such mode: %v", err)
 	}
 	if err := connect(3); code(err) != codes.Unimplemented {
 		t.Errorf("a plugin's profile: %v", err)

@@ -27,7 +27,10 @@ func dnsServerFromAddress(address, tag string, detour, resolver *string) (object
 		o["detour"] = *detour
 	}
 	if address == "local" || strings.HasPrefix(address, "dhcp://") {
-		// the system resolver already uses the DHCP-provided servers on Android
+		// the system resolver already uses the DHCP-provided servers on Android. On a computer (D-SET-18) "local" is
+		// the system's DNS as well, DHCP's among it: the core asks the system's servers itself (Windows: each
+		// adapter's but its TUN's; Linux: those systemd-resolved has, else resolv.conf's) through its dialer, which
+		// auto_detect_interface keeps off the TUN
 		o["type"] = "local"
 		return o, nil
 	}
