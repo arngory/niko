@@ -35,7 +35,6 @@ import io.niko.aidl.SpeedDisplayData
 import io.niko.aidl.TrafficData
 import io.niko.bg.BaseService
 import io.niko.bg.SagerConnection
-import io.niko.bg.proto.UrlTest
 import io.niko.database.DataStore
 import io.niko.database.GroupManager
 import io.niko.database.ProfileManager
@@ -58,10 +57,10 @@ import io.niko.ktx.onMainDispatcher
 import io.niko.ktx.parseProxies
 import io.niko.ktx.readableMessage
 import io.niko.ktx.runOnDefaultDispatcher
-import io.niko.plugin.PluginManager
 import io.niko.ui.home.ConfigGroup
 import io.niko.ui.home.ConfigsActions
 import io.niko.ui.home.ConfigsLoader
+import io.niko.ui.home.ConfigsTest
 import io.niko.ui.home.HomeActions
 import io.niko.ui.home.HomeFragment
 import io.niko.ui.home.HomeLoader
@@ -70,8 +69,6 @@ import io.niko.ui.home.HomeView
 import io.niko.ktx.Logs
 import io.niko.utils.PrivateDns
 import io.niko.utils.Util
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 // onSaveInstanceState: a link's question was open when the activity went
 private const val LINK_QUESTION = "link_question"
@@ -122,7 +119,10 @@ class MainActivity : ThemedActivity(),
 
         override fun configs(open: Boolean) {
             configsOpen = open
-            if (open) refreshConfigs() else configsState.value = null
+            if (open) refreshConfigs() else {
+                configsState.value = null
+                ConfigsTest.forget()
+            }
         }
 
         override fun subscriptions() {
@@ -155,29 +155,34 @@ class MainActivity : ThemedActivity(),
     /** The configs' sheet (ui/home/ConfigsSheet): its groups while open (null: closed or not read yet). Main thread. */
     val configsState = mutableStateOf<List<ConfigGroup>?>(null)
 
-    /** The groups whose URL test runs from the sheet: their test buttons wait. Main thread. */
-    val configsTesting = mutableStateOf<Set<Long>>(emptySet())
-
     @Volatile
     private var configsOpen = false
-    private val configsGeneration = java.util.concurrent.atomic.AtomicInteger()
-    private var configsShown = 0 // the main thread's
+    // one read at a time: the asks while one runs make one more after it (a burst of changes, one read)
+    private val configsReading = java.util.concurrent.atomic.AtomicBoolean()
+    @Volatile
+    private var configsDirty = false
 
-    /** Reads the sheet's groups again while it is open (any thread), the newest read shown as refreshHome does. */
+    /** Reads the sheet's groups again while it is open (any thread); asks while a read runs are merged into one more. */
     fun refreshConfigs() {
         if (!configsOpen) return
-        val generation = configsGeneration.incrementAndGet()
+        configsDirty = true
+        if (!configsReading.compareAndSet(false, true)) return
         runOnDefaultDispatcher {
-            val loaded = try {
-                ConfigsLoader.load()
-            } catch (e: Exception) {
-                Logs.w(e)
-                return@runOnDefaultDispatcher
-            }
-            onMainDispatcher {
-                if (!configsOpen || generation <= configsShown) return@onMainDispatcher
-                configsShown = generation
-                configsState.value = loaded
+            try {
+                while (configsDirty && configsOpen) {
+                    configsDirty = false
+                    val loaded = try {
+                        ConfigsLoader.load()
+                    } catch (e: Exception) {
+                        Logs.w(e)
+                        continue
+                    }
+                    onMainDispatcher { if (configsOpen) configsState.value = loaded }
+                }
+            } finally {
+                configsReading.set(false)
+                // asked between the loop's last check and the flag's reset
+                if (configsDirty) refreshConfigs()
             }
         }
     }
@@ -196,52 +201,12 @@ class MainActivity : ThemedActivity(),
             }
         }
 
-        // the old list's URL test without its dialog: each result stored as it comes, the rows read again with it
+        // held by the app (ConfigsTest): a rotation keeps it, the sheet shows its results as they come
         override fun test(groupId: Long) {
-            if (DataStore.runningTest || groupId in configsTesting.value) return
-            DataStore.runningTest = true
-            configsTesting.value += groupId
-            val service = connection.service
-            runOnDefaultDispatcher {
-                try {
-                    val profiles = java.util.concurrent.ConcurrentLinkedQueue(SagerDatabase.proxyDao.getByGroup(groupId))
-                    val workers = DataStore.connectionTestConcurrent.let {
-                        if (service != null) minOf(it, UrlTest.inServiceAtOnce) else it
-                    }
-                    kotlinx.coroutines.coroutineScope {
-                        repeat(workers) {
-                            launch(Dispatchers.IO) {
-                                val urlTest = UrlTest()
-                                while (true) {
-                                    val profile = profiles.poll() ?: break
-                                    try {
-                                        profile.ping = urlTest.doTest(profile, service)
-                                        profile.status = 1
-                                        profile.error = null
-                                    } catch (e: PluginManager.PluginNotFoundException) {
-                                        profile.status = 2
-                                        profile.error = e.readableMessage
-                                    } catch (e: kotlinx.coroutines.CancellationException) {
-                                        throw e
-                                    } catch (e: Exception) {
-                                        profile.status = 3
-                                        profile.error = e.readableMessage
-                                    }
-                                    ProfileManager.updateTestResult(listOf(profile))
-                                    refreshConfigs()
-                                }
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    Logs.w(e)
-                } finally {
-                    DataStore.runningTest = false
-                    onMainDispatcher { configsTesting.value -= groupId }
-                    refreshHome()
-                }
-            }
+            ConfigsTest.start(groupId, connection.service)
         }
+
+        override fun stopTest() = ConfigsTest.stop()
 
         override fun edit(id: Long) {
             runOnDefaultDispatcher {

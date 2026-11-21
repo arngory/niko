@@ -61,6 +61,7 @@ fun HomeScreen(
     sheet: Boolean = false,
     configs: List<ConfigGroup>? = null,
     testing: Set<Long> = emptySet(),
+    results: Map<Long, ConfigsTest.Result> = emptyMap(),
     configsActions: ConfigsActions? = null,
     configsOpen: Boolean = false,
 ) {
@@ -98,7 +99,7 @@ fun HomeScreen(
             }) { modeSheet = false }
         }
         if (configsSheet && configsActions != null) {
-            ConfigsSheet(configs, state.profiles, state.subscriptions, testing, configsActions) { configsSheet = false }
+            ConfigsSheet(configs, state.profiles, state.subscriptions, testing, results, configsActions) { configsSheet = false }
         }
     }
 }

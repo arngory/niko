@@ -63,6 +63,7 @@ class HomeSnapshotTest(private val mode: String) {
     private val noConfigs = object : ConfigsActions {
         override fun select(id: Long) {}
         override fun test(groupId: Long) {}
+        override fun stopTest() {}
         override fun edit(id: Long) {}
         override fun add() {}
         override fun subscriptions() {}
@@ -92,6 +93,8 @@ class HomeSnapshotTest(private val mode: String) {
             HomeScreen(
                 state, view, none, clock = { NOW }, ticking = false, sheet = sheet,
                 configs = groups, testing = setOf(2L), configsActions = noConfigs, configsOpen = configs,
+                // the test's results over the rows read: Helsinki answered meanwhile
+                results = mapOf(22L to ConfigsTest.Result(pingMs = 88, unreachable = false)),
             )
         }
     }
@@ -105,7 +108,7 @@ class HomeSnapshotTest(private val mode: String) {
     @Test
     fun modeSheet() = shot(connected, HomeView.Simple, sheet = true)
 
-    /** P-Configs over the main screen: the second group's test running, its button waiting. */
+    /** P-Configs over the main screen: the second group's test running, its stop in place of the test button. */
     @Test
     fun configsSheet() = shot(connected, HomeView.Advanced, configs = true)
 

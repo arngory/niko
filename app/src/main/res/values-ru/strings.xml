@@ -1142,5 +1142,6 @@
     <string name="home_search_none">Ничего не нашлось</string>
     <string name="home_ungrouped">Без группы</string>
     <string name="home_test_group">Проверить группу %s</string>
+    <string name="home_stop_test">Остановить проверку группы %s</string>
     <string name="menu_home">Главная</string>
 </resources>

@@ -4,6 +4,9 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
@@ -21,10 +24,15 @@ class HomeFragment : Fragment() {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             val main = requireActivity() as MainActivity
             setContent {
+                // the configs' sheet's test is the app's: it outlives this screen and the activity
+                val testing by ConfigsTest.testing.collectAsState()
+                val results by ConfigsTest.results.collectAsState()
+                val stored by ConfigsTest.stored.collectAsState()
+                LaunchedEffect(stored) { if (stored > 0) main.refreshHome() }
                 NikoTheme {
                     HomeScreen(
                         main.homeState.value, main.homeView.value, main.homeActions,
-                        configs = main.configsState.value, testing = main.configsTesting.value,
+                        configs = main.configsState.value, testing = testing, results = results,
                         configsActions = main.configsActions,
                     )
                 }

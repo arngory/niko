@@ -7,6 +7,7 @@ import io.niko.database.SagerDatabase
 import io.niko.fmt.hysteria.HysteriaBean
 import io.niko.fmt.naive.NaiveBean
 import io.niko.fmt.v2ray.StandardV2RayBean
+import io.niko.ktx.Logs
 import java.text.Normalizer
 import java.util.Locale
 
@@ -38,14 +39,27 @@ object ConfigsLoader {
     fun load(): List<ConfigGroup> {
         val selected = DataStore.selectedProxy
         return SagerDatabase.groupDao.allGroups().mapNotNull { group ->
-            val profiles = SagerDatabase.proxyDao.getByGroup(group.id)
-            if (profiles.isEmpty()) return@mapNotNull null
+            // a profile whose bean does not read (an older build's, a broken import) is left out, not the whole list
+            val rows = SagerDatabase.proxyDao.getByGroup(group.id).mapNotNull { proxy ->
+                runCatching { row(proxy, selected) }.onFailure { Logs.w(it) }.getOrNull()
+            }
+            if (rows.isEmpty()) return@mapNotNull null
             ConfigGroup(
                 id = group.id,
-                name = group.takeUnless { it.ungrouped }?.displayName(),
+                name = runCatching { group.takeUnless { it.ungrouped }?.displayName() }.getOrNull(),
                 subscription = group.type == GroupType.SUBSCRIPTION,
-                profiles = profiles.map { row(it, selected) },
+                profiles = rows,
             )
+        }
+    }
+
+    /** The rows with the tests' results over what was read (ConfigsTest). */
+    fun withResults(groups: List<ConfigGroup>, results: Map<Long, ConfigsTest.Result>): List<ConfigGroup> {
+        if (results.isEmpty()) return groups
+        return groups.map { group ->
+            group.copy(profiles = group.profiles.map { row ->
+                results[row.id]?.let { row.copy(pingMs = it.pingMs, unreachable = it.unreachable) } ?: row
+            })
         }
     }
 

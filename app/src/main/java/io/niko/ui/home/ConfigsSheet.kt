@@ -50,8 +50,10 @@ import io.niko.ui.compose.NikoType
 interface ConfigsActions {
     /** the profile to use: the service, when running, takes it at once */
     fun select(id: Long)
-    /** a URL test of the group's profiles, the results into the database */
+    /** a URL test of the group's profiles (ConfigsTest), the results into the database */
     fun test(groupId: Long)
+    /** the test running stopped, what it tested so far stored */
+    fun stopTest()
     /** the profile's editor */
     fun edit(id: Long)
     /** adding a profile: the list where that is done today, until the Add screen (P-Add) */
@@ -70,6 +72,7 @@ internal fun ConfigsSheet(
     profiles: Int,
     subscriptions: Int,
     testing: Set<Long>,
+    results: Map<Long, ConfigsTest.Result>,
     actions: ConfigsActions,
     onClose: () -> Unit,
 ) {
@@ -108,7 +111,7 @@ internal fun ConfigsSheet(
                 TonalIconButton(R.drawable.ic_l_plus, stringResource(R.string.home_add), actions::add)
             }
             if (searching) SearchField(query, { query = it })
-            val shown = groups?.let { ConfigsLoader.filter(it, query) }
+            val shown = groups?.let { ConfigsLoader.filter(ConfigsLoader.withResults(it, results), query) }
             when {
                 shown == null -> Unit
                 shown.isEmpty() -> Text(
@@ -118,7 +121,8 @@ internal fun ConfigsSheet(
                 else -> LazyColumn(Modifier.fillMaxWidth().weight(1f)) {
                     for (group in shown) {
                         item(key = "g${group.id}") {
-                            GroupHead(group, group.id in testing) { actions.test(group.id) }
+                            val running = group.id in testing
+                            GroupHead(group, running) { if (running) actions.stopTest() else actions.test(group.id) }
                         }
                         items(group.profiles, key = { it.id }) { row ->
                             ConfigRowView(row, divider = row !== group.profiles.first(), actions, onClose)
@@ -131,7 +135,7 @@ internal fun ConfigsSheet(
     }
 }
 
-/** m-section__head: the group's name in capitals, and its test button (a test running: the button waits). */
+/** m-section__head: the group's name in capitals, and its test button; while the group's test runs, its stop. */
 @Composable
 private fun GroupHead(group: ConfigGroup, testing: Boolean, onTest: () -> Unit) {
     val c = Niko.colors
@@ -141,9 +145,8 @@ private fun GroupHead(group: ConfigGroup, testing: Boolean, onTest: () -> Unit) 
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(name.uppercase(), NikoType.label, c.ink2, Modifier.weight(1f), maxLines = 1)
-        PlainIconButton(
-            R.drawable.ic_l_zap, stringResource(R.string.home_test_group, name), enabled = !testing, onClick = onTest,
-        )
+        if (testing) PlainIconButton(R.drawable.ic_l_x, stringResource(R.string.home_stop_test, name), onClick = onTest)
+        else PlainIconButton(R.drawable.ic_l_zap, stringResource(R.string.home_test_group, name), onClick = onTest)
     }
 }
 

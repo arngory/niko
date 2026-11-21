@@ -1215,5 +1215,6 @@
     <string name="home_search_none">Nothing found</string>
     <string name="home_ungrouped">Without a group</string>
     <string name="home_test_group">Test the group %s</string>
+    <string name="home_stop_test">Stop the test of %s</string>
     <string name="menu_home">Home</string>
 </resources>
