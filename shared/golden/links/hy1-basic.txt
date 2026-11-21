@@ -1,0 +1,1 @@
+hysteria://203.0.113.110:443?protocol=udp&auth=fake-auth&peer=hy.example.com&insecure=1&upmbps=50&downmbps=200&alpn=hysteria&obfs=xplus&obfsParam=fake-obfs#Hysteria1

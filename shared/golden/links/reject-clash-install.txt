@@ -1,0 +1,1 @@
+clash://install-config?url=https%3A%2F%2Fexample.com%2Fsub

@@ -1,0 +1,1 @@
+trojan-go://fake-password@[2001:db8::91]:8443?type=original&host=ignored.example.com

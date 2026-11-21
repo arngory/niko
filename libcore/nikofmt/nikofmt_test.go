@@ -50,12 +50,28 @@ func TestNoRootPackage(t *testing.T) {
 	}
 }
 
-// Links of kinds this package does not read yet are refused as such, not taken for another kind.
+// Links of kinds the app does not import are refused as such, not taken for another kind; so is sn:// so far.
 func TestUnsupported(t *testing.T) {
-	for _, link := range []string{"trojan://pw@example.com:443", "sn://naive?abc", "NAIVE+https://h"} {
+	for _, link := range []string{"NAIVE+https://h", "ssh://root@example.com:22", "wireguard://key@example.com:51820",
+		"juicity://uuid:pw@example.com:443", "Trojan://pw@example.com:443", " ss://YWVz@example.com:1",
+		"sn://naive?abc"} {
 		if _, err := ParseLink(link, DefaultSettings); err != ErrUnsupported {
 			t.Errorf("%s: %v, want ErrUnsupported", link, err)
 		}
+	}
+}
+
+// The links parseProxies takes for a subscription's are told apart from those it drops.
+func TestSubscriptionLinks(t *testing.T) {
+	for _, link := range []string{"clash://install-config?url=https%3A%2F%2Fexample.com%2Fs", "sn://subscription?eNpj",
+		"https://example.com/sub/token", "http://[::1", "https://example.com:0/"} {
+		if _, err := ParseLink(link, DefaultSettings); err != ErrSubscriptionLink {
+			t.Errorf("%s: %v, want ErrSubscriptionLink", link, err)
+		}
+	}
+	// a line terminator is no '.' of the app's regex: not an http link at all
+	if _, err := ParseLink("https://example.com/ ", DefaultSettings); err != ErrUnsupported {
+		t.Errorf("a line separator: %v, want ErrUnsupported", err)
 	}
 }
 
