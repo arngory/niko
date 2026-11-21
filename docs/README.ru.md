@@ -43,3 +43,4 @@
 - [Память на эмуляторе](research/memory.md), 2026-11
 - [Маршрутизация по приложениям: списки, нода, обновление](research/routing-apps.md), 2026-11-16
 - [Проба: экраны Android на Views или на Compose](research/ui-probe.md), 2026-11-20
+- [Проба: экраны-списки из общего описания или руками](research/list-screens-probe.md), 2026-11-21

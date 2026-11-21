@@ -34,7 +34,8 @@ frames() { # name activity
   timeout 10 adb logcat -c
   timeout 60 adb shell am start -W -n "$pkg/$2" --ei frames 300 > /dev/null 2>&1
   for _ in $(seq 60); do
-    line=$(timeout 10 adb logcat -d -s NikoListProbe:I | tr -d '\r' | grep -o 'variant=.*' | tail -1)
+    # this variant's own line: logcat -c does not clear every emulator's buffer, and the other's may still be there
+    line=$(timeout 10 adb logcat -d -s NikoListProbe:I | tr -d '\r' | grep -o "variant=$1 .*" | tail -1)
     [ -n "$line" ] && break
     sleep 1
   done
