@@ -1,0 +1,1 @@
+trojan://fake-trojan-password@trojan.example.com:443/?type=httpupgrade&host=trojan.example.com&path=%2Fup&security=tls&sni=trojan.example.com&allowInsecure=1#Trojan%20sn

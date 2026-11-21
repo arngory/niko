@@ -1,0 +1,1 @@
+hysteria://hy1.example.com:443/?mport=443%2C5000-6000&insecure=1&peer=hy1.example.com&auth=ZmFrZS1hdXRo&upmbps=20&downmbps=100&alpn=hysteria&obfs=xplus&obfsParam=fake-obfs&protocol=faketcp#Hysteria1%20sn

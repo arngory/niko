@@ -420,6 +420,9 @@ abstract interface class Daemon {
   /// Deletes the profiles of those ids (NikoService.DeleteProfiles).
   Future<void> deleteProfiles(List<int> ids);
 
+  /// The link to share a profile by, as the app writes it (NikoService.ShareProfile, D-PROFILE-07).
+  Future<String> shareLink(int id);
+
   /// Puts profiles into a group before one of its profiles, or at its end with [before] 0 (NikoService.MoveProfiles).
   Future<void> moveProfiles(List<int> ids, {required int groupId, int before = 0});
 
@@ -791,6 +794,10 @@ class GrpcDaemon implements Daemon {
   @override
   Future<void> deleteProfiles(List<int> ids) =>
       _niko.deleteProfiles(niko.ProfileIds(ids: ids.map(Int64.new)), options: _short);
+
+  @override
+  Future<String> shareLink(int id) async =>
+      (await _niko.shareProfile(niko.ProfileId(id: Int64(id)), options: _short)).link;
 
   @override
   Future<void> moveProfiles(List<int> ids, {required int groupId, int before = 0}) => _niko.moveProfiles(

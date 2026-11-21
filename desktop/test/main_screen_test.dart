@@ -144,6 +144,9 @@ class MemoryDaemon implements Daemon {
   }
 
   @override
+  Future<String> shareLink(int id) async => 'socks5://shared.example:1080/#$id';
+
+  @override
   Future<SavedProfile> profile(int id) async =>
       SavedProfile(row: profileRows.firstWhere((p) => p.id == id), beanJson: '{"id":$id}');
 
@@ -989,6 +992,37 @@ void main() {
     expect(find.text('Профиль «Офис» удалён'), findsOneWidget);
     await settle(const Duration(seconds: 9));
     expect(find.text('Профиль «Офис» удалён'), findsNothing);
+  });
+
+  testWidgets('Узлы: a profile\'s link copied, and said for a while', (tester) async {
+    String? copied;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') copied = (call.arguments as Map)['text'] as String?;
+      return null;
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
+    await show(tester, brightness: Brightness.light);
+    await core(tester, ServicePhase.idle);
+    daemon.groupRows = [const GroupRow(id: 1, name: '', ungrouped: true, profiles: 1)];
+    daemon.profileRows = [
+      const ProfileRow(id: 4, groupId: 1, order: 1, type: 'naive', name: 'Хельсинки', address: '203.0.113.7:443'),
+    ];
+    Future<void> settle([Duration wait = Duration.zero]) async {
+      await tester.pump(wait);
+      for (var i = 0; i < 8; i++) {
+        await tester.pump();
+      }
+    }
+
+    await tester.tap(find.text('Узлы'));
+    await settle();
+    await tester.tap(find.bySemanticsLabel('Скопировать ссылку на «Хельсинки»'));
+    await settle();
+    expect(copied, 'socks5://shared.example:1080/#4');
+    expect(find.text('Ссылка на «Хельсинки» скопирована'), findsOneWidget);
+    expect(find.text('Вернуть'), findsNothing, reason: 'nothing to undo in a copy');
+    await settle(const Duration(seconds: 5));
+    expect(find.text('Ссылка на «Хельсинки» скопирована'), findsNothing);
   });
 
   testWidgets('a narrow and low window: nothing overflows', (tester) async {

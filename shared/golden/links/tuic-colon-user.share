@@ -1,0 +1,1 @@
+tuic://00000000-0000-4000-8000-000000000121:fake%3Atoken@tuic.example.net:8443/?congestion_control=cubic&udp_relay_mode=native&disable_sni=1

@@ -1,0 +1,1 @@
+hysteria://203.0.113.110:443/?insecure=1&peer=hy.example.com&auth=fake-auth&upmbps=50&downmbps=200&alpn=hysteria&obfs=xplus&obfsParam=fake-obfs#Hysteria1

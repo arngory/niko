@@ -1,0 +1,1 @@
+trojan://fake-pass@trojan-old.example.com:443/?type=tcp&security=tls&sni=sni.example.com&alpn=h2&allowInsecure=1#Trojan%20v1

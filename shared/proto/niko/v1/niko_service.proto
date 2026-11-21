@@ -49,6 +49,10 @@ service NikoService {
   rpc Select(ProfileId) returns (Empty);
   // The selected profile; id 0: none.
   rpc GetSelected(Empty) returns (ProfileId);
+  // The link to share a profile by (D-PROFILE-07), as the app writes it: a link of its type's own, else sn://.
+  // NOT_FOUND; FAILED_PRECONDITION where its secrets cannot be opened on this machine; UNIMPLEMENTED for a kind with
+  // no link (a plugin's profile).
+  rpc ShareProfile(ProfileId) returns (ShareLink);
 
   // What an input is and what its import would add; nothing is written, and no store is needed.
   rpc Recognize(ImportInput) returns (ImportPreview);
@@ -68,7 +72,8 @@ message Info {
   string core_version = 2;
   // the schema of the daemon's store (nikostore's); 0: a daemon without one
   int32 store_schema = 3;
-  // the version of this API: what the window may ask. 2: the store, Watch and the import; 3: Select and GetSelected
+  // the version of this API: what the window may ask. 2: the store, Watch and the import; 3: Select and GetSelected;
+  // 4: ShareProfile
   int32 api = 4;
 }
 
@@ -203,6 +208,10 @@ message ProfileList {
 
 message ProfileId {
   int64 id = 1;
+}
+
+message ShareLink {
+  string link = 1;
 }
 
 message ProfileIds {

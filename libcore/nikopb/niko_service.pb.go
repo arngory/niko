@@ -187,7 +187,7 @@ func (x ImportPreview_Kind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ImportPreview_Kind.Descriptor instead.
 func (ImportPreview_Kind) EnumDescriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{19, 0}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{20, 0}
 }
 
 type Empty struct {
@@ -270,7 +270,8 @@ type Info struct {
 	CoreVersion string `protobuf:"bytes,2,opt,name=core_version,json=coreVersion,proto3" json:"core_version,omitempty"`
 	// the schema of the daemon's store (nikostore's); 0: a daemon without one
 	StoreSchema int32 `protobuf:"varint,3,opt,name=store_schema,json=storeSchema,proto3" json:"store_schema,omitempty"`
-	// the version of this API: what the window may ask. 2: the store, Watch and the import; 3: Select and GetSelected
+	// the version of this API: what the window may ask. 2: the store, Watch and the import; 3: Select and GetSelected;
+	// 4: ShareProfile
 	Api           int32 `protobuf:"varint,4,opt,name=api,proto3" json:"api,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1224,6 +1225,50 @@ func (x *ProfileId) GetId() int64 {
 	return 0
 }
 
+type ShareLink struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Link          string                 `protobuf:"bytes,1,opt,name=link,proto3" json:"link,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ShareLink) Reset() {
+	*x = ShareLink{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ShareLink) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ShareLink) ProtoMessage() {}
+
+func (x *ShareLink) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ShareLink.ProtoReflect.Descriptor instead.
+func (*ShareLink) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ShareLink) GetLink() string {
+	if x != nil {
+		return x.Link
+	}
+	return ""
+}
+
 type ProfileIds struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Ids           []int64                `protobuf:"varint,1,rep,packed,name=ids,proto3" json:"ids,omitempty"`
@@ -1233,7 +1278,7 @@ type ProfileIds struct {
 
 func (x *ProfileIds) Reset() {
 	*x = ProfileIds{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[16]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1245,7 +1290,7 @@ func (x *ProfileIds) String() string {
 func (*ProfileIds) ProtoMessage() {}
 
 func (x *ProfileIds) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[16]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1258,7 +1303,7 @@ func (x *ProfileIds) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileIds.ProtoReflect.Descriptor instead.
 func (*ProfileIds) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{16}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ProfileIds) GetIds() []int64 {
@@ -1281,7 +1326,7 @@ type MoveRequest struct {
 
 func (x *MoveRequest) Reset() {
 	*x = MoveRequest{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[17]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1293,7 +1338,7 @@ func (x *MoveRequest) String() string {
 func (*MoveRequest) ProtoMessage() {}
 
 func (x *MoveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[17]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1306,7 +1351,7 @@ func (x *MoveRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MoveRequest.ProtoReflect.Descriptor instead.
 func (*MoveRequest) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{17}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *MoveRequest) GetIds() []int64 {
@@ -1343,7 +1388,7 @@ type ImportInput struct {
 
 func (x *ImportInput) Reset() {
 	*x = ImportInput{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[18]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1355,7 +1400,7 @@ func (x *ImportInput) String() string {
 func (*ImportInput) ProtoMessage() {}
 
 func (x *ImportInput) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[18]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1368,7 +1413,7 @@ func (x *ImportInput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportInput.ProtoReflect.Descriptor instead.
 func (*ImportInput) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{18}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ImportInput) GetText() string {
@@ -1405,7 +1450,7 @@ type ImportPreview struct {
 
 func (x *ImportPreview) Reset() {
 	*x = ImportPreview{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[19]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1417,7 +1462,7 @@ func (x *ImportPreview) String() string {
 func (*ImportPreview) ProtoMessage() {}
 
 func (x *ImportPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[19]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1430,7 +1475,7 @@ func (x *ImportPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportPreview.ProtoReflect.Descriptor instead.
 func (*ImportPreview) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{19}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ImportPreview) GetKind() ImportPreview_Kind {
@@ -1465,7 +1510,7 @@ type ImportRequest struct {
 
 func (x *ImportRequest) Reset() {
 	*x = ImportRequest{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[20]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1477,7 +1522,7 @@ func (x *ImportRequest) String() string {
 func (*ImportRequest) ProtoMessage() {}
 
 func (x *ImportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[20]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1490,7 +1535,7 @@ func (x *ImportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportRequest.ProtoReflect.Descriptor instead.
 func (*ImportRequest) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{20}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ImportRequest) GetInput() *ImportInput {
@@ -1596,7 +1641,9 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\vProfileList\x12,\n" +
 	"\bprofiles\x18\x01 \x03(\v2\x10.niko.v1.ProfileR\bprofiles\"\x1b\n" +
 	"\tProfileId\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"\x1e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\x1f\n" +
+	"\tShareLink\x12\x12\n" +
+	"\x04link\x18\x01 \x01(\tR\x04link\"\x1e\n" +
 	"\n" +
 	"ProfileIds\x12\x10\n" +
 	"\x03ids\x18\x01 \x03(\x03R\x03ids\"R\n" +
@@ -1618,7 +1665,7 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\fSUBSCRIPTION\x10\x02\"V\n" +
 	"\rImportRequest\x12*\n" +
 	"\x05input\x18\x01 \x01(\v2\x14.niko.v1.ImportInputR\x05input\x12\x19\n" +
-	"\bgroup_id\x18\x02 \x01(\x03R\agroupId2\xb4\x06\n" +
+	"\bgroup_id\x18\x02 \x01(\x03R\agroupId2\xec\x06\n" +
 	"\vNikoService\x121\n" +
 	"\aGetInfo\x12\x17.niko.v1.GetInfoRequest\x1a\r.niko.v1.Info\x12@\n" +
 	"\tRouteTest\x12\x19.niko.v1.RouteTestRequest\x1a\x18.niko.v1.RouteTestResult\x121\n" +
@@ -1634,7 +1681,8 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\tSaveGroup\x12\x0e.niko.v1.Group\x1a\x0e.niko.v1.Group\x12/\n" +
 	"\vDeleteGroup\x12\x10.niko.v1.GroupId\x1a\x0e.niko.v1.Empty\x12,\n" +
 	"\x06Select\x12\x12.niko.v1.ProfileId\x1a\x0e.niko.v1.Empty\x121\n" +
-	"\vGetSelected\x12\x0e.niko.v1.Empty\x1a\x12.niko.v1.ProfileId\x129\n" +
+	"\vGetSelected\x12\x0e.niko.v1.Empty\x1a\x12.niko.v1.ProfileId\x126\n" +
+	"\fShareProfile\x12\x12.niko.v1.ProfileId\x1a\x12.niko.v1.ShareLink\x129\n" +
 	"\tRecognize\x12\x14.niko.v1.ImportInput\x1a\x16.niko.v1.ImportPreview\x129\n" +
 	"\x06Import\x12\x16.niko.v1.ImportRequest\x1a\x15.niko.v1.TaskProgress0\x01B\x17Z\x15libcore/nikopb;nikopbb\x06proto3"
 
@@ -1651,7 +1699,7 @@ func file_niko_v1_niko_service_proto_rawDescGZIP() []byte {
 }
 
 var file_niko_v1_niko_service_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_niko_v1_niko_service_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+var file_niko_v1_niko_service_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_niko_v1_niko_service_proto_goTypes = []any{
 	(Change_Kind)(0),            // 0: niko.v1.Change.Kind
 	(Group_Type)(0),             // 1: niko.v1.Group.Type
@@ -1672,11 +1720,12 @@ var file_niko_v1_niko_service_proto_goTypes = []any{
 	(*Profile)(nil),             // 16: niko.v1.Profile
 	(*ProfileList)(nil),         // 17: niko.v1.ProfileList
 	(*ProfileId)(nil),           // 18: niko.v1.ProfileId
-	(*ProfileIds)(nil),          // 19: niko.v1.ProfileIds
-	(*MoveRequest)(nil),         // 20: niko.v1.MoveRequest
-	(*ImportInput)(nil),         // 21: niko.v1.ImportInput
-	(*ImportPreview)(nil),       // 22: niko.v1.ImportPreview
-	(*ImportRequest)(nil),       // 23: niko.v1.ImportRequest
+	(*ShareLink)(nil),           // 19: niko.v1.ShareLink
+	(*ProfileIds)(nil),          // 20: niko.v1.ProfileIds
+	(*MoveRequest)(nil),         // 21: niko.v1.MoveRequest
+	(*ImportInput)(nil),         // 22: niko.v1.ImportInput
+	(*ImportPreview)(nil),       // 23: niko.v1.ImportPreview
+	(*ImportRequest)(nil),       // 24: niko.v1.ImportRequest
 }
 var file_niko_v1_niko_service_proto_depIdxs = []int32{
 	7,  // 0: niko.v1.RouteTestResult.steps:type_name -> niko.v1.RouteTestStep
@@ -1687,7 +1736,7 @@ var file_niko_v1_niko_service_proto_depIdxs = []int32{
 	16, // 5: niko.v1.ProfileList.profiles:type_name -> niko.v1.Profile
 	2,  // 6: niko.v1.ImportPreview.kind:type_name -> niko.v1.ImportPreview.Kind
 	16, // 7: niko.v1.ImportPreview.profiles:type_name -> niko.v1.Profile
-	21, // 8: niko.v1.ImportRequest.input:type_name -> niko.v1.ImportInput
+	22, // 8: niko.v1.ImportRequest.input:type_name -> niko.v1.ImportInput
 	4,  // 9: niko.v1.NikoService.GetInfo:input_type -> niko.v1.GetInfoRequest
 	6,  // 10: niko.v1.NikoService.RouteTest:input_type -> niko.v1.RouteTestRequest
 	9,  // 11: niko.v1.NikoService.Watch:input_type -> niko.v1.WatchRequest
@@ -1695,31 +1744,33 @@ var file_niko_v1_niko_service_proto_depIdxs = []int32{
 	15, // 13: niko.v1.NikoService.ListProfiles:input_type -> niko.v1.ListProfilesRequest
 	18, // 14: niko.v1.NikoService.GetProfile:input_type -> niko.v1.ProfileId
 	16, // 15: niko.v1.NikoService.SaveProfile:input_type -> niko.v1.Profile
-	19, // 16: niko.v1.NikoService.DeleteProfiles:input_type -> niko.v1.ProfileIds
-	20, // 17: niko.v1.NikoService.MoveProfiles:input_type -> niko.v1.MoveRequest
+	20, // 16: niko.v1.NikoService.DeleteProfiles:input_type -> niko.v1.ProfileIds
+	21, // 17: niko.v1.NikoService.MoveProfiles:input_type -> niko.v1.MoveRequest
 	12, // 18: niko.v1.NikoService.SaveGroup:input_type -> niko.v1.Group
 	13, // 19: niko.v1.NikoService.DeleteGroup:input_type -> niko.v1.GroupId
 	18, // 20: niko.v1.NikoService.Select:input_type -> niko.v1.ProfileId
 	3,  // 21: niko.v1.NikoService.GetSelected:input_type -> niko.v1.Empty
-	21, // 22: niko.v1.NikoService.Recognize:input_type -> niko.v1.ImportInput
-	23, // 23: niko.v1.NikoService.Import:input_type -> niko.v1.ImportRequest
-	5,  // 24: niko.v1.NikoService.GetInfo:output_type -> niko.v1.Info
-	8,  // 25: niko.v1.NikoService.RouteTest:output_type -> niko.v1.RouteTestResult
-	10, // 26: niko.v1.NikoService.Watch:output_type -> niko.v1.Change
-	14, // 27: niko.v1.NikoService.ListGroups:output_type -> niko.v1.GroupList
-	17, // 28: niko.v1.NikoService.ListProfiles:output_type -> niko.v1.ProfileList
-	16, // 29: niko.v1.NikoService.GetProfile:output_type -> niko.v1.Profile
-	16, // 30: niko.v1.NikoService.SaveProfile:output_type -> niko.v1.Profile
-	3,  // 31: niko.v1.NikoService.DeleteProfiles:output_type -> niko.v1.Empty
-	3,  // 32: niko.v1.NikoService.MoveProfiles:output_type -> niko.v1.Empty
-	12, // 33: niko.v1.NikoService.SaveGroup:output_type -> niko.v1.Group
-	3,  // 34: niko.v1.NikoService.DeleteGroup:output_type -> niko.v1.Empty
-	3,  // 35: niko.v1.NikoService.Select:output_type -> niko.v1.Empty
-	18, // 36: niko.v1.NikoService.GetSelected:output_type -> niko.v1.ProfileId
-	22, // 37: niko.v1.NikoService.Recognize:output_type -> niko.v1.ImportPreview
-	11, // 38: niko.v1.NikoService.Import:output_type -> niko.v1.TaskProgress
-	24, // [24:39] is the sub-list for method output_type
-	9,  // [9:24] is the sub-list for method input_type
+	18, // 22: niko.v1.NikoService.ShareProfile:input_type -> niko.v1.ProfileId
+	22, // 23: niko.v1.NikoService.Recognize:input_type -> niko.v1.ImportInput
+	24, // 24: niko.v1.NikoService.Import:input_type -> niko.v1.ImportRequest
+	5,  // 25: niko.v1.NikoService.GetInfo:output_type -> niko.v1.Info
+	8,  // 26: niko.v1.NikoService.RouteTest:output_type -> niko.v1.RouteTestResult
+	10, // 27: niko.v1.NikoService.Watch:output_type -> niko.v1.Change
+	14, // 28: niko.v1.NikoService.ListGroups:output_type -> niko.v1.GroupList
+	17, // 29: niko.v1.NikoService.ListProfiles:output_type -> niko.v1.ProfileList
+	16, // 30: niko.v1.NikoService.GetProfile:output_type -> niko.v1.Profile
+	16, // 31: niko.v1.NikoService.SaveProfile:output_type -> niko.v1.Profile
+	3,  // 32: niko.v1.NikoService.DeleteProfiles:output_type -> niko.v1.Empty
+	3,  // 33: niko.v1.NikoService.MoveProfiles:output_type -> niko.v1.Empty
+	12, // 34: niko.v1.NikoService.SaveGroup:output_type -> niko.v1.Group
+	3,  // 35: niko.v1.NikoService.DeleteGroup:output_type -> niko.v1.Empty
+	3,  // 36: niko.v1.NikoService.Select:output_type -> niko.v1.Empty
+	18, // 37: niko.v1.NikoService.GetSelected:output_type -> niko.v1.ProfileId
+	19, // 38: niko.v1.NikoService.ShareProfile:output_type -> niko.v1.ShareLink
+	23, // 39: niko.v1.NikoService.Recognize:output_type -> niko.v1.ImportPreview
+	11, // 40: niko.v1.NikoService.Import:output_type -> niko.v1.TaskProgress
+	25, // [25:41] is the sub-list for method output_type
+	9,  // [9:25] is the sub-list for method input_type
 	9,  // [9:9] is the sub-list for extension type_name
 	9,  // [9:9] is the sub-list for extension extendee
 	0,  // [0:9] is the sub-list for field type_name
@@ -1736,7 +1787,7 @@ func file_niko_v1_niko_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_niko_v1_niko_service_proto_rawDesc), len(file_niko_v1_niko_service_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   21,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
