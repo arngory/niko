@@ -1,0 +1,1 @@
+mierus://mieru-user:fake-mieru-pass@203.0.113.100?profile=default&mtu=1400&multiplexing=MULTIPLEXING_HIGH&port=2027&protocol=TCP

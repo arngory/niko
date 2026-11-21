@@ -1,0 +1,1 @@
+anytls://p%40ss@[2001:db8::131]/?insecure=0

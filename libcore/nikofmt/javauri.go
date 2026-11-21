@@ -7,15 +7,17 @@ import (
 	"unicode"
 )
 
-// javaURI is what fmt/NikoParams.kt reads of a java.net.URI (RFC 2396 as Java parses it): a Yggdrasil peer's scheme,
-// host, port and raw query. A server authority that does not parse (a name with "_", "1.2.3", a port that is not a
-// number) is a registry one, with no host and port -1, not an error; what is no URI at all is an error
-// (URISyntaxException).
+// javaURI is what the app reads of a java.net.URI (RFC 2396 as Java parses it): a Yggdrasil peer's scheme, host,
+// port and raw query (fmt/NikoParams.kt), a mierus:// link's raw user info and fragment too (fmt/mieru/MieruFmt.kt).
+// A server authority that does not parse (a name with "_", "1.2.3", a port that is not a number) is a registry one,
+// with no host, user info or port, not an error; what is no URI at all is an error (URISyntaxException).
 type javaURI struct {
-	scheme   string
-	host     string // "" for none; an IPv6 literal keeps its brackets, as getHost() does
-	port     int    // -1 for none
-	rawQuery *string
+	scheme      string
+	host        string // "" for none; an IPv6 literal keeps its brackets, as getHost() does
+	port        int    // -1 for none
+	rawUserInfo *string
+	rawQuery    *string
+	rawFragment *string
 }
 
 var errJavaURI = errors.New("not a URI java.net.URI takes")
@@ -146,6 +148,8 @@ func (p *uriParser) parse() error {
 		if err := p.checkChars(i+1, n, uriUric, true); err != nil {
 			return err
 		}
+		fragment := string(p.s[i+1 : n])
+		p.u.rawFragment = &fragment
 		i = n
 	}
 	if i < n {
@@ -211,7 +215,7 @@ func (p *uriParser) parseAuthority(start, n int) (int, error) {
 			serverErr = errJavaURI
 		}
 		if serverErr != nil {
-			p.u.host, p.u.port = "", -1
+			p.u.host, p.u.port, p.u.rawUserInfo = "", -1, nil
 			q = start
 		}
 	}
@@ -233,6 +237,8 @@ func (p *uriParser) parseServer(start, n int) (int, error) {
 		if err := p.checkChars(i, q, uriUserinfo, true); err != nil {
 			return 0, err
 		}
+		userInfo := string(p.s[i:q])
+		p.u.rawUserInfo = &userInfo
 		i = q + 1
 	}
 	if p.at(i, '[') {

@@ -1,6 +1,9 @@
 package nikofmt
 
 import (
+	"bytes"
+	"compress/zlib"
+	"encoding/base64"
 	"go/build"
 	"testing"
 )
@@ -50,11 +53,104 @@ func TestNoRootPackage(t *testing.T) {
 	}
 }
 
-// Links of kinds this package does not read yet are refused as such, not taken for another kind.
+// Links of kinds the app does not import are refused as such, not taken for another kind; so is sn://neko, a
+// plugin's profile (its NekoBean holds a JSONObject, which no fixture can hold either).
 func TestUnsupported(t *testing.T) {
-	for _, link := range []string{"vmess://e30=", "trojan://pw@example.com:443", "sn://naive?abc", "NAIVE+https://h"} {
+	var neko bytes.Buffer
+	w := zlib.NewWriter(&neko)
+	w.Write([]byte{0, 0, 0, 0})
+	w.Close()
+	for _, link := range []string{"NAIVE+https://h", "ssh://root@example.com:22", "wireguard://key@example.com:51820",
+		"juicity://uuid:pw@example.com:443", "Trojan://pw@example.com:443", " ss://YWVz@example.com:1",
+		"sn://neko?" + base64.RawURLEncoding.EncodeToString(neko.Bytes())} {
 		if _, err := ParseLink(link, DefaultSettings); err != ErrUnsupported {
 			t.Errorf("%s: %v, want ErrUnsupported", link, err)
+		}
+	}
+}
+
+// The links parseProxies takes for a subscription's are told apart from those it drops.
+func TestSubscriptionLinks(t *testing.T) {
+	for _, link := range []string{"clash://install-config?url=https%3A%2F%2Fexample.com%2Fs", "sn://subscription?eNpj",
+		"https://example.com/sub/token", "http://[::1", "https://example.com:0/"} {
+		if _, err := ParseLink(link, DefaultSettings); err != ErrSubscriptionLink {
+			t.Errorf("%s: %v, want ErrSubscriptionLink", link, err)
+		}
+	}
+	// a line terminator is no '.' of the app's regex: not an http link at all
+	if _, err := ParseLink("https://example.com/ ", DefaultSettings); err != ErrUnsupported {
+		t.Errorf("a line separator: %v, want ErrUnsupported", err)
+	}
+}
+
+// android.util.Base64.decode, as layoutlib's copy of it decodes (the app's Util.b64Decode and NGUtil.decode stand on
+// it): anything outside the alphabet is skipped, padding only where it may stand, a lone last character refused.
+func TestAndroidBase64(t *testing.T) {
+	for _, tc := range []struct {
+		in      string
+		urlSafe bool
+		want    string
+		ok      bool
+	}{
+		{"aGVsbG8=", false, "hello", true},
+		{"aGVsbG8", false, "hello", true},
+		{"aGVs bG8\n", false, "hello", true},
+		{"a.G-V_s!béG8", false, "hello", true}, // '-' and '_' are not the standard alphabet's: skipped
+		{"aGVsbG8-_w==", false, "", false},     // so this ends in a lone 'w' before its padding
+		{"aGVsbG8-_w==", true, "hello>\xff", true},
+		{"aGVsbG8==", false, "", false}, // a second '=' where one ends it
+		{"aGVsbA==", false, "hell", true},
+		{"aGVsbA= =", false, "hell", true},
+		{"aGVsbA==x", false, "", false},
+		{"aGVsb", false, "", false},
+		{"=aGVs", false, "", false},
+		{"", false, "", true},
+	} {
+		got, err := androidBase64Decode(tc.in, tc.urlSafe)
+		if (err == nil) != tc.ok || tc.ok && string(got) != tc.want {
+			t.Errorf("%q (url-safe %v): %q, %v; want %q, ok %v", tc.in, tc.urlSafe, got, err, tc.want, tc.ok)
+		}
+	}
+}
+
+// Gson().fromJson of v2rayN's JSON: lenient inside the object, strict after it.
+func TestGsonObject(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		want string // the value of "a", "<nil>" for null
+		ok   bool
+	}{
+		{`{"a":"x"}`, "x", true},
+		{")]}'\n{a:x}", "x", true},
+		{`{a=>1.50,b:[1,,{c:[]}],}`, "", false}, // a trailing ',' asks for a name
+		{`{a=>1.50,b:[1,,{c:[]}]}`, "1.50", true},
+		{`{'a':TRUE;}`, "", false},
+		{`{'a':TRUE;b:2}`, "true", true},
+		{`{a:nulls}`, "nulls", true},
+		{`{a:null}`, "<nil>", true},
+		{`{a:"A\'\/"}`, "A'/", true},
+		{`{a:"\x"}`, "", false},
+		{`{a:{}}`, "", false}, // an object is no string
+		{`{a:x} `, "x", true},
+		{`{a:x} // a comment`, "", false},
+		{`/* first */ {a:x}`, "x", true},
+		{`{a:x}{}`, "", false},
+		{`[]`, "", false},
+		{` `, "", false},
+	} {
+		var a *string
+		err := gsonReadObject(tc.in, func(name string) **string {
+			if name == "a" {
+				return &a
+			}
+			return nil
+		})
+		got := "<nil>"
+		if a != nil {
+			got = *a
+		}
+		if (err == nil) != tc.ok || tc.ok && got != tc.want {
+			t.Errorf("%s: %q, %v; want %q, ok %v", tc.in, got, err, tc.want, tc.ok)
 		}
 	}
 }

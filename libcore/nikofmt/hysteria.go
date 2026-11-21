@@ -85,3 +85,9 @@ func ParseHysteria2(link string, settings Settings) (*HysteriaBean, error) {
 	b.NikoAck = ptr(equals(u.queryParameter("niko-ack"), "1"))
 	return b, nil
 }
+
+// isMultiPort is HysteriaFmt.kt isMultiPort: an address whose part after its last ':' holds a '-' or ','.
+func isMultiPort(address string) bool {
+	i := strings.LastIndexByte(address, ':')
+	return i >= 0 && strings.ContainsAny(address[i+1:], "-,")
+}

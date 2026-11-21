@@ -9,15 +9,26 @@ import (
 // XHTTPModes are the modes the core's XHTTP client takes (fmt/v2ray/XHTTP.kt XHTTP_MODES).
 var XHTTPModes = []string{"auto", "packet-up", "stream-up", "stream-one"}
 
-// ParseVLESS is fmt/v2ray/V2RayFmt.kt parseV2Ray for a vless:// link: its standard form (parseV2RayStandard, Xray's
-// share link, parseDuckSoft) with REALITY, XHTTP and the Niko parameters. The formats parseV2Ray tries first are
-// base64 of VMess, which a vless:// link never is. The defaults are not applied (the app applies them after the
-// parser, as parseProxies does).
-func ParseVLESS(link string, settings Settings) (*VMessBean, error) {
-	if !strings.HasPrefix(link, "vless://") {
-		return nil, errors.New("not a vless:// link")
+// v2rayKind is which StandardV2RayBean parseDuckSoft fills: its username is a Trojan password, else a UUID; VLESS
+// (a VMessBean whose alterId is -1) takes flow and the post-quantum encryption, VMess its security.
+type v2rayKind int
+
+const (
+	kindVMess v2rayKind = iota
+	kindVLESS
+	kindTrojan
+)
+
+// parseV2RayStandard is V2RayFmt.kt parseV2RayStandard: the "std" forms of a vmess:// or vless:// link, v2fly's (a
+// password in the user info) and Xray's share link (parseDuckSoft). The defaults are not applied (the app applies
+// them after the parser, as parseProxies does).
+func parseV2RayStandard(link string, settings Settings) (*VMessBean, error) {
+	b := &VMessBean{}
+	kind := kindVMess
+	if strings.HasPrefix(link, "vless://") {
+		b.AlterId = ptr(-1)
+		kind = kindVLESS
 	}
-	b := &VMessBean{AlterId: ptr(-1)}
 	// every occurrence, as Kotlin's replace does: a "vmess://" or "vless://" in the name or a parameter changes too
 	u, err := parseOkURL(strings.ReplaceAll(strings.ReplaceAll(link, "vmess://", "https://"), "vless://", "https://"))
 	if err != nil {
@@ -26,7 +37,7 @@ func ParseVLESS(link string, settings Settings) (*VMessBean, error) {
 	if !ktIsBlank(u.password) {
 		err = b.parseV2fly(u)
 	} else {
-		err = b.parseDuckSoft(u, settings)
+		err = b.parseDuckSoft(u, settings, kind, &b.Uuid)
 	}
 	if err != nil {
 		return nil, err
@@ -87,13 +98,14 @@ func substringBeforeLast(s, delimiter string) string {
 	return s
 }
 
-// parseDuckSoft is V2RayFmt.kt StandardV2RayBean.parseDuckSoft for a VMessBean (VLESS when alterId is -1).
-func (b *VMessBean) parseDuckSoft(u *okURL, settings Settings) error {
+// parseDuckSoft is V2RayFmt.kt StandardV2RayBean.parseDuckSoft (Xray's share link, Xray-core issue 91): the URL's
+// username goes to user, a Trojan password or a UUID.
+func (b *StandardV2RayBean) parseDuckSoft(u *okURL, settings Settings, kind v2rayKind, user **string) error {
 	param := u.queryParameter
 	b.ServerAddress = ptr(u.host)
 	b.ServerPort = ptr(u.port)
 	b.Name = u.fragment
-	b.Uuid = ptr(u.username)
+	*user = ptr(u.username)
 
 	// a path in the URL (not Xray's form): its segments, decoded, joined without the leading slash
 	if len(u.pathSegments) > 1 || !ktIsBlank(u.pathSegments[0]) {
@@ -117,7 +129,11 @@ func (b *VMessBean) parseDuckSoft(u *okURL, settings Settings) error {
 
 	b.Security = param("security")
 	if b.Security == nil || ktIsBlank(*b.Security) {
-		b.Security = ptr("none")
+		if kind == kindTrojan {
+			b.Security = ptr("tls")
+		} else {
+			b.Security = ptr("none")
+		}
 	}
 	switch *b.Security {
 	case "tls", "reality":
@@ -201,7 +217,7 @@ func (b *VMessBean) parseDuckSoft(u *okURL, settings Settings) error {
 	}
 
 	// maybe from matsuri's VMess export
-	if !b.IsVLESS() {
+	if kind == kindVMess {
 		if v := param("encryption"); v != nil {
 			b.Encryption = v
 		}
@@ -214,11 +230,11 @@ func (b *VMessBean) parseDuckSoft(u *okURL, settings Settings) error {
 			b.PacketEncoding = ptr(2)
 		}
 	}
-	if v := param("flow"); v != nil && b.IsVLESS() {
+	if v := param("flow"); v != nil && kind == kindVLESS {
 		b.Encryption = ptr(strings.TrimSuffix(*v, "-udp443"))
 	}
 	// VLESS post-quantum encryption: Xray links carry its spec in "encryption", "none" = off
-	if b.IsVLESS() {
+	if kind == kindVLESS {
 		if v := param("encryption"); v != nil {
 			if e := ktTrim(*v); e != "" && e != "none" {
 				b.VlessEncryption = &e
@@ -249,7 +265,7 @@ var echConfigList = regexp.MustCompile(`^[A-Za-z0-9+/=_-]{16,}$`)
 
 // applyEchParameter is V2RayFmt.kt applyEchParameter: Xray's "ech", a base64 ECHConfigList (kept as PEM) or
 // "<domain>+<DNS server>" to look it up, which is not carried.
-func (b *VMessBean) applyEchParameter(value string) {
+func (b *StandardV2RayBean) applyEchParameter(value string) {
 	config := strings.ReplaceAll(value, " ", "+") // an unescaped "+" in a query arrives as a space
 	if strings.Contains(config, ".") || !echConfigList.MatchString(config) {
 		return

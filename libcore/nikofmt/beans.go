@@ -2,12 +2,13 @@ package nikofmt
 
 import "strings"
 
-// The app's profile beans (app/src/main/java/io/niko/fmt/**/…Bean.java) as Go structs that marshal to the JSON the
-// app's Gson writes of them (JavaUtil.gson): the Java field names; a boxed field Java leaves null is a nil pointer,
-// left out as Gson leaves null fields out. Fields are in Gson's order, the class's own before its superclass's.
+// The app's profile beans (app/src/main/java/io/niko/fmt/**/…Bean.java and proxy/**/…Bean.java: naive, Hysteria and
+// the V2Ray family here, the others in beans_more.go) as Go structs that marshal to the JSON the app's Gson writes
+// of them (JavaUtil.gson): the Java field names; a boxed field Java leaves null is a nil pointer, left out as Gson
+// leaves null fields out. Fields are in Gson's order, the class's own before its superclass's.
 // initializeDefaultValues is ported as it is, null checks and blank checks where Java has each.
 
-// Bean is a parsed profile: one of *NaiveBean, *HysteriaBean, *VMessBean.
+// Bean is a parsed profile: one of the …Bean types of this package, always a pointer.
 type Bean interface {
 	// InitializeDefaultValues is the bean's initializeDefaultValues().
 	InitializeDefaultValues()
@@ -179,10 +180,9 @@ func (b *HysteriaBean) InitializeDefaultValues() {
 	setDefault(&b.ServerPorts, "443")
 }
 
-// VMessBean is fmt/v2ray/VMessBean.java with StandardV2RayBean.java: VMess, and VLESS where alterId is -1.
-type VMessBean struct {
-	AlterId *int `json:"alterId,omitempty"`
-
+// StandardV2RayBean is fmt/v2ray/StandardV2RayBean.java, what VMess, VLESS, Trojan and HTTP share: the transport
+// and TLS.
+type StandardV2RayBean struct {
 	Uuid                 *string `json:"uuid,omitempty"`
 	Encryption           *string `json:"encryption,omitempty"` // VMess security, VLESS flow
 	Type                 *string `json:"type,omitempty"`
@@ -213,12 +213,9 @@ type VMessBean struct {
 	AbstractBean
 }
 
-// IsVLESS is StandardV2RayBean.isVLESS.
-func (b *VMessBean) IsVLESS() bool { return b.AlterId != nil && *b.AlterId == -1 }
-
-// InitializeDefaultValues is VMessBean.initializeDefaultValues over StandardV2RayBean's. Most strings there are
-// checked for blank, not null, so a blank one from a link becomes the default too.
-func (b *VMessBean) InitializeDefaultValues() {
+// initializeDefaultValues is StandardV2RayBean.initializeDefaultValues; a Trojan bean's security defaults to "tls".
+// Most strings there are checked for blank, not null, so a blank one from a link becomes the default too.
+func (b *StandardV2RayBean) initializeDefaultValues(trojan bool) {
 	b.AbstractBean.InitializeDefaultValues()
 	setBlankDefault(&b.Uuid, "")
 	if b.Type == nil || ktIsBlank(*b.Type) {
@@ -230,8 +227,11 @@ func (b *VMessBean) InitializeDefaultValues() {
 	b.Type = ptr(ktLowercase(*b.Type))
 	setBlankDefault(&b.Host, "")
 	setBlankDefault(&b.Path, "")
-	// a Trojan bean defaults to "tls"; this one is VMess or VLESS
-	setBlankDefault(&b.Security, "none")
+	if trojan {
+		setBlankDefault(&b.Security, "tls")
+	} else {
+		setBlankDefault(&b.Security, "none")
+	}
 	setBlankDefault(&b.Sni, "")
 	setBlankDefault(&b.Alpn, "")
 	setBlankDefault(&b.Certificates, "")
@@ -253,13 +253,55 @@ func (b *VMessBean) InitializeDefaultValues() {
 	setDefault(&b.MuxConcurrency, 1)
 	setBlankDefault(&b.XhttpMode, "auto")
 	setDefault(&b.XhttpExtra, "")
+}
 
+// VMessBean is fmt/v2ray/VMessBean.java: VMess, and VLESS where alterId is -1.
+type VMessBean struct {
+	AlterId *int `json:"alterId,omitempty"`
+	StandardV2RayBean
+}
+
+// IsVLESS is StandardV2RayBean.isVLESS.
+func (b *VMessBean) IsVLESS() bool { return b.AlterId != nil && *b.AlterId == -1 }
+
+// InitializeDefaultValues is VMessBean.initializeDefaultValues over StandardV2RayBean's.
+func (b *VMessBean) InitializeDefaultValues() {
+	b.StandardV2RayBean.initializeDefaultValues(false)
 	setDefault(&b.AlterId, 0)
 	if *b.AlterId == -1 {
 		setBlankDefault(&b.Encryption, "")
 	} else {
 		setBlankDefault(&b.Encryption, "auto")
 	}
+}
+
+// TrojanBean is fmt/trojan/TrojanBean.java.
+type TrojanBean struct {
+	Password *string `json:"password,omitempty"`
+	StandardV2RayBean
+}
+
+// InitializeDefaultValues is TrojanBean.initializeDefaultValues.
+func (b *TrojanBean) InitializeDefaultValues() {
+	b.StandardV2RayBean.initializeDefaultValues(true)
+	if b.Security == nil || *b.Security == "" {
+		b.Security = ptr("tls")
+	}
+	setDefault(&b.Password, "")
+}
+
+// HttpBean is fmt/http/HttpBean.java: an HTTP proxy, HTTPS where security is "tls".
+type HttpBean struct {
+	Username *string `json:"username,omitempty"`
+	Password *string `json:"password,omitempty"`
+	StandardV2RayBean
+}
+
+// InitializeDefaultValues is HttpBean.initializeDefaultValues.
+func (b *HttpBean) InitializeDefaultValues() {
+	b.StandardV2RayBean.initializeDefaultValues(false)
+	setDefault(&b.Username, "")
+	setDefault(&b.Password, "")
 }
 
 func ptr[T any](v T) *T { return &v }

@@ -52,7 +52,7 @@ jobs:
               sources=true
             # the golden fixtures and what makes or reads them (docs/design/desktop-stage3.md §5): the app's parsers
             # and what they stand on, the stores and subscriptions to come, libcore, the pinned core
-            grep -qE '^(shared/golden/|app/src/main/java/io/niko/(fmt|raycontrol|group|database|ktx|utils)/|app/src/test/java/io/niko/golden/|app/build\.gradle\.kts$|libcore/|buildScript/lib/core/get_source_env\.sh$|\.github/workflows/ci\.yml$)' <<< "$rest" ||
+            grep -qE '^(shared/golden/|app/src/main/java/io/niko/(fmt|proxy|raycontrol|group|database|ktx|utils)/|app/src/test/java/io/niko/golden/|app/build\.gradle\.kts$|libcore/|buildScript/lib/core/get_source_env\.sh$|\.github/workflows/ci\.yml$)' <<< "$rest" ||
               golden=false
           fi
           echo "code=$code" >> "$GITHUB_OUTPUT"

@@ -1,0 +1,1 @@
+mierus://u%40example:p%3Aw@[2001:db8::100]?port=3000-3010&protocol=udp&mtu=1500&handshake-mode=HANDSHAKE_NO_WAIT&port=4000&protocol=TCP#Mieru%20UDP
