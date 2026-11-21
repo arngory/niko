@@ -1,0 +1,19 @@
+{
+  "server": "2001:db8::2",
+  "up_mbps": 0,
+  "down_mbps": 0,
+  "password": "auth",
+  "tls": {
+    "enabled": true,
+    "server_name": "b.example.com",
+    "insecure": false,
+    "alpn": [
+      "h3"
+    ]
+  },
+  "server_ports": [
+    "20000:30000"
+  ],
+  "hop_interval": "10s",
+  "type": "hysteria2"
+}

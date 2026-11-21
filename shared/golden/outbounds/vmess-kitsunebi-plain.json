@@ -1,0 +1,9 @@
+{
+  "server": "203.0.113.67",
+  "server_port": 443,
+  "uuid": "00000000-0000-4000-8000-000000000067",
+  "security": "aes-128-gcm",
+  "alter_id": 0,
+  "packet_encoding": "",
+  "type": "vmess"
+}

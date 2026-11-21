@@ -40,7 +40,10 @@ func gsonReadObject(text string, field func(name string) **string) error {
 	return nil
 }
 
-var errGson = errors.New("malformed JSON")
+var (
+	errGson    = errors.New("malformed JSON")
+	errGsonEnd = errors.New("malformed JSON: end of input")
+)
 
 type gsonReader struct {
 	s   []rune // Gson reads chars; runes differ only outside the BMP, which no token here starts with
@@ -80,7 +83,7 @@ func (r *gsonReader) nextNonWhitespace() (rune, error) {
 		}
 		return c, nil
 	}
-	return 0, errGson // end of input
+	return 0, errGsonEnd
 }
 
 func (r *gsonReader) skipToEndOfLine() {
@@ -161,6 +164,18 @@ func (r *gsonReader) quoted(quote rune) (string, error) {
 
 // object reads an object's members after its '{': a String field's value into it, any other skipped.
 func (r *gsonReader) object(field func(string) **string) error {
+	return r.members(func(name string) error {
+		if f := field(name); f != nil {
+			var err error
+			*f, err = r.stringValue()
+			return err
+		}
+		return r.skipValue()
+	})
+}
+
+// members reads an object's members after its '{', lenient as JsonReader is: each name, then value reads its value.
+func (r *gsonReader) members(value func(name string) error) error {
 	for first := true; ; first = false {
 		if !first {
 			c, err := r.nextNonWhitespace()
@@ -207,11 +222,7 @@ func (r *gsonReader) object(field func(string) **string) error {
 		case c != ':':
 			return errGson // expected ':'
 		}
-		if f := field(name); f != nil {
-			if *f, err = r.stringValue(); err != nil {
-				return err
-			}
-		} else if err = r.skipValue(); err != nil {
+		if err = value(name); err != nil {
 			return err
 		}
 	}

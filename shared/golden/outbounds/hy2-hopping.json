@@ -1,0 +1,24 @@
+{
+  "server": "example.com",
+  "up_mbps": 0,
+  "down_mbps": 0,
+  "obfs": {
+    "type": "salamander",
+    "password": "secret"
+  },
+  "password": "user:pass",
+  "tls": {
+    "enabled": true,
+    "server_name": "a.example.com",
+    "insecure": true,
+    "alpn": [
+      "h3"
+    ]
+  },
+  "server_ports": [
+    "443:443",
+    "5000:6000"
+  ],
+  "hop_interval": "10s",
+  "type": "hysteria2"
+}

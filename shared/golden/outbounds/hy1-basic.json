@@ -1,0 +1,19 @@
+{
+  "server": "203.0.113.110",
+  "server_port": 443,
+  "up_mbps": 50,
+  "down_mbps": 200,
+  "obfs": "fake-obfs",
+  "auth_str": "fake-auth",
+  "disable_mtu_discovery": false,
+  "tls": {
+    "enabled": true,
+    "server_name": "hy.example.com",
+    "insecure": true,
+    "alpn": [
+      "hysteria"
+    ]
+  },
+  "hop_interval": "10s",
+  "type": "hysteria"
+}

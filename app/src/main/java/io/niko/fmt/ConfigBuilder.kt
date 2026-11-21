@@ -176,6 +176,55 @@ class ConfigBuildResult(
 }
 
 /**
+ * The core's outbound of a profile that needs no plugin, as the app builds it (each type's builder); Niko's own
+ * parameters (knocking, pins, fragments, DNS tunnels, raycontrol's) are the build's. Go's libcore/nikoconf gives the
+ * same for each golden link (shared/golden/outbounds).
+ */
+fun buildSingBoxOutbound(bean: AbstractBean, globalInsecure: Boolean): SingBoxOption {
+    return when (bean) {
+        is ConfigBean -> CustomSingBoxOption(bean.config)
+
+        is ShadowTLSBean -> // before StandardV2RayBean
+            buildSingBoxOutboundShadowTLSBean(bean, globalInsecure)
+
+        is StandardV2RayBean -> // http/trojan/vmess/vless
+            buildSingBoxOutboundStandardV2RayBean(bean, globalInsecure)
+
+        is HysteriaBean ->
+            buildSingBoxOutboundHysteriaBean(bean, globalInsecure)
+
+        is TuicBean ->
+            buildSingBoxOutboundTuicBean(bean, globalInsecure)
+
+        is SOCKSBean ->
+            buildSingBoxOutboundSocksBean(bean)
+
+        is ShadowsocksBean ->
+            buildSingBoxOutboundShadowsocksBean(bean)
+
+        is WireGuardBean ->
+            buildSingBoxEndpointWireguardBean(bean)
+
+        is SSHBean ->
+            buildSingBoxOutboundSSHBean(bean)
+
+        is AnyTLSBean ->
+            buildSingBoxOutboundAnyTLSBean(bean)
+
+        is NaiveBean ->
+            buildSingBoxOutboundNaiveBean(bean)
+
+        is io.niko.fmt.trojan_go.TrojanGoBean ->
+            io.niko.fmt.trojan_go.buildSingBoxOutboundTrojanGoBean(bean, globalInsecure)
+
+        is io.niko.fmt.mieru.MieruBean ->
+            io.niko.fmt.mieru.buildSingBoxOutboundMieruBean(bean)
+
+        else -> throw IllegalStateException("can't reach")
+    }
+}
+
+/**
  * [notes]: the config will run, so raycontrol records what it applies (Brutal rates, Yggdrasil public peers) for
  * the watchdog; a temporary build to compare with (a selector switch) must not, or the watchdog would take the
  * running core for one that has them (P5).
@@ -542,47 +591,7 @@ fun buildConfig(
                 } else {
                     // internal outbound
 
-                    currentOutbound = when (bean) {
-                        is ConfigBean -> CustomSingBoxOption(bean.config)
-
-                        is ShadowTLSBean -> // before StandardV2RayBean
-                            buildSingBoxOutboundShadowTLSBean(bean, settings.globalAllowInsecure)
-
-                        is StandardV2RayBean -> // http/trojan/vmess/vless
-                            buildSingBoxOutboundStandardV2RayBean(bean, settings.globalAllowInsecure)
-
-                        is HysteriaBean ->
-                            buildSingBoxOutboundHysteriaBean(bean, settings.globalAllowInsecure)
-
-                        is TuicBean ->
-                            buildSingBoxOutboundTuicBean(bean, settings.globalAllowInsecure)
-
-                        is SOCKSBean ->
-                            buildSingBoxOutboundSocksBean(bean)
-
-                        is ShadowsocksBean ->
-                            buildSingBoxOutboundShadowsocksBean(bean)
-
-                        is WireGuardBean ->
-                            buildSingBoxEndpointWireguardBean(bean)
-
-                        is SSHBean ->
-                            buildSingBoxOutboundSSHBean(bean)
-
-                        is AnyTLSBean ->
-                            buildSingBoxOutboundAnyTLSBean(bean)
-
-                        is NaiveBean ->
-                            buildSingBoxOutboundNaiveBean(bean)
-
-                        is io.niko.fmt.trojan_go.TrojanGoBean ->
-                            io.niko.fmt.trojan_go.buildSingBoxOutboundTrojanGoBean(bean, settings.globalAllowInsecure)
-
-                        is io.niko.fmt.mieru.MieruBean ->
-                            io.niko.fmt.mieru.buildSingBoxOutboundMieruBean(bean)
-
-                        else -> throw IllegalStateException("can't reach")
-                    }
+                    currentOutbound = buildSingBoxOutbound(bean, settings.globalAllowInsecure)
 
                     // internal mux
                     if (!muxApplied) {

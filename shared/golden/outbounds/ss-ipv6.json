@@ -1,0 +1,7 @@
+{
+  "server": "2001:db8::5",
+  "server_port": 8388,
+  "method": "aes-128-gcm",
+  "password": "fake-v6",
+  "type": "shadowsocks"
+}

@@ -1,0 +1,15 @@
+{
+  "server": "203.0.113.130",
+  "server_port": 443,
+  "tls": {
+    "enabled": true,
+    "server_name": "anytls.example.com",
+    "insecure": true,
+    "utls": {
+      "enabled": true,
+      "fingerprint": "firefox"
+    }
+  },
+  "password": "fake-anytls-password",
+  "type": "anytls"
+}

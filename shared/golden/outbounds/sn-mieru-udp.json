@@ -1,0 +1,12 @@
+{
+  "type": "mieru",
+  "server": "203.0.113.147",
+  "password": "fake-mieru-pass",
+  "handshake_mode": "HANDSHAKE_NO_WAIT",
+  "multiplexing": "MULTIPLEXING_LOW",
+  "traffic_pattern": "fakePattern",
+  "server_port": 2027,
+  "transport": "udp",
+  "username": "mieru-user",
+  "mtu": 1350
+}

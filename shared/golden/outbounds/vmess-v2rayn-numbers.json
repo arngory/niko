@@ -1,0 +1,17 @@
+{
+  "server": "vmess.example.com",
+  "server_port": 10086,
+  "uuid": "00000000-0000-4000-8000-000000000061",
+  "security": "auto",
+  "alter_id": 64,
+  "packet_encoding": "",
+  "transport": {
+    "host": [
+      "h.example.com"
+    ],
+    "path": "/p",
+    "method": "GET",
+    "type": "http"
+  },
+  "type": "vmess"
+}

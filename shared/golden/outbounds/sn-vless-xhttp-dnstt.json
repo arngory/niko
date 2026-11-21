@@ -1,0 +1,14 @@
+{
+  "server": "inner",
+  "server_port": 1,
+  "uuid": "00000000-0000-4000-8000-000000000144",
+  "transport": {
+    "type": "xhttp",
+    "x_padding_bytes": "100-1000",
+    "host": "x.example.com",
+    "mode": "packet-up",
+    "path": "/xhttp"
+  },
+  "packet_encoding": "",
+  "type": "vless"
+}

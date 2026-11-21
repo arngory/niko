@@ -1,0 +1,7 @@
+{
+  "server": "192.0.2.31",
+  "server_port": 8389,
+  "method": "chacha20-ietf-poly1305",
+  "password": "fake-pass",
+  "type": "shadowsocks"
+}

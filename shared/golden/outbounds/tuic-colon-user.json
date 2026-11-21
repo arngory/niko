@@ -1,0 +1,14 @@
+{
+  "server": "tuic.example.net",
+  "server_port": 8443,
+  "uuid": "00000000-0000-4000-8000-000000000121",
+  "password": "fake:token",
+  "congestion_control": "cubic",
+  "zero_rtt_handshake": false,
+  "tls": {
+    "enabled": true,
+    "disable_sni": true,
+    "insecure": false
+  },
+  "type": "tuic"
+}

@@ -1,0 +1,19 @@
+{
+  "server": "2001:db8::160",
+  "server_port": 8080,
+  "uuid": "00000000-0000-4000-8000-000000000160",
+  "security": "auto",
+  "alter_id": 0,
+  "tls": {
+    "enabled": true,
+    "server_name": "up.example.com",
+    "insecure": false
+  },
+  "packet_encoding": "",
+  "transport": {
+    "host": "up.example.com",
+    "path": "/up",
+    "type": "httpupgrade"
+  },
+  "type": "vmess"
+}

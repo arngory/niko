@@ -1,0 +1,9 @@
+{
+  "server": "203.0.113.72",
+  "server_port": 1080,
+  "uuid": "00000000-0000-4000-8000-000000000072",
+  "security": "auto",
+  "alter_id": 0,
+  "packet_encoding": "",
+  "type": "vmess"
+}

@@ -1,0 +1,25 @@
+{
+  "server": "203.0.113.143",
+  "server_port": 443,
+  "uuid": "00000000-0000-4000-8000-000000000143",
+  "flow": "xtls-rprx-vision",
+  "encryption": "mlkem768x25519plus.native.0rtt.fakeKey",
+  "tls": {
+    "enabled": true,
+    "server_name": "www.example.org",
+    "insecure": false,
+    "utls": {
+      "enabled": true,
+      "fingerprint": "chrome"
+    },
+    "reality": {
+      "enabled": true,
+      "public_key": "exampleRealityPublicKeyAAAAAAAAAAAAAAAAAAAAA",
+      "short_id": "0123abcd",
+      "key_share": "hybrid",
+      "mldsa65_verify": "fakeMldsa65Key"
+    }
+  },
+  "packet_encoding": "xudp",
+  "type": "vless"
+}

@@ -1,0 +1,24 @@
+{
+  "server": "anytls.example.com",
+  "server_port": 8443,
+  "tls": {
+    "enabled": true,
+    "server_name": "anytls.example.com",
+    "insecure": true,
+    "alpn": [
+      "h2"
+    ],
+    "ech": {
+      "enabled": true,
+      "config": [
+        "AEX+DQBBpQAgACCd/w=="
+      ]
+    },
+    "utls": {
+      "enabled": true,
+      "fingerprint": "firefox"
+    }
+  },
+  "password": "fake-anytls",
+  "type": "anytls"
+}

@@ -1,0 +1,11 @@
+{
+  "server": "ssh.example.org",
+  "server_port": 2222,
+  "user": "deploy",
+  "private_key": "-----BEGIN OPENSSH PRIVATE KEY-----\nfakefakefake\n-----END OPENSSH PRIVATE KEY-----",
+  "private_key_passphrase": "fake-phrase",
+  "host_key": [
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeFakeFake"
+  ],
+  "type": "ssh"
+}

@@ -1,0 +1,12 @@
+{
+  "server": "proxy.example.net",
+  "server_port": 3128,
+  "username": "u",
+  "password": "fake-pass",
+  "tls": {
+    "enabled": true,
+    "server_name": "proxy.example.net",
+    "insecure": true
+  },
+  "type": "http"
+}

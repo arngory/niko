@@ -1,0 +1,14 @@
+{
+  "server": "trojan-old.example.com",
+  "server_port": 443,
+  "password": "fake-pass",
+  "tls": {
+    "enabled": true,
+    "server_name": "sni.example.com",
+    "insecure": true,
+    "alpn": [
+      "h2"
+    ]
+  },
+  "type": "trojan"
+}

@@ -1,0 +1,24 @@
+{
+  "server": "n3kq7p.example.com",
+  "server_port": 443,
+  "uuid": "00000000-0000-4000-8000-000000000003",
+  "flow": "xtls-rprx-vision",
+  "encryption": "mlkem768x25519plus.native.0rtt.exampleKeyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  "tls": {
+    "enabled": true,
+    "server_name": "www.example.com",
+    "insecure": false,
+    "utls": {
+      "enabled": true,
+      "fingerprint": "chrome"
+    },
+    "reality": {
+      "enabled": true,
+      "public_key": "examplePublicKeyAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "short_id": "0123456789abcd",
+      "mldsa65_verify": "exampleMldsa65VerifyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    }
+  },
+  "packet_encoding": "",
+  "type": "vless"
+}

@@ -1,0 +1,11 @@
+{
+  "server": "2001:db8::91",
+  "server_port": 8443,
+  "password": "fake-password",
+  "tls": {
+    "enabled": true,
+    "server_name": "2001:db8::91",
+    "insecure": false
+  },
+  "type": "trojan"
+}

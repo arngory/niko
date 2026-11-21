@@ -1,0 +1,22 @@
+{
+  "server": "203.0.113.8",
+  "server_port": 443,
+  "uuid": "00000000-0000-4000-8000-000000000004",
+  "flow": "xtls-rprx-vision",
+  "tls": {
+    "enabled": true,
+    "server_name": "www.example.org",
+    "insecure": false,
+    "utls": {
+      "enabled": true,
+      "fingerprint": "chrome"
+    },
+    "reality": {
+      "enabled": true,
+      "public_key": "exampleXrayPublicKeyAAAAAAAAAAAAAAAAAAAAAAA",
+      "short_id": "6ba85179"
+    }
+  },
+  "packet_encoding": "xudp",
+  "type": "vless"
+}

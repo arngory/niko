@@ -1,0 +1,12 @@
+{
+  "server": "203.0.113.51",
+  "server_port": 8443,
+  "username": "",
+  "password": "",
+  "tls": {
+    "enabled": true,
+    "server_name": "proxy.example.com",
+    "insecure": false
+  },
+  "type": "http"
+}

@@ -1,0 +1,8 @@
+{
+  "server": "192.0.2.153",
+  "server_port": 1080,
+  "version": "5",
+  "username": "old",
+  "password": "fake-pass",
+  "type": "socks"
+}

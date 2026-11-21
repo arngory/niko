@@ -1,0 +1,31 @@
+{
+  "server": "203.0.113.9",
+  "server_port": 443,
+  "uuid": "00000000-0000-4000-8000-000000000005",
+  "tls": {
+    "enabled": true,
+    "server_name": "www.example.com",
+    "insecure": false,
+    "utls": {
+      "enabled": true,
+      "fingerprint": "chrome"
+    },
+    "reality": {
+      "enabled": true,
+      "public_key": "examplePublicKeyAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "short_id": "0123456789abcdef"
+    }
+  },
+  "transport": {
+    "type": "xhttp",
+    "xmux": {
+      "max_concurrency": "16-32"
+    },
+    "x_padding_bytes": "100-1000",
+    "host": "cdn.example.com",
+    "mode": "stream-one",
+    "path": "/xh"
+  },
+  "packet_encoding": "",
+  "type": "vless"
+}

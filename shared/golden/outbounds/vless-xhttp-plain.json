@@ -1,0 +1,12 @@
+{
+  "server": "203.0.113.10",
+  "server_port": 8080,
+  "uuid": "00000000-0000-4000-8000-000000000007",
+  "transport": {
+    "type": "xhttp",
+    "mode": "auto",
+    "path": "xh/sub"
+  },
+  "packet_encoding": "",
+  "type": "vless"
+}

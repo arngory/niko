@@ -1,0 +1,9 @@
+{
+  "server": "ss.example.com",
+  "server_port": 443,
+  "method": "chacha20-ietf-poly1305",
+  "password": "fake:with:colons",
+  "plugin": "obfs-local",
+  "plugin_opts": "obfs=http;obfs-host=example.com",
+  "type": "shadowsocks"
+}

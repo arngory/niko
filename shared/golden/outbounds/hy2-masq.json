@@ -1,0 +1,17 @@
+{
+  "server": "203.0.113.7",
+  "server_port": 443,
+  "up_mbps": 0,
+  "down_mbps": 0,
+  "password": "00000000-0000-4000-8000-000000000002",
+  "tls": {
+    "enabled": true,
+    "server_name": "hy2.example.com",
+    "insecure": false,
+    "alpn": [
+      "h3"
+    ]
+  },
+  "hop_interval": "10s",
+  "type": "hysteria2"
+}

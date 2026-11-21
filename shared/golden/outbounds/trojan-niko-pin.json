@@ -1,0 +1,11 @@
+{
+  "server": "203.0.113.83",
+  "server_port": 443,
+  "password": "fake-password",
+  "tls": {
+    "enabled": true,
+    "server_name": "pin.example.com",
+    "insecure": false
+  },
+  "type": "trojan"
+}

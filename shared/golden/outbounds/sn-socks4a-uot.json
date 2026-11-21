@@ -1,0 +1,8 @@
+{
+  "server": "socks.example.net",
+  "server_port": 1081,
+  "version": "4a",
+  "username": "",
+  "password": "",
+  "type": "socks"
+}

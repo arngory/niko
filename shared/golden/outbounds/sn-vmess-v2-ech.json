@@ -1,0 +1,27 @@
+{
+  "server": "203.0.113.154",
+  "server_port": 443,
+  "uuid": "00000000-0000-4000-8000-000000000154",
+  "security": "auto",
+  "alter_id": 0,
+  "tls": {
+    "enabled": true,
+    "server_name": "ws.example.com",
+    "insecure": false,
+    "ech": {
+      "enabled": true,
+      "config": [
+        "AEX+DQBBpQAgACCd/w=="
+      ]
+    }
+  },
+  "packet_encoding": "",
+  "transport": {
+    "path": "/old",
+    "headers": {
+      "Host": "ws.example.com"
+    },
+    "type": "ws"
+  },
+  "type": "vmess"
+}

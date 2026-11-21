@@ -1,0 +1,9 @@
+{
+  "server": "2001:db8::141",
+  "server_port": 8388,
+  "method": "2022-blake3-aes-128-gcm",
+  "password": "AAAAAAAAAAAAAAAAAAAAAA==",
+  "plugin": "obfs-local",
+  "plugin_opts": "obfs=http;obfs-host=example.com",
+  "type": "shadowsocks"
+}

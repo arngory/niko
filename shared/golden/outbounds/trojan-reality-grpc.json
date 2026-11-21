@@ -1,0 +1,23 @@
+{
+  "server": "203.0.113.82",
+  "server_port": 443,
+  "password": "fake-password",
+  "tls": {
+    "enabled": true,
+    "insecure": false,
+    "utls": {
+      "enabled": true,
+      "fingerprint": "safari"
+    },
+    "reality": {
+      "enabled": true,
+      "public_key": "exampleRealityPublicKeyAAAAAAAAAAAAAAAAAAAAA",
+      "short_id": "01ab"
+    }
+  },
+  "transport": {
+    "service_name": "svc",
+    "type": "grpc"
+  },
+  "type": "trojan"
+}

@@ -1,0 +1,8 @@
+{
+  "type": "mieru",
+  "server": "mieru.example.net",
+  "password": "fake-pass",
+  "server_port": 2028,
+  "transport": "tcp",
+  "username": "u"
+}

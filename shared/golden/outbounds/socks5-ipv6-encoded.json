@@ -1,0 +1,8 @@
+{
+  "server": "2001:db8::164",
+  "server_port": 1080,
+  "version": "5",
+  "username": "us@er",
+  "password": "p:ss",
+  "type": "socks"
+}

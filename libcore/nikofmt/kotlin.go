@@ -1,6 +1,7 @@
 package nikofmt
 
 import (
+	"math"
 	"strings"
 	"unicode"
 	"unicode/utf16"
@@ -44,8 +45,8 @@ func ktLowercase(s string) string {
 	return strings.ToLower(strings.ReplaceAll(s, "İ", "i̇"))
 }
 
-// javaDigit is Character.digit(ch, radix) for radix 10 or 16: ASCII digits and letters, the other decimal digits of
-// Unicode (Nd: Arabic-Indic, fullwidth, ...) and, for 16, the fullwidth letters A-F. Only BMP characters: one outside
+// javaDigit is Character.digit(ch, radix) for radix 8, 10 or 16: ASCII digits and letters, the other decimal digits
+// of Unicode (Nd: Arabic-Indic, fullwidth, ...) and, for 16, the fullwidth letters A-F. Only BMP characters: one outside
 // it is two chars in Java, neither a digit.
 func javaDigit(r rune, radix int) int {
 	v := -1
@@ -113,6 +114,49 @@ func javaParseInt(s string, radix int) (int32, bool) {
 		return int32(result), true
 	}
 	return int32(-result), true
+}
+
+// javaParseLong is Long.parseLong(s, radix) and Kotlin's toLongOrNull(): javaParseInt's rules in the range of a Java
+// long, its overflow checks as Java's (an int64 cannot hold the digits past it).
+func javaParseLong(s string, radix int) (int64, bool) {
+	rs := []rune(s)
+	if len(rs) == 0 {
+		return 0, false
+	}
+	negative := false
+	limit := int64(-math.MaxInt64)
+	i := 0
+	if rs[0] < '0' {
+		switch rs[0] {
+		case '-':
+			negative = true
+			limit = math.MinInt64
+		case '+':
+		default:
+			return 0, false
+		}
+		if len(rs) == 1 {
+			return 0, false
+		}
+		i = 1
+	}
+	multmin := limit / int64(radix)
+	var result int64
+	for ; i < len(rs); i++ {
+		d := javaDigit(rs[i], radix)
+		if d < 0 || result < multmin {
+			return 0, false
+		}
+		result *= int64(radix)
+		if result < limit+int64(d) {
+			return 0, false
+		}
+		result -= int64(d)
+	}
+	if negative {
+		return result, true
+	}
+	return -result, true
 }
 
 // javaUTF8 decodes bytes as new String(bytes, UTF_8) does (OkHttp's percent decoding, URLDecoder): each maximal

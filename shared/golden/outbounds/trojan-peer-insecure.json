@@ -1,0 +1,11 @@
+{
+  "server": "198.51.100.81",
+  "server_port": 8443,
+  "password": "fake-password",
+  "tls": {
+    "enabled": true,
+    "server_name": "sni.example.net",
+    "insecure": true
+  },
+  "type": "trojan"
+}
