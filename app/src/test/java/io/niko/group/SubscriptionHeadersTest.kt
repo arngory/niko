@@ -8,6 +8,15 @@ import org.junit.Test
 
 class SubscriptionHeadersTest {
 
+    // the spare as the main address names it now: dropped when it names none; an answer of the spare keeps it
+    @Test
+    fun spareFollowsTheMainAddress() {
+        assertEquals("https://b.example/s", spareAfterAnswer("https://a.example/s", "https://b.example/s", false))
+        assertEquals("", spareAfterAnswer("https://a.example/s", null, false))
+        assertEquals("https://a.example/s", spareAfterAnswer("https://a.example/s", null, true))
+        assertEquals("", spareAfterAnswer(null, null, true))
+    }
+
     @Test
     fun textHeaders() {
         assertEquals("My VPN", decodeSubscriptionHeader(" My VPN "))

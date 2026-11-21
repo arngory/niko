@@ -162,3 +162,11 @@ fun withDomain(current: String, domain: String): String? {
     }
     return subscriptionAddress(current, moved)
 }
+
+/**
+ * The spare address to keep after an answer: the one the main address's answer names now, none when it names none (a
+ * spare the provider dropped gets no more requests, nor the device's headers). An answer of the spare itself does
+ * not name it: the one kept stays.
+ */
+fun spareAfterAnswer(kept: String?, named: String?, answeredBySpare: Boolean): String =
+    if (answeredBySpare) kept.orEmpty() else named.orEmpty()
