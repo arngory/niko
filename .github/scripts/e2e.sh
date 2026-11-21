@@ -368,11 +368,23 @@ recover() {
 # core dials a new one at once; before, the client waited out its 60 s idle timeout
 recover hy2-before
 [ -n "$took" ] || fail "no request through the node before the restart (nc said: $last)"
-docker exec rc-node pkill -x niko-server || fail "no niko-server on the node to restart"
+# the node has no procps: the backend found in /proc, `niko-server backend` (the front is niko-server too; hy2o is the
+# node's one service with a backend here)
+hy2o_pid() {
+  docker exec rc-node sh -c 'for p in /proc/[0-9]*; do
+    [ "$(cat "$p/comm" 2> /dev/null)" = niko-server ] && tr "\0" " " < "$p/cmdline" | grep -q " backend " && echo "${p#/proc/}"
+  done' | head -1
+}
+old_pid=$(hy2o_pid)
+[ -n "$old_pid" ] || fail "no niko-server of hy2o on the node to restart"
+docker exec rc-node kill "$old_pid"
 for i in $(seq 150); do
-  docker exec rc-node pgrep -x niko-server > /dev/null && docker exec rc-node test -S /run/niko/hy2o/stats.sock && break
+  new_pid=$(hy2o_pid)
+  [ -n "$new_pid" ] && [ "$new_pid" != "$old_pid" ] && docker exec rc-node test -S /run/niko/hy2o/stats.sock && break
   sleep 0.2
 done
+[ -n "$new_pid" ] && [ "$new_pid" != "$old_pid" ] || fail "rayd did not start hy2o's niko-server again in 30 s"
+echo "niko-server of hy2o restarted: pid $old_pid, then $new_pid"
 sleep 2
 recover hy2-restart
 [ -n "$took" ] || fail "nothing through the node in two minutes after niko-server's restart (nc said: $last)"
