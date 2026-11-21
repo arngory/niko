@@ -3,7 +3,7 @@
 #   niko/        the app's tree at the release's commit (git archive), with libcore/vendor/: the Go modules the
 #                library is linked from (go mod vendor), the prebuilt archives some of them carry taken out
 #   sing-box/    the core, Niko's fork, at COMMIT_SING_BOX (buildScript/lib/core/get_source_env.sh)
-#   gomobile/    the generator of the library's binding, at COMMIT_GOMOBILE (the same file)
+#   gomobile/    the generator of the library's binding, golang/mobile from its fork, at COMMIT_GOMOBILE (the same file)
 #   slipstream/  the bundled slipstream client with its submodules, at COMMIT_SLIPSTREAM (buildScript/lib/slipstream)
 #   SOURCES.md   what each part is, at which commit, and where the prebuilt parts are built from
 # Run at the repository's root, at the release's commit, with git, Go (libcore/go.mod's toolchain), python3 and zstd.
@@ -37,7 +37,7 @@ fetch() {
 echo "== the parts"
 git archive --format=tar --prefix=niko/ "$commit" | tar -x -C "$dst"
 fetch "$REPOSITORY_SING_BOX" "$COMMIT_SING_BOX" "$dst/sing-box"
-fetch https://github.com/MatsuriDayo/gomobile.git "$COMMIT_GOMOBILE" "$dst/gomobile"
+fetch "$REPOSITORY_GOMOBILE" "$COMMIT_GOMOBILE" "$dst/gomobile"
 fetch "$REPOSITORY_SLIPSTREAM" "$COMMIT_SLIPSTREAM" "$dst/slipstream"
 find "$dst" -name .git -prune -exec rm -rf {} +
 
@@ -108,7 +108,7 @@ echo "== SOURCES.md"
   echo "| \`niko/\` | the app, its library libcore, the build's scripts | https://github.com/arngory/niko at \`$commit\` |"
   echo "| \`niko/libcore/vendor/\` | the Go modules libcore is linked from (\`go mod vendor\`; \`modules.txt\` lists them, \`libcore/go.sum\` holds their hashes) | their repositories |"
   echo "| \`sing-box/\` | the core, Niko's fork; libcore's \`go.mod\` points at it (\`../../sing-box\`) | ${REPOSITORY_SING_BOX%.git} at \`$COMMIT_SING_BOX\` |"
-  echo "| \`gomobile/\` | the generator of the library's Java binding | https://github.com/MatsuriDayo/gomobile at \`$COMMIT_GOMOBILE\` |"
+  echo "| \`gomobile/\` | the generator of the library's Java binding (golang/mobile as it is) | ${REPOSITORY_GOMOBILE%.git} at \`$COMMIT_GOMOBILE\` |"
   echo "| \`slipstream/\` | the slipstream client the APK carries, with its submodules | ${REPOSITORY_SLIPSTREAM%.git} at \`$COMMIT_SLIPSTREAM\` |"
   echo
   echo "## Prebuilt, not here"
