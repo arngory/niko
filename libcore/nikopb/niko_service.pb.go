@@ -145,7 +145,7 @@ func (Group_Type) EnumDescriptor() ([]byte, []int) {
 type ConnectRequest_Mode int32
 
 const (
-	// the local proxy, the system's proxy on Windows; the default
+	// the local proxy; the default
 	ConnectRequest_PROXY ConnectRequest_Mode = 0
 	// the TUN: the system routes all traffic into it
 	ConnectRequest_VPN ConnectRequest_Mode = 1

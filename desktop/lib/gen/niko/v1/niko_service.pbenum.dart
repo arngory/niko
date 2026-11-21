@@ -78,7 +78,7 @@ class Group_Type extends $pb.ProtobufEnum {
 
 /// How the computer's traffic reaches the core (D-NAV-02).
 class ConnectRequest_Mode extends $pb.ProtobufEnum {
-  /// the local proxy, the system's proxy on Windows; the default
+  /// the local proxy; the default
   static const ConnectRequest_Mode PROXY =
       ConnectRequest_Mode._(0, _omitEnumNames ? '' : 'PROXY');
 
