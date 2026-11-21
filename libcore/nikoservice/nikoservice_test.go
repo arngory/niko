@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"libcore/nikopb"
+	"libcore/nikostore"
 
 	box "github.com/sagernet/sing-box"
 	C "github.com/sagernet/sing-box/constant"
@@ -121,7 +122,8 @@ func TestRouteTestStopped(t *testing.T) {
 
 func TestGetInfo(t *testing.T) {
 	info, err := (&server{}).GetInfo(context.Background(), &nikopb.GetInfoRequest{})
-	if err != nil || info.NikoVersion != Version || info.CoreVersion != C.Version || info.Api != API || info.StoreSchema != 0 {
+	if err != nil || info.NikoVersion != Version || info.CoreVersion != C.Version || info.Api != API ||
+		info.StoreSchema != int32(nikostore.Schema()) {
 		t.Fatalf("%+v: %v", info, err)
 	}
 }

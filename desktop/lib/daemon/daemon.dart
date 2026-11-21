@@ -254,6 +254,43 @@ class RouteVerdict {
   final List<RouteStep> steps;
 }
 
+/// What a change of the daemon's store is of (NikoService.Watch).
+enum StoreKind { other, profiles, groups, task }
+
+/// A change of the daemon's store (NikoService.Watch): what it is of and the ids it touched, added, changed or
+/// removed (none: all of that kind). [reset]: the first change, and one after changes were lost: all that is shown is
+/// read again.
+class StoreChange {
+  const StoreChange({required this.revision, this.reset = false, this.kind = StoreKind.other, this.ids = const []});
+
+  /// Grows with each change from the daemon's start; a reset's is the revision then.
+  final int revision;
+  final bool reset;
+  final StoreKind kind;
+  final List<int> ids;
+}
+
+/// A profile as a list shows it, without its bean (NikoService.ListProfiles).
+class ProfileRow {
+  const ProfileRow({
+    required this.id,
+    required this.groupId,
+    required this.order,
+    required this.type,
+    required this.name,
+    required this.address,
+  });
+
+  final int id;
+  final int groupId;
+  final int order;
+
+  /// The app's name of the bean's type: `naive`, `hysteria`, `vmess` (VLESS too)...
+  final String type;
+  final String name;
+  final String address;
+}
+
 /// The daemon as the window uses it. One implementation talks gRPC ([GrpcDaemon]); tests put a server behind it.
 abstract interface class Daemon {
   /// The daemon's version: the first call, which also says whether it is there at all.
@@ -313,6 +350,18 @@ abstract interface class Daemon {
     String inbound = '',
     bool resolve = false,
   });
+
+  /// What changes in the daemon's store: a reset first, then each change (NikoService.Watch). Ends or fails when the
+  /// daemon goes away; fails with UNIMPLEMENTED against a daemon without the store.
+  Stream<StoreChange> storeChanges();
+
+  /// The profiles of a group ([groupId] 0: of all), in the list's order.
+  Future<List<ProfileRow>> profiles({int groupId = 0});
+
+  /// Imports the share links in [text] into a group ([groupId] 0: the ungrouped one), D-ADD-03, -04: the ids of the
+  /// profiles added. Fails with the daemon's code and words where it imported nothing: no link it reads, or a
+  /// subscription's link, whose import comes later.
+  Future<List<int>> importLinks(String text, {int groupId = 0});
 
   Future<void> close();
 }
@@ -580,6 +629,56 @@ class GrpcDaemon implements Daemon {
         ),
       ),
     );
+  }
+
+  @override
+  Stream<StoreChange> storeChanges() => _niko
+      .watch(niko.WatchRequest())
+      .map(
+        (change) => StoreChange(
+          revision: change.revision.toInt(),
+          reset: change.reset,
+          kind: switch (change.kind) {
+            niko.Change_Kind.PROFILES => StoreKind.profiles,
+            niko.Change_Kind.GROUPS => StoreKind.groups,
+            niko.Change_Kind.TASK => StoreKind.task,
+            _ => StoreKind.other,
+          },
+          ids: List.unmodifiable(change.ids.map((id) => id.toInt())),
+        ),
+      );
+
+  @override
+  Future<List<ProfileRow>> profiles({int groupId = 0}) async {
+    final list = await _niko.listProfiles(niko.ListProfilesRequest(groupId: Int64(groupId)), options: _short);
+    return List.unmodifiable(
+      list.profiles.map(
+        (p) => ProfileRow(
+          id: p.id.toInt(),
+          groupId: p.groupId.toInt(),
+          order: p.order.toInt(),
+          type: p.type,
+          name: p.name,
+          address: p.address,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Future<List<int>> importLinks(String text, {int groupId = 0}) async {
+    final request = niko.ImportRequest(
+      input: niko.ImportInput(text: text),
+      groupId: Int64(groupId),
+    );
+    // the task's steps, then its result: the last, done
+    niko.TaskProgress? result;
+    await for (final progress in _niko.import(request, options: _long)) {
+      if (progress.done) result = progress;
+    }
+    if (result == null) throw GrpcError.unknown('the import ended without its result');
+    if (result.code != StatusCode.ok) throw GrpcError.custom(result.code, result.error);
+    return List.unmodifiable(result.ids.map((id) => id.toInt()));
   }
 
   @override
