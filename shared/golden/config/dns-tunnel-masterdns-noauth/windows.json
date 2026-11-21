@@ -1,0 +1,167 @@
+{
+  "dns": {
+    "final": "dns-remote",
+    "rules": [
+      {
+        "domain": [
+          "inner"
+        ],
+        "server": "dns-direct",
+        "strategy": "ipv4_only"
+      },
+      {
+        "action": "predefined",
+        "domain_suffix": [
+          "niko.internal"
+        ],
+        "rcode": "NXDOMAIN"
+      },
+      {
+        "disable_cache": true,
+        "inbound": [
+          "tun-in"
+        ],
+        "server": "dns-fake",
+        "strategy": "ipv4_only"
+      }
+    ],
+    "servers": [
+      {
+        "tag": "dns-local",
+        "type": "local"
+      },
+      {
+        "tag": "dns-direct",
+        "type": "local"
+      },
+      {
+        "detour": "proxy",
+        "domain_resolver": {
+          "server": "dns-direct",
+          "strategy": "ipv4_only"
+        },
+        "server": "8.8.8.8",
+        "tag": "dns-remote",
+        "type": "tcp"
+      },
+      {
+        "inet4_range": "198.18.0.0/15",
+        "inet6_range": "fc00::/18",
+        "tag": "dns-fake",
+        "type": "fakeip"
+      }
+    ],
+    "strategy": "ipv4_only"
+  },
+  "endpoints": [],
+  "experimental": {
+    "cache_file": {
+      "enabled": true,
+      "path": "cache.db",
+      "store_fakeip": true
+    }
+  },
+  "inbounds": [
+    {
+      "address": [
+        "172.19.0.1/28"
+      ],
+      "auto_route": true,
+      "interface_name": "Niko",
+      "mtu": 9000,
+      "route_exclude_address": [
+        "198.51.100.53/32",
+        "203.0.113.53/32"
+      ],
+      "stack": "gvisor",
+      "strict_route": true,
+      "tag": "tun-in",
+      "type": "tun"
+    }
+  ],
+  "log": {
+    "level": "panic"
+  },
+  "outbounds": [
+    {
+      "domains": [
+        "m.example.com"
+      ],
+      "encryption_key": "efefefefefefefefefefefefefefefef",
+      "encryption_method": 5,
+      "mode": "tcp",
+      "resolvers": [
+        "198.51.100.53",
+        "203.0.113.53"
+      ],
+      "seal": "required",
+      "tag": "proxy-dnstunnel",
+      "type": "masterdnsvpn"
+    },
+    {
+      "detour": "proxy-dnstunnel",
+      "encryption": "mlkem768x25519plus.native.0rtt.exampleKeyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "packet_encoding": "",
+      "server": "inner",
+      "server_port": 1,
+      "tag": "proxy",
+      "type": "vless",
+      "uuid": "00000000-0000-4000-8000-000000000008"
+    },
+    {
+      "tag": "direct",
+      "type": "direct"
+    },
+    {
+      "tag": "bypass",
+      "type": "direct"
+    }
+  ],
+  "route": {
+    "auto_detect_interface": true,
+    "default_domain_resolver": {
+      "server": "dns-direct",
+      "strategy": "ipv4_only"
+    },
+    "final": "proxy",
+    "rule_set": [],
+    "rules": [
+      {
+        "action": "reject",
+        "domain_suffix": [
+          "niko.internal"
+        ]
+      },
+      {
+        "action": "sniff",
+        "inbound": [
+          "tun-in",
+          "mixed-in"
+        ]
+      },
+      {
+        "action": "hijack-dns",
+        "port": [
+          53
+        ]
+      },
+      {
+        "action": "hijack-dns",
+        "protocol": [
+          "dns"
+        ]
+      },
+      {
+        "action": "reject",
+        "ip_cidr": [
+          "224.0.0.0/3",
+          "ff00::/8"
+        ],
+        "source_ip_cidr": [
+          "224.0.0.0/3",
+          "ff00::/8"
+        ]
+      }
+    ]
+  }
+}

@@ -30,9 +30,19 @@ func (b *builder) userRules(rules []*Rule, refuseQuic bool) error {
 		if russiaDirectWaits && isRussiaDirect(rule) {
 			continue // waits for the blocked lists (Russian services go through the proxy meanwhile)
 		}
+		// a computer's rule goes by its programs, the phone's by its apps: one of apps alone is the phone's
+		packages := rule.Packages
+		var programs object
+		if b.desktop {
+			if programs = programMatch(rule.Programs); programs == nil && len(packages) > 0 {
+				b.warn("rule needs Android: %s", rule)
+				continue
+			}
+			packages = nil
+		}
 		// the uids of its apps, a HashSet's order (Integer's hash, null's 0)
 		var uids []javaInt
-		for _, pkg := range distinctStrings(rule.Packages) {
+		for _, pkg := range distinctStrings(packages) {
 			// quirk kept: told once for each of its apps
 			if !b.isVPN {
 				b.warn("rule needs VPN: %s", rule)
@@ -54,6 +64,7 @@ func (b *builder) userRules(rules []*Rule, refuseQuic bool) error {
 		if len(uidList) > 0 {
 			ruleObj["user_id"] = uidList
 		}
+		putPrograms(ruleObj, programs)
 		var domainList []string
 		// a rule-set the app has not downloaded is left out; a rule it leaves without any address is left out whole
 		missingRuleSet := false
@@ -103,13 +114,14 @@ func (b *builder) userRules(rules []*Rule, refuseQuic bool) error {
 			if len(uidList) > 0 {
 				dnsRule["user_id"] = uidList
 			}
+			putPrograms(dnsRule, programs)
 			if domainList != nil {
 				makeDNSRule(dnsRule, domainList, b.forExport)
 			}
 			return dnsRule
 		}
 		// a rule given domains whose DNS rule is left with none has no DNS rule; a rule without domains has one only
-		// where it is the app alone
+		// where it is the app (or the program) alone
 		addDNSRule := func(dnsRule object) {
 			follows := dnsRuleHasDomain(dnsRule)
 			if nikofmt.KtIsBlank(rule.Domains) {
@@ -382,9 +394,10 @@ func nonEmptyList(r object, key string) bool {
 	return ok && len(list) > 0
 }
 
-// dnsRuleEmpty is DNSRule_DefaultOptions.checkEmpty.
+// dnsRuleEmpty is DNSRule_DefaultOptions.checkEmpty, with a computer's programs (none in Android's).
 func dnsRuleEmpty(r object) bool {
-	for _, k := range []string{"rule_set", "domain", "domain_suffix", "domain_regex", "domain_keyword", "user_id"} {
+	for _, k := range []string{"rule_set", "domain", "domain_suffix", "domain_regex", "domain_keyword", "user_id",
+		"process_name", "process_path", "process_path_regex"} {
 		if nonEmptyList(r, k) {
 			return false
 		}
@@ -402,11 +415,12 @@ func dnsRuleHasDomain(r object) bool {
 	return false
 }
 
-// routeRuleEmpty is Rule_DefaultOptions.checkEmpty. Quirk kept: a network, a protocol or source ports alone are
-// empty, and such a rule is left out without a word (its DNS rule, if any, stays).
+// routeRuleEmpty is Rule_DefaultOptions.checkEmpty, with a computer's programs (none in Android's). Quirk kept: a
+// network, a protocol or source ports alone are empty, and such a rule is left out without a word (its DNS rule, if
+// any, stays).
 func routeRuleEmpty(o *option) bool {
 	for _, k := range []string{"ip_cidr", "domain", "rule_set", "domain_suffix", "domain_regex", "domain_keyword",
-		"user_id", "port", "port_range", "source_ip_cidr"} {
+		"user_id", "process_name", "process_path", "process_path_regex", "port", "port_range", "source_ip_cidr"} {
 		if nonEmptyList(o.base, k) {
 			return false
 		}

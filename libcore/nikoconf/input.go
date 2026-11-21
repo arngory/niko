@@ -25,9 +25,20 @@ type Input struct {
 	PrivateDNS *string        `json:"private_dns"`
 	ForTest    bool           `json:"for_test"`
 	ForExport  bool           `json:"for_export"`
+	// Platform is the system the config is for: PlatformAndroid ("" too), PlatformWindows or PlatformLinux. The app
+	// builds Android's alone; a computer's parts (desktop.go) are Go's, held by the golden cases' windows.json and
+	// linux.json
+	Platform string `json:"platform"`
 	// Device: nil for a FixedDevice of Apps and PrivateDNS
 	Device Device `json:"-"`
 }
+
+// The platforms a config is built for.
+const (
+	PlatformAndroid = "android"
+	PlatformWindows = "windows"
+	PlatformLinux   = "linux"
+)
 
 // UnmarshalJSON reads an input.json: settings over the app's defaults, also where it has none.
 func (in *Input) UnmarshalJSON(data []byte) error {
@@ -118,6 +129,9 @@ type Rule struct {
 	Protocol   string   `json:"protocol"`
 	Outbound   int64    `json:"outbound"`
 	Packages   []string `json:"packages"` // a set: the first of each name counts
+	// Programs are a computer's apps (D-RULES-02): a process's name ("firefox.exe") or its full path, as the
+	// phone's rules have Packages; a computer's own, the app has no such field and Android's build reads none
+	Programs []string `json:"programs"`
 }
 
 // displayName is RuleEntity.displayName.
@@ -172,6 +186,9 @@ type Settings struct {
 	GlobalAllowInsecure     bool    `json:"globalAllowInsecure"`
 	GlobalCustomConfig      string  `json:"globalCustomConfig"`
 	Secrets                 Secrets `json:"secrets"`
+	// SystemProxy, a computer's own (D-NAV-02): in proxy mode the local proxy is the system's while the core runs;
+	// nil for the default, off for now (desktop.go)
+	SystemProxy *bool `json:"systemProxy"`
 }
 
 // Secrets are the install's secrets a config may carry (ConfigSecrets).
@@ -301,7 +318,8 @@ type Result struct {
 	// Config is the core's config: JSON as the app writes it (Gson's, indented; keys in another order), or a custom
 	// config's own text (a ConfigBean of type 0), as it is
 	Config []byte
-	// Warnings, in the golden fixtures' words: "rule needs VPN: <rule>", "no such outbound: <rule>"
+	// Warnings, in the golden fixtures' words: "rule needs VPN: <rule>", "no such outbound: <rule>"; on a computer
+	// "rule needs Android: <rule>" too
 	Warnings []string
 }
 

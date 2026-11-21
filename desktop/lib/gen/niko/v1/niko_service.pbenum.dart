@@ -76,6 +76,29 @@ class Group_Type extends $pb.ProtobufEnum {
   const Group_Type._(super.value, super.name);
 }
 
+/// How the computer's traffic reaches the core (D-NAV-02).
+class ConnectRequest_Mode extends $pb.ProtobufEnum {
+  /// the local proxy, the system's proxy on Windows; the default
+  static const ConnectRequest_Mode PROXY =
+      ConnectRequest_Mode._(0, _omitEnumNames ? '' : 'PROXY');
+
+  /// the TUN: the system routes all traffic into it
+  static const ConnectRequest_Mode VPN =
+      ConnectRequest_Mode._(1, _omitEnumNames ? '' : 'VPN');
+
+  static const $core.List<ConnectRequest_Mode> values = <ConnectRequest_Mode>[
+    PROXY,
+    VPN,
+  ];
+
+  static final $core.List<ConnectRequest_Mode?> _byValue =
+      $pb.ProtobufEnum.$_initByValueList(values, 1);
+  static ConnectRequest_Mode? valueOf($core.int value) =>
+      value < 0 || value >= _byValue.length ? null : _byValue[value];
+
+  const ConnectRequest_Mode._(super.value, super.name);
+}
+
 class ImportPreview_Kind extends $pb.ProtobufEnum {
   static const ImportPreview_Kind NOTHING =
       ImportPreview_Kind._(0, _omitEnumNames ? '' : 'NOTHING');

@@ -135,9 +135,9 @@ class TracedDaemon implements Daemon {
   @override
   Future<String> shareLink(int id) => _inner.shareLink(id);
   @override
-  Future<void> connect(int profileId) {
+  Future<void> connect(int profileId, {ConnectMode mode = ConnectMode.proxy}) {
     note('connect $profileId');
-    return _inner.connect(profileId);
+    return _inner.connect(profileId, mode: mode);
   }
 
   @override

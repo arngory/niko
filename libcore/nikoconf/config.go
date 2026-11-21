@@ -51,6 +51,13 @@ func Build(in Input) (Result, error) {
 	if b.dev == nil {
 		b.dev = NewFixedDevice(in.Apps, in.PrivateDNS)
 	}
+	switch in.Platform {
+	case "", PlatformAndroid:
+	case PlatformWindows, PlatformLinux:
+		b.desktop = true
+	default:
+		return Result{}, fmt.Errorf("unknown platform %q", in.Platform)
+	}
 	config, err := b.build()
 	if err != nil {
 		return Result{Warnings: b.warnings}, err
@@ -91,7 +98,9 @@ type builder struct {
 	dev       Device
 	forTest   bool
 	forExport bool
-	warnings  []string
+	// desktop: the config of a computer's (Windows or Linux), not the phone's (desktop.go)
+	desktop  bool
+	warnings []string
 
 	all      []*Profile
 	byID     map[int64]*Profile
@@ -118,6 +127,10 @@ type builder struct {
 	endpoints  []*option
 	routeRules []*option
 	ruleSets   []object
+
+	// tun is VPN mode's inbound; tunnelResolvers are masterdnsvpn's resolvers, which a computer's TUN leaves out
+	tun             object
+	tunnelResolvers []string
 
 	yggdrasil         bool
 	yggdrasilEndpoint *option
@@ -343,6 +356,9 @@ func (b *builder) build() ([]byte, error) {
 		}
 		b.tagMap.put(p.ID, tag)
 	}
+	if b.desktop {
+		b.excludeTunnelResolvers()
+	}
 
 	// lan-v1 reads the clock for the LAN of raycontrol nodes: none here
 	_ = b.dev.Now()
@@ -466,8 +482,9 @@ func (b *builder) build() ([]byte, error) {
 	if b.forTest {
 		dnsRules = nil
 	} else {
-		// per-app proxy: an app left out of the VPN, bound to tun0, refused (below the DNS hijack)
-		if b.isVPN && s.ProxyApps {
+		// per-app proxy: an app left out of the VPN, bound to tun0, refused (below the DNS hijack); the phone's
+		// VpnService alone leaves apps out, a computer's programs go by their rules
+		if b.isVPN && s.ProxyApps && !b.desktop {
 			b.prependRules(outsideVPNGuard())
 		}
 		// built-in DNS rules
@@ -501,6 +518,10 @@ func (b *builder) build() ([]byte, error) {
 			}
 			b.prependRules(meshRules...)
 		}
+		// LAN direct (D-SET-16) on a computer is this rule: auto_route leaves the networks the computer is on to
+		// their own routes (more specific than the TUN's on Windows, the main table's first on Linux), and what of a
+		// private network reaches the core (one behind a router, a request to the local proxy) goes direct by it.
+		// The phone's other way, the VPN's routes without the LAN (bypassLan), is VpnService's
 		if s.BypassLanInCore {
 			b.addRule(object{"outbound": tagBypass, "ip_is_private": true})
 		}
@@ -625,12 +646,18 @@ func (b *builder) addInbounds(bind string) {
 		case ipv6Only:
 			address = []any{privateVLAN6Client + "/126"}
 		}
-		b.inbounds = append(b.inbounds, object{"type": "tun", "tag": tagTun, "stack": stack,
-			"mtu": int64(s.MTU), "address": address})
+		b.tun = object{"type": "tun", "tag": tagTun, "stack": stack, "mtu": int64(s.MTU), "address": address}
+		if b.desktop {
+			b.desktopTun(b.tun)
+		}
+		b.inbounds = append(b.inbounds, b.tun)
 	}
 	// in VPN mode the port only serves what the user set it up for
 	if localProxyWanted(b.isVPN, s) {
 		mixed := object{"type": "mixed", "tag": tagMixed, "listen": bind, "listen_port": int64(s.MixedPort)}
+		if b.desktop && !b.isVPN && b.systemProxy() {
+			mixed["set_system_proxy"] = true
+		}
 		if users := localProxyUsers(b.isVPN, s); users != nil {
 			list := []any{}
 			for _, u := range users {

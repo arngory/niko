@@ -149,7 +149,7 @@ class MemoryDaemon implements Daemon {
   /// The profiles the window connected with, 0 for the selected one.
   final connected = <int>[];
   @override
-  Future<void> connect(int profileId) async => connected.add(profileId);
+  Future<void> connect(int profileId, {ConnectMode mode = ConnectMode.proxy}) async => connected.add(profileId);
 
   @override
   Future<SavedProfile> profile(int id) async =>

@@ -186,7 +186,7 @@ class Info extends $pb.GeneratedMessage {
   void clearStoreSchema() => $_clearField(3);
 
   /// the version of this API: what the window may ask. 2: the store, Watch and the import; 3: Select and GetSelected;
-  /// 4: ShareProfile; 5: Connect
+  /// 4: ShareProfile; 5: Connect; 6: Connect's mode, the config a computer's
   @$pb.TagNumber(4)
   $core.int get api => $_getIZ(3);
   @$pb.TagNumber(4)
@@ -1405,9 +1405,11 @@ class ShareLink extends $pb.GeneratedMessage {
 class ConnectRequest extends $pb.GeneratedMessage {
   factory ConnectRequest({
     $fixnum.Int64? profileId,
+    ConnectRequest_Mode? mode,
   }) {
     final result = ConnectRequest._();
     if (profileId != null) result.profileId = profileId;
+    if (mode != null) result.mode = mode;
     return result;
   }
 
@@ -1425,6 +1427,8 @@ class ConnectRequest extends $pb.GeneratedMessage {
       package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
       createEmptyInstance: ConnectRequest.$_createMessage)
     ..aInt64(1, _omitFieldNames ? '' : 'profileId')
+    ..aE<ConnectRequest_Mode>(2, _omitFieldNames ? '' : 'mode',
+        enumValues: ConnectRequest_Mode.values)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1458,6 +1462,15 @@ class ConnectRequest extends $pb.GeneratedMessage {
   $core.bool hasProfileId() => $_has(0);
   @$pb.TagNumber(1)
   void clearProfileId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  ConnectRequest_Mode get mode => $_getN(1);
+  @$pb.TagNumber(2)
+  set mode(ConnectRequest_Mode value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasMode() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearMode() => $_clearField(2);
 }
 
 class ProfileIds extends $pb.GeneratedMessage {

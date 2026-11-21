@@ -318,10 +318,14 @@ func (b *builder) buildChain(chainID int64, entity *Profile) (string, error) {
 			}
 			tunnelTag := tagOut + "-dnstunnel"
 			// libcore's protect server runs with the main instance; a latency test without one must not point the
-			// tunnel's own sockets at a missing socket
+			// tunnel's own sockets at a missing socket. A computer has no such server: its TUN leaves the tunnel's
+			// resolvers out instead (excludeTunnelResolvers)
 			protectPath := ""
-			if !b.forTest || b.dev.ProtectPathReady() {
+			if !b.desktop && (!b.forTest || b.dev.ProtectPathReady()) {
 				protectPath = "protect_path"
+			}
+			if tunnel.engine == dnsTunnelMasterDNS {
+				b.tunnelResolvers = append(b.tunnelResolvers, tunnel.resolvers()...)
 			}
 			// dnsauth: the node's device key goes into the core by reference; no node is imported here
 			if _, ok := tunnel.authNode(); ok {
