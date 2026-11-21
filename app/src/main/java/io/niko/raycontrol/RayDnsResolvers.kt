@@ -166,14 +166,16 @@ object RayDnsResolvers {
 
     /**
      * slipstream's resolvers on this network from its [candidates]: masterdns's list (Yandex's in it on masterdns's
-     * [fallback], or with no others), and once some were measured too [small], Yandex's that were measured [whole]
-     * after them, to take their places: one that did not answer the probe is not taken in a small one's place
-     * ([measureSlip] measures Yandex's too). Then [slipResolvers].
+     * [fallback], or with no others), and for each of its resolvers measured too [small], one of Yandex's measured
+     * [whole] after them, to take its place: as many as left, no more (Yandex stays the last resort, as for
+     * masterdns), and none that did not answer the probe ([measureSlip] measures Yandex's too). Then [slipResolvers].
      */
     internal fun slipList(candidates: List<Candidate>, fallback: Boolean, small: Set<String>, whole: Set<String>): List<String> {
         var list = masterdnsResolvers(candidates, fallback)
-        if (small.isNotEmpty()) {
-            list = list + YANDEX.filter { it in whole && list.none { c -> c.resolver == it } }.map { Candidate(it, "udp") }
+        val dropped = list.count { it.resolver in small }
+        if (dropped > 0) {
+            list = list + YANDEX.filter { it in whole && list.none { c -> c.resolver == it } }.take(dropped)
+                .map { Candidate(it, "udp") }
         }
         return slipResolvers(list, small)
     }
