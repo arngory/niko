@@ -4,11 +4,7 @@ source ./env_java.sh || true
 source ../buildScript/init/env_ndk.sh
 
 BUILD=".build"
-
-rm -rf $BUILD/android \
-  $BUILD/java \
-  $BUILD/javac-output \
-  $BUILD/src
+mkdir -p "$BUILD"
 
 if [ -z "$GOPATH" ]; then
   GOPATH=$(go env GOPATH)
@@ -65,8 +61,21 @@ rm -rf "$probe"
 GODEBUG_DEFAULT="${GODEBUG_GO:+$GODEBUG_GO,}madvdontneed=1"
 echo ">> the Go runtime's GODEBUG default: $GODEBUG_DEFAULT"
 
-export GOBIND="$GOPATH/bin/gobind-matsuri"
-"$GOPATH"/bin/gomobile-matsuri bind -v -androidapi 23 -cache "$(realpath $BUILD)" -trimpath -ldflags="-s -w -checklinkname=0 -X=runtime.godebugDefault=$GODEBUG_DEFAULT" -tags='with_naive_outbound,with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0' . || exit 1
+# gomobile and gobind of init.sh, of COMMIT_GOMOBILE; golang.org/x/mobile in go.mod (the binding's runtime: bind/seq
+# and the Java side) is to be of the same commit, or the generated code meets a runtime of another
+source ../buildScript/lib/core/get_source_env.sh
+GOMOBILE_BIN="$GOPATH/gomobile/$COMMIT_GOMOBILE/bin"
+MOBILE="$(go list -m -f '{{.Version}}' golang.org/x/mobile)"
+if [ "${MOBILE##*-}" != "${COMMIT_GOMOBILE:0:12}" ]; then
+  echo ">> golang.org/x/mobile is $MOBILE in go.mod, gomobile is of $COMMIT_GOMOBILE"
+  exit 1
+fi
+export PATH="$GOMOBILE_BIN:$PATH"
+if [ "$(command -v gobind)" != "$GOMOBILE_BIN/gobind" ]; then
+  echo ">> gobind is $(command -v gobind), not $GOMOBILE_BIN/gobind (libcore/init.sh)"
+  exit 1
+fi
+"$GOMOBILE_BIN"/gomobile bind -v -androidapi 23 -trimpath -ldflags="-s -w -checklinkname=0 -X=runtime.godebugDefault=$GODEBUG_DEFAULT" -tags='with_naive_outbound,with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0' . || exit 1
 rm -r libcore-sources.jar
 
 # what was built says which Go built it: every ABI's library, or no library

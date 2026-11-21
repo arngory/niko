@@ -10,24 +10,15 @@ if [ -z "$GOPATH" ]; then
     GOPATH=$(go env GOPATH)
 fi
 
-# Install gomobile, pinned so that bindings are reproducible
-if [ ! -f "$GOPATH/bin/gomobile-matsuri" ]; then
-    rm -rf gomobile
-    git clone --no-checkout https://github.com/MatsuriDayo/gomobile.git
-    pushd gomobile
-    git checkout "$COMMIT_GOMOBILE"
-    pushd cmd
-    pushd gomobile
-    go install -v
-    popd
-    pushd gobind
-    go install -v
-    popd
-    popd
-    popd
-    rm -rf gomobile
-    mv "$GOPATH/bin/gomobile" "$GOPATH/bin/gomobile-matsuri"
-    mv "$GOPATH/bin/gobind" "$GOPATH/bin/gobind-matsuri"
+# gomobile and gobind at COMMIT_GOMOBILE, in a directory of that commit's own: build.sh puts it first on PATH, where
+# gomobile looks for gobind. No `gomobile init`: bind needs none, and it would install gobind@latest over the pin
+GOMOBILE_BIN="$GOPATH/gomobile/$COMMIT_GOMOBILE/bin"
+if [ ! -x "$GOMOBILE_BIN/gomobile" ] || [ ! -x "$GOMOBILE_BIN/gobind" ]; then
+    src="$(mktemp -d)"
+    git init -q "$src"
+    git -C "$src" remote add origin "$REPOSITORY_GOMOBILE"
+    git -C "$src" fetch -q --depth 1 origin "$COMMIT_GOMOBILE"
+    git -C "$src" checkout -q FETCH_HEAD
+    (cd "$src" && GOBIN="$GOMOBILE_BIN" go install -v ./cmd/gomobile ./cmd/gobind)
+    rm -rf "$src"
 fi
-
-GOBIND="$GOPATH/bin/gobind-matsuri" "$GOPATH/bin/gomobile-matsuri" init
