@@ -137,8 +137,10 @@ object RayDnsResolvers {
         // slipstream: the first of masterdns's list, addresses only (no ranges), a path each; not those measured on
         // this network to pass too little EDNS for its packets
         if (engine == DnsTunnel.SLIPSTREAM) {
-            return slipList(networkCandidates() + COUNTRY[country()].orEmpty(), masterdnsFallback(node), slipSmall(node))
-                .joinToString("\n")
+            return slipList(
+                networkCandidates() + COUNTRY[country()].orEmpty(), masterdnsFallback(node),
+                slipMeasured(node, "small"), slipMeasured(node, "whole"),
+            ).joinToString("\n")
         }
         if (engine != DNSTT) return masterdnsFor(node).joinToString("\n") { it.resolver }
         val first = heldPick(node)?.get("resolver")?.asString ?: return DNSTT_DEFAULT
@@ -163,18 +165,27 @@ object RayDnsResolvers {
     }
 
     /**
-     * slipstream's resolvers on this network from its [candidates]: masterdns's list, Yandex's in it on masterdns's
-     * [fallback] and also once some were measured too [small], so that the ones measured whole take their places
-     * ([measureSlip] measures Yandex's too); then [slipResolvers].
+     * slipstream's resolvers on this network from its [candidates]: masterdns's list (Yandex's in it on masterdns's
+     * [fallback], or with no others), and once some were measured too [small], Yandex's that were measured [whole]
+     * after them, to take their places: one that did not answer the probe is not taken in a small one's place
+     * ([measureSlip] measures Yandex's too). Then [slipResolvers].
      */
-    internal fun slipList(candidates: List<Candidate>, fallback: Boolean, small: Set<String>): List<String> =
-        slipResolvers(masterdnsResolvers(candidates, fallback || small.isNotEmpty()), small)
+    internal fun slipList(candidates: List<Candidate>, fallback: Boolean, small: Set<String>, whole: Set<String>): List<String> {
+        var list = masterdnsResolvers(candidates, fallback)
+        if (small.isNotEmpty()) {
+            list = list + YANDEX.filter { it in whole && list.none { c -> c.resolver == it } }.map { Candidate(it, "udp") }
+        }
+        return slipResolvers(list, small)
+    }
 
-    /** The resolvers measured on this network to pass too little EDNS for [node]'s slipstream, while that holds. */
-    private fun slipSmall(node: RayNode?): Set<String> {
+    /**
+     * What [measureSlip] found on this network for [node]'s slipstream while it holds: the resolvers that pass too
+     * little EDNS ("small"), or enough ("whole"); one that did not answer is in neither.
+     */
+    private fun slipMeasured(node: RayNode?, which: String): Set<String> {
         val network = RayChannel.network() ?: return emptySet()
         if (node == null) return emptySet()
-        return RayChannel.dnsPick(node.spa.nodeId, network, SLIP)?.getAsJsonArray("small")
+        return RayChannel.dnsPick(node.spa.nodeId, network, SLIP)?.getAsJsonArray(which)
             ?.mapNotNull { runCatching { it.asString }.getOrNull() }?.toSet().orEmpty()
     }
 
@@ -189,7 +200,7 @@ object RayDnsResolvers {
     /**
      * Measures slipstream's candidates on [network] (masterdns's list with Yandex's, addresses only) with a small probe
      * at [node]'s dnstt zone, the EDNS size each passes on as the node saw it (dnsprobe-v1); keeps, for a day, those
-     * under [SLIP_MIN_EDNS] or with none (0). A resolver that did not answer the probe is not judged. Nothing without
+     * under [SLIP_MIN_EDNS] or with none (0), and those at it or over. A resolver that did not answer is in neither. Nothing without
      * a dnstt zone or a probe key: slipstream's zones answer no probe.
      */
     suspend fun measureSlip(node: RayNode, network: ChannelNetwork, progress: (String) -> Unit = {}): Set<String>? {
@@ -198,13 +209,14 @@ object RayDnsResolvers {
         val candidates = masterdnsResolvers(networkCandidates() + COUNTRY[country()].orEmpty(), fallback = true)
             .filter { '/' !in it.resolver }
         val small = linkedSetOf<String>()
+        val whole = linkedSetOf<String>()
         for (c in candidates) {
             currentCoroutineContext().ensureActive()
             val address = c.resolver
             val r = probe(if (':' in address) "udp://[$address]" else "udp://$address", zone, key, large = false)
             progress("dns $SLIP ${c.kind}: ${describe(r)}")
             if (r?.get("ok")?.asBoolean != true) continue
-            if ((r.get("edns")?.asInt ?: 0) < SLIP_MIN_EDNS) small += address
+            if ((r.get("edns")?.asInt ?: 0) < SLIP_MIN_EDNS) small += address else whole += address
         }
         // the network changed meanwhile: what was measured is neither network's
         if (RayChannel.network()?.key != network.key) return null
@@ -212,6 +224,7 @@ object RayDnsResolvers {
         RayChannel.recordDnsPick(node.spa.nodeId, network, SLIP, JsonObject().apply {
             addProperty("kind", "edns")
             add("small", com.google.gson.JsonArray().apply { small.forEach(::add) })
+            add("whole", com.google.gson.JsonArray().apply { whole.forEach(::add) })
             addProperty("at", System.currentTimeMillis() / 1000)
         })
         // the running core may go through one of them: the watchdog compares and restarts
