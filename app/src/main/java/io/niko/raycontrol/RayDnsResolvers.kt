@@ -136,7 +136,10 @@ object RayDnsResolvers {
     fun resolverFor(node: RayNode?, engine: String): String {
         // slipstream: the first of masterdns's list, addresses only (no ranges), a path each; not those measured on
         // this network to pass too little EDNS for its packets
-        if (engine == DnsTunnel.SLIPSTREAM) return slipResolvers(masterdnsFor(node), slipSmall(node)).joinToString("\n")
+        if (engine == DnsTunnel.SLIPSTREAM) {
+            return slipList(networkCandidates() + COUNTRY[country()].orEmpty(), masterdnsFallback(node), slipSmall(node))
+                .joinToString("\n")
+        }
         if (engine != DNSTT) return masterdnsFor(node).joinToString("\n") { it.resolver }
         val first = heldPick(node)?.get("resolver")?.asString ?: return DNSTT_DEFAULT
         // https://, tls://, tcp://, udp:// as picked; a bare address is UDP's
@@ -158,6 +161,14 @@ object RayDnsResolvers {
         val addresses = list.map { it.resolver }.filter { '/' !in it }
         return (addresses.filter { it !in small }.ifEmpty { addresses }).take(DnsTunnel.MAX_SLIP_RESOLVERS)
     }
+
+    /**
+     * slipstream's resolvers on this network from its [candidates]: masterdns's list, Yandex's in it on masterdns's
+     * [fallback] and also once some were measured too [small], so that the ones measured whole take their places
+     * ([measureSlip] measures Yandex's too); then [slipResolvers].
+     */
+    internal fun slipList(candidates: List<Candidate>, fallback: Boolean, small: Set<String>): List<String> =
+        slipResolvers(masterdnsResolvers(candidates, fallback || small.isNotEmpty()), small)
 
     /** The resolvers measured on this network to pass too little EDNS for [node]'s slipstream, while that holds. */
     private fun slipSmall(node: RayNode?): Set<String> {

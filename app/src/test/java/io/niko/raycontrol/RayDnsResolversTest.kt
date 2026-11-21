@@ -124,4 +124,27 @@ class RayDnsResolversTest {
             RayDnsResolvers.slipResolvers(list, all))
         assertEquals(1206, RayDnsResolvers.SLIP_MIN_EDNS)
     }
+
+    @Test
+    fun slipstreamTakesYandexOnlyInPlaceOfSmallOnes() {
+        // the candidates of a phone in ru: the network's, the country's (Yandex among them), DoT and DoH
+        val candidates = listOf(
+            RayDnsResolvers.Candidate("192.168.1.1", "net"), RayDnsResolvers.Candidate("195.208.5.1", "udp"),
+            RayDnsResolvers.Candidate("195.208.4.1", "udp"), RayDnsResolvers.Candidate("62.76.76.62", "udp"),
+            RayDnsResolvers.Candidate("77.88.8.8", "udp"), RayDnsResolvers.Candidate("77.88.8.1", "udp"),
+            RayDnsResolvers.Candidate("tls://common.dot.dns.yandex.net", "dot"),
+        )
+        // nothing measured small, no masterdns fallback: Yandex stays out, as for masterdns
+        assertEquals(listOf("192.168.1.1", "195.208.5.1", "195.208.4.1", "62.76.76.62"),
+            RayDnsResolvers.slipList(candidates, fallback = false, small = emptySet()))
+        // all but Yandex's measured small: Yandex's, measured whole, take their places
+        val small = setOf("192.168.1.1", "195.208.5.1", "195.208.4.1", "62.76.76.62")
+        assertEquals(listOf("77.88.8.8", "77.88.8.1"), RayDnsResolvers.slipList(candidates, fallback = false, small = small))
+        // one small: the rest, Yandex's after them
+        assertEquals(listOf("195.208.5.1", "195.208.4.1", "62.76.76.62", "77.88.8.8"),
+            RayDnsResolvers.slipList(candidates, fallback = false, small = setOf("192.168.1.1")))
+        // Yandex's small too: the list as it was, nothing measured whole to take its place
+        assertEquals(listOf("192.168.1.1", "195.208.5.1", "195.208.4.1", "62.76.76.62"),
+            RayDnsResolvers.slipList(candidates, fallback = false, small = small + setOf("77.88.8.8", "77.88.8.1")))
+    }
 }
