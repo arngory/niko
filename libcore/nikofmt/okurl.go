@@ -6,10 +6,11 @@ import (
 	"strings"
 )
 
-// okURL is an https URL as OkHttp 4.12's HttpUrl parses it (toHttpUrl, toHttpUrlOrNull), which the app's link parsers
-// stand on: what they read of it, decoded as its getters decode. Go's net/url differs in what it refuses, how it
-// decodes and how it writes a host, so this follows OkHttp's HttpUrl.Builder.parse instead.
+// okURL is an http or https URL as OkHttp 4.12's HttpUrl parses it (toHttpUrl, toHttpUrlOrNull), which the app's link
+// parsers stand on: what they read of it, decoded as its getters decode. Go's net/url differs in what it refuses, how
+// it decodes and how it writes a host, so this follows OkHttp's HttpUrl.Builder.parse instead.
 type okURL struct {
+	scheme       string // "http" or "https"
 	host         string
 	port         int
 	username     string
@@ -27,21 +28,26 @@ type okParam struct {
 
 var errOkURL = errors.New("not a URL OkHttp takes")
 
-// parseOkURL is HttpUrl.toHttpUrl for an https:// URL (the parsers build that prefix themselves).
+// parseOkURL is HttpUrl.toHttpUrl: an http: or https: URL (most parsers build the https:// prefix themselves).
 func parseOkURL(input string) (*okURL, error) {
 	// leading and trailing ASCII whitespace
 	input = strings.TrimFunc(input, func(r rune) bool {
 		return r == '\t' || r == '\n' || r == '\f' || r == '\r' || r == ' '
 	})
-	if len(input) < 6 || !strings.EqualFold(input[:6], "https:") {
-		return nil, errors.New("expected URL scheme 'https'")
+	u := &okURL{}
+	var pos, defaultPort int
+	switch {
+	case len(input) >= 6 && strings.EqualFold(input[:6], "https:"):
+		u.scheme, pos, defaultPort = "https", 6, 443
+	case len(input) >= 5 && strings.EqualFold(input[:5], "http:"):
+		u.scheme, pos, defaultPort = "http", 5, 80
+	default:
+		return nil, errors.New("expected URL scheme 'http' or 'https'")
 	}
-	pos := 6
 	// any number of slashes, backslashes too
 	for pos < len(input) && (input[pos] == '/' || input[pos] == '\\') {
 		pos++
 	}
-	u := &okURL{}
 	// the authority ends at the first of "/\?#"; its user info at the last '@' before that
 	end := pos + strings.IndexAny(input[pos:], "/\\?#")
 	if end < pos {
@@ -62,7 +68,7 @@ func parseOkURL(input string) (*okURL, error) {
 		return nil, errors.New("invalid URL host")
 	}
 	u.host = host
-	u.port = 443
+	u.port = defaultPort
 	if hasPort && portPart != "" {
 		if u.port = okParsePort(portPart); u.port < 0 {
 			return nil, errors.New("invalid URL port")

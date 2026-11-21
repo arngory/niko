@@ -2,9 +2,10 @@ package nikofmt
 
 import "strings"
 
-// The app's profile beans (app/src/main/java/io/niko/fmt/**/…Bean.java) as Go structs that marshal to the JSON the
-// app's Gson writes of them (JavaUtil.gson): the Java field names; a boxed field Java leaves null is a nil pointer,
-// left out as Gson leaves null fields out. Fields are in Gson's order, the class's own before its superclass's.
+// The app's profile beans (app/src/main/java/io/niko/fmt/**/…Bean.java and proxy/**/…Bean.java: naive, Hysteria and
+// the V2Ray family here, the others in beans_more.go) as Go structs that marshal to the JSON the app's Gson writes
+// of them (JavaUtil.gson): the Java field names; a boxed field Java leaves null is a nil pointer, left out as Gson
+// leaves null fields out. Fields are in Gson's order, the class's own before its superclass's.
 // initializeDefaultValues is ported as it is, null checks and blank checks where Java has each.
 
 // Bean is a parsed profile: one of the …Bean types of this package, always a pointer.
@@ -272,6 +273,35 @@ func (b *VMessBean) InitializeDefaultValues() {
 	} else {
 		setBlankDefault(&b.Encryption, "auto")
 	}
+}
+
+// TrojanBean is fmt/trojan/TrojanBean.java.
+type TrojanBean struct {
+	Password *string `json:"password,omitempty"`
+	StandardV2RayBean
+}
+
+// InitializeDefaultValues is TrojanBean.initializeDefaultValues.
+func (b *TrojanBean) InitializeDefaultValues() {
+	b.StandardV2RayBean.initializeDefaultValues(true)
+	if b.Security == nil || *b.Security == "" {
+		b.Security = ptr("tls")
+	}
+	setDefault(&b.Password, "")
+}
+
+// HttpBean is fmt/http/HttpBean.java: an HTTP proxy, HTTPS where security is "tls".
+type HttpBean struct {
+	Username *string `json:"username,omitempty"`
+	Password *string `json:"password,omitempty"`
+	StandardV2RayBean
+}
+
+// InitializeDefaultValues is HttpBean.initializeDefaultValues.
+func (b *HttpBean) InitializeDefaultValues() {
+	b.StandardV2RayBean.initializeDefaultValues(false)
+	setDefault(&b.Username, "")
+	setDefault(&b.Password, "")
 }
 
 func ptr[T any](v T) *T { return &v }

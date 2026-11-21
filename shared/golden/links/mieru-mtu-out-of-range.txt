@@ -1,0 +1,1 @@
+mierus://user:pass@mieru.example.com?port=%202028&protocol=TCP&mtu=9000&traffic-pattern=CCoQAQ%3D%3D&profile=%20

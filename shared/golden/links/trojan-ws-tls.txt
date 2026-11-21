@@ -1,0 +1,1 @@
+trojan://fake-trojan-password@203.0.113.80:443?security=tls&sni=trojan.example.com&type=ws&path=%2Ftrojan&host=trojan.example.com&fp=chrome&alpn=h2%2Chttp%2F1.1#Trojan%20WS

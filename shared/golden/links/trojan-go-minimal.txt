@@ -1,0 +1,1 @@
+trojan-go://fake-password@tg.example.net#%20

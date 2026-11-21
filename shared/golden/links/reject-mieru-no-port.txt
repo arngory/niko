@@ -1,0 +1,1 @@
+mierus://user:pass@mieru.example.com?profile=default&protocol=TCP
