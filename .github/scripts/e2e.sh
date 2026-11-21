@@ -350,6 +350,64 @@ else
 fi
 memory vpn-quiet - go
 
+echo "== Hysteria2 when the node forgets the connection: niko-server restarted, then a path gone dead"
+# recover TAG: fetch until the token comes from the node, two minutes at most; took: the seconds it took, empty: never
+recover() {
+  local start=$SECONDS
+  took=
+  while [ $((SECONDS - start)) -lt 120 ]; do
+    fetch "$1-$((SECONDS - start))"
+    if [ "$carried" = yes ] && [ "$from" = "$node" ]; then
+      took=$((SECONDS - start))
+      return
+    fi
+  done
+}
+# the node's niko-server restarted (rayd -supervise starts it again): the client's next packet on the connection it
+# forgot gets a stateless reset under a key that outlives the process, salamander's too (niko-server v0.18.4), and the
+# core dials a new one at once; before, the client waited out its 60 s idle timeout
+recover hy2-before
+[ -n "$took" ] || fail "no request through the node before the restart (nc said: $last)"
+docker exec rc-node pkill -x niko-server || fail "no niko-server on the node to restart"
+for i in $(seq 150); do
+  docker exec rc-node pgrep -x niko-server > /dev/null && docker exec rc-node test -S /run/niko/hy2o/stats.sock && break
+  sleep 0.2
+done
+sleep 2
+recover hy2-restart
+[ -n "$took" ] || fail "nothing through the node in two minutes after niko-server's restart (nc said: $last)"
+echo "after niko-server's restart: through the node again in $took s"
+# a reset comes at the first packet; the dead path's check (core 024d4b0) would take 10-20 s, the idle timeout 60 s
+if [ "$took" -gt 30 ]; then
+  fail "after niko-server's restart the node answered again only in $took s: no stateless reset, nor the dead path's close"
+elif [ "$took" -gt 8 ]; then
+  echo "::warning::after niko-server's restart the node answered again in $took s: no stateless reset came"
+fi
+# the path of the connection gone dead, as when the node's conntrack entry or the NAT's binding is lost while the phone
+# sleeps: the node's packets to the client's port of it dropped on the runner, which the emulator's sockets are on. A
+# request then goes unanswered; the core closes the connection within 10-20 s of sending into it and dials a new one,
+# from another port (before 4d626b6 it waited out the idle timeout, 60 s)
+bridge=$(ip -o -4 addr show 2> /dev/null | awk '$4 ~ /^203\.0\.113\.1\// {print $2; exit}')
+client_port=
+if [ -n "$bridge" ] && command -v tcpdump > /dev/null; then
+  sudo timeout 20 tcpdump -i "$bridge" -nn -q -c 1 'udp and src host 203.0.113.1 and dst host 203.0.113.2' \
+    > "$memdir/dead-path-port.txt" 2> /dev/null &
+  capture=$!
+  fetch hy2-port
+  wait "$capture" 2> /dev/null
+  client_port=$(sed -n 's/.* 203\.0\.113\.1\.\([0-9]*\) > 203\.0\.113\.2\..*/\1/p' "$memdir/dead-path-port.txt" | head -1)
+fi
+if [ -z "$client_port" ]; then
+  echo "::warning::the dead path not checked: no port of the client's connection seen (bridge '${bridge:-none}')"
+else
+  sudo iptables -I INPUT -p udp -s 203.0.113.2 -d 203.0.113.1 --dport "$client_port" -j DROP
+  recover hy2-dead
+  sudo iptables -D INPUT -p udp -s 203.0.113.2 -d 203.0.113.1 --dport "$client_port" -j DROP
+  [ -n "$took" ] || fail "nothing through the node in two minutes with the connection's path dead (nc said: $last)"
+  echo "the connection's path dead (the node's packets to port $client_port dropped): through the node again in $took s"
+  [ "$took" -le 45 ] || fail "with the connection's path dead the node answered again only in $took s: the idle timeout, not the dead path's close"
+fi
+
 echo "== Private DNS with the VPN on: each mode, then strict across a restart of the core"
 # resolved NAME: the address ping got for NAME through the system's resolver (what every app gets), empty: none
 resolved() {
