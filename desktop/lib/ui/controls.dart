@@ -98,6 +98,43 @@ class NikoGhostButton extends StatelessWidget {
   }
 }
 
+/// The screen's action (m-btn): words in on-ink on ink.
+class NikoPrimaryButton extends StatelessWidget {
+  const NikoPrimaryButton({super.key, required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = NikoTheme.of(context);
+    return Semantics(
+      container: true,
+      button: true,
+      enabled: onPressed != null,
+      child: NikoPressable(
+        onPressed: onPressed,
+        builder: (context, state) => DecoratedBox(
+          decoration: BoxDecoration(
+            color: state.pressed ? colors.inkPressed : colors.ink,
+            borderRadius: BorderRadius.circular(NikoRadius.full),
+          ),
+          child: SizedBox(
+            height: NikoSize.control,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: NikoSpace.s6),
+              child: Center(
+                widthFactor: 1,
+                child: Text(label, maxLines: 1, style: NikoType.body.style(colors.onInk, weight: FontWeight.w600)),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// A button of words on a fill of its own (m-btn--tonal): the action of a tool, not of the screen.
 class NikoTonalButton extends StatelessWidget {
   const NikoTonalButton({super.key, required this.label, required this.onPressed});

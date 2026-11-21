@@ -124,6 +124,18 @@ class TracedDaemon implements Daemon {
   @override
   Future<void> select(int profileId) => _inner.select(profileId);
   @override
+  Future<ImportPreview> recognize(String text) => _inner.recognize(text);
+  @override
+  Future<SavedProfile> profile(int id) => _inner.profile(id);
+  @override
+  Future<int> addProfile({required int groupId, required String type, required String beanJson}) =>
+      _inner.addProfile(groupId: groupId, type: type, beanJson: beanJson);
+  @override
+  Future<void> deleteProfiles(List<int> ids) => _inner.deleteProfiles(ids);
+  @override
+  Future<void> moveProfiles(List<int> ids, {required int groupId, int before = 0}) =>
+      _inner.moveProfiles(ids, groupId: groupId, before: before);
+  @override
   Future<void> close() => _inner.close();
 }
 

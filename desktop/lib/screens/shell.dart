@@ -13,6 +13,7 @@ import '../state/stun_tool.dart';
 import '../state/window_settings.dart';
 import '../theme/niko_theme.dart';
 import '../ui/header.dart';
+import 'add_screen.dart';
 import 'connections_screen.dart';
 import 'log_screen.dart';
 import 'main_screen.dart';
@@ -57,6 +58,7 @@ class _NikoShellState extends State<NikoShell> {
   late ConnectionsFeed _connections;
   late StunTool _stun;
   late ProfilesFeed _profiles;
+  bool _adding = false;
   AppSection _section = AppSection.home;
   late bool _advanced = widget.settings.advanced;
 
@@ -112,7 +114,10 @@ class _NikoShellState extends State<NikoShell> {
 
   void _show(AppSection section) {
     if (section == _section) return;
-    setState(() => _section = section);
+    setState(() {
+      _section = section;
+      _adding = false;
+    });
     _read();
   }
 
@@ -168,7 +173,13 @@ class _NikoShellState extends State<NikoShell> {
               ),
               AppSection.nodes => ListenableBuilder(
                 listenable: Listenable.merge([_profiles, state]),
-                builder: (context, _) => NodesScreen(feed: _profiles, linked: state.link == LinkPhase.ready),
+                builder: (context, _) => _adding
+                    ? AddScreen(feed: _profiles, onDone: (_) => setState(() => _adding = false))
+                    : NodesScreen(
+                        feed: _profiles,
+                        linked: state.link == LinkPhase.ready,
+                        onAdd: () => setState(() => _adding = true),
+                      ),
               ),
               AppSection.log => LogScreen(feed: _log, stun: _stun),
             },

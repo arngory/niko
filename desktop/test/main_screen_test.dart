@@ -105,8 +105,81 @@ class MemoryDaemon implements Daemon {
   @override
   Future<List<ProfileRow>> profiles({int groupId = 0}) async =>
       [for (final p in profileRows) if (groupId == 0 || p.groupId == groupId) p];
+  int _nextId = 100;
+  void _changed(StoreKind kind, List<int> ids) => storeEvents.add(StoreChange(revision: ++_revision, kind: kind, ids: ids));
+
+  /// An input as the daemon would see it: a line with :// is a profile named by what follows its #.
+  List<ProfileRow> _parse(String text, int groupId) => [
+        for (final line in text.split('\n').map((l) => l.trim()).where((l) => l.contains('://')))
+          ProfileRow(
+            id: 0,
+            groupId: groupId,
+            order: 0,
+            type: line.split('://').first.replaceAll('socks5', 'socks'),
+            name: line.contains('#') ? line.split('#').last : line.split('://').first,
+            address: '198.51.100.1:443',
+          ),
+      ];
+
   @override
-  Future<List<int>> importLinks(String text, {int groupId = 0}) async => const [];
+  Future<ImportPreview> recognize(String text) async {
+    if (text.trim().startsWith('https://')) return ImportPreview(kind: ImportKind.subscription, subscription: text.trim());
+    final rows = _parse(text, 0);
+    return rows.isEmpty ? const ImportPreview() : ImportPreview(kind: ImportKind.profiles, profiles: rows);
+  }
+
+  @override
+  Future<List<int>> importLinks(String text, {int groupId = 0}) async {
+    final group = groupId == 0 ? groupRows.firstWhere((g) => g.ungrouped).id : groupId;
+    final ids = <int>[];
+    for (final row in _parse(text, group)) {
+      final id = ++_nextId;
+      profileRows.add(ProfileRow(id: id, groupId: group, order: id, type: row.type, name: row.name, address: row.address));
+      ids.add(id);
+    }
+    _changed(StoreKind.profiles, ids);
+    return ids;
+  }
+
+  @override
+  Future<SavedProfile> profile(int id) async =>
+      SavedProfile(row: profileRows.firstWhere((p) => p.id == id), beanJson: '{"id":$id}');
+
+  @override
+  Future<int> addProfile({required int groupId, required String type, required String beanJson}) async {
+    final id = ++_nextId;
+    final was = beans[beanJson];
+    profileRows.add(ProfileRow(
+        id: id, groupId: groupId, order: id, type: type, name: was?.name ?? 'new', address: was?.address ?? ''));
+    _changed(StoreKind.profiles, [id]);
+    return id;
+  }
+
+  /// The rows of the beans the window read, to put them back as they were.
+  final beans = <String, ProfileRow>{};
+
+  @override
+  Future<void> deleteProfiles(List<int> ids) async {
+    for (final p in profileRows.where((p) => ids.contains(p.id))) {
+      beans['{"id":${p.id}}'] = p;
+    }
+    profileRows.removeWhere((p) => ids.contains(p.id));
+    _changed(StoreKind.profiles, ids);
+    if (ids.contains(selectedId)) {
+      selectedId = 0;
+      _changed(StoreKind.selected, const []);
+    }
+  }
+
+  @override
+  Future<void> moveProfiles(List<int> ids, {required int groupId, int before = 0}) async {
+    final moved = profileRows.where((p) => ids.contains(p.id)).toList();
+    profileRows.removeWhere((p) => ids.contains(p.id));
+    final at = before == 0 ? profileRows.length : profileRows.indexWhere((p) => p.id == before);
+    profileRows.insertAll(at < 0 ? profileRows.length : at, moved);
+    _changed(StoreKind.profiles, ids);
+  }
+
   @override
   Future<List<GroupRow>> groups() async => groupRows;
   @override
@@ -863,6 +936,70 @@ void main() {
     expect(find.text('Офис'), findsOneWidget);
     expect(find.text('Хельсинки'), findsNothing);
     expect(radios(), [false], reason: 'the selected profile is in another group');
+  });
+
+  testWidgets('Узлы: a profile added from a link; one deleted and put back where it was', (tester) async {
+    await show(tester, brightness: Brightness.light);
+    await core(tester, ServicePhase.idle);
+    daemon.groupRows = [const GroupRow(id: 1, name: '', ungrouped: true, profiles: 2)];
+    daemon.profileRows = [
+      const ProfileRow(id: 1, groupId: 1, order: 1, type: 'naive', name: 'Хельсинки', address: '203.0.113.7:443'),
+      const ProfileRow(id: 2, groupId: 1, order: 2, type: 'ss', name: 'Амстердам', address: '198.51.100.20:8443'),
+    ];
+    daemon.selectedId = 1;
+    Future<void> settle([Duration wait = Duration.zero]) async {
+      await tester.pump(wait);
+      for (var i = 0; i < 8; i++) {
+        await tester.pump();
+      }
+    }
+
+    List<bool> radios() => tester.widgetList<NikoRadio>(find.byType(NikoRadio)).map((r) => r.on).toList();
+    await tester.tap(find.text('Узлы'));
+    await settle();
+
+    // added: the link recognized first, nothing written until the button
+    await tester.tap(find.bySemanticsLabel('Добавить'));
+    await settle();
+    expect(find.text('Вставьте ссылку'), findsOneWidget);
+    await tester.enterText(find.byType(EditableText), 'socks5://user:fake-pass@198.51.100.40:1080#Офис');
+    await settle(const Duration(milliseconds: 300));
+    expect(find.text('ПРОФИЛЕЙ В ССЫЛКЕ: 1'), findsOneWidget, reason: 'the overline, in capitals');
+    expect(daemon.profileRows, hasLength(2));
+    await picture('add_light');
+    await tester.tap(find.text('Добавить: 1'));
+    await settle();
+    expect(find.text('Вставьте ссылку'), findsNothing);
+    expect(find.text('Офис'), findsOneWidget);
+    expect(daemon.profileRows.map((p) => p.name), ['Хельсинки', 'Амстердам', 'Офис']);
+
+    // a subscription's link is said to come later, and is not added
+    await tester.tap(find.bySemanticsLabel('Добавить'));
+    await settle();
+    await tester.enterText(find.byType(EditableText), 'https://provider.example/sub/0123456789');
+    await settle(const Duration(milliseconds: 300));
+    expect(find.textContaining('подписки придут'), findsOneWidget);
+    await tester.tap(find.text('Отмена'));
+    await settle();
+
+    // deleted: gone, the selection with it; put back: in its place, selected again
+    await tester.tap(find.bySemanticsLabel('Удалить «Хельсинки»'));
+    await settle();
+    expect(find.text('Хельсинки'), findsNothing);
+    expect(find.text('Профиль «Хельсинки» удалён'), findsOneWidget);
+    expect(radios(), [false, false]);
+    await tester.tap(find.text('Вернуть'));
+    await settle();
+    expect(daemon.profileRows.map((p) => p.name), ['Хельсинки', 'Амстердам', 'Офис']);
+    expect(radios(), [true, false, false]);
+    expect(find.text('Профиль «Хельсинки» удалён'), findsNothing);
+
+    // the way back lasts a while, then goes
+    await tester.tap(find.bySemanticsLabel('Удалить «Офис»'));
+    await settle();
+    expect(find.text('Профиль «Офис» удалён'), findsOneWidget);
+    await settle(const Duration(seconds: 9));
+    expect(find.text('Профиль «Офис» удалён'), findsNothing);
   });
 
   testWidgets('a narrow and low window: nothing overflows', (tester) async {

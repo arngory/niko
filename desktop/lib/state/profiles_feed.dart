@@ -28,6 +28,13 @@ class ProfilesFeed extends ChangeNotifier {
   /// Why the last read or selection failed; empty when it did not.
   String error = '';
 
+  /// The profile deleted last, while it can still be put back (D-PROFILE-09's «Вернуть»); null after [undoFor].
+  DeletedProfile? deleted;
+
+  /// How long a deletion can be undone.
+  static const undoFor = Duration(seconds: 8);
+  Timer? _undoTimer;
+
   bool _shown = false;
   bool _disposed = false;
   StreamSubscription<StoreChange>? _subscription;
@@ -125,6 +132,82 @@ class ProfilesFeed extends ChangeNotifier {
     if (!_disposed && groupId == id) notifyListeners();
   }
 
+  /// The group an import from the window goes into: the one shown, unless it is a subscription's.
+  int get importGroup {
+    final group = groups.where((g) => g.id == groupId).firstOrNull;
+    return group == null || group.subscription ? 0 : group.id;
+  }
+
+  /// What an input would add; nothing is written.
+  Future<ImportPreview> recognize(String text) async {
+    final daemon = _link.daemon;
+    if (daemon == null || text.trim().isEmpty) return const ImportPreview();
+    return daemon.recognize(text);
+  }
+
+  /// Imports an input's profiles into [importGroup] and shows that group: their ids.
+  Future<List<int>> add(String text) async {
+    final daemon = _link.daemon;
+    if (daemon == null) return const [];
+    final target = importGroup;
+    final ids = await daemon.importLinks(text, groupId: target);
+    if (target == 0 && ids.isNotEmpty) {
+      // the ungrouped group: where the daemon put them
+      final ungrouped = groups.where((g) => g.ungrouped).firstOrNull;
+      if (ungrouped != null) await choose(ungrouped.id);
+    }
+    return ids;
+  }
+
+  /// Deletes a profile, keeping its bean and place to put it back for [undoFor].
+  Future<void> delete(ProfileRow row) async {
+    final daemon = _link.daemon;
+    if (daemon == null) return;
+    try {
+      // a profile whose secrets cannot be opened here has no bean to keep: deleted without a way back
+      SavedProfile? saved;
+      try {
+        saved = await daemon.profile(row.id);
+      } catch (_) {}
+      final at = profiles.indexWhere((p) => p.id == row.id);
+      final next = at >= 0 && at + 1 < profiles.length ? profiles[at + 1].id : 0;
+      final wasSelected = row.id == selected;
+      await daemon.deleteProfiles([row.id]);
+      _undoTimer?.cancel();
+      deleted = saved == null ? null : DeletedProfile(saved, next, wasSelected);
+      if (deleted != null) {
+        _undoTimer = Timer(undoFor, () {
+          deleted = null;
+          if (!_disposed) notifyListeners();
+        });
+      }
+      error = '';
+    } catch (e) {
+      error = '$e';
+    }
+    if (!_disposed) notifyListeners();
+  }
+
+  /// Puts the profile deleted last back where it was, selected again if it was.
+  Future<void> undo() async {
+    final daemon = _link.daemon;
+    final gone = deleted;
+    if (daemon == null || gone == null) return;
+    deleted = null;
+    _undoTimer?.cancel();
+    notifyListeners();
+    try {
+      final row = gone.saved.row;
+      final id = await daemon.addProfile(groupId: row.groupId, type: row.type, beanJson: gone.saved.beanJson);
+      if (gone.before != 0) await daemon.moveProfiles([id], groupId: row.groupId, before: gone.before);
+      if (gone.selected) await daemon.select(id);
+      error = '';
+    } catch (e) {
+      error = '$e';
+      if (!_disposed) notifyListeners();
+    }
+  }
+
   /// Selects a profile: the daemon says SELECTED, and the list follows it.
   Future<void> select(int profileId) async {
     final daemon = _link.daemon;
@@ -141,7 +224,18 @@ class ProfilesFeed extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _undoTimer?.cancel();
     hide();
     super.dispose();
   }
+}
+
+/// A profile deleted from the window: its bean, the profile it stood before (0: the group's last) and whether it was
+/// the selected one.
+class DeletedProfile {
+  const DeletedProfile(this.saved, this.before, this.selected);
+
+  final SavedProfile saved;
+  final int before;
+  final bool selected;
 }
