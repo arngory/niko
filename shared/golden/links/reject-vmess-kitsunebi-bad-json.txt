@@ -1,0 +1,1 @@
+vmess://YXV0bzowMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAxNjNAMjAzLjAuMTEzLjE2Mzo0NDM=?obfs=websocket&obfsParam=%7Bbad

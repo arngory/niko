@@ -1,0 +1,1 @@
+vmess://bm9uZTowMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAxNjJAMjAzLjAuMTEzLjE2Mjo0NDM=?obfs=websocket&obfsParam=sni.example.org&tls=&remarks=sni

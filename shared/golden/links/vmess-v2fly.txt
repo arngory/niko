@@ -1,0 +1,1 @@
+vmess://ws+tls:00000000-0000-4000-8000-000000000069-0@203.0.113.69:443/?path=%2Fv2fly&host=cdn.example.org&tlsServerName=cdn.example.org#v2fly

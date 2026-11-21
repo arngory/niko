@@ -1,0 +1,1 @@
+vmess://YXV0bzowMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwNjZAMjAzLjAuMTEzLjY2OjEwMDg2?remarks=Kitsunebi%20node&obfs=websocket&path=/ws&obfsParam=%7B%22Host%22:%22cdn.example.net%22%7D&tls=1&alterId=2&allowInsecure=1
