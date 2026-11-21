@@ -66,29 +66,31 @@ object RawUpdater : GroupUpdater() {
                 ?: error(app.getString(R.string.no_proxies_found_in_subscription))
         } else {
 
-            var response = fetchSubscription(subscription, link)
+            val fetched = fetchSubscription(subscription, link)
+            var response = fetched.response
             var content = Util.getStringBox(response.contentString)
             hwidRefusal { Util.getStringBox(response.getHeader(it)) }?.let { refusal ->
                 error(hwidMessage(refusal, subscription, Util.getStringBox(response.getHeader("announce"))))
             }
-            proxies = parseRaw(content) ?: error(app.getString(R.string.no_proxies_found))
 
-            // the provider moved the subscription (new-url, new-domain): the new address is taken only once it
-            // answers with profiles, and the device id stays the one the panel knows (hwidHost)
+            // the provider moved the subscription (new-url, new-domain): read before the profiles, as the old
+            // address may answer with the move alone. The new address is taken only once it answers with profiles,
+            // and the device id stays the one the panel knows (hwidHost)
             var move = subscriptionMove(subscription.link, { Util.getStringBox(response.getHeader(it)) }, content)
+            var movedProxies: List<AbstractBean>? = null
             move.to?.let { to ->
                 try {
                     // the new address itself, not its spare: a move is taken only from where it leads
                     val moved = request(subscription, to)
                     val movedContent = Util.getStringBox(moved.contentString)
                     if (hwidRefusal { Util.getStringBox(moved.getHeader(it)) } != null) error("refused")
-                    val movedProxies = parseRaw(movedContent)?.takeIf { it.isNotEmpty() } ?: error("no profiles")
+                    val fromNew = parseRaw(movedContent)?.takeIf { it.isNotEmpty() } ?: error("no profiles")
                     Logs.i("subscription moved: ${hostOf(subscription.link)} -> ${hostOf(to)}")
                     if (subscription.hwidHost.isNullOrBlank()) subscription.hwidHost = hostOf(subscription.link)
                     subscription.link = to
                     response = moved
                     content = movedContent
-                    proxies = movedProxies
+                    movedProxies = fromNew
                     move = subscriptionMove(to, { Util.getStringBox(moved.getHeader(it)) }, movedContent)
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
@@ -96,7 +98,9 @@ object RawUpdater : GroupUpdater() {
                     Logs.w("subscription: ${hostOf(to)}, the provider's new address, did not answer, staying: ${e.readableMessage}")
                 }
             }
-            move.spare?.let { subscription.fallbackLink = it }
+            proxies = movedProxies ?: parseRaw(content) ?: error(app.getString(R.string.no_proxies_found))
+            subscription.fallbackLink =
+                spareAfterAnswer(subscription.fallbackLink, move.spare, fetched.fromSpare && movedProxies == null)
 
             subscription.subscriptionUserinfo =
                 Util.getStringBox(response.getHeader("Subscription-Userinfo"))
@@ -295,15 +299,18 @@ object RawUpdater : GroupUpdater() {
      * The subscription's answer from [url]; when it fails (no answer, an error status) the provider's spare address
      * (fallback-url) is asked once. A panel that limits devices refusing this one says why (hwidMessage).
      */
-    private fun fetchSubscription(subscription: SubscriptionBean, url: String): libcore.HTTPResponse {
+    /** An answer of the subscription, and whether the spare address gave it (the main one failed). */
+    private class Fetched(val response: libcore.HTTPResponse, val fromSpare: Boolean)
+
+    private fun fetchSubscription(subscription: SubscriptionBean, url: String): Fetched {
         try {
-            return request(subscription, url)
+            return Fetched(request(subscription, url), false)
         } catch (e: Exception) {
             hwidRefusal(e.message)?.let { throw IllegalStateException(hwidMessage(it, subscription, ""), e) }
             val spare = subscription.fallbackLink.takeIf { !it.isNullOrBlank() && it != url } ?: throw e
             Logs.w("subscription: ${hostOf(url)} failed (${e.readableMessage}), asking the provider's spare address")
             try {
-                return request(subscription, spare)
+                return Fetched(request(subscription, spare), true)
             } catch (spareError: Exception) {
                 hwidRefusal(spareError.message)?.let { throw IllegalStateException(hwidMessage(it, subscription, ""), spareError) }
                 throw e
