@@ -1144,4 +1144,21 @@
     <string name="home_test_group">Проверить группу %s</string>
     <string name="home_stop_test">Остановить проверку группы %s</string>
     <string name="menu_home">Главная</string>
+    <string name="node_back">Назад</string>
+    <string name="node_update">Обновить узел</string>
+    <string name="node_more">Ещё</string>
+    <string name="node_expires">Подписка до</string>
+    <string name="node_updated">Обновлено</string>
+    <string name="node_updated_never">ни разу</string>
+    <string name="node_path">Путь</string>
+    <string name="node_traffic">Трафик</string>
+    <string name="node_quota_reset">сброс %s</string>
+    <string name="node_ways">Способы</string>
+    <string name="node_test_ways">Проверить способы</string>
+    <string name="node_stop_test">Остановить проверку</string>
+    <string name="node_no_ways">Узел пока не дал способов</string>
+    <string name="node_channel">Проверка канала</string>
+    <string name="node_lan">Локальная сеть</string>
+    <string name="node_why">Почему не работает</string>
+    <string name="node_admin">Панель администратора</string>
 </resources>
