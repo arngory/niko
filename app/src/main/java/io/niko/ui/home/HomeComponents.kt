@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -47,6 +48,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -186,7 +190,7 @@ internal fun ConnectButton(
 
 /** m-status: the state in words, and under it the detail (time and speeds, or why it failed). */
 @Composable
-internal fun Status(label: String, detail: String?, tone: Color, start: Boolean = false, modifier: Modifier = Modifier) {
+internal fun Status(label: String, detail: AnnotatedString?, tone: Color, start: Boolean = false, modifier: Modifier = Modifier) {
     val c = Niko.colors
     Column(
         modifier,
@@ -194,8 +198,23 @@ internal fun Status(label: String, detail: String?, tone: Color, start: Boolean 
         verticalArrangement = Arrangement.spacedBy(NikoSpace.s1),
     ) {
         Text(label, if (start) NikoType.headline else NikoType.title, tone, maxLines = 1)
-        if (!detail.isNullOrEmpty()) Text(detail, NikoType.code, c.ink2, maxLines = 1)
+        if (!detail.isNullOrEmpty()) BasicText(
+            detail, style = NikoType.code.copy(color = c.ink2), maxLines = 1, overflow = TextOverflow.Ellipsis,
+            inlineContent = rateIcons(c.ink2),
+        )
     }
+}
+
+// the speeds' arrows in a line of text: the set's icons (arrow-down, arrow-up), not the font's glyphs, 14 by 14
+internal const val RATE_DOWN = "rate-down"
+internal const val RATE_UP = "rate-up"
+
+@Composable
+private fun rateIcons(tint: Color): Map<String, InlineTextContent> {
+    fun icon(@DrawableRes res: Int) = InlineTextContent(Placeholder(14.sp, 14.sp, PlaceholderVerticalAlign.TextCenter)) {
+        Icon(res, tint, size = 14.dp)
+    }
+    return mapOf(RATE_DOWN to icon(R.drawable.ic_l_arrow_down), RATE_UP to icon(R.drawable.ic_l_arrow_up))
 }
 
 /** m-tile: its icon and a chevron on top, the label and the value below; surface-1, surface-2 pressed. */

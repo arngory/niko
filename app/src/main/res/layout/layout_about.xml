@@ -34,6 +34,13 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
+                    <ImageView
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        android:layout_marginBottom="8dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/niko_mark" />
+
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"

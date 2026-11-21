@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,6 +33,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.dp
 import io.niko.R
 import io.niko.bg.BaseService
@@ -99,7 +102,19 @@ private fun statusLabel(state: HomeState): Pair<String, androidx.compose.ui.grap
     }
 }
 
-private fun speeds(state: HomeState) = "↓ ${rateText(state.downRate)} · ↑ ${rateText(state.upRate)}"
+/** The detail's speeds, "↓ 4.2 MB/s · ↑ 312 KB/s", the arrows drawn as icons (Status) and read by their names. */
+@Composable
+private fun speeds(state: HomeState, online: String? = null): AnnotatedString {
+    val down = stringResource(R.string.home_rate_down)
+    val up = stringResource(R.string.home_rate_up)
+    return buildAnnotatedString {
+        if (online != null) append("$online · ")
+        appendInlineContent(RATE_DOWN, down)
+        append(" ${rateText(state.downRate)} · ")
+        appendInlineContent(RATE_UP, up)
+        append(" ${rateText(state.upRate)}")
+    }
+}
 
 private fun online(state: HomeState, now: Long): String? =
     if (state.service == BaseService.State.Connected && state.connectedSince > 0) elapsedText(now - state.connectedSince) else null
@@ -147,10 +162,9 @@ private fun Simple(state: HomeState, now: Long, actions: HomeActions, modifier: 
                 ConnectButton(state.service, state.error != null, actions::toggle, size)
                 Spacer(Modifier.height(NikoSpace.s8))
                 val detail = when {
-                    state.service == BaseService.State.Connected ->
-                        listOfNotNull(online(state, now), speeds(state)).joinToString(" · ")
+                    state.service == BaseService.State.Connected -> speeds(state, online(state, now))
                     state.service.canStop -> null
-                    else -> state.error
+                    else -> state.error?.let(::AnnotatedString)
                 }
                 Status(label, detail, tone, modifier = Modifier.padding(horizontal = NikoSpace.s5))
                 Spacer(Modifier.weight(1f))
@@ -278,7 +292,7 @@ private fun ConnectionCard(state: HomeState, now: Long, label: String, tone: and
         val detail = when {
             state.service == BaseService.State.Connected -> speeds(state)
             state.service.canStop -> null
-            else -> state.error
+            else -> state.error?.let(::AnnotatedString)
         }
         Status(label, detail, tone, start = true, modifier = Modifier.weight(1f))
         online(state, now)?.let { Text(it, NikoType.code, Niko.colors.ink2, maxLines = 1) }
