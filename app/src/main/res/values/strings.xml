@@ -1210,5 +1210,10 @@
     <string name="home_choose_profile">Choose a config</string>
     <string name="home_rate_down">received</string>
     <string name="home_rate_up">sent</string>
+    <string name="home_search">Search</string>
+    <string name="home_search_hint">Name or kind</string>
+    <string name="home_search_none">Nothing found</string>
+    <string name="home_ungrouped">Without a group</string>
+    <string name="home_test_group">Test the group %s</string>
     <string name="menu_home">Home</string>
 </resources>

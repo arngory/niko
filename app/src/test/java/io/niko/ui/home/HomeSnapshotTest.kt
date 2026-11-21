@@ -35,6 +35,7 @@ class HomeSnapshotTest(private val mode: String) {
         override fun view(view: HomeView) {}
         override fun mode(vpn: Boolean) {}
         override fun profiles() {}
+        override fun configs(open: Boolean) {}
         override fun subscriptions() {}
         override fun route() {}
         override fun apps() {}
@@ -59,9 +60,39 @@ class HomeSnapshotTest(private val mode: String) {
         subscriptions = 1,
     )
 
-    private fun shot(state: HomeState, view: HomeView, sheet: Boolean = false) = paparazzi.snapshot {
+    private val noConfigs = object : ConfigsActions {
+        override fun select(id: Long) {}
+        override fun test(groupId: Long) {}
+        override fun edit(id: Long) {}
+        override fun add() {}
+        override fun subscriptions() {}
+    }
+
+    // P-Configs: a node's group and a subscription's, one profile chosen, one tested and failed, one not tested
+    private val groups = listOf(
+        ConfigGroup(
+            1, "arngory", subscription = true,
+            listOf(
+                ConfigRow(11, "naive", listOf("HTTPS"), 38, unreachable = false, selected = false),
+                ConfigRow(12, "Hysteria2", listOf("QUIC"), 41, unreachable = false, selected = true),
+                ConfigRow(13, "dnstt", listOf("VLESS", "DNS"), null, unreachable = false, selected = false),
+            ),
+        ),
+        ConfigGroup(
+            2, "provider.net", subscription = true,
+            listOf(
+                ConfigRow(21, "Netherlands · Amsterdam", listOf("VLESS", "REALITY"), 63, unreachable = false, selected = false),
+                ConfigRow(22, "Finland · Helsinki", listOf("Shadowsocks"), null, unreachable = true, selected = false),
+            ),
+        ),
+    )
+
+    private fun shot(state: HomeState, view: HomeView, sheet: Boolean = false, configs: Boolean = false) = paparazzi.snapshot {
         NikoTheme(dark = mode == "dark") {
-            HomeScreen(state, view, none, clock = { NOW }, ticking = false, sheet = sheet)
+            HomeScreen(
+                state, view, none, clock = { NOW }, ticking = false, sheet = sheet,
+                configs = groups, testing = setOf(2L), configsActions = noConfigs, configsOpen = configs,
+            )
         }
     }
 
@@ -73,6 +104,10 @@ class HomeSnapshotTest(private val mode: String) {
 
     @Test
     fun modeSheet() = shot(connected, HomeView.Simple, sheet = true)
+
+    /** P-Configs over the main screen: the second group's test running, its button waiting. */
+    @Test
+    fun configsSheet() = shot(connected, HomeView.Advanced, configs = true)
 
     @Test
     fun simpleFailed() = shot(

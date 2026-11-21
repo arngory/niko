@@ -22,7 +22,11 @@ class HomeFragment : Fragment() {
             val main = requireActivity() as MainActivity
             setContent {
                 NikoTheme {
-                    HomeScreen(main.homeState.value, main.homeView.value, main.homeActions)
+                    HomeScreen(
+                        main.homeState.value, main.homeView.value, main.homeActions,
+                        configs = main.configsState.value, testing = main.configsTesting.value,
+                        configsActions = main.configsActions,
+                    )
                 }
             }
         }

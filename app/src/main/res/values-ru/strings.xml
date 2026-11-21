@@ -1137,5 +1137,10 @@
     <string name="home_choose_profile">Выбрать конфиг</string>
     <string name="home_rate_down">приём</string>
     <string name="home_rate_up">отдача</string>
+    <string name="home_search">Поиск</string>
+    <string name="home_search_hint">Имя или способ</string>
+    <string name="home_search_none">Ничего не нашлось</string>
+    <string name="home_ungrouped">Без группы</string>
+    <string name="home_test_group">Проверить группу %s</string>
     <string name="menu_home">Главная</string>
 </resources>

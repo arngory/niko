@@ -8,9 +8,11 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -258,8 +260,11 @@ internal fun ListGroup(modifier: Modifier = Modifier, flush: Boolean = false, co
 
 /**
  * m-row: [lead], the title and under it [sub], then [trail]; [divider] draws the hairline above it (a row after
- * another in its group). [onClick] null: a row that is not pressed (the connection card's first row).
+ * another in its group). [onClick] null: a row that is not pressed (the connection card's first row); [onLongClick]
+ * a second action on a long press, [role] what the row is to a screen reader (a radio in a list to choose from).
  */
+// combinedClickable with its own interaction source (the press as surface-2) is still marked experimental in foundation
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun ListRow(
     title: String,
@@ -272,6 +277,8 @@ internal fun ListRow(
     lead: (@Composable () -> Unit)? = null,
     trail: (@Composable RowScope.() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
+    role: Role = Role.Button,
 ) {
     val c = Niko.colors
     val source = remember { MutableInteractionSource() }
@@ -282,7 +289,13 @@ internal fun ListRow(
                 if (divider) drawRect(line, Offset(side.toPx(), 0f), androidx.compose.ui.geometry.Size(size.width - side.toPx(), NikoStroke.hairline.toPx()))
             }
             .background(if (onClick != null && pressed(source)) c.surface2 else Color.Transparent)
-            .let { if (onClick != null) it.clickable(source, indication = null, role = Role.Button, onClick = onClick) else it }
+            .let {
+                when {
+                    onClick == null -> it
+                    onLongClick == null -> it.clickable(source, indication = null, role = role, onClick = onClick)
+                    else -> it.combinedClickable(source, indication = null, role = role, onLongClick = onLongClick, onClick = onClick)
+                }
+            }
             .padding(start = side, end = side, top = NikoSpace.s3, bottom = bottom),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(NikoSpace.s3),
