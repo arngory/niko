@@ -484,6 +484,8 @@ jobs:
           grep -q '^naive+quic://.*@203.0.113.1:18448?' /tmp/naivestage/quic-hello.link
           # what opens the QUIC Initial packets naive sends, and Chrome's first flight to compare with (fingerprint.yml)
           (cd .github/tools/quicinitial && go build -o /tmp/naivestage/quicinitial .)
+          # an app's socket bound to tun0 while the VPN leaves the app out (e2e.sh), for the emulator (x86_64)
+          (cd .github/tools/bindleak && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o /tmp/naivestage/bindleak .)
           if [ -s .github/fingerprint/chrome-quic-initial.hex ]; then
             cp .github/fingerprint/chrome-quic-initial.hex .github/fingerprint/chrome-quic-initial.source /tmp/naivestage/
           fi

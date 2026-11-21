@@ -874,6 +874,63 @@ if [ -x "$naive_links/quicinitial" ] && [ -s "$naive_links/quic-hello.link" ]; t
   down naive-quic-hello
 fi
 
+echo "== an app the VPN leaves out, bound to tun0 (keqdroid's finding): refused"
+# Per-app proxy, bypass mode: com.android.shell (uid 2000) left out of the VPN, root (the fetches) still in it. An app
+# outside the VPN can still bind a socket of its own to tun0 by name (SO_BINDTODEVICE): the system lets it, the
+# packets go into the tun, and the core finds no owner for them (uid -1). Through the node, the request reaches the
+# runner from the node's address: the app learns it. A plain socket of uid 2000 goes around the VPN, from the
+# runner's own. bindleak (ci.yml) is that app's socket. The app's rule (ConfigBuilder's outsideVpnGuard) refuses
+# such a connection: a request that comes from the node's address fails the run.
+leak=skipped
+if [ -x "$naive_links/bindleak" ] && timeout 20 adb shell "command -v sqlite3" > /dev/null 2>&1; then
+  timeout 30 adb push "$naive_links/bindleak" /data/local/tmp/bindleak > /dev/null &&
+    timeout 10 adb shell chmod 755 /data/local/tmp/bindleak
+  timeout 20 adb shell am force-stop "$pkg"
+  timeout 20 adb shell "sqlite3 /data/data/$pkg/databases/configuration.db \"INSERT OR REPLACE INTO KeyValuePair (key, valueType, value) VALUES ('proxyApps', 1, X'01'), ('bypassMode', 1, X'01'), ('individual', 5, CAST('com.android.shell' AS BLOB));\"" ||
+    echo "::warning::the per-app settings not written"
+  timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" --el profile "$hy2" > /dev/null 2>&1
+  for i in $(seq 10); do
+    fetch "perapp-$i-$RANDOM"
+    [ "$from" = "$node" ] && break
+    sleep 3
+  done
+  echo "root, in the VPN: from ${from:-nowhere}"
+  shell_fetch() {
+    local tag="$2-$RANDOM" body
+    body=$(timeout 40 adb shell "su 2000 /data/local/tmp/bindleak $1 $runner:$port /e2e?$tag" 2>&1 | tr -d '\r')
+    sleep 1
+    shell_from=$(grep -F "\"GET /e2e?$tag " "$weblog" | head -1 | cut -d' ' -f1)
+    shell_said=$(head -c 200 <<< "$body")
+  }
+  if [ "$from" != "$node" ]; then
+    # per-app proxy with the guard's rule: the apps the VPN takes must still go through it
+    fail "per-app proxy (com.android.shell left out): root's request did not go through the VPN (from ${from:-nowhere})"
+  else
+    shell_fetch - shell-plain
+    echo "uid 2000, a plain socket: from ${shell_from:-nowhere} (said: $shell_said)"
+    plain_from=$shell_from
+    shell_fetch tun0 shell-tun0
+    echo "uid 2000, bound to tun0: from ${shell_from:-nowhere} (said: $shell_said)"
+    if [ "$shell_from" = "$node" ]; then
+      fail "an app the VPN leaves out reached the internet through the tunnel by binding to tun0: the node's address leaks to it"
+    elif [ -n "$shell_from" ]; then
+      leak="no (from $shell_from)"
+    else
+      # refused by the rule: the connection reset, or no answer
+      leak="no (refused: $(head -1 <<< "$shell_said"))"
+    fi
+    [ "$plain_from" = "$node" ] && echo "::warning::uid 2000 went through the VPN with a plain socket: the per-app bypass did not take"
+  fi
+  timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" > /dev/null 2>&1
+  timeout 20 adb shell am force-stop "$pkg"
+  timeout 20 adb shell "sqlite3 /data/data/$pkg/databases/configuration.db \"INSERT OR REPLACE INTO KeyValuePair (key, valueType, value) VALUES ('proxyApps', 1, X'00');\"" ||
+    echo "::warning::the per-app setting not taken back"
+else
+  echo "no bindleak or no sqlite3 on the emulator: skipped"
+fi
+echo "tun0 leak: $leak"
+[ -n "${GITHUB_STEP_SUMMARY:-}" ] && echo "tun0 bound by an app outside the VPN: **$leak**" >> "$GITHUB_STEP_SUMMARY"
+
 echo "== memory: the VPN through Hysteria2 again, the app off the screen"
 timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" --el profile "$hy2" > /dev/null 2>&1
 for i in $(seq 10); do
