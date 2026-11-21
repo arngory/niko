@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """A TLS ClientHello as a client really sends it, against the one captured from Chrome.
 
-  hello.py capture PORT OUT          accept one connection on 127.0.0.1:PORT (or on HOST:PORT given so), write its
-                                     first TLS record to OUT (hex)
+  hello.py capture PORT OUT [SECS]   accept connections on 127.0.0.1:PORT (or on HOST:PORT given so) until one brings
+                                     a whole first TLS record, within SECS (120), and write it to OUT (hex)
   hello.py compare REFERENCE GOT     compare two such records, part by part; --strict: exit 1 when they differ
+  hello.py show RECORD               its parts, and its extensions in the order sent (a browser that does not
+                                     shuffle them is known by it too)
+  hello.py shuffled A B              "yes" if two records of one client have their extensions in different orders
+                                     (the client shuffles them per connection), else "no"
 
 The naive outbound is Chromium's network stack, so its ClientHello should be Chrome's: this shows where it is not
 (an extension the library build leaves out, a list in another order). GREASE values count as one; the server name,
@@ -18,6 +22,7 @@ parameter as present, the GREASE version in version_information as one, wherever
 import socket
 import struct
 import sys
+import time
 
 NAMES = {
     0x0000: "server_name", 0x0005: "status_request", 0x000a: "supported_groups", 0x000b: "ec_point_formats",
@@ -86,27 +91,38 @@ def transport_parameters(data):
     return parts
 
 
-def capture(where, out):
+def capture(where, out, seconds=120):
     host, _, port = where.rpartition(":")
     listener = socket.socket()
     listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     listener.bind((host or "127.0.0.1", int(port)))
     listener.listen(1)
-    listener.settimeout(120)
-    conn, _ = listener.accept()
-    conn.settimeout(20)
-    data = b""
-    while len(data) < 5 or len(data) < 5 + struct.unpack(">H", data[3:5])[0]:
-        chunk = conn.recv(65536)
-        if not chunk:
-            break
-        data += chunk
-    # the file before the connection closes: who waits for the client's failure finds the record written. A record
-    # cut short is not one: nothing is written
-    if len(data) >= 5 and len(data) >= 5 + struct.unpack(">H", data[3:5])[0]:
-        with open(out, "w") as f:
-            f.write(data[:5 + struct.unpack(">H", data[3:5])[0]].hex() + "\n")
-    conn.close()
+    deadline = time.monotonic() + seconds
+    # a connection cut short (a client whose network is still coming up) is not the end: the next one may bring it
+    while True:
+        left = deadline - time.monotonic()
+        if left <= 0:
+            raise TimeoutError(f"no whole ClientHello on {where} in {seconds} s")
+        listener.settimeout(left)
+        conn, _ = listener.accept()
+        conn.settimeout(20)
+        data = b""
+        try:
+            while len(data) < 5 or len(data) < 5 + struct.unpack(">H", data[3:5])[0]:
+                chunk = conn.recv(65536)
+                if not chunk:
+                    break
+                data += chunk
+        except OSError:
+            pass
+        # the file before the connection closes: who waits for the client's failure finds the record written. A
+        # record cut short is not one: nothing is written, and the next connection is waited for
+        if len(data) >= 5 and len(data) >= 5 + struct.unpack(">H", data[3:5])[0]:
+            with open(out, "w") as f:
+                f.write(data[:5 + struct.unpack(">H", data[3:5])[0]].hex() + "\n")
+            conn.close()
+            return
+        conn.close()
 
 
 def parse(path):
@@ -181,9 +197,27 @@ def compare(reference, got, strict):
     return 1 if strict else 0
 
 
+def show(path):
+    parts = shape(path)
+    _, extensions = parse(path)
+    parts["extension order"] = ",".join("GREASE" if grease(ext) else name(ext) for ext, _ in extensions)
+    for key in sorted(parts):
+        print(f"{key}: {parts[key]!s:.400}")
+    return 0
+
+
+def order(path):
+    _, extensions = parse(path)
+    return ["GREASE" if grease(ext) else ext for ext, _ in extensions]
+
+
 if __name__ == "__main__":
     if len(sys.argv) >= 4 and sys.argv[1] == "capture":
-        capture(sys.argv[2], sys.argv[3])
+        capture(sys.argv[2], sys.argv[3], int(sys.argv[4]) if len(sys.argv) >= 5 else 120)
+    elif len(sys.argv) >= 4 and sys.argv[1] == "shuffled":
+        print("yes" if order(sys.argv[2]) != order(sys.argv[3]) else "no")
+    elif len(sys.argv) >= 3 and sys.argv[1] == "show":
+        sys.exit(show(sys.argv[2]))
     elif len(sys.argv) >= 4 and sys.argv[1] == "compare":
         sys.exit(compare(sys.argv[2], sys.argv[3], "--strict" in sys.argv[4:]))
     else:
