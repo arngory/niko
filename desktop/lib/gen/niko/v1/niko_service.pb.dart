@@ -185,7 +185,7 @@ class Info extends $pb.GeneratedMessage {
   @$pb.TagNumber(3)
   void clearStoreSchema() => $_clearField(3);
 
-  /// the version of this API: what the window may ask
+  /// the version of this API: what the window may ask. 2: the store, Watch and the import; 3: Select and GetSelected
   @$pb.TagNumber(4)
   $core.int get api => $_getIZ(3);
   @$pb.TagNumber(4)

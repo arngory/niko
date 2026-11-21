@@ -229,6 +229,15 @@ void main() {
       expect(row.type, 'socks');
       expect(row.name, 'store-test');
       expect(row.address, '198.51.100.40:1080');
+      // the profile selected, the choice in Watch and read back; the groups list the ungrouped one with it
+      await controller.daemon!.select(row.id);
+      await until(
+        () => storeChanges.any((c) => c.kind == StoreKind.selected && c.ids.contains(row.id)),
+        'the selection in Watch',
+      );
+      expect(await controller.daemon!.selected(), row.id);
+      final groups = await controller.daemon!.groups();
+      expect(groups.where((g) => g.ungrouped && g.id == row.groupId && g.profiles >= 1), hasLength(1));
       // a subscription's link is recognized, and its import comes later
       await expectLater(
         controller.daemon!.importLinks('https://sub.example/s/0123456789abcdef0123'),
@@ -236,7 +245,8 @@ void main() {
       );
       // ignore: avoid_print
       print(
-        'store: profile ${row.id} "${row.name}" (${row.type}, ${row.address}), ${storeChanges.length} changes seen',
+        'store: profile ${row.id} "${row.name}" (${row.type}, ${row.address}), selected, '
+        '${storeChanges.length} changes seen',
       );
 
       step = 'the start';

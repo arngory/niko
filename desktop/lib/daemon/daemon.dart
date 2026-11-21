@@ -255,7 +255,7 @@ class RouteVerdict {
 }
 
 /// What a change of the daemon's store is of (NikoService.Watch).
-enum StoreKind { other, profiles, groups, task }
+enum StoreKind { other, profiles, groups, selected, task }
 
 /// A change of the daemon's store (NikoService.Watch): what it is of and the ids it touched, added, changed or
 /// removed (none: all of that kind). [reset]: the first change, and one after changes were lost: all that is shown is
@@ -268,6 +268,27 @@ class StoreChange {
   final bool reset;
   final StoreKind kind;
   final List<int> ids;
+}
+
+/// A group of profiles (NikoService.ListGroups).
+class GroupRow {
+  const GroupRow({
+    required this.id,
+    required this.name,
+    this.ungrouped = false,
+    this.subscription = false,
+    this.profiles = 0,
+  });
+
+  final int id;
+
+  /// Empty for the ungrouped group, which the window names itself.
+  final String name;
+
+  /// The default group: an import with no group goes there.
+  final bool ungrouped;
+  final bool subscription;
+  final int profiles;
 }
 
 /// A profile as a list shows it, without its bean (NikoService.ListProfiles).
@@ -357,6 +378,15 @@ abstract interface class Daemon {
 
   /// The profiles of a group ([groupId] 0: of all), in the list's order.
   Future<List<ProfileRow>> profiles({int groupId = 0});
+
+  /// The groups, in their order (NikoService.ListGroups).
+  Future<List<GroupRow>> groups();
+
+  /// The selected profile's id; 0: none (NikoService.GetSelected).
+  Future<int> selected();
+
+  /// Selects a profile, or none with 0 (NikoService.Select): what the window connects with, D-MAIN-07.
+  Future<void> select(int profileId);
 
   /// Imports the share links in [text] into a group ([groupId] 0: the ungrouped one), D-ADD-03, -04: the ids of the
   /// profiles added. Fails with the daemon's code and words where it imported nothing: no link it reads, or a
@@ -641,6 +671,7 @@ class GrpcDaemon implements Daemon {
           kind: switch (change.kind) {
             niko.Change_Kind.PROFILES => StoreKind.profiles,
             niko.Change_Kind.GROUPS => StoreKind.groups,
+            niko.Change_Kind.SELECTED => StoreKind.selected,
             niko.Change_Kind.TASK => StoreKind.task,
             _ => StoreKind.other,
           },
@@ -664,6 +695,28 @@ class GrpcDaemon implements Daemon {
       ),
     );
   }
+
+  @override
+  Future<List<GroupRow>> groups() async {
+    final list = await _niko.listGroups(niko.Empty(), options: _short);
+    return List.unmodifiable(
+      list.groups.map(
+        (g) => GroupRow(
+          id: g.id.toInt(),
+          name: g.name,
+          ungrouped: g.ungrouped,
+          subscription: g.type == niko.Group_Type.SUBSCRIPTION,
+          profiles: g.profiles,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Future<int> selected() async => (await _niko.getSelected(niko.Empty(), options: _short)).id.toInt();
+
+  @override
+  Future<void> select(int profileId) => _niko.select(niko.ProfileId(id: Int64(profileId)), options: _short);
 
   @override
   Future<List<int>> importLinks(String text, {int groupId = 0}) async {

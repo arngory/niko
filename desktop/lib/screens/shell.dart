@@ -8,6 +8,7 @@ import '../l10n/strings.dart';
 import '../state/connection_controller.dart';
 import '../state/connections_feed.dart';
 import '../state/log_feed.dart';
+import '../state/profiles_feed.dart';
 import '../state/stun_tool.dart';
 import '../state/window_settings.dart';
 import '../theme/niko_theme.dart';
@@ -15,10 +16,11 @@ import '../ui/header.dart';
 import 'connections_screen.dart';
 import 'log_screen.dart';
 import 'main_screen.dart';
+import 'nodes_screen.dart';
 
-/// The sections the window has so far. Узлы, Проверка маршрута, Правила and Настройки come with NikoService
-/// (stage 3): a section is in the header only when its screen exists.
-enum AppSection { home, connections, log }
+/// The sections the window has so far. Проверка маршрута, Правила and Настройки come with NikoService (stage 3): a
+/// section is in the header only when its screen exists.
+enum AppSection { home, nodes, connections, log }
 
 /// The window under its header: the section shown, in the view chosen. D-NAV-01, D-NAV-03.
 ///
@@ -54,6 +56,7 @@ class _NikoShellState extends State<NikoShell> {
   late LogFeed _log;
   late ConnectionsFeed _connections;
   late StunTool _stun;
+  late ProfilesFeed _profiles;
   AppSection _section = AppSection.home;
   late bool _advanced = widget.settings.advanced;
 
@@ -67,6 +70,7 @@ class _NikoShellState extends State<NikoShell> {
     _log = LogFeed(widget.controller, saveTo: widget.saveTo);
     _connections = ConnectionsFeed(widget.controller);
     _stun = StunTool(widget.controller);
+    _profiles = ProfilesFeed(widget.controller);
     widget.controller.addListener(_changed);
   }
 
@@ -75,6 +79,7 @@ class _NikoShellState extends State<NikoShell> {
     _log.dispose();
     _connections.dispose();
     _stun.dispose();
+    _profiles.dispose();
   }
 
   @override
@@ -102,6 +107,7 @@ class _NikoShellState extends State<NikoShell> {
   void _read() {
     _section == AppSection.log ? _log.open() : _log.close();
     _section == AppSection.connections ? _connections.show() : _connections.hide();
+    _section == AppSection.nodes ? _profiles.show() : _profiles.hide();
   }
 
   void _show(AppSection section) {
@@ -136,6 +142,7 @@ class _NikoShellState extends State<NikoShell> {
             sectionsLabel: strings.sections,
             sections: [
               (AppSection.home, strings.sectionHome),
+              (AppSection.nodes, strings.sectionNodes),
               if (_advanced) (AppSection.connections, strings.sectionConnections),
               (AppSection.log, strings.sectionLog),
             ],
@@ -158,6 +165,10 @@ class _NikoShellState extends State<NikoShell> {
                 feed: _connections,
                 running: state.link == LinkPhase.ready && state.service.phase == ServicePhase.started,
                 now: widget.now,
+              ),
+              AppSection.nodes => ListenableBuilder(
+                listenable: Listenable.merge([_profiles, state]),
+                builder: (context, _) => NodesScreen(feed: _profiles, linked: state.link == LinkPhase.ready),
               ),
               AppSection.log => LogScreen(feed: _log, stun: _stun),
             },

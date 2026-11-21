@@ -14,6 +14,9 @@
 //
 // The ungrouped group (the app's ProxyGroup.ungrouped) is made with the store and stays: an import with no group goes
 // there. A profile's type is TypeMap's name; "bean" is its JSON without the secret fields where "sealed" holds them.
+//
+// state.json beside it holds what may be lost: the selected profile, {"selected": 3}. It is written after store.json
+// and read leniently: a missing or broken file, or a profile that is no more, is no selection.
 package nikostore
 
 import (
@@ -31,6 +34,7 @@ import (
 
 const (
 	storeFile   = "store.json"
+	stateFile   = "state.json"
 	backupDir   = "backup"
 	keptBackups = 3
 	// what one profile's bean and one group's name may be: a custom config is the largest bean there is
@@ -88,6 +92,8 @@ type Kind int
 const (
 	KindProfiles Kind = iota + 1
 	KindGroups
+	// KindSelected: the selected profile changed; IDs holds the new one, none for no selection
+	KindSelected
 )
 
 // Change is what one write changed: the ids of the profiles or groups added, changed or removed.
@@ -124,6 +130,8 @@ type state struct {
 	nextProfile int64
 	groups      []Group // by order
 	profiles    map[int64]*record
+	// selected is the selected profile's id (state.json); 0: none
+	selected int64
 }
 
 type record struct {
@@ -183,6 +191,11 @@ func Open(dir string, options Options) (*Store, error) {
 		s.state = fresh
 		return s, nil
 	}
+	defer func() {
+		if s.state != nil {
+			s.state.selected = s.readSelected()
+		}
+	}()
 	if err != nil {
 		return nil, err
 	}
@@ -219,6 +232,77 @@ func Open(dir string, options Options) (*Store, error) {
 
 // Dir is where the store is.
 func (s *Store) Dir() string { return s.dir }
+
+// selection is state.json.
+type selection struct {
+	Selected int64 `json:"selected,omitempty"`
+}
+
+// readSelected is the selection state.json holds, of a profile that is there; 0 for anything else.
+func (s *Store) readSelected() int64 {
+	data, err := os.ReadFile(filepath.Join(s.dir, stateFile))
+	if err != nil {
+		return 0
+	}
+	var sel selection
+	if json.Unmarshal(data, &sel) != nil || s.state.profiles[sel.Selected] == nil {
+		return 0
+	}
+	return sel.Selected
+}
+
+func (s *Store) writeSelected(id int64) error {
+	data, err := json.Marshal(selection{Selected: id})
+	if err != nil {
+		return err
+	}
+	return writeFile(filepath.Join(s.dir, stateFile), append(data, '\n'))
+}
+
+// Selected is the selected profile's id; 0: none.
+func (s *Store) Selected() int64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.state.selected
+}
+
+// Select selects a profile, or none with id 0. ErrNotFound for no such profile; ErrRefused for one whose secrets
+// cannot be opened here (it cannot connect).
+func (s *Store) Select(id int64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if id != 0 {
+		r := s.state.profiles[id]
+		if r == nil {
+			return ErrNotFound
+		}
+		if r.unreadable {
+			return fmt.Errorf("%w: profile %d: its secrets cannot be opened here", ErrRefused, id)
+		}
+	}
+	if id == s.state.selected {
+		return nil
+	}
+	if err := s.writeSelected(id); err != nil {
+		return err
+	}
+	s.state.selected = id
+	s.tell(selectedChange(id))
+	return nil
+}
+
+func selectedChange(id int64) Change {
+	if id == 0 {
+		return Change{Kind: KindSelected}
+	}
+	return Change{Kind: KindSelected, IDs: []int64{id}}
+}
+
+func (s *Store) tell(c Change) {
+	if s.onChange != nil && c.Kind != 0 {
+		s.onChange(c)
+	}
+}
 
 // decode reads a store.json of the current schema. resealed: a profile's secrets were open on the disk though this
 // store seals them (the file written where nothing sealed), and are sealed now; the file is to be written again.
@@ -313,19 +397,22 @@ func (s *Store) commit(st *state, changes ...Change) error {
 		return err
 	}
 	s.state = st
-	if s.onChange != nil {
-		for _, c := range changes {
-			if c.Kind != 0 {
-				s.onChange(c)
-			}
-		}
+	for _, c := range changes {
+		s.tell(c)
+	}
+	// the selected profile deleted: no selection. state.json may keep the old id where its write fails; it is no
+	// selection when read, the profile being gone
+	if st.selected != 0 && st.profiles[st.selected] == nil {
+		st.selected = 0
+		_ = s.writeSelected(0)
+		s.tell(selectedChange(0))
 	}
 	return nil
 }
 
 func (st *state) clone() *state {
 	next := &state{nextGroup: st.nextGroup, nextProfile: st.nextProfile, groups: append([]Group(nil), st.groups...),
-		profiles: make(map[int64]*record, len(st.profiles))}
+		profiles: make(map[int64]*record, len(st.profiles)), selected: st.selected}
 	for id, r := range st.profiles {
 		next.profiles[id] = r
 	}

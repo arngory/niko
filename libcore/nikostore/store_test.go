@@ -404,3 +404,67 @@ func TestCorrupt(t *testing.T) {
 		}
 	}
 }
+
+// The selected profile: kept in state.json across an open, refused for a profile that is not there, gone with the
+// profile, and no selection from a state.json that is broken or names a deleted profile.
+func TestSelected(t *testing.T) {
+	dir := t.TempDir()
+	var changes []Change
+	s := open(t, dir, NoSealer{}, &changes)
+	if s.Selected() != 0 {
+		t.Fatalf("a new store selects %d", s.Selected())
+	}
+	added, err := s.AddProfiles(0, beans(t, naiveLink, socksLink, ssLink))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.Select(added[1].ID); err != nil {
+		t.Fatal(err)
+	}
+	if last := changes[len(changes)-1]; last.Kind != KindSelected || !reflect.DeepEqual(last.IDs, []int64{added[1].ID}) {
+		t.Fatalf("change %+v", last)
+	}
+	told := len(changes)
+	if err = s.Select(added[1].ID); err != nil || len(changes) != told {
+		t.Fatalf("selecting it again: %v, %d changes", err, len(changes)-told)
+	}
+	if err = s.Select(9999); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("a profile that is not there: %v", err)
+	}
+	if got := open(t, dir, NoSealer{}, nil).Selected(); got != added[1].ID {
+		t.Fatalf("reopened: %d, selected %d", got, added[1].ID)
+	}
+
+	// another profile deleted: the selection stays; the selected one deleted: none, and said
+	if _, err = s.DeleteProfiles([]int64{added[0].ID}); err != nil || s.Selected() != added[1].ID {
+		t.Fatalf("%v, selected %d", err, s.Selected())
+	}
+	changes = nil
+	if _, err = s.DeleteProfiles([]int64{added[1].ID}); err != nil {
+		t.Fatal(err)
+	}
+	if s.Selected() != 0 || len(changes) != 2 || changes[1].Kind != KindSelected || len(changes[1].IDs) != 0 {
+		t.Fatalf("selected %d, changes %+v", s.Selected(), changes)
+	}
+	if got := open(t, dir, NoSealer{}, nil).Selected(); got != 0 {
+		t.Fatalf("reopened after the deletion: %d", got)
+	}
+
+	// a state.json naming a profile that is not there, or not JSON, is no selection; the store opens
+	for _, text := range []string{`{"selected": 424242}`, `{"selected":`, `[]`} {
+		if err = os.WriteFile(filepath.Join(dir, stateFile), []byte(text), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if got := open(t, dir, NoSealer{}, nil).Selected(); got != 0 {
+			t.Fatalf("%s: selected %d", text, got)
+		}
+	}
+
+	// none selected on purpose
+	if err = s.Select(added[2].ID); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.Select(0); err != nil || s.Selected() != 0 {
+		t.Fatalf("%v, selected %d", err, s.Selected())
+	}
+}

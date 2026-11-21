@@ -127,6 +127,24 @@ class NikoServiceClient extends $grpc.Client {
     return $createUnaryCall(_$deleteGroup, request, options: options);
   }
 
+  /// The profile the window connects with (D-MAIN-07): kept in state.json, none (0) once deleted. Watch says SELECTED
+  /// with its id, or no id for none. Id 0 selects none; NOT_FOUND for no such profile; FAILED_PRECONDITION for one whose
+  /// secrets cannot be opened on this machine.
+  $grpc.ResponseFuture<$0.Empty> select(
+    $0.ProfileId request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$select, request, options: options);
+  }
+
+  /// The selected profile; id 0: none.
+  $grpc.ResponseFuture<$0.ProfileId> getSelected(
+    $0.Empty request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$getSelected, request, options: options);
+  }
+
   /// What an input is and what its import would add; nothing is written, and no store is needed.
   $grpc.ResponseFuture<$0.ImportPreview> recognize(
     $0.ImportInput request, {
@@ -193,6 +211,14 @@ class NikoServiceClient extends $grpc.Client {
       '/niko.v1.NikoService/DeleteGroup',
       ($0.GroupId value) => value.writeToBuffer(),
       $0.Empty.fromBuffer);
+  static final _$select = $grpc.ClientMethod<$0.ProfileId, $0.Empty>(
+      '/niko.v1.NikoService/Select',
+      ($0.ProfileId value) => value.writeToBuffer(),
+      $0.Empty.fromBuffer);
+  static final _$getSelected = $grpc.ClientMethod<$0.Empty, $0.ProfileId>(
+      '/niko.v1.NikoService/GetSelected',
+      ($0.Empty value) => value.writeToBuffer(),
+      $0.ProfileId.fromBuffer);
   static final _$recognize =
       $grpc.ClientMethod<$0.ImportInput, $0.ImportPreview>(
           '/niko.v1.NikoService/Recognize',
@@ -287,6 +313,20 @@ abstract class NikoServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) => $0.GroupId.fromBuffer(value),
         ($0.Empty value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.ProfileId, $0.Empty>(
+        'Select',
+        select_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.ProfileId.fromBuffer(value),
+        ($0.Empty value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.Empty, $0.ProfileId>(
+        'GetSelected',
+        getSelected_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.Empty.fromBuffer(value),
+        ($0.ProfileId value) => value.writeToBuffer()));
     $addMethod($grpc.ServiceMethod<$0.ImportInput, $0.ImportPreview>(
         'Recognize',
         recognize_Pre,
@@ -389,6 +429,21 @@ abstract class NikoServiceBase extends $grpc.Service {
 
   $async.Future<$0.Empty> deleteGroup(
       $grpc.ServiceCall call, $0.GroupId request);
+
+  $async.Future<$0.Empty> select_Pre(
+      $grpc.ServiceCall $call, $async.Future<$0.ProfileId> $request) async {
+    return select($call, await $request);
+  }
+
+  $async.Future<$0.Empty> select($grpc.ServiceCall call, $0.ProfileId request);
+
+  $async.Future<$0.ProfileId> getSelected_Pre(
+      $grpc.ServiceCall $call, $async.Future<$0.Empty> $request) async {
+    return getSelected($call, await $request);
+  }
+
+  $async.Future<$0.ProfileId> getSelected(
+      $grpc.ServiceCall call, $0.Empty request);
 
   $async.Future<$0.ImportPreview> recognize_Pre(
       $grpc.ServiceCall $call, $async.Future<$0.ImportInput> $request) async {

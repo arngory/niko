@@ -270,7 +270,7 @@ type Info struct {
 	CoreVersion string `protobuf:"bytes,2,opt,name=core_version,json=coreVersion,proto3" json:"core_version,omitempty"`
 	// the schema of the daemon's store (nikostore's); 0: a daemon without one
 	StoreSchema int32 `protobuf:"varint,3,opt,name=store_schema,json=storeSchema,proto3" json:"store_schema,omitempty"`
-	// the version of this API: what the window may ask
+	// the version of this API: what the window may ask. 2: the store, Watch and the import; 3: Select and GetSelected
 	Api           int32 `protobuf:"varint,4,opt,name=api,proto3" json:"api,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1618,7 +1618,7 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\fSUBSCRIPTION\x10\x02\"V\n" +
 	"\rImportRequest\x12*\n" +
 	"\x05input\x18\x01 \x01(\v2\x14.niko.v1.ImportInputR\x05input\x12\x19\n" +
-	"\bgroup_id\x18\x02 \x01(\x03R\agroupId2\xd3\x05\n" +
+	"\bgroup_id\x18\x02 \x01(\x03R\agroupId2\xb4\x06\n" +
 	"\vNikoService\x121\n" +
 	"\aGetInfo\x12\x17.niko.v1.GetInfoRequest\x1a\r.niko.v1.Info\x12@\n" +
 	"\tRouteTest\x12\x19.niko.v1.RouteTestRequest\x1a\x18.niko.v1.RouteTestResult\x121\n" +
@@ -1632,7 +1632,9 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\x0eDeleteProfiles\x12\x13.niko.v1.ProfileIds\x1a\x0e.niko.v1.Empty\x124\n" +
 	"\fMoveProfiles\x12\x14.niko.v1.MoveRequest\x1a\x0e.niko.v1.Empty\x12+\n" +
 	"\tSaveGroup\x12\x0e.niko.v1.Group\x1a\x0e.niko.v1.Group\x12/\n" +
-	"\vDeleteGroup\x12\x10.niko.v1.GroupId\x1a\x0e.niko.v1.Empty\x129\n" +
+	"\vDeleteGroup\x12\x10.niko.v1.GroupId\x1a\x0e.niko.v1.Empty\x12,\n" +
+	"\x06Select\x12\x12.niko.v1.ProfileId\x1a\x0e.niko.v1.Empty\x121\n" +
+	"\vGetSelected\x12\x0e.niko.v1.Empty\x1a\x12.niko.v1.ProfileId\x129\n" +
 	"\tRecognize\x12\x14.niko.v1.ImportInput\x1a\x16.niko.v1.ImportPreview\x129\n" +
 	"\x06Import\x12\x16.niko.v1.ImportRequest\x1a\x15.niko.v1.TaskProgress0\x01B\x17Z\x15libcore/nikopb;nikopbb\x06proto3"
 
@@ -1697,23 +1699,27 @@ var file_niko_v1_niko_service_proto_depIdxs = []int32{
 	20, // 17: niko.v1.NikoService.MoveProfiles:input_type -> niko.v1.MoveRequest
 	12, // 18: niko.v1.NikoService.SaveGroup:input_type -> niko.v1.Group
 	13, // 19: niko.v1.NikoService.DeleteGroup:input_type -> niko.v1.GroupId
-	21, // 20: niko.v1.NikoService.Recognize:input_type -> niko.v1.ImportInput
-	23, // 21: niko.v1.NikoService.Import:input_type -> niko.v1.ImportRequest
-	5,  // 22: niko.v1.NikoService.GetInfo:output_type -> niko.v1.Info
-	8,  // 23: niko.v1.NikoService.RouteTest:output_type -> niko.v1.RouteTestResult
-	10, // 24: niko.v1.NikoService.Watch:output_type -> niko.v1.Change
-	14, // 25: niko.v1.NikoService.ListGroups:output_type -> niko.v1.GroupList
-	17, // 26: niko.v1.NikoService.ListProfiles:output_type -> niko.v1.ProfileList
-	16, // 27: niko.v1.NikoService.GetProfile:output_type -> niko.v1.Profile
-	16, // 28: niko.v1.NikoService.SaveProfile:output_type -> niko.v1.Profile
-	3,  // 29: niko.v1.NikoService.DeleteProfiles:output_type -> niko.v1.Empty
-	3,  // 30: niko.v1.NikoService.MoveProfiles:output_type -> niko.v1.Empty
-	12, // 31: niko.v1.NikoService.SaveGroup:output_type -> niko.v1.Group
-	3,  // 32: niko.v1.NikoService.DeleteGroup:output_type -> niko.v1.Empty
-	22, // 33: niko.v1.NikoService.Recognize:output_type -> niko.v1.ImportPreview
-	11, // 34: niko.v1.NikoService.Import:output_type -> niko.v1.TaskProgress
-	22, // [22:35] is the sub-list for method output_type
-	9,  // [9:22] is the sub-list for method input_type
+	18, // 20: niko.v1.NikoService.Select:input_type -> niko.v1.ProfileId
+	3,  // 21: niko.v1.NikoService.GetSelected:input_type -> niko.v1.Empty
+	21, // 22: niko.v1.NikoService.Recognize:input_type -> niko.v1.ImportInput
+	23, // 23: niko.v1.NikoService.Import:input_type -> niko.v1.ImportRequest
+	5,  // 24: niko.v1.NikoService.GetInfo:output_type -> niko.v1.Info
+	8,  // 25: niko.v1.NikoService.RouteTest:output_type -> niko.v1.RouteTestResult
+	10, // 26: niko.v1.NikoService.Watch:output_type -> niko.v1.Change
+	14, // 27: niko.v1.NikoService.ListGroups:output_type -> niko.v1.GroupList
+	17, // 28: niko.v1.NikoService.ListProfiles:output_type -> niko.v1.ProfileList
+	16, // 29: niko.v1.NikoService.GetProfile:output_type -> niko.v1.Profile
+	16, // 30: niko.v1.NikoService.SaveProfile:output_type -> niko.v1.Profile
+	3,  // 31: niko.v1.NikoService.DeleteProfiles:output_type -> niko.v1.Empty
+	3,  // 32: niko.v1.NikoService.MoveProfiles:output_type -> niko.v1.Empty
+	12, // 33: niko.v1.NikoService.SaveGroup:output_type -> niko.v1.Group
+	3,  // 34: niko.v1.NikoService.DeleteGroup:output_type -> niko.v1.Empty
+	3,  // 35: niko.v1.NikoService.Select:output_type -> niko.v1.Empty
+	18, // 36: niko.v1.NikoService.GetSelected:output_type -> niko.v1.ProfileId
+	22, // 37: niko.v1.NikoService.Recognize:output_type -> niko.v1.ImportPreview
+	11, // 38: niko.v1.NikoService.Import:output_type -> niko.v1.TaskProgress
+	24, // [24:39] is the sub-list for method output_type
+	9,  // [9:24] is the sub-list for method input_type
 	9,  // [9:9] is the sub-list for extension type_name
 	9,  // [9:9] is the sub-list for extension extendee
 	0,  // [0:9] is the sub-list for field type_name

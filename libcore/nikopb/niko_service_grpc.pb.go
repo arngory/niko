@@ -34,6 +34,8 @@ const (
 	NikoService_MoveProfiles_FullMethodName   = "/niko.v1.NikoService/MoveProfiles"
 	NikoService_SaveGroup_FullMethodName      = "/niko.v1.NikoService/SaveGroup"
 	NikoService_DeleteGroup_FullMethodName    = "/niko.v1.NikoService/DeleteGroup"
+	NikoService_Select_FullMethodName         = "/niko.v1.NikoService/Select"
+	NikoService_GetSelected_FullMethodName    = "/niko.v1.NikoService/GetSelected"
 	NikoService_Recognize_FullMethodName      = "/niko.v1.NikoService/Recognize"
 	NikoService_Import_FullMethodName         = "/niko.v1.NikoService/Import"
 )
@@ -70,6 +72,12 @@ type NikoServiceClient interface {
 	SaveGroup(ctx context.Context, in *Group, opts ...grpc.CallOption) (*Group, error)
 	// Deletes a group and its profiles; the ungrouped group stays (FAILED_PRECONDITION).
 	DeleteGroup(ctx context.Context, in *GroupId, opts ...grpc.CallOption) (*Empty, error)
+	// The profile the window connects with (D-MAIN-07): kept in state.json, none (0) once deleted. Watch says SELECTED
+	// with its id, or no id for none. Id 0 selects none; NOT_FOUND for no such profile; FAILED_PRECONDITION for one whose
+	// secrets cannot be opened on this machine.
+	Select(ctx context.Context, in *ProfileId, opts ...grpc.CallOption) (*Empty, error)
+	// The selected profile; id 0: none.
+	GetSelected(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ProfileId, error)
 	// What an input is and what its import would add; nothing is written, and no store is needed.
 	Recognize(ctx context.Context, in *ImportInput, opts ...grpc.CallOption) (*ImportPreview, error)
 	// Imports an input: the task's progress, then its result, the last message (done). Share links and sn:// now; a
@@ -204,6 +212,26 @@ func (c *nikoServiceClient) DeleteGroup(ctx context.Context, in *GroupId, opts .
 	return out, nil
 }
 
+func (c *nikoServiceClient) Select(ctx context.Context, in *ProfileId, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, NikoService_Select_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) GetSelected(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ProfileId, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ProfileId)
+	err := c.cc.Invoke(ctx, NikoService_GetSelected_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *nikoServiceClient) Recognize(ctx context.Context, in *ImportInput, opts ...grpc.CallOption) (*ImportPreview, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ImportPreview)
@@ -265,6 +293,12 @@ type NikoServiceServer interface {
 	SaveGroup(context.Context, *Group) (*Group, error)
 	// Deletes a group and its profiles; the ungrouped group stays (FAILED_PRECONDITION).
 	DeleteGroup(context.Context, *GroupId) (*Empty, error)
+	// The profile the window connects with (D-MAIN-07): kept in state.json, none (0) once deleted. Watch says SELECTED
+	// with its id, or no id for none. Id 0 selects none; NOT_FOUND for no such profile; FAILED_PRECONDITION for one whose
+	// secrets cannot be opened on this machine.
+	Select(context.Context, *ProfileId) (*Empty, error)
+	// The selected profile; id 0: none.
+	GetSelected(context.Context, *Empty) (*ProfileId, error)
 	// What an input is and what its import would add; nothing is written, and no store is needed.
 	Recognize(context.Context, *ImportInput) (*ImportPreview, error)
 	// Imports an input: the task's progress, then its result, the last message (done). Share links and sn:// now; a
@@ -312,6 +346,12 @@ func (UnimplementedNikoServiceServer) SaveGroup(context.Context, *Group) (*Group
 }
 func (UnimplementedNikoServiceServer) DeleteGroup(context.Context, *GroupId) (*Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteGroup not implemented")
+}
+func (UnimplementedNikoServiceServer) Select(context.Context, *ProfileId) (*Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method Select not implemented")
+}
+func (UnimplementedNikoServiceServer) GetSelected(context.Context, *Empty) (*ProfileId, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetSelected not implemented")
 }
 func (UnimplementedNikoServiceServer) Recognize(context.Context, *ImportInput) (*ImportPreview, error) {
 	return nil, status.Error(codes.Unimplemented, "method Recognize not implemented")
@@ -531,6 +571,42 @@ func _NikoService_DeleteGroup_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NikoService_Select_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProfileId)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).Select(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_Select_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).Select(ctx, req.(*ProfileId))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_GetSelected_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).GetSelected(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_GetSelected_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).GetSelected(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _NikoService_Recognize_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ImportInput)
 	if err := dec(in); err != nil {
@@ -606,6 +682,14 @@ var NikoService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteGroup",
 			Handler:    _NikoService_DeleteGroup_Handler,
+		},
+		{
+			MethodName: "Select",
+			Handler:    _NikoService_Select_Handler,
+		},
+		{
+			MethodName: "GetSelected",
+			Handler:    _NikoService_GetSelected_Handler,
 		},
 		{
 			MethodName: "Recognize",
