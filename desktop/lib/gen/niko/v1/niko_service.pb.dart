@@ -12,9 +12,53 @@
 
 import 'dart:core' as $core;
 
+import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
 
+import 'niko_service.pbenum.dart';
+
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
+
+export 'niko_service.pbenum.dart';
+
+class Empty extends $pb.GeneratedMessage {
+  factory Empty() => Empty._();
+
+  Empty._();
+
+  factory Empty.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      Empty()..mergeFromBuffer(data, registry);
+  factory Empty.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      Empty()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'Empty',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: Empty.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  Empty clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  Empty copyWith(void Function(Empty) updates) =>
+      super.copyWith((message) => updates(message as Empty)) as Empty;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use Empty() / Empty.new instead')
+  static Empty create() => Empty._();
+  static $pb.GeneratedMessage $_createMessage() => Empty._();
+  @$core.override
+  Empty createEmptyInstance() => Empty._();
+  @$core.pragma('dart2js:noInline')
+  static Empty getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<Empty>(Empty.$_createMessage);
+  static Empty? _defaultInstance;
+}
 
 class GetInfoRequest extends $pb.GeneratedMessage {
   factory GetInfoRequest() => GetInfoRequest._();
@@ -131,7 +175,7 @@ class Info extends $pb.GeneratedMessage {
   @$pb.TagNumber(2)
   void clearCoreVersion() => $_clearField(2);
 
-  /// the schema of the daemon's store; 0: no store yet
+  /// the schema of the daemon's store (nikostore's); 0: a daemon without one
   @$pb.TagNumber(3)
   $core.int get storeSchema => $_getIZ(2);
   @$pb.TagNumber(3)
@@ -515,6 +559,1153 @@ class RouteTestResult extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(10)
   $pb.PbList<RouteTestStep> get steps => $_getList(9);
+}
+
+class WatchRequest extends $pb.GeneratedMessage {
+  factory WatchRequest() => WatchRequest._();
+
+  WatchRequest._();
+
+  factory WatchRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      WatchRequest()..mergeFromBuffer(data, registry);
+  factory WatchRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      WatchRequest()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'WatchRequest',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: WatchRequest.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  WatchRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  WatchRequest copyWith(void Function(WatchRequest) updates) =>
+      super.copyWith((message) => updates(message as WatchRequest))
+          as WatchRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use WatchRequest() / WatchRequest.new instead')
+  static WatchRequest create() => WatchRequest._();
+  static $pb.GeneratedMessage $_createMessage() => WatchRequest._();
+  @$core.override
+  WatchRequest createEmptyInstance() => WatchRequest._();
+  @$core.pragma('dart2js:noInline')
+  static WatchRequest getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<WatchRequest>(
+          WatchRequest.$_createMessage);
+  static WatchRequest? _defaultInstance;
+}
+
+/// What one write changed, or a task's result.
+class Change extends $pb.GeneratedMessage {
+  factory Change({
+    $fixnum.Int64? revision,
+    $core.bool? reset,
+    Change_Kind? kind,
+    $core.Iterable<$fixnum.Int64>? ids,
+    TaskProgress? task,
+  }) {
+    final result = Change._();
+    if (revision != null) result.revision = revision;
+    if (reset != null) result.reset = reset;
+    if (kind != null) result.kind = kind;
+    if (ids != null) result.ids.addAll(ids);
+    if (task != null) result.task = task;
+    return result;
+  }
+
+  Change._();
+
+  factory Change.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      Change()..mergeFromBuffer(data, registry);
+  factory Change.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      Change()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'Change',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: Change.$_createMessage)
+    ..a<$fixnum.Int64>(
+        1, _omitFieldNames ? '' : 'revision', $pb.PbFieldType.OU6,
+        defaultOrMaker: $fixnum.Int64.ZERO)
+    ..aOB(2, _omitFieldNames ? '' : 'reset')
+    ..aE<Change_Kind>(3, _omitFieldNames ? '' : 'kind',
+        enumValues: Change_Kind.values)
+    ..p<$fixnum.Int64>(4, _omitFieldNames ? '' : 'ids', $pb.PbFieldType.K6)
+    ..aOM<TaskProgress>(5, _omitFieldNames ? '' : 'task',
+        subBuilder: TaskProgress.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  Change clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  Change copyWith(void Function(Change) updates) =>
+      super.copyWith((message) => updates(message as Change)) as Change;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use Change() / Change.new instead')
+  static Change create() => Change._();
+  static $pb.GeneratedMessage $_createMessage() => Change._();
+  @$core.override
+  Change createEmptyInstance() => Change._();
+  @$core.pragma('dart2js:noInline')
+  static Change getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<Change>(Change.$_createMessage);
+  static Change? _defaultInstance;
+
+  /// grows with each change from the daemon's start; a reset's is the revision now
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get revision => $_getI64(0);
+  @$pb.TagNumber(1)
+  set revision($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasRevision() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRevision() => $_clearField(1);
+
+  /// read again all that is shown: the first message, and where changes were lost
+  @$pb.TagNumber(2)
+  $core.bool get reset => $_getBF(1);
+  @$pb.TagNumber(2)
+  set reset($core.bool value) => $_setBool(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasReset() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearReset() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  Change_Kind get kind => $_getN(2);
+  @$pb.TagNumber(3)
+  set kind(Change_Kind value) => $_setField(3, value);
+  @$pb.TagNumber(3)
+  $core.bool hasKind() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearKind() => $_clearField(3);
+
+  /// what changed: added, changed or removed; empty: the whole kind
+  @$pb.TagNumber(4)
+  $pb.PbList<$fixnum.Int64> get ids => $_getList(3);
+
+  /// the task's result, with kind TASK
+  @$pb.TagNumber(5)
+  TaskProgress get task => $_getN(4);
+  @$pb.TagNumber(5)
+  set task(TaskProgress value) => $_setField(5, value);
+  @$pb.TagNumber(5)
+  $core.bool hasTask() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearTask() => $_clearField(5);
+  @$pb.TagNumber(5)
+  TaskProgress ensureTask() => $_ensure(4);
+}
+
+/// A task of the daemon's (an import): its steps, then its result. A task goes on to its end without the stream that
+/// asked for it; its result comes in Watch too.
+class TaskProgress extends $pb.GeneratedMessage {
+  factory TaskProgress({
+    $core.String? taskId,
+    $core.String? line,
+    $core.bool? done,
+    $core.int? code,
+    $core.String? error,
+    $core.Iterable<$fixnum.Int64>? ids,
+  }) {
+    final result = TaskProgress._();
+    if (taskId != null) result.taskId = taskId;
+    if (line != null) result.line = line;
+    if (done != null) result.done = done;
+    if (code != null) result.code = code;
+    if (error != null) result.error = error;
+    if (ids != null) result.ids.addAll(ids);
+    return result;
+  }
+
+  TaskProgress._();
+
+  factory TaskProgress.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      TaskProgress()..mergeFromBuffer(data, registry);
+  factory TaskProgress.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      TaskProgress()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'TaskProgress',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: TaskProgress.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'taskId')
+    ..aOS(2, _omitFieldNames ? '' : 'line')
+    ..aOB(3, _omitFieldNames ? '' : 'done')
+    ..aI(4, _omitFieldNames ? '' : 'code')
+    ..aOS(5, _omitFieldNames ? '' : 'error')
+    ..p<$fixnum.Int64>(7, _omitFieldNames ? '' : 'ids', $pb.PbFieldType.K6)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  TaskProgress clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  TaskProgress copyWith(void Function(TaskProgress) updates) =>
+      super.copyWith((message) => updates(message as TaskProgress))
+          as TaskProgress;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use TaskProgress() / TaskProgress.new instead')
+  static TaskProgress create() => TaskProgress._();
+  static $pb.GeneratedMessage $_createMessage() => TaskProgress._();
+  @$core.override
+  TaskProgress createEmptyInstance() => TaskProgress._();
+  @$core.pragma('dart2js:noInline')
+  static TaskProgress getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<TaskProgress>(
+          TaskProgress.$_createMessage);
+  static TaskProgress? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get taskId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set taskId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTaskId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTaskId() => $_clearField(1);
+
+  /// a line for the user
+  @$pb.TagNumber(2)
+  $core.String get line => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set line($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasLine() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearLine() => $_clearField(2);
+
+  /// the result
+  @$pb.TagNumber(3)
+  $core.bool get done => $_getBF(2);
+  @$pb.TagNumber(3)
+  set done($core.bool value) => $_setBool(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasDone() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearDone() => $_clearField(3);
+
+  /// the result's gRPC code: 0 done, else what error says
+  @$pb.TagNumber(4)
+  $core.int get code => $_getIZ(3);
+  @$pb.TagNumber(4)
+  set code($core.int value) => $_setSignedInt32(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasCode() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearCode() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get error => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set error($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasError() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearError() => $_clearField(5);
+
+  /// what the task added or changed: the profiles an import added
+  @$pb.TagNumber(7)
+  $pb.PbList<$fixnum.Int64> get ids => $_getList(5);
+}
+
+class Group extends $pb.GeneratedMessage {
+  factory Group({
+    $fixnum.Int64? id,
+    $fixnum.Int64? order,
+    $core.String? name,
+    $core.bool? ungrouped,
+    Group_Type? type,
+    $core.int? profiles,
+  }) {
+    final result = Group._();
+    if (id != null) result.id = id;
+    if (order != null) result.order = order;
+    if (name != null) result.name = name;
+    if (ungrouped != null) result.ungrouped = ungrouped;
+    if (type != null) result.type = type;
+    if (profiles != null) result.profiles = profiles;
+    return result;
+  }
+
+  Group._();
+
+  factory Group.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      Group()..mergeFromBuffer(data, registry);
+  factory Group.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      Group()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'Group',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: Group.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'id')
+    ..aInt64(2, _omitFieldNames ? '' : 'order')
+    ..aOS(3, _omitFieldNames ? '' : 'name')
+    ..aOB(4, _omitFieldNames ? '' : 'ungrouped')
+    ..aE<Group_Type>(5, _omitFieldNames ? '' : 'type',
+        enumValues: Group_Type.values)
+    ..aI(6, _omitFieldNames ? '' : 'profiles')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  Group clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  Group copyWith(void Function(Group) updates) =>
+      super.copyWith((message) => updates(message as Group)) as Group;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use Group() / Group.new instead')
+  static Group create() => Group._();
+  static $pb.GeneratedMessage $_createMessage() => Group._();
+  @$core.override
+  Group createEmptyInstance() => Group._();
+  @$core.pragma('dart2js:noInline')
+  static Group getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<Group>(Group.$_createMessage);
+  static Group? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get id => $_getI64(0);
+  @$pb.TagNumber(1)
+  set id($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get order => $_getI64(1);
+  @$pb.TagNumber(2)
+  set order($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasOrder() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearOrder() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get name => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set name($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasName() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearName() => $_clearField(3);
+
+  /// the default group, made with the store: an import with no group goes there; it is not deleted
+  @$pb.TagNumber(4)
+  $core.bool get ungrouped => $_getBF(3);
+  @$pb.TagNumber(4)
+  set ungrouped($core.bool value) => $_setBool(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasUngrouped() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearUngrouped() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  Group_Type get type => $_getN(4);
+  @$pb.TagNumber(5)
+  set type(Group_Type value) => $_setField(5, value);
+  @$pb.TagNumber(5)
+  $core.bool hasType() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearType() => $_clearField(5);
+
+  /// how many profiles it has; not saved
+  @$pb.TagNumber(6)
+  $core.int get profiles => $_getIZ(5);
+  @$pb.TagNumber(6)
+  set profiles($core.int value) => $_setSignedInt32(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasProfiles() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearProfiles() => $_clearField(6);
+}
+
+class GroupId extends $pb.GeneratedMessage {
+  factory GroupId({
+    $fixnum.Int64? id,
+  }) {
+    final result = GroupId._();
+    if (id != null) result.id = id;
+    return result;
+  }
+
+  GroupId._();
+
+  factory GroupId.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      GroupId()..mergeFromBuffer(data, registry);
+  factory GroupId.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      GroupId()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'GroupId',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: GroupId.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'id')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GroupId clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GroupId copyWith(void Function(GroupId) updates) =>
+      super.copyWith((message) => updates(message as GroupId)) as GroupId;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use GroupId() / GroupId.new instead')
+  static GroupId create() => GroupId._();
+  static $pb.GeneratedMessage $_createMessage() => GroupId._();
+  @$core.override
+  GroupId createEmptyInstance() => GroupId._();
+  @$core.pragma('dart2js:noInline')
+  static GroupId getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GroupId>(GroupId.$_createMessage);
+  static GroupId? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get id => $_getI64(0);
+  @$pb.TagNumber(1)
+  set id($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+}
+
+class GroupList extends $pb.GeneratedMessage {
+  factory GroupList({
+    $core.Iterable<Group>? groups,
+  }) {
+    final result = GroupList._();
+    if (groups != null) result.groups.addAll(groups);
+    return result;
+  }
+
+  GroupList._();
+
+  factory GroupList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      GroupList()..mergeFromBuffer(data, registry);
+  factory GroupList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      GroupList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'GroupList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: GroupList.$_createMessage)
+    ..pPM<Group>(1, _omitFieldNames ? '' : 'groups',
+        subBuilder: Group.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GroupList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GroupList copyWith(void Function(GroupList) updates) =>
+      super.copyWith((message) => updates(message as GroupList)) as GroupList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use GroupList() / GroupList.new instead')
+  static GroupList create() => GroupList._();
+  static $pb.GeneratedMessage $_createMessage() => GroupList._();
+  @$core.override
+  GroupList createEmptyInstance() => GroupList._();
+  @$core.pragma('dart2js:noInline')
+  static GroupList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GroupList>(GroupList.$_createMessage);
+  static GroupList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<Group> get groups => $_getList(0);
+}
+
+class ListProfilesRequest extends $pb.GeneratedMessage {
+  factory ListProfilesRequest({
+    $fixnum.Int64? groupId,
+  }) {
+    final result = ListProfilesRequest._();
+    if (groupId != null) result.groupId = groupId;
+    return result;
+  }
+
+  ListProfilesRequest._();
+
+  factory ListProfilesRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ListProfilesRequest()..mergeFromBuffer(data, registry);
+  factory ListProfilesRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ListProfilesRequest()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ListProfilesRequest',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: ListProfilesRequest.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'groupId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ListProfilesRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ListProfilesRequest copyWith(void Function(ListProfilesRequest) updates) =>
+      super.copyWith((message) => updates(message as ListProfilesRequest))
+          as ListProfilesRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use ListProfilesRequest() / ListProfilesRequest.new instead')
+  static ListProfilesRequest create() => ListProfilesRequest._();
+  static $pb.GeneratedMessage $_createMessage() => ListProfilesRequest._();
+  @$core.override
+  ListProfilesRequest createEmptyInstance() => ListProfilesRequest._();
+  @$core.pragma('dart2js:noInline')
+  static ListProfilesRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ListProfilesRequest>(
+          ListProfilesRequest.$_createMessage);
+  static ListProfilesRequest? _defaultInstance;
+
+  /// 0: every group's
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get groupId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set groupId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasGroupId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearGroupId() => $_clearField(1);
+}
+
+class Profile extends $pb.GeneratedMessage {
+  factory Profile({
+    $fixnum.Int64? id,
+    $fixnum.Int64? groupId,
+    $fixnum.Int64? order,
+    $core.String? type,
+    $core.String? name,
+    $core.String? address,
+    $core.String? beanJson,
+  }) {
+    final result = Profile._();
+    if (id != null) result.id = id;
+    if (groupId != null) result.groupId = groupId;
+    if (order != null) result.order = order;
+    if (type != null) result.type = type;
+    if (name != null) result.name = name;
+    if (address != null) result.address = address;
+    if (beanJson != null) result.beanJson = beanJson;
+    return result;
+  }
+
+  Profile._();
+
+  factory Profile.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      Profile()..mergeFromBuffer(data, registry);
+  factory Profile.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      Profile()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'Profile',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: Profile.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'id')
+    ..aInt64(2, _omitFieldNames ? '' : 'groupId')
+    ..aInt64(3, _omitFieldNames ? '' : 'order')
+    ..aOS(4, _omitFieldNames ? '' : 'type')
+    ..aOS(5, _omitFieldNames ? '' : 'name')
+    ..aOS(6, _omitFieldNames ? '' : 'address')
+    ..aOS(7, _omitFieldNames ? '' : 'beanJson')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  Profile clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  Profile copyWith(void Function(Profile) updates) =>
+      super.copyWith((message) => updates(message as Profile)) as Profile;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use Profile() / Profile.new instead')
+  static Profile create() => Profile._();
+  static $pb.GeneratedMessage $_createMessage() => Profile._();
+  @$core.override
+  Profile createEmptyInstance() => Profile._();
+  @$core.pragma('dart2js:noInline')
+  static Profile getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<Profile>(Profile.$_createMessage);
+  static Profile? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get id => $_getI64(0);
+  @$pb.TagNumber(1)
+  set id($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get groupId => $_getI64(1);
+  @$pb.TagNumber(2)
+  set groupId($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasGroupId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearGroupId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get order => $_getI64(2);
+  @$pb.TagNumber(3)
+  set order($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasOrder() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearOrder() => $_clearField(3);
+
+  /// the bean's type, as the app's TypeMap names it: naive, hysteria, vmess (VLESS too), socks...
+  @$pb.TagNumber(4)
+  $core.String get type => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set type($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasType() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearType() => $_clearField(4);
+
+  /// the bean's display name and address; not saved, the bean's own are
+  @$pb.TagNumber(5)
+  $core.String get name => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set name($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasName() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearName() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get address => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set address($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasAddress() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearAddress() => $_clearField(6);
+
+  /// the whole bean: JSON with the app's field names, as the golden fixtures have it; empty in a list's rows
+  @$pb.TagNumber(7)
+  $core.String get beanJson => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set beanJson($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasBeanJson() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearBeanJson() => $_clearField(7);
+}
+
+class ProfileList extends $pb.GeneratedMessage {
+  factory ProfileList({
+    $core.Iterable<Profile>? profiles,
+  }) {
+    final result = ProfileList._();
+    if (profiles != null) result.profiles.addAll(profiles);
+    return result;
+  }
+
+  ProfileList._();
+
+  factory ProfileList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ProfileList()..mergeFromBuffer(data, registry);
+  factory ProfileList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ProfileList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ProfileList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: ProfileList.$_createMessage)
+    ..pPM<Profile>(1, _omitFieldNames ? '' : 'profiles',
+        subBuilder: Profile.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ProfileList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ProfileList copyWith(void Function(ProfileList) updates) =>
+      super.copyWith((message) => updates(message as ProfileList))
+          as ProfileList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ProfileList() / ProfileList.new instead')
+  static ProfileList create() => ProfileList._();
+  static $pb.GeneratedMessage $_createMessage() => ProfileList._();
+  @$core.override
+  ProfileList createEmptyInstance() => ProfileList._();
+  @$core.pragma('dart2js:noInline')
+  static ProfileList getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ProfileList>(
+          ProfileList.$_createMessage);
+  static ProfileList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<Profile> get profiles => $_getList(0);
+}
+
+class ProfileId extends $pb.GeneratedMessage {
+  factory ProfileId({
+    $fixnum.Int64? id,
+  }) {
+    final result = ProfileId._();
+    if (id != null) result.id = id;
+    return result;
+  }
+
+  ProfileId._();
+
+  factory ProfileId.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ProfileId()..mergeFromBuffer(data, registry);
+  factory ProfileId.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ProfileId()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ProfileId',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: ProfileId.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'id')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ProfileId clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ProfileId copyWith(void Function(ProfileId) updates) =>
+      super.copyWith((message) => updates(message as ProfileId)) as ProfileId;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ProfileId() / ProfileId.new instead')
+  static ProfileId create() => ProfileId._();
+  static $pb.GeneratedMessage $_createMessage() => ProfileId._();
+  @$core.override
+  ProfileId createEmptyInstance() => ProfileId._();
+  @$core.pragma('dart2js:noInline')
+  static ProfileId getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ProfileId>(ProfileId.$_createMessage);
+  static ProfileId? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get id => $_getI64(0);
+  @$pb.TagNumber(1)
+  set id($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+}
+
+class ProfileIds extends $pb.GeneratedMessage {
+  factory ProfileIds({
+    $core.Iterable<$fixnum.Int64>? ids,
+  }) {
+    final result = ProfileIds._();
+    if (ids != null) result.ids.addAll(ids);
+    return result;
+  }
+
+  ProfileIds._();
+
+  factory ProfileIds.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ProfileIds()..mergeFromBuffer(data, registry);
+  factory ProfileIds.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ProfileIds()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ProfileIds',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: ProfileIds.$_createMessage)
+    ..p<$fixnum.Int64>(1, _omitFieldNames ? '' : 'ids', $pb.PbFieldType.K6)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ProfileIds clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ProfileIds copyWith(void Function(ProfileIds) updates) =>
+      super.copyWith((message) => updates(message as ProfileIds)) as ProfileIds;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ProfileIds() / ProfileIds.new instead')
+  static ProfileIds create() => ProfileIds._();
+  static $pb.GeneratedMessage $_createMessage() => ProfileIds._();
+  @$core.override
+  ProfileIds createEmptyInstance() => ProfileIds._();
+  @$core.pragma('dart2js:noInline')
+  static ProfileIds getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ProfileIds>(ProfileIds.$_createMessage);
+  static ProfileIds? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<$fixnum.Int64> get ids => $_getList(0);
+}
+
+class MoveRequest extends $pb.GeneratedMessage {
+  factory MoveRequest({
+    $core.Iterable<$fixnum.Int64>? ids,
+    $fixnum.Int64? groupId,
+    $fixnum.Int64? before,
+  }) {
+    final result = MoveRequest._();
+    if (ids != null) result.ids.addAll(ids);
+    if (groupId != null) result.groupId = groupId;
+    if (before != null) result.before = before;
+    return result;
+  }
+
+  MoveRequest._();
+
+  factory MoveRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      MoveRequest()..mergeFromBuffer(data, registry);
+  factory MoveRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      MoveRequest()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'MoveRequest',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: MoveRequest.$_createMessage)
+    ..p<$fixnum.Int64>(1, _omitFieldNames ? '' : 'ids', $pb.PbFieldType.K6)
+    ..aInt64(2, _omitFieldNames ? '' : 'groupId')
+    ..aInt64(3, _omitFieldNames ? '' : 'before')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  MoveRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  MoveRequest copyWith(void Function(MoveRequest) updates) =>
+      super.copyWith((message) => updates(message as MoveRequest))
+          as MoveRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use MoveRequest() / MoveRequest.new instead')
+  static MoveRequest create() => MoveRequest._();
+  static $pb.GeneratedMessage $_createMessage() => MoveRequest._();
+  @$core.override
+  MoveRequest createEmptyInstance() => MoveRequest._();
+  @$core.pragma('dart2js:noInline')
+  static MoveRequest getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<MoveRequest>(
+          MoveRequest.$_createMessage);
+  static MoveRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<$fixnum.Int64> get ids => $_getList(0);
+
+  /// the group they go into
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get groupId => $_getI64(1);
+  @$pb.TagNumber(2)
+  set groupId($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasGroupId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearGroupId() => $_clearField(2);
+
+  /// the profile of that group they go before; 0: at its end
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get before => $_getI64(2);
+  @$pb.TagNumber(3)
+  set before($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasBefore() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearBefore() => $_clearField(3);
+}
+
+class ImportInput extends $pb.GeneratedMessage {
+  factory ImportInput({
+    $core.String? text,
+    $core.List<$core.int>? file,
+    $core.String? fileName,
+  }) {
+    final result = ImportInput._();
+    if (text != null) result.text = text;
+    if (file != null) result.file = file;
+    if (fileName != null) result.fileName = fileName;
+    return result;
+  }
+
+  ImportInput._();
+
+  factory ImportInput.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ImportInput()..mergeFromBuffer(data, registry);
+  factory ImportInput.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ImportInput()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ImportInput',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: ImportInput.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'text')
+    ..a<$core.List<$core.int>>(
+        2, _omitFieldNames ? '' : 'file', $pb.PbFieldType.OY)
+    ..aOS(3, _omitFieldNames ? '' : 'fileName')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ImportInput clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ImportInput copyWith(void Function(ImportInput) updates) =>
+      super.copyWith((message) => updates(message as ImportInput))
+          as ImportInput;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ImportInput() / ImportInput.new instead')
+  static ImportInput create() => ImportInput._();
+  static $pb.GeneratedMessage $_createMessage() => ImportInput._();
+  @$core.override
+  ImportInput createEmptyInstance() => ImportInput._();
+  @$core.pragma('dart2js:noInline')
+  static ImportInput getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ImportInput>(
+          ImportInput.$_createMessage);
+  static ImportInput? _defaultInstance;
+
+  /// a paste, the clipboard, a QR code's text
+  @$pb.TagNumber(1)
+  $core.String get text => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set text($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasText() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearText() => $_clearField(1);
+
+  /// a file's content, which the window read (the daemon reads no path); taken as text where text is empty
+  @$pb.TagNumber(2)
+  $core.List<$core.int> get file => $_getN(1);
+  @$pb.TagNumber(2)
+  set file($core.List<$core.int> value) => $_setBytes(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasFile() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearFile() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get fileName => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set fileName($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasFileName() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearFileName() => $_clearField(3);
+}
+
+class ImportPreview extends $pb.GeneratedMessage {
+  factory ImportPreview({
+    ImportPreview_Kind? kind,
+    $core.Iterable<Profile>? profiles,
+    $core.String? subscription,
+  }) {
+    final result = ImportPreview._();
+    if (kind != null) result.kind = kind;
+    if (profiles != null) result.profiles.addAll(profiles);
+    if (subscription != null) result.subscription = subscription;
+    return result;
+  }
+
+  ImportPreview._();
+
+  factory ImportPreview.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ImportPreview()..mergeFromBuffer(data, registry);
+  factory ImportPreview.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ImportPreview()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ImportPreview',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: ImportPreview.$_createMessage)
+    ..aE<ImportPreview_Kind>(1, _omitFieldNames ? '' : 'kind',
+        enumValues: ImportPreview_Kind.values)
+    ..pPM<Profile>(2, _omitFieldNames ? '' : 'profiles',
+        subBuilder: Profile.$_createMessage)
+    ..aOS(3, _omitFieldNames ? '' : 'subscription')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ImportPreview clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ImportPreview copyWith(void Function(ImportPreview) updates) =>
+      super.copyWith((message) => updates(message as ImportPreview))
+          as ImportPreview;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ImportPreview() / ImportPreview.new instead')
+  static ImportPreview create() => ImportPreview._();
+  static $pb.GeneratedMessage $_createMessage() => ImportPreview._();
+  @$core.override
+  ImportPreview createEmptyInstance() => ImportPreview._();
+  @$core.pragma('dart2js:noInline')
+  static ImportPreview getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ImportPreview>(
+          ImportPreview.$_createMessage);
+  static ImportPreview? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  ImportPreview_Kind get kind => $_getN(0);
+  @$pb.TagNumber(1)
+  set kind(ImportPreview_Kind value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasKind() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearKind() => $_clearField(1);
+
+  /// the profiles an import would add, as rows without ids
+  @$pb.TagNumber(2)
+  $pb.PbList<Profile> get profiles => $_getList(1);
+
+  /// the subscription's link, with kind SUBSCRIPTION: its import comes later
+  @$pb.TagNumber(3)
+  $core.String get subscription => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set subscription($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasSubscription() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearSubscription() => $_clearField(3);
+}
+
+class ImportRequest extends $pb.GeneratedMessage {
+  factory ImportRequest({
+    ImportInput? input,
+    $fixnum.Int64? groupId,
+  }) {
+    final result = ImportRequest._();
+    if (input != null) result.input = input;
+    if (groupId != null) result.groupId = groupId;
+    return result;
+  }
+
+  ImportRequest._();
+
+  factory ImportRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ImportRequest()..mergeFromBuffer(data, registry);
+  factory ImportRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ImportRequest()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ImportRequest',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: ImportRequest.$_createMessage)
+    ..aOM<ImportInput>(1, _omitFieldNames ? '' : 'input',
+        subBuilder: ImportInput.$_createMessage)
+    ..aInt64(2, _omitFieldNames ? '' : 'groupId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ImportRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ImportRequest copyWith(void Function(ImportRequest) updates) =>
+      super.copyWith((message) => updates(message as ImportRequest))
+          as ImportRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ImportRequest() / ImportRequest.new instead')
+  static ImportRequest create() => ImportRequest._();
+  static $pb.GeneratedMessage $_createMessage() => ImportRequest._();
+  @$core.override
+  ImportRequest createEmptyInstance() => ImportRequest._();
+  @$core.pragma('dart2js:noInline')
+  static ImportRequest getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ImportRequest>(
+          ImportRequest.$_createMessage);
+  static ImportRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  ImportInput get input => $_getN(0);
+  @$pb.TagNumber(1)
+  set input(ImportInput value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasInput() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearInput() => $_clearField(1);
+  @$pb.TagNumber(1)
+  ImportInput ensureInput() => $_ensure(0);
+
+  /// the group the profiles go into; 0: the ungrouped one
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get groupId => $_getI64(1);
+  @$pb.TagNumber(2)
+  set groupId($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasGroupId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearGroupId() => $_clearField(2);
 }
 
 const $core.bool _omitFieldNames =

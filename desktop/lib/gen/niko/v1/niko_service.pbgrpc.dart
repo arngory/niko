@@ -51,6 +51,100 @@ class NikoServiceClient extends $grpc.Client {
     return $createUnaryCall(_$routeTest, request, options: options);
   }
 
+  /// What changes in the store, and the results of its tasks: first a reset with the revision now, then each change;
+  /// a reset again where some were lost. A change says what changed: the window reads it again.
+  $grpc.ResponseStream<$0.Change> watch(
+    $0.WatchRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createStreamingCall(_$watch, $async.Stream.fromIterable([request]),
+        options: options);
+  }
+
+  /// The groups, in their order.
+  $grpc.ResponseFuture<$0.GroupList> listGroups(
+    $0.Empty request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$listGroups, request, options: options);
+  }
+
+  /// The profiles of a group, or of all, in the list's order: rows, without their beans. NOT_FOUND for no such group.
+  $grpc.ResponseFuture<$0.ProfileList> listProfiles(
+    $0.ListProfilesRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$listProfiles, request, options: options);
+  }
+
+  /// A profile with its bean. NOT_FOUND; FAILED_PRECONDITION where its secrets cannot be opened on this machine.
+  $grpc.ResponseFuture<$0.Profile> getProfile(
+    $0.ProfileId request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$getProfile, request, options: options);
+  }
+
+  /// A profile from its type and bean: a new one (id 0) at the end of its group, or the one of its id with a new bean of
+  /// the same type, where it is. INVALID_ARGUMENT for a bean that is not one of its type.
+  $grpc.ResponseFuture<$0.Profile> saveProfile(
+    $0.Profile request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$saveProfile, request, options: options);
+  }
+
+  /// Deletes the profiles of those ids that are there.
+  $grpc.ResponseFuture<$0.Empty> deleteProfiles(
+    $0.ProfileIds request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$deleteProfiles, request, options: options);
+  }
+
+  /// Puts profiles, in their order, into a group before one of its profiles or at its end.
+  $grpc.ResponseFuture<$0.Empty> moveProfiles(
+    $0.MoveRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$moveProfiles, request, options: options);
+  }
+
+  /// A group of the user's own: a new one (id 0), or a new name. A subscription's group comes with subscriptions:
+  /// UNIMPLEMENTED.
+  $grpc.ResponseFuture<$0.Group> saveGroup(
+    $0.Group request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$saveGroup, request, options: options);
+  }
+
+  /// Deletes a group and its profiles; the ungrouped group stays (FAILED_PRECONDITION).
+  $grpc.ResponseFuture<$0.Empty> deleteGroup(
+    $0.GroupId request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$deleteGroup, request, options: options);
+  }
+
+  /// What an input is and what its import would add; nothing is written, and no store is needed.
+  $grpc.ResponseFuture<$0.ImportPreview> recognize(
+    $0.ImportInput request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$recognize, request, options: options);
+  }
+
+  /// Imports an input: the task's progress, then its result, the last message (done). Share links and sn:// now; a
+  /// subscription's link is recognized, its import comes later (UNIMPLEMENTED as the result's code).
+  $grpc.ResponseStream<$0.TaskProgress> import(
+    $0.ImportRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createStreamingCall(_$import, $async.Stream.fromIterable([request]),
+        options: options);
+  }
+
   // method descriptors
 
   static final _$getInfo = $grpc.ClientMethod<$0.GetInfoRequest, $0.Info>(
@@ -62,6 +156,52 @@ class NikoServiceClient extends $grpc.Client {
           '/niko.v1.NikoService/RouteTest',
           ($0.RouteTestRequest value) => value.writeToBuffer(),
           $0.RouteTestResult.fromBuffer);
+  static final _$watch = $grpc.ClientMethod<$0.WatchRequest, $0.Change>(
+      '/niko.v1.NikoService/Watch',
+      ($0.WatchRequest value) => value.writeToBuffer(),
+      $0.Change.fromBuffer);
+  static final _$listGroups = $grpc.ClientMethod<$0.Empty, $0.GroupList>(
+      '/niko.v1.NikoService/ListGroups',
+      ($0.Empty value) => value.writeToBuffer(),
+      $0.GroupList.fromBuffer);
+  static final _$listProfiles =
+      $grpc.ClientMethod<$0.ListProfilesRequest, $0.ProfileList>(
+          '/niko.v1.NikoService/ListProfiles',
+          ($0.ListProfilesRequest value) => value.writeToBuffer(),
+          $0.ProfileList.fromBuffer);
+  static final _$getProfile = $grpc.ClientMethod<$0.ProfileId, $0.Profile>(
+      '/niko.v1.NikoService/GetProfile',
+      ($0.ProfileId value) => value.writeToBuffer(),
+      $0.Profile.fromBuffer);
+  static final _$saveProfile = $grpc.ClientMethod<$0.Profile, $0.Profile>(
+      '/niko.v1.NikoService/SaveProfile',
+      ($0.Profile value) => value.writeToBuffer(),
+      $0.Profile.fromBuffer);
+  static final _$deleteProfiles = $grpc.ClientMethod<$0.ProfileIds, $0.Empty>(
+      '/niko.v1.NikoService/DeleteProfiles',
+      ($0.ProfileIds value) => value.writeToBuffer(),
+      $0.Empty.fromBuffer);
+  static final _$moveProfiles = $grpc.ClientMethod<$0.MoveRequest, $0.Empty>(
+      '/niko.v1.NikoService/MoveProfiles',
+      ($0.MoveRequest value) => value.writeToBuffer(),
+      $0.Empty.fromBuffer);
+  static final _$saveGroup = $grpc.ClientMethod<$0.Group, $0.Group>(
+      '/niko.v1.NikoService/SaveGroup',
+      ($0.Group value) => value.writeToBuffer(),
+      $0.Group.fromBuffer);
+  static final _$deleteGroup = $grpc.ClientMethod<$0.GroupId, $0.Empty>(
+      '/niko.v1.NikoService/DeleteGroup',
+      ($0.GroupId value) => value.writeToBuffer(),
+      $0.Empty.fromBuffer);
+  static final _$recognize =
+      $grpc.ClientMethod<$0.ImportInput, $0.ImportPreview>(
+          '/niko.v1.NikoService/Recognize',
+          ($0.ImportInput value) => value.writeToBuffer(),
+          $0.ImportPreview.fromBuffer);
+  static final _$import = $grpc.ClientMethod<$0.ImportRequest, $0.TaskProgress>(
+      '/niko.v1.NikoService/Import',
+      ($0.ImportRequest value) => value.writeToBuffer(),
+      $0.TaskProgress.fromBuffer);
 }
 
 @$pb.GrpcServiceName('niko.v1.NikoService')
@@ -83,6 +223,84 @@ abstract class NikoServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) => $0.RouteTestRequest.fromBuffer(value),
         ($0.RouteTestResult value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.WatchRequest, $0.Change>(
+        'Watch',
+        watch_Pre,
+        false,
+        true,
+        ($core.List<$core.int> value) => $0.WatchRequest.fromBuffer(value),
+        ($0.Change value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.Empty, $0.GroupList>(
+        'ListGroups',
+        listGroups_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.Empty.fromBuffer(value),
+        ($0.GroupList value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.ListProfilesRequest, $0.ProfileList>(
+        'ListProfiles',
+        listProfiles_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.ListProfilesRequest.fromBuffer(value),
+        ($0.ProfileList value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.ProfileId, $0.Profile>(
+        'GetProfile',
+        getProfile_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.ProfileId.fromBuffer(value),
+        ($0.Profile value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.Profile, $0.Profile>(
+        'SaveProfile',
+        saveProfile_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.Profile.fromBuffer(value),
+        ($0.Profile value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.ProfileIds, $0.Empty>(
+        'DeleteProfiles',
+        deleteProfiles_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.ProfileIds.fromBuffer(value),
+        ($0.Empty value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.MoveRequest, $0.Empty>(
+        'MoveProfiles',
+        moveProfiles_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.MoveRequest.fromBuffer(value),
+        ($0.Empty value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.Group, $0.Group>(
+        'SaveGroup',
+        saveGroup_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.Group.fromBuffer(value),
+        ($0.Group value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GroupId, $0.Empty>(
+        'DeleteGroup',
+        deleteGroup_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.GroupId.fromBuffer(value),
+        ($0.Empty value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.ImportInput, $0.ImportPreview>(
+        'Recognize',
+        recognize_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.ImportInput.fromBuffer(value),
+        ($0.ImportPreview value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.ImportRequest, $0.TaskProgress>(
+        'Import',
+        import_Pre,
+        false,
+        true,
+        ($core.List<$core.int> value) => $0.ImportRequest.fromBuffer(value),
+        ($0.TaskProgress value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.Info> getInfo_Pre($grpc.ServiceCall $call,
@@ -100,4 +318,91 @@ abstract class NikoServiceBase extends $grpc.Service {
 
   $async.Future<$0.RouteTestResult> routeTest(
       $grpc.ServiceCall call, $0.RouteTestRequest request);
+
+  $async.Stream<$0.Change> watch_Pre(
+      $grpc.ServiceCall $call, $async.Future<$0.WatchRequest> $request) async* {
+    yield* watch($call, await $request);
+  }
+
+  $async.Stream<$0.Change> watch(
+      $grpc.ServiceCall call, $0.WatchRequest request);
+
+  $async.Future<$0.GroupList> listGroups_Pre(
+      $grpc.ServiceCall $call, $async.Future<$0.Empty> $request) async {
+    return listGroups($call, await $request);
+  }
+
+  $async.Future<$0.GroupList> listGroups(
+      $grpc.ServiceCall call, $0.Empty request);
+
+  $async.Future<$0.ProfileList> listProfiles_Pre($grpc.ServiceCall $call,
+      $async.Future<$0.ListProfilesRequest> $request) async {
+    return listProfiles($call, await $request);
+  }
+
+  $async.Future<$0.ProfileList> listProfiles(
+      $grpc.ServiceCall call, $0.ListProfilesRequest request);
+
+  $async.Future<$0.Profile> getProfile_Pre(
+      $grpc.ServiceCall $call, $async.Future<$0.ProfileId> $request) async {
+    return getProfile($call, await $request);
+  }
+
+  $async.Future<$0.Profile> getProfile(
+      $grpc.ServiceCall call, $0.ProfileId request);
+
+  $async.Future<$0.Profile> saveProfile_Pre(
+      $grpc.ServiceCall $call, $async.Future<$0.Profile> $request) async {
+    return saveProfile($call, await $request);
+  }
+
+  $async.Future<$0.Profile> saveProfile(
+      $grpc.ServiceCall call, $0.Profile request);
+
+  $async.Future<$0.Empty> deleteProfiles_Pre(
+      $grpc.ServiceCall $call, $async.Future<$0.ProfileIds> $request) async {
+    return deleteProfiles($call, await $request);
+  }
+
+  $async.Future<$0.Empty> deleteProfiles(
+      $grpc.ServiceCall call, $0.ProfileIds request);
+
+  $async.Future<$0.Empty> moveProfiles_Pre(
+      $grpc.ServiceCall $call, $async.Future<$0.MoveRequest> $request) async {
+    return moveProfiles($call, await $request);
+  }
+
+  $async.Future<$0.Empty> moveProfiles(
+      $grpc.ServiceCall call, $0.MoveRequest request);
+
+  $async.Future<$0.Group> saveGroup_Pre(
+      $grpc.ServiceCall $call, $async.Future<$0.Group> $request) async {
+    return saveGroup($call, await $request);
+  }
+
+  $async.Future<$0.Group> saveGroup($grpc.ServiceCall call, $0.Group request);
+
+  $async.Future<$0.Empty> deleteGroup_Pre(
+      $grpc.ServiceCall $call, $async.Future<$0.GroupId> $request) async {
+    return deleteGroup($call, await $request);
+  }
+
+  $async.Future<$0.Empty> deleteGroup(
+      $grpc.ServiceCall call, $0.GroupId request);
+
+  $async.Future<$0.ImportPreview> recognize_Pre(
+      $grpc.ServiceCall $call, $async.Future<$0.ImportInput> $request) async {
+    return recognize($call, await $request);
+  }
+
+  $async.Future<$0.ImportPreview> recognize(
+      $grpc.ServiceCall call, $0.ImportInput request);
+
+  $async.Stream<$0.TaskProgress> import_Pre($grpc.ServiceCall $call,
+      $async.Future<$0.ImportRequest> $request) async* {
+    yield* import($call, await $request);
+  }
+
+  $async.Stream<$0.TaskProgress> import(
+      $grpc.ServiceCall call, $0.ImportRequest request);
 }
