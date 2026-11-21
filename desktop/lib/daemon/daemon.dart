@@ -255,7 +255,7 @@ class RouteVerdict {
 }
 
 /// What a change of the daemon's store is of (NikoService.Watch).
-enum StoreKind { other, profiles, groups, selected, task }
+enum StoreKind { other, profiles, groups, selected, settings, task }
 
 /// A change of the daemon's store (NikoService.Watch): what it is of and the ids it touched, added, changed or
 /// removed (none: all of that kind). [reset]: the first change, and one after changes were lost: all that is shown is
@@ -427,11 +427,19 @@ abstract interface class Daemon {
   /// The link to share a profile by, as the app writes it (NikoService.ShareProfile, D-PROFILE-07).
   Future<String> shareLink(int id);
 
-  /// Starts the core with a stored profile ([profileId] 0: the selected one) in a [mode], its config built by the
-  /// daemon for this computer (NikoService.Connect, D-MAIN-04). Fails with the daemon's code: no profile selected, a
-  /// plugin's profile, a service another user owns, a config the core refuses or cannot start (a TUN without the
-  /// daemon's privileges).
-  Future<void> connect(int profileId, {ConnectMode mode = ConnectMode.proxy});
+  /// Starts the core with a stored profile ([profileId] 0: the selected one) in a [mode] (null: the settings'), its
+  /// config built by the daemon for this computer with its settings (NikoService.Connect, D-MAIN-04). Fails with the
+  /// daemon's code: no profile selected, a plugin's profile, a service another user owns, a config the core refuses or
+  /// cannot start (a TUN without the daemon's privileges).
+  Future<void> connect(int profileId, {ConnectMode? mode});
+
+  /// The computer's settings (NikoService.GetSettings), by the app's names, which are the JSON names of the fields of
+  /// NikoService's Settings (`mixedPort`): a switch's a bool, a number's an int, a text's a String.
+  Future<Map<String, Object>> settings();
+
+  /// Sets these of the settings, by the same names, the others as they were (NikoService.UpdateSettings): the settings
+  /// then. Fails with INVALID_ARGUMENT, and the daemon's words for it, where a value is not one the setting may have.
+  Future<Map<String, Object>> updateSettings(Map<String, Object> values);
 
   /// Puts profiles into a group before one of its profiles, or at its end with [before] 0 (NikoService.MoveProfiles).
   Future<void> moveProfiles(List<int> ids, {required int groupId, int before = 0});
@@ -720,6 +728,7 @@ class GrpcDaemon implements Daemon {
             niko.Change_Kind.PROFILES => StoreKind.profiles,
             niko.Change_Kind.GROUPS => StoreKind.groups,
             niko.Change_Kind.SELECTED => StoreKind.selected,
+            niko.Change_Kind.SETTINGS => StoreKind.settings,
             niko.Change_Kind.TASK => StoreKind.task,
             _ => StoreKind.other,
           },
@@ -810,16 +819,40 @@ class GrpcDaemon implements Daemon {
       (await _niko.shareProfile(niko.ProfileId(id: Int64(id)), options: _short)).link;
 
   @override
-  Future<void> connect(int profileId, {ConnectMode mode = ConnectMode.proxy}) => _niko.connect(
+  Future<void> connect(int profileId, {ConnectMode? mode}) => _niko.connect(
         niko.ConnectRequest(
           profileId: Int64(profileId),
           mode: switch (mode) {
+            null => null,
             ConnectMode.proxy => niko.ConnectRequest_Mode.PROXY,
             ConnectMode.vpn => niko.ConnectRequest_Mode.VPN,
           },
         ),
         options: _long,
       );
+
+  /// The settings by their fields' names (the JSON names, the app's), each field's value or its default.
+  static Map<String, Object> _settings(niko.Settings settings) => {
+        for (final field in settings.info_.fieldInfo.values) field.name: settings.getField(field.tagNumber) as Object,
+      };
+
+  @override
+  Future<Map<String, Object>> settings() async => _settings(await _niko.getSettings(niko.Empty(), options: _short));
+
+  @override
+  Future<Map<String, Object>> updateSettings(Map<String, Object> values) async {
+    final settings = niko.Settings();
+    final fields = <String>[];
+    for (final MapEntry(:key, :value) in values.entries) {
+      final field = settings.info_.byName[key];
+      if (field == null) throw ArgumentError.value(key, 'values', 'no such setting');
+      settings.setField(field.tagNumber, value);
+      fields.add(field.protoName);
+    }
+    return _settings(
+      await _niko.updateSettings(niko.SettingsUpdate(settings: settings, fields: fields), options: _short),
+    );
+  }
 
   @override
   Future<void> moveProfiles(List<int> ids, {required int groupId, int before = 0}) => _niko.moveProfiles(

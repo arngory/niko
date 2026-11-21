@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:grpc/grpc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:niko_desktop/app.dart';
 import 'package:niko_desktop/daemon/daemon.dart';
@@ -10,6 +11,7 @@ import 'package:niko_desktop/state/connection_controller.dart';
 import 'package:niko_desktop/state/window_settings.dart';
 import 'package:niko_desktop/ui/connect_button.dart';
 import 'package:niko_desktop/ui/controls.dart';
+import 'package:niko_desktop/ui/fields.dart';
 
 import 'fonts.dart';
 
@@ -149,7 +151,53 @@ class MemoryDaemon implements Daemon {
   /// The profiles the window connected with, 0 for the selected one.
   final connected = <int>[];
   @override
-  Future<void> connect(int profileId, {ConnectMode mode = ConnectMode.proxy}) async => connected.add(profileId);
+  Future<void> connect(int profileId, {ConnectMode? mode}) async => connected.add(profileId);
+
+  /// The computer's settings as the daemon keeps them: a computer's defaults; [refused] are the names of those whose
+  /// change it refuses, as a value out of its range.
+  final settingValues = <String, Object>{...MemoryDaemon.defaultSettings};
+  final refused = <String>{};
+  final settingsChanged = <Map<String, Object>>[];
+
+  /// NikoService's defaults of a computer (nikoconf.DesktopSettings).
+  static const defaultSettings = <String, Object>{
+    'serviceMode': 'proxy',
+    'systemProxy': false,
+    'tunImplementation': 0,
+    'mtu': 9000,
+    'ipv6Mode': 0,
+    'globalAllowInsecure': false,
+    'remoteDns': 'https://dns.google/dns-query',
+    'directDns': 'local',
+    'enableFakeDns': true,
+    'domainStrategyForRemote': '',
+    'domainStrategyForDirect': '',
+    'domainStrategyForServer': '',
+    'dnsOptimisticCache': false,
+    'bypassLanInCore': false,
+    'mixedPort': 2080,
+    'mixedUsername': '',
+    'mixedPassword': '',
+    'allowAccess': false,
+    'trafficSniffing': 1,
+    'resolveDestination': false,
+    'refuseQuicOverStreams': false,
+    'icmpNoLocalReply': false,
+    'logLevel': 0,
+  };
+
+  @override
+  Future<Map<String, Object>> settings() async => {...settingValues};
+
+  @override
+  Future<Map<String, Object>> updateSettings(Map<String, Object> values) async {
+    final bad = values.keys.where(refused.contains);
+    if (bad.isNotEmpty) throw GrpcError.invalidArgument('invalid: ${bad.first}: out of range');
+    settingsChanged.add(values);
+    settingValues.addAll(values);
+    _changed(StoreKind.settings, const []);
+    return {...settingValues};
+  }
 
   @override
   Future<SavedProfile> profile(int id) async =>
@@ -308,8 +356,8 @@ void main() {
   testWidgets('the keyboard: Enter on the focused button connects', (tester) async {
     await show(tester);
     await core(tester, ServicePhase.idle);
-    // the header first: three sections and the two views; then the button
-    for (var stop = 0; stop < 6; stop++) {
+    // the header first: four sections and the two views; then the button
+    for (var stop = 0; stop < 7; stop++) {
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     }
     await tester.pump();
@@ -1028,6 +1076,79 @@ void main() {
     expect(find.text('Вернуть'), findsNothing, reason: 'nothing to undo in a copy');
     await settle(const Duration(seconds: 5));
     expect(find.text('Ссылка на «Хельсинки» скопирована'), findsNothing);
+  });
+
+  testWidgets('Настройки: the daemon\'s settings; a change written at once, a refused one read back', (tester) async {
+    await show(tester, brightness: Brightness.light, size: const Size(1040, 1800));
+    await core(tester, ServicePhase.idle);
+    Future<void> settle() async {
+      for (var i = 0; i < 6; i++) {
+        await tester.pump();
+      }
+    }
+
+    daemon.settingValues['mixedPort'] = 2081;
+    await tester.tap(find.text('Настройки'));
+    await settle();
+    expect(find.text('2081'), findsOneWidget);
+    expect(find.text('Прокси'), findsOneWidget);
+
+    // a switch: written at once, by its name alone
+    await tester.tap(find.text('Пускать из локальной сети'));
+    await settle();
+    expect(daemon.settingsChanged.last, {'allowAccess': true});
+    // a setting the app keeps as a number, shown as a switch
+    await tester.tap(find.text('Сниффинг'));
+    await settle();
+    expect(daemon.settingsChanged.last, {'trafficSniffing': 0});
+    // a choice, as its number
+    await tester.tap(find.text('VPN'));
+    await settle();
+    expect(daemon.settingsChanged.last, {'serviceMode': 'vpn'});
+    await tester.tap(find.text('Сначала'));
+    await settle();
+    expect(daemon.settingsChanged.last, {'ipv6Mode': 2});
+
+    // a value row's dialog: the port as a number; refused, said and left open
+    await tester.tap(find.text('Порт'));
+    await tester.pump();
+    await tester.enterText(find.byType(EditableText), '3000');
+    await tester.tap(find.text('Сохранить'));
+    await settle();
+    expect(daemon.settingsChanged.last, {'mixedPort': 3000});
+    expect(find.text('3000'), findsOneWidget);
+    daemon.refused.add('mtu');
+    await tester.tap(find.text('MTU'));
+    await tester.pump();
+    await tester.enterText(find.byType(EditableText), '100');
+    await tester.tap(find.text('Сохранить'));
+    await settle();
+    expect(find.text('invalid: mtu: out of range'), findsOneWidget);
+    await tester.tap(find.text('Отмена'));
+    await settle();
+    expect(find.text('9000'), findsOneWidget);
+
+    // a refused switch: put back as the daemon has it, and said
+    daemon.refused.add('bypassLanInCore');
+    await tester.tap(find.text('Локальная сеть напрямую'));
+    await settle();
+    expect(find.text('Не сохранено'), findsOneWidget);
+    expect(tester.widgetList<NikoSwitchRow>(find.byType(NikoSwitchRow)).where((r) => r.title == 'Локальная сеть напрямую').single.on,
+        isFalse);
+
+    // a change from elsewhere comes through Watch
+    daemon.settingValues['mixedPort'] = 4000;
+    daemon.storeEvents.add(const StoreChange(revision: 99, kind: StoreKind.settings));
+    await settle();
+    expect(find.text('4000'), findsOneWidget);
+  });
+
+  testWidgets('Настройки with no daemon: said, nothing to change', (tester) async {
+    await show(tester, withDaemon: false);
+    await tester.tap(find.text('Настройки'));
+    await tester.pump();
+    expect(find.text('Нет связи со службой'), findsOneWidget);
+    expect(find.text('Порт'), findsNothing);
   });
 
   testWidgets('a narrow and low window: nothing overflows', (tester) async {

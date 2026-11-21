@@ -135,10 +135,15 @@ class TracedDaemon implements Daemon {
   @override
   Future<String> shareLink(int id) => _inner.shareLink(id);
   @override
-  Future<void> connect(int profileId, {ConnectMode mode = ConnectMode.proxy}) {
+  Future<void> connect(int profileId, {ConnectMode? mode}) {
     note('connect $profileId');
     return _inner.connect(profileId, mode: mode);
   }
+
+  @override
+  Future<Map<String, Object>> settings() => _inner.settings();
+  @override
+  Future<Map<String, Object>> updateSettings(Map<String, Object> values) => _inner.updateSettings(values);
 
   @override
   Future<void> moveProfiles(List<int> ids, {required int groupId, int before = 0}) =>

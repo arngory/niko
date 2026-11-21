@@ -155,19 +155,39 @@ class NikoServiceClient extends $grpc.Client {
     return $createUnaryCall(_$shareProfile, request, options: options);
   }
 
-  /// Builds the config of a profile in the daemon, as the app builds it, for this computer (Windows or Linux) in the
-  /// mode asked, and starts the core with it (reloads the one running), as DesktopService.StartService starts a config
-  /// with no options: the caller becomes the daemon's owner. Until the desktop has settings of its own, the app's
-  /// defaults: in proxy mode the local proxy on 127.0.0.1:2080 with no login, not the system's proxy; in VPN mode the
-  /// TUN, which the core opens only with the daemon's privileges. FAILED_PRECONDITION for no profile selected
-  /// or one whose secrets cannot be opened on this machine; NOT_FOUND; INVALID_ARGUMENT for a profile the build
-  /// refuses, or no such mode; UNIMPLEMENTED for a plugin's profile; PERMISSION_DENIED where another user owns the
-  /// daemon; the core's own error for a config it refuses or cannot start.
+  /// Builds the config of a profile in the daemon, as the app builds it, for this computer (Windows or Linux) with the
+  /// computer's settings (GetSettings) in the mode asked, else theirs, and starts the core with it (reloads the one
+  /// running), as DesktopService.StartService starts a config with no options: the caller becomes the daemon's owner.
+  /// By default proxy mode: the local proxy on 127.0.0.1:2080 with no login, not the system's proxy; VPN mode is the
+  /// TUN, which the core opens only with the daemon's privileges. FAILED_PRECONDITION for no profile selected, one
+  /// whose secrets cannot be opened on this machine, or settings whose secrets cannot; NOT_FOUND; INVALID_ARGUMENT for
+  /// a profile the build refuses, or no such mode; UNIMPLEMENTED for a plugin's profile; PERMISSION_DENIED where another
+  /// user owns the daemon; the core's own error for a config it refuses or cannot start.
   $grpc.ResponseFuture<$0.Empty> connect(
     $0.ConnectRequest request, {
     $grpc.CallOptions? options,
   }) {
     return $createUnaryCall(_$connect, request, options: options);
+  }
+
+  /// The computer's settings (D-SET-05, -16, -18): what Connect builds the config with. FAILED_PRECONDITION where
+  /// their secrets were sealed by another machine or account: they are to be set again.
+  $grpc.ResponseFuture<$0.Settings> getSettings(
+    $0.Empty request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$getSettings, request, options: options);
+  }
+
+  /// Sets the settings named to their values in the request, the others as they were, in one write: the settings
+  /// then. Watch says SETTINGS. INVALID_ARGUMENT for a name that is no field of Settings, or a value it may not have,
+  /// and nothing is changed; FAILED_PRECONDITION where the secrets cannot be opened on this machine and the change
+  /// does not set them again.
+  $grpc.ResponseFuture<$0.Settings> updateSettings(
+    $0.SettingsUpdate request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$updateSettings, request, options: options);
   }
 
   /// What an input is and what its import would add; nothing is written, and no store is needed.
@@ -252,6 +272,15 @@ class NikoServiceClient extends $grpc.Client {
       '/niko.v1.NikoService/Connect',
       ($0.ConnectRequest value) => value.writeToBuffer(),
       $0.Empty.fromBuffer);
+  static final _$getSettings = $grpc.ClientMethod<$0.Empty, $0.Settings>(
+      '/niko.v1.NikoService/GetSettings',
+      ($0.Empty value) => value.writeToBuffer(),
+      $0.Settings.fromBuffer);
+  static final _$updateSettings =
+      $grpc.ClientMethod<$0.SettingsUpdate, $0.Settings>(
+          '/niko.v1.NikoService/UpdateSettings',
+          ($0.SettingsUpdate value) => value.writeToBuffer(),
+          $0.Settings.fromBuffer);
   static final _$recognize =
       $grpc.ClientMethod<$0.ImportInput, $0.ImportPreview>(
           '/niko.v1.NikoService/Recognize',
@@ -374,6 +403,20 @@ abstract class NikoServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) => $0.ConnectRequest.fromBuffer(value),
         ($0.Empty value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.Empty, $0.Settings>(
+        'GetSettings',
+        getSettings_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.Empty.fromBuffer(value),
+        ($0.Settings value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.SettingsUpdate, $0.Settings>(
+        'UpdateSettings',
+        updateSettings_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.SettingsUpdate.fromBuffer(value),
+        ($0.Settings value) => value.writeToBuffer()));
     $addMethod($grpc.ServiceMethod<$0.ImportInput, $0.ImportPreview>(
         'Recognize',
         recognize_Pre,
@@ -507,6 +550,22 @@ abstract class NikoServiceBase extends $grpc.Service {
 
   $async.Future<$0.Empty> connect(
       $grpc.ServiceCall call, $0.ConnectRequest request);
+
+  $async.Future<$0.Settings> getSettings_Pre(
+      $grpc.ServiceCall $call, $async.Future<$0.Empty> $request) async {
+    return getSettings($call, await $request);
+  }
+
+  $async.Future<$0.Settings> getSettings(
+      $grpc.ServiceCall call, $0.Empty request);
+
+  $async.Future<$0.Settings> updateSettings_Pre($grpc.ServiceCall $call,
+      $async.Future<$0.SettingsUpdate> $request) async {
+    return updateSettings($call, await $request);
+  }
+
+  $async.Future<$0.Settings> updateSettings(
+      $grpc.ServiceCall call, $0.SettingsUpdate request);
 
   $async.Future<$0.ImportPreview> recognize_Pre(
       $grpc.ServiceCall $call, $async.Future<$0.ImportInput> $request) async {

@@ -38,6 +38,8 @@ const (
 	NikoService_GetSelected_FullMethodName    = "/niko.v1.NikoService/GetSelected"
 	NikoService_ShareProfile_FullMethodName   = "/niko.v1.NikoService/ShareProfile"
 	NikoService_Connect_FullMethodName        = "/niko.v1.NikoService/Connect"
+	NikoService_GetSettings_FullMethodName    = "/niko.v1.NikoService/GetSettings"
+	NikoService_UpdateSettings_FullMethodName = "/niko.v1.NikoService/UpdateSettings"
 	NikoService_Recognize_FullMethodName      = "/niko.v1.NikoService/Recognize"
 	NikoService_Import_FullMethodName         = "/niko.v1.NikoService/Import"
 )
@@ -84,15 +86,23 @@ type NikoServiceClient interface {
 	// NOT_FOUND; FAILED_PRECONDITION where its secrets cannot be opened on this machine; UNIMPLEMENTED for a kind with
 	// no link (a plugin's profile).
 	ShareProfile(ctx context.Context, in *ProfileId, opts ...grpc.CallOption) (*ShareLink, error)
-	// Builds the config of a profile in the daemon, as the app builds it, for this computer (Windows or Linux) in the
-	// mode asked, and starts the core with it (reloads the one running), as DesktopService.StartService starts a config
-	// with no options: the caller becomes the daemon's owner. Until the desktop has settings of its own, the app's
-	// defaults: in proxy mode the local proxy on 127.0.0.1:2080 with no login, not the system's proxy; in VPN mode the
-	// TUN, which the core opens only with the daemon's privileges. FAILED_PRECONDITION for no profile selected
-	// or one whose secrets cannot be opened on this machine; NOT_FOUND; INVALID_ARGUMENT for a profile the build
-	// refuses, or no such mode; UNIMPLEMENTED for a plugin's profile; PERMISSION_DENIED where another user owns the
-	// daemon; the core's own error for a config it refuses or cannot start.
+	// Builds the config of a profile in the daemon, as the app builds it, for this computer (Windows or Linux) with the
+	// computer's settings (GetSettings) in the mode asked, else theirs, and starts the core with it (reloads the one
+	// running), as DesktopService.StartService starts a config with no options: the caller becomes the daemon's owner.
+	// By default proxy mode: the local proxy on 127.0.0.1:2080 with no login, not the system's proxy; VPN mode is the
+	// TUN, which the core opens only with the daemon's privileges. FAILED_PRECONDITION for no profile selected, one
+	// whose secrets cannot be opened on this machine, or settings whose secrets cannot; NOT_FOUND; INVALID_ARGUMENT for
+	// a profile the build refuses, or no such mode; UNIMPLEMENTED for a plugin's profile; PERMISSION_DENIED where another
+	// user owns the daemon; the core's own error for a config it refuses or cannot start.
 	Connect(ctx context.Context, in *ConnectRequest, opts ...grpc.CallOption) (*Empty, error)
+	// The computer's settings (D-SET-05, -16, -18): what Connect builds the config with. FAILED_PRECONDITION where
+	// their secrets were sealed by another machine or account: they are to be set again.
+	GetSettings(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Settings, error)
+	// Sets the settings named to their values in the request, the others as they were, in one write: the settings
+	// then. Watch says SETTINGS. INVALID_ARGUMENT for a name that is no field of Settings, or a value it may not have,
+	// and nothing is changed; FAILED_PRECONDITION where the secrets cannot be opened on this machine and the change
+	// does not set them again.
+	UpdateSettings(ctx context.Context, in *SettingsUpdate, opts ...grpc.CallOption) (*Settings, error)
 	// What an input is and what its import would add; nothing is written, and no store is needed.
 	Recognize(ctx context.Context, in *ImportInput, opts ...grpc.CallOption) (*ImportPreview, error)
 	// Imports an input: the task's progress, then its result, the last message (done). Share links and sn:// now; a
@@ -267,6 +277,26 @@ func (c *nikoServiceClient) Connect(ctx context.Context, in *ConnectRequest, opt
 	return out, nil
 }
 
+func (c *nikoServiceClient) GetSettings(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Settings, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Settings)
+	err := c.cc.Invoke(ctx, NikoService_GetSettings_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) UpdateSettings(ctx context.Context, in *SettingsUpdate, opts ...grpc.CallOption) (*Settings, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Settings)
+	err := c.cc.Invoke(ctx, NikoService_UpdateSettings_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *nikoServiceClient) Recognize(ctx context.Context, in *ImportInput, opts ...grpc.CallOption) (*ImportPreview, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ImportPreview)
@@ -338,15 +368,23 @@ type NikoServiceServer interface {
 	// NOT_FOUND; FAILED_PRECONDITION where its secrets cannot be opened on this machine; UNIMPLEMENTED for a kind with
 	// no link (a plugin's profile).
 	ShareProfile(context.Context, *ProfileId) (*ShareLink, error)
-	// Builds the config of a profile in the daemon, as the app builds it, for this computer (Windows or Linux) in the
-	// mode asked, and starts the core with it (reloads the one running), as DesktopService.StartService starts a config
-	// with no options: the caller becomes the daemon's owner. Until the desktop has settings of its own, the app's
-	// defaults: in proxy mode the local proxy on 127.0.0.1:2080 with no login, not the system's proxy; in VPN mode the
-	// TUN, which the core opens only with the daemon's privileges. FAILED_PRECONDITION for no profile selected
-	// or one whose secrets cannot be opened on this machine; NOT_FOUND; INVALID_ARGUMENT for a profile the build
-	// refuses, or no such mode; UNIMPLEMENTED for a plugin's profile; PERMISSION_DENIED where another user owns the
-	// daemon; the core's own error for a config it refuses or cannot start.
+	// Builds the config of a profile in the daemon, as the app builds it, for this computer (Windows or Linux) with the
+	// computer's settings (GetSettings) in the mode asked, else theirs, and starts the core with it (reloads the one
+	// running), as DesktopService.StartService starts a config with no options: the caller becomes the daemon's owner.
+	// By default proxy mode: the local proxy on 127.0.0.1:2080 with no login, not the system's proxy; VPN mode is the
+	// TUN, which the core opens only with the daemon's privileges. FAILED_PRECONDITION for no profile selected, one
+	// whose secrets cannot be opened on this machine, or settings whose secrets cannot; NOT_FOUND; INVALID_ARGUMENT for
+	// a profile the build refuses, or no such mode; UNIMPLEMENTED for a plugin's profile; PERMISSION_DENIED where another
+	// user owns the daemon; the core's own error for a config it refuses or cannot start.
 	Connect(context.Context, *ConnectRequest) (*Empty, error)
+	// The computer's settings (D-SET-05, -16, -18): what Connect builds the config with. FAILED_PRECONDITION where
+	// their secrets were sealed by another machine or account: they are to be set again.
+	GetSettings(context.Context, *Empty) (*Settings, error)
+	// Sets the settings named to their values in the request, the others as they were, in one write: the settings
+	// then. Watch says SETTINGS. INVALID_ARGUMENT for a name that is no field of Settings, or a value it may not have,
+	// and nothing is changed; FAILED_PRECONDITION where the secrets cannot be opened on this machine and the change
+	// does not set them again.
+	UpdateSettings(context.Context, *SettingsUpdate) (*Settings, error)
 	// What an input is and what its import would add; nothing is written, and no store is needed.
 	Recognize(context.Context, *ImportInput) (*ImportPreview, error)
 	// Imports an input: the task's progress, then its result, the last message (done). Share links and sn:// now; a
@@ -406,6 +444,12 @@ func (UnimplementedNikoServiceServer) ShareProfile(context.Context, *ProfileId) 
 }
 func (UnimplementedNikoServiceServer) Connect(context.Context, *ConnectRequest) (*Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method Connect not implemented")
+}
+func (UnimplementedNikoServiceServer) GetSettings(context.Context, *Empty) (*Settings, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetSettings not implemented")
+}
+func (UnimplementedNikoServiceServer) UpdateSettings(context.Context, *SettingsUpdate) (*Settings, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateSettings not implemented")
 }
 func (UnimplementedNikoServiceServer) Recognize(context.Context, *ImportInput) (*ImportPreview, error) {
 	return nil, status.Error(codes.Unimplemented, "method Recognize not implemented")
@@ -697,6 +741,42 @@ func _NikoService_Connect_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NikoService_GetSettings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).GetSettings(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_GetSettings_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).GetSettings(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_UpdateSettings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SettingsUpdate)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).UpdateSettings(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_UpdateSettings_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).UpdateSettings(ctx, req.(*SettingsUpdate))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _NikoService_Recognize_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ImportInput)
 	if err := dec(in); err != nil {
@@ -788,6 +868,14 @@ var NikoService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Connect",
 			Handler:    _NikoService_Connect_Handler,
+		},
+		{
+			MethodName: "GetSettings",
+			Handler:    _NikoService_GetSettings_Handler,
+		},
+		{
+			MethodName: "UpdateSettings",
+			Handler:    _NikoService_UpdateSettings_Handler,
 		},
 		{
 			MethodName: "Recognize",

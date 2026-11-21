@@ -186,7 +186,8 @@ class Info extends $pb.GeneratedMessage {
   void clearStoreSchema() => $_clearField(3);
 
   /// the version of this API: what the window may ask. 2: the store, Watch and the import; 3: Select and GetSelected;
-  /// 4: ShareProfile; 5: Connect; 6: Connect's mode, the config a computer's
+  /// 4: ShareProfile; 5: Connect; 6: Connect's mode, the config a computer's; 7: the computer's settings, Connect
+  /// with them
   @$pb.TagNumber(4)
   $core.int get api => $_getIZ(3);
   @$pb.TagNumber(4)
@@ -1463,6 +1464,7 @@ class ConnectRequest extends $pb.GeneratedMessage {
   @$pb.TagNumber(1)
   void clearProfileId() => $_clearField(1);
 
+  /// none: the settings' (service_mode)
   @$pb.TagNumber(2)
   ConnectRequest_Mode get mode => $_getN(1);
   @$pb.TagNumber(2)
@@ -1471,6 +1473,422 @@ class ConnectRequest extends $pb.GeneratedMessage {
   $core.bool hasMode() => $_has(1);
   @$pb.TagNumber(2)
   void clearMode() => $_clearField(2);
+}
+
+/// A computer's settings: those its config's build takes (nikoconf.Settings, the app's ConfigSettings), with the app's
+/// values; as JSON their names are the app's (mixedPort). The window's own (its view) are the window's.
+class Settings extends $pb.GeneratedMessage {
+  factory Settings({
+    $core.String? serviceMode,
+    $core.bool? systemProxy,
+    $core.int? tunImplementation,
+    $core.int? mtu,
+    $core.int? ipv6Mode,
+    $core.bool? globalAllowInsecure,
+    $core.String? remoteDns,
+    $core.String? directDns,
+    $core.bool? enableFakeDns,
+    $core.String? domainStrategyForRemote,
+    $core.String? domainStrategyForDirect,
+    $core.String? domainStrategyForServer,
+    $core.bool? dnsOptimisticCache,
+    $core.bool? bypassLanInCore,
+    $core.int? mixedPort,
+    $core.String? mixedUsername,
+    $core.String? mixedPassword,
+    $core.bool? allowAccess,
+    $core.int? trafficSniffing,
+    $core.bool? resolveDestination,
+    $core.bool? refuseQuicOverStreams,
+    $core.bool? icmpNoLocalReply,
+    $core.int? logLevel,
+  }) {
+    final result = Settings._();
+    if (serviceMode != null) result.serviceMode = serviceMode;
+    if (systemProxy != null) result.systemProxy = systemProxy;
+    if (tunImplementation != null) result.tunImplementation = tunImplementation;
+    if (mtu != null) result.mtu = mtu;
+    if (ipv6Mode != null) result.ipv6Mode = ipv6Mode;
+    if (globalAllowInsecure != null)
+      result.globalAllowInsecure = globalAllowInsecure;
+    if (remoteDns != null) result.remoteDns = remoteDns;
+    if (directDns != null) result.directDns = directDns;
+    if (enableFakeDns != null) result.enableFakeDns = enableFakeDns;
+    if (domainStrategyForRemote != null)
+      result.domainStrategyForRemote = domainStrategyForRemote;
+    if (domainStrategyForDirect != null)
+      result.domainStrategyForDirect = domainStrategyForDirect;
+    if (domainStrategyForServer != null)
+      result.domainStrategyForServer = domainStrategyForServer;
+    if (dnsOptimisticCache != null)
+      result.dnsOptimisticCache = dnsOptimisticCache;
+    if (bypassLanInCore != null) result.bypassLanInCore = bypassLanInCore;
+    if (mixedPort != null) result.mixedPort = mixedPort;
+    if (mixedUsername != null) result.mixedUsername = mixedUsername;
+    if (mixedPassword != null) result.mixedPassword = mixedPassword;
+    if (allowAccess != null) result.allowAccess = allowAccess;
+    if (trafficSniffing != null) result.trafficSniffing = trafficSniffing;
+    if (resolveDestination != null)
+      result.resolveDestination = resolveDestination;
+    if (refuseQuicOverStreams != null)
+      result.refuseQuicOverStreams = refuseQuicOverStreams;
+    if (icmpNoLocalReply != null) result.icmpNoLocalReply = icmpNoLocalReply;
+    if (logLevel != null) result.logLevel = logLevel;
+    return result;
+  }
+
+  Settings._();
+
+  factory Settings.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      Settings()..mergeFromBuffer(data, registry);
+  factory Settings.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      Settings()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'Settings',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: Settings.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'serviceMode')
+    ..aOB(2, _omitFieldNames ? '' : 'systemProxy')
+    ..aI(3, _omitFieldNames ? '' : 'tunImplementation')
+    ..aI(4, _omitFieldNames ? '' : 'mtu')
+    ..aI(5, _omitFieldNames ? '' : 'ipv6Mode')
+    ..aOB(6, _omitFieldNames ? '' : 'globalAllowInsecure')
+    ..aOS(7, _omitFieldNames ? '' : 'remoteDns')
+    ..aOS(8, _omitFieldNames ? '' : 'directDns')
+    ..aOB(9, _omitFieldNames ? '' : 'enableFakeDns')
+    ..aOS(10, _omitFieldNames ? '' : 'domainStrategyForRemote')
+    ..aOS(11, _omitFieldNames ? '' : 'domainStrategyForDirect')
+    ..aOS(12, _omitFieldNames ? '' : 'domainStrategyForServer')
+    ..aOB(13, _omitFieldNames ? '' : 'dnsOptimisticCache')
+    ..aOB(14, _omitFieldNames ? '' : 'bypassLanInCore')
+    ..aI(15, _omitFieldNames ? '' : 'mixedPort')
+    ..aOS(16, _omitFieldNames ? '' : 'mixedUsername')
+    ..aOS(17, _omitFieldNames ? '' : 'mixedPassword')
+    ..aOB(18, _omitFieldNames ? '' : 'allowAccess')
+    ..aI(19, _omitFieldNames ? '' : 'trafficSniffing')
+    ..aOB(20, _omitFieldNames ? '' : 'resolveDestination')
+    ..aOB(21, _omitFieldNames ? '' : 'refuseQuicOverStreams')
+    ..aOB(22, _omitFieldNames ? '' : 'icmpNoLocalReply')
+    ..aI(23, _omitFieldNames ? '' : 'logLevel')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  Settings clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  Settings copyWith(void Function(Settings) updates) =>
+      super.copyWith((message) => updates(message as Settings)) as Settings;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use Settings() / Settings.new instead')
+  static Settings create() => Settings._();
+  static $pb.GeneratedMessage $_createMessage() => Settings._();
+  @$core.override
+  Settings createEmptyInstance() => Settings._();
+  @$core.pragma('dart2js:noInline')
+  static Settings getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<Settings>(Settings.$_createMessage);
+  static Settings? _defaultInstance;
+
+  /// proxy or vpn: how the computer's traffic reaches the core (D-NAV-02) where Connect asks no mode; proxy by default
+  @$pb.TagNumber(1)
+  $core.String get serviceMode => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set serviceMode($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasServiceMode() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearServiceMode() => $_clearField(1);
+
+  /// in proxy mode the local proxy is the system's while the core runs
+  @$pb.TagNumber(2)
+  $core.bool get systemProxy => $_getBF(1);
+  @$pb.TagNumber(2)
+  set systemProxy($core.bool value) => $_setBool(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasSystemProxy() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearSystemProxy() => $_clearField(2);
+
+  /// the TUN's stack: 0 gVisor, 1 system, 2 mixed
+  @$pb.TagNumber(3)
+  $core.int get tunImplementation => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set tunImplementation($core.int value) => $_setSignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasTunImplementation() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearTunImplementation() => $_clearField(3);
+
+  /// the TUN's, from 1000 to 10000
+  @$pb.TagNumber(4)
+  $core.int get mtu => $_getIZ(3);
+  @$pb.TagNumber(4)
+  set mtu($core.int value) => $_setSignedInt32(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasMtu() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearMtu() => $_clearField(4);
+
+  /// 0 off, 1 on, 2 first, 3 only
+  @$pb.TagNumber(5)
+  $core.int get ipv6Mode => $_getIZ(4);
+  @$pb.TagNumber(5)
+  set ipv6Mode($core.int value) => $_setSignedInt32(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasIpv6Mode() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearIpv6Mode() => $_clearField(5);
+
+  /// no profile checks its server's certificate
+  @$pb.TagNumber(6)
+  $core.bool get globalAllowInsecure => $_getBF(5);
+  @$pb.TagNumber(6)
+  set globalAllowInsecure($core.bool value) => $_setBool(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasGlobalAllowInsecure() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearGlobalAllowInsecure() => $_clearField(6);
+
+  /// DNS servers, a line each, "#" a comment, as the app reads them: the build takes the first (D-SET-18). "local"
+  /// is the system's
+  @$pb.TagNumber(7)
+  $core.String get remoteDns => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set remoteDns($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasRemoteDns() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearRemoteDns() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.String get directDns => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set directDns($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasDirectDns() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearDirectDns() => $_clearField(8);
+
+  /// fake addresses for the TUN's queries
+  @$pb.TagNumber(9)
+  $core.bool get enableFakeDns => $_getBF(8);
+  @$pb.TagNumber(9)
+  set enableFakeDns($core.bool value) => $_setBool(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasEnableFakeDns() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearEnableFakeDns() => $_clearField(9);
+
+  /// "" for the core's own, else auto, prefer_ipv4, prefer_ipv6, ipv4_only or ipv6_only
+  @$pb.TagNumber(10)
+  $core.String get domainStrategyForRemote => $_getSZ(9);
+  @$pb.TagNumber(10)
+  set domainStrategyForRemote($core.String value) => $_setString(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasDomainStrategyForRemote() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearDomainStrategyForRemote() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.String get domainStrategyForDirect => $_getSZ(10);
+  @$pb.TagNumber(11)
+  set domainStrategyForDirect($core.String value) => $_setString(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasDomainStrategyForDirect() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearDomainStrategyForDirect() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.String get domainStrategyForServer => $_getSZ(11);
+  @$pb.TagNumber(12)
+  set domainStrategyForServer($core.String value) => $_setString(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasDomainStrategyForServer() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearDomainStrategyForServer() => $_clearField(12);
+
+  /// an expired cache entry answered at once and refreshed behind
+  @$pb.TagNumber(13)
+  $core.bool get dnsOptimisticCache => $_getBF(12);
+  @$pb.TagNumber(13)
+  set dnsOptimisticCache($core.bool value) => $_setBool(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasDnsOptimisticCache() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearDnsOptimisticCache() => $_clearField(13);
+
+  /// private addresses go direct (D-SET-16)
+  @$pb.TagNumber(14)
+  $core.bool get bypassLanInCore => $_getBF(13);
+  @$pb.TagNumber(14)
+  set bypassLanInCore($core.bool value) => $_setBool(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasBypassLanInCore() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearBypassLanInCore() => $_clearField(14);
+
+  /// the local proxy: its port, from 1 to 65535
+  @$pb.TagNumber(15)
+  $core.int get mixedPort => $_getIZ(14);
+  @$pb.TagNumber(15)
+  set mixedPort($core.int value) => $_setSignedInt32(14, value);
+  @$pb.TagNumber(15)
+  $core.bool hasMixedPort() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearMixedPort() => $_clearField(15);
+
+  /// its login, none where the password is empty: the user's name (no colon; empty: "user") and password, printable
+  /// characters, 255 bytes at most
+  @$pb.TagNumber(16)
+  $core.String get mixedUsername => $_getSZ(15);
+  @$pb.TagNumber(16)
+  set mixedUsername($core.String value) => $_setString(15, value);
+  @$pb.TagNumber(16)
+  $core.bool hasMixedUsername() => $_has(15);
+  @$pb.TagNumber(16)
+  void clearMixedUsername() => $_clearField(16);
+
+  @$pb.TagNumber(17)
+  $core.String get mixedPassword => $_getSZ(16);
+  @$pb.TagNumber(17)
+  set mixedPassword($core.String value) => $_setString(16, value);
+  @$pb.TagNumber(17)
+  $core.bool hasMixedPassword() => $_has(16);
+  @$pb.TagNumber(17)
+  void clearMixedPassword() => $_clearField(17);
+
+  /// it listens on every address, not 127.0.0.1 alone: other devices of the LAN may use it
+  @$pb.TagNumber(18)
+  $core.bool get allowAccess => $_getBF(17);
+  @$pb.TagNumber(18)
+  set allowAccess($core.bool value) => $_setBool(17, value);
+  @$pb.TagNumber(18)
+  $core.bool hasAllowAccess() => $_has(17);
+  @$pb.TagNumber(18)
+  void clearAllowAccess() => $_clearField(18);
+
+  /// 0 off, 1 on
+  @$pb.TagNumber(19)
+  $core.int get trafficSniffing => $_getIZ(18);
+  @$pb.TagNumber(19)
+  set trafficSniffing($core.int value) => $_setSignedInt32(18, value);
+  @$pb.TagNumber(19)
+  $core.bool hasTrafficSniffing() => $_has(18);
+  @$pb.TagNumber(19)
+  void clearTrafficSniffing() => $_clearField(19);
+
+  /// domains resolved before routing
+  @$pb.TagNumber(20)
+  $core.bool get resolveDestination => $_getBF(19);
+  @$pb.TagNumber(20)
+  set resolveDestination($core.bool value) => $_setBool(19, value);
+  @$pb.TagNumber(20)
+  $core.bool hasResolveDestination() => $_has(19);
+  @$pb.TagNumber(20)
+  void clearResolveDestination() => $_clearField(20);
+
+  /// QUIC refused on a profile that carries UDP inside a stream, so browsers go to TCP at once
+  @$pb.TagNumber(21)
+  $core.bool get refuseQuicOverStreams => $_getBF(20);
+  @$pb.TagNumber(21)
+  set refuseQuicOverStreams($core.bool value) => $_setBool(20, value);
+  @$pb.TagNumber(21)
+  $core.bool hasRefuseQuicOverStreams() => $_has(20);
+  @$pb.TagNumber(21)
+  void clearRefuseQuicOverStreams() => $_clearField(21);
+
+  /// an echo no outbound carries refused, not answered by the TUN
+  @$pb.TagNumber(22)
+  $core.bool get icmpNoLocalReply => $_getBF(21);
+  @$pb.TagNumber(22)
+  set icmpNoLocalReply($core.bool value) => $_setBool(21, value);
+  @$pb.TagNumber(22)
+  $core.bool hasIcmpNoLocalReply() => $_has(21);
+  @$pb.TagNumber(22)
+  void clearIcmpNoLocalReply() => $_clearField(22);
+
+  /// the core's log: 0 none (panic alone), 1 warn, 2 info, 3 debug, 4 trace
+  @$pb.TagNumber(23)
+  $core.int get logLevel => $_getIZ(22);
+  @$pb.TagNumber(23)
+  set logLevel($core.int value) => $_setSignedInt32(22, value);
+  @$pb.TagNumber(23)
+  $core.bool hasLogLevel() => $_has(22);
+  @$pb.TagNumber(23)
+  void clearLogLevel() => $_clearField(23);
+}
+
+class SettingsUpdate extends $pb.GeneratedMessage {
+  factory SettingsUpdate({
+    Settings? settings,
+    $core.Iterable<$core.String>? fields,
+  }) {
+    final result = SettingsUpdate._();
+    if (settings != null) result.settings = settings;
+    if (fields != null) result.fields.addAll(fields);
+    return result;
+  }
+
+  SettingsUpdate._();
+
+  factory SettingsUpdate.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SettingsUpdate()..mergeFromBuffer(data, registry);
+  factory SettingsUpdate.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SettingsUpdate()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SettingsUpdate',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: SettingsUpdate.$_createMessage)
+    ..aOM<Settings>(1, _omitFieldNames ? '' : 'settings',
+        subBuilder: Settings.$_createMessage)
+    ..pPS(2, _omitFieldNames ? '' : 'fields')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SettingsUpdate clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SettingsUpdate copyWith(void Function(SettingsUpdate) updates) =>
+      super.copyWith((message) => updates(message as SettingsUpdate))
+          as SettingsUpdate;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use SettingsUpdate() / SettingsUpdate.new instead')
+  static SettingsUpdate create() => SettingsUpdate._();
+  static $pb.GeneratedMessage $_createMessage() => SettingsUpdate._();
+  @$core.override
+  SettingsUpdate createEmptyInstance() => SettingsUpdate._();
+  @$core.pragma('dart2js:noInline')
+  static SettingsUpdate getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<SettingsUpdate>(
+          SettingsUpdate.$_createMessage);
+  static SettingsUpdate? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  Settings get settings => $_getN(0);
+  @$pb.TagNumber(1)
+  set settings(Settings value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSettings() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSettings() => $_clearField(1);
+  @$pb.TagNumber(1)
+  Settings ensureSettings() => $_ensure(0);
+
+  /// the names of the fields that change, as this file has them (mixed_port); the others' values are not read
+  @$pb.TagNumber(2)
+  $pb.PbList<$core.String> get fields => $_getList(1);
 }
 
 class ProfileIds extends $pb.GeneratedMessage {

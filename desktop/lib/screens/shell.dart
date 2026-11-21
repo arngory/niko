@@ -9,9 +9,11 @@ import '../state/connection_controller.dart';
 import '../state/connections_feed.dart';
 import '../state/log_feed.dart';
 import '../state/profiles_feed.dart';
+import '../state/settings_feed.dart';
 import '../state/stun_tool.dart';
 import '../state/window_settings.dart';
 import '../theme/niko_theme.dart';
+import '../settings/settings_screen.dart';
 import '../ui/header.dart';
 import 'add_screen.dart';
 import 'connections_screen.dart';
@@ -19,9 +21,9 @@ import 'log_screen.dart';
 import 'main_screen.dart';
 import 'nodes_screen.dart';
 
-/// The sections the window has so far. Проверка маршрута, Правила and Настройки come with NikoService (stage 3): a
-/// section is in the header only when its screen exists.
-enum AppSection { home, nodes, connections, log }
+/// The sections the window has so far. Проверка маршрута and Правила come with NikoService (stage 3): a section is in
+/// the header only when its screen exists.
+enum AppSection { home, nodes, connections, log, settings }
 
 /// The window under its header: the section shown, in the view chosen. D-NAV-01, D-NAV-03.
 ///
@@ -58,6 +60,7 @@ class _NikoShellState extends State<NikoShell> {
   late ConnectionsFeed _connections;
   late StunTool _stun;
   late ProfilesFeed _profiles;
+  late SettingsFeed _settings;
   bool _adding = false;
   AppSection _section = AppSection.home;
   late bool _advanced = widget.settings.advanced;
@@ -73,6 +76,7 @@ class _NikoShellState extends State<NikoShell> {
     _connections = ConnectionsFeed(widget.controller);
     _stun = StunTool(widget.controller);
     _profiles = ProfilesFeed(widget.controller);
+    _settings = SettingsFeed(widget.controller);
     widget.controller.addListener(_changed);
   }
 
@@ -82,6 +86,7 @@ class _NikoShellState extends State<NikoShell> {
     _connections.dispose();
     _stun.dispose();
     _profiles.dispose();
+    _settings.dispose();
   }
 
   @override
@@ -100,9 +105,9 @@ class _NikoShellState extends State<NikoShell> {
     super.dispose();
   }
 
-  // the connections screen says whether the core runs
+  // the connections screen says whether the core runs; the settings, whether the daemon is there
   void _changed() {
-    if (_section == AppSection.connections) setState(() {});
+    if (_section == AppSection.connections || _section == AppSection.settings) setState(() {});
   }
 
   // each feed reads the daemon only while its screen is the one shown
@@ -110,6 +115,7 @@ class _NikoShellState extends State<NikoShell> {
     _section == AppSection.log ? _log.open() : _log.close();
     _section == AppSection.connections ? _connections.show() : _connections.hide();
     _section == AppSection.nodes ? _profiles.show() : _profiles.hide();
+    _section == AppSection.settings ? _settings.show() : _settings.hide();
   }
 
   void _show(AppSection section) {
@@ -150,6 +156,7 @@ class _NikoShellState extends State<NikoShell> {
               (AppSection.nodes, strings.sectionNodes),
               if (_advanced) (AppSection.connections, strings.sectionConnections),
               (AppSection.log, strings.sectionLog),
+              (AppSection.settings, strings.sectionSettings),
             ],
             section: _section,
             onSection: _show,
@@ -182,6 +189,23 @@ class _NikoShellState extends State<NikoShell> {
                       ),
               ),
               AppSection.log => LogScreen(feed: _log, stun: _stun),
+              AppSection.settings => ListenableBuilder(
+                listenable: _settings,
+                builder: (context, _) => SettingsScreen(
+                  values: _settings,
+                  strings: strings,
+                  notice: switch (state.link) {
+                    LinkPhase.ready when _settings.loaded => null,
+                    LinkPhase.ready when _settings.readError.isNotEmpty => (
+                      strings.settingsUnread,
+                      _settings.readError,
+                    ),
+                    // read in a moment: nothing to say yet
+                    LinkPhase.ready => ('', ''),
+                    _ => (strings.storeNoLink, ''),
+                  },
+                ),
+              ),
             },
           ),
         ],
