@@ -901,17 +901,27 @@ if [ -x "$naive_links/bindleak" ] && timeout 20 adb shell "command -v sqlite3" >
     shell_from=$(grep -F "\"GET /e2e?$tag " "$weblog" | head -1 | cut -d' ' -f1)
     shell_said=$(head -c 200 <<< "$body")
   }
-  shell_fetch - shell-plain
-  echo "uid 2000, a plain socket: from ${shell_from:-nowhere} (said: $shell_said)"
-  shell_fetch tun0 shell-tun0
-  echo "uid 2000, bound to tun0: from ${shell_from:-nowhere} (said: $shell_said)"
-  if [ "$shell_from" = "$node" ]; then
-    leak=yes
-    echo "::warning::an app the VPN leaves out reached the internet through the tunnel by binding to tun0: the node's address leaks to it"
-  elif [ -n "$shell_from" ]; then
-    leak="no (from $shell_from)"
+  if [ "$from" != "$node" ]; then
+    # no tunnel to bind to (the settings not taken, Hysteria2 not up): nothing to judge
+    leak="skipped (the VPN not up: root's request from ${from:-nowhere})"
   else
-    leak="no (refused or no answer)"
+    shell_fetch - shell-plain
+    echo "uid 2000, a plain socket: from ${shell_from:-nowhere} (said: $shell_said)"
+    plain_from=$shell_from
+    shell_fetch tun0 shell-tun0
+    echo "uid 2000, bound to tun0: from ${shell_from:-nowhere} (said: $shell_said)"
+    if [ "$shell_from" = "$node" ]; then
+      leak=yes
+      echo "::warning::an app the VPN leaves out reached the internet through the tunnel by binding to tun0: the node's address leaks to it"
+    elif [ -n "$shell_from" ]; then
+      leak="no (from $shell_from)"
+    elif grep -q '^dial:' <<< "$shell_said"; then
+      # the system refused the bind or the tunnel refused the connection: which, the error says
+      leak="unknown (the socket did not connect: ${shell_said#dial: })"
+    else
+      leak="no (no answer through the tunnel)"
+    fi
+    [ "$plain_from" = "$node" ] && echo "::warning::uid 2000 went through the VPN with a plain socket: the per-app bypass did not take"
   fi
   timeout 60 adb shell am start -n "$pkg/$pkg.QuickToggleShortcut" > /dev/null 2>&1
   timeout 20 adb shell am force-stop "$pkg"
