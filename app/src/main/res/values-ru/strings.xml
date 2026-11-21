@@ -1135,5 +1135,7 @@
     <string name="home_no_profile_hint">Добавьте ссылку, QR-код или приглашение узла</string>
     <string name="home_unreachable">не отвечает</string>
     <string name="home_choose_profile">Выбрать конфиг</string>
+    <string name="home_rate_down">приём</string>
+    <string name="home_rate_up">отдача</string>
     <string name="menu_home">Главная</string>
 </resources>

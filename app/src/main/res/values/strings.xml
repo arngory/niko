@@ -1208,5 +1208,7 @@
     <string name="home_no_profile_hint">Add a link, a QR code or a node\'s invite</string>
     <string name="home_unreachable">no answer</string>
     <string name="home_choose_profile">Choose a config</string>
+    <string name="home_rate_down">received</string>
+    <string name="home_rate_up">sent</string>
     <string name="menu_home">Home</string>
 </resources>
