@@ -18,6 +18,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -35,10 +36,10 @@ object ConfigsTest {
     /** the group under test (one test at a time, the old list's included: DataStore.runningTest) */
     val testing = MutableStateFlow<Set<Long>>(emptySet())
 
-    /** the results since the sheet last closed, by profile */
+    /** the results of the test running or just stored, by profile, until the rows are read again (taken) */
     val results = MutableStateFlow<Map<Long, Result>>(emptyMap())
 
-    /** counts the tests stored: the main screen reads its profile's ping again */
+    /** counts the tests stored: the main screen takes their results and reads its rows again */
     val stored = MutableStateFlow(0)
 
     private var job: Job? = null
@@ -50,6 +51,7 @@ object ConfigsTest {
         if (DataStore.runningTest) return false
         DataStore.runningTest = true
         this.service = service
+        results.value = emptyMap()
         testing.value = setOf(groupId)
         job = runOnDefaultDispatcher { run(groupId, service) }
         return true
@@ -62,7 +64,10 @@ object ConfigsTest {
         service?.let { runCatching { it.cancelTests() } }
     }
 
-    /** The sheet closed: what it showed of the tests goes, the next opening reads the stored results. */
+    /**
+     * The results stored and read again (or the sheet closed): they go, so that they never stand over what another
+     * test, an update or an edit writes later. Nothing while a test runs: its results are not stored yet.
+     */
     fun forget() {
         if (testing.value.isEmpty()) results.value = emptyMap()
     }
@@ -78,7 +83,9 @@ object ConfigsTest {
                 repeat(workers) {
                     launch(Dispatchers.IO) {
                         val urlTest = UrlTest()
-                        while (true) {
+                        // the service's test is a blocking Binder call that does not suspend: the stop is seen here,
+                        // between two tests, and after one (its result, come after the stop, is not shown)
+                        while (isActive) {
                             val profile = profiles.poll() ?: break
                             try {
                                 profile.ping = urlTest.doTest(profile, service)
@@ -93,6 +100,7 @@ object ConfigsTest {
                                 profile.status = 3
                                 profile.error = e.readableMessage
                             }
+                            if (!isActive) break
                             tested += profile
                             val result = Result(profile.ping.takeIf { profile.status == 1 && it > 0 }, profile.status > 1)
                             results.update { it + (profile.id to result) }

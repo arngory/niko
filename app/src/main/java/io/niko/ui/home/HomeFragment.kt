@@ -28,7 +28,8 @@ class HomeFragment : Fragment() {
                 val testing by ConfigsTest.testing.collectAsState()
                 val results by ConfigsTest.results.collectAsState()
                 val stored by ConfigsTest.stored.collectAsState()
-                LaunchedEffect(stored) { if (stored > 0) main.refreshHome() }
+                // a test stored (also while this screen was away): its results into the rows, then read again
+                LaunchedEffect(stored) { if (stored > 0) main.testStored() }
                 NikoTheme {
                     HomeScreen(
                         main.homeState.value, main.homeView.value, main.homeActions,

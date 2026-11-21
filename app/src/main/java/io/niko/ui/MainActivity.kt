@@ -187,6 +187,18 @@ class MainActivity : ThemedActivity(),
         }
     }
 
+    /**
+     * A sheet's test stored (ConfigsTest.stored): its results go into the rows shown, then stop standing over them, and
+     * the main screen and the sheet read the database again. Main thread.
+     */
+    fun testStored() {
+        if (ConfigsTest.testing.value.isEmpty()) {
+            configsState.value = configsState.value?.let { ConfigsLoader.withResults(it, ConfigsTest.results.value) }
+            ConfigsTest.forget()
+        }
+        refreshHome()
+    }
+
     /** What the configs' sheet asks for: the profile to use, a group's test, the editor; adding in the old list. */
     val configsActions = object : ConfigsActions {
         // as the old list's row does: the chosen profile at once, a running service reloaded with it
