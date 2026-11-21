@@ -377,7 +377,7 @@ hy2o_pid() {
 }
 old_pid=$(hy2o_pid)
 [ -n "$old_pid" ] || fail "no niko-server of hy2o on the node to restart"
-docker exec rc-node kill "$old_pid"
+docker exec rc-node sh -c "kill $old_pid" || fail "niko-server of hy2o (pid $old_pid) not stopped"
 for i in $(seq 150); do
   new_pid=$(hy2o_pid)
   [ -n "$new_pid" ] && [ "$new_pid" != "$old_pid" ] && docker exec rc-node test -S /run/niko/hy2o/stats.sock && break
