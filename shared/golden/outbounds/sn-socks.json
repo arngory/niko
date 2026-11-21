@@ -1,0 +1,8 @@
+{
+  "server": "198.51.100.140",
+  "server_port": 1080,
+  "version": "5",
+  "username": "alice",
+  "password": "fake-pass",
+  "type": "socks"
+}

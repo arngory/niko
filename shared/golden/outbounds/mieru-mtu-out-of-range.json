@@ -1,0 +1,9 @@
+{
+  "type": "mieru",
+  "server": "mieru.example.com",
+  "password": "pass",
+  "traffic_pattern": "CCoQAQ==",
+  "server_port": 2028,
+  "transport": "tcp",
+  "username": "user"
+}

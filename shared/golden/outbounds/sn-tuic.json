@@ -1,0 +1,19 @@
+{
+  "server": "203.0.113.151",
+  "server_port": 443,
+  "uuid": "00000000-0000-4000-8000-000000000151",
+  "password": "fake-token",
+  "congestion_control": "bbr",
+  "udp_relay_mode": "quic",
+  "zero_rtt_handshake": true,
+  "tls": {
+    "enabled": true,
+    "disable_sni": true,
+    "server_name": "tuic.example.com",
+    "insecure": true,
+    "alpn": [
+      "h3"
+    ]
+  },
+  "type": "tuic"
+}

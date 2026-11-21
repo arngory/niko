@@ -1,0 +1,9 @@
+{
+  "type": "mieru",
+  "server": "203.0.113.100",
+  "password": "fake-mieru-pass",
+  "multiplexing": "MULTIPLEXING_HIGH",
+  "server_port": 2027,
+  "transport": "tcp",
+  "username": "mieru-user"
+}

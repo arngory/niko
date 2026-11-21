@@ -1,0 +1,23 @@
+{
+  "server": "203.0.113.146",
+  "server_port": 443,
+  "password": "fake-tg-password",
+  "tls": {
+    "enabled": true,
+    "server_name": "tg.example.com",
+    "insecure": false
+  },
+  "transport": {
+    "path": "/tg",
+    "headers": {
+      "Host": "tg.example.com"
+    },
+    "type": "ws"
+  },
+  "type": "trojan",
+  "trojan_go_mux": true,
+  "trojan_go_shadowsocks": {
+    "method": "aes-128-gcm",
+    "password": "fake-ss"
+  }
+}

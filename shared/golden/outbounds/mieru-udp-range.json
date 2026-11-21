@@ -1,0 +1,10 @@
+{
+  "type": "mieru",
+  "server": "2001:db8::100",
+  "password": "p:w",
+  "handshake_mode": "HANDSHAKE_NO_WAIT",
+  "server_port": 3000,
+  "transport": "udp",
+  "username": "u@example",
+  "mtu": 1500
+}

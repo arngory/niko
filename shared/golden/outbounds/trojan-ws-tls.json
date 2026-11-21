@@ -1,0 +1,26 @@
+{
+  "server": "203.0.113.80",
+  "server_port": 443,
+  "password": "fake-trojan-password",
+  "tls": {
+    "enabled": true,
+    "server_name": "trojan.example.com",
+    "insecure": false,
+    "alpn": [
+      "h2",
+      "http/1.1"
+    ],
+    "utls": {
+      "enabled": true,
+      "fingerprint": "chrome"
+    }
+  },
+  "transport": {
+    "path": "/trojan",
+    "headers": {
+      "Host": "trojan.example.com"
+    },
+    "type": "ws"
+  },
+  "type": "trojan"
+}

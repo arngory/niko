@@ -1,0 +1,17 @@
+{
+  "type": "naive",
+  "server": "naive.example.com",
+  "password": "fake-pass",
+  "insecure_concurrency": 2,
+  "extra_headers": {
+    "X-Pad": "1",
+    "X-Other": "2"
+  },
+  "server_port": 443,
+  "tls": {
+    "enabled": true,
+    "server_name": "naive.example.com"
+  },
+  "quic": true,
+  "username": "user"
+}

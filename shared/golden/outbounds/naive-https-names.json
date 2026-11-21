@@ -1,0 +1,11 @@
+{
+  "type": "naive",
+  "server": "naive.example.com",
+  "password": "examplepass0000000000000",
+  "server_port": 443,
+  "tls": {
+    "enabled": true,
+    "server_name": "naive.example.com"
+  },
+  "username": "niko"
+}

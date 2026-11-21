@@ -1,0 +1,7 @@
+{
+  "server": "192.0.2.32",
+  "server_port": 8390,
+  "method": "aes-256-gcm",
+  "password": "fake-pass",
+  "type": "shadowsocks"
+}

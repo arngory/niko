@@ -1,0 +1,18 @@
+{
+  "server": "grpc.example.net",
+  "server_port": 8443,
+  "uuid": "00000000-0000-4000-8000-000000000063",
+  "security": "auto",
+  "alter_id": 0,
+  "tls": {
+    "enabled": true,
+    "server_name": "grpc.example.net",
+    "insecure": false
+  },
+  "packet_encoding": "",
+  "transport": {
+    "service_name": "svc",
+    "type": "grpc"
+  },
+  "type": "vmess"
+}

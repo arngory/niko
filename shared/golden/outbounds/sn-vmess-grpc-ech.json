@@ -1,0 +1,26 @@
+{
+  "server": "grpc.example.com",
+  "server_port": 8443,
+  "uuid": "00000000-0000-4000-8000-000000000145",
+  "security": "aes-128-gcm",
+  "alter_id": 4,
+  "tls": {
+    "enabled": true,
+    "insecure": false,
+    "certificate": "-----BEGIN CERTIFICATE-----\nMIIBfake\n-----END CERTIFICATE-----",
+    "ech": {
+      "enabled": true,
+      "config": [
+        "-----BEGIN ECH CONFIGS-----",
+        "AEX+DQBBpQAgACCd/w==",
+        "-----END ECH CONFIGS-----"
+      ]
+    }
+  },
+  "packet_encoding": "",
+  "transport": {
+    "service_name": "svc",
+    "type": "grpc"
+  },
+  "type": "vmess"
+}

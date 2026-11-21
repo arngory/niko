@@ -1,0 +1,20 @@
+{
+  "type": "naive",
+  "server": "2001:db8::7",
+  "password": "p@ss",
+  "insecure_concurrency": 2,
+  "extra_headers": {
+    "X-Token": "a b",
+    "X-Mode": "fast"
+  },
+  "server_port": 8443,
+  "tls": {
+    "enabled": true,
+    "server_name": "quic.example.com",
+    "certificate": [
+      "ROOT"
+    ]
+  },
+  "quic": true,
+  "username": "user"
+}

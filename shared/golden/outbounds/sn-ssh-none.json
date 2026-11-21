@@ -1,0 +1,7 @@
+{
+  "server": "192.0.2.150",
+  "server_port": 22,
+  "user": "root",
+  "password": "",
+  "type": "ssh"
+}

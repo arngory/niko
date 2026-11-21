@@ -1,0 +1,9 @@
+{
+  "server": "2001:db8::131",
+  "server_port": 443,
+  "tls": {
+    "enabled": true
+  },
+  "password": "p@ss",
+  "type": "anytls"
+}

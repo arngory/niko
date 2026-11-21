@@ -1,0 +1,10 @@
+{
+  "server": "trojan.example.org",
+  "server_port": 443,
+  "password": "fake-password",
+  "tls": {
+    "enabled": true,
+    "insecure": false
+  },
+  "type": "trojan"
+}

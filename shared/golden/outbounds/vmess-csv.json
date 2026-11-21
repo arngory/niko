@@ -1,0 +1,20 @@
+{
+  "server": "203.0.113.65",
+  "server_port": 443,
+  "uuid": "00000000-0000-4000-8000-000000000065",
+  "security": "chacha20-ietf-poly1305",
+  "alter_id": 0,
+  "tls": {
+    "enabled": true,
+    "insecure": false
+  },
+  "packet_encoding": "",
+  "transport": {
+    "path": "/csv",
+    "headers": {
+      "Host": "csv.example.com"
+    },
+    "type": "ws"
+  },
+  "type": "vmess"
+}

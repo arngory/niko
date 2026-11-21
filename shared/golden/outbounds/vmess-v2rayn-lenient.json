@@ -1,0 +1,18 @@
+{
+  "server": "vmess.example.org",
+  "server_port": 443,
+  "uuid": "00000000-0000-4000-8000-000000000064",
+  "security": "auto",
+  "alter_id": 0,
+  "tls": {
+    "enabled": true,
+    "insecure": false
+  },
+  "packet_encoding": "",
+  "transport": {
+    "path": "/lA",
+    "headers": {},
+    "type": "ws"
+  },
+  "type": "vmess"
+}

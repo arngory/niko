@@ -1,0 +1,7 @@
+{
+  "server": "198.51.100.50",
+  "server_port": 3128,
+  "username": "user",
+  "password": "fake-pass",
+  "type": "http"
+}

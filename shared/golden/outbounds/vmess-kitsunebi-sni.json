@@ -1,0 +1,19 @@
+{
+  "server": "203.0.113.162",
+  "server_port": 443,
+  "uuid": "00000000-0000-4000-8000-000000000162",
+  "security": "none",
+  "alter_id": 0,
+  "tls": {
+    "enabled": true,
+    "server_name": "sni.example.org",
+    "insecure": false
+  },
+  "packet_encoding": "",
+  "transport": {
+    "path": "/",
+    "headers": {},
+    "type": "ws"
+  },
+  "type": "vmess"
+}

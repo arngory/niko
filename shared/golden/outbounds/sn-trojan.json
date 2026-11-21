@@ -1,0 +1,16 @@
+{
+  "server": "trojan.example.com",
+  "server_port": 443,
+  "password": "fake-trojan-password",
+  "tls": {
+    "enabled": true,
+    "server_name": "trojan.example.com",
+    "insecure": true
+  },
+  "transport": {
+    "host": "trojan.example.com",
+    "path": "/up",
+    "type": "httpupgrade"
+  },
+  "type": "trojan"
+}
