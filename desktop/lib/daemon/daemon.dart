@@ -423,6 +423,11 @@ abstract interface class Daemon {
   /// The link to share a profile by, as the app writes it (NikoService.ShareProfile, D-PROFILE-07).
   Future<String> shareLink(int id);
 
+  /// Starts the core with a stored profile ([profileId] 0: the selected one), its config built by the daemon
+  /// (NikoService.Connect, D-MAIN-04). Fails with the daemon's code: no profile selected, a plugin's profile, a
+  /// service another user owns, a config the core refuses.
+  Future<void> connect(int profileId);
+
   /// Puts profiles into a group before one of its profiles, or at its end with [before] 0 (NikoService.MoveProfiles).
   Future<void> moveProfiles(List<int> ids, {required int groupId, int before = 0});
 
@@ -798,6 +803,10 @@ class GrpcDaemon implements Daemon {
   @override
   Future<String> shareLink(int id) async =>
       (await _niko.shareProfile(niko.ProfileId(id: Int64(id)), options: _short)).link;
+
+  @override
+  Future<void> connect(int profileId) =>
+      _niko.connect(niko.ConnectRequest(profileId: Int64(profileId)), options: _long);
 
   @override
   Future<void> moveProfiles(List<int> ids, {required int groupId, int before = 0}) => _niko.moveProfiles(

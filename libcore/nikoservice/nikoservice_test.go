@@ -147,11 +147,11 @@ func TestGetInfo(t *testing.T) {
 }
 
 // The policies the daemon applies: the info to any caller it verified, the core's routing to its owner, outside the
-// daemon's lifecycle lock.
+// daemon's lifecycle lock; Connect any verified caller's, its start checking the owner under that lock.
 func TestServicePolicy(t *testing.T) {
 	service := Service()
 	if service.Desc.ServiceName != "niko.v1.NikoService" || service.Policy != boxdd.PolicyCaller ||
-		service.Methods["RouteTest"] != boxdd.PolicyOwnerUnlocked {
+		service.Methods["RouteTest"] != boxdd.PolicyOwnerUnlocked || len(service.Methods) != 1 {
 		t.Fatalf("%+v", service)
 	}
 }

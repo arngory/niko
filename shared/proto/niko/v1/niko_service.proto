@@ -53,6 +53,13 @@ service NikoService {
   // NOT_FOUND; FAILED_PRECONDITION where its secrets cannot be opened on this machine; UNIMPLEMENTED for a kind with
   // no link (a plugin's profile).
   rpc ShareProfile(ProfileId) returns (ShareLink);
+  // Builds the config of a profile in the daemon, as the app builds it, and starts the core with it (reloads the one
+  // running), as DesktopService.StartService starts a config with no options: the caller becomes the daemon's owner.
+  // Until the desktop has settings of its own, the app's defaults in proxy mode: the local proxy on 127.0.0.1:2080
+  // with no login, no TUN. FAILED_PRECONDITION for no profile selected or one whose secrets cannot be opened on this
+  // machine; NOT_FOUND; INVALID_ARGUMENT for a profile the build refuses; UNIMPLEMENTED for a plugin's profile;
+  // PERMISSION_DENIED where another user owns the daemon; the core's own error for a config it refuses.
+  rpc Connect(ConnectRequest) returns (Empty);
 
   // What an input is and what its import would add; nothing is written, and no store is needed.
   rpc Recognize(ImportInput) returns (ImportPreview);
@@ -73,7 +80,7 @@ message Info {
   // the schema of the daemon's store (nikostore's); 0: a daemon without one
   int32 store_schema = 3;
   // the version of this API: what the window may ask. 2: the store, Watch and the import; 3: Select and GetSelected;
-  // 4: ShareProfile
+  // 4: ShareProfile; 5: Connect
   int32 api = 4;
 }
 
@@ -212,6 +219,11 @@ message ProfileId {
 
 message ShareLink {
   string link = 1;
+}
+
+message ConnectRequest {
+  // the profile; 0: the selected one
+  int64 profile_id = 1;
 }
 
 message ProfileIds {
