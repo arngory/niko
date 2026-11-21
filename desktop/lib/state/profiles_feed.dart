@@ -32,6 +32,8 @@ class ProfilesFeed extends ChangeNotifier {
   bool _disposed = false;
   StreamSubscription<StoreChange>? _subscription;
   Timer? _retry;
+  // the reads a change asks for, one after another: a later change's read never lands before an earlier one's
+  Future<void> _reading = Future.value();
 
   /// The section is shown: read the store and follow it.
   void show() {
@@ -58,7 +60,7 @@ class ProfilesFeed extends ChangeNotifier {
     final daemon = _link.daemon;
     if (daemon == null) return;
     _subscription = daemon.storeChanges().listen(
-          (change) => unawaited(_changed(daemon, change)),
+          (change) => _reading = _reading.then((_) => _changed(daemon, change)),
           onError: (Object e) => _ended(e),
           onDone: () => _ended(null),
           cancelOnError: true,
@@ -91,7 +93,7 @@ class ProfilesFeed extends ChangeNotifier {
     _subscription = null;
     if (error != null) this.error = '$error';
     if (!_shown || _disposed) return;
-    if (!_disposed) notifyListeners();
+    notifyListeners();
     // the daemon may come back: read again in a while
     _retry = Timer(const Duration(seconds: 2), () {
       _retry = null;
