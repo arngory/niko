@@ -6,6 +6,8 @@
   hello.py compare REFERENCE GOT     compare two such records, part by part; --strict: exit 1 when they differ
   hello.py show RECORD               its parts, and its extensions in the order sent (a browser that does not
                                      shuffle them is known by it too)
+  hello.py shuffled A B              "yes" if two records of one client have their extensions in different orders
+                                     (the client shuffles them per connection), else "no"
 
 The naive outbound is Chromium's network stack, so its ClientHello should be Chrome's: this shows where it is not
 (an extension the library build leaves out, a list in another order). GREASE values count as one; the server name,
@@ -192,9 +194,16 @@ def show(path):
     return 0
 
 
+def order(path):
+    _, extensions = parse(path)
+    return ["GREASE" if grease(ext) else ext for ext, _ in extensions]
+
+
 if __name__ == "__main__":
     if len(sys.argv) >= 4 and sys.argv[1] == "capture":
         capture(sys.argv[2], sys.argv[3])
+    elif len(sys.argv) >= 4 and sys.argv[1] == "shuffled":
+        print("yes" if order(sys.argv[2]) != order(sys.argv[3]) else "no")
     elif len(sys.argv) >= 3 and sys.argv[1] == "show":
         sys.exit(show(sys.argv[2]))
     elif len(sys.argv) >= 4 and sys.argv[1] == "compare":
