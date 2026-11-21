@@ -1,0 +1,31 @@
+{
+  "profile": 2,
+  "profiles": [
+    {
+      "id": 1,
+      "group": 1,
+      "order": 1,
+      "link": "ss-sip002"
+    },
+    {
+      "id": 2,
+      "group": 1,
+      "order": 2,
+      "link": "vless-reality-vision"
+    },
+    {
+      "id": 3,
+      "group": 1,
+      "order": 3,
+      "link": "hy2-obfs"
+    }
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "order": 1,
+      "name": "main",
+      "isSelector": true
+    }
+  ]
+}

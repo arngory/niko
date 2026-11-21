@@ -1,0 +1,141 @@
+{
+  "log": {
+    "level": "panic"
+  },
+  "dns": {
+    "servers": [
+      {
+        "type": "local",
+        "tag": "dns-local"
+      },
+      {
+        "type": "local",
+        "tag": "dns-direct"
+      },
+      {
+        "type": "https",
+        "tag": "dns-remote",
+        "server": "dns.google",
+        "path": "/dns-query",
+        "domain_resolver": {
+          "server": "dns-direct",
+          "strategy": "prefer_ipv6"
+        },
+        "detour": "proxy"
+      }
+    ],
+    "rules": [
+      {
+        "domain": [
+          "dns.google"
+        ],
+        "strategy": "prefer_ipv6",
+        "server": "dns-direct"
+      },
+      {
+        "domain_suffix": [
+          "niko.internal"
+        ],
+        "action": "predefined",
+        "rcode": "NXDOMAIN"
+      }
+    ],
+    "final": "dns-remote",
+    "strategy": "prefer_ipv6"
+  },
+  "inbounds": [
+    {
+      "mtu": 1500,
+      "address": [
+        "172.19.0.1/28",
+        "fdfe:dcba:9876::1/126"
+      ],
+      "stack": "system",
+      "type": "tun",
+      "tag": "tun-in"
+    }
+  ],
+  "outbounds": [
+    {
+      "server": "203.0.113.7",
+      "server_port": 443,
+      "uuid": "00000000-0000-4000-8000-000000000003",
+      "flow": "xtls-rprx-vision",
+      "encryption": "mlkem768x25519plus.native.0rtt.exampleKeyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "tls": {
+        "enabled": true,
+        "server_name": "www.example.com",
+        "insecure": false,
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "reality": {
+          "enabled": true,
+          "public_key": "examplePublicKeyAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "short_id": "0123456789abcd",
+          "mldsa65_verify": "exampleMldsa65VerifyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        }
+      },
+      "packet_encoding": "",
+      "type": "vless",
+      "tag": "proxy"
+    },
+    {
+      "type": "direct",
+      "tag": "direct"
+    },
+    {
+      "type": "direct",
+      "tag": "bypass"
+    }
+  ],
+  "endpoints": [],
+  "route": {
+    "rules": [
+      {
+        "domain_suffix": [
+          "niko.internal"
+        ],
+        "action": "reject"
+      },
+      {
+        "inbound": [
+          "tun-in",
+          "mixed-in"
+        ],
+        "action": "sniff"
+      },
+      {
+        "port": [
+          53
+        ],
+        "action": "hijack-dns"
+      },
+      {
+        "protocol": [
+          "dns"
+        ],
+        "action": "hijack-dns"
+      },
+      {
+        "source_ip_cidr": [
+          "224.0.0.0/3",
+          "ff00::/8"
+        ],
+        "ip_cidr": [
+          "224.0.0.0/3",
+          "ff00::/8"
+        ],
+        "action": "reject"
+      }
+    ],
+    "rule_set": [],
+    "final": "proxy",
+    "default_domain_resolver": {
+      "server": "dns-direct",
+      "strategy": "prefer_ipv6"
+    },
+    "auto_detect_interface": true
+  }
+}

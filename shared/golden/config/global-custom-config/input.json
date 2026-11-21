@@ -1,0 +1,25 @@
+{
+  "profile": 1,
+  "profiles": [
+    {
+      "id": 1,
+      "group": 1,
+      "order": 1,
+      "link": "ss-sip002",
+      "patch": {
+        "customOutboundJson": "{\"tcp_fast_open\": true}",
+        "customConfigJson": "{\"log\": {\"timestamp\": true}}"
+      }
+    }
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "order": 1,
+      "name": "main"
+    }
+  ],
+  "settings": {
+    "globalCustomConfig": "{\"experimental\": {\"cache_file\": {\"enabled\": true}}}"
+  }
+}
