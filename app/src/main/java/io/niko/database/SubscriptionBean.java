@@ -43,12 +43,19 @@ public class SubscriptionBean extends Serializable {
     public Boolean sendHwid;
     public String announce;
 
+    // version 3
+    // the provider's spare address (fallback-url), tried when the link fails
+    public String fallbackLink;
+    // the host x-hwid is derived from: the link's until the provider moved it (new-url, new-domain), so the panel
+    // still sees the same device; empty: the link's own
+    public String hwidHost;
+
     public SubscriptionBean() {
     }
 
     @Override
     public void serializeToBuffer(ByteBufferOutput output) {
-        output.writeInt(2);
+        output.writeInt(3);
 
         output.writeInt(type);
 
@@ -66,6 +73,9 @@ public class SubscriptionBean extends Serializable {
 
         output.writeBoolean(Boolean.TRUE.equals(sendHwid));
         output.writeString(announce == null ? "" : announce);
+
+        output.writeString(fallbackLink == null ? "" : fallbackLink);
+        output.writeString(hwidHost == null ? "" : hwidHost);
     }
 
     // sendHwid is not shared: a received link must not make the app send device ids
@@ -101,6 +111,10 @@ public class SubscriptionBean extends Serializable {
             sendHwid = input.readBoolean();
             announce = input.readString();
         }
+        if (version >= 3) {
+            fallbackLink = input.readString();
+            hwidHost = input.readString();
+        }
     }
 
     public void deserializeFromShare(ByteBufferInput input) {
@@ -135,6 +149,8 @@ public class SubscriptionBean extends Serializable {
         if (protocols == null) protocols = new ArrayList<>();
         if (sendHwid == null) sendHwid = false;
         if (announce == null) announce = "";
+        if (fallbackLink == null) fallbackLink = "";
+        if (hwidHost == null) hwidHost = "";
     }
 
     public static final Creator<SubscriptionBean> CREATOR = new CREATOR<SubscriptionBean>() {

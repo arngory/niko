@@ -30,6 +30,7 @@ import io.niko.Protocols
 import io.niko.proxy.anytls.AnyTLSBean
 import io.niko.proxy.config.ConfigBean
 import io.niko.utils.Util
+import io.niko.raycontrol.RayNode
 import org.ini4j.Ini
 import org.json.JSONArray
 import org.json.JSONObject
@@ -65,33 +66,37 @@ object RawUpdater : GroupUpdater() {
                 ?: error(app.getString(R.string.no_proxies_found_in_subscription))
         } else {
 
-            val response = Libcore.newHttpClient().apply {
-                trySocks5(DataStore.mixedPort, LOCAL_PROXY_USER, DataStore.localProxyPassword)
-                // proxy mode with the service running: never around it (the device's own address)
-                if (localProxyRequired()) requireSocks5()
-                tryH3Direct()
-                when (DataStore.appTLSVersion) {
-                    "1.3" -> restrictedTLS()
+            var response = fetchSubscription(subscription, link)
+            var content = Util.getStringBox(response.contentString)
+            hwidRefusal { Util.getStringBox(response.getHeader(it)) }?.let { refusal ->
+                error(hwidMessage(refusal, subscription, Util.getStringBox(response.getHeader("announce"))))
+            }
+            proxies = parseRaw(content) ?: error(app.getString(R.string.no_proxies_found))
+
+            // the provider moved the subscription (new-url, new-domain): the new address is taken only once it
+            // answers with profiles, and the device id stays the one the panel knows (hwidHost)
+            var move = subscriptionMove(subscription.link, { Util.getStringBox(response.getHeader(it)) }, content)
+            move.to?.let { to ->
+                try {
+                    // the new address itself, not its spare: a move is taken only from where it leads
+                    val moved = request(subscription, to)
+                    val movedContent = Util.getStringBox(moved.contentString)
+                    if (hwidRefusal { Util.getStringBox(moved.getHeader(it)) } != null) error("refused")
+                    val movedProxies = parseRaw(movedContent)?.takeIf { it.isNotEmpty() } ?: error("no profiles")
+                    Logs.i("subscription moved: ${hostOf(subscription.link)} -> ${hostOf(to)}")
+                    if (subscription.hwidHost.isNullOrBlank()) subscription.hwidHost = hostOf(subscription.link)
+                    subscription.link = to
+                    response = moved
+                    content = movedContent
+                    proxies = movedProxies
+                    move = subscriptionMove(to, { Util.getStringBox(moved.getHeader(it)) }, movedContent)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Logs.w("subscription: ${hostOf(to)}, the provider's new address, did not answer, staying: ${e.readableMessage}")
                 }
-                // a panel that answers and then goes quiet would hold the update worker past its own stop
-                setTimeout(120_000)
-                setIdleTimeout(30_000)
-            }.newRequest().apply {
-                if (DataStore.allowInsecureOnRequest) {
-                    allowInsecure()
-                }
-                setURL(subscription.link)
-                setUserAgent(subscription.customUserAgent.takeIf { it.isNotBlank() } ?: USER_AGENT)
-                // panels that limit devices (Remnawave, Marzban) identify them by these headers
-                if (subscription.sendHwid) {
-                    setHeader("x-hwid", subscriptionDeviceId(DataStore.subscriptionHwid, subscription.link))
-                    setHeader("x-device-os", "Android")
-                    setHeader("x-ver-os", Build.VERSION.RELEASE)
-                    setHeader("x-device-model", Build.MODEL)
-                }
-            }.execute()
-            proxies = parseRaw(Util.getStringBox(response.contentString))
-                ?: error(app.getString(R.string.no_proxies_found))
+            }
+            move.spare?.let { subscription.fallbackLink = it }
 
             subscription.subscriptionUserinfo =
                 Util.getStringBox(response.getHeader("Subscription-Userinfo"))
@@ -286,6 +291,75 @@ object RawUpdater : GroupUpdater() {
     }
 
     @Suppress("UNCHECKED_CAST")
+    /**
+     * The subscription's answer from [url]; when it fails (no answer, an error status) the provider's spare address
+     * (fallback-url) is asked once. A panel that limits devices refusing this one says why (hwidMessage).
+     */
+    private fun fetchSubscription(subscription: SubscriptionBean, url: String): libcore.HTTPResponse {
+        try {
+            return request(subscription, url)
+        } catch (e: Exception) {
+            hwidRefusal(e.message)?.let { throw IllegalStateException(hwidMessage(it, subscription, ""), e) }
+            val spare = subscription.fallbackLink.takeIf { !it.isNullOrBlank() && it != url } ?: throw e
+            Logs.w("subscription: ${hostOf(url)} failed (${e.readableMessage}), asking the provider's spare address")
+            try {
+                return request(subscription, spare)
+            } catch (spareError: Exception) {
+                hwidRefusal(spareError.message)?.let { throw IllegalStateException(hwidMessage(it, subscription, ""), spareError) }
+                throw e
+            }
+        }
+    }
+
+    private fun request(subscription: SubscriptionBean, url: String): libcore.HTTPResponse =
+        Libcore.newHttpClient().apply {
+            trySocks5(DataStore.mixedPort, LOCAL_PROXY_USER, DataStore.localProxyPassword)
+            // proxy mode with the service running: never around it (the device's own address)
+            if (localProxyRequired()) requireSocks5()
+            tryH3Direct()
+            when (DataStore.appTLSVersion) {
+                "1.3" -> restrictedTLS()
+            }
+            // a panel that answers and then goes quiet would hold the update worker past its own stop
+            setTimeout(120_000)
+            setIdleTimeout(30_000)
+        }.newRequest().apply {
+            if (DataStore.allowInsecureOnRequest) {
+                allowInsecure()
+            }
+            setURL(url)
+            setUserAgent(subscription.customUserAgent.takeIf { it.isNotBlank() } ?: USER_AGENT)
+            // panels that limit devices (Remnawave, Marzban) identify them by these headers; the id is of the host
+            // the panel first knew (hwidHost), so a move or the spare address is still the same device
+            if (subscription.sendHwid) {
+                val host = subscription.hwidHost.takeIf { !it.isNullOrBlank() } ?: subscription.link
+                setHeader("x-hwid", subscriptionDeviceId(DataStore.subscriptionHwid, host))
+                setHeader("x-device-os", "Android")
+                setHeader("x-ver-os", Build.VERSION.RELEASE)
+                setHeader("x-device-model", Build.MODEL)
+            }
+        }.execute()
+
+    /** What the user is told of a panel's refusal: the limit reached (with the panel's text), or the id it wants. */
+    private fun hwidMessage(refusal: HwidRefusal, subscription: SubscriptionBean, announce: String): String =
+        when (refusal) {
+            HwidRefusal.LIMIT_REACHED -> {
+                val text = RayNode.nodeNote(decodeSubscriptionHeader(announce), 300).orEmpty()
+                app.getString(R.string.subscription_hwid_limit) + if (text.isNotEmpty()) "\n\u2068$text\u2069" else ""
+            }
+            HwidRefusal.ID_REQUIRED -> if (subscription.sendHwid) {
+                app.getString(R.string.subscription_hwid_refused)
+            } else {
+                app.getString(R.string.subscription_hwid_required, app.getString(R.string.subscription_send_hwid))
+            }
+        }
+
+    private fun hostOf(url: String): String = try {
+        java.net.URI(url).host
+    } catch (_: Exception) {
+        null
+    } ?: url
+
     suspend fun parseRaw(text: String, fileName: String = ""): List<AbstractBean>? {
 
         val proxies = mutableListOf<AbstractBean>()

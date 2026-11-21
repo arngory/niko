@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -470,18 +471,28 @@ type httpResponse struct {
 	contentError   error
 }
 
+// panelRefusals are the headers a subscription panel that limits devices (Remnawave) answers with when it refuses:
+// an error names each one set to true, in brackets after the status, and the app tells the user why
+var panelRefusals = []string{"x-hwid-not-supported", "x-hwid-max-devices-reached", "x-hwid-limit"}
+
 func (h *httpResponse) errorString() string {
+	status := "HTTP " + h.Status
+	for _, name := range panelRefusals {
+		if strings.EqualFold(strings.TrimSpace(h.Header.Get(name)), "true") {
+			status += " [" + name + "]"
+		}
+	}
 	// an error's body: its first bytes are all it shows
 	head, err := io.ReadAll(io.LimitReader(h.Body, 4096))
 	h.Body.Close()
 	if err != nil {
-		return fmt.Sprint("HTTP ", h.Status)
+		return status
 	}
 	content := string(head)
 	if len(content) > 100 {
 		content = content[:100] + " ..."
 	}
-	return fmt.Sprint("HTTP ", h.Status, ": ", content)
+	return fmt.Sprint(status, ": ", content)
 }
 
 func (h *httpResponse) GetHeader(key string) *StringBox {

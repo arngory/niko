@@ -77,6 +77,11 @@ class GroupSettingsActivity(
         val isSubscription = type == GroupType.SUBSCRIPTION
         if (isSubscription) {
             subscription = (subscription ?: SubscriptionBean().applyDefaultValues()).apply {
+                // another address typed: the provider's spare and the host of the device id were the old one's
+                if (link != DataStore.subscriptionLink) {
+                    fallbackLink = ""
+                    hwidHost = ""
+                }
                 link = DataStore.subscriptionLink
                 forceResolve = DataStore.subscriptionForceResolve
                 deduplication = DataStore.subscriptionDeduplication
