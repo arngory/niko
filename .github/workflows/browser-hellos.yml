@@ -217,9 +217,83 @@ jobs:
           path: hellos
           if-no-files-found: ignore
 
+  # 360 Secure Browser (uTLS's "360" is its version 11 of 2022) and QQ Browser, from their vendors' own download
+  # lists, installed silently on this disposable runner only; Chromium flags, two tabs, as on Linux
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - name: The name
+        shell: pwsh
+        run: Add-Content -Path "$env:SystemRoot\System32\drivers\etc\hosts" -Value "`r`n127.0.0.1 niko-capture.example"
+
+      - name: Capture
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          function Install($name, $url, $arguments, $folders, $exeName) {
+            $installer = Join-Path $env:RUNNER_TEMP "$name-setup.exe"
+            Write-Host "${name}: $url"
+            Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $installer
+            $p = Start-Process -FilePath $installer -ArgumentList $arguments -PassThru
+            if (-not $p.WaitForExit(900000)) { $p.Kill(); Write-Host "the installer of $name ran 15 minutes: stopped" }
+            Start-Sleep -Seconds 10
+            $exe = Get-ChildItem -Path $folders -Filter $exeName -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if (-not $exe) { throw "no $exeName after the installer of $name" }
+            return $exe.FullName
+          }
+          function Capture($name, $exe, $port, $label) {
+            New-Item -ItemType Directory -Force -Path "hellos/$name", "$env:RUNNER_TEMP/second-$name" | Out-Null
+            $c1 = Start-Process -FilePath python -ArgumentList "-I", ".github/scripts/hello.py", "capture", "$port", "hellos/$name/hello.hex" -PassThru -NoNewWindow
+            $c2 = Start-Process -FilePath python -ArgumentList "-I", ".github/scripts/hello.py", "capture", "$($port + 100)", "$env:RUNNER_TEMP/second-$name/hello.hex" -PassThru -NoNewWindow
+            Start-Sleep -Seconds 2
+            $profile = Join-Path $env:RUNNER_TEMP "niko-hello-$name"
+            $b = Start-Process -FilePath $exe -ArgumentList "--no-first-run", "--no-default-browser-check", "--user-data-dir=$profile", "https://niko-capture.example:$port/", "https://niko-capture.example:$($port + 100)/" -PassThru
+            [void]$c1.WaitForExit(150000)
+            [void]$c2.WaitForExit(150000)
+            Get-Process | Where-Object { $_.Path -eq $exe } | Stop-Process -Force -ErrorAction SilentlyContinue
+            if (-not ((Test-Path "hellos/$name/hello.hex") -and (Test-Path "$env:RUNNER_TEMP/second-$name/hello.hex"))) {
+              Write-Host "::error::no two ClientHellos from $name"
+              return $false
+            }
+            $version = (Get-Item $exe).VersionInfo.ProductVersion
+            $windows = (Get-CimInstance Win32_OperatingSystem).Version
+            Set-Content -Path "hellos/$name/SOURCE" -Value "$label $version, Windows $windows, GitHub runner ($((Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')), browser-hellos.yml run $env:GITHUB_RUN_ID)"
+            python -I .github/scripts/hello.py shuffled "hellos/$name/hello.hex" "$env:RUNNER_TEMP/second-$name/hello.hex" | Set-Content -Path "hellos/$name/SHUFFLE"
+            return $true
+          }
+          $ok = $true
+          # 360's list: SE_64, the x64 installer of the current release
+          $list = (Invoke-WebRequest -UseBasicParsing -Uri "https://browser.360.cn/browser_download_link.js").Content
+          if ($list -match 'SE_64[^"'']*["'']([^"'']+\.exe)') {
+            $url = $Matches[1]
+            if ($url.StartsWith("//")) { $url = "https:" + $url }
+            $exe = Install "360" $url @("--silent-install") @("$env:APPDATA", "$env:LOCALAPPDATA", "${env:ProgramFiles(x86)}\360", "$env:ProgramFiles\360") "360se.exe"
+            if (-not (Capture "360" $exe 18901 "360 Secure Browser")) { $ok = $false }
+          } else { Write-Host "::error::no SE_64 in 360's download list"; $ok = $false }
+          # QQ Browser's: package_url_64 (the newest; the bare QQBrowser_Setup_x64.exe beside it is an old release)
+          $config = (Invoke-WebRequest -UseBasicParsing -Uri "https://go.browser.qq.com/new_sem_dl_config").Content
+          if ($config -match '"package_url_64"\s*:\s*"([^"]+)"') {
+            $url = $Matches[1] -replace '\\/', '/'
+            $exe = Install "qq" $url @("/S") @("$env:ProgramFiles\Tencent", "${env:ProgramFiles(x86)}\Tencent", "$env:LOCALAPPDATA\Tencent", "$env:APPDATA\Tencent") "QQBrowser.exe"
+            if (-not (Capture "qq" $exe 18902 "QQ Browser")) { $ok = $false }
+          } else { Write-Host "::error::no package_url_64 in QQ Browser's download config"; $ok = $false }
+          if (-not $ok) { exit 1 }
+
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: ${{ !cancelled() }}
+        with:
+          name: hellos-windows
+          path: hellos
+          if-no-files-found: ignore
+
   # what each capture is, part by part, in the summary
   summary:
-    needs: [linux, apple, android]
+    needs: [linux, apple, android, windows]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
@@ -231,8 +305,12 @@ jobs:
           pattern: hellos-*
           path: hellos
           merge-multiple: true
+      # each capture, and against the one the pinned core holds (common/tls/browserhello): a browser that changed is
+      # a warning, the new capture is in the artifacts
       - name: The captures
         run: |
+          . buildScript/lib/core/get_source_env.sh
+          base="https://raw.githubusercontent.com/arngory/sing-box/$COMMIT_SING_BOX/common/tls/browserhello/captures"
           for dir in hellos/*/; do
             name="$(basename "$dir")"
             [ -s "$dir/hello.hex" ] || continue
@@ -240,6 +318,12 @@ jobs:
               echo "### $name: $(cat "$dir/SOURCE" 2> /dev/null); shuffles its extensions: $(cat "$dir/SHUFFLE" 2> /dev/null)"
               echo '```'
               python3 -I .github/scripts/hello.py show "$dir/hello.hex"
+              if curl -fsSL --retry 3 -o "$RUNNER_TEMP/core-$name.hex" "$base/$name/hello.hex"; then
+                echo "against the core's ($(curl -fsSL "$base/$name/SOURCE" 2> /dev/null || echo "no SOURCE")):"
+                python3 -I .github/scripts/hello.py compare "$RUNNER_TEMP/core-$name.hex" "$dir/hello.hex" | sed "s/Chrome's/the core's/g; s/Chrome /the core /g"
+              else
+                echo "the core holds no capture of $name yet: uTLS's preset"
+              fi
               echo '```'
             } | tee -a "$GITHUB_STEP_SUMMARY"
           done
