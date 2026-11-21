@@ -4,6 +4,8 @@
   hello.py capture PORT OUT          accept one connection on 127.0.0.1:PORT (or on HOST:PORT given so), write its
                                      first TLS record to OUT (hex)
   hello.py compare REFERENCE GOT     compare two such records, part by part; --strict: exit 1 when they differ
+  hello.py show RECORD               its parts, and its extensions in the order sent (a browser that does not
+                                     shuffle them is known by it too)
 
 The naive outbound is Chromium's network stack, so its ClientHello should be Chrome's: this shows where it is not
 (an extension the library build leaves out, a list in another order). GREASE values count as one; the server name,
@@ -181,9 +183,20 @@ def compare(reference, got, strict):
     return 1 if strict else 0
 
 
+def show(path):
+    parts = shape(path)
+    _, extensions = parse(path)
+    parts["extension order"] = ",".join("GREASE" if grease(ext) else name(ext) for ext, _ in extensions)
+    for key in sorted(parts):
+        print(f"{key}: {parts[key]!s:.400}")
+    return 0
+
+
 if __name__ == "__main__":
     if len(sys.argv) >= 4 and sys.argv[1] == "capture":
         capture(sys.argv[2], sys.argv[3])
+    elif len(sys.argv) >= 3 and sys.argv[1] == "show":
+        sys.exit(show(sys.argv[2]))
     elif len(sys.argv) >= 4 and sys.argv[1] == "compare":
         sys.exit(compare(sys.argv[2], sys.argv[3], "--strict" in sys.argv[4:]))
     else:

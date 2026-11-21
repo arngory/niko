@@ -1,0 +1,227 @@
+# The ClientHello each uTLS fingerprint of the core claims, captured from the real client on a disposable runner, as
+# Chrome's is (fingerprint.yml): Firefox and Edge on Linux, Safari and iOS (the Simulator) on macOS, an Android app
+# (OkHttp over the system's TLS, the emulator), 360 and QQ on Windows. Each capture is hello.py's: the first TLS record
+# a browser sends to a port of the runner that reads it and closes. They go into the core fork (common/tls/browserhello)
+# by hand, from the "hellos-*" artifacts; then weekly here, against what the fork holds.
+name: Browser hellos
+
+on:
+  push:
+    paths:
+      - ".github/workflows/browser-hellos.yml"
+      - ".github/scripts/hello.py"
+      - ".github/tools/androidhello/**"
+  schedule:
+    - cron: "17 4 * * 2"
+  workflow_dispatch:
+
+# read-only token: nothing here writes to the repository
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      # the current releases, from their vendors: Firefox's archive from Mozilla, Edge from Microsoft's repository
+      - name: Firefox and Edge
+        run: |
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/firefox.tar.xz" "https://download.mozilla.org/?product=firefox-latest-ssl&os=linux64&lang=en-US"
+          tar -xf "$RUNNER_TEMP/firefox.tar.xz" -C "$RUNNER_TEMP"
+          curl -fsSL --retry 3 https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor | sudo tee /usr/share/keyrings/microsoft-edge.gpg > /dev/null
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-edge.gpg] https://packages.microsoft.com/repos/edge stable main" |
+            sudo tee /etc/apt/sources.list.d/microsoft-edge.list > /dev/null
+          sudo apt-get update -q > /dev/null
+          sudo apt-get install -y -q microsoft-edge-stable xvfb > /dev/null
+          echo "Firefox: $("$RUNNER_TEMP/firefox/firefox" --version)"
+          echo "Edge: $(microsoft-edge --version)"
+          # a name, not an address: a browser sends what it sends to sites
+          echo "127.0.0.1 niko-capture.example" | sudo tee -a /etc/hosts
+
+      - name: Capture
+        run: |
+          capture() {
+            local name="$1" port="$2" version="$3"
+            shift 3
+            mkdir -p "hellos/$name"
+            python3 -I .github/scripts/hello.py capture "$port" "hellos/$name/hello.hex" &
+            local cap=$!
+            sleep 1
+            timeout 90 xvfb-run -a "$@" "https://niko-capture.example:$port/" > /dev/null 2>&1 &
+            local browser=$!
+            local ok=yes
+            wait "$cap" || ok=no
+            kill "$browser" 2> /dev/null || true
+            pkill -f "niko-hello-$name" || true
+            wait "$browser" 2> /dev/null || true
+            if [ "$ok" = yes ] && [ -s "hellos/$name/hello.hex" ]; then
+              echo "$version, linux, under Xvfb, GitHub runner ($(date -u +%F), browser-hellos.yml run $GITHUB_RUN_ID)" > "hellos/$name/SOURCE"
+            else
+              echo "::error::no ClientHello from $name"
+              failed=yes
+            fi
+          }
+          failed=no
+          mkdir -p "$RUNNER_TEMP/niko-hello-firefox"
+          capture firefox 18501 "$("$RUNNER_TEMP/firefox/firefox" --version)" \
+            "$RUNNER_TEMP/firefox/firefox" --new-instance --no-remote --profile "$RUNNER_TEMP/niko-hello-firefox"
+          capture edge 18502 "$(microsoft-edge --version)" \
+            microsoft-edge --no-first-run --no-default-browser-check --no-proxy-server --user-data-dir="$RUNNER_TEMP/niko-hello-edge"
+          [ "$failed" = no ]
+
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: ${{ !cancelled() }}
+        with:
+          name: hellos-linux
+          path: hellos
+          if-no-files-found: ignore
+
+  apple:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - name: The name
+        run: |
+          echo "127.0.0.1 niko-capture.example" | sudo tee -a /etc/hosts
+          sudo dscacheutil -flushcache
+          sudo killall -HUP mDNSResponder || true
+
+      - name: Safari
+        run: |
+          mkdir -p hellos/safari
+          python3 -I .github/scripts/hello.py capture 18701 hellos/safari/hello.hex &
+          cap=$!
+          sleep 1
+          open -a Safari "https://niko-capture.example:18701/"
+          wait "$cap"
+          osascript -e 'quit app "Safari"' || true
+          [ -s hellos/safari/hello.hex ] || { echo "::error::no ClientHello from Safari"; exit 1; }
+          version="$(defaults read /Applications/Safari.app/Contents/Info.plist CFBundleShortVersionString)"
+          echo "Safari $version, macOS $(sw_vers -productVersion), GitHub runner ($(date -u +%F), browser-hellos.yml run $GITHUB_RUN_ID)" > hellos/safari/SOURCE
+
+      # Safari of iOS, in the Simulator of the newest iOS the image has: an iPhone, booted, opening the address
+      - name: iOS
+        if: ${{ !cancelled() }}
+        run: |
+          read -r udid runtime < <(xcrun simctl list devices available -j | python3 -I -c '
+          import json, sys
+          found = []
+          for runtime, devices in json.load(sys.stdin)["devices"].items():
+              if ".iOS-" not in runtime:
+                  continue
+              version = tuple(int(x) for x in runtime.rsplit(".iOS-", 1)[1].split("-"))
+              for d in devices:
+                  if d["name"].startswith("iPhone"):
+                      found.append((version, d["udid"], runtime.rsplit(".", 1)[1]))
+          found.sort()
+          print(found[-1][1], found[-1][2])')
+          echo "the Simulator: $udid ($runtime)"
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b > /dev/null
+          mkdir -p hellos/ios
+          python3 -I .github/scripts/hello.py capture 18702 hellos/ios/hello.hex &
+          cap=$!
+          sleep 1
+          xcrun simctl openurl "$udid" "https://niko-capture.example:18702/"
+          wait "$cap"
+          xcrun simctl shutdown "$udid" || true
+          [ -s hellos/ios/hello.hex ] || { echo "::error::no ClientHello from iOS"; exit 1; }
+          echo "Safari of ${runtime/iOS-/iOS }, the Simulator on macOS $(sw_vers -productVersion), GitHub runner ($(date -u +%F), browser-hellos.yml run $GITHUB_RUN_ID)" > hellos/ios/SOURCE
+
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: ${{ !cancelled() }}
+        with:
+          name: hellos-apple
+          path: hellos
+          if-no-files-found: ignore
+
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      # OkHttp as the app ships it (app/build.gradle.kts), with its okio and the Kotlin runtime, checked against
+      # gradle/verification-metadata.xml; Hello.java on top, all as one dex for app_process
+      - name: The app's request
+        run: |
+          mkdir -p "$RUNNER_TEMP/jars" "$RUNNER_TEMP/classes" "$RUNNER_TEMP/dex"
+          get() {
+            curl -fsSL --retry 3 -o "$RUNNER_TEMP/jars/$(basename "$1")" "https://repo1.maven.org/maven2/$1"
+            echo "$2  $RUNNER_TEMP/jars/$(basename "$1")" | sha256sum -c -
+          }
+          get com/squareup/okhttp3/okhttp/4.12.0/okhttp-4.12.0.jar b1050081b14bb7a3a7e55a4d3ef01b5dcfabc453b4573a4fc019767191d5f4e0
+          get com/squareup/okio/okio-jvm/3.6.0/okio-jvm-3.6.0.jar 67543f0736fc422ae927ed0e504b98bc5e269fda0d3500579337cb713da28412
+          get org/jetbrains/kotlin/kotlin-stdlib/2.0.21/kotlin-stdlib-2.0.21.jar f31cc53f105a7e48c093683bbd5437561d1233920513774b470805641bedbc09
+          platform="$(ls -d "$ANDROID_HOME"/platforms/android-* | sort -V | tail -1)"
+          tools="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)"
+          javac --release 11 -cp "$platform/android.jar:$RUNNER_TEMP/jars/okhttp-4.12.0.jar" -d "$RUNNER_TEMP/classes" .github/tools/androidhello/Hello.java
+          (cd "$RUNNER_TEMP/classes" && jar cf "$RUNNER_TEMP/hello.jar" .)
+          "$tools/d8" --release --min-api 29 --lib "$platform/android.jar" --output "$RUNNER_TEMP/dex" \
+            "$RUNNER_TEMP/hello.jar" "$RUNNER_TEMP"/jars/*.jar
+          ls -la "$RUNNER_TEMP/dex"
+
+      - name: KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Capture
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          script: bash .github/scripts/android-hello.sh "${{ runner.temp }}/dex/classes.dex" hellos/android
+
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: ${{ !cancelled() }}
+        with:
+          name: hellos-android
+          path: hellos
+          if-no-files-found: ignore
+
+  # what each capture is, part by part, in the summary
+  summary:
+    needs: [linux, apple, android]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: hellos-*
+          path: hellos
+          merge-multiple: true
+      - name: The captures
+        run: |
+          for dir in hellos/*/; do
+            name="$(basename "$dir")"
+            [ -s "$dir/hello.hex" ] || continue
+            {
+              echo "### $name: $(cat "$dir/SOURCE" 2> /dev/null)"
+              echo '```'
+              python3 -I .github/scripts/hello.py show "$dir/hello.hex"
+              echo '```'
+            } | tee -a "$GITHUB_STEP_SUMMARY"
+          done
