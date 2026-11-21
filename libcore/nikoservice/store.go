@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"net"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -55,11 +56,20 @@ func newUsers(root string, caller func(context.Context) (string, error), done <-
 // caller is known: TCP on 127.0.0.1 without transport credentials, which boxdd itself takes for the user "local"
 // (platformFallbackPeerIdentity); with credentials, the store is refused rather than shared between users.
 func developmentCaller(ctx context.Context) (string, error) {
-	if p, ok := peer.FromContext(ctx); ok && p.AuthInfo == nil {
+	if p, ok := peer.FromContext(ctx); ok && p.AuthInfo == nil && onThisMachine(p.Addr) {
 		return "local", nil
 	}
 	return "", status.Error(codes.Unimplemented,
 		"the daemon does not name its caller to NikoService yet: the store works in development mode only")
+}
+
+// onThisMachine: a caller on this machine, TCP from a loopback address (development mode listens on 127.0.0.1 alone,
+// but a store of secrets does not lean on that), or a test's connection within the process (bufconn).
+func onThisMachine(addr net.Addr) bool {
+	if tcp, ok := addr.(*net.TCPAddr); ok {
+		return tcp.IP.IsLoopback()
+	}
+	return addr != nil && addr.Network() == "bufconn"
 }
 
 // user is the caller's store, opened if it is not yet.

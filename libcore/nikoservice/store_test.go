@@ -331,8 +331,15 @@ func TestUsers(t *testing.T) {
 	if _, err = developmentCaller(verified); code(err) != codes.Unimplemented {
 		t.Fatalf("a named caller: %v", err)
 	}
-	if id, err := developmentCaller(peer.NewContext(context.Background(), &peer.Peer{})); err != nil || id != "local" {
+	loopback := &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 50000}
+	if id, err := developmentCaller(peer.NewContext(context.Background(), &peer.Peer{Addr: loopback})); err != nil || id != "local" {
 		t.Fatalf("development mode's: %q %v", id, err)
+	}
+	// without credentials but from another machine, or from nowhere known: no one's store
+	for _, addr := range []net.Addr{&net.TCPAddr{IP: net.ParseIP("192.0.2.7"), Port: 50000}, nil} {
+		if _, err = developmentCaller(peer.NewContext(context.Background(), &peer.Peer{Addr: addr})); code(err) != codes.Unimplemented {
+			t.Fatalf("a caller from %v: %v", addr, err)
+		}
 	}
 	if _, err = (&server{}).ListGroups(context.Background(), &nikopb.Empty{}); code(err) != codes.Unimplemented {
 		t.Fatalf("no store: %v", err)
