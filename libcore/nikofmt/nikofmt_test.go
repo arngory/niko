@@ -1,6 +1,9 @@
 package nikofmt
 
 import (
+	"bytes"
+	"compress/zlib"
+	"encoding/base64"
 	"go/build"
 	"testing"
 )
@@ -50,11 +53,16 @@ func TestNoRootPackage(t *testing.T) {
 	}
 }
 
-// Links of kinds the app does not import are refused as such, not taken for another kind; so is sn:// so far.
+// Links of kinds the app does not import are refused as such, not taken for another kind; so is sn://neko, a
+// plugin's profile (its NekoBean holds a JSONObject, which no fixture can hold either).
 func TestUnsupported(t *testing.T) {
+	var neko bytes.Buffer
+	w := zlib.NewWriter(&neko)
+	w.Write([]byte{0, 0, 0, 0})
+	w.Close()
 	for _, link := range []string{"NAIVE+https://h", "ssh://root@example.com:22", "wireguard://key@example.com:51820",
 		"juicity://uuid:pw@example.com:443", "Trojan://pw@example.com:443", " ss://YWVz@example.com:1",
-		"sn://naive?abc"} {
+		"sn://neko?" + base64.RawURLEncoding.EncodeToString(neko.Bytes())} {
 		if _, err := ParseLink(link, DefaultSettings); err != ErrUnsupported {
 			t.Errorf("%s: %v, want ErrUnsupported", link, err)
 		}
