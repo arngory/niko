@@ -425,3 +425,27 @@ class _NikoSearchFieldState extends State<NikoSearchField> {
     );
   }
 }
+
+/// m-radio: a ring, and the dot inside it when [on].
+class NikoRadio extends StatelessWidget {
+  const NikoRadio({super.key, required this.on});
+
+  final bool on;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = NikoTheme.of(context);
+    return Container(
+      width: 20,
+      height: 20,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(width: NikoStroke.bold, color: on ? colors.ink : colors.lineStrong),
+      ),
+      alignment: Alignment.center,
+      child: on
+          ? Container(width: 10, height: 10, decoration: BoxDecoration(shape: BoxShape.circle, color: colors.ink))
+          : null,
+    );
+  }
+}

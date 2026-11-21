@@ -120,6 +120,8 @@ func changeKind(kind nikostore.Kind) nikopb.Change_Kind {
 		return nikopb.Change_PROFILES
 	case nikostore.KindGroups:
 		return nikopb.Change_GROUPS
+	case nikostore.KindSelected:
+		return nikopb.Change_SELECTED
 	}
 	return nikopb.Change_KIND_UNSPECIFIED
 }
@@ -239,6 +241,25 @@ func (s *server) DeleteProfiles(ctx context.Context, request *nikopb.ProfileIds)
 		return nil, storeError(err)
 	}
 	return &nikopb.Empty{}, nil
+}
+
+func (s *server) Select(ctx context.Context, request *nikopb.ProfileId) (*nikopb.Empty, error) {
+	u, err := s.users.user(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err = u.store.Select(request.Id); err != nil {
+		return nil, storeError(err)
+	}
+	return &nikopb.Empty{}, nil
+}
+
+func (s *server) GetSelected(ctx context.Context, _ *nikopb.Empty) (*nikopb.ProfileId, error) {
+	u, err := s.users.user(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &nikopb.ProfileId{Id: u.store.Selected()}, nil
 }
 
 func (s *server) MoveProfiles(ctx context.Context, request *nikopb.MoveRequest) (*nikopb.Empty, error) {

@@ -397,3 +397,37 @@ func TestWatchGap(t *testing.T) {
 type verifiedPeer struct{ credentials.CommonAuthInfo }
 
 func (verifiedPeer) AuthType() string { return "local-process" }
+
+// Select and GetSelected: the choice said in Watch, kept by the store, gone with its profile.
+func TestSelect(t *testing.T) {
+	client := serve(t, storeServer(t.TempDir()))
+	ctx := context.Background()
+	watch := changes(t, client)
+	next(t, watch)
+	if got, err := client.GetSelected(ctx, &nikopb.Empty{}); err != nil || got.Id != 0 {
+		t.Fatalf("a new store: %v %v", got, err)
+	}
+	runImport(t, client, naiveLink+"\n"+socksLink, 0)
+	expectChange(t, watch, 1, nikopb.Change_PROFILES, 1, 2)
+	expectChange(t, watch, 2, nikopb.Change_TASK)
+
+	if _, err := client.Select(ctx, &nikopb.ProfileId{Id: 2}); err != nil {
+		t.Fatal(err)
+	}
+	expectChange(t, watch, 3, nikopb.Change_SELECTED, 2)
+	if got, err := client.GetSelected(ctx, &nikopb.Empty{}); err != nil || got.Id != 2 {
+		t.Fatalf("selected: %v %v", got, err)
+	}
+	if _, err := client.Select(ctx, &nikopb.ProfileId{Id: 7}); code(err) != codes.NotFound {
+		t.Fatalf("no such profile: %v", err)
+	}
+
+	if _, err := client.DeleteProfiles(ctx, &nikopb.ProfileIds{Ids: []int64{2}}); err != nil {
+		t.Fatal(err)
+	}
+	expectChange(t, watch, 4, nikopb.Change_PROFILES, 2)
+	expectChange(t, watch, 5, nikopb.Change_SELECTED)
+	if got, err := client.GetSelected(ctx, &nikopb.Empty{}); err != nil || got.Id != 0 {
+		t.Fatalf("after the deletion: %v %v", got, err)
+	}
+}

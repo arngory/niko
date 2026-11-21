@@ -118,6 +118,12 @@ class TracedDaemon implements Daemon {
   @override
   Future<List<int>> importLinks(String text, {int groupId = 0}) => _inner.importLinks(text, groupId: groupId);
   @override
+  Future<List<GroupRow>> groups() => _inner.groups();
+  @override
+  Future<int> selected() => _inner.selected();
+  @override
+  Future<void> select(int profileId) => _inner.select(profileId);
+  @override
   Future<void> close() => _inner.close();
 }
 

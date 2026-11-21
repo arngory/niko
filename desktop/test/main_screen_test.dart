@@ -9,6 +9,7 @@ import 'package:niko_desktop/daemon/daemon.dart';
 import 'package:niko_desktop/state/connection_controller.dart';
 import 'package:niko_desktop/state/window_settings.dart';
 import 'package:niko_desktop/ui/connect_button.dart';
+import 'package:niko_desktop/ui/controls.dart';
 
 /// A daemon in memory: the test says what the core does, and reads what the window asked.
 class MemoryDaemon implements Daemon {
@@ -88,13 +89,33 @@ class MemoryDaemon implements Daemon {
     return steps.stream;
   }
 
-  /// The store: no screen reads it yet.
+  /// The store: what the test puts in it, and the selection the window makes.
+  final storeEvents = StreamController<StoreChange>.broadcast();
+  var groupRows = <GroupRow>[const GroupRow(id: 1, name: '', ungrouped: true)];
+  var profileRows = <ProfileRow>[];
+  int selectedId = 0;
+  int _revision = 0;
+
   @override
-  Stream<StoreChange> storeChanges() => Stream.value(const StoreChange(revision: 0, reset: true));
+  Stream<StoreChange> storeChanges() async* {
+    yield StoreChange(revision: _revision, reset: true);
+    yield* storeEvents.stream;
+  }
+
   @override
-  Future<List<ProfileRow>> profiles({int groupId = 0}) async => const [];
+  Future<List<ProfileRow>> profiles({int groupId = 0}) async =>
+      [for (final p in profileRows) if (groupId == 0 || p.groupId == groupId) p];
   @override
   Future<List<int>> importLinks(String text, {int groupId = 0}) async => const [];
+  @override
+  Future<List<GroupRow>> groups() async => groupRows;
+  @override
+  Future<int> selected() async => selectedId;
+  @override
+  Future<void> select(int profileId) async {
+    selectedId = profileId;
+    storeEvents.add(StoreChange(revision: ++_revision, kind: StoreKind.selected, ids: [profileId]));
+  }
 
   @override
   Future<void> close() async {}
@@ -217,8 +238,8 @@ void main() {
   testWidgets('the keyboard: Enter on the focused button connects', (tester) async {
     await show(tester);
     await core(tester, ServicePhase.idle);
-    // the header first: two sections and the two views; then the button
-    for (var stop = 0; stop < 5; stop++) {
+    // the header first: three sections and the two views; then the button
+    for (var stop = 0; stop < 6; stop++) {
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     }
     await tester.pump();
@@ -297,7 +318,8 @@ void main() {
     testWidgets('the keyboard reaches the sections and the view', (tester) async {
       await show(tester);
       await core(tester, ServicePhase.idle);
-      // the first stop is the first section, the second the log
+      // the first stop is the first section, the second Узлы, the third the log
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pump();
@@ -800,6 +822,47 @@ void main() {
       await tester.pump();
       expect(tester.takeException(), isNull);
     });
+  });
+
+  testWidgets('Узлы: the groups, the profiles of one, the selected one; a press selects', (tester) async {
+    await show(tester, brightness: Brightness.light);
+    await core(tester, ServicePhase.idle);
+    daemon.groupRows = [
+      const GroupRow(id: 1, name: '', ungrouped: true, profiles: 2),
+      const GroupRow(id: 2, name: 'Работа', profiles: 1),
+    ];
+    daemon.profileRows = [
+      const ProfileRow(id: 1, groupId: 1, order: 1, type: 'naive', name: 'Хельсинки', address: '203.0.113.7:443'),
+      const ProfileRow(id: 2, groupId: 1, order: 2, type: 'ss', name: 'Амстердам', address: '198.51.100.20:8443'),
+      const ProfileRow(id: 3, groupId: 2, order: 1, type: 'socks', name: 'Офис', address: '192.0.2.10:1080'),
+    ];
+    daemon.selectedId = 2;
+    Future<void> settle() async {
+      for (var i = 0; i < 6; i++) {
+        await tester.pump();
+      }
+    }
+
+    await tester.tap(find.text('Узлы'));
+    await settle();
+    expect(find.text('Свои профили'), findsNWidgets(2), reason: 'the group in the panel and as the title');
+    expect(find.text('вручную и по ссылкам · 2'), findsOneWidget);
+    expect(find.text('Хельсинки'), findsOneWidget);
+    expect(find.text('Офис'), findsNothing);
+    List<bool> radios() => tester.widgetList<NikoRadio>(find.byType(NikoRadio)).map((r) => r.on).toList();
+    expect(radios(), [false, true]);
+    await picture('nodes_light');
+
+    await tester.tap(find.text('Хельсинки'));
+    await settle();
+    expect(daemon.selectedId, 1);
+    expect(radios(), [true, false], reason: 'the list follows the daemon\'s SELECTED');
+
+    await tester.tap(find.text('Работа'));
+    await settle();
+    expect(find.text('Офис'), findsOneWidget);
+    expect(find.text('Хельсинки'), findsNothing);
+    expect(radios(), [false], reason: 'the selected profile is in another group');
   });
 
   testWidgets('a narrow and low window: nothing overflows', (tester) async {

@@ -43,6 +43,12 @@ service NikoService {
   rpc SaveGroup(Group) returns (Group);
   // Deletes a group and its profiles; the ungrouped group stays (FAILED_PRECONDITION).
   rpc DeleteGroup(GroupId) returns (Empty);
+  // The profile the window connects with (D-MAIN-07): kept in state.json, none (0) once deleted. Watch says SELECTED
+  // with its id, or no id for none. Id 0 selects none; NOT_FOUND for no such profile; FAILED_PRECONDITION for one whose
+  // secrets cannot be opened on this machine.
+  rpc Select(ProfileId) returns (Empty);
+  // The selected profile; id 0: none.
+  rpc GetSelected(Empty) returns (ProfileId);
 
   // What an input is and what its import would add; nothing is written, and no store is needed.
   rpc Recognize(ImportInput) returns (ImportPreview);
@@ -62,7 +68,7 @@ message Info {
   string core_version = 2;
   // the schema of the daemon's store (nikostore's); 0: a daemon without one
   int32 store_schema = 3;
-  // the version of this API: what the window may ask
+  // the version of this API: what the window may ask. 2: the store, Watch and the import; 3: Select and GetSelected
   int32 api = 4;
 }
 

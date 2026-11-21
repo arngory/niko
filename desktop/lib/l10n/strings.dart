@@ -30,6 +30,17 @@ class NikoStrings {
   String get sectionHome => _ru ? 'Главная' : 'Home';
   String get sectionConnections => _ru ? 'Соединения' : 'Connections';
   String get sectionLog => _ru ? 'Журнал' : 'Log';
+  String get sectionNodes => _ru ? 'Узлы' : 'Nodes';
+
+  String get groups => _ru ? 'Группы' : 'Groups';
+  String get groupOwn => _ru ? 'Свои профили' : 'My profiles';
+  String groupOwnSub(int count) => _ru ? 'вручную и по ссылкам · $count' : 'by hand and from links · $count';
+  String groupBasicSub(int count) => _ru ? 'своя группа · $count' : 'own group · $count';
+  String groupSubscriptionSub(int count) => _ru ? 'подписка · $count' : 'subscription · $count';
+  String get groupEmpty => _ru ? 'В группе нет профилей' : 'No profiles in this group';
+  String get profilesList => _ru ? 'Профили группы' : 'The group\'s profiles';
+  String get storeUnreachable => _ru ? 'Профили не прочитаны' : 'The profiles were not read';
+  String get storeNoLink => _ru ? 'Нет связи со службой' : 'No link to the service';
   String get view => _ru ? 'Вид интерфейса' : 'Interface view';
   String get viewSimple => _ru ? 'Простой' : 'Simple';
   String get viewAdvanced => _ru ? 'Расширенный' : 'Advanced';
