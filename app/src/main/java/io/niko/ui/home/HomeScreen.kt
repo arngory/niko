@@ -22,6 +22,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -58,9 +59,23 @@ fun HomeScreen(
     clock: () -> Long = System::currentTimeMillis,
     ticking: Boolean = true,
     sheet: Boolean = false,
+    configs: List<ConfigGroup>? = null,
+    testing: Set<Long> = emptySet(),
+    results: Map<Long, ConfigsTest.Result> = emptyMap(),
+    configsActions: ConfigsActions? = null,
+    configsOpen: Boolean = false,
 ) {
     val c = Niko.colors
     var modeSheet by rememberSaveable { mutableStateOf(sheet) }
+    var configsSheet by rememberSaveable { mutableStateOf(configsOpen) }
+    // the activity reads the sheet's groups while it is open; the screen gone (another screen in its place) closes it
+    DisposableEffect(configsSheet) {
+        actions.configs(configsSheet)
+        onDispose { if (configsSheet) actions.configs(false) }
+    }
+    // the configs' sheet from the node row and the Configs tab; without its actions (a snapshot of the screen alone) the
+    // old list as before
+    val openConfigs = { if (configsActions != null) configsSheet = true else actions.profiles() }
     var now by remember { mutableLongStateOf(clock()) }
     LaunchedEffect(state.service, ticking) {
         while (ticking && state.service == BaseService.State.Connected) {
@@ -72,8 +87,8 @@ fun HomeScreen(
         Column(Modifier.fillMaxSize()) {
             TopBar(view, actions::view, Modifier.statusBarsPadding())
             when (view) {
-                HomeView.Simple -> Simple(state, now, actions, Modifier.weight(1f)) { modeSheet = true }
-                HomeView.Advanced -> Advanced(state, now, actions, Modifier.weight(1f)) { modeSheet = true }
+                HomeView.Simple -> Simple(state, now, actions, openConfigs, Modifier.weight(1f)) { modeSheet = true }
+                HomeView.Advanced -> Advanced(state, now, actions, openConfigs, Modifier.weight(1f)) { modeSheet = true }
             }
         }
         if (modeSheet) {
@@ -82,6 +97,9 @@ fun HomeScreen(
                 modeSheet = false
                 if (vpn != state.mode.vpn) actions.mode(vpn)
             }) { modeSheet = false }
+        }
+        if (configsSheet && configsActions != null) {
+            ConfigsSheet(configs, state.profiles, state.subscriptions, testing, results, configsActions) { configsSheet = false }
         }
     }
 }
@@ -151,7 +169,7 @@ private fun ping(profile: HomeProfile?, unreachable: String): String? = when {
 
 /** P-Simple: the big button, its state, the three tiles, the node in use on the sheet. */
 @Composable
-private fun Simple(state: HomeState, now: Long, actions: HomeActions, modifier: Modifier, onMode: () -> Unit) {
+private fun Simple(state: HomeState, now: Long, actions: HomeActions, onConfigs: () -> Unit, modifier: Modifier, onMode: () -> Unit) {
     val (label, tone) = statusLabel(state)
     Column(modifier.fillMaxWidth()) {
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
@@ -184,13 +202,13 @@ private fun Simple(state: HomeState, now: Long, actions: HomeActions, modifier: 
                 Tile(R.drawable.ic_l_route, stringResource(R.string.home_route), routeValue(state.route), actions::route, Modifier.weight(1f))
             }
         }
-        Sheet(Modifier.navigationBarsPadding()) { NodeRow(state.profile, state.profiles, actions, bottom = NikoSpace.s6) }
+        Sheet(Modifier.navigationBarsPadding()) { NodeRow(state.profile, state.profiles, actions, onConfigs, bottom = NikoSpace.s6) }
     }
 }
 
 /** The node or profile in use on the sheet (D-MAIN-10, 13): its name, its expiry and traffic, its ping. */
 @Composable
-private fun NodeRow(profile: HomeProfile?, profiles: Int, actions: HomeActions, bottom: androidx.compose.ui.unit.Dp, advanced: Boolean = false) {
+private fun NodeRow(profile: HomeProfile?, profiles: Int, actions: HomeActions, onConfigs: () -> Unit, bottom: androidx.compose.ui.unit.Dp, advanced: Boolean = false) {
     // in the connection card the row comes after the state's, with the hairline above it
     if (profile == null && profiles > 0) {
         // configs there, none chosen (none yet, or the chosen one deleted): the list to choose from
@@ -198,7 +216,7 @@ private fun NodeRow(profile: HomeProfile?, profiles: Int, actions: HomeActions, 
             stringResource(R.string.home_choose_profile), titleBold = true, bottom = bottom, divider = advanced,
             sub = { Sub("${stringResource(R.string.home_profiles)} $profiles") },
             trail = { Icon(R.drawable.ic_l_chevrons_up_down, Niko.colors.ink2) },
-            onClick = actions::profiles,
+            onClick = onConfigs,
         )
         return
     }
@@ -228,13 +246,13 @@ private fun NodeRow(profile: HomeProfile?, profiles: Int, actions: HomeActions, 
             }
             Icon(R.drawable.ic_l_chevrons_up_down, Niko.colors.ink2)
         },
-        onClick = actions::profiles,
+        onClick = onConfigs,
     )
 }
 
 /** P-Advanced: the connection card, the main settings and the rest as rows, the configs and subscriptions on the sheet. */
 @Composable
-private fun Advanced(state: HomeState, now: Long, actions: HomeActions, modifier: Modifier, onMode: () -> Unit) {
+private fun Advanced(state: HomeState, now: Long, actions: HomeActions, onConfigs: () -> Unit, modifier: Modifier, onMode: () -> Unit) {
     val (label, tone) = statusLabel(state)
     Column(modifier.fillMaxWidth()) {
         Column(
@@ -244,7 +262,7 @@ private fun Advanced(state: HomeState, now: Long, actions: HomeActions, modifier
         ) {
             ListGroup {
                 ConnectionCard(state, now, label, tone, actions)
-                NodeRow(state.profile, state.profiles, actions, bottom = NikoSpace.s3, advanced = true)
+                NodeRow(state.profile, state.profiles, actions, onConfigs, bottom = NikoSpace.s3, advanced = true)
             }
             Section(stringResource(R.string.home_section_main)) {
                 ListRow(stringResource(R.string.home_mode), trail = { Trail(modeValue(state.mode)) }, onClick = onMode)
@@ -271,7 +289,7 @@ private fun Advanced(state: HomeState, now: Long, actions: HomeActions, modifier
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(Modifier.weight(1f).padding(horizontal = NikoSpace.s5), horizontalArrangement = Arrangement.spacedBy(NikoSpace.s6)) {
-                    Tab(stringResource(R.string.home_profiles), state.profiles, active = true, onClick = actions::profiles)
+                    Tab(stringResource(R.string.home_profiles), state.profiles, active = true, onClick = onConfigs)
                     Tab(stringResource(R.string.home_subscriptions), state.subscriptions, active = false, onClick = actions::subscriptions)
                 }
                 TonalIconButton(R.drawable.ic_l_plus, stringResource(R.string.home_add), actions::profiles)

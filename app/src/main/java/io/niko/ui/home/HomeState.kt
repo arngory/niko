@@ -60,6 +60,8 @@ interface HomeActions {
     fun view(view: HomeView)
     fun mode(vpn: Boolean)
     fun profiles()
+    /** the configs' sheet opened: read its groups (ConfigsLoader), again after each change while it is open */
+    fun configs(open: Boolean)
     fun subscriptions()
     fun route()
     fun apps()

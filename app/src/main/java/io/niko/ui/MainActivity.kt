@@ -39,6 +39,7 @@ import io.niko.database.DataStore
 import io.niko.database.GroupManager
 import io.niko.database.ProfileManager
 import io.niko.database.ProxyGroup
+import io.niko.database.SagerDatabase
 import io.niko.database.SubscriptionBean
 import io.niko.database.preference.OnPreferenceDataStoreChangeListener
 import io.niko.databinding.LayoutMainBinding
@@ -56,6 +57,10 @@ import io.niko.ktx.onMainDispatcher
 import io.niko.ktx.parseProxies
 import io.niko.ktx.readableMessage
 import io.niko.ktx.runOnDefaultDispatcher
+import io.niko.ui.home.ConfigGroup
+import io.niko.ui.home.ConfigsActions
+import io.niko.ui.home.ConfigsLoader
+import io.niko.ui.home.ConfigsTest
 import io.niko.ui.home.HomeActions
 import io.niko.ui.home.HomeFragment
 import io.niko.ui.home.HomeLoader
@@ -112,6 +117,14 @@ class MainActivity : ThemedActivity(),
             displayFragmentWithId(R.id.nav_configuration)
         }
 
+        override fun configs(open: Boolean) {
+            configsOpen = open
+            if (open) refreshConfigs() else {
+                configsState.value = null
+                ConfigsTest.forget()
+            }
+        }
+
         override fun subscriptions() {
             displayFragmentWithId(R.id.nav_group)
         }
@@ -136,6 +149,91 @@ class MainActivity : ThemedActivity(),
 
         override fun help() {
             displayFragmentWithId(R.id.nav_faq)
+        }
+    }
+
+    /** The configs' sheet (ui/home/ConfigsSheet): its groups while open (null: closed or not read yet). Main thread. */
+    val configsState = mutableStateOf<List<ConfigGroup>?>(null)
+
+    @Volatile
+    private var configsOpen = false
+    // one read at a time: the asks while one runs make one more after it (a burst of changes, one read)
+    private val configsReading = java.util.concurrent.atomic.AtomicBoolean()
+    @Volatile
+    private var configsDirty = false
+
+    /** Reads the sheet's groups again while it is open (any thread); asks while a read runs are merged into one more. */
+    fun refreshConfigs() {
+        if (!configsOpen) return
+        configsDirty = true
+        if (!configsReading.compareAndSet(false, true)) return
+        runOnDefaultDispatcher {
+            try {
+                while (configsDirty && configsOpen) {
+                    configsDirty = false
+                    val loaded = try {
+                        ConfigsLoader.load()
+                    } catch (e: Exception) {
+                        Logs.w(e)
+                        continue
+                    }
+                    onMainDispatcher { if (configsOpen) configsState.value = loaded }
+                }
+            } finally {
+                configsReading.set(false)
+                // asked between the loop's last check and the flag's reset
+                if (configsDirty) refreshConfigs()
+            }
+        }
+    }
+
+    /**
+     * A sheet's test stored (ConfigsTest.stored): its results go into the rows shown, then stop standing over them, and
+     * the main screen and the sheet read the database again. Main thread.
+     */
+    fun testStored() {
+        if (ConfigsTest.testing.value.isEmpty()) {
+            configsState.value = configsState.value?.let { ConfigsLoader.withResults(it, ConfigsTest.results.value) }
+            ConfigsTest.forget()
+        }
+        refreshHome()
+    }
+
+    /** What the configs' sheet asks for: the profile to use, a group's test, the editor; adding in the old list. */
+    val configsActions = object : ConfigsActions {
+        // as the old list's row does: the chosen profile at once, a running service reloaded with it
+        override fun select(id: Long) {
+            runOnDefaultDispatcher {
+                val last = DataStore.selectedProxy
+                if (last == id) return@runOnDefaultDispatcher
+                DataStore.selectedProxy = id
+                ProfileManager.postUpdate(last)
+                ProfileManager.postUpdate(id)
+                if (DataStore.serviceState.canStop) SagerNet.reloadService()
+            }
+        }
+
+        // held by the app (ConfigsTest): a rotation keeps it, the sheet shows its results as they come
+        override fun test(groupId: Long) {
+            ConfigsTest.start(groupId, connection.service)
+        }
+
+        override fun stopTest() = ConfigsTest.stop()
+
+        override fun edit(id: Long) {
+            runOnDefaultDispatcher {
+                val profile = ProfileManager.getProfile(id) ?: return@runOnDefaultDispatcher
+                val subscription = SagerDatabase.groupDao.getById(profile.groupId)?.type == GroupType.SUBSCRIPTION
+                onMainDispatcher { startActivity(profile.settingIntent(this@MainActivity, subscription)) }
+            }
+        }
+
+        override fun add() {
+            displayFragmentWithId(R.id.nav_configuration)
+        }
+
+        override fun subscriptions() {
+            displayFragmentWithId(R.id.nav_group)
         }
     }
 
@@ -165,6 +263,8 @@ class MainActivity : ThemedActivity(),
                 )
             }
         }
+        // what changed the main screen (a profile chosen, a test, an edit) changes the sheet's rows too
+        refreshConfigs()
     }
 
     private fun MaterialAlertDialogBuilder.showLinkQuestion(): AlertDialog {
