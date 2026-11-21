@@ -52,6 +52,8 @@ github.com/arngory/cronet-go/lib/windows_amd64 v0.0.0-20261118091355-747109c6b57
 github.com/arngory/cronet-go/lib/windows_amd64 v0.0.0-20261118091355-747109c6b573/go.mod h1:lm9w/oCCRyBiUa3G8lDQTT8x/ONUvgVR2iV9fVzUZB8=
 github.com/arngory/cronet-go/lib/windows_arm64 v0.0.0-20261118091355-747109c6b573 h1:GwLJPJJPzFf129W8Xa5MmGm04VT2bGVsG96wsPqbdBE=
 github.com/arngory/cronet-go/lib/windows_arm64 v0.0.0-20261118091355-747109c6b573/go.mod h1:n34YyLgapgjWdKa0IoeczjAFCwD3/dxbsH5sucKw0bw=
+github.com/arngory/ironwood v0.0.0-20261121050742-4e588c904be3 h1:7UHMB50+Ycce8Um7/j8woeoIqBO1bn1lkSzcc9uBYvI=
+github.com/arngory/ironwood v0.0.0-20261121050742-4e588c904be3/go.mod h1:+4Nkaq0kqo0xK/XGawV7wVyj2D2LZeLJOzozZp7yhdM=
 github.com/arngory/yggdrasil-go v0.5.16-0.20261108201637-5afe92f15200 h1:btAh+Dnn7+TXPXAN6uAQu1M1xEfPVWzgDS4fOIf93Es=
 github.com/arngory/yggdrasil-go v0.5.16-0.20261108201637-5afe92f15200/go.mod h1:T51l2nwbGYRBt+pTEjjpEBXmSKSDdumiFHnEGVllw5s=
 github.com/axiomhq/hyperloglog v0.0.0-20240319100328-84253e514e02 h1:bXAPYSbdYbS5VTy92NIUbeDI1qyggi+JYh5op9IFlcQ=

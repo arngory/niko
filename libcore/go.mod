@@ -245,3 +245,5 @@ replace github.com/sagernet/cronet-go/lib/linux_amd64 => github.com/arngory/cron
 replace github.com/sagernet/cronet-go/lib/windows_amd64 => github.com/arngory/cronet-go/lib/windows_amd64 v0.0.0-20261118091355-747109c6b573
 
 replace github.com/sagernet/cronet-go/lib/windows_arm64 => github.com/arngory/cronet-go/lib/windows_arm64 v0.0.0-20261118091355-747109c6b573
+
+replace github.com/Arceliar/ironwood => github.com/arngory/ironwood v0.0.0-20261121050742-4e588c904be3
