@@ -874,12 +874,13 @@ if [ -x "$naive_links/quicinitial" ] && [ -s "$naive_links/quic-hello.link" ]; t
   down naive-quic-hello
 fi
 
-echo "== an app the VPN leaves out, bound to tun0 (keqdroid's finding; a record for now, the guard comes after)"
+echo "== an app the VPN leaves out, bound to tun0 (keqdroid's finding): refused"
 # Per-app proxy, bypass mode: com.android.shell (uid 2000) left out of the VPN, root (the fetches) still in it. An app
 # outside the VPN can still bind a socket of its own to tun0 by name (SO_BINDTODEVICE): the system lets it, the
 # packets go into the tun, and the core finds no owner for them (uid -1). Through the node, the request reaches the
 # runner from the node's address: the app learns it. A plain socket of uid 2000 goes around the VPN, from the
-# runner's own. bindleak (ci.yml) is that app's socket.
+# runner's own. bindleak (ci.yml) is that app's socket. The app's rule (ConfigBuilder's outsideVpnGuard) refuses
+# such a connection: a request that comes from the node's address fails the run.
 leak=skipped
 if [ -x "$naive_links/bindleak" ] && timeout 20 adb shell "command -v sqlite3" > /dev/null 2>&1; then
   timeout 30 adb push "$naive_links/bindleak" /data/local/tmp/bindleak > /dev/null &&
@@ -902,8 +903,8 @@ if [ -x "$naive_links/bindleak" ] && timeout 20 adb shell "command -v sqlite3" >
     shell_said=$(head -c 200 <<< "$body")
   }
   if [ "$from" != "$node" ]; then
-    # no tunnel to bind to (the settings not taken, Hysteria2 not up): nothing to judge
-    leak="skipped (the VPN not up: root's request from ${from:-nowhere})"
+    # per-app proxy with the guard's rule: the apps the VPN takes must still go through it
+    fail "per-app proxy (com.android.shell left out): root's request did not go through the VPN (from ${from:-nowhere})"
   else
     shell_fetch - shell-plain
     echo "uid 2000, a plain socket: from ${shell_from:-nowhere} (said: $shell_said)"
@@ -911,15 +912,12 @@ if [ -x "$naive_links/bindleak" ] && timeout 20 adb shell "command -v sqlite3" >
     shell_fetch tun0 shell-tun0
     echo "uid 2000, bound to tun0: from ${shell_from:-nowhere} (said: $shell_said)"
     if [ "$shell_from" = "$node" ]; then
-      leak=yes
-      echo "::warning::an app the VPN leaves out reached the internet through the tunnel by binding to tun0: the node's address leaks to it"
+      fail "an app the VPN leaves out reached the internet through the tunnel by binding to tun0: the node's address leaks to it"
     elif [ -n "$shell_from" ]; then
       leak="no (from $shell_from)"
-    elif grep -q '^dial:' <<< "$shell_said"; then
-      # the system refused the bind or the tunnel refused the connection: which, the error says
-      leak="unknown (the socket did not connect: ${shell_said#dial: })"
     else
-      leak="no (no answer through the tunnel)"
+      # refused by the rule: the connection reset, or no answer
+      leak="no (refused: $(head -1 <<< "$shell_said"))"
     fi
     [ "$plain_from" = "$node" ] && echo "::warning::uid 2000 went through the VPN with a plain socket: the per-app bypass did not take"
   fi

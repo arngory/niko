@@ -59,6 +59,21 @@ const val NAIVE_UDP_DATAGRAMS = true
 
 const val TAG_MIXED = "mixed-in"
 
+// the package name libcore gives a connection whose owner the VPN does not apply to (libcore OutsideVPNPackage)
+const val OUTSIDE_VPN_PACKAGE = "niko:outside-vpn"
+
+/**
+ * Per-app proxy leaves apps out of the VPN, yet an app left out can bind a socket to tun0 by name (SO_BINDTODEVICE):
+ * the system lets it, and its packets come into the tunnel with no owner Android names. Through the proxy it would
+ * learn the node's address. This rule refuses such connections before anything is dialled. It goes below the DNS
+ * hijack: a query to the tunnel's DNS is answered as any.
+ */
+fun outsideVpnGuard() = Rule_DefaultOptions().apply {
+    inbound = listOf("tun-in")
+    package_name = listOf(OUTSIDE_VPN_PACKAGE)
+    action = "reject"
+}
+
 // user name the app itself uses for the local proxy, see DataStore.localProxyPassword
 const val LOCAL_PROXY_USER = "nekobox-app"
 
@@ -1466,6 +1481,8 @@ fun buildConfig(
         if (forTest) {
             dns.rules = listOf()
         } else {
+            // per-app proxy: an app left out of the VPN, bound to tun0, refused (below the DNS hijack)
+            if (isVPN && DataStore.proxyApps) route.rules.add(0, outsideVpnGuard())
             // built-in DNS rules
             route.rules.add(0, Rule_DefaultOptions().apply {
                 protocol = listOf("dns")

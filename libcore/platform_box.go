@@ -191,6 +191,12 @@ func (w *boxPlatformInterfaceWrapper) FindConnectionOwner(request *adapter.FindC
 			return nil, err
 		}
 	}
+	if uid < 0 {
+		// Android names no owner for a connection of an app the VPN does not apply to: one that bound its socket to
+		// tun0 by name (SO_BINDTODEVICE). The app's rule (ConfigBuilder, per-app proxy) rejects it by this name, which
+		// no package can have (a colon).
+		return &adapter.ConnectionOwner{UserId: -1, AndroidPackageNames: []string{OutsideVPNPackage}}, nil
+	}
 	packageName, _ := intfBox.PackageNameByUid(uid)
 	var packageNames []string
 	if packageName != "" {
@@ -198,6 +204,10 @@ func (w *boxPlatformInterfaceWrapper) FindConnectionOwner(request *adapter.FindC
 	}
 	return &adapter.ConnectionOwner{UserId: uid, AndroidPackageNames: packageNames}, nil
 }
+
+// OutsideVPNPackage is the package name a connection gets whose owner is outside the VPN (ConfigBuilder's
+// OUTSIDE_VPN_PACKAGE is the same).
+const OutsideVPNPackage = "niko:outside-vpn"
 
 // sing-box v1.14.x PlatformInterface additions. NekoBox Android does not
 // implement the new platform capabilities (TUN option passthrough, neighbor

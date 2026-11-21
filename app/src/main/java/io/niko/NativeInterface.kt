@@ -68,6 +68,8 @@ class NativeInterface : BoxPlatformInterface, NikoInterface {
     override fun packageNameByUid(uid: Int): String {
         PackageCache.awaitLoadSync()
 
+        // -1: no owner (a connection of an app the VPN leaves out); not the system
+        if (uid < 0) error("no owner")
         if (uid <= 1000L) {
             return "android"
         }
