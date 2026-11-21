@@ -290,6 +290,7 @@ def compose(tokens):
         "import androidx.compose.ui.text.font.Font",
         "import androidx.compose.ui.text.font.FontFamily",
         "import androidx.compose.ui.text.font.FontWeight",
+        "import androidx.compose.ui.text.style.LineHeightStyle",
         "import androidx.compose.ui.unit.dp",
         "import androidx.compose.ui.unit.em",
         "import androidx.compose.ui.unit.sp",
@@ -321,6 +322,10 @@ def compose(tokens):
 
     out.append("/** The design system's text styles, without a colour (the caller's). label is always written in capitals. */")
     out.append("object NikoType {")
+    out.append("    // a line as CSS lays it out: the whole line height, the text in its middle (Compose trims a text's first")
+    out.append("    // and last line to the font by default, a single line 2-4 dp shorter than on the canvas)")
+    out.append("    private val CssLine = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None)")
+    out.append("")
     for group in tokens["type"]["groups"]:
         family = group["family"].capitalize()
         for style in group["styles"]:
@@ -332,7 +337,7 @@ def compose(tokens):
                        f"fontWeight = FontWeight.W{style['fontWeight']}, "
                        f"fontSize = {kotlin_number(px(style['fontSize']))}.sp, "
                        f"lineHeight = {kotlin_number(px(style['lineHeight']))}.sp, "
-                       f"letterSpacing = ({kotlin_number(spacing)}).em)")
+                       f"letterSpacing = ({kotlin_number(spacing)}).em, lineHeightStyle = CssLine)")
     out += ["}", ""]
 
     for section, cls in (("spacing", "NikoSpace"), ("radius", "NikoRadius"), ("size", "NikoSize"), ("stroke", "NikoStroke")):
