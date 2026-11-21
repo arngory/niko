@@ -8,6 +8,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -89,22 +90,26 @@ object NikoFonts {
 
 /** The design system's text styles, without a colour (the caller's). label is always written in capitals. */
 object NikoType {
+    // a line as CSS lays it out: the whole line height, the text in its middle (Compose trims a text's first
+    // and last line to the font by default, a single line 2-4 dp shorter than on the canvas)
+    private val CssLine = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None)
+
     /** Один на экран: имя узла в карточке, крупная цифра. */
-    val display = TextStyle(fontFamily = NikoFonts.Sans, fontWeight = FontWeight.W600, fontSize = 40.sp, lineHeight = 44.sp, letterSpacing = (-0.03).em)
+    val display = TextStyle(fontFamily = NikoFonts.Sans, fontWeight = FontWeight.W600, fontSize = 40.sp, lineHeight = 44.sp, letterSpacing = (-0.03).em, lineHeightStyle = CssLine)
     /** Статус подключения, заголовок экрана и диалога. */
-    val title = TextStyle(fontFamily = NikoFonts.Sans, fontWeight = FontWeight.W600, fontSize = 24.sp, lineHeight = 30.sp, letterSpacing = (-0.02).em)
+    val title = TextStyle(fontFamily = NikoFonts.Sans, fontWeight = FontWeight.W600, fontSize = 24.sp, lineHeight = 30.sp, letterSpacing = (-0.02).em, lineHeightStyle = CssLine)
     /** Заголовок панели и группы, значение в плитке. */
-    val headline = TextStyle(fontFamily = NikoFonts.Sans, fontWeight = FontWeight.W600, fontSize = 17.sp, lineHeight = 24.sp, letterSpacing = (-0.01).em)
+    val headline = TextStyle(fontFamily = NikoFonts.Sans, fontWeight = FontWeight.W600, fontSize = 17.sp, lineHeight = 24.sp, letterSpacing = (-0.01).em, lineHeightStyle = CssLine)
     /** Основной текст, заголовок строки списка, значения в полях. */
-    val body = TextStyle(fontFamily = NikoFonts.Sans, fontWeight = FontWeight.W400, fontSize = 16.sp, lineHeight = 24.sp, letterSpacing = (0).em)
+    val body = TextStyle(fontFamily = NikoFonts.Sans, fontWeight = FontWeight.W400, fontSize = 16.sp, lineHeight = 24.sp, letterSpacing = (0).em, lineHeightStyle = CssLine)
     /** Вторая строка списка, текст баннера, разделы шапки, сегменты (600). */
-    val bodySm = TextStyle(fontFamily = NikoFonts.Sans, fontWeight = FontWeight.W400, fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = (0).em)
+    val bodySm = TextStyle(fontFamily = NikoFonts.Sans, fontWeight = FontWeight.W400, fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = (0).em, lineHeightStyle = CssLine)
     /** Подписи полей и плиток, подсказки и ошибки под полем, обычно в ink-2. */
-    val caption = TextStyle(fontFamily = NikoFonts.Sans, fontWeight = FontWeight.W500, fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = (0.01).em)
+    val caption = TextStyle(fontFamily = NikoFonts.Sans, fontWeight = FontWeight.W500, fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = (0.01).em, lineHeightStyle = CssLine)
     /** Адреса, порты, пинг, скорость, трафик, таймер, ключи, приглашения RCINV2. */
-    val code = TextStyle(fontFamily = NikoFonts.Mono, fontWeight = FontWeight.W400, fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = (0).em)
+    val code = TextStyle(fontFamily = NikoFonts.Mono, fontWeight = FontWeight.W400, fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = (0).em, lineHeightStyle = CssLine)
     /** Надзаголовки групп, теги транспорта и UDP, счётчики. Всегда заглавными. */
-    val label = TextStyle(fontFamily = NikoFonts.Mono, fontWeight = FontWeight.W500, fontSize = 11.sp, lineHeight = 16.sp, letterSpacing = (0.06).em)
+    val label = TextStyle(fontFamily = NikoFonts.Mono, fontWeight = FontWeight.W500, fontSize = 11.sp, lineHeight = 16.sp, letterSpacing = (0.06).em, lineHeightStyle = CssLine)
 }
 
 object NikoSpace {
