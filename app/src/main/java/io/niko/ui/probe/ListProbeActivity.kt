@@ -68,17 +68,22 @@ abstract class ListProbeActivity : ComponentActivity() {
                     withFrameNanos { }
                     withFrameNanos { }
                     val sorted = took.sorted()
-                    Log.i(
-                        "NikoListProbe",
-                        "variant=$variant frames=$frames median_us=${sorted[frames / 2] / 1000} " +
-                            "p90_us=${sorted[frames * 9 / 10] / 1000}",
-                    )
+                    // INFO is loggable by default: list-probe.sh reads it from a release build
+                    if (Log.isLoggable(TAG, Log.INFO)) {
+                        Log.i(
+                            TAG,
+                            "variant=$variant frames=$frames median_us=${sorted[frames / 2] / 1000} " +
+                                "p90_us=${sorted[frames * 9 / 10] / 1000}",
+                        )
+                    }
                 }
             }
         }
     }
 
     companion object {
+        private const val TAG = "NikoListProbe"
+
         /** The canvas's values: user niko, port 2080, a password of twelve, every switch off. */
         fun probeValues() = MemorySettingValues(
             texts = mapOf(Key.MIXED_USERNAME to "niko", Key.MIXED_PORT to "2080", Key.MIXED_PASSWORD to "000000000000"),

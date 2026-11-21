@@ -17,8 +17,8 @@ import io.niko.ui.home.Section
 fun InboundScreen(values: SettingValues, onBack: () -> Unit, onNewPassword: () -> Unit) =
     ListPage(stringResource(R.string.inbound_title), stringResource(R.string.screen_back), onBack) {
         @Composable
-        fun field(key: String, label: Int, input: FieldInput, modifier: Modifier = Modifier, trail: (@Composable () -> Unit)? = null) =
-            Field(stringResource(label), values.text(key), { values.setText(key, it) }, modifier, input, mono = true, trail = trail)
+        fun field(key: String, label: Int, input: FieldInput, modifier: Modifier = Modifier, button: FieldButton? = null) =
+            Field(stringResource(label), values.text(key), { values.setText(key, it) }, modifier, input, mono = true, button = button)
 
         @Composable
         fun switch(key: String, title: Int, divider: Boolean, enabled: Boolean = true) =
@@ -28,9 +28,10 @@ fun InboundScreen(values: SettingValues, onBack: () -> Unit, onNewPassword: () -
             field(Key.MIXED_USERNAME, R.string.inbound_user, FieldInput.TEXT, Modifier.weight(1f))
             field(Key.MIXED_PORT, R.string.inbound_port, FieldInput.PORT, Modifier.width(NarrowField))
         }
-        field(Key.MIXED_PASSWORD, R.string.inbound_password, FieldInput.SECRET) {
-            IconButton(R.drawable.ic_l_rotate_cw, stringResource(R.string.inbound_new_password), muted = true, small = true, onClick = onNewPassword)
-        }
+        field(
+            Key.MIXED_PASSWORD, R.string.inbound_password, FieldInput.SECRET,
+            button = FieldButton(R.drawable.ic_l_rotate_cw, stringResource(R.string.inbound_new_password), onNewPassword),
+        )
         ListGroup {
             switch(Key.ALLOW_ACCESS, R.string.inbound_lan, divider = false)
             switch(Key.LOCAL_PROXY_NO_AUTH_IN_VPN, R.string.inbound_no_auth_in_vpn, divider = true)

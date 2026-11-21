@@ -72,9 +72,7 @@ fun ListScreen(spec: ListSpec, values: SettingValues, onBack: () -> Unit, onActi
 private fun SpecField(field: FieldSpec, values: SettingValues, onAction: (String) -> Unit, modifier: Modifier = Modifier) =
     Field(
         stringResource(field.label), values.text(field.key), { values.setText(field.key, it) }, modifier, field.input, field.mono,
-        trail = field.action?.let { action ->
-            { IconButton(action.icon, stringResource(action.label), muted = true, small = true) { onAction(action.id) } }
-        },
+        button = field.action?.let { action -> FieldButton(action.icon, stringResource(action.label)) { onAction(action.id) } },
     )
 
 @Composable

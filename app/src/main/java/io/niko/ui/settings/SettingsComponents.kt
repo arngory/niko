@@ -64,6 +64,9 @@ import io.niko.ui.home.pressed
 /** What a field takes: text as typed, a port (digits, five at most), a secret (shown as dots). */
 enum class FieldInput { TEXT, PORT, SECRET }
 
+/** m-field__trail's icon button: what it does, for a screen reader, and its action. */
+class FieldButton(@DrawableRes val icon: Int, val label: String, val onClick: () -> Unit)
+
 /** m-fields-row > m-field--narrow: the width of a narrow field beside a wide one. */
 internal val NarrowField = 104.dp
 
@@ -118,7 +121,7 @@ internal fun FieldsRow(content: @Composable RowScope.() -> Unit) =
 
 /**
  * m-field: [label] over the control (surface-2, the stroke-bold border in ink while it has the focus), [mono] in
- * Geist Mono (m-field__control--mono), [trail] at its end (m-field__trail).
+ * Geist Mono (m-field__control--mono), [button] at its end (m-field__trail, a muted small icon button).
  */
 @Composable
 internal fun Field(
@@ -128,7 +131,7 @@ internal fun Field(
     modifier: Modifier = Modifier,
     input: FieldInput = FieldInput.TEXT,
     mono: Boolean = false,
-    trail: (@Composable () -> Unit)? = null,
+    button: FieldButton? = null,
 ) {
     val c = Niko.colors
     val source = remember { MutableInteractionSource() }
@@ -159,7 +162,7 @@ internal fun Field(
                 interactionSource = source,
                 cursorBrush = SolidColor(c.ink),
             )
-            trail?.invoke()
+            if (button != null) IconButton(button.icon, button.label, muted = true, small = true, onClick = button.onClick)
         }
     }
 }
