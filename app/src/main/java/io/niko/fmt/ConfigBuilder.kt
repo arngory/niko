@@ -1,12 +1,10 @@
 package io.niko.fmt
 
-import android.widget.Toast
 import io.niko.*
 import io.niko.bg.VpnService
 import io.niko.database.DataStore
 import io.niko.database.ProxyEntity
 import io.niko.database.ProxyEntity.Companion.TYPE_CONFIG
-import io.niko.database.SagerDatabase
 import io.niko.fmt.ConfigBuildResult.IndexEntity
 import io.niko.fmt.hysteria.HysteriaBean
 import io.niko.fmt.naive.NaiveBean
@@ -28,18 +26,12 @@ import io.niko.fmt.wireguard.buildSingBoxEndpointWireguardBean
 import io.niko.ktx.Logs
 import io.niko.raycontrol.RayNode
 import io.niko.raycontrol.RayBrutal
-import io.niko.raycontrol.RayChannel
-import io.niko.raycontrol.RayNodes
 import io.niko.raycontrol.RayLanDirect
 import io.niko.raycontrol.RayLanNet
 import io.niko.raycontrol.knockOptions
 import io.niko.ktx.isIpAddress
-import io.niko.ktx.mkPort
-import io.niko.utils.PrivateDns
-import io.niko.utils.PackageCache
 import io.niko.*
 import io.niko.SingBoxOptions.*
-import io.niko.plugin.Plugins
 import io.niko.proxy.anytls.AnyTLSBean
 import io.niko.proxy.anytls.buildSingBoxOutboundAnyTLSBean
 import io.niko.proxy.config.ConfigBean
@@ -48,8 +40,6 @@ import io.niko.proxy.shadowtls.buildSingBoxOutboundShadowTLSBean
 import io.niko.utils.JavaUtil.gson
 import io.niko.utils.Util
 import io.niko.utils.listByLineOrComma
-import java.io.File
-import libcore.Libcore
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 // UDP of naive as HTTP/3 datagrams (raycontrol naive-udp-v1, udp=1): the core keeps it over TCP until the app's
@@ -118,19 +108,28 @@ private val TLS_PIN_TYPES = TLS_FRAGMENT_TYPES + setOf("hysteria", "hysteria2", 
  * use it to learn the proxy exit address, so it requires authentication unless allowed.
  * The app always authenticates with its own credentials (see LOCAL_PROXY_USER).
  */
-fun localProxyUsers(isVPN: Boolean): List<User>? {
-    val custom = DataStore.mixedPassword.takeIf { it.isNotBlank() }?.let {
+fun localProxyUsers(isVPN: Boolean): List<User>? = localProxyUsers(isVPN, localProxySettings())
+
+internal fun localProxyUsers(isVPN: Boolean, settings: ConfigSettings): List<User>? {
+    val custom = settings.secrets.mixedPassword.takeIf { it.isNotBlank() }?.let {
         User().apply {
-            username = DataStore.mixedUsername.ifBlank { "user" }
+            username = settings.mixedUsername.ifBlank { "user" }
             password = it
         }
     }
-    if (custom == null && (!isVPN || DataStore.localProxyNoAuthInVpn)) return null
+    if (custom == null && (!isVPN || settings.localProxyNoAuthInVpn)) return null
     return listOfNotNull(User().apply {
         username = LOCAL_PROXY_USER
-        password = DataStore.localProxyPassword
+        password = settings.secrets.localProxyPassword
     }, custom)
 }
+
+/** what the local proxy's login takes, from the settings stored */
+private fun localProxySettings() = ConfigSettings(
+    mixedUsername = DataStore.mixedUsername,
+    localProxyNoAuthInVpn = DataStore.localProxyNoAuthInVpn,
+    secrets = ConfigSecrets(localProxyPassword = DataStore.localProxyPassword, mixedPassword = DataStore.mixedPassword),
+)
 
 /**
  * The log level of test cores in this process while a test run goes (RayTestRun): never stored, so a killed run or
@@ -140,8 +139,8 @@ fun localProxyUsers(isVPN: Boolean): List<User>? {
 var testLogLevel: Int? = null
 
 /** Whether the local proxy port opens: always in proxy mode; in VPN mode when the user set it up for other apps. */
-fun localProxyWanted(isVPN: Boolean) =
-    !isVPN || DataStore.mixedPassword.isNotBlank() || DataStore.localProxyNoAuthInVpn
+fun localProxyWanted(isVPN: Boolean, settings: ConfigSettings) =
+    !isVPN || settings.secrets.mixedPassword.isNotBlank() || settings.localProxyNoAuthInVpn
 
 /**
  * Proxy mode with the service started: the app's own requests go through its port and never around it, which would
@@ -183,13 +182,23 @@ class ConfigBuildResult(
  */
 fun buildConfig(
     proxy: ProxyEntity, forTest: Boolean = false, forExport: Boolean = false, notes: Boolean = !forTest && !forExport,
+): ConfigBuildResult = buildConfig(ConfigInput.fromApp(proxy), forTest, forExport, notes)
+
+/** [buildConfig] of what [input] gives: it reads nothing else (desktop-stage3.md, section 5). */
+fun buildConfig(
+    input: ConfigInput, forTest: Boolean = false, forExport: Boolean = false, notes: Boolean = !forTest && !forExport,
 ): ConfigBuildResult {
+    val proxy = input.proxy
+    val settings = input.settings
+    val store = input.store
+    val ray = input.ray
+    val device = input.device
 
     // raycontrol: a removed node's device key leaves this process's core with the next build (running outbounds
     // copied their keys when they started; keys of current nodes stay for builds running in parallel)
-    if (!forExport) RayNodes.retainCoreKeys()
+    if (!forExport) ray.retainCoreKeys()
     // what the DNS tunnels of a config that will run take, noted anew below (a network change compares, RayWatchdog)
-    if (notes) io.niko.raycontrol.RayDnsResolvers.clearRunning()
+    if (notes) ray.clearDnsRunning()
 
     if (proxy.type == TYPE_CONFIG) {
         val bean = proxy.requireBean() as ConfigBean
@@ -209,12 +218,12 @@ fun buildConfig(
     val tagMap = HashMap<Long, String>()
     val globalOutbounds = HashMap<Long, String>()
     val selectorNames = ArrayList<String>()
-    val group = SagerDatabase.groupDao.getById(proxy.groupId)
+    val group = store.group(proxy.groupId)
 
     fun ProxyEntity.resolveChainInternal(): MutableList<ProxyEntity> {
         val bean = requireBean()
         if (bean is ChainBean) {
-            val beans = SagerDatabase.proxyDao.getEntities(bean.proxies)
+            val beans = store.profiles(bean.proxies)
             val beansMap = beans.associateBy { it.id }
             val beanList = ArrayList<ProxyEntity>()
             for (proxyId in bean.proxies) {
@@ -238,9 +247,9 @@ fun buildConfig(
     }
 
     fun ProxyEntity.resolveChain(): MutableList<ProxyEntity> {
-        val thisGroup = SagerDatabase.groupDao.getById(groupId)
-        val frontProxy = thisGroup?.frontProxy?.let { SagerDatabase.proxyDao.getById(it) }
-        val landingProxy = thisGroup?.landingProxy?.let { SagerDatabase.proxyDao.getById(it) }
+        val thisGroup = store.group(groupId)
+        val frontProxy = thisGroup?.frontProxy?.let { store.profile(it) }
+        val landingProxy = thisGroup?.landingProxy?.let { store.profile(it) }
         val list = resolveChainInternal()
         if (frontProxy != null) {
             list.add(frontProxy)
@@ -251,9 +260,9 @@ fun buildConfig(
         return list
     }
 
-    val extraRules = if (forTest) listOf() else SagerDatabase.rulesDao.enabledRules()
+    val extraRules = if (forTest) listOf() else store.enabledRules()
     val extraProxies =
-        if (forTest) mapOf() else SagerDatabase.proxyDao.getEntities(extraRules.mapNotNull { rule ->
+        if (forTest) mapOf() else store.profiles(extraRules.mapNotNull { rule ->
             rule.outbound.takeIf { it > 0 && it != proxy.id }
         }.toHashSet().toList()).associateBy { it.id }
     // auto select (urltest) takes precedence over the manual selector
@@ -262,21 +271,21 @@ fun buildConfig(
     val userDNSRuleList = mutableListOf<DNSRule_DefaultOptions>()
     val domainListDNSDirectForce = mutableListOf<String>()
     val bypassDNSBeans = hashSetOf<AbstractBean>()
-    val isVPN = DataStore.serviceMode == Key.MODE_VPN
-    val bind = if (!forTest && DataStore.allowAccess) "0.0.0.0" else LOCALHOST
-    val remoteDns = DataStore.remoteDns.split("\n")
+    val isVPN = settings.isVPN
+    val bind = if (!forTest && settings.allowAccess) "0.0.0.0" else LOCALHOST
+    val remoteDns = settings.remoteDns.split("\n")
         .mapNotNull { dns -> dns.trim().takeIf { it.isNotBlank() && !it.startsWith("#") } }
-    val directDNS = DataStore.directDns.split("\n")
+    val directDNS = settings.directDns.split("\n")
         .mapNotNull { dns -> dns.trim().takeIf { it.isNotBlank() && !it.startsWith("#") } }
-    val enableDnsRouting = DataStore.enableDnsRouting
-    val useFakeDns = DataStore.enableFakeDns && !forTest
-    val needSniff = DataStore.trafficSniffing > 0
+    val enableDnsRouting = settings.enableDnsRouting
+    val useFakeDns = settings.enableFakeDns && !forTest
+    val needSniff = settings.trafficSniffing > 0
     val externalIndexMap = ArrayList<IndexEntity>()
     // slipstream's clients, and the rules of their mapping ports (above the DNS hijack: their queries go to port 53)
     val slipstreamLaunches = mutableListOf<ConfigBuildResult.SlipstreamLaunch>()
     val slipstreamRules = mutableListOf<Rule_DefaultOptions>()
     val naiveDatagramTags = mutableMapOf<String, Long>()
-    val ipv6Mode = if (forTest) IPv6Mode.ENABLE else DataStore.ipv6Mode
+    val ipv6Mode = if (forTest) IPv6Mode.ENABLE else settings.ipv6Mode
 
     fun genDomainStrategy(noAsIs: Boolean): String {
         return when {
@@ -296,16 +305,16 @@ fun buildConfig(
     return MyOptions().apply {
         // an exported config is shared: it carries no secret of this install (Clash secret, local proxy
         // passwords, the Yggdrasil key)
-        if (!forTest && !forExport && DataStore.enableClashAPI) experimental = ExperimentalOptions().apply {
+        if (!forTest && !forExport && settings.enableClashAPI) experimental = ExperimentalOptions().apply {
             clash_api = ClashAPIOptions().apply {
                 external_controller = "127.0.0.1:9090"
                 external_ui = "../files/yacd"
-                secret = DataStore.clashApiSecret
+                secret = settings.secrets.clashApi
             }
         }
 
         log = LogOptions().apply {
-            level = when (if (forTest) testLogLevel ?: DataStore.logLevel else DataStore.logLevel) {
+            level = when (if (forTest) testLogLevel ?: settings.logLevel else settings.logLevel) {
                 0 -> "panic"
                 1 -> "warn"
                 2 -> "info"
@@ -319,7 +328,7 @@ fun buildConfig(
             servers = mutableListOf()
             rules = mutableListOf()
             // answer from an expired cache entry at once and refresh it in the background
-            if (!forTest && DataStore.dnsOptimisticCache) _hack_config_map["optimistic"] = true
+            if (!forTest && settings.dnsOptimisticCache) _hack_config_map["optimistic"] = true
         }
 
         fun autoDnsDomainStrategy(s: String): String? {
@@ -341,12 +350,12 @@ fun buildConfig(
             if (isVPN) inbounds.add(Inbound_TunOptions().apply {
                 type = "tun"
                 tag = "tun-in"
-                stack = when (DataStore.tunImplementation) {
+                stack = when (settings.tunImplementation) {
                     TunImplementation.GVISOR -> "gvisor"
                     TunImplementation.SYSTEM -> "system"
                     else -> "mixed"
                 }
-                mtu = DataStore.mtu
+                mtu = settings.mtu
                 address = when (ipv6Mode) {
                     IPv6Mode.DISABLE -> listOf(VpnService.PRIVATE_VLAN4_CLIENT + "/28")
                     IPv6Mode.ONLY -> listOf(VpnService.PRIVATE_VLAN6_CLIENT + "/126")
@@ -359,12 +368,12 @@ fun buildConfig(
             // in VPN mode the app itself goes through the TUN: the port only serves what the user set up for it (an
             // own login, or no login allowed). Without that it stays closed, so no app on the device can learn the
             // exit address through it (R3)
-            if (localProxyWanted(isVPN)) inbounds.add(Inbound_MixedOptions().apply {
+            if (localProxyWanted(isVPN, settings)) inbounds.add(Inbound_MixedOptions().apply {
                 type = "mixed"
                 tag = TAG_MIXED
                 listen = bind
-                listen_port = DataStore.mixedPort
-                users = localProxyUsers(isVPN)?.onEach { if (forExport) it.password = EXPORT_SECRET_PLACEHOLDER }
+                listen_port = settings.mixedPort
+                users = localProxyUsers(isVPN, settings)?.onEach { if (forExport) it.password = EXPORT_SECRET_PLACEHOLDER }
             })
         }
 
@@ -382,7 +391,7 @@ fun buildConfig(
         if (!forTest) {
             val inboundTags = mutableListOf(TAG_MIXED)
             if (isVPN) inboundTags.add(0, "tun-in")
-            if (DataStore.resolveDestination) route.rules.add(Rule_DefaultOptions().apply {
+            if (settings.resolveDestination) route.rules.add(Rule_DefaultOptions().apply {
                 inbound = inboundTags
                 action = "resolve"
                 strategy = genDomainStrategy(true)
@@ -390,7 +399,7 @@ fun buildConfig(
         }
 
         // Yggdrasil (experimental): the mesh endpoint, 200::/7 through it ahead of user rules
-        val yggdrasil = DataStore.yggdrasilEnabled
+        val yggdrasil = settings.yggdrasilEnabled
         var yggdrasilEndpoint: Outbound? = null
         // the proxy reaches its server through the mesh: then the mesh cannot reach its peers
         // through the proxy
@@ -401,7 +410,7 @@ fun buildConfig(
                 type = "yggdrasil"
                 tag = TAG_YGGDRASIL
                 _hack_config_map["private_key"] = privateKey
-                _hack_config_map["peers"] = DataStore.yggdrasilPeers.lines().map { it.trim() }
+                _hack_config_map["peers"] = settings.yggdrasilPeers.lines().map { it.trim() }
                     .filter { it.isNotEmpty() && !it.startsWith("#") }.filter { peer ->
                         // the core resolves a quic:// name with the system resolver, and outside a VPN that is the
                         // network's DNS: in proxy mode such a peer goes, an address stays
@@ -413,7 +422,7 @@ fun buildConfig(
                     }
                 _hack_config_map["node_info_privacy"] = true
                 // a Chrome ClientHello on tls:// links unless turned off (core default: chrome)
-                if (!DataStore.yggdrasilTlsChrome) _hack_config_map["tls_fingerprint"] = "go"
+                if (!settings.yggdrasilTlsChrome) _hack_config_map["tls_fingerprint"] = "go"
             }
             endpoints.add(yggdrasilEndpoint!!)
         }
@@ -429,10 +438,10 @@ fun buildConfig(
         // node's knock outbound (SPA, then straight to the node)
         var nodeDoh: Pair<RayNode, String>? = null
         if (yggdrasil && !forTest) {
-            addYggdrasilEndpoint(if (forExport) EXPORT_SECRET_PLACEHOLDER else DataStore.yggdrasilPrivateKey)
+            addYggdrasilEndpoint(if (forExport) EXPORT_SECRET_PLACEHOLDER else settings.secrets.yggdrasilKey)
             yggdrasilInboundRule = Rule_DefaultOptions().apply {
                 inbound = listOf(TAG_YGGDRASIL)
-                if (DataStore.yggdrasilAllowInbound) outbound = TAG_DIRECT else action = "reject"
+                if (settings.yggdrasilAllowInbound) outbound = TAG_DIRECT else action = "reject"
             }
             route.rules.add(Rule_DefaultOptions().apply {
                 ip_cidr = listOf(YGGDRASIL_PREFIX)
@@ -465,7 +474,7 @@ fun buildConfig(
             val chainTag = "c-$chainId"
             var muxApplied = false
 
-            val defaultServerDomainStrategy = SingBoxOptionsUtil.domainStrategy("server")
+            val defaultServerDomainStrategy = settings.domainStrategy("server")
 
             profileList.forEachIndexed { index, proxyEntity ->
                 val bean = proxyEntity.requireBean()
@@ -523,7 +532,7 @@ fun buildConfig(
                 }
 
                 if (proxyEntity.needExternal()) { // externel outbound
-                    val localPort = mkPort()
+                    val localPort = device.port()
                     externalChainMap[localPort] = proxyEntity
                     currentOutbound = Outbound_SocksOptions().apply {
                         type = "socks"
@@ -537,16 +546,16 @@ fun buildConfig(
                         is ConfigBean -> CustomSingBoxOption(bean.config)
 
                         is ShadowTLSBean -> // before StandardV2RayBean
-                            buildSingBoxOutboundShadowTLSBean(bean)
+                            buildSingBoxOutboundShadowTLSBean(bean, settings.globalAllowInsecure)
 
                         is StandardV2RayBean -> // http/trojan/vmess/vless
-                            buildSingBoxOutboundStandardV2RayBean(bean)
+                            buildSingBoxOutboundStandardV2RayBean(bean, settings.globalAllowInsecure)
 
                         is HysteriaBean ->
-                            buildSingBoxOutboundHysteriaBean(bean)
+                            buildSingBoxOutboundHysteriaBean(bean, settings.globalAllowInsecure)
 
                         is TuicBean ->
-                            buildSingBoxOutboundTuicBean(bean)
+                            buildSingBoxOutboundTuicBean(bean, settings.globalAllowInsecure)
 
                         is SOCKSBean ->
                             buildSingBoxOutboundSocksBean(bean)
@@ -567,7 +576,7 @@ fun buildConfig(
                             buildSingBoxOutboundNaiveBean(bean)
 
                         is io.niko.fmt.trojan_go.TrojanGoBean ->
-                            io.niko.fmt.trojan_go.buildSingBoxOutboundTrojanGoBean(bean)
+                            io.niko.fmt.trojan_go.buildSingBoxOutboundTrojanGoBean(bean, settings.globalAllowInsecure)
 
                         is io.niko.fmt.mieru.MieruBean ->
                             io.niko.fmt.mieru.buildSingBoxOutboundMieruBean(bean)
@@ -627,7 +636,7 @@ fun buildConfig(
                 // node's host (without it the link went out with no SPA, to a port closed until a knock). The peer is
                 // dialled at the node's address with its name as the TLS name: SPA opens that address, and the name
                 // is not looked up in the clear
-                val yggNode = yggPeerAsGiven?.let { RayNodes.forHost(yggPeerHost(it)) ?: RayNodes.ownerOf(proxyEntity.id)?.first }
+                val yggNode = yggPeerAsGiven?.let { ray.forHost(yggPeerHost(it)) ?: ray.ownerOf(proxyEntity.id)?.first }
                 // names-v1: a node with its name keeps the peer's name, which the knock resolves to one of its addresses
                 val yggPeer = yggPeerAsGiven?.let { peer ->
                     yggNode?.let { node -> if (node.reachName != null) peer else yggPeerAtNode(peer, node.host) } ?: peer
@@ -636,14 +645,14 @@ fun buildConfig(
                 // a profile row through a relay in front of the node (relay-v1 §4): knocked at the relay
                 // a row through a relay by its address, or by the relay's name (relay-names-v1 §8): by its key then
                 val rayRelay = if (DnsTunnel.of(bean).enabled || yggPeer != null) null
-                else RayNodes.forRelayHost(bean.serverAddress) ?: RayNodes.relayOfRow(proxyEntity.id)
+                else ray.forRelayHost(bean.serverAddress) ?: ray.relayOfRow(proxyEntity.id)
                 // a row of a node's subscription belongs to it whatever its host: naive dials a name of its own (its
                 // SNI, a wildcard name of the node), which is not the node's address, and still needs the node's SPA
                 val rayNode = when {
                     DnsTunnel.of(bean).enabled -> null
                     yggPeer != null -> yggNode
                     rayRelay != null -> rayRelay.first
-                    else -> RayNodes.forHost(bean.serverAddress) ?: RayNodes.ownerOf(proxyEntity.id)?.first
+                    else -> ray.forHost(bean.serverAddress) ?: ray.ownerOf(proxyEntity.id)?.first
                 }
 
                 // per-profile TLS tweaks, merged into the outbound's tls object
@@ -681,9 +690,9 @@ fun buildConfig(
                 // Brutal at the rates measured on this network (RayBrutal, setting raycontrolBrutal), each direction
                 // apart; none measured: BBR. The main config only: a test runs as the profile says
                 if (!forTest && rayNode != null && bean is HysteriaBean && bean.protocolVersion == 2) {
-                    val rates = RayBrutal.ratesFor(rayNode, RayChannel.network())
+                    val rates = ray.brutalRates(rayNode)
                     // what this core declares: the watchdog restarts it when the network wants other rates
-                    if (notes) RayBrutal.noteApplied(rayNode, rates)
+                    if (notes) ray.noteBrutal(rayNode, rates)
                     rates?.let {
                         if (it.upKbps > 0) currentOutbound._hack_config_map["up_mbps"] = RayBrutal.mbps(it.upKbps)
                         if (it.downKbps > 0) currentOutbound._hack_config_map["down_mbps"] = RayBrutal.mbps(it.downKbps)
@@ -708,14 +717,14 @@ fun buildConfig(
                 // reached the destination, so a refusal or a dead host fails it at once instead of a connection that
                 // ends empty; only where the link says the server answers right after its dial (niko-ack=1). A field
                 // of the core fork's: not in an export
-                if (!forExport && DataStore.honestConnect && bean is HysteriaBean && bean.protocolVersion == 2 &&
+                if (!forExport && settings.honestConnect && bean is HysteriaBean && bean.protocolVersion == 2 &&
                     bean.nikoAck == true && !proxyEntity.needExternal()
                 ) {
                     currentOutbound._hack_config_map["await_dial"] = true
                 }
                 // the same through naive: the core asks the node for its answer after the dial (niko-ack: 1 with the
                 // CONNECT) and holds the dial for it
-                if (!forExport && DataStore.honestConnect && bean is NaiveBean && bean.nikoAck == true) {
+                if (!forExport && settings.honestConnect && bean is NaiveBean && bean.nikoAck == true) {
                     currentOutbound._hack_config_map["await_dial"] = true
                 }
                 // UDP as HTTP/3 datagrams on a second, QUIC connection to the node (raycontrol naive-udp-v1, udp=1 in
@@ -732,14 +741,14 @@ fun buildConfig(
                 // over QUIC, as Chrome does, and takes the phone's roots over HTTP/2 only. The switch makes QUIC as
                 // HTTP/2 there. A field of the core fork's: not in an export
                 if (!forExport && bean is NaiveBean &&
-                    naiveQuicPhoneRoots(DataStore.rootStore, DataStore.naiveQuicPhoneRoots, bean.proto)
+                    naiveQuicPhoneRoots(settings.rootStore, settings.naiveQuicPhoneRoots, bean.proto)
                 ) {
                     currentOutbound._hack_config_map["quic_locally_trusted_roots"] = true
                 }
                 // ping and traceroute through the node (experiment, off by default): the core's naive carries the
                 // app's echo to the node, which pings for it (raycontrol icmp-v1); only where the link says the
                 // node does (icmp=1). A field of the core fork's: not in an export
-                if (!forExport && DataStore.icmpThroughNode && bean is NaiveBean && bean.nikoIcmp == true &&
+                if (!forExport && settings.icmpThroughNode && bean is NaiveBean && bean.nikoIcmp == true &&
                     !proxyEntity.needExternal()
                 ) {
                     currentOutbound._hack_config_map["icmp"] = true
@@ -755,7 +764,7 @@ fun buildConfig(
                         (bean.udpPrelude ?: 0).coerceIn(0, 8).takeIf { it > 0 }?.let { put("prelude", it) }
                         // never a name of the node: its front would pin the flow to that backend
                         bean.udpPreludeSni?.trim()?.takeIf { it.isNotBlank() }?.let { sni ->
-                            val nodeName = RayNodes.forHost(bean.serverAddress)?.let { sni.lowercase() in RayNodes.names(it) } == true
+                            val nodeName = ray.forHost(bean.serverAddress)?.let { sni.lowercase() in ray.names(it) } == true
                             if (nodeName) Logs.w("UDP desync (${bean.displayName()}): $sni is a name of the node, the fakes are random bytes")
                             else put("prelude_sni", sni)
                         }
@@ -786,13 +795,13 @@ fun buildConfig(
                     knockOutbound._hack_config_map.putAll(
                         rayNode?.let {
                             val relay = rayRelay?.second
-                            if (forExport) it.knockOptions(relay) else RayNodes.prepareKnock(it, relay)
+                            if (forExport) it.knockOptions(relay) else ray.prepareKnock(it, relay)
                         }
                             ?: bean.buildKnockOutboundOptions()
                     )
                     // the node's UDP service port rotates (spa-v2.md §11): the knock outbound follows it
                     // a relay forwards UDP 443 only (relay-v1 §4): no slot ports through it
-                    rayNode?.takeIf { rayRelay == null }?.let { rotatingUdpPorts(it, proxyEntity, bean) }?.let {
+                    rayNode?.takeIf { rayRelay == null }?.let { rotatingUdpPorts(ray, it, proxyEntity, bean) }?.let {
                         knockOutbound._hack_config_map["udp_ports"] = it
                     }
                     // only for the node's TCP 443 profiles (REALITY, naive): with Hysteria2 or a DNS tunnel the node's
@@ -822,7 +831,7 @@ fun buildConfig(
                     // node would send the running connection's packets down either link
                     // The reverse order is not covered: a test already running when the service starts with this key
                     // overlaps it for the test's window (at most 20 s), and the node settles on the remaining link
-                    if (forTest && yggKeyRunning(seed)) throw YggInUseException(bean.displayName())
+                    if (forTest && device.yggKeyRunning(seed)) throw YggInUseException(bean.displayName())
                     // one mesh node per key: the same key with another peer would be a second node on that address
                     yggProfileEndpoints[seed]?.let { (_, peer) ->
                         if (peer != yggPeer) throw Exception("${bean.displayName()}: its Yggdrasil key is used with another node in this configuration")
@@ -833,9 +842,9 @@ fun buildConfig(
                     // checks the new list (RayChannel.tryYggVia)
                     val allVia = bean.yggVia.orEmpty().lines().map { it.trim() }.filter { it.isNotEmpty() }
                     val viaActive = !forTest && allVia.isNotEmpty() && rayNode != null &&
-                        RayChannel.yggViaActive(rayNode.spa.nodeId, RayChannel.network())
+                        ray.yggViaActive(rayNode.spa.nodeId)
                     val via = if (viaActive && rayNode != null) {
-                        RayChannel.yggViaPeers(rayNode.spa.nodeId, RayChannel.network())?.filter { it in allVia } ?: allVia
+                        ray.yggViaPeers(rayNode.spa.nodeId)?.filter { it in allVia } ?: allVia
                     } else emptyList()
                     val viaOn = via.isNotEmpty()
                     // what this core runs with, per node (any of its mesh nodes): the watchdog adds the peers when
@@ -843,7 +852,7 @@ fun buildConfig(
                     if (!forTest && rayNode != null) {
                         val on = yggViaNotes[rayNode.spa.nodeId] == true || viaOn
                         yggViaNotes[rayNode.spa.nodeId] = on
-                        if (notes) RayChannel.noteYggVia(rayNode.spa.nodeId, on)
+                        if (notes) ray.noteYggVia(rayNode.spa.nodeId, on)
                     }
                     // only the node gets its SPA: the knock outbound knocks at the node's own names (and what they
                     // resolve to) and dials anything else plainly, the public peers among them, by name or address
@@ -881,7 +890,7 @@ fun buildConfig(
                 ) {
                     // a latency test runs next to the main node: a node of its own, with a
                     // one-time key, so two nodes never claim one address
-                    if (forTest) addYggdrasilEndpoint(Libcore.yggdrasilGenerateKey())
+                    if (forTest) addYggdrasilEndpoint(device.yggdrasilKey())
                     val dialing = pastDetourHolder ?: currentOutbound
                     dialing._hack_config_map.remove("domain_resolver")
                     dialing._hack_config_map["detour"] = TAG_YGGDRASIL
@@ -892,23 +901,9 @@ fun buildConfig(
                 // dnstt or masterdnsvpn outbound; a resolver left to the client ("auto") is for dnstt the one picked
                 // for this network (dnsprobe-v1), else the default of before; for masterdns the network's own and the
                 // country's (RayDnsResolvers)
-                // dnszones-v1: one zone at a time, the main one unless this network's pick or failures moved it,
-                // decided on the tunnel as the profile has it (RayDnsResolvers.forConfig)
+                // dnszones-v1: one zone at a time (ConfigRay.dnsTunnel)
                 val dnsTunnel = DnsTunnel.of(bean).let { t ->
-                    if (!t.enabled) t
-                    else {
-                        val owner = RayNodes.ownerOf(proxyEntity.id)?.first
-                        if (notes) io.niko.raycontrol.RayDnsResolvers.noteRunningZone(owner, t)
-                        io.niko.raycontrol.RayDnsResolvers.forConfig(t, owner) {
-                            io.niko.raycontrol.RayDnsResolvers.resolverFor(owner, t.engine).also { resolver ->
-                                if (notes) {
-                                    io.niko.raycontrol.RayDnsResolvers.noteRunning(owner, t.engine, resolver)
-                                    // no pick on this network yet: one now, in the background
-                                    io.niko.raycontrol.RayDnsResolvers.pickSoon(owner, t)
-                                }
-                            }
-                        }
-                    }
+                    if (!t.enabled) t else ray.dnsTunnel(t, ray.ownerOf(proxyEntity.id)?.first, notes)
                 }
                 if (dnsTunnel.enabled) {
                     val prefix = "DNS tunnel (${bean.displayName()})"
@@ -929,7 +924,7 @@ fun buildConfig(
                         // the client's queries leave through the core's own sockets, a mapping port per resolver
                         // (a path each), so they stay out of the VPN as the plugins' traffic does
                         val mapped = dnsTunnel.slipResolvers.mapIndexed { i, (host, port) ->
-                            val mappingPort = mkPort()
+                            val mappingPort = device.port()
                             val mappingTag = "$tagOut-slipstream-$i"
                             inbounds.add(Inbound_DirectOptions().apply {
                                 type = "direct"
@@ -950,12 +945,12 @@ fun buildConfig(
                         val env = mutableMapOf<String, String>()
                         var clockOffset = 0L
                         dnsTunnel.authNode?.let { (nodeId, serviceId) ->
-                            val node = RayNodes.get(nodeId)
+                            val node = ray.node(nodeId)
                                 ?: throw Exception("$prefix: the raycontrol node of this tunnel is not imported (dnsauth)")
-                            env["SLIPSTREAM_DNSAUTH_KEY"] = RayNodes.dnsAuthKeyHex(node, serviceId)
+                            env["SLIPSTREAM_DNSAUTH_KEY"] = ray.dnsAuthKeyHex(node, serviceId)
                             clockOffset = node.clockSkew
                         }
-                        val localPort = mkPort()
+                        val localPort = device.port()
                         slipstreamLaunches += ConfigBuildResult.SlipstreamLaunch(
                             dnsTunnel.slipstreamArgs(localPort, mapped, clockOffset), env, localPort,
                         )
@@ -972,16 +967,14 @@ fun buildConfig(
                         val tunnelTag = "$tagOut-dnstunnel"
                         // libcore's protect server runs with the main instance; a latency test without
                         // one must not point the tunnel's own sockets at a missing socket
-                        val protectPath = "protect_path".takeIf {
-                            !forTest || File(SagerNet.application.noBackupFilesDir, it).exists()
-                        }
+                        val protectPath = "protect_path".takeIf { !forTest || device.protectPathReady() }
                         // dnsauth-v1: the node's device key goes into the core by reference, never into the config; the tag's
                         // epoch is the node's, by the subscription's skew
                         val authNode = dnsTunnel.authNode?.let { (nodeId, _) ->
-                            RayNodes.get(nodeId)
+                            ray.node(nodeId)
                                 ?: throw Exception("$prefix: the raycontrol node of this tunnel is not imported (dnsauth)")
                         }
-                        if (authNode != null && !forExport) RayNodes.prepareDeviceKey(authNode)
+                        if (authNode != null && !forExport) ray.prepareDeviceKey(authNode)
                         outbounds.add(Outbound().apply {
                             tag = tunnelTag
                             _hack_config_map.putAll(
@@ -1011,14 +1004,14 @@ fun buildConfig(
                             is HysteriaBean -> if (bean.protocolVersion == 1) "hysteria-plugin" else "hysteria2-plugin"
                             else -> ""
                         }
-                        if (Plugins.isUsingMatsuriExe(pluginId)) {
+                        if (device.pluginBundled(pluginId)) {
                             needExternal = false
-                        } else if (Plugins.getPluginExternal(pluginId) != null) {
+                        } else if (device.pluginExternal(pluginId)) {
                             throw Exception("You are using an unsupported $pluginId, please download the correct plugin.")
                         }
                     }
                     if (needExternal) {
-                        val mappingPort = mkPort()
+                        val mappingPort = device.port()
                         bean.finalAddress = LOCALHOST
                         bean.finalPort = mappingPort
 
@@ -1061,7 +1054,7 @@ fun buildConfig(
         // build outbounds
         buildingProxy = true
         if (buildSelector) {
-            val list = group.id.let { SagerDatabase.proxyDao.getByGroup(it) }
+            val list = store.profilesOf(group.id)
             list.forEach {
                 tagMap[it.id] = buildChain(it.id, it)
             }
@@ -1073,14 +1066,14 @@ fun buildConfig(
             })
             route.final_ = TAG_PROXY
         } else if (buildAuto) {
-            SagerDatabase.proxyDao.getByGroup(group!!.id).forEach {
+            store.profilesOf(group!!.id).forEach {
                 tagMap[it.id] = buildChain(it.id, it)
             }
             outbounds.add(0, Outbound_URLTestOptions().apply {
                 type = "urltest"
                 tag = TAG_PROXY
                 outbounds = tagMap.values.toList()
-                url = DataStore.connectionTestURL
+                url = settings.connectionTestURL
                 interval = "3m"
                 tolerance = 50
             })
@@ -1090,11 +1083,11 @@ fun buildConfig(
         }
         // a single profile (not a group, whose members differ) that carries UDP inside a stream: QUIC refused, so
         // browsers go to TCP at once instead of QUIC inside TCP
-        val refuseQuic = !forTest && !buildSelector && !buildAuto && DataStore.refuseQuicOverStreams &&
+        val refuseQuic = !forTest && !buildSelector && !buildAuto && settings.refuseQuicOverStreams &&
                 udpRidesAStream(proxy.resolveChain())
         buildingProxy = false
         // Yggdrasil peers through the proxy, unless the proxy itself needs the mesh
-        if (yggdrasil && !forTest && DataStore.yggdrasilPeersViaProxy) {
+        if (yggdrasil && !forTest && settings.yggdrasilPeersViaProxy) {
             if (proxyThroughYggdrasil) {
                 Logs.w("Yggdrasil: the profile goes through the mesh, peers are dialled directly")
             } else {
@@ -1109,15 +1102,15 @@ fun buildConfig(
         // lan-v1: the user's other devices on a node's Yggdrasil, where this device shows itself. The mesh node of the
         // node's Yggdrasil row (lan.svc) runs for it also when another profile is selected; neighbours' addresses go
         // through it, and only theirs come in. Not in a test, not in an export (the devices' names and addresses)
-        val lanNow = System.currentTimeMillis() / 1000
-        val lanNodes = if (forTest || forExport) emptyList() else RayNodes.list().filter { RayLanNet.of(it) != null }
+        val lanNow = device.now()
+        val lanNodes = if (forTest || forExport) emptyList() else ray.nodes().filter { ray.lanOf(it) != null }
         // endpoint tag → the neighbours' addresses; node id → the endpoint
         val lanEndpoints = LinkedHashMap<String, MutableList<String>>()
         val lanEndpointOf = HashMap<String, String>()
         for (node in lanNodes) {
-            val neighbours = RayLanNet.neighbours(node, lanNow)
+            val neighbours = ray.lanNeighbours(node, lanNow)
             if (neighbours.isEmpty()) continue
-            val row = RayLanNet.row(node) ?: continue
+            val row = ray.lanRow(node) ?: continue
             val seed = row.requireBean().yggKey.orEmpty()
             if (seed !in yggProfileEndpoints) try {
                 buildChain(row.id, row)
@@ -1130,25 +1123,21 @@ fun buildConfig(
         }
         // the names over every shown LAN, as the node card and the store see them (a clash of two nodes' labels
         // resolved the same way whether or not a node has neighbours here), kept for the nodes the config carries
-        val lanCarried = lanNodes.filter { it.spa.nodeId in lanEndpointOf }.flatMap { RayLanNet.neighbours(it, lanNow) }.toSet()
-        val lanNames = RayLanNet.names(lanNodes, lanNow).filterValues { it in lanCarried }
+        val lanCarried = lanNodes.filter { it.spa.nodeId in lanEndpointOf }.flatMap { ray.lanNeighbours(it, lanNow) }.toSet()
+        val lanNames = ray.lanNames(lanNodes, lanNow).filterValues { it in lanCarried }
         // lan-v1 §3: in a trusted Wi-Fi a LAN's endpoint finds the user's devices there by multicast, with the node's
         // password at this second (RayLanDirect); the next password's start rebuilds the config
         val lanDirect = HashMap<String, String>()
         var lanSwitch: Long? = null
         for (node in lanNodes) {
             val tag = lanEndpointOf[node.spa.nodeId] ?: continue
-            val password = RayLanNet.directPassword(node, lanNow) ?: continue
+            val password = ray.lanDirectPassword(node, lanNow) ?: continue
             lanDirect.putIfAbsent(tag, password)
-            val lan = RayLanNet.of(node) ?: continue
+            val lan = ray.lanOf(node) ?: continue
             val switch = lan.nextFrom - node.clockSkew
             if (lan.nextPassword != null && switch > lanNow) lanSwitch = minOf(lanSwitch ?: switch, switch)
         }
-        if (notes) {
-            RayLanNet.running = lanEndpoints.isNotEmpty()
-            RayLanNet.noteRunning(lanNodes, lanNow)
-            RayLanDirect.noteRunning(lanDirect.isNotEmpty(), lanSwitch)
-        }
+        if (notes) ray.noteLan(lanEndpoints.isNotEmpty(), lanNodes, lanNow, lanDirect.isNotEmpty(), lanSwitch)
         // the mesh nodes of raycontrol rows: no answers about their peers to the mesh (DebugPrivacy); only the
         // neighbours' flows come in, the rest are dropped before a handshake (none at all without a LAN)
         endpoints.filterIsInstance<Outbound>().filter { endpoint -> yggProfileEndpoints.values.any { it.first == endpoint.tag } }.forEach { endpoint ->
@@ -1169,7 +1158,7 @@ fun buildConfig(
 
         // WireGuard requires a real destination for UDP, including FakeDNS
         // addresses. Let the native resolve action restore it before routing.
-        if (!forTest && !DataStore.resolveDestination && endpoints.any { it is Endpoint_WireGuardOptions }) {
+        if (!forTest && !settings.resolveDestination && endpoints.any { it is Endpoint_WireGuardOptions }) {
             route.rules.add(Rule_DefaultOptions().apply {
                 inbound = if (isVPN) listOf("tun-in", TAG_MIXED) else listOf(TAG_MIXED)
                 network = listOf("udp")
@@ -1187,27 +1176,15 @@ fun buildConfig(
                 Logs.i("routes: ${rule.displayName()} waits for the blocked lists (Russian services go through the proxy meanwhile)")
                 continue
             }
-            if (rule.packages.isNotEmpty()) {
-                PackageCache.awaitLoadSync()
-            }
             val uidList = rule.packages.map {
-                if (!isVPN) {
-                    Toast.makeText(
-                        SagerNet.application,
-                        SagerNet.application.getString(R.string.route_need_vpn, rule.displayName()),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-                PackageCache[it]?.takeIf { uid -> uid >= 1000 }
+                if (!isVPN) device.warn(ConfigWarning.RuleNeedsVpn(rule.displayName()))
+                device.uid(it)?.takeIf { uid -> uid >= 1000 }
             }.toHashSet().filterNotNull()
             val ruleSets = mutableListOf<RuleSet>()
             var dropRule = false
 
             val ruleObj = Rule_DefaultOptions().apply {
-                if (uidList.isNotEmpty()) {
-                    PackageCache.awaitLoadSync()
-                    user_id = uidList
-                }
+                if (uidList.isNotEmpty()) user_id = uidList
                 var domainList: List<String>? = null
                 // a rule-set the app has not downloaded yet is left out; a rule it leaves without any address is
                 // left out whole (its port or app alone would match far more)
@@ -1232,7 +1209,7 @@ fun buildConfig(
                 }
                 dropRule = missingRuleSet && !hasAddress()
 
-                if (rule_set != null) generateRuleSet(rule_set, ruleSets, forExport = forExport)
+                if (rule_set != null) generateRuleSet(rule_set, ruleSets, settings.ruleSetUpdateHours, forExport = forExport)
 
                 if (rule.port.isNotBlank()) {
                     port = mutableListOf<Int>()
@@ -1323,11 +1300,7 @@ fun buildConfig(
 
             if (!ruleObj.checkEmpty()) {
                 if (ruleObj.outbound.isNullOrBlank()) {
-                    Toast.makeText(
-                        SagerNet.application,
-                        "Warning: " + rule.displayName() + ": A non-existent outbound was specified.",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    device.warn(ConfigWarning.NoSuchOutbound(rule.displayName()))
                 } else {
                     // block 改用新的写法
                     if (ruleObj.outbound == TAG_BLOCK) {
@@ -1335,7 +1308,7 @@ fun buildConfig(
                         ruleObj.action = "reject"
                     }
                     // split ClientHello of directly routed TLS, e.g. for SNI-throttled sites
-                    if (ruleObj.outbound == TAG_BYPASS) when (DataStore.tlsFragmentBypass) {
+                    if (ruleObj.outbound == TAG_BYPASS) when (settings.tlsFragmentBypass) {
                         1 -> ruleObj._hack_config_map["tls_record_fragment"] = true
                         2 -> ruleObj._hack_config_map["tls_fragment"] = true
                     }
@@ -1431,7 +1404,7 @@ fun buildConfig(
         })
 
         // server address lookups go straight to a transport, so they need the direct strategy
-        autoDnsDomainStrategy(SingBoxOptionsUtil.domainStrategy("dns-direct"))?.let { strategy ->
+        autoDnsDomainStrategy(settings.domainStrategy("dns-direct"))?.let { strategy ->
             dns.servers.forEach {
                 val resolver = it.domain_resolver ?: return@forEach
                 it.domain_resolver = null
@@ -1446,7 +1419,7 @@ fun buildConfig(
         // off by default): a ping through the proxy then shows no answer, not the phone's own few milliseconds.
         // What rules send to direct (the LAN, bypasses) and a naive with icmp carry it as before. A field of the
         // core fork's: not in an export
-        if (!forTest && !forExport && DataStore.icmpNoLocalReply) route._hack_config_map["icmp_no_local_reply"] = true
+        if (!forTest && !forExport && settings.icmpNoLocalReply) route._hack_config_map["icmp_no_local_reply"] = true
 
         dns.final_ = if (forTest) "dns-direct" else "dns-remote"
 
@@ -1487,7 +1460,7 @@ fun buildConfig(
             dns.rules = listOf()
         } else {
             // per-app proxy: an app left out of the VPN, bound to tun0, refused (below the DNS hijack)
-            if (isVPN && DataStore.proxyApps) route.rules.add(0, outsideVpnGuard())
+            if (isVPN && settings.proxyApps) route.rules.add(0, outsideVpnGuard())
             // built-in DNS rules
             route.rules.add(0, Rule_DefaultOptions().apply {
                 protocol = listOf("dns")
@@ -1512,7 +1485,7 @@ fun buildConfig(
                         action = "reject"
                     }
                     // the ports the user opened, or every other one
-                    val open = MeshPorts.parse(DataStore.yggdrasilInboundPorts)
+                    val open = MeshPorts.parse(settings.yggdrasilInboundPorts)
                     if (open != null) {
                         meshRules += Rule_DefaultOptions().apply {
                             inbound = listOf(TAG_YGGDRASIL)
@@ -1528,7 +1501,7 @@ fun buildConfig(
                 } else meshRules += rule
                 route.rules.addAll(0, meshRules)
             }
-            if (DataStore.bypassLanInCore) {
+            if (settings.bypassLanInCore) {
                 route.rules.add(Rule_DefaultOptions().apply {
                     outbound = TAG_BYPASS
                     ip_is_private = true
@@ -1562,7 +1535,7 @@ fun buildConfig(
                 // fake address holds only while the core that gave it remembers it. Not in an exported config: the
                 // host may name this install's account (a NextDNS profile's ID); sing-box matches the rule's domain
                 // as written against the lower-case name asked
-                if (!forExport) PrivateDns.strictHost()?.lowercase()?.trimEnd('.')?.takeIf { it.isNotEmpty() }?.let { host ->
+                if (!forExport) device.strictPrivateDnsHost()?.lowercase()?.trimEnd('.')?.takeIf { it.isNotEmpty() }?.let { host ->
                     dns.rules.add(0, DNSRule_DefaultOptions().apply {
                         domain = listOf(host)
                         server = "dns-remote"
@@ -1588,7 +1561,7 @@ fun buildConfig(
                     outbound = tag
                 }
             } + byNode.mapNotNull { node ->
-                val suffixes = RayLanNet.suffixes(lanNames.filterValues { it in RayLanNet.neighbours(node, lanNow) })
+                val suffixes = RayLanNet.suffixes(lanNames.filterValues { it in ray.lanNeighbours(node, lanNow) })
                 if (suffixes.isEmpty()) null else Rule_DefaultOptions().apply {
                     domain_suffix = suffixes
                     outbound = lanEndpointOf.getValue(node.spa.nodeId)
@@ -1619,7 +1592,7 @@ fun buildConfig(
         // 127.0.0.1, never this app's own listeners
         if (yggProfileEndpoints.isNotEmpty()) {
             val lanTags = lanEndpoints.keys
-            val open = MeshPorts.parse(DataStore.lanInboundPorts)
+            val open = MeshPorts.parse(settings.lanInboundPorts)
             val meshRules = mutableListOf<Rule_DefaultOptions>()
             if (lanTags.isNotEmpty() && open != null) {
                 val own = ownListenPorts()
@@ -1644,17 +1617,17 @@ fun buildConfig(
         // slipstream's queries from its mapping ports go out as they are, above the DNS hijack (port 53)
         route.rules.addAll(0, slipstreamRules)
 
-        dns.strategy = autoDnsDomainStrategy(SingBoxOptionsUtil.domainStrategy(dns.final_))
+        dns.strategy = autoDnsDomainStrategy(settings.domainStrategy(dns.final_))
         dns.rules.filterIsInstance<DNSRule_DefaultOptions>().forEach { rule ->
             rule.strategy = when (rule.server) {
-                "dns-direct", "dns-remote" -> autoDnsDomainStrategy(SingBoxOptionsUtil.domainStrategy(rule.server))
+                "dns-direct", "dns-remote" -> autoDnsDomainStrategy(settings.domainStrategy(rule.server))
                 "dns-fake" -> "ipv4_only"
                 TAG_DNS_LAN -> "ipv6_only"
                 else -> null
             }
         }
 
-        if (!forTest) _hack_custom_config = DataStore.globalCustomConfig
+        if (!forTest) _hack_custom_config = settings.globalCustomConfig
     }.let {
         val configMap = it.asMap()
         Util.mergeJSON(configMap, proxy.requireBean().customConfigJson)
@@ -1784,9 +1757,9 @@ internal fun mergeTls(own: Map<*, *>?, tweaks: Map<String, Any>): Map<String, An
     return own.entries.associate { it.key.toString() to it.value } + tweaks
 }
 
-private fun rotatingUdpPorts(node: RayNode, entity: ProxyEntity, bean: AbstractBean): List<Map<String, Any>>? {
+private fun rotatingUdpPorts(ray: ConfigRay, node: RayNode, entity: ProxyEntity, bean: AbstractBean): List<Map<String, Any>>? {
     if (bean !is HysteriaBean || bean.serverPorts.contains(',') || bean.serverPorts.contains('-')) return null
-    val (owner, key) = RayNodes.ownerOf(entity.id) ?: return null
+    val (owner, key) = ray.ownerOf(entity.id) ?: return null
     if (owner.spa.nodeId != node.spa.nodeId) return null
     val svc = key.substringBefore('#').toIntOrNull() ?: return null
     val ports = node.services.firstOrNull { it.id == svc }?.ports ?: return null
