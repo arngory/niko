@@ -37,6 +37,7 @@ const (
 	NikoService_Select_FullMethodName         = "/niko.v1.NikoService/Select"
 	NikoService_GetSelected_FullMethodName    = "/niko.v1.NikoService/GetSelected"
 	NikoService_ShareProfile_FullMethodName   = "/niko.v1.NikoService/ShareProfile"
+	NikoService_Connect_FullMethodName        = "/niko.v1.NikoService/Connect"
 	NikoService_Recognize_FullMethodName      = "/niko.v1.NikoService/Recognize"
 	NikoService_Import_FullMethodName         = "/niko.v1.NikoService/Import"
 )
@@ -83,6 +84,13 @@ type NikoServiceClient interface {
 	// NOT_FOUND; FAILED_PRECONDITION where its secrets cannot be opened on this machine; UNIMPLEMENTED for a kind with
 	// no link (a plugin's profile).
 	ShareProfile(ctx context.Context, in *ProfileId, opts ...grpc.CallOption) (*ShareLink, error)
+	// Builds the config of a profile in the daemon, as the app builds it, and starts the core with it (reloads the one
+	// running), as DesktopService.StartService starts a config with no options: the caller becomes the daemon's owner.
+	// Until the desktop has settings of its own, the app's defaults in proxy mode: the local proxy on 127.0.0.1:2080
+	// with no login, no TUN. FAILED_PRECONDITION for no profile selected or one whose secrets cannot be opened on this
+	// machine; NOT_FOUND; INVALID_ARGUMENT for a profile the build refuses; UNIMPLEMENTED for a plugin's profile;
+	// PERMISSION_DENIED where another user owns the daemon; the core's own error for a config it refuses.
+	Connect(ctx context.Context, in *ConnectRequest, opts ...grpc.CallOption) (*Empty, error)
 	// What an input is and what its import would add; nothing is written, and no store is needed.
 	Recognize(ctx context.Context, in *ImportInput, opts ...grpc.CallOption) (*ImportPreview, error)
 	// Imports an input: the task's progress, then its result, the last message (done). Share links and sn:// now; a
@@ -247,6 +255,16 @@ func (c *nikoServiceClient) ShareProfile(ctx context.Context, in *ProfileId, opt
 	return out, nil
 }
 
+func (c *nikoServiceClient) Connect(ctx context.Context, in *ConnectRequest, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, NikoService_Connect_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *nikoServiceClient) Recognize(ctx context.Context, in *ImportInput, opts ...grpc.CallOption) (*ImportPreview, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ImportPreview)
@@ -318,6 +336,13 @@ type NikoServiceServer interface {
 	// NOT_FOUND; FAILED_PRECONDITION where its secrets cannot be opened on this machine; UNIMPLEMENTED for a kind with
 	// no link (a plugin's profile).
 	ShareProfile(context.Context, *ProfileId) (*ShareLink, error)
+	// Builds the config of a profile in the daemon, as the app builds it, and starts the core with it (reloads the one
+	// running), as DesktopService.StartService starts a config with no options: the caller becomes the daemon's owner.
+	// Until the desktop has settings of its own, the app's defaults in proxy mode: the local proxy on 127.0.0.1:2080
+	// with no login, no TUN. FAILED_PRECONDITION for no profile selected or one whose secrets cannot be opened on this
+	// machine; NOT_FOUND; INVALID_ARGUMENT for a profile the build refuses; UNIMPLEMENTED for a plugin's profile;
+	// PERMISSION_DENIED where another user owns the daemon; the core's own error for a config it refuses.
+	Connect(context.Context, *ConnectRequest) (*Empty, error)
 	// What an input is and what its import would add; nothing is written, and no store is needed.
 	Recognize(context.Context, *ImportInput) (*ImportPreview, error)
 	// Imports an input: the task's progress, then its result, the last message (done). Share links and sn:// now; a
@@ -374,6 +399,9 @@ func (UnimplementedNikoServiceServer) GetSelected(context.Context, *Empty) (*Pro
 }
 func (UnimplementedNikoServiceServer) ShareProfile(context.Context, *ProfileId) (*ShareLink, error) {
 	return nil, status.Error(codes.Unimplemented, "method ShareProfile not implemented")
+}
+func (UnimplementedNikoServiceServer) Connect(context.Context, *ConnectRequest) (*Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method Connect not implemented")
 }
 func (UnimplementedNikoServiceServer) Recognize(context.Context, *ImportInput) (*ImportPreview, error) {
 	return nil, status.Error(codes.Unimplemented, "method Recognize not implemented")
@@ -647,6 +675,24 @@ func _NikoService_ShareProfile_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NikoService_Connect_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConnectRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).Connect(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_Connect_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).Connect(ctx, req.(*ConnectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _NikoService_Recognize_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ImportInput)
 	if err := dec(in); err != nil {
@@ -734,6 +780,10 @@ var NikoService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ShareProfile",
 			Handler:    _NikoService_ShareProfile_Handler,
+		},
+		{
+			MethodName: "Connect",
+			Handler:    _NikoService_Connect_Handler,
 		},
 		{
 			MethodName: "Recognize",

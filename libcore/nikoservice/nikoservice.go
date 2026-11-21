@@ -1,7 +1,7 @@
 // Package nikoservice is NikoService, Niko's own service in its desktop daemon nikod, beside the core's daemon's
 // (docs/design/desktop-stage3.md): the daemon's info and the route tester (slice 1); each user's store of groups and
-// profiles, its changes through Watch, the import of share links (slice 4, store.go). The config builder and the
-// connection come in later slices.
+// profiles, its changes through Watch, the import of share links (slice 4, store.go); the connection to a stored
+// profile, its config built here (slice 7, connect.go).
 package nikoservice
 
 import (
@@ -24,8 +24,8 @@ import (
 var Version = "dev"
 
 // API is the version of NikoService: what the window may ask of this daemon. 2: the store, Watch and the import; 3:
-// Select and GetSelected; 4: ShareProfile.
-const API = 4
+// Select and GetSelected; 4: ShareProfile; 5: Connect.
+const API = 5
 
 // Service is NikoService as the daemon serves it: GetInfo for any caller the daemon verified, RouteTest for its
 // owner only (it reads the owner's core, as the daemon's own calls on the running core do). RouteTest is checked as
@@ -33,7 +33,8 @@ const API = 4
 // stop, a start or the service's shutdown must not wait for. It holds the running core (daemon.Instance.Hold): a stop
 // cancels the core's context, the test ends at once, and only then is the core closed; an answer from a core stopped
 // meanwhile is refused (ABORTED), not given as the core's. The store's calls are any verified caller's, on its own
-// user's store (store.go).
+// user's store (store.go); so is Connect, whose start (Host.StartService) checks the daemon's owner itself, as
+// DesktopService.StartService does, under the lifecycle lock that PolicyOwner would hold already.
 func Service() boxdd.Service {
 	return boxdd.Service{
 		Desc: &nikopb.NikoService_ServiceDesc,
@@ -45,7 +46,7 @@ func Service() boxdd.Service {
 				return nil, err
 			}
 			users := newUsers(root, developmentCaller, host.Context().Done())
-			return &server{users: users, core: func() (context.Context, func()) {
+			return &server{users: users, start: host.StartService, core: func() (context.Context, func()) {
 				instance := host.StartedService().RunningInstance()
 				if instance == nil {
 					return nil, nil
@@ -68,6 +69,8 @@ type server struct {
 	core func() (context.Context, func())
 	// users are the users' stores
 	users *users
+	// start starts the core with a config for the caller, as DesktopService.StartService; nil: no daemon
+	start func(ctx context.Context, config string) error
 }
 
 // GetInfo: the store's schema to a caller the store serves; to one it refuses (store.go's caller), 0, as from a daemon

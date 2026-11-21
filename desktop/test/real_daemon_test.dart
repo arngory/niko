@@ -4,8 +4,9 @@
 // status and the rates are seen; NikoService answers what the daemon is and where a connection would go (stage 3,
 // slice 1), and a share link imported into its store is seen through Watch and kept through the daemon's restart
 // (slice 4); then the core's log and its connections, one of which is closed from here (D-LOG-01, D-CONN-01); the NAT
-// tool against a STUN server here. Runs where NIKO_DAEMON names nikod's executable (CI: on Windows and on Linux);
-// skipped otherwise.
+// tool against a STUN server here. Then Connect (slice 7): a SOCKS5 profile of a server here, its config built by the
+// daemon, a request through it. Runs where NIKO_DAEMON names nikod's executable (CI: on Windows and on Linux); skipped
+// otherwise.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -70,6 +71,96 @@ Future<void> until(FutureOr<bool> Function() condition, String what, {int second
   }
 }
 
+/// nikod in development mode on 127.0.0.1:[port], its files in [work], what it says into [log]; once it listens.
+Future<Process> runDaemon(String nikod, int port, Directory work, List<String> log) async {
+  // boxdd takes INVOCATION_ID for "started by systemd" and refuses --listen as a service would; a CI runner and a
+  // terminal of a systemd session both carry it, and this child is no service
+  final environment = Map.of(Platform.environment)..remove('INVOCATION_ID');
+  final started = await Process.start(
+    nikod,
+    ['run', '--listen', '127.0.0.1:$port', '-D', work.path],
+    environment: environment,
+    includeParentEnvironment: false,
+  );
+  started.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen(log.add);
+  started.stderr.transform(utf8.decoder).transform(const LineSplitter()).listen(log.add);
+  await until(() => listening(port), 'the daemon to listen');
+  return started;
+}
+
+/// A SOCKS5 server on 127.0.0.1 without a login (RFC 1928), CONNECT alone: it dials where it is asked itself and
+/// notes each `host:port` in [asked].
+Future<ServerSocket> socksServer(List<String> asked) async {
+  final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+  server.listen((client) {
+    final buffer = <int>[];
+    var greeted = false;
+    Socket? upstream;
+    late final StreamSubscription<Uint8List> reading;
+    Future<void> connect() async {
+      // VER CMD RSV ATYP, the address, the port
+      if (buffer.length < 5) return;
+      final end = switch (buffer[3]) {
+        1 => 4 + 4,
+        3 => 5 + buffer[4],
+        4 => 4 + 16,
+        _ => -1,
+      };
+      if (buffer[0] != 5 || buffer[1] != 1 || end < 0) {
+        client.destroy();
+        return;
+      }
+      if (buffer.length < end + 2) return;
+      final host = buffer[3] == 3
+          ? ascii.decode(buffer.sublist(5, end))
+          : InternetAddress.fromRawAddress(Uint8List.fromList(buffer.sublist(4, end))).address;
+      final port = buffer[end] << 8 | buffer[end + 1];
+      final early = buffer.sublist(end + 2);
+      buffer.clear();
+      asked.add('$host:$port');
+      reading.pause();
+      try {
+        upstream = await Socket.connect(host, port, timeout: const Duration(seconds: 5));
+      } catch (_) {
+        // a host unreachable
+        client.add([5, 4, 0, 1, 0, 0, 0, 0, 0, 0]);
+        client.destroy();
+        return;
+      }
+      client.add([5, 0, 0, 1, 0, 0, 0, 0, 0, 0]);
+      if (early.isNotEmpty) upstream!.add(early);
+      upstream!.listen(client.add, onDone: client.destroy, onError: (Object _) => client.destroy());
+      reading.resume();
+    }
+
+    reading = client.listen(
+      (data) {
+        if (upstream != null) {
+          upstream!.add(data);
+          return;
+        }
+        buffer.addAll(data);
+        if (!greeted) {
+          // VER NMETHODS METHODS: "no login" must be among them
+          if (buffer.length < 2 || buffer.length < 2 + buffer[1]) return;
+          if (buffer[0] != 5 || !buffer.sublist(2, 2 + buffer[1]).contains(0)) {
+            client.add([5, 0xff]);
+            client.destroy();
+            return;
+          }
+          buffer.removeRange(0, 2 + buffer[1]);
+          greeted = true;
+          client.add([5, 0]);
+        }
+        connect();
+      },
+      onDone: () => upstream?.destroy(),
+      onError: (Object _) => upstream?.destroy(),
+    );
+  });
+  return server;
+}
+
 void main() {
   final nikod = Platform.environment['NIKO_DAEMON'] ?? '';
 
@@ -85,19 +176,7 @@ void main() {
       Process? process;
 
       Future<void> startDaemon() async {
-        // boxdd takes INVOCATION_ID for "started by systemd" and refuses --listen as a service would; a CI runner
-        // and a terminal of a systemd session both carry it, and this child is no service
-        final environment = Map.of(Platform.environment)..remove('INVOCATION_ID');
-        final started = await Process.start(
-          nikod,
-          ['run', '--listen', '127.0.0.1:$daemonPort', '-D', work.path],
-          environment: environment,
-          includeParentEnvironment: false,
-        );
-        process = started;
-        started.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen(log.add);
-        started.stderr.transform(utf8.decoder).transform(const LineSplitter()).listen(log.add);
-        await until(() => listening(daemonPort), 'the daemon to listen');
+        process = await runDaemon(nikod, daemonPort, work, log);
       }
 
       // what the proxy is asked for: 256 KB from a server of this test's own
@@ -416,6 +495,77 @@ void main() {
       // the store kept the import through the daemon's restart
       await storeWatch.cancel();
       expect((await controller.daemon!.profiles()).map((r) => r.name), contains('store-test'));
+    },
+  );
+
+  test(
+    'Connect: a stored profile, its config built by the daemon, a request through it',
+    skip: nikod.isEmpty ? 'NIKO_DAEMON is not set' : false,
+    timeout: const Timeout(Duration(minutes: 3)),
+    () async {
+      final work = await Directory.systemTemp.createTemp('niko-connect-');
+      final daemonPort = await freePort();
+      final log = <String>[];
+      // the local proxy of the config the daemon builds: the app's own port, until the desktop has settings (slice 13)
+      const mixedPort = 2080;
+      expect(await listening(mixedPort), isFalse, reason: 'port $mixedPort is taken on this machine');
+
+      // the profile's server, and what is asked for through it: a server of this test's own
+      final asked = <String>[];
+      final socks = await socksServer(asked);
+      final origin = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      origin.listen((request) async {
+        request.response.write('through the profile');
+        await request.response.close();
+      });
+      final process = await runDaemon(nikod, daemonPort, work, log);
+      final daemon = GrpcDaemon.dev(DevEndpoint.parse('127.0.0.1:$daemonPort')!);
+      addTearDown(() async {
+        await daemon.close();
+        process.kill();
+        await origin.close(force: true);
+        await socks.close();
+        // ignore: avoid_print
+        print('--- the daemon said\n${log.join('\n')}');
+        try {
+          await work.delete(recursive: true);
+        } catch (_) {
+          // Windows may still hold a file of the killed daemon
+        }
+      });
+      await until(() => daemon.version().then((_) => true, onError: (Object _) => false), 'the daemon to answer');
+      expect((await daemon.nikoInfo()).api, greaterThanOrEqualTo(5));
+
+      // nothing selected yet, and a profile that is not there: refused, nothing started
+      await expectLater(
+        daemon.connect(0),
+        throwsA(isA<GrpcError>().having((e) => e.code, 'code', StatusCode.failedPrecondition)),
+      );
+      await expectLater(
+        daemon.connect(9999),
+        throwsA(isA<GrpcError>().having((e) => e.code, 'code', StatusCode.notFound)),
+      );
+
+      // the profile imported and selected, then connected with: the core up with the daemon's config
+      final added = await daemon.importLinks('socks5://127.0.0.1:${socks.port}#connect-test');
+      await daemon.select(added.single);
+      await daemon.connect(0);
+      await until(() => listening(mixedPort), 'the local proxy of the built config');
+
+      // a request through the local proxy: it reaches the origin through the profile's server
+      final client = HttpClient()..findProxy = (_) => 'PROXY 127.0.0.1:$mixedPort';
+      final response = await (await client.getUrl(Uri.parse('http://127.0.0.1:${origin.port}/'))).close();
+      final text = await response.transform(utf8.decoder).join();
+      client.close(force: true);
+      expect(response.statusCode, 200);
+      expect(text, 'through the profile');
+      expect(asked, contains('127.0.0.1:${origin.port}'), reason: 'the SOCKS server was asked for $asked');
+      // ignore: avoid_print
+      print('connect: profile ${added.single} through the SOCKS server on ${socks.port}, which was asked for $asked');
+
+      // the core stops as one the window started does
+      await daemon.stop();
+      await until(() async => !await listening(mixedPort), 'the local proxy closed');
     },
   );
 }

@@ -146,6 +146,11 @@ class MemoryDaemon implements Daemon {
   @override
   Future<String> shareLink(int id) async => 'socks5://shared.example:1080/#$id';
 
+  /// The profiles the window connected with, 0 for the selected one.
+  final connected = <int>[];
+  @override
+  Future<void> connect(int profileId) async => connected.add(profileId);
+
   @override
   Future<SavedProfile> profile(int id) async =>
       SavedProfile(row: profileRows.firstWhere((p) => p.id == id), beanJson: '{"id":$id}');

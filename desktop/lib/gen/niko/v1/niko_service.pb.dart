@@ -186,7 +186,7 @@ class Info extends $pb.GeneratedMessage {
   void clearStoreSchema() => $_clearField(3);
 
   /// the version of this API: what the window may ask. 2: the store, Watch and the import; 3: Select and GetSelected;
-  /// 4: ShareProfile
+  /// 4: ShareProfile; 5: Connect
   @$pb.TagNumber(4)
   $core.int get api => $_getIZ(3);
   @$pb.TagNumber(4)
@@ -1400,6 +1400,64 @@ class ShareLink extends $pb.GeneratedMessage {
   $core.bool hasLink() => $_has(0);
   @$pb.TagNumber(1)
   void clearLink() => $_clearField(1);
+}
+
+class ConnectRequest extends $pb.GeneratedMessage {
+  factory ConnectRequest({
+    $fixnum.Int64? profileId,
+  }) {
+    final result = ConnectRequest._();
+    if (profileId != null) result.profileId = profileId;
+    return result;
+  }
+
+  ConnectRequest._();
+
+  factory ConnectRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ConnectRequest()..mergeFromBuffer(data, registry);
+  factory ConnectRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ConnectRequest()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ConnectRequest',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: ConnectRequest.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'profileId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ConnectRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ConnectRequest copyWith(void Function(ConnectRequest) updates) =>
+      super.copyWith((message) => updates(message as ConnectRequest))
+          as ConnectRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ConnectRequest() / ConnectRequest.new instead')
+  static ConnectRequest create() => ConnectRequest._();
+  static $pb.GeneratedMessage $_createMessage() => ConnectRequest._();
+  @$core.override
+  ConnectRequest createEmptyInstance() => ConnectRequest._();
+  @$core.pragma('dart2js:noInline')
+  static ConnectRequest getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ConnectRequest>(
+          ConnectRequest.$_createMessage);
+  static ConnectRequest? _defaultInstance;
+
+  /// the profile; 0: the selected one
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get profileId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set profileId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasProfileId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearProfileId() => $_clearField(1);
 }
 
 class ProfileIds extends $pb.GeneratedMessage {
