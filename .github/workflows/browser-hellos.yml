@@ -14,6 +14,7 @@ on:
     paths:
       - ".github/workflows/browser-hellos.yml"
       - ".github/scripts/hello.py"
+      - ".github/scripts/android-hello.sh"
       - ".github/tools/androidhello/**"
   schedule:
     - cron: "17 4 * * 2"
