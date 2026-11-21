@@ -22,6 +22,7 @@ on:
       - "libcore/routetest/**"
       - "libcore/nikopb/**"
       - "libcore/nikoservice/**"
+      - "libcore/nikostore/**"
       - "libcore/nikofmt/**"
       - "libcore/cmd/nikod/**"
       - "libcore/go.mod"
@@ -122,7 +123,8 @@ jobs:
 
   # the Go the desktop client takes over, on Windows itself: the core's knock and certificates, libcore's node
   # subscription, the node's API, the probes, the update signature, the share links against the golden fixtures
-  # (nikofmt; ci.yml's golden job has the app write them)
+  # (nikofmt; ci.yml's golden job has the app write them), the daemon's store with its secrets under DPAPI
+  # (nikostore) and NikoService's calls on it
   test:
     runs-on: windows-latest
     defaults:
@@ -175,7 +177,7 @@ jobs:
         working-directory: libcore
         env:
           CGO_ENABLED: "0"
-        run: go test -count=1 -ldflags=-checklinkname=0 -tags="$TAGS" ./raysub ./rayapi ./minisign ./probe ./rayprobe ./dnsprobe ./stun ./nikoservice ./routetest ./nikofmt/...
+        run: go test -count=1 -ldflags=-checklinkname=0 -tags="$TAGS" ./raysub ./rayapi ./minisign ./probe ./rayprobe ./dnsprobe ./stun ./nikoservice ./nikostore ./routetest ./nikofmt/...
 
   # The window (desktop/, Flutter): the generated files are what their sources give, the analyser is clean, the
   # tests pass, and the link to the daemon works against the real boxdd of this run in development mode: the button
