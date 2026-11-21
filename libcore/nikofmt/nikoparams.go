@@ -286,9 +286,12 @@ var (
 // isIPAddress is ktx String.isIpAddress (NGUtil.isIpv4Address or isIpv6Address): the app's own patterns, matched
 // whole as Kotlin's Regex.matches does. IPv6 with "::" or eight groups; no dotted tail, no zone.
 func isIPAddress(s string) bool {
-	if ipv4Address.MatchString(s) {
-		return true
-	}
+	return ipv4Address.MatchString(s) || isIPv6Address(s)
+}
+
+// isIPv6Address is NGUtil.isIpv6Address: what follows a leading '[' up to the last ']' of the rest, if there is one,
+// else the whole string, matched by its pattern.
+func isIPv6Address(s string) bool {
 	v6 := s
 	if strings.Index(v6, "[") == 0 && strings.LastIndex(v6, "]") > 0 {
 		v6 = v6[1:]
