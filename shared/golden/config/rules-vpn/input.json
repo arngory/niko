@@ -1,0 +1,110 @@
+{
+  "profile": 1,
+  "profiles": [
+    {
+      "id": 1,
+      "group": 1,
+      "order": 1,
+      "link": "ss-sip002"
+    },
+    {
+      "id": 2,
+      "group": 2,
+      "order": 2,
+      "link": "trojan-ws-tls"
+    }
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "order": 1,
+      "name": "main"
+    },
+    {
+      "id": 2,
+      "order": 2,
+      "name": "other"
+    }
+  ],
+  "apps": {
+    "org.example.browser": 10123,
+    "org.example.system": 999
+  },
+  "settings": {
+    "tlsFragmentBypass": 1
+  },
+  "rules": [
+    {
+      "id": 1,
+      "name": "sites direct",
+      "enabled": true,
+      "userOrder": 1,
+      "domains": "full:direct.example\ndomain:example.org\nkeyword:cdn\nregexp:^api\\.\nplain.example",
+      "outbound": -1
+    },
+    {
+      "id": 2,
+      "name": "block ads",
+      "enabled": true,
+      "userOrder": 2,
+      "domains": "ads.example",
+      "ip": "203.0.113.0/24",
+      "outbound": -2
+    },
+    {
+      "id": 3,
+      "name": "apps direct",
+      "enabled": true,
+      "userOrder": 3,
+      "packages": [
+        "org.example.browser",
+        "org.example.system",
+        "org.example.missing"
+      ],
+      "outbound": -1
+    },
+    {
+      "id": 4,
+      "name": "ports to proxy",
+      "enabled": true,
+      "userOrder": 4,
+      "port": "443,8000:9000",
+      "sourcePort": "1000",
+      "network": "udp",
+      "outbound": 0
+    },
+    {
+      "id": 5,
+      "name": "via the other",
+      "enabled": true,
+      "userOrder": 5,
+      "domains": "other.example",
+      "outbound": 2
+    },
+    {
+      "id": 6,
+      "name": "gone",
+      "enabled": true,
+      "userOrder": 6,
+      "domains": "gone.example",
+      "outbound": 99
+    },
+    {
+      "id": 7,
+      "name": "off",
+      "enabled": false,
+      "userOrder": 7,
+      "domains": "off.example",
+      "outbound": -1
+    },
+    {
+      "id": 8,
+      "name": "source and protocol",
+      "enabled": true,
+      "userOrder": 8,
+      "source": "192.168.1.0/24",
+      "protocol": "bittorrent",
+      "outbound": -1
+    }
+  ]
+}

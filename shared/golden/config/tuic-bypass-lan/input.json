@@ -1,0 +1,23 @@
+{
+  "profile": 1,
+  "profiles": [
+    {
+      "id": 1,
+      "group": 1,
+      "order": 1,
+      "link": "tuic-v5"
+    }
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "order": 1,
+      "name": "main"
+    }
+  ],
+  "settings": {
+    "bypassLanInCore": true,
+    "resolveDestination": true,
+    "proxyApps": true
+  }
+}

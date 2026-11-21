@@ -1,0 +1,1 @@
+Port knocking (Trojan WS): invalid port: tcp:7000

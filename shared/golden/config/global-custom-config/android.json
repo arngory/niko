@@ -1,0 +1,146 @@
+{
+  "log": {
+    "level": "panic",
+    "timestamp": true
+  },
+  "dns": {
+    "servers": [
+      {
+        "type": "local",
+        "tag": "dns-local"
+      },
+      {
+        "type": "local",
+        "tag": "dns-direct"
+      },
+      {
+        "type": "https",
+        "tag": "dns-remote",
+        "server": "dns.google",
+        "path": "/dns-query",
+        "domain_resolver": {
+          "server": "dns-direct",
+          "strategy": "ipv4_only"
+        },
+        "detour": "proxy"
+      },
+      {
+        "type": "fakeip",
+        "tag": "dns-fake",
+        "inet4_range": "198.18.0.0/15",
+        "inet6_range": "fc00::/18"
+      }
+    ],
+    "rules": [
+      {
+        "domain": [
+          "dns.google"
+        ],
+        "strategy": "ipv4_only",
+        "server": "dns-direct"
+      },
+      {
+        "domain_suffix": [
+          "niko.internal"
+        ],
+        "action": "predefined",
+        "rcode": "NXDOMAIN"
+      },
+      {
+        "inbound": [
+          "tun-in"
+        ],
+        "strategy": "ipv4_only",
+        "server": "dns-fake",
+        "disable_cache": true
+      }
+    ],
+    "final": "dns-remote",
+    "strategy": "ipv4_only"
+  },
+  "inbounds": [
+    {
+      "mtu": 9000,
+      "address": [
+        "172.19.0.1/28"
+      ],
+      "stack": "gvisor",
+      "type": "tun",
+      "tag": "tun-in"
+    }
+  ],
+  "outbounds": [
+    {
+      "tcp_fast_open": true,
+      "server": "198.51.100.10",
+      "server_port": 8388,
+      "method": "aes-256-gcm",
+      "password": "fake-ss-password",
+      "type": "shadowsocks",
+      "tag": "proxy"
+    },
+    {
+      "type": "direct",
+      "tag": "direct"
+    },
+    {
+      "type": "direct",
+      "tag": "bypass"
+    }
+  ],
+  "endpoints": [],
+  "route": {
+    "rules": [
+      {
+        "domain_suffix": [
+          "niko.internal"
+        ],
+        "action": "reject"
+      },
+      {
+        "inbound": [
+          "tun-in",
+          "mixed-in"
+        ],
+        "action": "sniff"
+      },
+      {
+        "port": [
+          53
+        ],
+        "action": "hijack-dns"
+      },
+      {
+        "protocol": [
+          "dns"
+        ],
+        "action": "hijack-dns"
+      },
+      {
+        "source_ip_cidr": [
+          "224.0.0.0/3",
+          "ff00::/8"
+        ],
+        "ip_cidr": [
+          "224.0.0.0/3",
+          "ff00::/8"
+        ],
+        "action": "reject"
+      }
+    ],
+    "rule_set": [],
+    "final": "proxy",
+    "default_domain_resolver": {
+      "server": "dns-direct",
+      "strategy": "ipv4_only"
+    },
+    "auto_detect_interface": true
+  },
+  "experimental": {
+    "cache_file": {
+      "enabled": true,
+      "store_fakeip": true,
+      "path": "cache.db"
+    }
+  }
+}

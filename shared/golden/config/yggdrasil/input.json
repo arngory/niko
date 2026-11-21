@@ -1,0 +1,29 @@
+{
+  "profile": 1,
+  "profiles": [
+    {
+      "id": 1,
+      "group": 1,
+      "order": 1,
+      "link": "ss-sip002"
+    }
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "order": 1,
+      "name": "main"
+    }
+  ],
+  "settings": {
+    "yggdrasilEnabled": true,
+    "yggdrasilPeers": "tls://198.51.100.70:443\n# off\nquic://peer.example:443",
+    "yggdrasilAllowInbound": true,
+    "yggdrasilInboundPorts": "22,8000-8080",
+    "yggdrasilPeersViaProxy": true,
+    "yggdrasilTlsChrome": false,
+    "secrets": {
+      "yggdrasilKey": "golden-mesh-key"
+    }
+  }
+}

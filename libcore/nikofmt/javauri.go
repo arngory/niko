@@ -8,7 +8,8 @@ import (
 )
 
 // javaURI is what the app reads of a java.net.URI (RFC 2396 as Java parses it): a Yggdrasil peer's scheme, host,
-// port and raw query (fmt/NikoParams.kt), a mierus:// link's raw user info and fragment too (fmt/mieru/MieruFmt.kt).
+// port and raw query (fmt/NikoParams.kt), a mierus:// link's raw user info and fragment too (fmt/mieru/MieruFmt.kt),
+// a DNS server's raw path (SingBoxOptions.DNSServerOptions.fromAddress, libcore/nikoconf).
 // A server authority that does not parse (a name with "_", "1.2.3", a port that is not a number) is a registry one,
 // with no host, user info or port, not an error; what is no URI at all is an error (URISyntaxException).
 type javaURI struct {
@@ -16,6 +17,7 @@ type javaURI struct {
 	host        string // "" for none; an IPv6 literal keeps its brackets, as getHost() does
 	port        int    // -1 for none
 	rawUserInfo *string
+	rawPath     *string // nil for an opaque URI, as getRawPath() gives
 	rawQuery    *string
 	rawFragment *string
 }
@@ -176,6 +178,8 @@ func (p *uriParser) parseHierarchical(start, n int) (int, error) {
 	if err := p.checkChars(i, q, uriPath, true); err != nil {
 		return 0, err
 	}
+	path := string(p.s[i:q])
+	p.u.rawPath = &path
 	i = q
 	if p.at(i, '?') {
 		i++
