@@ -13,8 +13,13 @@ cap=$!
 python3 -I .github/scripts/hello.py capture "$host:18701" "$second/hello.hex" &
 cap2=$!
 sleep 1
-timeout 90 adb shell "CLASSPATH=/data/local/tmp/hello.dex app_process /system/bin Hello niko-capture.example $host 18601"
-timeout 90 adb shell "CLASSPATH=/data/local/tmp/hello.dex app_process /system/bin Hello niko-capture.example $host 18701"
+# the emulator's network may come up after its boot: each request again every 3 s until its capture has it
+for _ in $(seq 30); do
+  [ -s "$out/hello.hex" ] || timeout 30 adb shell "CLASSPATH=/data/local/tmp/hello.dex app_process /system/bin Hello niko-capture.example $host 18601"
+  [ -s "$second/hello.hex" ] || timeout 30 adb shell "CLASSPATH=/data/local/tmp/hello.dex app_process /system/bin Hello niko-capture.example $host 18701"
+  [ -s "$out/hello.hex" ] && [ -s "$second/hello.hex" ] && break
+  sleep 3
+done
 wait "$cap"
 wait "$cap2"
 [ -s "$out/hello.hex" ] && [ -s "$second/hello.hex" ] || { echo "::error::no two ClientHellos from the app's request"; exit 1; }
