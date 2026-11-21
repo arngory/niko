@@ -238,6 +238,16 @@ void main() {
       expect(await controller.daemon!.selected(), row.id);
       final groups = await controller.daemon!.groups();
       expect(groups.where((g) => g.ungrouped && g.id == row.groupId && g.profiles >= 1), hasLength(1));
+      // what a link is, before anything is written; the profile deleted and put back from its bean
+      final preview = await controller.daemon!.recognize('socks5://user:fake-pass@198.51.100.41:1080#recognized');
+      expect(preview.kind, ImportKind.profiles);
+      expect(preview.profiles.single.name, 'recognized');
+      final saved = await controller.daemon!.profile(row.id);
+      expect(saved.beanJson, contains('198.51.100.40'));
+      await controller.daemon!.deleteProfiles([row.id]);
+      await until(() => storeChanges.any((c) => c.kind == StoreKind.selected && c.ids.isEmpty), 'the selection gone');
+      final back = await controller.daemon!.addProfile(groupId: row.groupId, type: row.type, beanJson: saved.beanJson);
+      expect((await controller.daemon!.profiles()).singleWhere((r) => r.id == back).name, 'store-test');
       // a subscription's link is recognized, and its import comes later
       await expectLater(
         controller.daemon!.importLinks('https://sub.example/s/0123456789abcdef0123'),
