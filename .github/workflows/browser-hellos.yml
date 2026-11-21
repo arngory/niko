@@ -200,6 +200,11 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      # an address of the runner the emulator reaches, as ci.yml's e2e has it: neither 10.0.2.2 nor the runner's own
+      # address takes the emulator's connections, a bridge's does
+      - name: The runner's address for the emulator
+        run: docker network create --subnet 203.0.113.0/24 --gateway 203.0.113.1 hello-net > /dev/null
+
       - name: Capture
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:

@@ -1,12 +1,11 @@
 #!/bin/bash
 # android-hello.sh DEX OUT: on the emulator (browser-hellos.yml), the ClientHello of an app's request, OkHttp over the
-# system's TLS (.github/tools/androidhello), to the runner's capture (hello.py) at the runner's own address (the
-# emulator reaches it through its NAT, as e2e.sh does the stand's; 10.0.2.2 does not take it). OUT gets hello.hex and
-# SOURCE.
+# system's TLS (.github/tools/androidhello), to the runner's capture (hello.py) at 203.0.113.1, a docker bridge's
+# address (browser-hellos.yml), as e2e.sh reaches the stand. OUT gets hello.hex, SOURCE and SHUFFLE.
 set -u
 dex="$1" out="$2"
 mkdir -p "$out"
-host="$(hostname -I | awk '{print $1}')"
+host=203.0.113.1
 adb push "$dex" /data/local/tmp/hello.dex > /dev/null
 second="$(mktemp -d)"
 python3 -I .github/scripts/hello.py capture "$host:18601" "$out/hello.hex" &
