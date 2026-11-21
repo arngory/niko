@@ -193,9 +193,10 @@ func (w *boxPlatformInterfaceWrapper) FindConnectionOwner(request *adapter.FindC
 	}
 	if uid < 0 {
 		// Android names no owner for a connection of an app the VPN does not apply to: one that bound its socket to
-		// tun0 by name (SO_BINDTODEVICE). The app's rule (ConfigBuilder, per-app proxy) rejects it by this name, which
-		// no package can have (a colon).
-		return &adapter.ConnectionOwner{UserId: -1, AndroidPackageNames: []string{OutsideVPNPackage}}, nil
+		// tun0 by name (SO_BINDTODEVICE). The app's rule (ConfigBuilder, per-app proxy) rejects it on TCP by this name,
+		// which no package can have (a colon). No owner is also a socket Android no longer finds; "android" beside it
+		// keeps what such a connection matched before the guard (the user's rules for the system).
+		return &adapter.ConnectionOwner{UserId: -1, AndroidPackageNames: []string{OutsideVPNPackage, "android"}}, nil
 	}
 	packageName, _ := intfBox.PackageNameByUid(uid)
 	var packageNames []string
