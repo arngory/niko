@@ -88,6 +88,14 @@ class MemoryDaemon implements Daemon {
     return steps.stream;
   }
 
+  /// The store: no screen reads it yet.
+  @override
+  Stream<StoreChange> storeChanges() => Stream.value(const StoreChange(revision: 0, reset: true));
+  @override
+  Future<List<ProfileRow>> profiles({int groupId = 0}) async => const [];
+  @override
+  Future<List<int>> importLinks(String text, {int groupId = 0}) async => const [];
+
   @override
   Future<void> close() async {}
 }

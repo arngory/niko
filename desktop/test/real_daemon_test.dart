@@ -2,7 +2,8 @@
 // --listen 127.0.0.1:<port>` (development mode) started here, a ready config with a proxy on 127.0.0.1, a direct
 // outbound and a rule, a request through it. Stage 2b of docs/design/desktop.md: the button starts the config, the
 // status and the rates are seen; NikoService answers what the daemon is and where a connection would go (stage 3,
-// slice 1); then the core's log and its connections, one of which is closed from here (D-LOG-01, D-CONN-01); the NAT
+// slice 1), and a share link imported into its store is seen through Watch and kept through the daemon's restart
+// (slice 4); then the core's log and its connections, one of which is closed from here (D-LOG-01, D-CONN-01); the NAT
 // tool against a STUN server here. Runs where NIKO_DAEMON names nikod's executable (CI: on Windows and on Linux);
 // skipped otherwise.
 import 'dart:async';
@@ -208,6 +209,36 @@ void main() {
         throwsA(isA<GrpcError>().having((e) => e.code, 'code', StatusCode.failedPrecondition)),
       );
 
+      step = 'the store';
+      // the daemon's store (stage 3, slice 4): Watch begins with a reset; a share link imported is seen through it,
+      // then in the list. The stream stays open to the daemon's kill, which ends it: a cancel crossing the daemon's
+      // own end is what broke the link before (README)
+      expect(info.storeSchema, greaterThanOrEqualTo(1));
+      final storeChanges = <StoreChange>[];
+      final storeWatch = controller.daemon!.storeChanges().listen(storeChanges.add, onError: (Object _) {});
+      await until(() => storeChanges.isNotEmpty, "the store's first change");
+      expect(storeChanges.first.reset, isTrue);
+      final added = await controller.daemon!.importLinks('socks5://user:fake-pass@198.51.100.40:1080#store-test');
+      expect(added, hasLength(1));
+      await until(
+        () => storeChanges.any((c) => c.kind == StoreKind.profiles && c.ids.contains(added.single)),
+        'the imported profile in Watch',
+      );
+      await until(() => storeChanges.any((c) => c.kind == StoreKind.task), "the import's result in Watch");
+      final row = (await controller.daemon!.profiles()).singleWhere((r) => r.id == added.single);
+      expect(row.type, 'socks');
+      expect(row.name, 'store-test');
+      expect(row.address, '198.51.100.40:1080');
+      // a subscription's link is recognized, and its import comes later
+      await expectLater(
+        controller.daemon!.importLinks('https://sub.example/s/0123456789abcdef0123'),
+        throwsA(isA<GrpcError>().having((e) => e.code, 'code', StatusCode.unimplemented)),
+      );
+      // ignore: avoid_print
+      print(
+        'store: profile ${row.id} "${row.name}" (${row.type}, ${row.address}), ${storeChanges.length} changes seen',
+      );
+
       step = 'the start';
       // the button
       config = good;
@@ -360,6 +391,9 @@ void main() {
       await startDaemon();
       await until(() => controller.link == LinkPhase.ready, 'the link again');
       expect(controller.service.phase, ServicePhase.idle);
+      // the store kept the import through the daemon's restart
+      await storeWatch.cancel();
+      expect((await controller.daemon!.profiles()).map((r) => r.name), contains('store-test'));
     },
   );
 }
