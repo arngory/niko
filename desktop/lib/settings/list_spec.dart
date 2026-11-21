@@ -4,7 +4,7 @@ export '../ui/fields.dart' show FieldInput;
 
 // Variant В of docs/ui/platforms.md: a list screen of shared/screens, described once and drawn here and on the phone
 // (app/src/main/java/io/niko/ui/settings/ListScreen.kt). shared/tool/gen_screens.py writes the descriptions as
-// ListScreens (lib/gen/screens.g.dart); the texts are names in its screenTexts. docs/research/list-screens-probe.md.
+// ListScreens (lib/settings/screens.g.dart); the texts are names in its screenTexts. docs/research/list-screens-probe.md.
 
 /// A list screen: its name, the way back's label, its lines top to bottom.
 class ListSpec {

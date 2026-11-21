@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:niko_desktop/gen/screens.g.dart';
+import 'package:niko_desktop/settings/screens.g.dart';
 import 'package:niko_desktop/l10n/strings.dart';
 import 'package:niko_desktop/settings/inbound_screen.dart';
 import 'package:niko_desktop/settings/list_screen.dart';

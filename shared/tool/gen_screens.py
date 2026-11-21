@@ -6,7 +6,7 @@ screens made by hand (docs/research/list-screens-probe.md).
   gen_screens.py --check    exit 1 if one of them is not what the descriptions give (CI)
 
   app/src/main/java/io/niko/ui/settings/ListScreens.kt    Android: each screen as a ListSpec (ui/settings/ListScreen.kt)
-  desktop/lib/gen/screens.g.dart                           the window: each screen as a ListSpec
+  desktop/lib/settings/screens.g.dart                           the window: each screen as a ListSpec
                                                            (lib/settings/list_screen.dart), and the texts they name
 
 A description, shared/screens/<screen>.json:
@@ -38,7 +38,7 @@ import xml.etree.ElementTree as ET
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SOURCE = os.path.join(ROOT, "shared", "screens")
 KOTLIN = "app/src/main/java/io/niko/ui/settings/ListScreens.kt"
-DART = "desktop/lib/gen/screens.g.dart"
+DART = "desktop/lib/settings/screens.g.dart"
 STRINGS = {"en": "app/src/main/res/values/strings.xml", "ru": "app/src/main/res/values-ru/strings.xml"}
 ICONS = "shared/icons/lucide"
 GEN_ICONS = "shared/tool/gen_icons.py"
@@ -277,7 +277,7 @@ def dart_item(item):
 
 
 def dart(screens, texts, icons):
-    out = [f"// {HEADER}", "", "import '../settings/list_spec.dart';", "import '../ui/icons.dart';", "",
+    out = [f"// {HEADER}", "", "import '../ui/icons.dart';", "import 'list_spec.dart';", "",
            "/// The list screens of shared/screens, as the window draws them (ListScreen).", "abstract final class ListScreens {"]
     names = []
     for name, screen in screens:

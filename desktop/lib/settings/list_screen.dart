@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-import '../gen/screens.g.dart';
+import 'screens.g.dart';
 import '../ui/controls.dart';
 import '../ui/fields.dart';
 import '../ui/list.dart';
