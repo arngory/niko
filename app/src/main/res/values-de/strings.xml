@@ -25,10 +25,7 @@
     <string name="group_delete_confirm_prompt">Bist du dir sicher das du diese Gruppe entfernen möchtest\?</string>
     <string name="license">Lizenz</string>
     <string name="lines">%d Linien</string>
-    <string name="auto">Automatisch</string>
     <string name="api_port">API-Port</string>
-    <string name="night_mode">Nachtmodus</string>
-    <string name="follow_system">System folgen</string>
     <string name="enable">Aktivieren</string>
     <string name="disable">Deaktivieren</string>
     <string name="enable_log">Aktiviere Protokoll</string>

@@ -48,28 +48,17 @@
     <string name="group_deleted">Видалено: \n%s</string>
     <string name="group_duplicate">Дублікат: \n%s</string>
     <!-- misc -->
-    <string name="service_mode">Режим роботи</string>
-    <string name="service_mode_proxy">Тільки проксі</string>
     <string name="service_mode_vpn" translatable="false">VPN</string>
-    <string name="port_proxy">Порт проксі-сервера SOCKS5</string>
     <string name="port_http">Проксі-порт HTTP</string>
     <string name="port_transproxy">Транспроксі-порт</string>
     <string name="cag_route">Налаштування маршруту</string>
-    <string name="allow_access">Дозволити підключення з локальної мережі</string>
-    <string name="allow_access_sum">Прив’язати вхідні сервери до 0.0.0.0</string>
-    <string name="inbound_settings">Вхідні налаштування</string>
-    <string name="general_settings">Налаштування програми</string>
     <string name="require_http">Увімкнути вхідний протокол HTTP</string>
     <string name="cag_ws">Налаштування WebSocket</string>
     <string name="ws_max_early_data" translatable="false">Max early data</string>
     <string name="ws_browser_forwarding">Переадресація браузера</string>
     <string name="ws_browser_forwarding_sum">Пересилайте відповідні WebSockets через браузер.</string>
-    <string name="speed_interval">Інтервал оновлення сповіщення про швидкість</string>
-    <string name="cag_misc">Різні налаштування</string>
     <string name="show_stop">Показати кнопку зупинки</string>
     <string name="show_stop_sum">Якщо ви не хочете використовувати Quick Tile як перемикач</string>
-    <string name="show_direct_speed">Показати пряму швидкість</string>
-    <string name="show_direct_speed_sum">У сповіщенні також покажіть швидкість трафіку без проксі-сервера</string>
     <string name="security_settings">Налаштування безпеки TLS</string>
     <string name="allow_insecure">Дозволити незахищене</string>
     <string name="allow_insecure_sum">Вимкнути перевірку сертифікатів. Якщо ввімкнено, ця конфігурація є такою ж безпечною, як і відкритий текст</string>
@@ -82,18 +71,10 @@
     <string name="connection_test_error">Не вдалося: %s</string>
     <string name="connection_test_fail">Інтернет недоступний</string>
     <string name="connection_test_error_status_code">Код помилки: #%d</string>
-    <string name="cag_dns">Налаштування DNS</string>
-    <string name="remote_dns">Віддалений DNS</string>
-    <string name="direct_dns">Прямий DNS</string>
-    <string name="enable_dns_routing">Увімкнути маршрутизацію DNS</string>
-    <string name="dns_routing_message">Вирішуйте домени в обхідних маршрутах за допомогою Direct DNS. Будьте в курсі можливих витоків DNS</string>
-    <string name="enable_fakedns">Увімкнути FakeDNS</string>
-    <string name="fakedns_message">Може призвести до перезапуску інших програм для повторного підключення до мережі після зупинки проксі</string>
     <string name="dns_hosts">Переписування домену</string>
     <string name="port_local_dns">Локальний порт DNS</string>
     <string name="require_transproxy">Увімкнути вхідний сигнал Transproxy</string>
     <string name="transproxy_mode">Режим Transproxy</string>
-    <string name="connection_test_url">URL-адреса перевірки з\'єднання</string>
     <!-- proxy category -->
     <string name="profile_name">Ім\'я профілю</string>
     <string name="server_address">Сервер</string>
@@ -128,11 +109,6 @@
     <string name="config_type">Тип конфігурації</string>
     <string name="edit_config">Редагувати конфігурацію</string>
     <!-- feature category -->
-    <string name="ipv6">Маршрут IPv6</string>
-    <string name="prefer">Віддавати перевагу</string>
-    <string name="only">Тільки</string>
-    <string name="metered">Лімітне підключення</string>
-    <string name="metered_summary">Повідомляти системі, що VPN-з\'єднання є лімітним</string>
     <string name="menu_route">Маршрут</string>
     <string name="route_add">Створити маршрут</string>
     <string name="delete_route_prompt">Ви впевнені, що хочете видалити цей маршрут?</string>
@@ -149,24 +125,20 @@
     <string name="route_reset">Скинути</string>
     <string name="route_manage_assets">Керування ресурсами маршрутів</string>
     <string name="route_assets">Ресурси</string>
-    <string name="route_rules_provider">Постачальник ресурсів правил</string>
     <string name="route_rules_official">Офіційний</string>
     <string name="route_asset_status">Локальна версія: %s</string>
     <string name="route_asset_no_update">Немає оновлень</string>
     <string name="route_asset_updated">Оновлено</string>
     <string name="route_not_asset">Це не файл ресурсів: очікувався .db, але отримано %s</string>
-    <string name="route_opt_bypass_lan">Обходити локальну мережу</string>
     <string name="route_opt_block_ads">Блокувати рекламу</string>
     <string name="route_opt_block_analysis">Блокувати аналітику</string>
     <string name="route_opt_block_quic">Блокувати QUIC</string>
     <string name="domain_strategy">Стратегія визначення доменів</string>
-    <string name="traffic_sniffing">Увімкнути аналіз трафіку</string>
     <string name="enable_mux">Увімкнути мультиплексор</string>
     <string name="mux_sum">Mux призначений для зменшення затримки рукостискання TCP, а не для збільшення пропускної здатності з\'єднання. Використання Mux для перегляду відео, завантаження або тестування швидкості зазвичай є контрпродуктивним. Якщо сервер його не підтримує, ви не зможете отримати доступ до Інтернету.</string>
     <string name="mux_concurrency">Паралельні з\'єднання Mux</string>
     <string name="tcp_keep_alive_interval">Інтервал доставки пакетів TCP keep-alive</string>
     <string name="proxied_apps">Програми в режимі VPN</string>
-    <string name="proxied_apps_summary">Налаштувати режим VPN для вибраних програм</string>
     <string name="on">Увімк</string>
     <string name="off">Вимк</string>
     <string name="search_apps">Пошук…</string>
@@ -175,8 +147,6 @@
     <string name="clear_selections">Очистити вибір</string>
     <string name="bypass_apps">В обхід</string>
     <string name="show_system_apps">Показувати системні програми</string>
-    <string name="auto_connect">Автоматичне підключення</string>
-    <string name="auto_connect_summary">Вмикати проксі під час запуску/оновлення програми, якщо він працював раніше</string>
     <string name="direct_boot_aware">Дозволити перемикання на екрані блокування</string>
     <string name="direct_boot_aware_summary">Інформація про ваш вибраний профіль буде менш захищеною</string>
     <!-- notification category -->
@@ -293,11 +263,8 @@
     <string name="license">Ліцензія</string>
     <string name="route_warn">Переконайтеся, що ви прочитали документацію перед додаванням власних правил, інакше ви можете не підключитися до Інтернету.</string>
     <string name="lines">%d рядків</string>
-    <string name="night_mode">Нічний режим</string>
-    <string name="follow_system">Як у системі</string>
     <string name="enable">Увімкнути</string>
     <string name="disable">Вимкнути</string>
-    <string name="auto">Авто</string>
     <string name="enable_log">Увімкнути журнал</string>
     <string name="enable_log_sum">Для налагодження</string>
     <string name="list">Список</string>
@@ -309,8 +276,6 @@
     <string name="v2rayn" translatable="false">V2RayN</string>
     <string name="available" translatable="false">%dмс</string>
     <string name="unavailable">Недоступний</string>
-    <string name="always_show_address">Завжди показувати адресу</string>
-    <string name="always_show_address_sum">Завжди відображати адресу сервера на картці конфігурації</string>
     <string name="clear_traffic_statistics">Очистити статистику трафіку</string>
     <string name="connection_test">Тест з\'єднання</string>
     <string name="connection_test_clear_results">Очистити результати тесту</string>
@@ -323,8 +288,6 @@
     <string name="connection_test_refused">З\'єднання відхилено</string>
     <string name="connection_test_unreachable">Недоступний</string>
     <string name="connection_test_timeout">Час очікування минув</string>
-    <string name="append_http_proxy">Додати HTTP-проксі до VPN</string>
-    <string name="append_http_proxy_sum">HTTP-проксі буде використовуватися безпосередньо (браузером / деякими підтримуваними програмами), не проходячи через віртуальний мережевий пристрій (Android 10+)</string>
     <string name="protocol_settings">Налаштування протоколу</string>
     <string name="trojan_provider">Постачальник Trojan</string>
     <string name="group_basic">Основні</string>
@@ -405,8 +368,6 @@
     <string name="app_no_launcher">Програма не має інтерфейсу.</string>
     <string name="route_for">Правило для %s</string>
     <string name="route_need_vpn">Правило маршрутизації %s залежить від VPN, щоб набути чинності, тому воно ігнорується.</string>
-    <string name="profile_traffic_statistics">Статистика трафіку профілю</string>
-    <string name="profile_traffic_statistics_summary">Якщо вимкнено, використаний трафік не буде враховуватися</string>
     <string name="no_statistics">Статистики ще немає</string>
     <string name="app_statistics_disabled">Статистика трафіку програм вимкнена</string>
     <string name="ssh_auth_type_none">Немає</string>
@@ -424,11 +385,8 @@
     <string name="warp_license">CloudFlare Warp – це безкоштовний VPN-провайдер, що використовує WireGuard. Використовуючи його, ви погоджуєтеся з Умовами надання послуг.</string>
     <string name="warp_generate">Згенерувати конфігурацію</string>
     <string name="generating">Генерація…</string>
-    <string name="tun_implementation">Реалізація TUN</string>
     <string name="destination_override">Перевизначити призначення</string>
     <string name="destination_override_summary">Використовувати перехоплений домен для перезапису адреси призначення, а не лише для маршрутизації</string>
-    <string name="resolve_destination">Визначати призначення</string>
-    <string name="resolve_destination_summary">Якщо адреса призначення є доменом, вона передається далі на основі стратегії IPv6 (конфліктує з FakeDNS)</string>
     <string name="pcap" translatable="false">Pcap</string>
     <string name="pcap_notice">Файли Pcap будуть збережені в %s</string>
     <string name="naive_insecure_concurrency">Небезпечна паралельність</string>
@@ -452,9 +410,7 @@
     <string name="backup_import_summary">Імпортування перезапише наявні дані.</string>
     <string name="backup_importing">Імпортування…</string>
     <string name="packet_encoding">Кодування пакетів</string>
-    <string name="acquire_wake_lock">Захоплювати WakeLock</string>
     <string name="release_wake_lock">Відпускати WakeLock</string>
-    <string name="acquire_wake_lock_summary">Не давати процесору заснути</string>
     <string name="action_switch">Перемкнути</string>
     <string name="tuic_udp_relay_mode">Режим ретрансляції UDP</string>
     <string name="tuic_congestion_controller">Контролер перевантаження</string>
@@ -466,24 +422,15 @@
     <string name="move">Перемістити</string>
     <string name="exe_prefer_provider">Пріоритетний постачальник плагіна</string>
     <string name="create_shortcut">Створити ярлик</string>
-    <string name="app_tls_version">Мінімальна версія TLS для підписки</string>
     <string name="hop_interval">Інтервал зміни портів (секунди)</string>
-    <string name="domain_strategy_for_remote">Стратегія доменів для віддаленого</string>
-    <string name="domain_strategy_for_direct">Стратегія доменів для прямого</string>
-    <string name="domain_strategy_for_server">Стратегія доменів для адреси сервера</string>
-    <string name="show_bottom_bar">Показувати нижню панель, як у SagerNet</string>
     <string name="utls_fingerprint">Відбиток uTLS</string>
     <string name="custom_outbound_json">Власний JSON вихідного з\'єднання</string>
     <string name="custom_config_json">Власний JSON конфігурації</string>
     <string name="is_outbound_only">Встановлений JSON є лише вихідним з\'єднанням</string>
     <string name="save">Зберегти</string>
     <string name="set_panel_url">Встановити URL панелі</string>
-    <string name="enable_clash_api">Увімкнути Clash API</string>
-    <string name="log_level">Рівень журналу</string>
-    <string name="enable_clash_api_summary">Надати Clash API та панель yacd за адресою 127.0.0.1:9090</string>
     <string name="xtls_flow">Flow (підпротокол VLESS)</string>
     <string name="ads">Реклама</string>
-    <string name="bypass_lan_in_core">Обходити ЛВС в ядрі</string>
     <string name="need_restart">Перезапустіть програму, щоб застосувати зміни</string>
     <string name="use_selector">Використовувати селектор</string>
     <string name="front_proxy">Передній проксі</string>
@@ -491,15 +438,12 @@
     <string name="action_shadowtls" translatable="false">ShadowTLS</string>
     <string name="protocol_version">Версія протоколу</string>
     <string name="share_subscription">Поділитися підпискою</string>
-    <string name="show_group_in_notification">Показувати назву групи у сповіщенні</string>
     <string name="reset_connections">Скинути з\'єднання</string>
     <string name="remove_duplicate">Видалити дублікати серверів</string>
     <string name="mtu_help">Довге натискання на налаштування, щоб встановити власний MTU.</string>
-    <string name="log_level_help">Довге натискання на налаштування, щоб встановити розмір буфера.</string>
     <string name="tls_camouflage_settings">Налаштування маскування TLS</string>
     <string name="test_concurrency">Паралелізм тесту</string>
     <string name="mux_type">Протокол Mux</string>
-    <string name="sniff_routing">Результат аналізу для маршрутизації</string>
     <string name="sniff_override">Результат аналізу для призначення</string>
     <string name="resolve_server">Визначати адресу сервера відповідно до політики IPv6</string>
     <string name="auto_select_proxy_apps">Автоматичний вибір програм для проксі</string>
@@ -512,10 +456,6 @@
     <string name="http_upgrade_path">Шлях HTTPUpgrade</string>
     <string name="update_current_subscription">Оновити підписку поточної групи</string>
     <string name="group_not_subscription">Тип групи не є підпискою</string>
-    <string name="allow_insecure_on_request_sum">Вимкнути перевірку сертифіката під час оновлення підписок</string>
-    <string name="global_allow_insecure">Завжди дозволяти незахищене</string>
     <string name="mux_preference">Мультиплексування</string>
     <string name="padding">Заповнення (Padding)</string>
-    <string name="network_change_reset_connections">Скидати вихідні з\'єднання при зміні мережі</string>
-    <string name="wake_reset_connections">Скидати вихідні з\'єднання при виході пристрою зі сну</string>
 </resources>
