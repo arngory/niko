@@ -2,6 +2,7 @@ package nikoservice
 
 import (
 	"context"
+	"net"
 	"testing"
 
 	"libcore/nikopb"
@@ -14,6 +15,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
 
@@ -120,11 +122,27 @@ func TestRouteTestStopped(t *testing.T) {
 	}
 }
 
+// The store's schema to a caller the store serves; 0 to one it refuses and from a daemon without a store, as the
+// window would hear from each of the store's calls.
 func TestGetInfo(t *testing.T) {
-	info, err := (&server{}).GetInfo(context.Background(), &nikopb.GetInfoRequest{})
-	if err != nil || info.NikoVersion != Version || info.CoreVersion != C.Version || info.Api != API ||
-		info.StoreSchema != int32(nikostore.Schema()) {
-		t.Fatalf("%+v: %v", info, err)
+	served := peer.NewContext(context.Background(), &peer.Peer{Addr: &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 50000}})
+	refused := peer.NewContext(context.Background(), &peer.Peer{Addr: &net.TCPAddr{IP: net.ParseIP("192.0.2.7"), Port: 50000}})
+	withStore := &server{users: newUsers(t.TempDir(), developmentCaller, nil)}
+	for _, c := range []struct {
+		name   string
+		s      *server
+		ctx    context.Context
+		schema int32
+	}{
+		{"served", withStore, served, int32(nikostore.Schema())},
+		{"refused", withStore, refused, 0},
+		{"no store", &server{}, served, 0},
+	} {
+		info, err := c.s.GetInfo(c.ctx, &nikopb.GetInfoRequest{})
+		if err != nil || info.NikoVersion != Version || info.CoreVersion != C.Version || info.Api != API ||
+			info.StoreSchema != c.schema {
+			t.Errorf("%s: %+v: %v", c.name, info, err)
+		}
 	}
 }
 

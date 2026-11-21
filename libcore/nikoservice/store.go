@@ -72,6 +72,15 @@ func onThisMachine(addr net.Addr) bool {
 	return addr != nil && addr.Network() == "bufconn"
 }
 
+// serves: whether the caller has a store here, without opening it.
+func (u *users) serves(ctx context.Context) bool {
+	if u == nil {
+		return false
+	}
+	_, err := u.caller(ctx)
+	return err == nil
+}
+
 // user is the caller's store, opened if it is not yet.
 func (u *users) user(ctx context.Context) (*user, error) {
 	if u == nil {
@@ -279,6 +288,9 @@ const (
 	maxImport = 10000
 )
 
+// errOverImport: an input of more profiles than one import adds, refused by Recognize as by Import
+var errOverImport = status.Error(codes.InvalidArgument, "over "+strconv.Itoa(maxImport)+" profiles in one import")
+
 // inputText is the text of an input: its text, else its file's content.
 func inputText(input *nikopb.ImportInput) (string, error) {
 	if input == nil {
@@ -305,6 +317,9 @@ func (s *server) Recognize(_ context.Context, input *nikopb.ImportInput) (*nikop
 	}
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if len(beans) > maxImport {
+		return nil, errOverImport
 	}
 	preview := &nikopb.ImportPreview{}
 	for _, bean := range beans {
@@ -353,7 +368,7 @@ func importText(u *user, task, text string, group int64) *nikopb.TaskProgress {
 	case len(beans) == 0:
 		fail(status.Error(codes.InvalidArgument, "no link this daemon reads"))
 	case len(beans) > maxImport:
-		fail(status.Error(codes.InvalidArgument, "over "+strconv.Itoa(maxImport)+" profiles in one import"))
+		fail(errOverImport)
 	default:
 		added, err := u.store.AddProfiles(group, beans)
 		if err != nil {

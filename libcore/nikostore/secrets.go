@@ -30,8 +30,8 @@ func (NoSealer) Open(sealed []byte) ([]byte, error) { return sealed, nil }
 // secretFields are the beans' fields the disk holds sealed: whatever authenticates to a server or opens its traffic
 // (passwords, UUIDs, tokens, Hysteria's auth and obfuscation, Trojan-Go's Shadowsocks layer, a REALITY short ID, the
 // WireGuard and SSH keys, a DNS tunnel's shared key and zone key, the Yggdrasil seed, a knock's payloads) and what the
-// user wrote whole (a custom config or outbound, a naive's extra headers, a Shadowsocks plugin's options), which may
-// carry any of those. The JSON names of nikofmt's beans, the app's field names.
+// user wrote whole (a custom config or outbound, TUIC's custom JSON, a naive's extra headers, a Shadowsocks plugin's
+// options), which may carry any of those. The JSON names of nikofmt's beans, the app's field names.
 var secretFields = map[string]bool{
 	"password":             true,
 	"uuid":                 true,
@@ -49,6 +49,7 @@ var secretFields = map[string]bool{
 	"knockSequence":        true,
 	"customOutboundJson":   true,
 	"customConfigJson":     true,
+	"customJSON":           true,
 	"config":               true,
 	"extraHeaders":         true,
 	"plugin":               true,

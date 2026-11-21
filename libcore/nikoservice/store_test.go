@@ -240,6 +240,11 @@ func TestImportWatch(t *testing.T) {
 	if _, err = (&server{}).Recognize(ctx, &nikopb.ImportInput{Text: strings.Repeat("x", maxInput+1)}); code(err) != codes.InvalidArgument {
 		t.Errorf("an input over its limit: %v", err)
 	}
+	// more profiles than one import adds: refused already in the preview, not first by the import
+	over := strings.Repeat(socksLink+"\n", maxImport+1)
+	if _, err = (&server{}).Recognize(ctx, &nikopb.ImportInput{Text: over}); code(err) != codes.InvalidArgument {
+		t.Errorf("a preview over the import's limit: %v", err)
+	}
 	// a subscription's link recognized as one
 	preview, err = client.Recognize(ctx, &nikopb.ImportInput{Text: socksLink + "\n" + subLink})
 	if err != nil || preview.Kind != nikopb.ImportPreview_SUBSCRIPTION || preview.Subscription != subLink || len(preview.Profiles) != 0 {
