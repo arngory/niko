@@ -9,4 +9,7 @@ interface SettingValues {
     fun setFlag(key: String, value: Boolean)
     fun text(key: String): String
     fun setText(key: String, value: String)
+
+    /** A choice made: written at once, as a switch is (text waits until it is typed out). */
+    fun setChoice(key: String, value: String) = setText(key, value)
 }

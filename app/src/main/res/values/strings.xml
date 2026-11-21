@@ -50,29 +50,17 @@
     <string name="group_deleted">Deleted: \n%s</string>
     <string name="group_duplicate">Duplicate: \n%s</string>
     <!-- misc -->
-    <string name="service_mode">Service Mode</string>
-    <string name="service_mode_proxy">Proxy only</string>
     <string name="service_mode_vpn" translatable="false">VPN</string>
-    <string name="port_proxy">Proxy Port</string>
     <string name="port_http">HTTP Proxy Port</string>
     <string name="port_transproxy">Transproxy Port</string>
     <string name="cag_route">Route Settings</string>
-    <string name="allow_access">Allow Connections from the LAN</string>
-    <string name="allow_access_sum">Bind inbound servers to 0.0.0.0</string>
-    <string name="inbound_settings">Inbound Settings</string>
-    <string name="general_settings">App Settings</string>
     <string name="require_http">Enable HTTP inbound</string>
     <string name="cag_ws">WebSocket Settings</string>
     <string name="ws_max_early_data" translatable="false">Max early data</string>
     <string name="ws_browser_forwarding">Browser Forwarding</string>
     <string name="ws_browser_forwarding_sum">Forward corresponding WebSockets through the browser.</string>
-    <string name="speed_interval">Speed Notification Update Interval</string>
-    <string name="cag_misc">Misc Settings</string>
     <string name="show_stop">Show Stop Button</string>
     <string name="show_stop_sum">If you don’t want to use Quick Tile as the switch</string>
-    <string name="show_direct_speed">Show Direct Speed</string>
-    <string name="show_direct_speed_sum">Show the traffic speed without proxy in the notification as
-        well</string>
     <string name="security_settings">TLS Security Settings</string>
     <string name="allow_insecure">Allow Insecure</string>
     <string name="allow_insecure_sum">Disable certificate checking. When enabled, this configuration
@@ -86,22 +74,12 @@
     <string name="connection_test_error">Failed: %s</string>
     <string name="connection_test_fail">Internet Unavailable</string>
     <string name="connection_test_error_status_code">Error code: #%d</string>
-    <string name="cag_dns">DNS Settings</string>
-    <string name="remote_dns">Remote DNS</string>
-    <string name="direct_dns">Direct DNS</string>
     <string name="direct_dns_help">local: the network\'s own resolver, as other apps use it (Private DNS included). Or a server: https://…/dns-query, tls://…, 1.1.1.1</string>
     <string name="private_dns_strict">Private DNS is set to %s: apps send their DNS over TLS to it, past Niko\'s DNS. Domain rules then rest on sniffing, and that resolver sees every name. Settings → Network → Private DNS: Automatic or Off.</string>
-    <string name="enable_dns_routing">Enable DNS Routing</string>
-    <string name="dns_routing_message">Resolve domains in bypass routes with Direct DNS. Be aware of
-        potential DNS leaks</string>
-    <string name="enable_fakedns">Enable FakeDNS</string>
-    <string name="fakedns_message">May cause other applications need to be restarted to reconnect to
-        the network after proxy stopped</string>
     <string name="dns_hosts">Domain rewrite</string>
     <string name="port_local_dns">Local DNS Port</string>
     <string name="require_transproxy">Enable Transproxy Inbound</string>
     <string name="transproxy_mode">Transproxy Mode</string>
-    <string name="connection_test_url">Connection Test URL</string>
     <!-- proxy category -->
     <string name="profile_name">Profile Name</string>
     <string name="server_address">Server</string>
@@ -136,11 +114,6 @@
     <string name="config_type">Config Type</string>
     <string name="edit_config">Edit Config</string>
     <!-- feature category -->
-    <string name="ipv6">IPv6 Route</string>
-    <string name="prefer">Prefer</string>
-    <string name="only">Only</string>
-    <string name="metered">Metered Hint</string>
-    <string name="metered_summary">Hint system to treat VPN as metered</string>
     <string name="menu_route">Route</string>
     <string name="route_add">Create Route</string>
     <string name="delete_route_prompt">Are you sure you want to remove this route?</string>
@@ -157,7 +130,6 @@
     <string name="route_reset">Reset</string>
     <string name="route_manage_assets">Manage Route Assets</string>
     <string name="route_assets">Assets</string>
-    <string name="route_rules_provider">Rule Assets Provider</string>
     <string name="route_rules_official">Official</string>
     <string name="route_asset_status">Local version: %s</string>
     <string name="route_asset_no_update">No update</string>
@@ -166,12 +138,10 @@
     <string name="route_import_ca">Add a root certificate?</string>
     <string name="route_import_ca_message">The certificates in %s will be trusted for every TLS connection of the app that has no pin: proxies (naive profiles aside: they take a root only from the profile itself), remote DNS, subscription and rule downloads. Whoever holds the key of such a certificate can read and change that traffic. Add it only if you know where it came from.</string>
     <string name="route_import_ca_done">Certificate added. A running profile trusts it after its restart.</string>
-    <string name="route_opt_bypass_lan">Bypass LAN</string>
     <string name="route_opt_block_ads">Block ADs</string>
     <string name="route_opt_block_analysis">Block analysis</string>
     <string name="route_opt_block_quic">Block QUIC</string>
     <string name="domain_strategy">Domain Resolution Strategy</string>
-    <string name="traffic_sniffing">Enable Traffic Sniffing</string>
     <string name="enable_mux">Enable Multiplexer</string>
     <string name="mux_sum">Mux is designed to reduce TCP handshake latency, not to increase
         connection throughput. Using Mux to watch videos, download or speed test is usually counter
@@ -179,7 +149,6 @@
     <string name="mux_concurrency">Mux Concurrent Connections</string>
     <string name="tcp_keep_alive_interval">TCP keep active packet delivery interval</string>
     <string name="proxied_apps">Apps VPN mode</string>
-    <string name="proxied_apps_summary">Configure VPN mode for selected apps</string>
     <string name="on">On</string>
     <string name="off">Off</string>
     <string name="search_apps">Search…</string>
@@ -188,8 +157,6 @@
     <string name="clear_selections">Clear selections</string>
     <string name="bypass_apps">Bypass</string>
     <string name="show_system_apps">Show system apps</string>
-    <string name="auto_connect">Auto Connect</string>
-    <string name="auto_connect_summary">Enable proxy on startup/app update if it was running before</string>
     <string name="direct_boot_aware">Allow Toggling in Lock Screen</string>
     <string name="direct_boot_aware_summary">Your selected profile information will be less
         protected</string>
@@ -319,11 +286,8 @@
     <string name="route_warn">Make sure you have read the documentation before adding custom rules,
         otherwise you may not be able to connect to the Internet.</string>
     <string name="lines">%d Lines</string>
-    <string name="night_mode">Night Mode</string>
-    <string name="follow_system">Follow System</string>
     <string name="enable">Enable</string>
     <string name="disable">Disable</string>
-    <string name="auto">Auto</string>
     <string name="enable_log">Enable Log</string>
     <string name="enable_log_sum">For debugging purposes</string>
     <string name="list">List</string>
@@ -335,9 +299,6 @@
     <string name="v2rayn" translatable="false">V2RayN</string>
     <string name="available" translatable="false">%dms</string>
     <string name="unavailable">Unavailable</string>
-    <string name="always_show_address">Always Show Address</string>
-    <string name="always_show_address_sum">Always display the server address on the configuration
-        card</string>
     <string name="clear_traffic_statistics">Clear traffic statistics</string>
     <string name="connection_test">Connection test</string>
     <string name="connection_test_clear_results">Clear test results</string>
@@ -350,9 +311,6 @@
     <string name="connection_test_refused">Connection refused</string>
     <string name="connection_test_unreachable">Unreachable</string>
     <string name="connection_test_timeout">Timeout</string>
-    <string name="append_http_proxy">Append HTTP Proxy to VPN</string>
-    <string name="append_http_proxy_sum">HTTP proxy will be used directly from (browser/ some
-        supported apps), without going through the virtual NIC device (Android 10+)</string>
     <string name="protocol_settings">Protocol Settings</string>
     <string name="trojan_provider">Trojan Provider</string>
     <string name="group_basic">Basic</string>
@@ -452,9 +410,6 @@
     <string name="route_need_vpn">Routing rule %s relies on the VPN to be in effect, so it is
         ignored.</string>
 
-    <string name="profile_traffic_statistics">Profile Traffic Statistics</string>
-    <string name="profile_traffic_statistics_summary">When disabled, the used traffic will not be
-        counted</string>
     <string name="no_statistics">No statistics yet</string>
     <string name="app_statistics_disabled">App Traffic statistics disabled</string>
     <string name="ssh_auth_type_none">None</string>
@@ -474,13 +429,9 @@
         agree to the TOS.</string>
     <string name="warp_generate">Generate Configuration</string>
     <string name="generating">Generating…</string>
-    <string name="tun_implementation">TUN Implementation</string>
     <string name="destination_override">Override Destination</string>
     <string name="destination_override_summary">Use the sniffed domain to overwrite the destination
         address, not just for routing</string>
-    <string name="resolve_destination">Resolve Destination</string>
-    <string name="resolve_destination_summary">If the destination address is a domain, it is then
-        passed out based on the IPv6 strategy (conflicts with FakeDNS)</string>
     <string name="pcap" translatable="false">Pcap</string>
     <string name="pcap_notice">Pcap files will be saved to %s</string>
     <string name="naive_insecure_concurrency">Insecure Concurrency</string>
@@ -515,9 +466,7 @@
     <string name="backup_importing">Importing…</string>
 
     <string name="packet_encoding">Packet Encoding</string>
-    <string name="acquire_wake_lock">Acquire WakeLock</string>
     <string name="release_wake_lock">Release WakeLock</string>
-    <string name="acquire_wake_lock_summary">Keep the CPU on</string>
     <string name="action_switch">Switch</string>
 
     <string name="tuic_udp_relay_mode">UDP Relay Mode</string>
@@ -533,33 +482,16 @@
     <string name="move">Move</string>
     <string name="exe_prefer_provider">Plugin Preferred Provider</string>
     <string name="create_shortcut">Create Shortcut</string>
-    <string name="app_tls_version">Subscription Min TLS Version</string>
-    <string name="root_store">Trusted root certificates</string>
-    <string name="root_store_chrome">Chrome\'s list (a root installed on the phone is not trusted)</string>
-    <string name="root_store_mozilla">Mozilla\'s list (a root installed on the phone is not trusted)</string>
-    <string name="root_store_system">The system\'s, with roots installed on the phone</string>
-    <string name="naive_quic_phone_roots">naive over QUIC: take this phone\'s roots</string>
-    <string name="naive_quic_phone_roots_summary">Only with \"The system\'s, with roots installed on the phone\" chosen above. Chromium, like Chrome, takes over QUIC only a root of its own list and falls back to HTTP/2 for a root installed on the device. With this on, a naive profile over QUIC takes the phone\'s roots as it does over HTTP/2. It adds no trust that HTTP/2 does not already give them; it is one more difference from Chrome\'s behaviour.</string>
-    <string name="root_store_naive_title">naive profiles and this setting</string>
     <string name="root_store_naive_note">naive profiles check certificates inside Chromium, by its rules, and are held to the list chosen here besides. Under Chrome\'s list: a root must be both in Chromium\'s own list and in the app\'s list of Chrome\'s roots, which leaves out the certificate authorities marked China (nine roots Chromium has are not in it). Under Mozilla\'s list: both in Chromium\'s list and in Mozilla\'s. Under the system\'s store: Chromium\'s list and this phone\'s roots, those over HTTP/2 only unless the switch below is on. A profile with its own key pins or its own certificate follows those instead; an imported ca.pem does not reach naive.</string>
     <string name="hop_interval">Port Hopping Interval(second)</string>
-    <string name="domain_strategy_for_remote">Domain strategy for Remote</string>
-    <string name="domain_strategy_for_direct">Domain strategy for Direct</string>
-    <string name="domain_strategy_for_server">Domain strategy for Server address</string>
-    <string name="show_bottom_bar">Show the bottom bar</string>
     <string name="utls_fingerprint">uTLS fingerprint</string>
     <string name="custom_outbound_json">Custom outbound JSON</string>
     <string name="custom_config_json">Custom config JSON</string>
     <string name="is_outbound_only">The JSON set is outbound</string>
     <string name="save">Save</string>
     <string name="set_panel_url">Set panel URL</string>
-    <string name="enable_clash_api">Enable Clash API</string>
-    <string name="log_level">Log Level</string>
-    <string name="enable_clash_api_summary">Provide clash api and yacd dashboard at 127.0.0.1:9090. The API is protected by a random secret, copy it from the dashboard menu for other clients</string>
     <string name="copy_clash_api_secret">Copy API secret</string>
     <string name="wireguard_persistent_keepalive">Persistent keepalive, seconds (0 = off, 25 for mobile networks)</string>
-    <string name="dns_optimistic_cache">Optimistic DNS cache</string>
-    <string name="dns_optimistic_cache_sum">Answer from an expired cache entry right away and refresh it in the background: faster on slow mobile networks, an address may be stale for one request</string>
     <string name="hop_interval_max">Max port hopping interval, seconds (0 = fixed interval)</string>
     <string name="vless_encryption">VLESS encryption</string>
     <string name="vless_encryption_help">Post-quantum layer of current Xray servers: the client string from \"xray vlessenc\", mlkem768x25519plus.… Empty for none.</string>
@@ -583,7 +515,6 @@
     <string name="subscription_hwid_refused">The provider did not accept this device\'s ID.</string>
     <string name="route_domain_help">One per line: example.com (with subdomains), full:, keyword:, regexp:, geosite:ru, or a remote rule-set with domains: rule-set:https://…/geosite-ru.srs</string>
     <string name="route_ip_help">One per line: 1.2.3.0/24, geoip:ru, geoip:private, or a remote rule-set with IPs: rule-set:https://…/geoip-ru.srs</string>
-    <string name="rule_set_update_interval">Remote rule-set update interval</string>
     <string name="rule_set_update_6h">Every 6 hours</string>
     <string name="rule_set_update_12h">Every 12 hours</string>
     <string name="rule_set_update_1d">Daily</string>
@@ -593,15 +524,6 @@
     <string name="shortcut_pin_unsupported">The launcher can not pin shortcuts. Choose a default launcher and try again.</string>
     <string name="xtls_flow">Flow (VLESS Sub-protocol)</string>
     <string name="ads">Ads</string>
-    <string name="bypass_lan_in_core">Bypass LAN in Core</string>
-    <string name="refuse_quic_over_streams">QUIC to TCP on stream profiles (experiment)</string>
-    <string name="refuse_quic_over_streams_summary">Where the profile carries UDP inside a TCP stream (VLESS/VMess/Trojan on any transport, REALITY among them, naive, DNS tunnels, Yggdrasil), QUIC is refused and browsers use TCP at once: QUIC inside TCP is slower than TCP itself. Profiles with UDP of their own (Hysteria2, WireGuard) keep it, and so does what goes direct. A routing rule of your own (protocol quic → block) refuses it everywhere instead.</string>
-    <string name="honest_connect">Honest connect on Hysteria2 and naive (experiment)</string>
-    <string name="honest_connect_summary">An app\'s connection opens only once the node has reached the destination: a refused or unreachable one fails at once, with the reason in the log, instead of opening and ending empty. Each new connection waits one round trip to the node more. Only Hysteria2 and naive of raycontrol nodes whose links say niko-ack=1 (Hysteria2 from v0.21.0, naive after v0.25.1).</string>
-    <string name="icmp_through_node">Ping through the node (experiment)</string>
-    <string name="icmp_through_node_summary">On naive of raycontrol nodes that allow it (icmp=1), the node pings for the app: ping shows the real round trip and traceroute the hops behind the node. Off, a ping through a proxy is answered on the phone at once and says nothing about the path.</string>
-    <string name="icmp_no_local_reply">No ping answers from the phone</string>
-    <string name="icmp_no_local_reply_summary">A ping that goes to a proxy is normally answered by the phone itself, in the server\'s name: a few milliseconds and no hops, whatever the server. On, such a ping gets no answer, so it shows what it is. Pings to the local network and to what bypasses the proxy, and pings through a node, are real either way. Apps that measure delay by ping will see no connection.</string>
     <string name="need_restart">Restart APP to apply changes</string>
     <string name="use_selector">Use selector</string>
     <string name="front_proxy">Front proxy</string>
@@ -609,15 +531,12 @@
     <string name="action_shadowtls" translatable="false">ShadowTLS</string>
     <string name="protocol_version">Protocol Version</string>
     <string name="share_subscription">Share Subscription</string>
-    <string name="show_group_in_notification">Show group name in notification</string>
     <string name="reset_connections">Reset Connections</string>
     <string name="remove_duplicate">Remove duplicates</string>
     <string name="mtu_help">Long press the preference to set custom MTU.</string>
-    <string name="log_level_help">Long press the preference to set the buffer size.</string>
     <string name="tls_camouflage_settings">TLS Camouflage Settings</string>
     <string name="test_concurrency">Test concurrency</string>
     <string name="mux_type">Mux protocol</string>
-    <string name="sniff_routing">Sniff result for routing</string>
     <string name="sniff_override">Sniff result for destination</string>
     <string name="resolve_server">Resolve the server address according to the IPv6 policy</string>
     <string name="auto_select_proxy_apps">Auto select proxy apps</string>
@@ -631,13 +550,8 @@
     <string name="http_upgrade_path">HTTPUpgrade Path</string>
     <string name="update_current_subscription">Update subscription</string>
     <string name="group_not_subscription">Group type is not subscription</string>
-    <string name="allow_insecure_on_request_sum">Disable certificate checking when updating
-        subscriptions</string>
-    <string name="global_allow_insecure">Always allow insecure</string>
     <string name="mux_preference">Mulitplex</string>
     <string name="padding">Padding</string>
-    <string name="network_change_reset_connections">Reset outbound connections when network changes</string>
-    <string name="wake_reset_connections">Reset outbound connections when device wake from sleep</string>
     <string name="preview_version_hint">This application is a preview version and may contain many problems. If you do not want to test it, please go to GitHub to download the Release version!</string>
     <string name="check_update_preview">Check for preview version updates</string>
     <string name="check_update_release">Check for release version updates</string>
@@ -667,14 +581,7 @@
     <string name="connection_tweaks">Connection tweaks</string>
     <string name="cert_pins">Certificate pinning</string>
     <string name="cert_pins_hint">SHA-256 of the server public key</string>
-    <string name="yggdrasil">Yggdrasil (experimental)</string>
-    <string name="yggdrasil_enable">Join Yggdrasil</string>
-    <string name="yggdrasil_summary">Reach the Yggdrasil mesh (200::/7) while connected; a profile whose server is a Yggdrasil address goes through it. Apps reach it in VPN mode with IPv6 on, or through the local proxy.</string>
-    <string name="yggdrasil_peers">Peers</string>
     <string name="yggdrasil_peers_help">One per line: tls://host:port, tcp://, quic://, ws://, wss://. A raycontrol node: tls://address:443?sni=its-yggdrasil-name. Public peers: github.com/yggdrasil-network/public-peers</string>
-    <string name="raycontrol">raycontrol nodes</string>
-    <string name="raycontrol_auto_switch">Switch node profiles automatically</string>
-    <string name="raycontrol_auto_switch_summary">When a node\'s profile stops working on this network, switch to the node\'s best working profile; a Yggdrasil profile first tries the node\'s public peers there, the fastest few that answer. Results are kept per network on this device</string>
     <string name="raycontrol_channel_check">Check the channel</string>
     <string name="raycontrol_channel_title">Channel to %1$s</string>
     <string name="raycontrol_channel_checking">Checking each profile on this network (up to 20 s each)…</string>
@@ -686,10 +593,6 @@
     <string name="raycontrol_channel_tcp_failed">%1$s: TCP fails (%2$s)</string>
     <string name="raycontrol_channel_udp">UDP: loss %1$s%%, RTT %2$s ms</string>
     <string name="raycontrol_channel_udp_failed">UDP fails</string>
-    <string name="raycontrol_brutal">Hysteria2: Brutal at a measured rate</string>
-    <string name="raycontrol_brutal_summary">Once a day per network the app measures the channel to the node (a few MB) and declares a share of it, download and upload apart; lowered when the node sees losses. Off, or without a measurement: BBR</string>
-    <string name="raycontrol_reports">Share an anonymous summary with the node</string>
-    <string name="raycontrol_reports_summary">Once a day per network: for each service of the node, whether it worked here, in coarse buckets (stall threshold, UDP loss, speed). No device, network names, addresses or times; the node keeps counters only. Sent directly from this network, to nodes that take summaries; in return the subscription may carry other devices\' hints for this network</string>
     <string name="raycontrol_report_show">The summary and hints</string>
     <string name="raycontrol_report_empty">Nothing to send: no probes on this network in the last day</string>
     <string name="raycontrol_direct_failed">Directly: could not measure (%1$s)</string>
@@ -717,8 +620,6 @@
     <string name="raycontrol_hints_udp_mtu">UDP mostly passes datagrams of %1$s bytes</string>
     <string name="raycontrol_hints_stall">TCP mostly stalls near %1$d KiB</string>
     <string name="raycontrol_nodes">Imported nodes</string>
-    <string name="raycontrol_nodes_empty">None. Paste an rcdev1: registration from the clipboard or scan its QR code (+ on the main screen); profiles whose server is the node\'s address then send SPA v2 first.</string>
-    <string name="raycontrol_node_line">%1$s, device %2$s, %3$d services</string>
     <string name="raycontrol_node_imported">raycontrol node %1$s added (%2$d services). Profiles with this server send SPA v2 first.</string>
     <string name="raycontrol_node_remove">Remove the node</string>
     <string name="raycontrol_sub_update">Update the subscription</string>
@@ -1106,20 +1007,10 @@
     <string name="raycontrol_findings_dns_none">No resolver on this network passes the node\'s DNS tunnel</string>
     <string name="raycontrol_findings_dns_spare">The main zone of the node\'s DNS tunnel is cut on this network: the tunnel goes through its spare zone %d</string>
     <string name="raycontrol_findings_share">Share the log with the node\'s admin: it holds every step with its time</string>
-    <string name="raycontrol_dnstt_resolver">DNS tunnel resolver (dnstt)</string>
     <string name="raycontrol_dnstt_resolver_help">Used when a node\'s link leaves the resolver to the client. auto: picked per network (the network\'s own resolver, then public ones of the country, each on UDP and TCP 53, checked with the node\'s probe); or https://…/dns-query, tls://host, tcp://host or udp://host for every network. Applies to profiles from the next subscription update.</string>
-    <string name="raycontrol_masterdns_resolvers">DNS tunnel resolvers (MasterDnsVPN)</string>
     <string name="raycontrol_masterdns_resolvers_help">Used when a node\'s link leaves the resolvers to the client. auto: the network\'s own resolvers and the country\'s public ones (in Russia NSDI and MSK-IX), Yandex\'s (77.88.8.8, 77.88.8.1) only on a network where the tunnel failed without them, or when there are no others; or one IP per line for every network. Applies to profiles from the next subscription update.</string>
     <string name="raycontrol_node_remove_confirm">Remove node %1$s and its stored device key? A running connection restarts without it. To use the node again, import a new registration.</string>
-    <string name="yggdrasil_peers_via_proxy">Peers through the proxy</string>
-    <string name="yggdrasil_peers_via_proxy_summary">Connect to the peers through the selected profile, so the network sees only the proxy. Off: directly. A profile whose server is a Yggdrasil address always peers directly.</string>
-    <string name="yggdrasil_tls_chrome">Browser-like TLS links</string>
-    <string name="yggdrasil_tls_chrome_summary">tls:// peers get a Chrome ClientHello, not the recognisable one of Go. Turn off if a peer stops connecting.</string>
-    <string name="yggdrasil_allow_inbound">Allow incoming connections</string>
-    <string name="yggdrasil_allow_inbound_summary">Other nodes may connect to services on this device (they arrive at 127.0.0.1). Niko\'s own ports are always closed to them. Off: refused.</string>
-    <string name="yggdrasil_inbound_ports">Ports open to other nodes</string>
     <string name="yggdrasil_inbound_ports_help">Comma-separated, for example 22, 8080. Empty: every port but Niko\'s own, including other apps\' local proxies.</string>
-    <string name="yggdrasil_address">Address of this device</string>
     <string name="yggdrasil_not_built">not in this build</string>
     <string name="dns_tunnel">DNS tunnel (experimental)</string>
     <string name="dns_tunnel_resolver">Resolver. dnstt: https://…/dns-query, tls://host or udp://host. MasterDnsVPN: IPs, one per line</string>
@@ -1133,7 +1024,6 @@
     <string name="tls_fragment_record">Split into TLS records</string>
     <string name="tls_fragment_tcp">Split into TCP segments (slower)</string>
     <string name="tls_fragment_summary">Splits the TLS ClientHello of this server so simple DPI cannot match the SNI. Try TLS records first. Only applies to TCP-based TLS (VMess, VLESS, Trojan, HTTP, AnyTLS, ShadowTLS).</string>
-    <string name="tls_fragment_bypass">TLS fragmentation for direct rules</string>
     <string name="tls_fragment_bypass_summary">Split the TLS ClientHello of connections routed directly by bypass rules</string>
     <string name="udp_desync">UDP (QUIC): DPI bypass</string>
     <string name="udp_prelude">Fake packets before the first one (0–8)</string>
@@ -1148,10 +1038,6 @@
     <string name="port_knocking_ttl">Knock again after, seconds</string>
     <string name="port_knocking_summary">Before connecting, sends TCP SYNs or UDP datagrams to these ports of the server, in order. UDP steps may carry a hex payload: 1234/udp:68656c6c6f. SPA: 62201/spa:KEY sends one signed datagram that cannot be replayed (KEY = 64 hex digits, as on the server); 62201/spa1m:KEY hides its time too, if the server reads SPA v1m (v1 sends the time in clear, which DPI can match). Knocks again after a network change and when a connection fails. If a UDP session (WireGuard, Hysteria2, TUIC) gets no reply for the silence timeout after sending, knocks once more and logs whether the server answers again. Leave the sequence empty to disable.</string>
     <string name="port_knocking_invalid">Invalid knock sequence: %s</string>
-    <string name="local_proxy_username">Local proxy user name</string>
-    <string name="local_proxy_password">Local proxy password</string>
-    <string name="local_proxy_no_auth_in_vpn">Local proxy without password in VPN mode</string>
-    <string name="local_proxy_no_auth_in_vpn_sum">Unsafe: any app on the device can use the local proxy and learn the server address. Needed for the system HTTP proxy option. In VPN mode the port opens only with this or with a local proxy password set.</string>
     <string name="port_knocking_silence">Re-knock if a UDP session gets no reply, seconds (0 = off)</string>
     <!-- About → Licenses (LicensesActivity) -->
     <string name="licenses">Licenses</string>

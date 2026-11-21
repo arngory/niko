@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -54,6 +55,7 @@ import io.niko.ui.compose.NikoStroke
 import io.niko.ui.compose.NikoType
 import io.niko.ui.home.Icon
 import io.niko.ui.home.ListRow
+import io.niko.ui.home.Sub
 import io.niko.ui.home.Text
 import io.niko.ui.home.pressed
 
@@ -120,7 +122,8 @@ internal fun FieldsRow(content: @Composable RowScope.() -> Unit) =
 
 /**
  * m-field: [label] over the control (surface-2, the stroke-bold border in ink while it has the focus), [mono] in
- * Geist Mono (m-field__control--mono), [button] at its end (m-field__trail, a muted small icon button).
+ * Geist Mono (m-field__control--mono), [button] at its end (m-field__trail, a muted small icon button); [multiLine]
+ * a list, a line for each, three lines high at least.
  */
 @Composable
 internal fun Field(
@@ -131,6 +134,7 @@ internal fun Field(
     input: FieldInput = FieldInput.TEXT,
     mono: Boolean = false,
     button: FieldButton? = null,
+    multiLine: Boolean = false,
 ) {
     val c = Niko.colors
     val source = remember { MutableInteractionSource() }
@@ -138,9 +142,10 @@ internal fun Field(
     Column(modifier, verticalArrangement = Arrangement.spacedBy(NikoSpace.s2)) {
         Text(label, NikoType.caption, c.ink2, maxLines = 1)
         Row(
-            Modifier.fillMaxWidth().height(NikoSize.control).clip(RoundedCornerShape(NikoRadius.sm)).background(c.surface2)
+            Modifier.fillMaxWidth().let { if (multiLine) it.heightIn(min = NikoSize.control) else it.height(NikoSize.control) }
+                .clip(RoundedCornerShape(NikoRadius.sm)).background(c.surface2)
                 .border(NikoStroke.bold, if (focused) c.ink else Color.Transparent, RoundedCornerShape(NikoRadius.sm))
-                .padding(start = NikoSpace.s4, end = NikoSpace.s2),
+                .padding(start = NikoSpace.s4, end = NikoSpace.s2, top = if (multiLine) NikoSpace.s3 else 0.dp, bottom = if (multiLine) NikoSpace.s3 else 0.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(NikoSpace.s2),
         ) {
@@ -156,7 +161,8 @@ internal fun Field(
                         FieldInput.SECRET -> KeyboardType.Password
                     },
                 ),
-                singleLine = true,
+                singleLine = !multiLine,
+                minLines = if (multiLine) 3 else 1,
                 visualTransformation = if (input == FieldInput.SECRET) PasswordVisualTransformation('•') else VisualTransformation.None,
                 interactionSource = source,
                 cursorBrush = SolidColor(c.ink),
@@ -184,10 +190,17 @@ internal fun Switch(on: Boolean) {
 
 /**
  * m-row with m-switch at its end: the whole row turns it, a switch to a screen reader; not [enabled], at
- * opacity-disabled (m-row.is-disabled). [divider] as ListRow's.
+ * opacity-disabled (m-row.is-disabled). [divider] as ListRow's, [sub] a line under the title.
  */
 @Composable
-internal fun SwitchRow(title: String, on: Boolean, onChange: (Boolean) -> Unit, enabled: Boolean = true, divider: Boolean = false) {
+internal fun SwitchRow(
+    title: String,
+    on: Boolean,
+    onChange: (Boolean) -> Unit,
+    enabled: Boolean = true,
+    divider: Boolean = false,
+    sub: String? = null,
+) {
     val c = Niko.colors
     val source = remember { MutableInteractionSource() }
     ListRow(
@@ -196,6 +209,8 @@ internal fun SwitchRow(title: String, on: Boolean, onChange: (Boolean) -> Unit, 
             .background(if (pressed(source)) c.surface2 else Color.Transparent)
             .toggleable(on, source, indication = null, enabled = enabled, role = Role.Switch, onValueChange = onChange),
         divider = divider,
+        titleLines = 2,
+        sub = sub?.let { { Sub(it) } },
         trail = { Switch(on) },
     )
 }

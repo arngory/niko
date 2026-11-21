@@ -637,8 +637,11 @@ class MainActivity : ThemedActivity(),
     fun displayFragment(fragment: Fragment) {
         if (fragment is ConfigurationFragment) {
             showStats()
-        } else if (fragment is HomeFragment || fragment is io.niko.ui.node.NodeFragment || !DataStore.showBottomBar) {
-            // the main screen has its own button and state; a node's card is a screen of the main one (P-Node)
+        } else if (fragment is HomeFragment || fragment is io.niko.ui.node.NodeFragment || fragment is SettingsFragment ||
+            !DataStore.showBottomBar
+        ) {
+            // the main screen has its own button and state; a node's card is a screen of the main one (P-Node), and
+            // the settings are drawn as the canvas has them, without the button
             binding.stats.allowShow = false
             binding.stats.performHide()
             binding.fab.hide()
