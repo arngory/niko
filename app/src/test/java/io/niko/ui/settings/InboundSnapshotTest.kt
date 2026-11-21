@@ -4,6 +4,7 @@ import app.cash.paparazzi.DeviceConfig
 import app.cash.paparazzi.Paparazzi
 import com.android.resources.Density
 import com.android.resources.NightMode
+import io.niko.R
 import io.niko.ui.compose.NikoTheme
 import io.niko.ui.probe.ListProbeActivity
 import org.junit.Rule
@@ -46,5 +47,18 @@ class InboundSnapshotTest(private val mode: String) {
     @Test
     fun spec() = paparazzi.snapshot {
         NikoTheme(mode == "dark") { ListScreen(ListScreens.setInbound, ListProbeActivity.probeValues(), onBack = {}, onAction = {}) }
+    }
+
+    /** The link row the description language took on second (its cost: docs/research/list-screens-probe.md). */
+    @Test
+    fun links() = paparazzi.snapshot {
+        val spec = ListSpec(
+            R.string.inbound_title,
+            R.string.screen_back,
+            listOf(GroupLine(listOf(LinkItem("inbound", R.string.inbound_title), LinkItem("network", R.string.inbound_network)))),
+        )
+        NikoTheme(mode == "dark") {
+            ListScreen(spec, MemorySettingValues(summaries = mapOf("inbound" to "127.0.0.1:2080")), onBack = {}, onAction = {})
+        }
     }
 }

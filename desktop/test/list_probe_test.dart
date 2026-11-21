@@ -6,6 +6,7 @@ import 'package:niko_desktop/gen/screens.g.dart';
 import 'package:niko_desktop/l10n/strings.dart';
 import 'package:niko_desktop/settings/inbound_screen.dart';
 import 'package:niko_desktop/settings/list_screen.dart';
+import 'package:niko_desktop/settings/list_spec.dart';
 import 'package:niko_desktop/settings/setting_values.dart';
 import 'package:niko_desktop/theme/niko_theme.dart';
 import 'package:niko_desktop/ui/fields.dart';
@@ -76,4 +77,24 @@ void main() {
       expect(asked, 1);
     });
   }
+
+  testWidgets('a link row: its summary, a chevron, its id when pressed', (tester) async {
+    final opened = <String>[];
+    await show(
+      tester,
+      ListScreen(
+        spec: const ListSpec(title: 'inbound_title', back: 'screen_back', lines: [
+          GroupLine([LinkItem('inbound', 'inbound_title'), LinkItem('lan', 'inbound_lan')]),
+        ]),
+        values: MemorySettingValues(summaries: {'inbound': '127.0.0.1:2080'}),
+        locale: const Locale('en'),
+        onAction: opened.add,
+      ),
+      Brightness.light,
+    );
+    expect(find.text('127.0.0.1:2080'), findsOneWidget);
+    expect(find.byType(NikoLinkRow), findsNWidgets(2));
+    await tester.tap(find.text('Access from the LAN'));
+    expect(opened, ['lan']);
+  });
 }

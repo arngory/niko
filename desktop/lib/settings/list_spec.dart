@@ -63,6 +63,14 @@ class SwitchItem extends Item {
   final String? enabledBy;
 }
 
+/// A row that opens something: the host's summary of it (SettingValues.summary) and a chevron; pressed, onAction(id).
+class LinkItem extends Item {
+  const LinkItem(this.id, this.title);
+
+  final String id;
+  final String title;
+}
+
 /// A field of the setting [key]; [action] an icon button at its end, which the screen's host answers by its id.
 class FieldSpec {
   const FieldSpec(this.key, this.label, {this.input = FieldInput.text, this.mono = false, this.narrow = false, this.action});

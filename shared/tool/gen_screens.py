@@ -22,6 +22,8 @@ A description, shared/screens/<screen>.json:
   FIELD     key; label, a string; input text (the default), port or secret; mono and narrow, true or false;
             action {"id", "icon": a Lucide name in shared/icons/lucide, "label": a string}
   ITEM      {"kind": "switch", "key", "title": a string, "enabledBy": the key of a switch on the same screen}
+            {"kind": "link", "id", "title": a string}: a row that opens something, the host's summary of it at its
+            end and a chevron; pressed, the host gets its id
 
 A key is the setting's key in the settings store (io.niko.Key). Any row, field or item may say "only": "android" or
 "desktop", and the other platform leaves it out. An attribute not named here fails the tool: the language stays as
@@ -53,7 +55,7 @@ LINES = {
 }
 FIELD = {"key", "label", "input", "mono", "narrow", "action", "only"}
 ACTION = {"id", "icon", "label"}
-ITEMS = {"switch": {"kind", "key", "title", "enabledBy", "only"}}
+ITEMS = {"switch": {"kind", "key", "title", "enabledBy", "only"}, "link": {"kind", "id", "title", "only"}}
 
 
 class Invalid(Exception):
@@ -157,8 +159,12 @@ def load(path, texts, icons):
                 if item_kind not in ITEMS:
                     raise Invalid(f"{item_at}: kind {item_kind!r}, not one of {', '.join(ITEMS)}")
                 check_attrs(item_at, item, ITEMS[item_kind])
-                check_key(item_at, item.get("key"))
                 check_string(item_at, item.get("title"), texts)
+                if item_kind == "link":
+                    if not re.fullmatch(r"[a-z][A-Za-z0-9]*", str(item.get("id"))):
+                        raise Invalid(f"{item_at}: id {item.get('id')!r}")
+                    continue
+                check_key(item_at, item.get("key"))
                 switches.add(item["key"])
                 if "enabledBy" in item:
                     wanted.append((item_at, item["enabledBy"]))
@@ -202,6 +208,8 @@ def kotlin_field(field):
 
 
 def kotlin_item(item):
+    if item["kind"] == "link":
+        return f'LinkItem("{item["id"]}", R.string.{item["title"]})'
     args = [f'"{item["key"]}"', f"R.string.{item['title']}"]
     if "enabledBy" in item:
         args.append(f'enabledBy = "{item["enabledBy"]}"')
@@ -260,6 +268,8 @@ def dart_field(field, icons):
 
 
 def dart_item(item):
+    if item["kind"] == "link":
+        return f"LinkItem({dart_string(item['id'])}, {dart_string(item['title'])})"
     args = [dart_string(item["key"]), dart_string(item["title"])]
     if "enabledBy" in item:
         args.append(f"enabledBy: {dart_string(item['enabledBy'])}")
