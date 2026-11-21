@@ -578,6 +578,9 @@
     <string name="group_auto_select_sum">Starting any profile of this group connects through the one with the lowest latency, re-tested every 3 minutes</string>
     <string name="subscription_send_hwid">Send device ID (HWID)</string>
     <string name="subscription_send_hwid_sum">For panels that limit devices (Remnawave, Marzban): sends a random ID of this installation, the Android version and the device model</string>
+    <string name="subscription_hwid_limit">The provider\'s limit of devices is reached. Free one in the provider\'s bot or account, then update the subscription.</string>
+    <string name="subscription_hwid_required">The provider asks for the device ID: turn on “%s” in the group\'s settings.</string>
+    <string name="subscription_hwid_refused">The provider did not accept this device\'s ID.</string>
     <string name="route_domain_help">One per line: example.com (with subdomains), full:, keyword:, regexp:, geosite:ru, or a remote rule-set with domains: rule-set:https://…/geosite-ru.srs</string>
     <string name="route_ip_help">One per line: 1.2.3.0/24, geoip:ru, geoip:private, or a remote rule-set with IPs: rule-set:https://…/geoip-ru.srs</string>
     <string name="rule_set_update_interval">Remote rule-set update interval</string>
@@ -836,6 +839,7 @@
     <string name="raycontrol_admin_lost">The node got the request but its answer was lost: it may have taken effect. Refresh before trying again.</string>
     <string name="raycontrol_admin_this_device">This device</string>
     <string name="raycontrol_admin_node">Node</string>
+    <string name="raycontrol_admin_warnings">Node warnings</string>
     <string name="raycontrol_admin_counts">Users: %1$d · services: %2$d · active devices: %3$d</string>
     <string name="raycontrol_admin_spa_ports">SPA ports open now</string>
     <string name="raycontrol_admin_metrics">Metrics</string>
