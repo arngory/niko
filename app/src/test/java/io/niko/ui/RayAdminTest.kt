@@ -191,4 +191,21 @@ class RayAdminTest {
                 t, now, time))
         assertEquals("relays: unknown 2", relaysSummary(json("""{"relays":[{"name":"r1","state":"\u0007"},{"name":"r2","state":"unknown"}]}"""), t))
     }
+
+    // the node's warnings: each its own line as worded, cleaned and isolated; non-strings and empty ones left out
+    @Test
+    fun warningLinesAsTheNodeWordsThem() {
+        val status = JsonParser.parseString(
+            """{"warnings": ["Hysteria2 hy2-1 has no Brutal ceiling", "two\nlines\u202e", "\u200b", 7, {"a": 1}]}""",
+        ).asJsonObject
+        assertEquals(
+            listOf("\u2068Hysteria2 hy2-1 has no Brutal ceiling\u2069", "\u2068two lines\u2069"),
+            warningLines(status),
+        )
+        assertEquals(emptyList<String>(), warningLines(JsonObject()))
+        val many = JsonParser.parseString("""{"warnings": [${(1..40).joinToString(",") { "\"w$it\"" }}]}""").asJsonObject
+        assertEquals(16, warningLines(many).size)
+        val long = JsonParser.parseString("""{"warnings": ["${"x".repeat(1000)}"]}""").asJsonObject
+        assertTrue(warningLines(long).single().length <= 300 + 3)
+    }
 }
