@@ -72,6 +72,8 @@ class NodeSnapshotTest(private val mode: String) {
         expires = NOW + 29 * DAY,
         updated = NOW - 3_600,
         relayPath = true,
+        clockSkew = null,
+        dnstt = "net",
         groupId = 2,
         profiles = ways,
         admin = true,
@@ -96,6 +98,8 @@ class NodeSnapshotTest(private val mode: String) {
             traffic = card.traffic!!.copy(used = 100_000_000_000, exhausted = true),
             expires = NOW - DAY,
             relayPath = false,
+            clockSkew = -95,
+            dnstt = "none",
             admin = false,
             lan = false,
         ),
@@ -104,5 +108,5 @@ class NodeSnapshotTest(private val mode: String) {
     )
 
     @Test
-    fun nodeEmpty() = shot(card.copy(note = null, traffic = null, expires = 0, updated = 0, relayPath = null, profiles = emptyList(), admin = false, lan = false))
+    fun nodeEmpty() = shot(card.copy(note = null, traffic = null, expires = 0, updated = 0, relayPath = null, dnstt = null, profiles = emptyList(), admin = false, lan = false))
 }

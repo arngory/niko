@@ -11,6 +11,7 @@ import io.niko.raycontrol.RayNodes
 import io.niko.raycontrol.RayTraffic
 import io.niko.ui.home.ConfigRow
 import io.niko.ui.home.ConfigsLoader
+import kotlin.math.abs
 
 /** Why the node card warns above everything (D-NODE-09, client-min-v1): the first that holds. */
 sealed interface NodeWarning {
@@ -39,6 +40,10 @@ data class NodeCardState(
     val updated: Long,
     /** this network's path when the node has relays: through one (true), direct (false); null not known or no relays */
     val relayPath: Boolean?,
+    /** this phone's clock against the node's, s, when off by more than the card warns of (RayNodeCard); null not */
+    val clockSkew: Long?,
+    /** the kind of resolver this network's dnstt tunnel takes (RayDnsResolvers), null none picked */
+    val dnstt: String?,
     /** the node's group of profiles, for its test */
     val groupId: Long,
     val profiles: List<ConfigRow>,
@@ -72,6 +77,8 @@ object NodeLoader {
             expires = node.subExpires,
             updated = node.subUpdatedAt,
             relayPath = network?.takeIf { node.relays.isNotEmpty() }?.let { RayChannel.relayPath(node.spa.nodeId, it, now) },
+            clockSkew = node.clockSkew.takeIf { abs(it) > RayNodeCard.CLOCK_OFF },
+            dnstt = network?.let { RayChannel.dnsPick(node.spa.nodeId, it, "dnstt")?.get("kind")?.asString },
             groupId = node.groupId,
             profiles = ordered,
             admin = node.isAdmin,

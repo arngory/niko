@@ -1234,4 +1234,7 @@
     <string name="node_lan">Local network</string>
     <string name="node_why">Why it does not work</string>
     <string name="node_admin">Admin panel</string>
+    <string name="node_dnstt">dnstt resolver</string>
+    <string name="node_clock">Clock</string>
+    <string name="node_clock_off">%s s from the node</string>
 </resources>

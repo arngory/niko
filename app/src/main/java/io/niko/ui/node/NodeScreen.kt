@@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.niko.R
+import io.niko.raycontrol.RayDnsResolvers
 import io.niko.ui.compose.Niko
 import io.niko.ui.compose.NikoRadius
 import io.niko.ui.compose.NikoSize
@@ -183,6 +184,28 @@ private fun Facts(state: NodeCardState, format: NodeFormat, now: Long) {
                         stringResource(if (relay) R.string.raycontrol_card_path_relay else R.string.raycontrol_card_path_direct),
                         NikoType.bodySm, c.ink, maxLines = 1,
                     )
+                })
+            }
+        }
+        state.dnstt?.let { kind ->
+            add { divider ->
+                ListRow(stringResource(R.string.node_dnstt), divider = divider, trail = {
+                    Text(
+                        when (kind) {
+                            "net" -> stringResource(R.string.raycontrol_card_dns_net)
+                            RayDnsResolvers.NONE -> stringResource(R.string.raycontrol_card_dns_none)
+                            else -> kind.uppercase()
+                        },
+                        NikoType.bodySm, if (kind == RayDnsResolvers.NONE) c.danger else c.ink, maxLines = 1,
+                    )
+                })
+            }
+        }
+        // this phone's clock off from the node's: what times out of it (REALITY, the knock) may fail
+        state.clockSkew?.let { skew ->
+            add { divider ->
+                ListRow(stringResource(R.string.node_clock), divider = divider, trail = {
+                    Text(stringResource(R.string.node_clock_off, if (skew > 0) "+$skew" else "$skew"), NikoType.code, c.danger, maxLines = 1)
                 })
             }
         }

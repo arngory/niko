@@ -1161,4 +1161,7 @@
     <string name="node_lan">Локальная сеть</string>
     <string name="node_why">Почему не работает</string>
     <string name="node_admin">Панель администратора</string>
+    <string name="node_dnstt">Резолвер dnstt</string>
+    <string name="node_clock">Часы</string>
+    <string name="node_clock_off">%s с от узла</string>
 </resources>
