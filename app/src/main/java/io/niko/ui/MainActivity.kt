@@ -139,12 +139,14 @@ class MainActivity : ThemedActivity(),
         }
     }
 
-    // refreshHome's reads, counted (it is called from any thread: the store's listener)
+    // refreshHome's reads, counted (it is called from any thread: the store's listener), and the last one shown
     private val homeGeneration = java.util.concurrent.atomic.AtomicInteger()
+    private var homeShown = 0 // the main thread's
 
     /** Reads what the main screen shows from the database, off the main thread; the service's fields stay as they are. */
     fun refreshHome() {
-        // the latest asked wins: an older read that finishes after it would bring back what it replaced
+        // a newer read shown first wins: an older one that finishes after it would bring back what it replaced. A newer
+        // read that failed does not hold an older one back
         val generation = homeGeneration.incrementAndGet()
         runOnDefaultDispatcher {
             val loaded = try {
@@ -154,7 +156,8 @@ class MainActivity : ThemedActivity(),
                 return@runOnDefaultDispatcher
             }
             onMainDispatcher {
-                if (generation != homeGeneration.get()) return@onMainDispatcher
+                if (generation <= homeShown) return@onMainDispatcher
+                homeShown = generation
                 val now = homeState.value
                 homeState.value = loaded.copy(
                     service = now.service, error = now.error, connectedSince = now.connectedSince,
@@ -514,11 +517,17 @@ class MainActivity : ThemedActivity(),
     }
 
 
+    private fun showStats() {
+        binding.stats.allowShow = true
+        binding.fab.show()
+        // the bar shows itself on connecting only if allowed then: connected on the main screen, it waits for this
+        if (DataStore.serviceState.connected) binding.stats.performShow()
+    }
+
     @SuppressLint("CommitTransaction")
     fun displayFragment(fragment: Fragment) {
         if (fragment is ConfigurationFragment) {
-            binding.stats.allowShow = true
-            binding.fab.show()
+            showStats()
         } else if (fragment is HomeFragment || !DataStore.showBottomBar) {
             // the main screen has its own button and state
             binding.stats.allowShow = false
@@ -526,8 +535,7 @@ class MainActivity : ThemedActivity(),
             binding.fab.hide()
         } else {
             // the setting keeps the bar on the other screens (the app no longer opens on the profiles, which showed it)
-            binding.stats.allowShow = true
-            binding.fab.show()
+            showStats()
         }
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_holder, fragment)
