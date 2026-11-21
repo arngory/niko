@@ -7,7 +7,10 @@
 name: Browser hellos
 
 on:
+  # branches only: a tag's push takes no path filter, and would run the Windows job in the cache scope its release
+  # build restores
   push:
+    branches: ["**"]
     paths:
       - ".github/workflows/browser-hellos.yml"
       - ".github/scripts/hello.py"
@@ -229,7 +232,7 @@ jobs:
   # the runner holds the run's cache token, and main's cache scope is what release builds restore. A push or a
   # dispatch on another branch writes only that branch's scope. Each installer must be https and signed by its vendor
   windows:
-    if: ${{ github.event_name != 'schedule' && github.ref != 'refs/heads/main' }}
+    if: ${{ startsWith(github.ref, 'refs/heads/') && github.ref != 'refs/heads/main' && github.event_name != 'schedule' }}
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
