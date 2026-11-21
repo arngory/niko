@@ -133,6 +133,8 @@ class TracedDaemon implements Daemon {
   @override
   Future<void> deleteProfiles(List<int> ids) => _inner.deleteProfiles(ids);
   @override
+  Future<String> shareLink(int id) => _inner.shareLink(id);
+  @override
   Future<void> moveProfiles(List<int> ids, {required int groupId, int before = 0}) =>
       _inner.moveProfiles(ids, groupId: groupId, before: before);
   @override

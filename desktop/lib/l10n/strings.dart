@@ -55,6 +55,8 @@ class NikoStrings {
   String get addFailed => _ru ? 'Не добавлено' : 'Not added';
   String get cancel => _ru ? 'Отмена' : 'Cancel';
   String profileDelete(String name) => _ru ? 'Удалить «$name»' : 'Delete “$name”';
+  String profileShare(String name) => _ru ? 'Скопировать ссылку на «$name»' : 'Copy the link to “$name”';
+  String linkCopied(String name) => _ru ? 'Ссылка на «$name» скопирована' : 'The link to “$name” copied';
   String profileDeleted(String name) => _ru ? 'Профиль «$name» удалён' : 'Profile “$name” deleted';
   String get undo => _ru ? 'Вернуть' : 'Undo';
   String get view => _ru ? 'Вид интерфейса' : 'Interface view';
