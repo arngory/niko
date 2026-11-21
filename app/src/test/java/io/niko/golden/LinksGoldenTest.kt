@@ -3,14 +3,23 @@ package io.niko.golden
 import com.google.gson.JsonElement
 import com.google.gson.JsonParser
 import io.niko.fmt.AbstractBean
+import io.niko.fmt.http.parseHttp
+import io.niko.fmt.hysteria.parseHysteria1
 import io.niko.fmt.hysteria.parseHysteria2
+import io.niko.fmt.mieru.parseMieru
 import io.niko.fmt.naive.parseNaive
-import io.niko.fmt.v2ray.parseV2RayStandard
+import io.niko.fmt.parseUniversal
+import io.niko.fmt.shadowsocks.parseShadowsocks
+import io.niko.fmt.socks.parseSOCKS
+import io.niko.fmt.trojan.parseTrojan
+import io.niko.fmt.trojan_go.parseTrojanGo
+import io.niko.fmt.tuic.parseTuic
+import io.niko.fmt.v2ray.parseV2Ray
+import io.niko.proxy.anytls.parseAnytls
 import io.niko.utils.JavaUtil
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
-import java.net.URISyntaxException
 
 /**
  * The golden fixtures of share links (shared/golden/links, docs/design/desktop-stage3.md §5): each `<name>.txt` holds
@@ -26,10 +35,15 @@ import java.net.URISyntaxException
  *
  * A change of the parsers that changes a fixture updates it in the same change, and Go follows.
  *
- * The parser is the one parseProxies (ktx/Formats.kt) picks by the scheme, then initializeDefaultValues, as there;
- * parseProxies itself logs through libcore's native library, which a JVM test has not. A vless:// link goes to
- * parseV2RayStandard: parseV2Ray's VMess forms before it never take one. A link the DataStore would fill (a DNS
- * tunnel's resolver left to the client) cannot be a fixture here: the JVM has no settings store.
+ * The parser is the one parseProxies (ktx/Formats.kt) picks by the scheme, in its order, then
+ * initializeDefaultValues, as there; a parser's exception drops the link, as its runCatching does. A subscription's
+ * link (clash://install-config?, sn://subscription?, an http(s) URL that is no proxy) is no profile: null here, the
+ * import takes it for a subscription. android.util.Base64 is layoutlib's (Paparazzi's), the platform's own code; what
+ * the parsers log goes to the test's output (Logs without libcore's native library). A link the DataStore would fill
+ * (a DNS tunnel's resolver left to the client) cannot be a fixture here: the JVM has no settings store; nor can a
+ * NekoBean (sn://neko), whose JSONObject Gson writes by the JSON library's own fields. The sn:// links are the app's
+ * own (toUniversalLink), but for a few in the layout of an older bean version (sn-*-v<N>) and the legacy form without
+ * zlib (sn-legacy-*).
  */
 class LinksGoldenTest {
 
@@ -78,24 +92,33 @@ class LinksGoldenTest {
         assertTrue(problems.joinToString("\n"), problems.isEmpty())
     }
 
-    /** The bean of [link] with its defaults, or null where the app drops the link (its parser throws). */
+    /** The bean of [link] with its defaults, or null where the app makes none of it (its parser throws). */
     private fun parse(link: String): AbstractBean? = try {
         when {
-            link.startsWith("vless://") -> parseV2RayStandard(link)
+            link.startsWith("clash://install-config?") || link.startsWith("sn://subscription?") -> {
+                println("a subscription: $link")
+                null
+            }
+
+            link.startsWith("sn://") -> parseUniversal(link)
+            link.startsWith("socks://") || link.startsWith("socks4://") || link.startsWith("socks4a://") ||
+                link.startsWith("socks5://") -> parseSOCKS(link)
+
+            link.matches("(http|https)://.*".toRegex()) -> parseHttp(link)
+            link.startsWith("vmess://") || link.startsWith("vless://") -> parseV2Ray(link)
+            link.startsWith("trojan://") -> parseTrojan(link)
+            link.startsWith("trojan-go://") -> parseTrojanGo(link)
+            link.startsWith("mierus://") -> parseMieru(link)
+            link.startsWith("ss://") -> parseShadowsocks(link)
             link.startsWith("naive+") -> parseNaive(link)
+            link.startsWith("hysteria://") -> parseHysteria1(link)
             link.startsWith("hysteria2://") || link.startsWith("hy2://") -> parseHysteria2(link)
-            else -> throw AssertionError("$link: not a kind of link the golden tests take yet")
-        }.apply { initializeDefaultValues() }
-    } catch (e: IllegalArgumentException) {
-        // require(), toHttpUrl(), toInt()
-        println("dropped: $link: $e")
-        null
-    } catch (e: IllegalStateException) {
-        // error()
-        println("dropped: $link: $e")
-        null
-    } catch (e: URISyntaxException) {
-        // java.net.URI of niko-ygg's peer
+            link.startsWith("tuic://") -> parseTuic(link)
+            link.startsWith("anytls://") -> parseAnytls(link)
+            else -> throw AssertionError("$link: not a kind of link the app imports")
+        }?.apply { initializeDefaultValues() }
+    } catch (e: Exception) {
+        // as parseProxies' runCatching (an Error, such as a class the JVM lacks, fails the test instead)
         println("dropped: $link: $e")
         null
     }

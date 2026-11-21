@@ -62,8 +62,7 @@ fun parseV2Ray(link: String): StandardV2RayBean {
 
 /**
  * The "std" forms of a vmess:// or vless:// link: v2fly's (a password in the user info) and Xray's share link
- * ([parseDuckSoft]). [parseV2Ray] tries VMess's base64 forms first, which a vless:// link never is; the golden tests
- * (io.niko.golden) call this directly, as those forms decode with android.util.Base64.
+ * ([parseDuckSoft]). [parseV2Ray] tries VMess's base64 forms first; a vless:// link fails them and comes here.
  */
 fun parseV2RayStandard(link: String): StandardV2RayBean {
     val bean = VMessBean().apply { if (link.startsWith("vless://")) alterId = -1 }
