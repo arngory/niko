@@ -19,7 +19,6 @@
     <string name="list">Liste</string>
     <string name="enable_log_sum">Pour le débogage</string>
     <string name="enable_log">Activer la journalisation</string>
-    <string name="delete_group_prompt">Êtes-vous sûr(e) de vouloir supprimer ce groupe \?</string>
     <string name="subscription">Abonnement</string>
     <string name="profile_requiring_plugin">%s nécessite l\'installation du greffon %s, mais il n\'a pas été trouvé.</string>
     <string name="missing_plugin">Greffon manquant</string>
@@ -200,8 +199,6 @@
     <string name="wireguard_local_address">Adresse locale</string>
     <string name="proxy_cat">Préférences du serveur</string>
     <string name="need_reload">Recharger le service de proxy pour appliquer les modifications</string>
-    <string name="subscription_settings">Préférences de souscription</string>
-    <string name="group_type">Type du groupe</string>
     <string name="subscription_type">Type de souscription</string>
     <string name="install_from_play_store">Installer depuis le Play Store</string>
     <string name="subscription_used">%s utilisé</string>
@@ -214,7 +211,6 @@
     <string name="open_app">Ouvrir l\'appli</string>
     <string name="open_settings">Ouvrir les préférences</string>
     <string name="header_type">Type d\'entête</string>
-    <string name="group_settings">Préférences de groupe</string>
     <string name="protocol_settings">Préférences du protocole</string>
     <string name="route_bypass_domain">Règle de domaine pour %s</string>
     <string name="no_proxies_found_in_subscription">Aucun proxy trouvé dans cette souscription</string>
@@ -225,7 +221,6 @@
     <string name="uuid">ID de l\'utilisateur</string>
     <string name="ws_path">Chemin du WebSocket</string>
     <string name="select_profile">Sélectionner un profil</string>
-    <string name="update_settings">Mettre à jour les préférences</string>
     <string name="copy_label">Copier le nom</string>
     <string name="create_rule">Créer une règle</string>
     <string name="copy_success">Copie avec succès !</string>
@@ -257,9 +252,6 @@
     <string name="connection_test">Test de connexion</string>
     <string name="trojan_provider">Fournisseur de torjan</string>
     <string name="ooc_subscription_token_invalid">Jeton OOCv1 invalide</string>
-    <string name="update_when_connected_only">Mettre à jour que quand connecté</string>
-    <string name="auto_update_delay">Délai de mise à jour automatique (en minutes)</string>
-    <string name="auto_update">Mise à jour auto</string>
     <string name="subscription_traffic">%s utilisé(s) / %s restant(s)</string>
     <string name="subscription_import">Importer une souscription</string>
     <string name="profile_import">Importer un profil</string>

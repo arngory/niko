@@ -314,23 +314,9 @@
     <string name="protocol_settings">Protocol Settings</string>
     <string name="trojan_provider">Trojan Provider</string>
     <string name="group_basic">Basic</string>
-    <string name="group_settings">Group Settings</string>
     <string name="subscription">Subscription</string>
-    <string name="subscription_settings">Subscription Settings</string>
-    <string name="group_type">Group Type</string>
     <string name="subscription_type">Subscription Type</string>
-    <string name="delete_group_prompt">Are you sure you want to remove this group?</string>
-    <string name="force_resolve">Force Resolve</string>
-    <string name="force_resolve_sum">Resolve all domain names to IP addresses when updating. Host
-        and SNI will be automatically appended if possible</string>
-    <string name="deduplication_sum">Remove duplicate configurations when updating</string>
     <string name="raw">Raw</string>
-    <string name="update_settings">Update Settings</string>
-    <string name="auto_update">Auto Update</string>
-    <string name="auto_update_delay">Auto Update Delay (In minutes)</string>
-    <string name="update_when_connected_only">Update only when connected</string>
-    <string name="update_when_connected_only_sum">Prevent IP address leakage</string>
-    <string name="subscription_user_agent">UserAgent</string>
     <string name="confirm">Confirm</string>
     <string name="missing_plugin">Missing Plugin</string>
     <string name="profile_requiring_plugin">Profile %s requires the %s plugin to be installed, but
@@ -506,10 +492,7 @@
     <string name="xhttp_mode">Mode</string>
     <string name="xhttp_extra">Extra (JSON)</string>
     <string name="xhttp_extra_help" tools:ignore="TypographyDashes">Xray "extra" object, e.g. {"xPaddingBytes": "100-1000", "xmux": {"maxConcurrency": "16-32"}}. Keys the core does not support (downloadSettings) are ignored.</string>
-    <string name="group_auto_select">Auto (lowest latency)</string>
-    <string name="group_auto_select_sum">Starting any profile of this group connects through the one with the lowest latency, re-tested every 3 minutes</string>
     <string name="subscription_send_hwid">Send device ID (HWID)</string>
-    <string name="subscription_send_hwid_sum">For panels that limit devices (Remnawave, Marzban): sends a random ID of this installation, the Android version and the device model</string>
     <string name="subscription_hwid_limit">The provider\'s limit of devices is reached. Free one in the provider\'s bot or account, then update the subscription.</string>
     <string name="subscription_hwid_required">The provider asks for the device ID: turn on “%s” in the group\'s settings.</string>
     <string name="subscription_hwid_refused">The provider did not accept this device\'s ID.</string>
@@ -526,8 +509,6 @@
     <string name="ads">Ads</string>
     <string name="need_restart">Restart APP to apply changes</string>
     <string name="use_selector">Use selector</string>
-    <string name="front_proxy">Front proxy</string>
-    <string name="landing_proxy">Landing Proxy</string>
     <string name="action_shadowtls" translatable="false">ShadowTLS</string>
     <string name="protocol_version">Protocol Version</string>
     <string name="share_subscription">Share Subscription</string>

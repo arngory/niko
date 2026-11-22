@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="gs_back">Назад</string>
+    <string name="gs_new">Новая группа</string>
+    <string name="gs_share">Поделиться</string>
+    <string name="gs_delete">Удалить группу</string>
+    <string name="gs_delete_confirm">Удалить «%s» вместе с конфигами?</string>
+    <string name="gs_name">Название</string>
+    <string name="gs_kind">Вид</string>
+    <string name="gs_kind_own">Своя группа</string>
+    <string name="gs_kind_subscription">Подписка</string>
+    <string name="gs_link">Ссылка</string>
+    <string name="gs_copy_link">Скопировать ссылку</string>
+    <string name="gs_update">Обновление</string>
+    <string name="gs_auto_update">Автообновление</string>
+    <string name="gs_interval">Интервал</string>
+    <string name="gs_connected_only">Только при подключении</string>
+    <string name="gs_request">Запрос</string>
+    <string name="gs_user_agent_default">Пусто: свой у приложения</string>
+    <string name="gs_hwid_sub">Случайный ID этой установки, для панелей с лимитом устройств</string>
+    <string name="gs_force_resolve">Принудительное разрешение</string>
+    <string name="gs_group">Группа</string>
+    <string name="gs_dedup">Убирать дубликаты</string>
+    <string name="gs_pick">Выбор</string>
+    <string name="gs_pick_manual">Вручную</string>
+    <string name="gs_pick_fastest">Быстрейший</string>
+    <string name="gs_order">Порядок</string>
+    <string name="gs_order_origin">исходный</string>
+    <string name="gs_order_name">по имени</string>
+    <string name="gs_order_delay">по задержке</string>
+    <string name="gs_proxy_none">Нет</string>
+    <string name="gs_proxy_pick">Выбрать конфиг…</string>
+    <string name="gs_link_needed">Подписке нужна ссылка</string>
+    <plurals name="gs_minutes">
+        <item quantity="one">%d мин</item>
+        <item quantity="few">%d мин</item>
+        <item quantity="many">%d мин</item>
+        <item quantity="other">%d мин</item>
+    </plurals>
+    <plurals name="gs_hours">
+        <item quantity="one">%d ч</item>
+        <item quantity="few">%d ч</item>
+        <item quantity="many">%d ч</item>
+        <item quantity="other">%d ч</item>
+    </plurals>
+    <plurals name="gs_days">
+        <item quantity="one">%d день</item>
+        <item quantity="few">%d дня</item>
+        <item quantity="many">%d дней</item>
+        <item quantity="other">%d дня</item>
+    </plurals>
+</resources>
