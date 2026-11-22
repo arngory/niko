@@ -53,8 +53,9 @@ func TestSettingsCalls(t *testing.T) {
 		t.Fatal(err)
 	}
 	// the system proxy on by default on Windows alone
-	want := &nikopb.Settings{ServiceMode: "proxy", Mtu: 9000, RemoteDns: "https://dns.google/dns-query",
-		DirectDns: "local", EnableFakeDns: true, MixedPort: 2080, TrafficSniffing: 1, SystemProxy: runtime.GOOS == "windows"}
+	want := &nikopb.Settings{ServiceMode: "proxy", Mtu: 9000,
+		RemoteDns: "https://cloudflare-dns.com/dns-query\nhttps://dns.quad9.net/dns-query", DirectDns: "local",
+		EnableFakeDns: true, MixedPort: 2080, TrafficSniffing: 1, SystemProxy: runtime.GOOS == "windows"}
 	if !proto.Equal(got, want) {
 		t.Fatalf("the defaults: %v", got)
 	}

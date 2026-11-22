@@ -453,8 +453,9 @@ pdns() {
 }
 pdns off example.com
 pdns opportunistic example.org
-# dns.google is the remote DNS's own name: the core resolves it for real. Any other host gets FakeDNS's address
-pdns hostname example.net dns.google
+# dns.quad9.net is a name of the remote DNS (the default's second server): the core resolves it for real. Any other
+# host gets FakeDNS's address
+pdns hostname example.net dns.quad9.net
 pdns hostname www.iana.org one.one.one.one
 # the core restarted (a profile's change does it), now with the strict host in its config: the host resolved for
 # real (above FakeDNS), and where the VPN's network stays (a handover in place) the system keeps the address it had

@@ -223,11 +223,15 @@ const (
 	ProgramsExcept = 2
 )
 
+// defaultRemoteDNS is the remote DNS of the defaults: Cloudflare's DoH, Quad9's when it fails (a line each, the
+// config's fallback server between them).
+const defaultRemoteDNS = "https://cloudflare-dns.com/dns-query\nhttps://dns.quad9.net/dns-query"
+
 // DefaultSettings are ConfigSettings' defaults, the app's.
 func DefaultSettings() Settings {
 	return Settings{
 		ServiceMode:        ModeVPN,
-		RemoteDNS:          "https://dns.google/dns-query",
+		RemoteDNS:          defaultRemoteDNS,
 		DirectDNS:          "local",
 		EnableDNSRouting:   true,
 		EnableFakeDNS:      true,

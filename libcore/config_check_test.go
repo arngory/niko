@@ -21,6 +21,14 @@ func TestConfigCheck(t *testing.T) {
 	if err = checkConfig(content); err != nil {
 		t.Fatal(err)
 	}
+	// a remote DNS of several lines: dns-remote a fallback over dns-remote-1..N, a type of the fork's the app's
+	// registry must have
+	if err = checkConfig([]byte(`{"dns":{"servers":[
+		{"type":"fallback","tag":"dns-remote","servers":["dns-remote-1","dns-remote-2"]},
+		{"type":"https","tag":"dns-remote-1","server":"1.1.1.1"},
+		{"type":"https","tag":"dns-remote-2","server":"9.9.9.9"}]}}`)); err != nil {
+		t.Fatal(err)
+	}
 	// the legacy DNS server format must keep failing, or the test checks nothing
 	if checkConfig([]byte(`{"dns":{"servers":[{"address":"tls://1.1.1.1"}]}}`)) == nil {
 		t.Fatal("legacy DNS server accepted")

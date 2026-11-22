@@ -3,6 +3,7 @@ package io.niko.ui.settings
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.preference.PreferenceDataStore
+import io.niko.DEFAULT_REMOTE_DNS
 import io.niko.Key
 
 /**
@@ -40,7 +41,7 @@ object SettingKeys {
         Key.TRAFFIC_SNIFFING to "1",
         Key.IPV6_MODE to "0",
         Key.RULES_PROVIDER to "0",
-        Key.REMOTE_DNS to "https://dns.google/dns-query",
+        Key.REMOTE_DNS to DEFAULT_REMOTE_DNS,
         STRATEGY_REMOTE to "auto",
         Key.DIRECT_DNS to "local",
         STRATEGY_DIRECT to "auto",

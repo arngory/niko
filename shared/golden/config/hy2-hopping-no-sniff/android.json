@@ -18,9 +18,28 @@
         }
       },
       {
-        "type": "tls",
+        "type": "fallback",
         "tag": "dns-remote",
+        "servers": [
+          "dns-remote-1",
+          "dns-remote-2"
+        ]
+      },
+      {
+        "type": "tls",
+        "tag": "dns-remote-1",
         "server": "1.1.1.1",
+        "domain_resolver": {
+          "server": "dns-direct",
+          "strategy": "ipv4_only"
+        },
+        "detour": "proxy"
+      },
+      {
+        "type": "https",
+        "tag": "dns-remote-2",
+        "server": "dns.google",
+        "path": "/dns-query",
         "domain_resolver": {
           "server": "dns-direct",
           "strategy": "ipv4_only"

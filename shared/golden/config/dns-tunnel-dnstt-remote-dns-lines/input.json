@@ -1,0 +1,24 @@
+{
+  "profile": 1,
+  "groups": [
+    {
+      "id": 1,
+      "order": 1,
+      "name": "main"
+    }
+  ],
+  "profiles": [
+    {
+      "id": 1,
+      "group": 1,
+      "order": 1,
+      "link": "vless-dnstt",
+      "patch": {
+        "dnsTunnelAuth": ""
+      }
+    }
+  ],
+  "settings": {
+    "remoteDns": "udp://9.9.9.9\nquic://dns.adguard-dns.com:8853\nh3://dns.quad9.net:8443/dns-query"
+  }
+}

@@ -165,6 +165,7 @@
     <string name="raycontrol_findings_dns_none">Ни один резолвер в этой сети не пропускает DNS-туннель ноды</string>
     <string name="raycontrol_findings_dns_spare">Основная зона DNS-туннеля ноды в этой сети отрезана: туннель идёт через запасную зону %d</string>
     <string name="raycontrol_findings_share">Отправьте журнал админу ноды: в нём каждый шаг со временем</string>
+    <string name="remote_dns_help">По одному в строке: https://…/dns-query, tls://…, 1.1.1.1. Когда сервер не отвечает или отвечает ошибкой, спрашивается следующий</string>
     <string name="direct_dns_help">local — резолвер самой сети, как у других приложений (с учётом частного DNS). Или сервер: https://…/dns-query, tls://…, 1.1.1.1</string>
     <string name="private_dns_strict">Частный DNS задан как %s: приложения шлют DNS по TLS прямо ему, мимо DNS Niko. Правила по доменам тогда держатся только на сниффинге, а этот резолвер видит все имена. Настройки → Сеть → Частный DNS: «Автоматически» или «Отключено».</string>
 <string name="disable">Отключить</string>
