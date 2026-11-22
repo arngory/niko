@@ -9,7 +9,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.RemoteException
 import android.view.KeyEvent
-import android.view.MenuItem
 import androidx.core.net.toUri
 import androidx.activity.addCallback
 import androidx.annotation.IdRes
@@ -20,7 +19,6 @@ import androidx.core.content.ContextCompat
 import androidx.preference.PreferenceDataStore
 import androidx.appcompat.app.AlertDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.navigation.NavigationView
 import com.google.android.material.snackbar.Snackbar
 import io.niko.RELEASE_REPO
 import io.niko.BuildConfig
@@ -76,11 +74,9 @@ private const val LINK_QUESTION = "link_question"
 
 class MainActivity : ThemedActivity(),
     SagerConnection.Callback,
-    OnPreferenceDataStoreChangeListener,
-    NavigationView.OnNavigationItemSelectedListener {
+    OnPreferenceDataStoreChangeListener {
 
     lateinit var binding: LayoutMainBinding
-    lateinit var navigation: NavigationView
 
     /**
      * The question a link asks (import a raycontrol node, a profile, a subscription, a scanned config) while it is open.
@@ -303,8 +299,6 @@ class MainActivity : ThemedActivity(),
 
         binding = LayoutMainBinding.inflate(layoutInflater)
         binding.fab.initProgress(binding.fabProgress)
-        navigation = binding.navView
-        navigation.setNavigationItemSelectedListener(this)
 
         if (savedInstanceState == null) {
             displayFragmentWithId(R.id.nav_home)
@@ -317,6 +311,9 @@ class MainActivity : ThemedActivity(),
                 is io.niko.ui.node.NodeFragment -> shown.back()
                 // a page of the settings goes back to their list, a choice open closes
                 is SettingsFragment -> shown.back()
+                // the screens the settings open go back to them, the sing-box panel to the log it is opened from
+                is AboutFragment, is BackupFragment -> displayFragmentWithId(R.id.nav_settings)
+                is WebviewFragment -> displayFragmentWithId(R.id.nav_logcat)
                 else -> displayFragmentWithId(R.id.nav_home)
             }
         }
@@ -348,8 +345,6 @@ class MainActivity : ThemedActivity(),
             onNewIntent(intent)
         }
 
-        refreshNavMenu(DataStore.enableClashAPI)
-
         // sdk 33 notification
         if (Build.VERSION.SDK_INT >= 33 && savedInstanceState == null) {
             val checkPermission =
@@ -371,11 +366,6 @@ class MainActivity : ThemedActivity(),
         }
     }
 
-    fun refreshNavMenu(clashApi: Boolean) {
-        if (::navigation.isInitialized) {
-            navigation.menu.findItem(R.id.nav_traffic)?.isVisible = clashApi
-        }
-    }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -634,13 +624,6 @@ class MainActivity : ThemedActivity(),
             .show()
     }
 
-    override fun onNavigationItemSelected(item: MenuItem): Boolean {
-        if (item.isChecked) binding.drawerLayout.closeDrawers() else {
-            return displayFragmentWithId(item.itemId)
-        }
-        return true
-    }
-
 
     private fun showStats() {
         binding.stats.allowShow = true
@@ -668,7 +651,6 @@ class MainActivity : ThemedActivity(),
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_holder, fragment)
             .commitAllowingStateLoss()
-        binding.drawerLayout.closeDrawers()
     }
 
     fun displayFragmentWithId(@IdRes id: Int): Boolean {
@@ -682,7 +664,6 @@ class MainActivity : ThemedActivity(),
             R.id.nav_route -> displayFragment(RouteFragment())
             R.id.nav_settings -> displayFragment(SettingsFragment())
             R.id.nav_traffic -> displayFragment(WebviewFragment())
-            R.id.nav_tools -> displayFragment(ToolsFragment())
             R.id.nav_logcat -> displayFragment(io.niko.ui.log.LogFragment())
             R.id.nav_faq -> {
                 launchCustomTab("https://github.com/$RELEASE_REPO#readme")
@@ -693,7 +674,6 @@ class MainActivity : ThemedActivity(),
 
             else -> return false
         }
-        navigation.menu.findItem(id).isChecked = true
         return true
     }
 
@@ -845,24 +825,7 @@ class MainActivity : ThemedActivity(),
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        when (keyCode) {
-            KeyEvent.KEYCODE_DPAD_LEFT -> {
-                if (super.onKeyDown(keyCode, event)) return true
-                binding.drawerLayout.open()
-                navigation.requestFocus()
-            }
-
-            KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                if (binding.drawerLayout.isOpen) {
-                    binding.drawerLayout.close()
-                    return true
-                }
-            }
-        }
-
         if (super.onKeyDown(keyCode, event)) return true
-        if (binding.drawerLayout.isOpen) return false
-
         val fragment =
             supportFragmentManager.findFragmentById(R.id.fragment_holder) as? ToolbarFragment
         return fragment != null && fragment.onKeyDown(keyCode, event)

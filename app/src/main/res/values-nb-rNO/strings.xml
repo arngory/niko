@@ -300,7 +300,6 @@
     <string name="wireguard_local_address">Lokal adresse</string>
     <string name="clear_logcat">Tøm Logcat</string>
     <string name="menu_log">Logger</string>
-    <string name="menu_tools">Verktøy</string>
     <string name="ssh_private_key">Privat nøkkel</string>
     <string name="ssh_public_key">Offentlig nøkkel</string>
     <string name="ssh_auth_type_none">Ingen</string>

@@ -1,5 +1,6 @@
 package io.niko.ui.log
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -15,6 +16,7 @@ import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.niko.R
+import io.niko.database.DataStore
 import io.niko.ktx.onMainDispatcher
 import io.niko.ktx.readableMessage
 import io.niko.ktx.runOnDefaultDispatcher
@@ -22,12 +24,13 @@ import io.niko.ktx.setField
 import io.niko.ktx.snackbar
 import io.niko.raycontrol.RayTestRun
 import io.niko.ui.MainActivity
+import io.niko.ui.StunActivity
 import io.niko.ui.compose.NikoTheme
 import io.niko.utils.SendLog
 import libcore.Libcore
 
 /**
- * Журнал (P-Log, D-LOG-01…03) on Compose: neko.log's last 50 KB, read off the main thread when the screen opens and on
+ * Журнал и инструменты (P-Log, D-LOG-01…03, D-TOOLS-01…02) on Compose: neko.log's last 50 KB, read off the main thread when the screen opens and on
  * refresh, shown from its end as the old screen did.
  */
 class LogFragment : Fragment() {
@@ -61,6 +64,12 @@ class LogFragment : Fragment() {
         }
 
         override fun statsHour() = askStatsHour()
+
+        override fun nat() = startActivity(Intent(requireContext(), StunActivity::class.java))
+
+        override fun dashboard() {
+            (requireActivity() as MainActivity).displayFragmentWithId(R.id.nav_traffic)
+        }
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View =
@@ -78,7 +87,7 @@ class LogFragment : Fragment() {
                             scroll.scrollTo(scroll.maxValue)
                         }
                     }
-                    LogScreen(shown, level, { filter.value = it }, actions, scroll)
+                    LogScreen(shown, level, { filter.value = it }, actions, DataStore.enableClashAPI, scroll)
                 }
             }
         }

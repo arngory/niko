@@ -307,7 +307,6 @@
     <string name="no_statistics">Henüz istatistik yok</string>
     <string name="clear_logcat">Günlüğü Temizle</string>
     <string name="menu_log">Günlükler</string>
-    <string name="menu_tools">Araçlar</string>
     <string name="translate_platform">Çeviri Platformu</string>
     <string name="ssh_private_key_passphrase">Gizli Anahtar Parolası</string>
     <string name="ssh_private_key">Gizli Anahtar</string>
