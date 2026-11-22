@@ -321,7 +321,7 @@ type Info struct {
 	StoreSchema int32 `protobuf:"varint,3,opt,name=store_schema,json=storeSchema,proto3" json:"store_schema,omitempty"`
 	// the version of this API: what the window may ask. 2: the store, Watch and the import; 3: Select and GetSelected;
 	// 4: ShareProfile; 5: Connect; 6: Connect's mode, the config a computer's; 7: the computer's settings, Connect
-	// with them
+	// with them; 8: the programs through Niko
 	Api           int32 `protobuf:"varint,4,opt,name=api,proto3" json:"api,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1420,7 +1420,13 @@ type Settings struct {
 	// an echo no outbound carries refused, not answered by the TUN
 	IcmpNoLocalReply bool `protobuf:"varint,22,opt,name=icmp_no_local_reply,json=icmpNoLocalReply,proto3" json:"icmp_no_local_reply,omitempty"`
 	// the core's log: 0 none (panic alone), 1 warn, 2 info, 3 debug, 4 trace
-	LogLevel      int32 `protobuf:"varint,23,opt,name=log_level,json=logLevel,proto3" json:"log_level,omitempty"`
+	LogLevel int32 `protobuf:"varint,23,opt,name=log_level,json=logLevel,proto3" json:"log_level,omitempty"`
+	// which programs go through Niko (D-RULES-06), as the phone's per-app proxy: 0 all, 1 only those of programs (the
+	// rest direct), 2 all but those; a rule by program ahead of the rules
+	ProgramsMode int32 `protobuf:"varint,24,opt,name=programs_mode,json=programsMode,proto3" json:"programs_mode,omitempty"`
+	// the programs, a line each: a name ("firefox.exe") or a full path, as the system names the process; empty lines
+	// are none
+	Programs      string `protobuf:"bytes,25,opt,name=programs,proto3" json:"programs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1614,6 +1620,20 @@ func (x *Settings) GetLogLevel() int32 {
 		return x.LogLevel
 	}
 	return 0
+}
+
+func (x *Settings) GetProgramsMode() int32 {
+	if x != nil {
+		return x.ProgramsMode
+	}
+	return 0
+}
+
+func (x *Settings) GetPrograms() string {
+	if x != nil {
+		return x.Programs
+	}
+	return ""
 }
 
 type SettingsUpdate struct {
@@ -2051,7 +2071,7 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\x04Mode\x12\t\n" +
 	"\x05PROXY\x10\x00\x12\a\n" +
 	"\x03VPN\x10\x01B\a\n" +
-	"\x05_mode\"\xcf\a\n" +
+	"\x05_mode\"\x90\b\n" +
 	"\bSettings\x12!\n" +
 	"\fservice_mode\x18\x01 \x01(\tR\vserviceMode\x12!\n" +
 	"\fsystem_proxy\x18\x02 \x01(\bR\vsystemProxy\x12-\n" +
@@ -2079,7 +2099,9 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\x13resolve_destination\x18\x14 \x01(\bR\x12resolveDestination\x127\n" +
 	"\x18refuse_quic_over_streams\x18\x15 \x01(\bR\x15refuseQuicOverStreams\x12-\n" +
 	"\x13icmp_no_local_reply\x18\x16 \x01(\bR\x10icmpNoLocalReply\x12\x1b\n" +
-	"\tlog_level\x18\x17 \x01(\x05R\blogLevel\"W\n" +
+	"\tlog_level\x18\x17 \x01(\x05R\blogLevel\x12#\n" +
+	"\rprograms_mode\x18\x18 \x01(\x05R\fprogramsMode\x12\x1a\n" +
+	"\bprograms\x18\x19 \x01(\tR\bprograms\"W\n" +
 	"\x0eSettingsUpdate\x12-\n" +
 	"\bsettings\x18\x01 \x01(\v2\x11.niko.v1.SettingsR\bsettings\x12\x16\n" +
 	"\x06fields\x18\x02 \x03(\tR\x06fields\"\x1e\n" +

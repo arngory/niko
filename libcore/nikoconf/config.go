@@ -225,6 +225,10 @@ func (b *builder) build() ([]byte, error) {
 	extraProxies := []*Profile{}
 	if !b.forTest {
 		extraRules = b.enabledRules()
+		// a computer's programs through Niko or not ahead of the rules (D-RULES-06)
+		if rule := b.programsRule(); rule != nil {
+			extraRules = append([]*Rule{rule}, extraRules...)
+		}
 		ids := map[int64]bool{}
 		for _, r := range extraRules {
 			if r.Outbound > 0 && r.Outbound != b.proxy.ID {
@@ -338,6 +342,10 @@ func (b *builder) build() ([]byte, error) {
 			return nil, err
 		}
 		final = tag
+	}
+	// only the programs chosen go through Niko: the rest direct
+	if b.programsOnly() {
+		final = tagBypass
 	}
 	route["final"] = final
 	// a single profile that carries UDP inside a stream: QUIC refused, so browsers go to TCP at once
@@ -459,7 +467,7 @@ func (b *builder) build() ([]byte, error) {
 	}
 
 	dnsFinal := "dns-remote"
-	if b.forTest {
+	if b.forTest || b.programsOnly() {
 		dnsFinal = "dns-direct"
 	}
 	dns["final"] = dnsFinal

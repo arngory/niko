@@ -11,7 +11,9 @@ import 'pressable.dart';
 // (lib/settings/inbound_screen.dart; docs/ui/platforms.md, variant А).
 
 /// What a field takes: text as typed, a port (digits, five at most), a secret (shown as dots).
-enum FieldInput { text, port, secret }
+/// What a field takes: a line of text, a port's digits, a secret shown as dots, or several lines (a list, a line an
+/// item).
+enum FieldInput { text, port, secret, lines }
 
 /// m-fields-row > m-field--narrow: the width of a narrow field beside a wide one.
 const double narrowField = 104;
@@ -132,6 +134,7 @@ class _NikoFieldState extends State<NikoField> {
   Widget build(BuildContext context) {
     final colors = NikoTheme.of(context);
     final style = (widget.mono ? NikoType.code : NikoType.body).style(colors.ink);
+    final lines = widget.input == FieldInput.lines;
     return Semantics(
       textField: true,
       label: widget.label,
@@ -144,8 +147,13 @@ class _NikoFieldState extends State<NikoField> {
             behavior: HitTestBehavior.opaque,
             onTap: _focus.requestFocus,
             child: Container(
-              height: NikoSize.control,
-              padding: const EdgeInsetsDirectional.only(start: NikoSpace.s4 - NikoStroke.bold, end: NikoSpace.s2 - NikoStroke.bold),
+              height: lines ? null : NikoSize.control,
+              padding: lines
+                  ? const EdgeInsets.symmetric(
+                      horizontal: NikoSpace.s4 - NikoStroke.bold,
+                      vertical: NikoSpace.s3 - NikoStroke.bold,
+                    )
+                  : const EdgeInsetsDirectional.only(start: NikoSpace.s4 - NikoStroke.bold, end: NikoSpace.s2 - NikoStroke.bold),
               decoration: BoxDecoration(
                 color: colors.surface2,
                 borderRadius: BorderRadius.circular(NikoRadius.sm),
@@ -161,10 +169,16 @@ class _NikoFieldState extends State<NikoField> {
                       cursorColor: colors.ink,
                       backgroundCursorColor: colors.ink2,
                       selectionColor: colors.ink.withValues(alpha: 0.24),
-                      maxLines: 1,
+                      // a list: six lines seen, more scrolled
+                      minLines: lines ? 6 : null,
+                      maxLines: lines ? 6 : 1,
                       obscureText: widget.input == FieldInput.secret,
                       obscuringCharacter: '•',
-                      keyboardType: widget.input == FieldInput.port ? TextInputType.number : TextInputType.text,
+                      keyboardType: switch (widget.input) {
+                        FieldInput.port => TextInputType.number,
+                        FieldInput.lines => TextInputType.multiline,
+                        _ => TextInputType.text,
+                      },
                       inputFormatters: widget.input == FieldInput.port
                           ? [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(5)]
                           : null,

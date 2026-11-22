@@ -226,6 +226,70 @@ func TestProgramMatch(t *testing.T) {
 	}
 }
 
+// The programs through Niko or not (D-RULES-06): a rule ahead of the user's, and with only those through Niko the rest
+// direct, its DNS too; nothing for all programs, for none chosen, or on the phone, whose per-app proxy is VpnService's.
+func TestProgramsRule(t *testing.T) {
+	ss := goldenInput(t, []byte(`{"profile": 1, "profiles": [{"id": 1, "group": 1, "order": 1, "link": "ss-sip002"}],
+		"groups": [{"id": 1, "order": 1, "name": "main"}],
+		"rules": [{"id": 7, "enabled": true, "userOrder": 1, "domains": "domain:example.org", "outbound": -2}]}`))
+	for _, c := range []struct {
+		platform, programs string
+		mode               int
+		first              object
+		final, dnsFinal    string
+	}{
+		{PlatformWindows, "curl.exe", ProgramsOnly, object{"process_name": []any{"curl.exe"}, "outbound": "proxy"},
+			"bypass", "dns-direct"},
+		{PlatformLinux, "/usr/bin/curl\n", ProgramsExcept, object{"process_path": []any{"/usr/bin/curl"},
+			"outbound": "bypass"}, "proxy", "dns-remote"},
+		{PlatformWindows, "curl.exe", ProgramsAll, nil, "proxy", "dns-remote"},
+		{PlatformWindows, " \n", ProgramsOnly, nil, "proxy", "dns-remote"},
+		{PlatformAndroid, "curl.exe", ProgramsOnly, nil, "proxy", "dns-remote"},
+	} {
+		in := ss
+		in.Platform = c.platform
+		in.Settings.ServiceMode = ModeProxy
+		in.Settings.ProgramsMode, in.Settings.Programs = c.mode, c.programs
+		result, err := Build(in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var config struct {
+			Route struct {
+				Rules []object `json:"rules"`
+				Final string   `json:"final"`
+			} `json:"route"`
+			DNS struct {
+				Final string `json:"final"`
+			} `json:"dns"`
+		}
+		if err := json.Unmarshal(result.Config, &config); err != nil {
+			t.Fatal(err)
+		}
+		// the user's first rule is the first after the built-in ones (niko.internal, sniff, the DNS hijacks)
+		var first object
+		for _, r := range config.Route.Rules {
+			if _, ok := r["action"]; !ok {
+				first = r
+				break
+			}
+		}
+		if c.first == nil {
+			c.first = object{"outbound": nil}
+		}
+		for k, v := range c.first {
+			if !reflect.DeepEqual(first[k], v) {
+				t.Errorf("%s, %q in mode %d: the first rule's %s %v, want %v", c.platform, c.programs, c.mode, k,
+					first[k], v)
+			}
+		}
+		if config.Route.Final != c.final || config.DNS.Final != c.dnsFinal {
+			t.Errorf("%s, %q in mode %d: final %s, DNS %s; want %s, %s", c.platform, c.programs, c.mode,
+				config.Route.Final, config.DNS.Final, c.final, c.dnsFinal)
+		}
+	}
+}
+
 // CheckDNS takes what the build takes of a DNS setting and refuses what it would refuse.
 func TestCheckDNS(t *testing.T) {
 	for _, good := range []string{"local", "dhcp://auto", "https://dns.google/dns-query", "1.1.1.1", "2001:db8::1",

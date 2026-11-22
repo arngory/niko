@@ -69,6 +69,7 @@ class _NikoShellState extends State<NikoShell> {
   void initState() {
     super.initState();
     _attach();
+    _read();
   }
 
   void _attach() {
@@ -108,6 +109,8 @@ class _NikoShellState extends State<NikoShell> {
   // the connections screen says whether the core runs; the settings, whether the daemon is there
   void _changed() {
     if (_section == AppSection.connections || _section == AppSection.settings) setState(() {});
+    // the daemon found, or another one: whether the main screen reads the settings
+    if (_section == AppSection.home) _read();
   }
 
   // each feed reads the daemon only while its screen is the one shown
@@ -115,7 +118,10 @@ class _NikoShellState extends State<NikoShell> {
     _section == AppSection.log ? _log.open() : _log.close();
     _section == AppSection.connections ? _connections.show() : _connections.hide();
     _section == AppSection.nodes ? _profiles.show() : _profiles.hide();
-    _section == AppSection.settings ? _settings.show() : _settings.hide();
+    // the main screen shows the mode of the settings where it connects the selected profile (D-NAV-02)
+    _section == AppSection.settings || (_section == AppSection.home && widget.controller.connectsProfile)
+        ? _settings.show()
+        : _settings.hide();
   }
 
   void _show(AppSection section) {
@@ -137,6 +143,19 @@ class _NikoShellState extends State<NikoShell> {
       if (!advanced && _section == AppSection.connections) _section = AppSection.home;
     });
     _read();
+  }
+
+  // the settings' mode, once read
+  ConnectMode? _mode() => !_settings.loaded
+      ? null
+      : _settings.text('serviceMode') == 'vpn'
+          ? ConnectMode.vpn
+          : ConnectMode.proxy;
+
+  // kept as the settings' mode, and a running core started again in it
+  void _setMode(ConnectMode mode) {
+    _settings.setText('serviceMode', mode.name);
+    unawaited(widget.controller.switchMode(mode));
   }
 
   @override
@@ -167,11 +186,16 @@ class _NikoShellState extends State<NikoShell> {
           ),
           Expanded(
             child: switch (_section) {
-              AppSection.home => MainScreen(
-                controller: state,
-                daemonAddress: widget.daemonAddress,
-                configName: widget.configName,
-                now: widget.now,
+              AppSection.home => ListenableBuilder(
+                listenable: _settings,
+                builder: (context, _) => MainScreen(
+                  controller: state,
+                  daemonAddress: widget.daemonAddress,
+                  configName: widget.configName,
+                  now: widget.now,
+                  mode: _mode(),
+                  onMode: _setMode,
+                ),
               ),
               AppSection.connections => ConnectionsScreen(
                 feed: _connections,

@@ -82,6 +82,8 @@ func settingsProto(s nikoconf.Settings) *nikopb.Settings {
 		RefuseQuicOverStreams:   s.RefuseQuicOverStreams,
 		IcmpNoLocalReply:        s.IcmpNoLocalReply,
 		LogLevel:                int32(s.LogLevel),
+		ProgramsMode:            int32(s.ProgramsMode),
+		Programs:                s.Programs,
 	}
 }
 
@@ -115,6 +117,8 @@ func settingsFrom(p *nikopb.Settings) nikoconf.Settings {
 		RefuseQuicOverStreams:   p.RefuseQuicOverStreams,
 		IcmpNoLocalReply:        p.IcmpNoLocalReply,
 		LogLevel:                int(p.LogLevel),
+		ProgramsMode:            int(p.ProgramsMode),
+		Programs:                p.Programs,
 	}
 }
 

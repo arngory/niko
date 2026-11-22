@@ -126,6 +126,30 @@ func programMatch(programs []string) object {
 	return object{"process_path_regex": either}
 }
 
+// programsRule is the rule of the programs chosen to go through Niko or not (D-RULES-06), the first of the rules, as
+// the phone's per-app proxy is ahead of them all: those of Programs through the proxy where only they go through it
+// (ProgramsOnly, and the rest direct: programsOnly), else direct (ProgramsExcept). Nil for all programs, or for none
+// chosen.
+func (b *builder) programsRule() *Rule {
+	if !b.desktop || b.s.ProgramsMode == ProgramsAll {
+		return nil
+	}
+	programs := strings.Split(b.s.Programs, "\n")
+	if programMatch(programs) == nil {
+		return nil
+	}
+	rule := &Rule{Name: "programs", Enabled: true, Programs: programs, Outbound: -1}
+	if b.s.ProgramsMode == ProgramsOnly {
+		rule.Outbound = 0
+	}
+	return rule
+}
+
+// programsOnly: only the programs chosen go through Niko, everything else direct, its DNS too.
+func (b *builder) programsOnly() bool {
+	return !b.forTest && b.programsRule() != nil && b.s.ProgramsMode == ProgramsOnly
+}
+
 // putPrograms puts a rule's programs (programMatch) into a route or DNS rule.
 func putPrograms(r object, match object) {
 	for k, v := range match {

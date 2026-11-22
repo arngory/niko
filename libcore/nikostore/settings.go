@@ -33,6 +33,8 @@ const (
 	settingsSchema = 1
 	// what a text setting may be: a DNS setting's servers, a line each, are the longest
 	maxSetting = 64 << 10
+	// a program's line: a full path of Windows' long ones
+	maxProgram = 32 << 10
 )
 
 // computerSettings are the settings a computer has, by the app's names, and what each may be: nil where any value of
@@ -64,6 +66,10 @@ var computerSettings = map[string]func(s *nikoconf.Settings) error{
 	"refuseQuicOverStreams": nil,
 	"icmpNoLocalReply":      nil,
 	"logLevel":              func(s *nikoconf.Settings) error { return within(s.LogLevel, 0, 4) },
+	"programsMode": func(s *nikoconf.Settings) error {
+		return within(s.ProgramsMode, nikoconf.ProgramsAll, nikoconf.ProgramsExcept)
+	},
+	"programs": func(s *nikoconf.Settings) error { return programs(s.Programs) },
 }
 
 // secretSettings are those of the settings that are nikoconf.Secrets', sealed on the disk.
@@ -106,6 +112,24 @@ func strategy(value *string) error {
 		return nil
 	}
 	return oneOf(*value, "auto", "prefer_ipv4", "prefer_ipv6", "ipv4_only", "ipv6_only")
+}
+
+// programs: the programs through Niko or not, a name or a full path a line, each printable characters; empty lines
+// are none.
+func programs(text string) error {
+	if len(text) > maxSetting {
+		return errors.New("too long")
+	}
+	for i, line := range strings.Split(text, "\n") {
+		line = strings.TrimSuffix(line, "\r")
+		if len(line) > maxProgram {
+			return fmt.Errorf("line %d: over %d bytes", i+1, maxProgram)
+		}
+		if strings.IndexFunc(line, func(r rune) bool { return !unicode.IsPrint(r) && r != '\t' }) >= 0 {
+			return fmt.Errorf("line %d: a character that is not printed", i+1)
+		}
+	}
+	return nil
 }
 
 // login: a user's name or password of the local proxy, a line of printable characters without those refused.

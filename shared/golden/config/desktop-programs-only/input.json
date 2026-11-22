@@ -1,0 +1,24 @@
+{
+  "platform": "windows",
+  "profile": 1,
+  "profiles": [
+    {
+      "id": 1,
+      "group": 1,
+      "order": 1,
+      "link": "ss-sip002"
+    }
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "order": 1,
+      "name": "main"
+    }
+  ],
+  "settings": {
+    "serviceMode": "vpn",
+    "programsMode": 1,
+    "programs": "firefox.exe\nC:\\Tools\\curl.exe\n\n firefox.exe "
+  }
+}

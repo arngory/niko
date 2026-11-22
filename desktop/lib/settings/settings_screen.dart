@@ -33,7 +33,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 /// The sections, in the canvas's order.
-enum _Section { general, connection, dns, inbound, experiments, log }
+enum _Section { general, connection, dns, programs, inbound, experiments, log }
 
 /// A dialog of a value row: its title, its fields (key, label, input) and what it says under them; or the domain
 /// strategies' choices.
@@ -68,6 +68,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _Section.general => _s.setGeneral,
         _Section.connection => _s.setConnection,
         _Section.dns => _s.setDns,
+        _Section.programs => _s.setPrograms,
         _Section.inbound => _s.setInboundMenu,
         _Section.experiments => _s.setExperiments,
         _Section.log => _s.setLog,
@@ -87,6 +88,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _strategySummary() {
     final values = {for (final key in _strategyKeys) _strategy(key)};
     return values.length == 1 ? _s.strategy(values.single) : _s.setStrategyMixed;
+  }
+
+  // the programs chosen: each line that names one, once
+  String _programs() {
+    final count = {for (final line in _v.text('programs').split('\n')) if (line.trim().isNotEmpty) line.trim()}.length;
+    return count == 0 ? _s.setProgramsNone : _s.programsCount(count);
   }
 
   String _login() {
@@ -148,6 +155,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _value(_s.setStrategy, _strategySummary(), _Dialog(_s.setStrategy, const [], strategies: true), mono: false),
           _switch('dnsOptimisticCache', _s.setOptimisticCache),
           _switch('bypassLanInCore', _s.setLanDirect),
+        ]),
+        // D-RULES-06: as the phone's apps through the VPN, a rule by program ahead of the rules (D-RULES-02)
+        _section(_Section.programs, _s.setPrograms, [
+          _choice('programsMode', _s.setProgramsThrough,
+              [('0', _s.setProgramsAll), ('1', _s.setProgramsOnly), ('2', _s.setProgramsExcept)], cell: 148,
+              divider: false),
+          _value(
+            _s.setProgramsList,
+            _programs(),
+            _Dialog(_s.setProgramsList, [('programs', _s.setProgramsList, FieldInput.lines)], hint: _s.setProgramsHint),
+            mono: false,
+          ),
         ]),
         _section(_Section.inbound, _s.setInbound, [
           _value(_s.inboundPort, _v.text('mixedPort'),
