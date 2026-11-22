@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import '../theme/niko_theme.dart';
+import 'controls.dart';
 import 'icons.dart';
 import 'pressable.dart';
 
@@ -217,11 +218,13 @@ class NikoSwitch extends StatelessWidget {
 }
 
 /// m-row with m-switch at its end: the whole row turns it, a switch to a screen reader; not [enabled], at
-/// opacity-disabled. [divider]: the hairline above it, from space-4 in (a row after another in its group).
+/// opacity-disabled. [sub]: a line under the title (m-row__sub). [divider]: the hairline above it, from space-4 in (a
+/// row after another in its group).
 class NikoSwitchRow extends StatelessWidget {
   const NikoSwitchRow({
     super.key,
     required this.title,
+    this.sub,
     required this.on,
     required this.onChanged,
     this.enabled = true,
@@ -229,6 +232,7 @@ class NikoSwitchRow extends StatelessWidget {
   });
 
   final String title;
+  final String? sub;
   final bool on;
   final ValueChanged<bool> onChanged;
   final bool enabled;
@@ -240,7 +244,7 @@ class NikoSwitchRow extends StatelessWidget {
     return Semantics(
       toggled: on,
       enabled: enabled,
-      label: title,
+      label: sub == null ? title : '$title, $sub',
       excludeSemantics: true,
       child: NikoPressable(
         radius: 0,
@@ -255,9 +259,7 @@ class NikoSwitchRow extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: NikoSpace.s4, vertical: NikoSpace.s3),
                 child: Row(
                   children: [
-                    Expanded(
-                      child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: NikoType.body.style(colors.ink)),
-                    ),
+                    Expanded(child: _RowTitle(title, sub)),
                     const SizedBox(width: NikoSpace.s3),
                     NikoSwitch(on: on),
                   ],
@@ -285,12 +287,46 @@ class _Hairline extends CustomPainter {
   bool shouldRepaint(_Hairline oldDelegate) => color != oldDelegate.color;
 }
 
-/// m-row that opens something: the title, [value] in ink-2 and a chevron at its end; surface-2 pressed.
-class NikoLinkRow extends StatelessWidget {
-  const NikoLinkRow({super.key, required this.title, this.value, required this.onPressed, this.divider = false});
+/// The title of a row (m-row__title) and the line under it, where there is one (m-row__sub).
+class _RowTitle extends StatelessWidget {
+  const _RowTitle(this.title, this.sub);
 
   final String title;
+  final String? sub;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = NikoTheme.of(context);
+    final line = Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: NikoType.body.style(colors.ink));
+    if (sub == null) return line;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        line,
+        Text(sub!, maxLines: 1, overflow: TextOverflow.ellipsis, style: NikoType.bodySm.style(colors.ink2)),
+      ],
+    );
+  }
+}
+
+/// m-row that opens something: the title, [value] in ink-2 (m-row__mono where [mono]: a number, an address) and a
+/// chevron at its end; surface-2 pressed. A value too long for its half of the row ends in an ellipsis.
+class NikoLinkRow extends StatelessWidget {
+  const NikoLinkRow({
+    super.key,
+    required this.title,
+    this.sub,
+    this.value,
+    this.mono = false,
+    required this.onPressed,
+    this.divider = false,
+  });
+
+  final String title;
+  final String? sub;
   final String? value;
+  final bool mono;
   final VoidCallback onPressed;
   final bool divider;
 
@@ -299,7 +335,7 @@ class NikoLinkRow extends StatelessWidget {
     final colors = NikoTheme.of(context);
     return Semantics(
       button: true,
-      label: value == null ? title : '$title, $value',
+      label: [title, ?sub, ?value].join(', '),
       excludeSemantics: true,
       child: NikoPressable(
         radius: 0,
@@ -314,12 +350,21 @@ class NikoLinkRow extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: NikoSpace.s4, vertical: NikoSpace.s3),
                 child: Row(
                   children: [
-                    Expanded(
-                      child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: NikoType.body.style(colors.ink)),
-                    ),
+                    // with a value: each half the row, the value at its end
+                    Expanded(child: _RowTitle(title, sub)),
                     if (value != null) ...[
                       const SizedBox(width: NikoSpace.s3),
-                      Text(value!, maxLines: 1, style: NikoType.bodySm.style(colors.ink2)),
+                      Expanded(
+                        child: Align(
+                          alignment: AlignmentDirectional.centerEnd,
+                          child: Text(
+                            value!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: (mono ? NikoType.code : NikoType.bodySm).style(colors.ink2),
+                          ),
+                        ),
+                      ),
                     ],
                     const SizedBox(width: NikoSpace.s2),
                     NikoIcon(NikoIcons.chevronRight, size: 20, color: colors.ink2),
@@ -327,6 +372,47 @@ class NikoLinkRow extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// m-row with m-seg at its end: one choice of several, each [cell] wide; a group of choices to a screen reader.
+class NikoChoiceRow<T> extends StatelessWidget {
+  const NikoChoiceRow({
+    super.key,
+    required this.title,
+    required this.choices,
+    required this.value,
+    required this.onChanged,
+    this.cell = 104,
+    this.divider = false,
+  });
+
+  final String title;
+  final List<(T, String)> choices;
+  final T value;
+  final ValueChanged<T> onChanged;
+  final double cell;
+  final bool divider;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = NikoTheme.of(context);
+    return CustomPaint(
+      foregroundPainter: divider ? _Hairline(colors.line) : null,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 56),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: NikoSpace.s4, vertical: NikoSpace.s2),
+          child: Row(
+            children: [
+              Expanded(child: ExcludeSemantics(child: _RowTitle(title, null))),
+              const SizedBox(width: NikoSpace.s3),
+              NikoSegmented<T>(label: title, choices: choices, value: value, onChanged: onChanged, cell: cell),
+            ],
           ),
         ),
       ),

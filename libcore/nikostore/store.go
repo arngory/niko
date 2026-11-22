@@ -16,7 +16,8 @@
 // there. A profile's type is TypeMap's name; "bean" is its JSON without the secret fields where "sealed" holds them.
 //
 // state.json beside it holds what may be lost: the selected profile, {"selected": 3}. It is written after store.json
-// and read leniently: a missing or broken file, or a profile that is no more, is no selection.
+// and read leniently: a missing or broken file, or a profile that is no more, is no selection. settings.json holds the
+// computer's settings (settings.go).
 package nikostore
 
 import (
@@ -94,6 +95,8 @@ const (
 	KindGroups
 	// KindSelected: the selected profile changed; IDs holds the new one, none for no selection
 	KindSelected
+	// KindSettings: the computer's settings changed (settings.go)
+	KindSettings
 )
 
 // Change is what one write changed: the ids of the profiles or groups added, changed or removed.
@@ -121,6 +124,8 @@ type Store struct {
 
 	mu    sync.Mutex
 	state *state
+	// settings are settings.json's (settings.go)
+	settings *settings
 }
 
 // state is the store as it is now; a write makes a new one and keeps it only once the file is written. Its records
@@ -189,6 +194,9 @@ func Open(dir string, options Options) (*Store, error) {
 			return nil, err
 		}
 		s.state = fresh
+		if err = s.openSettings(); err != nil {
+			return nil, err
+		}
 		return s, nil
 	}
 	defer func() {
@@ -226,6 +234,9 @@ func Open(dir string, options Options) (*Store, error) {
 		if err = s.write(s.state); err != nil {
 			return nil, err
 		}
+	}
+	if err = s.openSettings(); err != nil {
+		return nil, err
 	}
 	return s, nil
 }

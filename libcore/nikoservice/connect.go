@@ -3,6 +3,7 @@ package nikoservice
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"net"
@@ -19,25 +20,30 @@ import (
 )
 
 // Connect (BG-01, D-MAIN-04): the config of a stored profile built here as the app builds it (nikoconf.Build), for
-// this computer and in the mode asked (D-NAV-02), and the core started with it by the daemon (boxdd's
-// Host.StartService), as DesktopService.StartService starts a config the window gives: the same owner's check, the
-// config kept for the daemon's next start.
+// this computer with its settings (settings.go) and in the mode asked, else theirs (D-NAV-02), and the core started
+// with it by the daemon (boxdd's Host.StartService), as DesktopService.StartService starts a config the window gives:
+// the same owner's check, the config kept for the daemon's next start.
 
 func (s *server) Connect(ctx context.Context, request *nikopb.ConnectRequest) (*nikopb.Empty, error) {
-	var mode string
-	switch request.Mode {
-	case nikopb.ConnectRequest_PROXY:
-		mode = nikoconf.ModeProxy
-	case nikopb.ConnectRequest_VPN:
-		mode = nikoconf.ModeVPN
-	default:
-		return nil, status.Errorf(codes.InvalidArgument, "no mode %d", request.Mode)
-	}
 	u, err := s.users.user(ctx)
 	if err != nil {
 		return nil, err
 	}
-	in, err := connectInput(u.store, request.ProfileId, mode)
+	settings, err := u.store.Settings()
+	if err != nil {
+		return nil, storeError(err)
+	}
+	if request.Mode != nil {
+		switch *request.Mode {
+		case nikopb.ConnectRequest_PROXY:
+			settings.ServiceMode = nikoconf.ModeProxy
+		case nikopb.ConnectRequest_VPN:
+			settings.ServiceMode = nikoconf.ModeVPN
+		default:
+			return nil, status.Errorf(codes.InvalidArgument, "no mode %d", *request.Mode)
+		}
+	}
+	in, err := connectInput(u.store, request.ProfileId, connectSettings(settings))
 	if err != nil {
 		return nil, err
 	}
@@ -58,13 +64,13 @@ func (s *server) Connect(ctx context.Context, request *nikopb.ConnectRequest) (*
 	return &nikopb.Empty{}, nil
 }
 
-// connectSettings are the build's settings until the desktop has its own (slice 13): the app's defaults, in the mode
-// asked. In proxy mode the local proxy is then the app's, 127.0.0.1:2080, and with no password of the user's it asks
-// for no login, as the app's in proxy mode, and not the system's proxy (nikoconf's default until slice 8b). VPN mode
-// is the TUN of a computer's (nikoconf's desktop.go), which the core opens only with the daemon's privileges.
-func connectSettings(mode string) nikoconf.Settings {
-	settings := nikoconf.DefaultSettings()
-	settings.ServiceMode = mode
+// connectSettings are the build's settings of the computer's (nikostore's settings.json over nikoconf.DesktopSettings):
+// in proxy mode by default the local proxy 127.0.0.1:2080 with no login and not the system's proxy, as the app's
+// in proxy mode; VPN mode is the TUN of a computer's (nikoconf's desktop.go), which the core opens only with the
+// daemon's privileges. The app's own login to the local proxy, which the build adds beside the user's (in VPN mode
+// with a password of the user's), is a new one each time: nothing of the computer's uses it, and it is never "".
+func connectSettings(settings nikoconf.Settings) nikoconf.Settings {
+	settings.Secrets.LocalProxyPassword = rand.Text()
 	return settings
 }
 
@@ -76,9 +82,9 @@ func connectPlatform() string {
 	return nikoconf.PlatformLinux
 }
 
-// connectInput is the build's input for a profile (0: the selected one) in a mode: the profile, its group and the
-// profiles the build takes from it.
-func connectInput(store *nikostore.Store, id int64, mode string) (nikoconf.Input, error) {
+// connectInput is the build's input for a profile (0: the selected one) with these settings: the profile, its group
+// and the profiles the build takes from it.
+func connectInput(store *nikostore.Store, id int64, settings nikoconf.Settings) (nikoconf.Input, error) {
 	if id == 0 {
 		if id = store.Selected(); id == 0 {
 			return nikoconf.Input{}, status.Error(codes.FailedPrecondition, "no profile is selected")
@@ -92,7 +98,7 @@ func connectInput(store *nikostore.Store, id int64, mode string) (nikoconf.Input
 	if err != nil {
 		return nikoconf.Input{}, err
 	}
-	in := nikoconf.Input{Profile: id, Profiles: []nikoconf.Profile{profile}, Settings: connectSettings(mode),
+	in := nikoconf.Input{Profile: id, Profiles: []nikoconf.Profile{profile}, Settings: settings,
 		Platform: connectPlatform(), Device: desktopDevice{}}
 	var group *nikoconf.Group
 	for _, g := range store.Groups() {

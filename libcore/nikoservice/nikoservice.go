@@ -1,7 +1,8 @@
 // Package nikoservice is NikoService, Niko's own service in its desktop daemon nikod, beside the core's daemon's
 // (docs/design/desktop-stage3.md): the daemon's info and the route tester (slice 1); each user's store of groups and
 // profiles, its changes through Watch, the import of share links (slice 4, store.go); the connection to a stored
-// profile, its config built here for this computer, in proxy or VPN mode (slices 7 and 8, connect.go).
+// profile, its config built here for this computer, in proxy or VPN mode (slices 7 and 8, connect.go), with the
+// computer's settings (slice 13's part for a computer, settings.go).
 package nikoservice
 
 import (
@@ -24,8 +25,9 @@ import (
 var Version = "dev"
 
 // API is the version of NikoService: what the window may ask of this daemon. 2: the store, Watch and the import; 3:
-// Select and GetSelected; 4: ShareProfile; 5: Connect; 6: Connect's mode, the config a computer's.
-const API = 6
+// Select and GetSelected; 4: ShareProfile; 5: Connect; 6: Connect's mode, the config a computer's; 7: the computer's
+// settings (GetSettings, UpdateSettings), Connect with them.
+const API = 7
 
 // Service is NikoService as the daemon serves it: GetInfo for any caller the daemon verified, RouteTest for its
 // owner only (it reads the owner's core, as the daemon's own calls on the running core do). RouteTest is checked as

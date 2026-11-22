@@ -53,15 +53,24 @@ service NikoService {
   // NOT_FOUND; FAILED_PRECONDITION where its secrets cannot be opened on this machine; UNIMPLEMENTED for a kind with
   // no link (a plugin's profile).
   rpc ShareProfile(ProfileId) returns (ShareLink);
-  // Builds the config of a profile in the daemon, as the app builds it, for this computer (Windows or Linux) in the
-  // mode asked, and starts the core with it (reloads the one running), as DesktopService.StartService starts a config
-  // with no options: the caller becomes the daemon's owner. Until the desktop has settings of its own, the app's
-  // defaults: in proxy mode the local proxy on 127.0.0.1:2080 with no login, not the system's proxy; in VPN mode the
-  // TUN, which the core opens only with the daemon's privileges. FAILED_PRECONDITION for no profile selected
-  // or one whose secrets cannot be opened on this machine; NOT_FOUND; INVALID_ARGUMENT for a profile the build
-  // refuses, or no such mode; UNIMPLEMENTED for a plugin's profile; PERMISSION_DENIED where another user owns the
-  // daemon; the core's own error for a config it refuses or cannot start.
+  // Builds the config of a profile in the daemon, as the app builds it, for this computer (Windows or Linux) with the
+  // computer's settings (GetSettings) in the mode asked, else theirs, and starts the core with it (reloads the one
+  // running), as DesktopService.StartService starts a config with no options: the caller becomes the daemon's owner.
+  // By default proxy mode: the local proxy on 127.0.0.1:2080 with no login, not the system's proxy; VPN mode is the
+  // TUN, which the core opens only with the daemon's privileges. FAILED_PRECONDITION for no profile selected, one
+  // whose secrets cannot be opened on this machine, or settings whose secrets cannot; NOT_FOUND; INVALID_ARGUMENT for
+  // a profile the build refuses, or no such mode; UNIMPLEMENTED for a plugin's profile; PERMISSION_DENIED where another
+  // user owns the daemon; the core's own error for a config it refuses or cannot start.
   rpc Connect(ConnectRequest) returns (Empty);
+
+  // The computer's settings (D-SET-05, -16, -18): what Connect builds the config with. FAILED_PRECONDITION where
+  // their secrets were sealed by another machine or account: they are to be set again.
+  rpc GetSettings(Empty) returns (Settings);
+  // Sets the settings named to their values in the request, the others as they were, in one write: the settings
+  // then. Watch says SETTINGS. INVALID_ARGUMENT for a name that is no field of Settings, or a value it may not have,
+  // and nothing is changed; FAILED_PRECONDITION where the secrets cannot be opened on this machine and the change
+  // does not set them again.
+  rpc UpdateSettings(SettingsUpdate) returns (Settings);
 
   // What an input is and what its import would add; nothing is written, and no store is needed.
   rpc Recognize(ImportInput) returns (ImportPreview);
@@ -82,7 +91,8 @@ message Info {
   // the schema of the daemon's store (nikostore's); 0: a daemon without one
   int32 store_schema = 3;
   // the version of this API: what the window may ask. 2: the store, Watch and the import; 3: Select and GetSelected;
-  // 4: ShareProfile; 5: Connect; 6: Connect's mode, the config a computer's
+  // 4: ShareProfile; 5: Connect; 6: Connect's mode, the config a computer's; 7: the computer's settings, Connect
+  // with them
   int32 api = 4;
 }
 
@@ -233,7 +243,63 @@ message ConnectRequest {
   }
   // the profile; 0: the selected one
   int64 profile_id = 1;
-  Mode mode = 2;
+  // none: the settings' (service_mode)
+  optional Mode mode = 2;
+}
+
+// A computer's settings: those its config's build takes (nikoconf.Settings, the app's ConfigSettings), with the app's
+// values; as JSON their names are the app's (mixedPort). The window's own (its view) are the window's.
+message Settings {
+  // proxy or vpn: how the computer's traffic reaches the core (D-NAV-02) where Connect asks no mode; proxy by default
+  string service_mode = 1;
+  // in proxy mode the local proxy is the system's while the core runs
+  bool system_proxy = 2;
+  // the TUN's stack: 0 gVisor, 1 system, 2 mixed
+  int32 tun_implementation = 3;
+  // the TUN's, from 1000 to 10000
+  int32 mtu = 4;
+  // 0 off, 1 on, 2 first, 3 only
+  int32 ipv6_mode = 5;
+  // no profile checks its server's certificate
+  bool global_allow_insecure = 6;
+  // DNS servers, a line each, "#" a comment, as the app reads them: the build takes the first (D-SET-18). "local"
+  // is the system's
+  string remote_dns = 7;
+  string direct_dns = 8;
+  // fake addresses for the TUN's queries
+  bool enable_fake_dns = 9;
+  // "" for the core's own, else auto, prefer_ipv4, prefer_ipv6, ipv4_only or ipv6_only
+  string domain_strategy_for_remote = 10;
+  string domain_strategy_for_direct = 11;
+  string domain_strategy_for_server = 12;
+  // an expired cache entry answered at once and refreshed behind
+  bool dns_optimistic_cache = 13;
+  // private addresses go direct (D-SET-16)
+  bool bypass_lan_in_core = 14;
+  // the local proxy: its port, from 1 to 65535
+  int32 mixed_port = 15;
+  // its login, none where the password is empty: the user's name (no colon; empty: "user") and password, printable
+  // characters, 255 bytes at most
+  string mixed_username = 16;
+  string mixed_password = 17;
+  // it listens on every address, not 127.0.0.1 alone: other devices of the LAN may use it
+  bool allow_access = 18;
+  // 0 off, 1 on
+  int32 traffic_sniffing = 19;
+  // domains resolved before routing
+  bool resolve_destination = 20;
+  // QUIC refused on a profile that carries UDP inside a stream, so browsers go to TCP at once
+  bool refuse_quic_over_streams = 21;
+  // an echo no outbound carries refused, not answered by the TUN
+  bool icmp_no_local_reply = 22;
+  // the core's log: 0 none (panic alone), 1 warn, 2 info, 3 debug, 4 trace
+  int32 log_level = 23;
+}
+
+message SettingsUpdate {
+  Settings settings = 1;
+  // the names of the fields that change, as this file has them (mixed_port); the others' values are not read
+  repeated string fields = 2;
 }
 
 message ProfileIds {

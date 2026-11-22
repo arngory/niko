@@ -36,13 +36,6 @@ func TestConnect(t *testing.T) {
 		_, err := client.Connect(ctx, &nikopb.ConnectRequest{ProfileId: id})
 		return err
 	}
-	coreReads := func(config string) {
-		t.Helper()
-		var options option.Options
-		if err := options.UnmarshalJSONContext(include.Context(context.Background()), []byte(config)); err != nil {
-			t.Fatalf("the core does not read it: %v", err)
-		}
-	}
 
 	if err := connect(0); code(err) != codes.FailedPrecondition {
 		t.Fatalf("none selected: %v", err)
@@ -74,10 +67,10 @@ func TestConnect(t *testing.T) {
 	if config.Route["final"] != "proxy" || config.Route["auto_detect_interface"] != true {
 		t.Fatalf("the route: %v", config.Route)
 	}
-	coreReads(started[0])
+	coreReads(t, started[0])
 
 	// VPN mode: a computer's TUN, its routes the core's, and no local proxy without a password
-	if _, err := client.Connect(ctx, &nikopb.ConnectRequest{Mode: nikopb.ConnectRequest_VPN}); err != nil {
+	if _, err := client.Connect(ctx, &nikopb.ConnectRequest{Mode: nikopb.ConnectRequest_VPN.Enum()}); err != nil {
 		t.Fatal(err)
 	}
 	config = parseConfig(t, started[len(started)-1])
@@ -92,7 +85,7 @@ func TestConnect(t *testing.T) {
 	if config.Outbounds[0]["type"] != "socks" || config.Route["auto_detect_interface"] != true {
 		t.Fatalf("the outbound %v, the route %v", config.Outbounds[0], config.Route)
 	}
-	coreReads(started[len(started)-1])
+	coreReads(t, started[len(started)-1])
 
 	// another profile by its id, the selection as it was
 	if err := connect(1); err != nil {
@@ -110,7 +103,7 @@ func TestConnect(t *testing.T) {
 	if err := connect(7); code(err) != codes.NotFound {
 		t.Errorf("no such profile: %v", err)
 	}
-	if _, err := client.Connect(ctx, &nikopb.ConnectRequest{Mode: 7}); code(err) != codes.InvalidArgument {
+	if _, err := client.Connect(ctx, &nikopb.ConnectRequest{Mode: nikopb.ConnectRequest_Mode(7).Enum()}); code(err) != codes.InvalidArgument {
 		t.Errorf("no such mode: %v", err)
 	}
 	if err := connect(3); code(err) != codes.Unimplemented {
@@ -146,7 +139,18 @@ func TestConnect(t *testing.T) {
 	}
 }
 
+// coreReads: the core takes the config, its options parsed as the daemon parses a config it starts.
+func coreReads(t *testing.T, config string) {
+	t.Helper()
+	var options option.Options
+	if err := options.UnmarshalJSONContext(include.Context(context.Background()), []byte(config)); err != nil {
+		t.Fatalf("the core does not read it: %v", err)
+	}
+}
+
 type builtConfig struct {
+	Log       map[string]any   `json:"log"`
+	DNS       map[string]any   `json:"dns"`
 	Inbounds  []map[string]any `json:"inbounds"`
 	Outbounds []map[string]any `json:"outbounds"`
 	Route     map[string]any   `json:"route"`

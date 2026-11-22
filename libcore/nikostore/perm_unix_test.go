@@ -12,7 +12,7 @@ import (
 )
 
 // The store is the daemon's alone, whatever the umask: its directories 0700, its files 0600, a directory or a file of
-// it that was wider narrowed; the backups too.
+// it that was wider narrowed (store.json and settings.json); the backups too.
 func TestPermissions(t *testing.T) {
 	old := syscall.Umask(0)
 	defer syscall.Umask(old)
@@ -20,6 +20,9 @@ func TestPermissions(t *testing.T) {
 	dir := filepath.Join(root, "users", "u", "niko")
 	s := open(t, dir, NoSealer{}, nil)
 	if _, err := s.AddProfiles(0, beans(t, socksLink)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.UpdateSettings(s.settingsNow(t), []string{"mixedPort"}); err != nil {
 		t.Fatal(err)
 	}
 	mode := func(path string) os.FileMode {
@@ -34,23 +37,29 @@ func TestPermissions(t *testing.T) {
 			t.Errorf("%s: %v", path, m)
 		}
 	}
-	if m := mode(filepath.Join(dir, storeFile)); m != 0o600 {
-		t.Errorf("store.json: %v", m)
+	for _, name := range []string{storeFile, settingsFile} {
+		if m := mode(filepath.Join(dir, name)); m != 0o600 {
+			t.Errorf("%s: %v", name, m)
+		}
 	}
 
 	// wider ones, as copied in by hand
 	if err := os.Chmod(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chmod(filepath.Join(dir, storeFile), 0o644); err != nil {
-		t.Fatal(err)
+	for _, name := range []string{storeFile, settingsFile} {
+		if err := os.Chmod(filepath.Join(dir, name), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
 	open(t, dir, NoSealer{}, nil)
 	if m := mode(dir); m != 0o700 {
 		t.Errorf("narrowed directory: %v", m)
 	}
-	if m := mode(filepath.Join(dir, storeFile)); m != 0o600 {
-		t.Errorf("narrowed store.json: %v", m)
+	for _, name := range []string{storeFile, settingsFile} {
+		if m := mode(filepath.Join(dir, name)); m != 0o600 {
+			t.Errorf("narrowed %s: %v", name, m)
+		}
 	}
 
 	// a backup before a migration

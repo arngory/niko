@@ -225,3 +225,22 @@ func TestProgramMatch(t *testing.T) {
 		}
 	}
 }
+
+// CheckDNS takes what the build takes of a DNS setting and refuses what it would refuse.
+func TestCheckDNS(t *testing.T) {
+	for _, good := range []string{"local", "dhcp://auto", "https://dns.google/dns-query", "1.1.1.1", "2001:db8::1",
+		"tls://dns.example:853", "quic://dns.example", "h3://dns.example/dns-query", "# mine\n\ntcp://9.9.9.9\n"} {
+		if err := CheckDNS(good); err != nil {
+			t.Errorf("%q: %v", good, err)
+		}
+	}
+	for _, bad := range []string{"", " \n# none", "ftp://dns.example", "udp://1.1.1.1:0", "tcp://dns.example/x",
+		"https://user@dns.example/", "local\nsftp://x"} {
+		if CheckDNS(bad) == nil {
+			t.Errorf("%q taken", bad)
+		}
+	}
+	if s := DesktopSettings(); s.ServiceMode != ModeProxy || s.SystemProxy != nil || s.MixedPort != 2080 {
+		t.Errorf("a computer's defaults: %+v", s)
+	}
+}

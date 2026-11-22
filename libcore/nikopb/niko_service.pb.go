@@ -236,7 +236,7 @@ func (x ImportPreview_Kind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ImportPreview_Kind.Descriptor instead.
 func (ImportPreview_Kind) EnumDescriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{21, 0}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{23, 0}
 }
 
 type Empty struct {
@@ -320,7 +320,8 @@ type Info struct {
 	// the schema of the daemon's store (nikostore's); 0: a daemon without one
 	StoreSchema int32 `protobuf:"varint,3,opt,name=store_schema,json=storeSchema,proto3" json:"store_schema,omitempty"`
 	// the version of this API: what the window may ask. 2: the store, Watch and the import; 3: Select and GetSelected;
-	// 4: ShareProfile; 5: Connect; 6: Connect's mode, the config a computer's
+	// 4: ShareProfile; 5: Connect; 6: Connect's mode, the config a computer's; 7: the computer's settings, Connect
+	// with them
 	Api           int32 `protobuf:"varint,4,opt,name=api,proto3" json:"api,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1321,8 +1322,9 @@ func (x *ShareLink) GetLink() string {
 type ConnectRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// the profile; 0: the selected one
-	ProfileId     int64               `protobuf:"varint,1,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
-	Mode          ConnectRequest_Mode `protobuf:"varint,2,opt,name=mode,proto3,enum=niko.v1.ConnectRequest_Mode" json:"mode,omitempty"`
+	ProfileId int64 `protobuf:"varint,1,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	// none: the settings' (service_mode)
+	Mode          *ConnectRequest_Mode `protobuf:"varint,2,opt,name=mode,proto3,enum=niko.v1.ConnectRequest_Mode,oneof" json:"mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1365,10 +1367,306 @@ func (x *ConnectRequest) GetProfileId() int64 {
 }
 
 func (x *ConnectRequest) GetMode() ConnectRequest_Mode {
-	if x != nil {
-		return x.Mode
+	if x != nil && x.Mode != nil {
+		return *x.Mode
 	}
 	return ConnectRequest_PROXY
+}
+
+// A computer's settings: those its config's build takes (nikoconf.Settings, the app's ConfigSettings), with the app's
+// values; as JSON their names are the app's (mixedPort). The window's own (its view) are the window's.
+type Settings struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// proxy or vpn: how the computer's traffic reaches the core (D-NAV-02) where Connect asks no mode; proxy by default
+	ServiceMode string `protobuf:"bytes,1,opt,name=service_mode,json=serviceMode,proto3" json:"service_mode,omitempty"`
+	// in proxy mode the local proxy is the system's while the core runs
+	SystemProxy bool `protobuf:"varint,2,opt,name=system_proxy,json=systemProxy,proto3" json:"system_proxy,omitempty"`
+	// the TUN's stack: 0 gVisor, 1 system, 2 mixed
+	TunImplementation int32 `protobuf:"varint,3,opt,name=tun_implementation,json=tunImplementation,proto3" json:"tun_implementation,omitempty"`
+	// the TUN's, from 1000 to 10000
+	Mtu int32 `protobuf:"varint,4,opt,name=mtu,proto3" json:"mtu,omitempty"`
+	// 0 off, 1 on, 2 first, 3 only
+	Ipv6Mode int32 `protobuf:"varint,5,opt,name=ipv6_mode,json=ipv6Mode,proto3" json:"ipv6_mode,omitempty"`
+	// no profile checks its server's certificate
+	GlobalAllowInsecure bool `protobuf:"varint,6,opt,name=global_allow_insecure,json=globalAllowInsecure,proto3" json:"global_allow_insecure,omitempty"`
+	// DNS servers, a line each, "#" a comment, as the app reads them: the build takes the first (D-SET-18). "local"
+	// is the system's
+	RemoteDns string `protobuf:"bytes,7,opt,name=remote_dns,json=remoteDns,proto3" json:"remote_dns,omitempty"`
+	DirectDns string `protobuf:"bytes,8,opt,name=direct_dns,json=directDns,proto3" json:"direct_dns,omitempty"`
+	// fake addresses for the TUN's queries
+	EnableFakeDns bool `protobuf:"varint,9,opt,name=enable_fake_dns,json=enableFakeDns,proto3" json:"enable_fake_dns,omitempty"`
+	// "" for the core's own, else auto, prefer_ipv4, prefer_ipv6, ipv4_only or ipv6_only
+	DomainStrategyForRemote string `protobuf:"bytes,10,opt,name=domain_strategy_for_remote,json=domainStrategyForRemote,proto3" json:"domain_strategy_for_remote,omitempty"`
+	DomainStrategyForDirect string `protobuf:"bytes,11,opt,name=domain_strategy_for_direct,json=domainStrategyForDirect,proto3" json:"domain_strategy_for_direct,omitempty"`
+	DomainStrategyForServer string `protobuf:"bytes,12,opt,name=domain_strategy_for_server,json=domainStrategyForServer,proto3" json:"domain_strategy_for_server,omitempty"`
+	// an expired cache entry answered at once and refreshed behind
+	DnsOptimisticCache bool `protobuf:"varint,13,opt,name=dns_optimistic_cache,json=dnsOptimisticCache,proto3" json:"dns_optimistic_cache,omitempty"`
+	// private addresses go direct (D-SET-16)
+	BypassLanInCore bool `protobuf:"varint,14,opt,name=bypass_lan_in_core,json=bypassLanInCore,proto3" json:"bypass_lan_in_core,omitempty"`
+	// the local proxy: its port, from 1 to 65535
+	MixedPort int32 `protobuf:"varint,15,opt,name=mixed_port,json=mixedPort,proto3" json:"mixed_port,omitempty"`
+	// its login, none where the password is empty: the user's name (no colon; empty: "user") and password, printable
+	// characters, 255 bytes at most
+	MixedUsername string `protobuf:"bytes,16,opt,name=mixed_username,json=mixedUsername,proto3" json:"mixed_username,omitempty"`
+	MixedPassword string `protobuf:"bytes,17,opt,name=mixed_password,json=mixedPassword,proto3" json:"mixed_password,omitempty"`
+	// it listens on every address, not 127.0.0.1 alone: other devices of the LAN may use it
+	AllowAccess bool `protobuf:"varint,18,opt,name=allow_access,json=allowAccess,proto3" json:"allow_access,omitempty"`
+	// 0 off, 1 on
+	TrafficSniffing int32 `protobuf:"varint,19,opt,name=traffic_sniffing,json=trafficSniffing,proto3" json:"traffic_sniffing,omitempty"`
+	// domains resolved before routing
+	ResolveDestination bool `protobuf:"varint,20,opt,name=resolve_destination,json=resolveDestination,proto3" json:"resolve_destination,omitempty"`
+	// QUIC refused on a profile that carries UDP inside a stream, so browsers go to TCP at once
+	RefuseQuicOverStreams bool `protobuf:"varint,21,opt,name=refuse_quic_over_streams,json=refuseQuicOverStreams,proto3" json:"refuse_quic_over_streams,omitempty"`
+	// an echo no outbound carries refused, not answered by the TUN
+	IcmpNoLocalReply bool `protobuf:"varint,22,opt,name=icmp_no_local_reply,json=icmpNoLocalReply,proto3" json:"icmp_no_local_reply,omitempty"`
+	// the core's log: 0 none (panic alone), 1 warn, 2 info, 3 debug, 4 trace
+	LogLevel      int32 `protobuf:"varint,23,opt,name=log_level,json=logLevel,proto3" json:"log_level,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Settings) Reset() {
+	*x = Settings{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Settings) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Settings) ProtoMessage() {}
+
+func (x *Settings) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Settings.ProtoReflect.Descriptor instead.
+func (*Settings) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *Settings) GetServiceMode() string {
+	if x != nil {
+		return x.ServiceMode
+	}
+	return ""
+}
+
+func (x *Settings) GetSystemProxy() bool {
+	if x != nil {
+		return x.SystemProxy
+	}
+	return false
+}
+
+func (x *Settings) GetTunImplementation() int32 {
+	if x != nil {
+		return x.TunImplementation
+	}
+	return 0
+}
+
+func (x *Settings) GetMtu() int32 {
+	if x != nil {
+		return x.Mtu
+	}
+	return 0
+}
+
+func (x *Settings) GetIpv6Mode() int32 {
+	if x != nil {
+		return x.Ipv6Mode
+	}
+	return 0
+}
+
+func (x *Settings) GetGlobalAllowInsecure() bool {
+	if x != nil {
+		return x.GlobalAllowInsecure
+	}
+	return false
+}
+
+func (x *Settings) GetRemoteDns() string {
+	if x != nil {
+		return x.RemoteDns
+	}
+	return ""
+}
+
+func (x *Settings) GetDirectDns() string {
+	if x != nil {
+		return x.DirectDns
+	}
+	return ""
+}
+
+func (x *Settings) GetEnableFakeDns() bool {
+	if x != nil {
+		return x.EnableFakeDns
+	}
+	return false
+}
+
+func (x *Settings) GetDomainStrategyForRemote() string {
+	if x != nil {
+		return x.DomainStrategyForRemote
+	}
+	return ""
+}
+
+func (x *Settings) GetDomainStrategyForDirect() string {
+	if x != nil {
+		return x.DomainStrategyForDirect
+	}
+	return ""
+}
+
+func (x *Settings) GetDomainStrategyForServer() string {
+	if x != nil {
+		return x.DomainStrategyForServer
+	}
+	return ""
+}
+
+func (x *Settings) GetDnsOptimisticCache() bool {
+	if x != nil {
+		return x.DnsOptimisticCache
+	}
+	return false
+}
+
+func (x *Settings) GetBypassLanInCore() bool {
+	if x != nil {
+		return x.BypassLanInCore
+	}
+	return false
+}
+
+func (x *Settings) GetMixedPort() int32 {
+	if x != nil {
+		return x.MixedPort
+	}
+	return 0
+}
+
+func (x *Settings) GetMixedUsername() string {
+	if x != nil {
+		return x.MixedUsername
+	}
+	return ""
+}
+
+func (x *Settings) GetMixedPassword() string {
+	if x != nil {
+		return x.MixedPassword
+	}
+	return ""
+}
+
+func (x *Settings) GetAllowAccess() bool {
+	if x != nil {
+		return x.AllowAccess
+	}
+	return false
+}
+
+func (x *Settings) GetTrafficSniffing() int32 {
+	if x != nil {
+		return x.TrafficSniffing
+	}
+	return 0
+}
+
+func (x *Settings) GetResolveDestination() bool {
+	if x != nil {
+		return x.ResolveDestination
+	}
+	return false
+}
+
+func (x *Settings) GetRefuseQuicOverStreams() bool {
+	if x != nil {
+		return x.RefuseQuicOverStreams
+	}
+	return false
+}
+
+func (x *Settings) GetIcmpNoLocalReply() bool {
+	if x != nil {
+		return x.IcmpNoLocalReply
+	}
+	return false
+}
+
+func (x *Settings) GetLogLevel() int32 {
+	if x != nil {
+		return x.LogLevel
+	}
+	return 0
+}
+
+type SettingsUpdate struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Settings *Settings              `protobuf:"bytes,1,opt,name=settings,proto3" json:"settings,omitempty"`
+	// the names of the fields that change, as this file has them (mixed_port); the others' values are not read
+	Fields        []string `protobuf:"bytes,2,rep,name=fields,proto3" json:"fields,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SettingsUpdate) Reset() {
+	*x = SettingsUpdate{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SettingsUpdate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SettingsUpdate) ProtoMessage() {}
+
+func (x *SettingsUpdate) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SettingsUpdate.ProtoReflect.Descriptor instead.
+func (*SettingsUpdate) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *SettingsUpdate) GetSettings() *Settings {
+	if x != nil {
+		return x.Settings
+	}
+	return nil
+}
+
+func (x *SettingsUpdate) GetFields() []string {
+	if x != nil {
+		return x.Fields
+	}
+	return nil
 }
 
 type ProfileIds struct {
@@ -1380,7 +1678,7 @@ type ProfileIds struct {
 
 func (x *ProfileIds) Reset() {
 	*x = ProfileIds{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[18]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1392,7 +1690,7 @@ func (x *ProfileIds) String() string {
 func (*ProfileIds) ProtoMessage() {}
 
 func (x *ProfileIds) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[18]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1405,7 +1703,7 @@ func (x *ProfileIds) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileIds.ProtoReflect.Descriptor instead.
 func (*ProfileIds) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{18}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ProfileIds) GetIds() []int64 {
@@ -1428,7 +1726,7 @@ type MoveRequest struct {
 
 func (x *MoveRequest) Reset() {
 	*x = MoveRequest{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[19]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1440,7 +1738,7 @@ func (x *MoveRequest) String() string {
 func (*MoveRequest) ProtoMessage() {}
 
 func (x *MoveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[19]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1453,7 +1751,7 @@ func (x *MoveRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MoveRequest.ProtoReflect.Descriptor instead.
 func (*MoveRequest) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{19}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *MoveRequest) GetIds() []int64 {
@@ -1490,7 +1788,7 @@ type ImportInput struct {
 
 func (x *ImportInput) Reset() {
 	*x = ImportInput{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[20]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1502,7 +1800,7 @@ func (x *ImportInput) String() string {
 func (*ImportInput) ProtoMessage() {}
 
 func (x *ImportInput) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[20]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1515,7 +1813,7 @@ func (x *ImportInput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportInput.ProtoReflect.Descriptor instead.
 func (*ImportInput) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{20}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ImportInput) GetText() string {
@@ -1552,7 +1850,7 @@ type ImportPreview struct {
 
 func (x *ImportPreview) Reset() {
 	*x = ImportPreview{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[21]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1564,7 +1862,7 @@ func (x *ImportPreview) String() string {
 func (*ImportPreview) ProtoMessage() {}
 
 func (x *ImportPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[21]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1577,7 +1875,7 @@ func (x *ImportPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportPreview.ProtoReflect.Descriptor instead.
 func (*ImportPreview) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{21}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ImportPreview) GetKind() ImportPreview_Kind {
@@ -1612,7 +1910,7 @@ type ImportRequest struct {
 
 func (x *ImportRequest) Reset() {
 	*x = ImportRequest{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[22]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1624,7 +1922,7 @@ func (x *ImportRequest) String() string {
 func (*ImportRequest) ProtoMessage() {}
 
 func (x *ImportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[22]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1637,7 +1935,7 @@ func (x *ImportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportRequest.ProtoReflect.Descriptor instead.
 func (*ImportRequest) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{22}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ImportRequest) GetInput() *ImportInput {
@@ -1745,14 +2043,46 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\tProfileId\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"\x1f\n" +
 	"\tShareLink\x12\x12\n" +
-	"\x04link\x18\x01 \x01(\tR\x04link\"}\n" +
+	"\x04link\x18\x01 \x01(\tR\x04link\"\x8b\x01\n" +
 	"\x0eConnectRequest\x12\x1d\n" +
 	"\n" +
-	"profile_id\x18\x01 \x01(\x03R\tprofileId\x120\n" +
-	"\x04mode\x18\x02 \x01(\x0e2\x1c.niko.v1.ConnectRequest.ModeR\x04mode\"\x1a\n" +
+	"profile_id\x18\x01 \x01(\x03R\tprofileId\x125\n" +
+	"\x04mode\x18\x02 \x01(\x0e2\x1c.niko.v1.ConnectRequest.ModeH\x00R\x04mode\x88\x01\x01\"\x1a\n" +
 	"\x04Mode\x12\t\n" +
 	"\x05PROXY\x10\x00\x12\a\n" +
-	"\x03VPN\x10\x01\"\x1e\n" +
+	"\x03VPN\x10\x01B\a\n" +
+	"\x05_mode\"\xcf\a\n" +
+	"\bSettings\x12!\n" +
+	"\fservice_mode\x18\x01 \x01(\tR\vserviceMode\x12!\n" +
+	"\fsystem_proxy\x18\x02 \x01(\bR\vsystemProxy\x12-\n" +
+	"\x12tun_implementation\x18\x03 \x01(\x05R\x11tunImplementation\x12\x10\n" +
+	"\x03mtu\x18\x04 \x01(\x05R\x03mtu\x12\x1b\n" +
+	"\tipv6_mode\x18\x05 \x01(\x05R\bipv6Mode\x122\n" +
+	"\x15global_allow_insecure\x18\x06 \x01(\bR\x13globalAllowInsecure\x12\x1d\n" +
+	"\n" +
+	"remote_dns\x18\a \x01(\tR\tremoteDns\x12\x1d\n" +
+	"\n" +
+	"direct_dns\x18\b \x01(\tR\tdirectDns\x12&\n" +
+	"\x0fenable_fake_dns\x18\t \x01(\bR\renableFakeDns\x12;\n" +
+	"\x1adomain_strategy_for_remote\x18\n" +
+	" \x01(\tR\x17domainStrategyForRemote\x12;\n" +
+	"\x1adomain_strategy_for_direct\x18\v \x01(\tR\x17domainStrategyForDirect\x12;\n" +
+	"\x1adomain_strategy_for_server\x18\f \x01(\tR\x17domainStrategyForServer\x120\n" +
+	"\x14dns_optimistic_cache\x18\r \x01(\bR\x12dnsOptimisticCache\x12+\n" +
+	"\x12bypass_lan_in_core\x18\x0e \x01(\bR\x0fbypassLanInCore\x12\x1d\n" +
+	"\n" +
+	"mixed_port\x18\x0f \x01(\x05R\tmixedPort\x12%\n" +
+	"\x0emixed_username\x18\x10 \x01(\tR\rmixedUsername\x12%\n" +
+	"\x0emixed_password\x18\x11 \x01(\tR\rmixedPassword\x12!\n" +
+	"\fallow_access\x18\x12 \x01(\bR\vallowAccess\x12)\n" +
+	"\x10traffic_sniffing\x18\x13 \x01(\x05R\x0ftrafficSniffing\x12/\n" +
+	"\x13resolve_destination\x18\x14 \x01(\bR\x12resolveDestination\x127\n" +
+	"\x18refuse_quic_over_streams\x18\x15 \x01(\bR\x15refuseQuicOverStreams\x12-\n" +
+	"\x13icmp_no_local_reply\x18\x16 \x01(\bR\x10icmpNoLocalReply\x12\x1b\n" +
+	"\tlog_level\x18\x17 \x01(\x05R\blogLevel\"W\n" +
+	"\x0eSettingsUpdate\x12-\n" +
+	"\bsettings\x18\x01 \x01(\v2\x11.niko.v1.SettingsR\bsettings\x12\x16\n" +
+	"\x06fields\x18\x02 \x03(\tR\x06fields\"\x1e\n" +
 	"\n" +
 	"ProfileIds\x12\x10\n" +
 	"\x03ids\x18\x01 \x03(\x03R\x03ids\"R\n" +
@@ -1774,7 +2104,7 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\fSUBSCRIPTION\x10\x02\"V\n" +
 	"\rImportRequest\x12*\n" +
 	"\x05input\x18\x01 \x01(\v2\x14.niko.v1.ImportInputR\x05input\x12\x19\n" +
-	"\bgroup_id\x18\x02 \x01(\x03R\agroupId2\xa0\a\n" +
+	"\bgroup_id\x18\x02 \x01(\x03R\agroupId2\x90\b\n" +
 	"\vNikoService\x121\n" +
 	"\aGetInfo\x12\x17.niko.v1.GetInfoRequest\x1a\r.niko.v1.Info\x12@\n" +
 	"\tRouteTest\x12\x19.niko.v1.RouteTestRequest\x1a\x18.niko.v1.RouteTestResult\x121\n" +
@@ -1792,7 +2122,9 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\x06Select\x12\x12.niko.v1.ProfileId\x1a\x0e.niko.v1.Empty\x121\n" +
 	"\vGetSelected\x12\x0e.niko.v1.Empty\x1a\x12.niko.v1.ProfileId\x126\n" +
 	"\fShareProfile\x12\x12.niko.v1.ProfileId\x1a\x12.niko.v1.ShareLink\x122\n" +
-	"\aConnect\x12\x17.niko.v1.ConnectRequest\x1a\x0e.niko.v1.Empty\x129\n" +
+	"\aConnect\x12\x17.niko.v1.ConnectRequest\x1a\x0e.niko.v1.Empty\x120\n" +
+	"\vGetSettings\x12\x0e.niko.v1.Empty\x1a\x11.niko.v1.Settings\x12<\n" +
+	"\x0eUpdateSettings\x12\x17.niko.v1.SettingsUpdate\x1a\x11.niko.v1.Settings\x129\n" +
 	"\tRecognize\x12\x14.niko.v1.ImportInput\x1a\x16.niko.v1.ImportPreview\x129\n" +
 	"\x06Import\x12\x16.niko.v1.ImportRequest\x1a\x15.niko.v1.TaskProgress0\x01B\x17Z\x15libcore/nikopb;nikopbb\x06proto3"
 
@@ -1809,7 +2141,7 @@ func file_niko_v1_niko_service_proto_rawDescGZIP() []byte {
 }
 
 var file_niko_v1_niko_service_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_niko_v1_niko_service_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_niko_v1_niko_service_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_niko_v1_niko_service_proto_goTypes = []any{
 	(Change_Kind)(0),            // 0: niko.v1.Change.Kind
 	(Group_Type)(0),             // 1: niko.v1.Group.Type
@@ -1833,11 +2165,13 @@ var file_niko_v1_niko_service_proto_goTypes = []any{
 	(*ProfileId)(nil),           // 19: niko.v1.ProfileId
 	(*ShareLink)(nil),           // 20: niko.v1.ShareLink
 	(*ConnectRequest)(nil),      // 21: niko.v1.ConnectRequest
-	(*ProfileIds)(nil),          // 22: niko.v1.ProfileIds
-	(*MoveRequest)(nil),         // 23: niko.v1.MoveRequest
-	(*ImportInput)(nil),         // 24: niko.v1.ImportInput
-	(*ImportPreview)(nil),       // 25: niko.v1.ImportPreview
-	(*ImportRequest)(nil),       // 26: niko.v1.ImportRequest
+	(*Settings)(nil),            // 22: niko.v1.Settings
+	(*SettingsUpdate)(nil),      // 23: niko.v1.SettingsUpdate
+	(*ProfileIds)(nil),          // 24: niko.v1.ProfileIds
+	(*MoveRequest)(nil),         // 25: niko.v1.MoveRequest
+	(*ImportInput)(nil),         // 26: niko.v1.ImportInput
+	(*ImportPreview)(nil),       // 27: niko.v1.ImportPreview
+	(*ImportRequest)(nil),       // 28: niko.v1.ImportRequest
 }
 var file_niko_v1_niko_service_proto_depIdxs = []int32{
 	8,  // 0: niko.v1.RouteTestResult.steps:type_name -> niko.v1.RouteTestStep
@@ -1847,48 +2181,53 @@ var file_niko_v1_niko_service_proto_depIdxs = []int32{
 	13, // 4: niko.v1.GroupList.groups:type_name -> niko.v1.Group
 	17, // 5: niko.v1.ProfileList.profiles:type_name -> niko.v1.Profile
 	2,  // 6: niko.v1.ConnectRequest.mode:type_name -> niko.v1.ConnectRequest.Mode
-	3,  // 7: niko.v1.ImportPreview.kind:type_name -> niko.v1.ImportPreview.Kind
-	17, // 8: niko.v1.ImportPreview.profiles:type_name -> niko.v1.Profile
-	24, // 9: niko.v1.ImportRequest.input:type_name -> niko.v1.ImportInput
-	5,  // 10: niko.v1.NikoService.GetInfo:input_type -> niko.v1.GetInfoRequest
-	7,  // 11: niko.v1.NikoService.RouteTest:input_type -> niko.v1.RouteTestRequest
-	10, // 12: niko.v1.NikoService.Watch:input_type -> niko.v1.WatchRequest
-	4,  // 13: niko.v1.NikoService.ListGroups:input_type -> niko.v1.Empty
-	16, // 14: niko.v1.NikoService.ListProfiles:input_type -> niko.v1.ListProfilesRequest
-	19, // 15: niko.v1.NikoService.GetProfile:input_type -> niko.v1.ProfileId
-	17, // 16: niko.v1.NikoService.SaveProfile:input_type -> niko.v1.Profile
-	22, // 17: niko.v1.NikoService.DeleteProfiles:input_type -> niko.v1.ProfileIds
-	23, // 18: niko.v1.NikoService.MoveProfiles:input_type -> niko.v1.MoveRequest
-	13, // 19: niko.v1.NikoService.SaveGroup:input_type -> niko.v1.Group
-	14, // 20: niko.v1.NikoService.DeleteGroup:input_type -> niko.v1.GroupId
-	19, // 21: niko.v1.NikoService.Select:input_type -> niko.v1.ProfileId
-	4,  // 22: niko.v1.NikoService.GetSelected:input_type -> niko.v1.Empty
-	19, // 23: niko.v1.NikoService.ShareProfile:input_type -> niko.v1.ProfileId
-	21, // 24: niko.v1.NikoService.Connect:input_type -> niko.v1.ConnectRequest
-	24, // 25: niko.v1.NikoService.Recognize:input_type -> niko.v1.ImportInput
-	26, // 26: niko.v1.NikoService.Import:input_type -> niko.v1.ImportRequest
-	6,  // 27: niko.v1.NikoService.GetInfo:output_type -> niko.v1.Info
-	9,  // 28: niko.v1.NikoService.RouteTest:output_type -> niko.v1.RouteTestResult
-	11, // 29: niko.v1.NikoService.Watch:output_type -> niko.v1.Change
-	15, // 30: niko.v1.NikoService.ListGroups:output_type -> niko.v1.GroupList
-	18, // 31: niko.v1.NikoService.ListProfiles:output_type -> niko.v1.ProfileList
-	17, // 32: niko.v1.NikoService.GetProfile:output_type -> niko.v1.Profile
-	17, // 33: niko.v1.NikoService.SaveProfile:output_type -> niko.v1.Profile
-	4,  // 34: niko.v1.NikoService.DeleteProfiles:output_type -> niko.v1.Empty
-	4,  // 35: niko.v1.NikoService.MoveProfiles:output_type -> niko.v1.Empty
-	13, // 36: niko.v1.NikoService.SaveGroup:output_type -> niko.v1.Group
-	4,  // 37: niko.v1.NikoService.DeleteGroup:output_type -> niko.v1.Empty
-	4,  // 38: niko.v1.NikoService.Select:output_type -> niko.v1.Empty
-	19, // 39: niko.v1.NikoService.GetSelected:output_type -> niko.v1.ProfileId
-	20, // 40: niko.v1.NikoService.ShareProfile:output_type -> niko.v1.ShareLink
-	4,  // 41: niko.v1.NikoService.Connect:output_type -> niko.v1.Empty
-	25, // 42: niko.v1.NikoService.Recognize:output_type -> niko.v1.ImportPreview
-	12, // 43: niko.v1.NikoService.Import:output_type -> niko.v1.TaskProgress
-	27, // [27:44] is the sub-list for method output_type
-	10, // [10:27] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	22, // 7: niko.v1.SettingsUpdate.settings:type_name -> niko.v1.Settings
+	3,  // 8: niko.v1.ImportPreview.kind:type_name -> niko.v1.ImportPreview.Kind
+	17, // 9: niko.v1.ImportPreview.profiles:type_name -> niko.v1.Profile
+	26, // 10: niko.v1.ImportRequest.input:type_name -> niko.v1.ImportInput
+	5,  // 11: niko.v1.NikoService.GetInfo:input_type -> niko.v1.GetInfoRequest
+	7,  // 12: niko.v1.NikoService.RouteTest:input_type -> niko.v1.RouteTestRequest
+	10, // 13: niko.v1.NikoService.Watch:input_type -> niko.v1.WatchRequest
+	4,  // 14: niko.v1.NikoService.ListGroups:input_type -> niko.v1.Empty
+	16, // 15: niko.v1.NikoService.ListProfiles:input_type -> niko.v1.ListProfilesRequest
+	19, // 16: niko.v1.NikoService.GetProfile:input_type -> niko.v1.ProfileId
+	17, // 17: niko.v1.NikoService.SaveProfile:input_type -> niko.v1.Profile
+	24, // 18: niko.v1.NikoService.DeleteProfiles:input_type -> niko.v1.ProfileIds
+	25, // 19: niko.v1.NikoService.MoveProfiles:input_type -> niko.v1.MoveRequest
+	13, // 20: niko.v1.NikoService.SaveGroup:input_type -> niko.v1.Group
+	14, // 21: niko.v1.NikoService.DeleteGroup:input_type -> niko.v1.GroupId
+	19, // 22: niko.v1.NikoService.Select:input_type -> niko.v1.ProfileId
+	4,  // 23: niko.v1.NikoService.GetSelected:input_type -> niko.v1.Empty
+	19, // 24: niko.v1.NikoService.ShareProfile:input_type -> niko.v1.ProfileId
+	21, // 25: niko.v1.NikoService.Connect:input_type -> niko.v1.ConnectRequest
+	4,  // 26: niko.v1.NikoService.GetSettings:input_type -> niko.v1.Empty
+	23, // 27: niko.v1.NikoService.UpdateSettings:input_type -> niko.v1.SettingsUpdate
+	26, // 28: niko.v1.NikoService.Recognize:input_type -> niko.v1.ImportInput
+	28, // 29: niko.v1.NikoService.Import:input_type -> niko.v1.ImportRequest
+	6,  // 30: niko.v1.NikoService.GetInfo:output_type -> niko.v1.Info
+	9,  // 31: niko.v1.NikoService.RouteTest:output_type -> niko.v1.RouteTestResult
+	11, // 32: niko.v1.NikoService.Watch:output_type -> niko.v1.Change
+	15, // 33: niko.v1.NikoService.ListGroups:output_type -> niko.v1.GroupList
+	18, // 34: niko.v1.NikoService.ListProfiles:output_type -> niko.v1.ProfileList
+	17, // 35: niko.v1.NikoService.GetProfile:output_type -> niko.v1.Profile
+	17, // 36: niko.v1.NikoService.SaveProfile:output_type -> niko.v1.Profile
+	4,  // 37: niko.v1.NikoService.DeleteProfiles:output_type -> niko.v1.Empty
+	4,  // 38: niko.v1.NikoService.MoveProfiles:output_type -> niko.v1.Empty
+	13, // 39: niko.v1.NikoService.SaveGroup:output_type -> niko.v1.Group
+	4,  // 40: niko.v1.NikoService.DeleteGroup:output_type -> niko.v1.Empty
+	4,  // 41: niko.v1.NikoService.Select:output_type -> niko.v1.Empty
+	19, // 42: niko.v1.NikoService.GetSelected:output_type -> niko.v1.ProfileId
+	20, // 43: niko.v1.NikoService.ShareProfile:output_type -> niko.v1.ShareLink
+	4,  // 44: niko.v1.NikoService.Connect:output_type -> niko.v1.Empty
+	22, // 45: niko.v1.NikoService.GetSettings:output_type -> niko.v1.Settings
+	22, // 46: niko.v1.NikoService.UpdateSettings:output_type -> niko.v1.Settings
+	27, // 47: niko.v1.NikoService.Recognize:output_type -> niko.v1.ImportPreview
+	12, // 48: niko.v1.NikoService.Import:output_type -> niko.v1.TaskProgress
+	30, // [30:49] is the sub-list for method output_type
+	11, // [11:30] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_niko_v1_niko_service_proto_init() }
@@ -1896,13 +2235,14 @@ func file_niko_v1_niko_service_proto_init() {
 	if File_niko_v1_niko_service_proto != nil {
 		return
 	}
+	file_niko_v1_niko_service_proto_msgTypes[17].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_niko_v1_niko_service_proto_rawDesc), len(file_niko_v1_niko_service_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   23,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

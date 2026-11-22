@@ -1,6 +1,7 @@
 package nikoconf
 
 import (
+	"errors"
 	"net/netip"
 	"regexp"
 	"strings"
@@ -130,4 +131,28 @@ func putPrograms(r object, match object) {
 	for k, v := range match {
 		r[k] = append([]any(nil), v.([]any)...)
 	}
+}
+
+// DesktopSettings are a computer's defaults (nikostore's settings.json holds what the user changed over them): the
+// app's, but in proxy mode, which needs no privileges of the daemon's. The system's proxy stays off by default
+// (systemProxy above).
+func DesktopSettings() Settings {
+	s := DefaultSettings()
+	s.ServiceMode = ModeProxy
+	return s
+}
+
+// CheckDNS is the error the build would give for a DNS setting (remoteDns, directDns): its servers a line each, "#" a
+// comment, each read as the build reads the one it takes; nil where it takes them.
+func CheckDNS(text string) error {
+	lines := dnsLines(text)
+	if len(lines) == 0 {
+		return errors.New("no DNS server")
+	}
+	for _, line := range lines {
+		if _, err := dnsServerFromAddress(line, "dns", nil, nil); err != nil {
+			return err
+		}
+	}
+	return nil
 }

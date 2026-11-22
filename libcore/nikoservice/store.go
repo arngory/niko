@@ -122,6 +122,8 @@ func changeKind(kind nikostore.Kind) nikopb.Change_Kind {
 		return nikopb.Change_GROUPS
 	case nikostore.KindSelected:
 		return nikopb.Change_SELECTED
+	case nikostore.KindSettings:
+		return nikopb.Change_SETTINGS
 	}
 	return nikopb.Change_KIND_UNSPECIFIED
 }

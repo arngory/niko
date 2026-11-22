@@ -506,9 +506,8 @@ void main() {
       final work = await Directory.systemTemp.createTemp('niko-connect-');
       final daemonPort = await freePort();
       final log = <String>[];
-      // the local proxy of the config the daemon builds: the app's own port, until the desktop has settings (slice 13)
-      const mixedPort = 2080;
-      expect(await listening(mixedPort), isFalse, reason: 'port $mixedPort is taken on this machine');
+      // the local proxy of the config the daemon builds: a free port, by the computer's settings
+      final mixedPort = await freePort();
 
       // the profile's server, and what is asked for through it: a server of this test's own
       final asked = <String>[];
@@ -534,7 +533,19 @@ void main() {
         }
       });
       await until(() => daemon.version().then((_) => true, onError: (Object _) => false), 'the daemon to answer');
-      expect((await daemon.nikoInfo()).api, greaterThanOrEqualTo(5));
+      expect((await daemon.nikoInfo()).api, greaterThanOrEqualTo(7));
+
+      // the computer's settings: a computer's defaults, then the local proxy's port and login, kept and read back; a
+      // value out of range refused, and nothing of it kept
+      final defaults = await daemon.settings();
+      expect((defaults['serviceMode'], defaults['mixedPort'], defaults['mixedPassword']), ('proxy', 2080, ''));
+      final updated = await daemon.updateSettings({'mixedPort': mixedPort, 'mixedUsername': 'niko', 'mixedPassword': 'aaaa1111'});
+      expect((updated['mixedPort'], updated['mixedUsername'], updated['mtu']), (mixedPort, 'niko', 9000));
+      await expectLater(
+        daemon.updateSettings({'mixedPort': 70000}),
+        throwsA(isA<GrpcError>().having((e) => e.code, 'code', StatusCode.invalidArgument)),
+      );
+      expect((await daemon.settings())['mixedPort'], mixedPort);
 
       // nothing selected yet, and a profile that is not there: refused, nothing started
       await expectLater(
@@ -552,8 +563,9 @@ void main() {
       await daemon.connect(0);
       await until(() => listening(mixedPort), 'the local proxy of the built config');
 
-      // a request through the local proxy: it reaches the origin through the profile's server
-      final client = HttpClient()..findProxy = (_) => 'PROXY 127.0.0.1:$mixedPort';
+      // a request through the local proxy, with the login of the settings: it reaches the origin through the
+      // profile's server
+      final client = HttpClient()..findProxy = (_) => 'PROXY niko:aaaa1111@127.0.0.1:$mixedPort';
       final response = await (await client.getUrl(Uri.parse('http://127.0.0.1:${origin.port}/'))).close();
       final text = await response.transform(utf8.decoder).join();
       client.close(force: true);
