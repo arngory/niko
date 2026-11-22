@@ -152,6 +152,13 @@ func announceText(announce string) string {
 	return text
 }
 
+// FetchError is an answer the subscription did not get: no connection, a status other than 200, a body too large.
+type FetchError struct{ Err error }
+
+func (e *FetchError) Error() string { return "the subscription's answer: " + e.Err.Error() }
+
+func (e *FetchError) Unwrap() error { return e.Err }
+
 // fetched is an answer and whether the spare address gave it.
 type fetched struct {
 	response  *Response
@@ -203,6 +210,10 @@ func Run(ctx context.Context, name string, sub Subscription, exists []Existing, 
 		now = o.Now
 	}
 	got, err := fetchSubscription(ctx, c, &sub, sub.Link)
+	var refused *RefusedError
+	if err != nil && !errors.As(err, &refused) {
+		return Update{}, &FetchError{Err: err}
+	}
 	if err != nil {
 		return Update{}, err
 	}
