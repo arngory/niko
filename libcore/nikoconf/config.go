@@ -828,6 +828,8 @@ func (b *builder) addYggdrasilEndpoint(privateKey string) {
 	e.hack["private_key"] = privateKey
 	e.hack["peers"] = peers
 	e.hack["node_info_privacy"] = true
+	// hybrid post-quantum sessions with the nodes that offer them, classic with the rest (as the app)
+	e.hack["pq"] = "on"
 	// a Chrome ClientHello on tls:// links unless turned off (core default: chrome)
 	if !b.s.YggdrasilTLSChrome {
 		e.hack["tls_fingerprint"] = "go"

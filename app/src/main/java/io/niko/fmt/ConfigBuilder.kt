@@ -470,6 +470,9 @@ fun buildConfig(
                         !dropped
                     }
                 _hack_config_map["node_info_privacy"] = true
+                // hybrid post-quantum sessions (ML-KEM-768 + X25519) with the nodes that offer them, classic with
+                // the rest: the owner's choice, "on" here, "answer" on the node
+                _hack_config_map["pq"] = "on"
                 // a Chrome ClientHello on tls:// links unless turned off (core default: chrome)
                 if (!settings.yggdrasilTlsChrome) _hack_config_map["tls_fingerprint"] = "go"
             }
@@ -877,6 +880,7 @@ fun buildConfig(
                                 _hack_config_map["private_key"] = if (forExport) "<the device key stays in the app>" else seed
                                 _hack_config_map["peers"] = listOf(yggPeer) + (if (viaOn) via else emptyList())
                                 _hack_config_map["node_info_privacy"] = true
+                                _hack_config_map["pq"] = "on"
                                 knockTag?.let { _hack_config_map["detour"] = it }
                             })
                         } to yggPeer

@@ -248,6 +248,7 @@ func (b *builder) buildChain(chainID int64, entity *Profile) (string, error) {
 				}
 				endpoint.hack["peers"] = []any{yggPeer}
 				endpoint.hack["node_info_privacy"] = true
+				endpoint.hack["pq"] = "on"
 				if knockTag != "" {
 					endpoint.hack["detour"] = knockTag
 				}

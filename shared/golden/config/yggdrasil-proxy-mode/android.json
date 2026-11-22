@@ -108,6 +108,7 @@
       "type": "yggdrasil",
       "tag": "yggdrasil",
       "node_info_privacy": true,
+      "pq": "on",
       "peers": [
         "tls://198.51.100.70:443"
       ],
