@@ -270,6 +270,13 @@ jobs:
           name: desktop-windows
           path: ${{ runner.temp }}/daemon
 
+      # the runner's own proxy settings (WinINet's, in HKCU), kept before any real daemon runs here: put back at the end
+      # of the job whatever the tests did (below)
+      - name: The runner's proxy settings, kept
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: reg export 'HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings' "$env:RUNNER_TEMP\internet-settings.reg" /y
+
       - name: The window's link against the real daemon
         working-directory: desktop
         run: |
@@ -295,12 +302,7 @@ jobs:
 
       # The system proxy of proxy mode (slice 8b): set for the user by nikod's platform, off and on through
       # ManagedService, gone with the core; WinINet's values of HKCU are read while it runs and checked to be as before
-      # after. The runner's own are kept first and put back after, whatever the test did
-      - name: The runner's proxy settings, kept
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: reg export 'HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings' "$env:RUNNER_TEMP\internet-settings.reg" /y
-
+      # after
       - name: The system proxy against the real daemon
         if: runner.os == 'Windows'
         working-directory: desktop

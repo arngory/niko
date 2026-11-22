@@ -550,7 +550,9 @@ void main() {
       // value out of range refused, and nothing of it kept
       final defaults = await daemon.settings();
       expect((defaults['serviceMode'], defaults['mixedPort'], defaults['mixedPassword']), ('proxy', 2080, ''));
-      final updated = await daemon.updateSettings({'mixedPort': mixedPort, 'mixedUsername': 'niko', 'mixedPassword': 'aaaa1111'});
+      // the system proxy off: on by default on Windows, and this test is not to change the runner's
+      final updated = await daemon.updateSettings(
+          {'mixedPort': mixedPort, 'mixedUsername': 'niko', 'mixedPassword': 'aaaa1111', 'systemProxy': false});
       expect((updated['mixedPort'], updated['mixedUsername'], updated['mtu']), (mixedPort, 'niko', 9000));
       await expectLater(
         daemon.updateSettings({'mixedPort': 70000}),
