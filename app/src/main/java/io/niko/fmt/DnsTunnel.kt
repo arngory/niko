@@ -55,8 +55,10 @@ data class DnsTunnel(
         const val MASTERDNSVPN = "masterdnsvpn"
         // raycontrol slipstream-v1: QUIC over DNS, the bundled slipstream client (a process of its own)
         const val SLIPSTREAM = "slipstream"
-        // slipstream's name holds (240 - zone) / 1.6 bytes, less dnsauth's 8, and an Initial needs 129 (slipstream-v1 §3)
-        const val SLIPSTREAM_MAX_ZONE = 20
+        // a query's name under the zone must hold the dnsauth field and a QUIC packet of 129 bytes, the least the
+        // server takes: 29 characters with the client's exact fit (the fork's slipstream_mtu.c; (240 - zone) / 1.6 held
+        // it to 20, slipstream-v1 §3)
+        const val SLIPSTREAM_MAX_ZONE = 29
         // a path each: the client's multipath adds them up
         const val MAX_SLIP_RESOLVERS = 4
         private val SLIP_PIN = Regex("^[A-Za-z0-9_-]{43}$")

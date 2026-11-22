@@ -308,7 +308,7 @@ class SlipstreamTunnelTest {
     fun whatItRefuses() {
         val good = DnsTunnel.of(bean())
         for ((name, tunnel) in listOf(
-            "a zone past 20 characters" to good.copy(domain = "slipstream-zone.example.com"),
+            "a zone past 29 characters" to good.copy(domain = "slipstream-zone-xy.example.com"),
             "two zones" to good.copy(domain = "s.example.com,t.example.com"),
             "a spare zone" to good.copy(spare = "t.example.com"),
             "a range for a resolver" to good.copy(resolver = "10.0.0.0/30"),
@@ -322,5 +322,7 @@ class SlipstreamTunnelTest {
         )) {
             assertNotNull(name, tunnel.validate())
         }
+        // 29 characters: the longest the client fits a packet the server takes under
+        assertNull(good.copy(domain = "slipstream-zone-x.example.com").validate())
     }
 }
