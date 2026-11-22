@@ -15,6 +15,12 @@ import java.io.FileInputStream
 import java.io.IOException
 
 object SendLog {
+    // the core's crash outputs, the service's and the app's, this run's and the last (libcore setCrashOutput)
+    private val crashNames = listOf("go-crash-bg.log", "go-crash.log", "go-crash-bg.log.old", "go-crash.log.old")
+
+    /** The core's crash outputs kept, each in the debug export at its whole length (P-Log's «Отчёты о падениях»). */
+    fun coreCrashes(): Int = crashNames.count { File(SagerNet.application.cacheDir, it).length() > 0 }
+
     // Create full log and send
     fun sendLog(context: Context, title: String) {
         val logFile = File.createTempFile(
@@ -37,7 +43,7 @@ object SendLog {
         report.append("\n")
         report.append(String(getNekoLog(0)))
         // the core's crashes, each at its whole length (libcore setCrashOutput): the log keeps only its last part
-        for (name in listOf("go-crash-bg.log", "go-crash.log", "go-crash-bg.log.old", "go-crash.log.old")) {
+        for (name in crashNames) {
             val crash = File(SagerNet.application.cacheDir, name)
             if (crash.length() > 0) {
                 report.append("\n\n==== $name (${crash.length()} bytes, ${java.util.Date(crash.lastModified())})\n")

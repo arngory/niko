@@ -132,6 +132,8 @@ type Rule struct {
 	// Programs are a computer's apps (D-RULES-02): a process's name ("firefox.exe") or its full path, as the
 	// phone's rules have Packages; a computer's own, the app has no such field and Android's build reads none
 	Programs []string `json:"programs"`
+	// DpiBypass: «Обход DPI», the setting's strategy on this rule where it is direct
+	DpiBypass bool `json:"dpiBypass"`
 }
 
 // displayName is RuleEntity.displayName.
@@ -166,6 +168,7 @@ type Settings struct {
 	MixedUsername           string  `json:"mixedUsername"`
 	LocalProxyNoAuthInVpn   bool    `json:"localProxyNoAuthInVpn"`
 	ProxyApps               bool    `json:"proxyApps"`
+	AllowTethering          bool    `json:"allowTethering"`
 	BypassLanInCore         bool    `json:"bypassLanInCore"`
 	YggdrasilEnabled        bool    `json:"yggdrasilEnabled"`
 	YggdrasilPeers          string  `json:"yggdrasilPeers"`
@@ -180,12 +183,16 @@ type Settings struct {
 	IcmpThroughNode         bool    `json:"icmpThroughNode"`
 	IcmpNoLocalReply        bool    `json:"icmpNoLocalReply"`
 	RefuseQuicOverStreams   bool    `json:"refuseQuicOverStreams"`
-	TLSFragmentBypass       int     `json:"tlsFragmentBypass"`
 	ConnectionTestURL       string  `json:"connectionTestURL"`
 	RuleSetUpdateHours      int     `json:"ruleSetUpdateHours"`
 	GlobalAllowInsecure     bool    `json:"globalAllowInsecure"`
 	GlobalCustomConfig      string  `json:"globalCustomConfig"`
 	Secrets                 Secrets `json:"secrets"`
+	// DpiDirect is «Обход DPI для прямых соединений» (dpi.go): DpiOff, DpiPreset (DpiDirectPreset, a preset's id) or
+	// DpiCustom (DpiDirectCustom, a ByeDPI string), on the direct rules with their DpiBypass
+	DpiDirect       int    `json:"dpiDirect"`
+	DpiDirectPreset string `json:"dpiDirectPreset"`
+	DpiDirectCustom string `json:"dpiDirectCustom"`
 	// SystemProxy, a computer's own (D-NAV-02): in proxy mode the local proxy is the system's while the core runs;
 	// nil for the default, on Windows on (SystemProxyOn)
 	SystemProxy *bool `json:"systemProxy"`
@@ -223,11 +230,15 @@ const (
 	ProgramsExcept = 2
 )
 
+// defaultRemoteDNS is the remote DNS of the defaults: Cloudflare's DoH, Quad9's when it fails (a line each, the
+// config's fallback server between them).
+const defaultRemoteDNS = "https://cloudflare-dns.com/dns-query\nhttps://dns.quad9.net/dns-query"
+
 // DefaultSettings are ConfigSettings' defaults, the app's.
 func DefaultSettings() Settings {
 	return Settings{
 		ServiceMode:        ModeVPN,
-		RemoteDNS:          "https://dns.google/dns-query",
+		RemoteDNS:          defaultRemoteDNS,
 		DirectDNS:          "local",
 		EnableDNSRouting:   true,
 		EnableFakeDNS:      true,
@@ -240,6 +251,7 @@ func DefaultSettings() Settings {
 		RootStore:          "chrome",
 		ConnectionTestURL:  "http://cp.cloudflare.com/",
 		RuleSetUpdateHours: 24,
+		DpiDirectPreset:    DpiDefaultPreset,
 	}
 }
 

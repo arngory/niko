@@ -531,7 +531,6 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
                             if (update) groupTraffic.setOnClickListener {
                                 (activity as? MainActivity)?.apply {
                                     displayFragment(AboutFragment.checkingUpdate())
-                                    navigation.menu.findItem(R.id.nav_about)?.isChecked = true
                                 }
                             }
                         }

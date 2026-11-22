@@ -193,7 +193,6 @@ class NodeFragment : Fragment(), GroupManager.Listener {
 
         override fun appUpdate() {
             main.displayFragment(AboutFragment.checkingUpdate())
-            main.navigation.menu.findItem(R.id.nav_about)?.isChecked = true
         }
     }
 }

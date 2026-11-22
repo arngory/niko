@@ -41,10 +41,14 @@ import io.niko.ui.home.Trail
 // as P-SetInbound is, of the same rows and fields.
 
 /** The settings' pages: the list, and the pages its rows open. */
-enum class SettingsPage { ROOT, INBOUND, DNS, TUN, YGGDRASIL, NODES, CHECK, ROOTS, EXPERIMENTS, LOG }
+enum class SettingsPage { ROOT, INBOUND, DNS, TUN, YGGDRASIL, NODES, CHECK, ROOTS, EXPERIMENTS, LOG, DPI;
+
+    /** The page back goes to: the list, or the page that opened it. */
+    val parent get() = if (this == DPI) EXPERIMENTS else ROOT
+}
 
 /** What the pages show that is not a setting of the store. */
-class SettingsInfo(val version: String, val customConfigLines: Int, val yggdrasilAddress: String?)
+class SettingsInfo(val version: String, val customConfigLines: Int, val yggdrasilAddress: String?, val dpi: DpiInfo = DpiInfo())
 
 /** A setting chosen from a few: its name, its key, the stored values with their names. */
 class Choice(val title: String, val key: String, val options: List<Pair<String, String>>)
@@ -82,6 +86,7 @@ fun SettingsScreen(
             SettingsPage.ROOTS -> Roots(values, actions)
             SettingsPage.EXPERIMENTS -> Experiments(values, actions)
             SettingsPage.LOG -> Log(values, actions)
+            SettingsPage.DPI -> DpiScreen(values, info.dpi, actions::back)
         }
         if (sheet != null) ChoiceSheet(sheet, values.text(sheet.key), { values.setChoice(sheet.key, it); onDismissSheet() }, onDismissSheet)
     }
@@ -238,8 +243,16 @@ private fun Root(values: SettingValues, info: SettingsInfo, actions: SettingsAct
         }
     }
 
-/** A DNS server's host as the list shows it: `https://dns.google/dns-query` as dns.google. */
-internal fun dnsHost(server: String) = server.substringAfter("://").substringBefore('/').ifEmpty { server }
+/**
+ * A DNS setting as the list shows it: its first server's host (`https://cloudflare-dns.com/dns-query` as
+ * cloudflare-dns.com) and +1, +2 for the servers after it, a line each; blank lines and "#" comments not counted.
+ */
+internal fun dnsHost(servers: String): String {
+    val lines = servers.lines().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }
+    val first = lines.firstOrNull() ?: return servers
+    val host = first.substringAfter("://").substringBefore('/').ifEmpty { first }
+    return if (lines.size > 1) "$host +${lines.size - 1}" else host
+}
 
 @Composable
 private fun Page(title: Int, actions: SettingsActions, content: @Composable ColumnScope.() -> Unit) =
@@ -247,11 +260,11 @@ private fun Page(title: Int, actions: SettingsActions, content: @Composable Colu
 
 @Composable
 private fun Page(title: String, actions: SettingsActions, content: @Composable ColumnScope.() -> Unit) =
-    ListPage(title, stringResource(R.string.screen_back), actions::back, content)
+    ListPage(title, stringResource(R.string.screen_back), actions::back, content = content)
 
 @Composable
 private fun Dns(values: SettingValues, actions: SettingsActions) = Page(R.string.set_dns_route, actions) {
-    TextField(values, Key.REMOTE_DNS, R.string.set_remote_dns)
+    TextField(values, Key.REMOTE_DNS, R.string.set_remote_dns, help = R.string.remote_dns_help, multiLine = true)
     TextField(values, Key.DIRECT_DNS, R.string.set_direct_dns, help = R.string.direct_dns_help)
     ListGroup {
         Switch(values, Key.ENABLE_FAKEDNS, "FakeIP", divider = false)
@@ -313,6 +326,7 @@ private fun Tun(values: SettingValues, actions: SettingsActions) = Page("TUN", a
             ),
             values, actions, divider = true,
         )
+        Switch(values, Key.ALLOW_TETHERING, R.string.set_allow_tethering, divider = true, sub = stringResource(R.string.set_allow_tethering_sum))
     }
 }
 
@@ -396,13 +410,7 @@ private fun Experiments(values: SettingValues, actions: SettingsActions) = Page(
         Switch(values, Key.RESOLVE_DESTINATION, R.string.set_resolve_destination, divider = true)
     }
     ListGroup {
-        ChoiceRow(
-            Choice(
-                stringResource(R.string.set_tls_fragment), Key.TLS_FRAGMENT_BYPASS,
-                listOf("0" to stringResource(R.string.set_no), "1" to stringResource(R.string.set_tls_fragment_records), "2" to "TCP"),
-            ),
-            values, actions, divider = false,
-        )
+        ValueRow(stringResource(R.string.set_dpi_direct), dpiSummary(values), divider = false, onClick = { actions.open(SettingsPage.DPI) })
         ChoiceRow(
             Choice(stringResource(R.string.set_sniffing), Key.TRAFFIC_SNIFFING, listOf("0" to stringResource(R.string.set_no), "1" to stringResource(R.string.set_sniffing_route))),
             values, actions, divider = true,

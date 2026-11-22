@@ -15,7 +15,7 @@
       {
         "type": "https",
         "tag": "dns-remote",
-        "server": "dns.google",
+        "server": "cloudflare-dns.com",
         "path": "/dns-query",
         "domain_resolver": {
           "server": "dns-direct",
@@ -33,7 +33,8 @@
     "rules": [
       {
         "domain": [
-          "dns.google"
+          "dns.quad9.net",
+          "cloudflare-dns.com"
         ],
         "strategy": "ipv4_only",
         "server": "dns-direct"

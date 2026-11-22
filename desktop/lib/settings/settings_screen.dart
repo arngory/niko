@@ -90,6 +90,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return values.length == 1 ? _s.strategy(values.single) : _s.setStrategyMixed;
   }
 
+  // a DNS setting's servers, a line each ("#" a comment), as the phone's list shows them: the first one's host
+  // (https://cloudflare-dns.com/dns-query as cloudflare-dns.com), and +1, +2 for the ones the core asks after it
+  String _dnsServers(String key) {
+    final lines = [
+      for (final line in _v.text(key).split('\n'))
+        if (line.trim().isNotEmpty && !line.trim().startsWith('#')) line.trim(),
+    ];
+    if (lines.isEmpty) return _v.text(key).split('\n').first;
+    final first = lines.first;
+    final address = first.contains('://') ? first.substring(first.indexOf('://') + 3) : first;
+    final slash = address.indexOf('/');
+    final host = slash < 0 ? address : address.substring(0, slash);
+    final shown = host.isEmpty ? first : host;
+    return lines.length == 1 ? shown : '$shown +${lines.length - 1}';
+  }
+
   // the programs chosen: each line that names one, once
   String _programs() {
     final count = {for (final line in _v.text('programs').split('\n')) if (line.trim().isNotEmpty) line.trim()}.length;
@@ -146,8 +162,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _switch('globalAllowInsecure', _s.setInsecure, sub: _s.setDangerous),
         ]),
         _section(_Section.dns, _s.setDns, [
-          _value(_s.setRemoteDns, _v.text('remoteDns').split('\n').first,
-              _Dialog(_s.setRemoteDns, [('remoteDns', _s.setRemoteDns, FieldInput.text)], hint: _s.setDnsHint),
+          _value(_s.setRemoteDns, _dnsServers('remoteDns'),
+              _Dialog(_s.setRemoteDns, [('remoteDns', _s.setRemoteDns, FieldInput.lines)], hint: _s.setRemoteDnsHint),
               divider: false),
           _value(_s.setDirectDns, _v.text('directDns').split('\n').first,
               _Dialog(_s.setDirectDns, [('directDns', _s.setDirectDns, FieldInput.text)], hint: _s.setDnsHint)),

@@ -4,10 +4,10 @@ import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
 import androidx.appcompat.widget.Toolbar
-import androidx.core.view.GravityCompat
 import androidx.fragment.app.Fragment
 import io.niko.R
 
+/** An old screen with its own toolbar; its arrow goes back as the system's back does (the side menu went in 1.67). */
 open class ToolbarFragment : Fragment {
 
     constructor() : super()
@@ -18,9 +18,10 @@ open class ToolbarFragment : Fragment {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         toolbar = view.findViewById(R.id.toolbar)
-        toolbar.setNavigationIcon(R.drawable.ic_l_menu)
+        toolbar.setNavigationIcon(R.drawable.ic_l_arrow_left)
+        toolbar.setNavigationContentDescription(R.string.screen_back)
         toolbar.setNavigationOnClickListener {
-            (activity as MainActivity).binding.drawerLayout.openDrawer(GravityCompat.START)
+            requireActivity().onBackPressedDispatcher.onBackPressed()
         }
     }
 

@@ -21,6 +21,11 @@ for abi in ${ABIS:-arm64-v8a armeabi-v7a x86 x86_64}; do
     -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" \
     -DANDROID_ABI="$abi" -DANDROID_PLATFORM=android-23 -DANDROID_STL=c++_static \
     -DOPENSSL_ROOT_DIR="$work/openssl-$abi" > /dev/null
+  # the least packet is the server's (64, server-v0.3.0): a build directory left from the old fork must not keep 129
+  grep -qx 'PICOQUIC_ENFORCED_INITIAL_MTU:STRING=64' "$work/build-$abi/CMakeCache.txt" || {
+    echo "slipstream $abi: PICOQUIC_ENFORCED_INITIAL_MTU is not 64 in $work/build-$abi/CMakeCache.txt" >&2
+    exit 1
+  }
   cmake --build "$work/build-$abi" --target slipstream-client > /dev/null
   install -D -m 755 "$work/build-$abi/slipstream-client" "$root/app/executableSo/$abi/libslipstream.so"
 done

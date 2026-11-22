@@ -26,6 +26,10 @@ func (b *builder) userRules(rules []*Rule, refuseQuic bool) error {
 	s := b.s
 	// an exported config keeps the rules as they are: the rule-sets go by their URLs
 	russiaDirectWaits := !b.forExport && russiaDirectWaits(rules)
+	var dpi *DpiStrategy
+	if !b.forExport {
+		dpi = s.dpiStrategy()
+	}
 	for _, rule := range rules {
 		if russiaDirectWaits && isRussiaDirect(rule) {
 			continue // waits for the blocked lists (Russian services go through the proxy meanwhile)
@@ -186,14 +190,9 @@ func (b *builder) userRules(rules []*Rule, refuseQuic bool) error {
 			delete(ruleObj, "outbound")
 			ruleObj["action"] = "reject"
 		}
-		// split ClientHello of directly routed TLS, e.g. for SNI-throttled sites
-		if ruleObj["outbound"] == tagBypass {
-			switch s.TLSFragmentBypass {
-			case 1:
-				routeRule.hack["tls_record_fragment"] = true
-			case 2:
-				routeRule.hack["tls_fragment"] = true
-			}
+		// «Обход DPI»: the setting's strategy on the direct rules with the flag; the fork's own, none in an export
+		if dpi != nil && rule.DpiBypass && ruleObj["outbound"] == tagBypass {
+			routeRule.hack["tcp_desync"] = dpi.config()
 		}
 		// its QUIC refused before it takes it into the proxy (refuseQuic)
 		if refuseQuic && ruleObj["outbound"] == tagProxy {

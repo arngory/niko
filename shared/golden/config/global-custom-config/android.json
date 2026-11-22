@@ -14,9 +14,28 @@
         "tag": "dns-direct"
       },
       {
-        "type": "https",
+        "type": "fallback",
         "tag": "dns-remote",
-        "server": "dns.google",
+        "servers": [
+          "dns-remote-1",
+          "dns-remote-2"
+        ]
+      },
+      {
+        "type": "https",
+        "tag": "dns-remote-1",
+        "server": "cloudflare-dns.com",
+        "path": "/dns-query",
+        "domain_resolver": {
+          "server": "dns-direct",
+          "strategy": "ipv4_only"
+        },
+        "detour": "proxy"
+      },
+      {
+        "type": "https",
+        "tag": "dns-remote-2",
+        "server": "dns.quad9.net",
         "path": "/dns-query",
         "domain_resolver": {
           "server": "dns-direct",
@@ -34,7 +53,8 @@
     "rules": [
       {
         "domain": [
-          "dns.google"
+          "dns.quad9.net",
+          "cloudflare-dns.com"
         ],
         "strategy": "ipv4_only",
         "server": "dns-direct"

@@ -16,13 +16,17 @@ import io.niko.Key
 import io.niko.R
 import io.niko.SagerNet
 import io.niko.database.DataStore
+import io.niko.database.SagerDatabase
 import io.niko.database.preference.PublicDatabase
 import io.niko.ktx.needReload
 import io.niko.ktx.needRestart
+import io.niko.ktx.onMainDispatcher
+import io.niko.ktx.runOnDefaultDispatcher
 import io.niko.ktx.snackbar
 import io.niko.ui.compose.NikoTheme
 import io.niko.ui.profile.ConfigEditActivity
 import io.niko.ui.settings.Choice
+import io.niko.ui.settings.DpiInfo
 import io.niko.ui.settings.SettingEffect
 import io.niko.ui.settings.SettingKeys
 import io.niko.ui.settings.SettingsActions
@@ -30,6 +34,7 @@ import io.niko.ui.settings.SettingsInfo
 import io.niko.ui.settings.SettingsPage
 import io.niko.ui.settings.SettingsScreen
 import io.niko.ui.settings.StoreSettingValues
+import io.niko.utils.TcpDesync
 import io.niko.utils.Theme
 import libcore.Libcore
 import java.security.SecureRandom
@@ -78,7 +83,15 @@ class SettingsFragment : Fragment() {
             BuildConfig.VERSION_NAME,
             if (config.isBlank()) 0 else config.split('\n').size,
             yggdrasilAddress(),
+            info.dpi,
         )
+        loadDpi()
+    }
+
+    /** The DPI page's: what the phone can send (probed once, off the main thread) and the rules with the flag. */
+    private fun loadDpi() = runOnDefaultDispatcher {
+        val dpi = DpiInfo(TcpDesync.capabilities, SagerDatabase.rulesDao.enabledRules().count { it.dpiBypass && it.outbound == -1L })
+        onMainDispatcher { info = SettingsInfo(info.version, info.customConfigLines, info.yggdrasilAddress, dpi) }
     }
 
     override fun onPause() {
@@ -107,8 +120,7 @@ class SettingsFragment : Fragment() {
             }
             // another mode is another service: the running one stops, as the old screen did
             Key.SERVICE_MODE -> if (DataStore.serviceState.started) SagerNet.stopService()
-            Key.ENABLE_CLASH_API -> (activity as? MainActivity)?.refreshNavMenu(DataStore.enableClashAPI)
-            Key.YGGDRASIL_ENABLED -> info = SettingsInfo(info.version, info.customConfigLines, yggdrasilAddress())
+            Key.YGGDRASIL_ENABLED -> info = SettingsInfo(info.version, info.customConfigLines, yggdrasilAddress(), info.dpi)
         }
         val effects = keys.map(SettingKeys::effect)
         when {
@@ -123,7 +135,7 @@ class SettingsFragment : Fragment() {
                 sheet != null -> sheet = null
                 page != SettingsPage.ROOT -> {
                     apply(values.commit())
-                    page = SettingsPage.ROOT
+                    page = page.parent
                 }
 
                 else -> main.displayFragmentWithId(R.id.nav_home)

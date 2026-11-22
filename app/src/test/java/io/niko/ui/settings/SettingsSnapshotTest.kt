@@ -3,7 +3,9 @@ package io.niko.ui.settings
 import app.cash.paparazzi.DeviceConfig
 import app.cash.paparazzi.Paparazzi
 import com.android.resources.NightMode
+import io.niko.DEFAULT_REMOTE_DNS
 import io.niko.Key
+import io.niko.fmt.DpiDirect
 import io.niko.ui.compose.NikoTheme
 import org.junit.Rule
 import org.junit.Test
@@ -40,11 +42,11 @@ class SettingsSnapshotTest(private val mode: String) {
         ),
         texts = mapOf(
             Key.NIGHT_THEME to "1", Key.SERVICE_MODE to "vpn", Key.TUN_IMPLEMENTATION to "0", Key.MTU to "9000",
-            Key.MIXED_PORT to "2080", Key.REMOTE_DNS to "https://dns.google/dns-query", Key.DIRECT_DNS to "local",
+            Key.MIXED_PORT to "2080", Key.REMOTE_DNS to DEFAULT_REMOTE_DNS, Key.DIRECT_DNS to "local",
             SettingKeys.STRATEGY_REMOTE to "auto", SettingKeys.STRATEGY_DIRECT to "auto", SettingKeys.STRATEGY_SERVER to "auto",
             Key.RULE_SET_UPDATE_HOURS to "24", Key.RULES_PROVIDER to "0", Key.IPV6_MODE to "0", Key.ROOT_STORE to "chrome",
             Key.CONNECTION_TEST_URL to "http://cp.cloudflare.com/", SettingKeys.CONNECTION_TEST_CONCURRENT to "5",
-            Key.APP_TLS_VERSION to "1.2", Key.TLS_FRAGMENT_BYPASS to "0", Key.HY2_PROBE to "0", Key.TRAFFIC_SNIFFING to "1", Key.LOG_LEVEL to "0",
+            Key.APP_TLS_VERSION to "1.2", Key.DPI_DIRECT to "0", Key.HY2_PROBE to "0", Key.TRAFFIC_SNIFFING to "1", Key.LOG_LEVEL to "0",
             Key.SPEED_INTERVAL to "1000", Key.LOG_BUF_SIZE to "0", Key.RAYCONTROL_DNSTT_RESOLVER to "auto",
             Key.RAYCONTROL_MASTERDNS_RESOLVERS to "auto",
         ),
@@ -61,9 +63,13 @@ class SettingsSnapshotTest(private val mode: String) {
         override fun copy(text: String) {}
     }
 
-    private fun shoot(page: SettingsPage, sheet: Choice? = null) = paparazzi.snapshot {
-        NikoTheme(mode == "dark") { SettingsScreen(page, values, SettingsInfo("1.66.0", 0, null), actions, sheet) }
+    private fun shoot(page: SettingsPage, sheet: Choice? = null, values: SettingValues = this.values, dpi: DpiInfo = DpiInfo()) = paparazzi.snapshot {
+        NikoTheme(mode == "dark") { SettingsScreen(page, values, SettingsInfo("1.66.0", 0, null, dpi), actions, sheet) }
     }
+
+    /** Обход DPI: the setting as [texts] has it, on a phone without IP_TTL (the presets that need it dimmed) */
+    private fun dpi(vararg texts: Pair<String, String>) =
+        shoot(SettingsPage.DPI, values = MemorySettingValues(texts = mapOf(*texts)), dpi = DpiInfo(DpiDirect.Capabilities(ttl = false, oob = true), 3))
 
     @Test
     fun root() = shoot(SettingsPage.ROOT)
@@ -76,6 +82,15 @@ class SettingsSnapshotTest(private val mode: String) {
 
     @Test
     fun experiments() = shoot(SettingsPage.EXPERIMENTS)
+
+    @Test
+    fun dpiPreset() = dpi(Key.DPI_DIRECT to "1", Key.DPI_DIRECT_PRESET to "split_sni")
+
+    @Test
+    fun dpiCustom() = dpi(Key.DPI_DIRECT to "2", Key.DPI_DIRECT_CUSTOM to "-s 1 -o 1+sm -r 1+s")
+
+    @Test
+    fun dpiCustomError() = dpi(Key.DPI_DIRECT to "2", Key.DPI_DIRECT_CUSTOM to "-s 1 -f -1 --ttl 5")
 
     @Test
     fun theme() = shoot(

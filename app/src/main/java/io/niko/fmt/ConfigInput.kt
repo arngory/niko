@@ -2,6 +2,7 @@ package io.niko.fmt
 
 import android.widget.Toast
 import io.niko.CONNECTION_TEST_URL
+import io.niko.DEFAULT_REMOTE_DNS
 import io.niko.IPv6Mode
 import io.niko.Key
 import io.niko.R
@@ -54,7 +55,7 @@ class ConfigInput(
 data class ConfigSettings(
     val serviceMode: String = Key.MODE_VPN,
     val allowAccess: Boolean = false,
-    val remoteDns: String = "https://dns.google/dns-query",
+    val remoteDns: String = DEFAULT_REMOTE_DNS,
     val directDns: String = "local",
     val enableDnsRouting: Boolean = true,
     val enableFakeDns: Boolean = true,
@@ -74,6 +75,9 @@ data class ConfigSettings(
     val mixedUsername: String = "",
     val localProxyNoAuthInVpn: Boolean = false,
     val proxyApps: Boolean = false,
+    // per-app proxy lets the hotspot's devices through the VPN (VPN tethering): no owner on the phone, as an app left
+    // out that binds to tun0, so the guard against those goes (outsideVpnGuard)
+    val allowTethering: Boolean = false,
     val bypassLanInCore: Boolean = false,
     val yggdrasilEnabled: Boolean = false,
     val yggdrasilPeers: String = "",
@@ -91,7 +95,11 @@ data class ConfigSettings(
     val hy2Probe: String = Hy2Probe.OFF,
     val hy2LogConnections: Boolean = false,
     val refuseQuicOverStreams: Boolean = false,
-    val tlsFragmentBypass: Int = 0,
+    /** «Обход DPI для прямых соединений» ([DpiDirect]): off, a preset ([dpiDirectPreset]) or a ByeDPI string
+     * ([dpiDirectCustom]), on the direct rules with their dpiBypass */
+    val dpiDirect: Int = DpiDirect.OFF,
+    val dpiDirectPreset: String = DpiDirect.DEFAULT_PRESET,
+    val dpiDirectCustom: String = "",
     val connectionTestURL: String = CONNECTION_TEST_URL,
     val ruleSetUpdateHours: Int = 24,
     val globalAllowInsecure: Boolean = false,
@@ -133,6 +141,7 @@ data class ConfigSettings(
                 mixedUsername = DataStore.mixedUsername,
                 localProxyNoAuthInVpn = DataStore.localProxyNoAuthInVpn,
                 proxyApps = DataStore.proxyApps,
+                allowTethering = DataStore.allowTethering,
                 bypassLanInCore = DataStore.bypassLanInCore,
                 yggdrasilEnabled = DataStore.yggdrasilEnabled,
                 yggdrasilPeers = DataStore.yggdrasilPeers,
@@ -149,7 +158,9 @@ data class ConfigSettings(
                 hy2Probe = DataStore.hy2Probe,
                 hy2LogConnections = DataStore.hy2LogConnections,
                 refuseQuicOverStreams = DataStore.refuseQuicOverStreams,
-                tlsFragmentBypass = DataStore.tlsFragmentBypass,
+                dpiDirect = DataStore.dpiDirect,
+                dpiDirectPreset = DataStore.dpiDirectPreset,
+                dpiDirectCustom = DataStore.dpiDirectCustom,
                 connectionTestURL = DataStore.connectionTestURL,
                 ruleSetUpdateHours = DataStore.ruleSetUpdateHours,
                 globalAllowInsecure = DataStore.globalAllowInsecure,

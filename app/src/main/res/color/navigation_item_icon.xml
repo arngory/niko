@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- the drawer's icons: the chosen row's as its text, the others drawerIconColor (ink-2 in Niko, the text's colour in
-     the colour themes) -->
-<selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:color="?attr/primaryOrTextSecondary" android:state_checked="true" />
-    <item android:color="?attr/drawerIconColor" />
-</selector>

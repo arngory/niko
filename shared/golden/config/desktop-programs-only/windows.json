@@ -4,7 +4,8 @@
     "rules": [
       {
         "domain": [
-          "dns.google"
+          "dns.quad9.net",
+          "cloudflare-dns.com"
         ],
         "server": "dns-direct",
         "strategy": "ipv4_only"
@@ -54,14 +55,33 @@
         "type": "local"
       },
       {
+        "servers": [
+          "dns-remote-1",
+          "dns-remote-2"
+        ],
+        "tag": "dns-remote",
+        "type": "fallback"
+      },
+      {
         "detour": "proxy",
         "domain_resolver": {
           "server": "dns-direct",
           "strategy": "ipv4_only"
         },
         "path": "/dns-query",
-        "server": "dns.google",
-        "tag": "dns-remote",
+        "server": "cloudflare-dns.com",
+        "tag": "dns-remote-1",
+        "type": "https"
+      },
+      {
+        "detour": "proxy",
+        "domain_resolver": {
+          "server": "dns-direct",
+          "strategy": "ipv4_only"
+        },
+        "path": "/dns-query",
+        "server": "dns.quad9.net",
+        "tag": "dns-remote-2",
         "type": "https"
       },
       {

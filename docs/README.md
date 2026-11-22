@@ -15,6 +15,7 @@ changed and when is in the release notes and in git.
 
 - [TLS fingerprint: keeping it Chrome's](design/fingerprint.md)
 - [Trusted roots: which root store each part takes](design/trust.md)
+- [DPI evasion without a server: zapret and ByeDPI inside Niko](design/dpi.md) (proposal)
 - [Niko for the computer](design/desktop.md) and [its stage 3: `nikod` and `NikoService`](design/desktop-stage3.md)
 
 ## Contracts

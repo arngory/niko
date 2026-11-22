@@ -62,5 +62,10 @@
             app:key="routeOutbound"
             app:title="outbound"
             app:useSimpleSummaryProvider="true" />
+        <SwitchPreference
+            app:icon="@drawable/ic_l_split"
+            app:key="routeDpiBypass"
+            app:summary="@string/route_dpi_bypass_summary"
+            app:title="@string/route_dpi_bypass" />
     </PreferenceCategory>
 </PreferenceScreen>

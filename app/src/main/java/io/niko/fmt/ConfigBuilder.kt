@@ -61,6 +61,9 @@ const val OUTSIDE_VPN_PACKAGE = "niko:outside-vpn"
  * TCP alone: Android names no owner either for a socket it no longer finds, and a UDP socket can be closed before the
  * lookup (a datagram sent and the socket dropped). Such UDP of an app inside the VPN goes through the proxy, as before
  * the guard; a TCP connection's socket is there when its SYN arrives, so no owner on TCP means outside the VPN.
+ *
+ * A device on the phone's hotspot let through the VPN (VPN tethering, LineageOS and others) has no owner on the phone
+ * either and comes from the tunnel's own address: the guard refuses all of its TCP. «Раздача через VPN» turns it off.
  */
 fun outsideVpnGuard() = Rule_DefaultOptions().apply {
     inbound = listOf("tun-in")
@@ -472,6 +475,9 @@ fun buildConfig(
                         !dropped
                     }
                 _hack_config_map["node_info_privacy"] = true
+                // hybrid post-quantum sessions (ML-KEM-768 + X25519) with the nodes that offer them, classic with
+                // the rest: the owner's choice, "on" here, "answer" on the node
+                _hack_config_map["pq"] = "on"
                 // a Chrome ClientHello on tls:// links unless turned off (core default: chrome)
                 if (!settings.yggdrasilTlsChrome) _hack_config_map["tls_fingerprint"] = "go"
             }
@@ -886,6 +892,7 @@ fun buildConfig(
                                 _hack_config_map["private_key"] = if (forExport) "<the device key stays in the app>" else seed
                                 _hack_config_map["peers"] = listOf(yggPeer) + (if (viaOn) via else emptyList())
                                 _hack_config_map["node_info_privacy"] = true
+                                _hack_config_map["pq"] = "on"
                                 knockTag?.let { _hack_config_map["detour"] = it }
                             })
                         } to yggPeer
@@ -1188,6 +1195,11 @@ fun buildConfig(
         // apply user rules
         // an exported config keeps the rules as they are: the rule-sets go by their URLs
         val russiaDirectWaits = !forExport && RoutePresets.russiaDirectWaits(extraRules)
+        val dpi = if (forExport) null else DpiDirect.strategy(settings.dpiDirect, settings.dpiDirectPreset, settings.dpiDirectCustom)
+        // a stored string that no longer parses (or a preset gone): no cut, said once per build, not silently
+        if (!forExport && dpi == null && settings.dpiDirect != DpiDirect.OFF) {
+            Logs.w("DPI bypass for direct connections is on, but its strategy does not parse: no tcp_desync")
+        }
         val missingInConfig = mutableSetOf<String>()
         for (rule in extraRules) {
             if (russiaDirectWaits && RoutePresets.isRussiaDirect(rule)) {
@@ -1325,10 +1337,10 @@ fun buildConfig(
                         ruleObj.outbound = null
                         ruleObj.action = "reject"
                     }
-                    // split ClientHello of directly routed TLS, e.g. for SNI-throttled sites
-                    if (ruleObj.outbound == TAG_BYPASS) when (settings.tlsFragmentBypass) {
-                        1 -> ruleObj._hack_config_map["tls_record_fragment"] = true
-                        2 -> ruleObj._hack_config_map["tls_fragment"] = true
+                    // «Обход DPI»: the setting's strategy on the direct rules with the flag; the fork's own, none
+                    // in an export
+                    if (dpi != null && rule.dpiBypass && ruleObj.outbound == TAG_BYPASS) {
+                        ruleObj._hack_config_map["tcp_desync"] = dpi.toConfig()
                     }
                     // its QUIC refused before it takes it into the proxy (refuseQuic): otherwise only what reaches
                     // the final outbound would be, and the user's lists to the proxy are what the setting is for
@@ -1401,25 +1413,62 @@ fun buildConfig(
         ))
         val dohOfNode = nodeDoh
         if (!forTest && dohOfNode != null) dns.servers.add(nodeDohServer(dohOfNode.first, dohOfNode.second))
-        else if (!forTest) dns.servers.add(DNSServerOptions.fromAddress(
-            remoteDns.firstOrNull() ?: throw Exception("No remote DNS, check your settings!"),
-            "dns-remote", TAG_PROXY, "dns-direct"
-        ).apply {
-            // the same resolver over a TCP transport: UDP, DoQ and DoH3 cannot pass a DNS tunnel
-            if (tunnelledHop) when (type) {
-                "udp" -> type = "tcp"
-                // a DoQ or DoH3 port is not the DoT or DoH port: back to the default
-                "quic" -> {
-                    type = "tls"
-                    server_port = null
-                }
+        else if (!forTest) {
+            if (remoteDns.isEmpty()) throw Exception("No remote DNS, check your settings!")
+            fun remoteServer(address: String, tag: String) = DNSServerOptions.fromAddress(
+                address, tag, TAG_PROXY, "dns-direct"
+            ).apply {
+                // the same resolver over a TCP transport: UDP, DoQ and DoH3 cannot pass a DNS tunnel
+                if (tunnelledHop) when (type) {
+                    "udp" -> type = "tcp"
+                    // a DoQ or DoH3 port is not the DoT or DoH port: back to the default
+                    "quic" -> {
+                        type = "tls"
+                        server_port = null
+                    }
 
-                "h3" -> {
-                    type = "https"
-                    server_port = null
+                    "h3" -> {
+                        type = "https"
+                        server_port = null
+                    }
                 }
             }
-        })
+            // a line each: one is dns-remote itself; more are dns-remote-1..N, asked in order by dns-remote, a
+            // fallback server of the core fork's that moves on when one fails or keeps silent. Not in an export: a
+            // core of sing-box's own has no fallback, an export keeps the first line. A line after the first is a
+            // server only where the proxy carries it: local or dhcp:// is the system's resolver, which goes around
+            // the proxy whatever its detour (the names would leave outside the tunnel), and a line the build cannot
+            // read is left out too, said in the log: the build took the first line alone before, the rest never
+            // fails it
+            val remoteLines = if (forExport) remoteDns.take(1) else remoteDns
+            val members = mutableListOf(remoteServer(remoteLines[0], "dns-remote"))
+            for (address in remoteLines.drop(1)) {
+                val server = try {
+                    remoteServer(address, "dns-remote")
+                } catch (e: Exception) {
+                    Logs.w("remote DNS: $address left out: ${e.message}")
+                    continue
+                }
+                if (server.type == "local") {
+                    Logs.w("remote DNS: $address left out: the system's resolver does not go through the proxy")
+                    continue
+                }
+                members += server
+            }
+            if (members.size == 1) dns.servers.add(members[0])
+            else {
+                members.forEachIndexed { i, member -> member.tag = "dns-remote-${i + 1}" }
+                dns.servers.add(DNSServerOptions().apply {
+                    type = "fallback"
+                    tag = "dns-remote"
+                    _hack_config_map["servers"] = members.map { it.tag }
+                    // a DNS tunnel's first query (the name, the dial, TLS, all through the tunnel) takes longer
+                    // than the core's 4 s: cut short, the connection half made would be thrown away
+                    if (tunnelledHop) _hack_config_map["timeout"] = "8s"
+                })
+                dns.servers.addAll(members)
+            }
+        }
 
         // server address lookups go straight to a transport, so they need the direct strategy
         autoDnsDomainStrategy(settings.domainStrategy("dns-direct"))?.let { strategy ->
@@ -1478,7 +1527,7 @@ fun buildConfig(
             dns.rules = listOf()
         } else {
             // per-app proxy: an app left out of the VPN, bound to tun0, refused (below the DNS hijack)
-            if (isVPN && settings.proxyApps) route.rules.add(0, outsideVpnGuard())
+            if (isVPN && settings.proxyApps && !settings.allowTethering) route.rules.add(0, outsideVpnGuard())
             // built-in DNS rules
             route.rules.add(0, Rule_DefaultOptions().apply {
                 protocol = listOf("dns")

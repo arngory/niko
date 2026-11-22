@@ -3,7 +3,9 @@ package io.niko.ui.settings
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.preference.PreferenceDataStore
+import io.niko.DEFAULT_REMOTE_DNS
 import io.niko.Key
+import io.niko.fmt.DpiDirect
 
 /**
  * What a changed setting asks of a running service: nothing, a reload of its config, or a restart of the app (the
@@ -35,13 +37,14 @@ object SettingKeys {
         Key.PROFILE_TRAFFIC_STATISTICS to true,
         Key.SHOW_DIRECT_SPEED to true,
         Key.LOG_LEVEL to "0",
-        Key.TLS_FRAGMENT_BYPASS to "0",
         Key.HY2_PROBE to "0",
+        Key.DPI_DIRECT to "0",
+        Key.DPI_DIRECT_PRESET to DpiDirect.DEFAULT_PRESET,
         Key.RULE_SET_UPDATE_HOURS to "24",
         Key.TRAFFIC_SNIFFING to "1",
         Key.IPV6_MODE to "0",
         Key.RULES_PROVIDER to "0",
-        Key.REMOTE_DNS to "https://dns.google/dns-query",
+        Key.REMOTE_DNS to DEFAULT_REMOTE_DNS,
         STRATEGY_REMOTE to "auto",
         Key.DIRECT_DNS to "local",
         STRATEGY_DIRECT to "auto",
@@ -74,8 +77,9 @@ object SettingKeys {
         Key.ALLOW_ACCESS, Key.METERED_NETWORK, Key.ACQUIRE_WAKE_LOCK, Key.SHOW_DIRECT_SPEED, Key.SPEED_INTERVAL,
         Key.TRAFFIC_SNIFFING, Key.RESOLVE_DESTINATION, Key.BYPASS_LAN, Key.BYPASS_LAN_IN_CORE,
         Key.REFUSE_QUIC_OVER_STREAMS, Key.HONEST_CONNECT, Key.ICMP_THROUGH_NODE, Key.ICMP_NO_LOCAL_REPLY,
-        Key.NAIVE_QUIC_PHONE_ROOTS, Key.ROOT_STORE, Key.TLS_FRAGMENT_BYPASS, Key.RULE_SET_UPDATE_HOURS,
-        Key.RULES_PROVIDER, Key.MTU, Key.TUN_IMPLEMENTATION, Key.IPV6_MODE, Key.ENABLE_FAKEDNS,
+        Key.NAIVE_QUIC_PHONE_ROOTS, Key.ROOT_STORE, Key.DPI_DIRECT, Key.DPI_DIRECT_PRESET,
+        Key.DPI_DIRECT_CUSTOM, Key.RULE_SET_UPDATE_HOURS,
+        Key.RULES_PROVIDER, Key.MTU, Key.TUN_IMPLEMENTATION, Key.IPV6_MODE, Key.ALLOW_TETHERING, Key.ENABLE_FAKEDNS,
         Key.DNS_OPTIMISTIC_CACHE, Key.REMOTE_DNS, Key.DIRECT_DNS, Key.ENABLE_DNS_ROUTING, STRATEGY_REMOTE,
         STRATEGY_DIRECT, STRATEGY_SERVER, Key.GLOBAL_CUSTOM_CONFIG, Key.ENABLE_CLASH_API, Key.YGGDRASIL_ENABLED,
         Key.YGGDRASIL_PEERS, Key.YGGDRASIL_PEERS_VIA_PROXY, Key.YGGDRASIL_TLS_CHROME, Key.YGGDRASIL_ALLOW_INBOUND,
@@ -90,7 +94,8 @@ object SettingKeys {
 
     /**
      * A typed value as the store may keep it, or null where it may not: a port 1–65535, an MTU 1280–65535, at once
-     * 1–64, the log's size in KB (0: the core's 512), a DNS server not empty; the rest as typed, trimmed.
+     * 1–64, the log's size in KB (0: the core's 512), a DNS server not empty, a ByeDPI string the app takes or none;
+     * the rest as typed, trimmed.
      */
     fun clean(key: String, value: String): String? {
         val text = value.trim()
@@ -101,6 +106,7 @@ object SettingKeys {
             CONNECTION_TEST_CONCURRENT -> number(1..64)
             Key.LOG_BUF_SIZE -> if (text.isEmpty()) "0" else number(0..65536)
             Key.REMOTE_DNS, Key.DIRECT_DNS, Key.CONNECTION_TEST_URL -> text.ifEmpty { null }
+            Key.DPI_DIRECT_CUSTOM -> text.takeIf { it.isEmpty() || DpiDirect.parseByeDpi(it) is DpiDirect.Parsed.Ok }
             else -> text
         }
     }

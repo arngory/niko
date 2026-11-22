@@ -81,7 +81,6 @@
     <string name="app_desc">Peranti proxy universal untuk Android, ditulis dalam Kotlin.</string>
     <string name="ssh_auth_type_none">Kosong</string>
     <string name="no_statistics">Belum ada statistik</string>
-    <string name="menu_tools">Alat</string>
     <string name="ssh_private_key">Kunci Privat</string>
     <string name="ssh_public_key">Kunci Publik</string>
     <string name="profile_empty">Silakan pilih profil</string>

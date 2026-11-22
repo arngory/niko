@@ -3,9 +3,11 @@ package io.niko.database
 import android.os.Binder
 import androidx.preference.PreferenceDataStore
 import io.niko.CONNECTION_TEST_URL
+import io.niko.DEFAULT_REMOTE_DNS
 import io.niko.GroupType
 import io.niko.IPv6Mode
 import io.niko.Key
+import io.niko.RoutePresets
 import io.niko.TunImplementation
 import io.niko.bg.BaseService
 import io.niko.bg.VpnService
@@ -13,6 +15,7 @@ import io.niko.database.preference.KeyValuePair
 import io.niko.database.preference.OnPreferenceDataStoreChangeListener
 import io.niko.database.preference.PublicDatabase
 import io.niko.database.preference.RoomPreferenceDataStore
+import io.niko.fmt.DpiDirect
 import io.niko.ktx.boolean
 import io.niko.ktx.int
 import io.niko.ktx.long
@@ -37,6 +40,25 @@ object DataStore : OnPreferenceDataStoreChangeListener {
             if (raycontrolMasterDnsResolvers == "77.88.8.8\n77.88.8.1") raycontrolMasterDnsResolvers = "auto"
             configurationStore.putBoolean(Key.MIGRATED_DNS_RESOLVERS_AUTO, true)
         }
+        migrateTlsFragmentBypass()
+    }
+
+    /**
+     * «Фрагментация TLS для прямых правил» (to 1.66) becomes «Обход DPI для прямых соединений» (DpiDirect.migrated):
+     * records the preset «Записи TLS у SNI», TCP «Разрез у SNI». It was on every direct rule: on, each direct rule gets
+     * its «Обход DPI» but the Russian preset's (docs/design/dpi.md §5.2). While the old key is there, and it goes
+     * after: once, and again for an older backup's settings. Both processes may run it at once: the same writes.
+     */
+    private fun migrateTlsFragmentBypass() {
+        val old = configurationStore.getString(Key.TLS_FRAGMENT_BYPASS) ?: return
+        val (mode, preset) = DpiDirect.migrated(old)
+        if (mode != DpiDirect.OFF) {
+            dpiDirect = mode
+            dpiDirectPreset = preset
+            val russia = SagerDatabase.rulesDao.allRules().filter(RoutePresets::isRussiaDirect).map { it.id }
+            SagerDatabase.rulesDao.setDpiBypassOnDirect(russia)
+        }
+        configurationStore.remove(Key.TLS_FRAGMENT_BYPASS)
     }
 
     // share service state in main & bg process
@@ -172,7 +194,9 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     // QUIC connection's traffic and stalls in the log
     var hy2Probe by configurationStore.string(Key.HY2_PROBE) { io.niko.fmt.Hy2Probe.OFF }
     var hy2LogConnections by configurationStore.boolean(Key.HY2_LOG_CONNECTIONS)
-    var tlsFragmentBypass by configurationStore.stringToInt(Key.TLS_FRAGMENT_BYPASS)
+    var dpiDirect by configurationStore.stringToInt(Key.DPI_DIRECT)
+    var dpiDirectPreset by configurationStore.string(Key.DPI_DIRECT_PRESET) { DpiDirect.DEFAULT_PRESET }
+    var dpiDirectCustom by configurationStore.string(Key.DPI_DIRECT_CUSTOM)
     var ruleSetUpdateHours by configurationStore.stringToInt(Key.RULE_SET_UPDATE_HOURS) { 24 }
 
     var allowAccess by configurationStore.boolean(Key.ALLOW_ACCESS)
@@ -181,7 +205,7 @@ object DataStore : OnPreferenceDataStoreChangeListener {
 
     var globalCustomConfig by configurationStore.string(Key.GLOBAL_CUSTOM_CONFIG) { "" }
 
-    var remoteDns by configurationStore.string(Key.REMOTE_DNS) { "https://dns.google/dns-query" }
+    var remoteDns by configurationStore.string(Key.REMOTE_DNS) { DEFAULT_REMOTE_DNS }
     // the network's own resolver (Android's, Private DNS included): a direct name looks like any app's (R8)
     var directDns by configurationStore.string(Key.DIRECT_DNS) { "local" }
     var enableDnsRouting by configurationStore.boolean(Key.ENABLE_DNS_ROUTING) { true }
@@ -225,6 +249,7 @@ object DataStore : OnPreferenceDataStoreChangeListener {
 
     var meteredNetwork by configurationStore.boolean(Key.METERED_NETWORK)
     var proxyApps by configurationStore.boolean(Key.PROXY_APPS)
+    var allowTethering by configurationStore.boolean(Key.ALLOW_TETHERING)
     var bypass by configurationStore.boolean(Key.BYPASS_MODE) { true }
     var individual by configurationStore.string(Key.INDIVIDUAL)
     var showDirectSpeed by configurationStore.boolean(Key.SHOW_DIRECT_SPEED) { true }
@@ -351,6 +376,7 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var routeOutbound by profileCacheStore.stringToInt(Key.ROUTE_OUTBOUND)
     var routeOutboundRule by profileCacheStore.long(Key.ROUTE_OUTBOUND + "Long")
     var routePackages by profileCacheStore.string(Key.ROUTE_PACKAGES)
+    var routeDpiBypass by profileCacheStore.boolean(Key.ROUTE_DPI_BYPASS)
 
     var frontProxy by profileCacheStore.long(Key.GROUP_FRONT_PROXY + "Long")
     var landingProxy by profileCacheStore.long(Key.GROUP_LANDING_PROXY + "Long")

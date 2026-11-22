@@ -74,6 +74,7 @@
     <string name="connection_test_error">Failed: %s</string>
     <string name="connection_test_fail">Internet Unavailable</string>
     <string name="connection_test_error_status_code">Error code: #%d</string>
+    <string name="remote_dns_help">One per line: https://…/dns-query, tls://…, 1.1.1.1. When a server fails or keeps silent, the next one is asked</string>
     <string name="direct_dns_help">local: the network\'s own resolver, as other apps use it (Private DNS included). Or a server: https://…/dns-query, tls://…, 1.1.1.1</string>
     <string name="private_dns_strict">Private DNS is set to %s: apps send their DNS over TLS to it, past Niko\'s DNS. Domain rules then rest on sniffing, and that resolver sees every name. Settings → Network → Private DNS: Automatic or Off.</string>
     <string name="dns_hosts">Domain rewrite</string>
@@ -120,6 +121,8 @@
     <string name="route_name">Route Name</string>
     <string name="route_proxy">Proxy</string>
     <string name="route_bypass">Bypass</string>
+    <string name="route_dpi_bypass">DPI bypass</string>
+    <string name="route_dpi_bypass_summary">How: Settings › Experiments › DPI bypass for direct connections</string>
     <string name="route_block">Block</string>
     <string name="route_profile">Select Profile…</string>
     <string name="empty_route">Empty Route</string>
@@ -403,7 +406,6 @@
     <string name="ssh_private_key">Private Key</string>
     <string name="ssh_private_key_passphrase">Private Key Passphrase</string>
     <string name="translate_platform">Translate Platform</string>
-    <string name="menu_tools">Tools</string>
     <string name="menu_log">Logs</string>
     <string name="clear_logcat">Clear Logcat</string>
     <string name="wireguard_local_address">Local Address</string>
@@ -436,7 +438,6 @@
     <string name="stun_attest_loading">This may take a few minutes…</string>
     <string name="nat_stun_server_hint">Stun server</string>
     <string name="nat_result_hint">NAT check result</string>
-    <string name="tools_network">Network</string>
     <string name="mtu" translatable="false">MTU</string>
 
     <string name="backup">Backup</string>
@@ -1005,7 +1006,6 @@
     <string name="tls_fragment_record">Split into TLS records</string>
     <string name="tls_fragment_tcp">Split into TCP segments (slower)</string>
     <string name="tls_fragment_summary">Splits the TLS ClientHello of this server so simple DPI cannot match the SNI. Try TLS records first. Only applies to TCP-based TLS (VMess, VLESS, Trojan, HTTP, AnyTLS, ShadowTLS).</string>
-    <string name="tls_fragment_bypass_summary">Split the TLS ClientHello of connections routed directly by bypass rules</string>
     <string name="udp_desync">UDP (QUIC): DPI bypass</string>
     <string name="udp_prelude">Fake packets before the first one (0–8)</string>
     <string name="udp_prelude_sni">Fakes as QUIC with this server name (empty: random bytes)</string>
@@ -1109,6 +1109,14 @@
     <string name="node_clock">Clock</string>
     <string name="node_clock_off">%s s from the node</string>
     <string name="screen_back">Back</string>
+    <string name="log_title">Log</string>
+    <string name="log_level">Level</string>
+    <string name="log_all">All</string>
+    <string name="log_errors">Errors</string>
+    <string name="log_crashes">Crash reports</string>
+    <string name="log_empty">The log is empty</string>
+    <string name="log_no_errors">No errors</string>
+    <string name="log_tools">Tools</string>
     <string name="inbound_title">Inbound</string>
     <string name="inbound_user">User</string>
     <string name="inbound_port">Port</string>

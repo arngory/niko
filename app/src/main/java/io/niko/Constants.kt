@@ -2,6 +2,10 @@ package io.niko
 
 const val CONNECTION_TEST_URL = "http://cp.cloudflare.com/"
 
+// the remote DNS of the defaults: Cloudflare's DoH, Quad9's when it fails (a line each, the config's fallback server
+// between them: ConfigBuilder)
+const val DEFAULT_REMOTE_DNS = "https://cloudflare-dns.com/dns-query\nhttps://dns.quad9.net/dns-query"
+
 // where the app looks for its own updates; GitHub redirects the API after a repository rename
 const val RELEASE_REPO = "arngory/niko"
 
@@ -29,6 +33,7 @@ object Key {
     const val IPV6_MODE = "ipv6Mode"
 
     const val PROXY_APPS = "proxyApps"
+    const val ALLOW_TETHERING = "allowTethering"
     const val BYPASS_MODE = "bypassMode"
     const val INDIVIDUAL = "individual"
     const val METERED_NETWORK = "meteredNetwork"
@@ -44,7 +49,11 @@ object Key {
     const val ICMP_NO_LOCAL_REPLY = "icmpNoLocalReply"
     const val HY2_PROBE = "hy2Probe"
     const val HY2_LOG_CONNECTIONS = "hy2LogConnections"
+    /** the old «Фрагментация TLS для прямых правил» ("1" records, "2" TCP), read once by migrateLegacySettings */
     const val TLS_FRAGMENT_BYPASS = "tlsFragmentBypass"
+    const val DPI_DIRECT = "dpiDirect"
+    const val DPI_DIRECT_PRESET = "dpiDirectPreset"
+    const val DPI_DIRECT_CUSTOM = "dpiDirectCustom"
     const val RULE_SET_UPDATE_HOURS = "ruleSetUpdateHours"
 
     const val MIXED_PORT = "mixedPort"
@@ -166,6 +175,7 @@ object Key {
     const val ROUTE_PROTOCOL = "routeProtocol"
     const val ROUTE_OUTBOUND = "routeOutbound"
     const val ROUTE_PACKAGES = "routePackages"
+    const val ROUTE_DPI_BYPASS = "routeDpiBypass"
 
     const val GROUP_NAME = "groupName"
     const val GROUP_TYPE = "groupType"
@@ -217,6 +227,7 @@ object Key {
     const val RAYCONTROL_DNSTT_RESOLVER = "raycontrolDnsttResolver"
     const val RAYCONTROL_MASTERDNS_RESOLVERS = "raycontrolMasterDnsResolvers"
     const val MIGRATED_DNS_RESOLVERS_AUTO = "migratedDnsResolversAuto"
+    const val MIGRATED_DPI_DIRECT = "migratedDpiDirect"
 }
 
 object TunImplementation {
