@@ -1379,7 +1379,8 @@ type Settings struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// proxy or vpn: how the computer's traffic reaches the core (D-NAV-02) where Connect asks no mode; proxy by default
 	ServiceMode string `protobuf:"bytes,1,opt,name=service_mode,json=serviceMode,proto3" json:"service_mode,omitempty"`
-	// in proxy mode the local proxy is the system's while the core runs
+	// in proxy mode the local proxy is the system's while the core runs: the daemon sets it for the user who connected,
+	// and ManagedService.SetSystemProxyEnabled turns it off and on; on by default on Windows
 	SystemProxy bool `protobuf:"varint,2,opt,name=system_proxy,json=systemProxy,proto3" json:"system_proxy,omitempty"`
 	// the TUN's stack: 0 gVisor, 1 system, 2 mixed
 	TunImplementation int32 `protobuf:"varint,3,opt,name=tun_implementation,json=tunImplementation,proto3" json:"tun_implementation,omitempty"`

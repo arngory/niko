@@ -13,7 +13,7 @@ import (
 // The snapshots of a computer's configs (docs/design/desktop-stage3.md §5): Go's alone, approved in review. Of the
 // app's cases below, the same input built for Windows (windows.json); of a computer's own cases (an input with its
 // platform), that platform's (windows.json, linux.json). <platform>-warnings.json is what the build told, where it
-// told anything. NIKO_GOLDEN_UPDATE=1 writes them, as the app's golden tests do; without it each must be there and
+// told anything; <platform>-system-proxy.json the system proxy it gave for the daemon to set, where it gave one. NIKO_GOLDEN_UPDATE=1 writes them, as the app's golden tests do; without it each must be there and
 // the same by meaning. Each is also a config the core reads, with the registries its daemon has.
 var desktopCases = []string{"dns-tunnel-dnstt-noauth", "dns-tunnel-masterdns-noauth", "group-selector", "rules-vpn",
 	"ss-proxy-mode-login", "ss-vpn-defaults", "yggdrasil"}
@@ -47,7 +47,7 @@ func TestDesktopSnapshots(t *testing.T) {
 		default:
 			// a snapshot of a case no longer built for a computer
 			for _, p := range []string{PlatformWindows, PlatformLinux} {
-				for _, name := range []string{p + ".json", p + "-warnings.json"} {
+				for _, name := range []string{p + ".json", p + "-warnings.json", p + "-system-proxy.json"} {
 					if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
 						t.Errorf("%s/%s: a snapshot of a case not built for a computer", e.Name(), name)
 					}
@@ -70,6 +70,14 @@ func TestDesktopSnapshots(t *testing.T) {
 				}
 			}
 			checkSnapshot(t, filepath.Join(dir, platform+"-warnings.json"), warnings, update)
+			// the system proxy the daemon sets for its owner, where the build gives one
+			var proxy []byte
+			if result.SystemProxy != nil {
+				if proxy, err = json.MarshalIndent(result.SystemProxy, "", "  "); err != nil {
+					t.Fatal(err)
+				}
+			}
+			checkSnapshot(t, filepath.Join(dir, platform+"-system-proxy.json"), proxy, update)
 			if coreReads != nil {
 				coreReads(t, result.Config)
 			}
@@ -137,6 +145,7 @@ var coreReads func(t *testing.T, config []byte)
 func TestDesktopParts(t *testing.T) {
 	ss := goldenInput(t, []byte(`{"profile": 1, "profiles": [{"id": 1, "group": 1, "order": 1, "link": "ss-sip002"}],
 		"groups": [{"id": 1, "order": 1, "name": "main"}]}`))
+	var proxy *SystemProxy
 	build := func(platform, mode string, systemProxy *bool) map[string]any {
 		t.Helper()
 		in := ss
@@ -151,32 +160,43 @@ func TestDesktopParts(t *testing.T) {
 		if err := json.Unmarshal(result.Config, &config); err != nil {
 			t.Fatal(err)
 		}
+		proxy = result.SystemProxy
 		return config["inbounds"].([]any)[0].(map[string]any)
 	}
 	off := false
+	// the system proxy is the daemon's to set for its owner (Result.SystemProxy), never the core's: on Windows by
+	// default, elsewhere where set, in proxy mode alone
+	local := &SystemProxy{Server: "127.0.0.1", Port: 2080}
 	for _, c := range []struct {
 		platform, mode string
 		systemProxy    *bool
 		want           map[string]any
+		proxy          *SystemProxy
 	}{
 		{PlatformAndroid, ModeVPN, nil, map[string]any{"interface_name": nil, "auto_route": nil,
-			"strict_route": nil}},
+			"strict_route": nil}, nil},
 		{PlatformWindows, ModeVPN, nil, map[string]any{"interface_name": "Niko", "auto_route": true,
-			"strict_route": true}},
+			"strict_route": true}, nil},
+		{PlatformWindows, ModeVPN, ptrTo(true), map[string]any{"interface_name": "Niko"}, nil},
 		{PlatformLinux, ModeVPN, nil, map[string]any{"interface_name": "niko0", "auto_route": true,
-			"strict_route": true}},
-		{PlatformAndroid, ModeProxy, nil, map[string]any{"set_system_proxy": nil}},
-		{PlatformWindows, ModeProxy, nil, map[string]any{"set_system_proxy": nil}},
-		{PlatformWindows, ModeProxy, &off, map[string]any{"set_system_proxy": nil}},
-		{PlatformWindows, ModeProxy, ptrTo(true), map[string]any{"set_system_proxy": true}},
-		{PlatformLinux, ModeProxy, nil, map[string]any{"set_system_proxy": nil}},
-		{PlatformLinux, ModeProxy, ptrTo(true), map[string]any{"set_system_proxy": true}},
+			"strict_route": true}, nil},
+		{PlatformAndroid, ModeProxy, nil, map[string]any{"set_system_proxy": nil}, nil},
+		{PlatformAndroid, ModeProxy, ptrTo(true), map[string]any{"set_system_proxy": nil}, nil},
+		{PlatformWindows, ModeProxy, nil, map[string]any{"set_system_proxy": nil}, local},
+		{PlatformWindows, ModeProxy, &off, map[string]any{"set_system_proxy": nil}, nil},
+		{PlatformWindows, ModeProxy, ptrTo(true), map[string]any{"set_system_proxy": nil}, local},
+		{PlatformLinux, ModeProxy, nil, map[string]any{"set_system_proxy": nil}, nil},
+		{PlatformLinux, ModeProxy, ptrTo(true), map[string]any{"set_system_proxy": nil}, local},
 	} {
 		inbound := build(c.platform, c.mode, c.systemProxy)
 		for k, v := range c.want {
 			if got := inbound[k]; !reflect.DeepEqual(got, v) {
 				t.Errorf("%s, %s mode, system proxy %v: %s %v, want %v", c.platform, c.mode, c.systemProxy, k, got, v)
 			}
+		}
+		if !reflect.DeepEqual(proxy, c.proxy) {
+			t.Errorf("%s, %s mode, system proxy %v: the system proxy %+v, want %+v", c.platform, c.mode,
+				c.systemProxy, proxy, c.proxy)
 		}
 	}
 	if _, err := Build(Input{Platform: "darwin"}); err == nil {

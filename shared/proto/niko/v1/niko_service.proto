@@ -56,8 +56,9 @@ service NikoService {
   // Builds the config of a profile in the daemon, as the app builds it, for this computer (Windows or Linux) with the
   // computer's settings (GetSettings) in the mode asked, else theirs, and starts the core with it (reloads the one
   // running), as DesktopService.StartService starts a config with no options: the caller becomes the daemon's owner.
-  // By default proxy mode: the local proxy on 127.0.0.1:2080 with no login, not the system's proxy; VPN mode is the
-  // TUN, which the core opens only with the daemon's privileges. FAILED_PRECONDITION for no profile selected, one
+  // By default proxy mode: the local proxy on 127.0.0.1:2080 with no login, on Windows the caller's system proxy too
+  // (system_proxy), set by the daemon for the caller; VPN mode is the TUN, which the core opens only with the daemon's
+  // privileges. FAILED_PRECONDITION for no profile selected, one
   // whose secrets cannot be opened on this machine, or settings whose secrets cannot; NOT_FOUND; INVALID_ARGUMENT for
   // a profile the build refuses, or no such mode; UNIMPLEMENTED for a plugin's profile; PERMISSION_DENIED where another
   // user owns the daemon; the core's own error for a config it refuses or cannot start.
@@ -252,7 +253,8 @@ message ConnectRequest {
 message Settings {
   // proxy or vpn: how the computer's traffic reaches the core (D-NAV-02) where Connect asks no mode; proxy by default
   string service_mode = 1;
-  // in proxy mode the local proxy is the system's while the core runs
+  // in proxy mode the local proxy is the system's while the core runs: the daemon sets it for the user who connected,
+  // and ManagedService.SetSystemProxyEnabled turns it off and on; on by default on Windows
   bool system_proxy = 2;
   // the TUN's stack: 0 gVisor, 1 system, 2 mixed
   int32 tun_implementation = 3;
