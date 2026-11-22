@@ -1110,6 +1110,13 @@
     <string name="node_clock">Clock</string>
     <string name="node_clock_off">%s s from the node</string>
     <string name="screen_back">Back</string>
+    <string name="log_title">Log</string>
+    <string name="log_level">Level</string>
+    <string name="log_all">All</string>
+    <string name="log_errors">Errors</string>
+    <string name="log_crashes">Crash reports</string>
+    <string name="log_empty">The log is empty</string>
+    <string name="log_no_errors">No errors</string>
     <string name="inbound_title">Inbound</string>
     <string name="inbound_user">User</string>
     <string name="inbound_port">Port</string>

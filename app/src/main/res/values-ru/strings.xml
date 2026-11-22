@@ -1046,6 +1046,13 @@
     <string name="node_clock">Часы</string>
     <string name="node_clock_off">%s с от узла</string>
     <string name="screen_back">Назад</string>
+    <string name="log_title">Журнал</string>
+    <string name="log_level">Уровень</string>
+    <string name="log_all">Все</string>
+    <string name="log_errors">Ошибки</string>
+    <string name="log_crashes">Отчёты о падениях</string>
+    <string name="log_empty">Журнал пуст</string>
+    <string name="log_no_errors">Ошибок нет</string>
     <string name="inbound_title">Вход</string>
     <string name="inbound_user">Пользователь</string>
     <string name="inbound_port">Порт</string>

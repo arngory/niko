@@ -22,7 +22,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -71,9 +74,19 @@ class FieldButton(@DrawableRes val icon: Int, val label: String, val onClick: ()
 /** m-fields-row > m-field--narrow: the width of a narrow field beside a wide one. */
 internal val NarrowField = 104.dp
 
-/** A nested settings page: m-topbar with the way back, then m-body, its parts space-6 apart. */
+/**
+ * A nested settings page: m-topbar with the way back and its [actions] (icon buttons at its end), then m-body, its
+ * parts space-6 apart; [scroll] its scroll, for a page that moves it itself (the log, to its end).
+ */
 @Composable
-internal fun ListPage(title: String, back: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+internal fun ListPage(
+    title: String,
+    back: String,
+    onBack: () -> Unit,
+    actions: @Composable RowScope.() -> Unit = {},
+    scroll: ScrollState = rememberScrollState(),
+    content: @Composable ColumnScope.() -> Unit,
+) {
     val c = Niko.colors
     Column(Modifier.fillMaxSize().background(c.surface0).statusBarsPadding()) {
         Row(
@@ -83,13 +96,51 @@ internal fun ListPage(title: String, back: String, onBack: () -> Unit, content: 
         ) {
             IconButton(R.drawable.ic_l_arrow_left, back, onClick = onBack)
             Text(title, NikoType.headline, c.ink, Modifier.weight(1f).padding(horizontal = NikoSpace.s2), maxLines = 1)
+            actions()
         }
         Column(
-            Modifier.weight(1f).verticalScroll(rememberScrollState()).navigationBarsPadding()
+            Modifier.weight(1f).verticalScroll(scroll).navigationBarsPadding()
                 .padding(start = NikoSpace.s5, end = NikoSpace.s5, top = NikoSpace.s2, bottom = NikoSpace.s8),
             verticalArrangement = Arrangement.spacedBy(NikoSpace.s6),
             content = content,
         )
+    }
+}
+
+/**
+ * m-seg: two or three choices in a pill, the chosen one in ink; [label] over it, none in a row's trail; [block] the
+ * width of the page, the choices sharing it (m-seg--block); [name] for a screen reader without [label].
+ */
+@Composable
+internal fun <T> Segmented(
+    label: String?,
+    options: List<Pair<T, String>>,
+    selected: T,
+    block: Boolean = false,
+    name: String? = label,
+    onPick: (T) -> Unit,
+) {
+    val c = Niko.colors
+    Column(verticalArrangement = Arrangement.spacedBy(NikoSpace.s2)) {
+        if (label != null) Text(label, NikoType.caption, c.ink2, maxLines = 1)
+        Row(
+            (if (block) Modifier.fillMaxWidth() else Modifier).background(c.surface2, CircleShape).padding(NikoSpace.s1)
+                .selectableGroup().let { m -> if (name != null) m.semantics { contentDescription = name } else m },
+            horizontalArrangement = Arrangement.spacedBy(NikoSpace.s1),
+        ) {
+            for ((value, text) in options) {
+                val on = value == selected
+                Box(
+                    (if (block) Modifier.weight(1f) else Modifier).heightIn(min = 40.dp).clip(CircleShape)
+                        .background(if (on) c.ink else Color.Transparent)
+                        .selectable(on, role = Role.RadioButton) { onPick(value) }
+                        .padding(horizontal = NikoSpace.s4),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(text, NikoType.bodySm.copy(fontWeight = NikoType.headline.fontWeight), if (on) c.onInk else c.ink2, maxLines = 1)
+                }
+            }
+        }
     }
 }
 

@@ -10,14 +10,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -26,14 +22,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
 import io.niko.GroupOrder
 import io.niko.GroupType
 import io.niko.R
@@ -49,6 +39,7 @@ import io.niko.ui.settings.ChoiceSheet
 import io.niko.ui.settings.Field
 import io.niko.ui.settings.FieldButton
 import io.niko.ui.settings.IconButton
+import io.niko.ui.settings.Segmented
 import io.niko.ui.settings.SwitchRow
 import io.niko.ui.settings.ValueRow
 
@@ -229,29 +220,3 @@ private fun orderName(order: Int) = stringResource(
         else -> R.string.gs_order_origin
     }
 )
-
-/** m-seg: two or three choices in a pill, the chosen one in ink; [label] over it, none in a row's trail. */
-@Composable
-private fun <T> Segmented(label: String?, options: List<Pair<T, String>>, selected: T, onPick: (T) -> Unit) {
-    val c = Niko.colors
-    Column(verticalArrangement = Arrangement.spacedBy(NikoSpace.s2)) {
-        if (label != null) Text(label, NikoType.caption, c.ink2, maxLines = 1)
-        Row(
-            Modifier.background(c.surface2, CircleShape).padding(NikoSpace.s1).selectableGroup()
-                .let { m -> if (label != null) m.semantics { contentDescription = label } else m },
-            horizontalArrangement = Arrangement.spacedBy(NikoSpace.s1),
-        ) {
-            for ((value, name) in options) {
-                val on = value == selected
-                Box(
-                    Modifier.heightIn(min = 40.dp).clip(CircleShape).background(if (on) c.ink else Color.Transparent)
-                        .selectable(on, role = Role.RadioButton) { onPick(value) }
-                        .padding(horizontal = NikoSpace.s4),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(name, NikoType.bodySm.copy(fontWeight = NikoType.headline.fontWeight), if (on) c.onInk else c.ink2, maxLines = 1)
-                }
-            }
-        }
-    }
-}
