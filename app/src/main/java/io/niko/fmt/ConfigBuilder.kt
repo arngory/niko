@@ -1418,15 +1418,36 @@ fun buildConfig(
             }
             // a line each: one is dns-remote itself; more are dns-remote-1..N, asked in order by dns-remote, a
             // fallback server of the core fork's that moves on when one fails or keeps silent. Not in an export: a
-            // core of sing-box's own has no fallback, an export keeps the first line
+            // core of sing-box's own has no fallback, an export keeps the first line. A line after the first is a
+            // server only where the proxy carries it: local or dhcp:// is the system's resolver, which goes around
+            // the proxy whatever its detour (the names would leave outside the tunnel), and a line the build cannot
+            // read is left out too, said in the log: the build took the first line alone before, the rest never
+            // fails it
             val remoteLines = if (forExport) remoteDns.take(1) else remoteDns
-            if (remoteLines.size == 1) dns.servers.add(remoteServer(remoteLines[0], "dns-remote"))
+            val members = mutableListOf(remoteServer(remoteLines[0], "dns-remote"))
+            for (address in remoteLines.drop(1)) {
+                val server = try {
+                    remoteServer(address, "dns-remote")
+                } catch (e: Exception) {
+                    Logs.w("remote DNS: $address left out: ${e.message}")
+                    continue
+                }
+                if (server.type == "local") {
+                    Logs.w("remote DNS: $address left out: the system's resolver does not go through the proxy")
+                    continue
+                }
+                members += server
+            }
+            if (members.size == 1) dns.servers.add(members[0])
             else {
-                val members = remoteLines.mapIndexed { i, address -> remoteServer(address, "dns-remote-${i + 1}") }
+                members.forEachIndexed { i, member -> member.tag = "dns-remote-${i + 1}" }
                 dns.servers.add(DNSServerOptions().apply {
                     type = "fallback"
                     tag = "dns-remote"
                     _hack_config_map["servers"] = members.map { it.tag }
+                    // a DNS tunnel's first query (the name, the dial, TLS, all through the tunnel) takes longer
+                    // than the core's 4 s: cut short, the connection half made would be thrown away
+                    if (tunnelledHop) _hack_config_map["timeout"] = "8s"
                 })
                 dns.servers.addAll(members)
             }

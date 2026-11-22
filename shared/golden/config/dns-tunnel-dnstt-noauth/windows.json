@@ -42,6 +42,7 @@
           "dns-remote-2"
         ],
         "tag": "dns-remote",
+        "timeout": "8s",
         "type": "fallback"
       },
       {

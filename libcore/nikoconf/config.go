@@ -705,30 +705,42 @@ func (b *builder) dnsServers(remoteDNS, directDNS []string) ([]object, error) {
 		}
 		// a line each: one is dns-remote itself; more are dns-remote-1..N, asked in order by dns-remote, a fallback
 		// server of the core fork's that moves on when one fails or keeps silent. Not in an export: a core of
-		// sing-box's own has no fallback, an export keeps the first line
+		// sing-box's own has no fallback, an export keeps the first line. A line after the first is a server only
+		// where the proxy carries it: local or dhcp:// is the system's resolver, which goes around the proxy
+		// whatever its detour, and a line the build cannot read is left out too (the app says so in its log): the
+		// build took the first line alone before, the rest never fails it
 		lines := remoteDNS
 		if b.forExport {
 			lines = lines[:1]
 		}
-		if len(lines) == 1 {
-			remote, err := b.remoteDNSServer(lines[0], "dns-remote")
-			if err != nil {
-				return nil, err
+		first, err := b.remoteDNSServer(lines[0], "dns-remote")
+		if err != nil {
+			return nil, err
+		}
+		members := []object{first}
+		for _, line := range lines[1:] {
+			member, err := b.remoteDNSServer(line, "dns-remote")
+			if err != nil || member["type"] == "local" {
+				continue
 			}
-			dnsServers = append(dnsServers, remote)
+			members = append(members, member)
+		}
+		if len(members) == 1 {
+			dnsServers = append(dnsServers, first)
 		} else {
-			members := make([]object, 0, len(lines))
-			tags := make([]any, 0, len(lines))
-			for i, line := range lines {
+			tags := make([]any, 0, len(members))
+			for i, member := range members {
 				tag := "dns-remote-" + strconv.Itoa(i+1)
-				member, err := b.remoteDNSServer(line, tag)
-				if err != nil {
-					return nil, err
-				}
-				members = append(members, member)
+				member["tag"] = tag
 				tags = append(tags, tag)
 			}
-			dnsServers = append(dnsServers, object{"type": "fallback", "tag": "dns-remote", "servers": tags})
+			fallback := object{"type": "fallback", "tag": "dns-remote", "servers": tags}
+			// a DNS tunnel's first query (the name, the dial, TLS, all through the tunnel) takes longer than the
+			// core's 4 s: cut short, the connection half made would be thrown away
+			if b.tunnelledHop {
+				fallback["timeout"] = "8s"
+			}
+			dnsServers = append(dnsServers, fallback)
 			dnsServers = append(dnsServers, members...)
 		}
 	}

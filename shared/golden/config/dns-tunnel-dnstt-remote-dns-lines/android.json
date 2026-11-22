@@ -19,7 +19,8 @@
           "dns-remote-1",
           "dns-remote-2",
           "dns-remote-3"
-        ]
+        ],
+        "timeout": "8s"
       },
       {
         "type": "tcp",

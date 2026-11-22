@@ -18,7 +18,8 @@
         "servers": [
           "dns-remote-1",
           "dns-remote-2"
-        ]
+        ],
+        "timeout": "8s"
       },
       {
         "type": "https",
