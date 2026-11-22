@@ -1,0 +1,56 @@
+{
+  "name": "Subscription #1",
+  "subscription": {
+    "subscriptionUserinfo": "",
+    "announce": "",
+    "autoUpdate": false,
+    "autoUpdateDelay": 1440
+  },
+  "profiles": [
+    {
+      "order": 1,
+      "state": "added",
+      "type": "config",
+      "bean": {
+        "type": 1,
+        "config": "{\n  \"server\": \"single.example.com\",\n  \"password\": \"fake-single-pass\",\n  \"server_port\": 443,\n  \"tls\": {\n    \"enabled\": true\n  },\n  \"type\": \"trojan\"\n}",
+        "serverAddress": "127.0.0.1",
+        "serverPort": 1080,
+        "name": "",
+        "customOutboundJson": "",
+        "customConfigJson": "",
+        "knockSequence": "",
+        "knockInterval": 200,
+        "knockTtl": 10,
+        "knockSilence": 15,
+        "tlsFragment": 0,
+        "certPins": "",
+        "dnsTunnel": "",
+        "dnsTunnelResolver": "",
+        "dnsTunnelDomain": "",
+        "dnsTunnelKey": "",
+        "dnsTunnelMethod": 2,
+        "dnsTunnelFixedUpstream": false,
+        "dnsTunnelAuth": "",
+        "dnsTunnelSeal": "",
+        "dnsTunnelSpare": "",
+        "dnsTunnelTls": "",
+        "udpPrelude": 0,
+        "udpPreludeSni": "",
+        "udpPreludeTtl": 0,
+        "udpReorderInitial": false,
+        "yggPeer": "",
+        "yggKey": "",
+        "yggVia": ""
+      }
+    }
+  ],
+  "deleted": [],
+  "changed": 1,
+  "added": [
+    "Custom 1846508076"
+  ],
+  "updated": [],
+  "deletedNames": [],
+  "duplicate": []
+}

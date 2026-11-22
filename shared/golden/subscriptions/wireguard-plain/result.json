@@ -1,0 +1,62 @@
+{
+  "name": "Subscription #1",
+  "subscription": {
+    "subscriptionUserinfo": "",
+    "announce": "",
+    "autoUpdate": false,
+    "autoUpdateDelay": 1440
+  },
+  "profiles": [
+    {
+      "order": 1,
+      "state": "added",
+      "type": "wg",
+      "bean": {
+        "localAddress": "10.68.0.2/32",
+        "privateKey": "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE=",
+        "peerPublicKey": "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU=",
+        "peerPreSharedKey": "",
+        "mtu": 1380,
+        "reserved": "",
+        "persistentKeepalive": 21,
+        "amneziaWG": "",
+        "serverAddress": "192.0.2.68",
+        "serverPort": 51820,
+        "name": "",
+        "customOutboundJson": "",
+        "customConfigJson": "",
+        "knockSequence": "",
+        "knockInterval": 200,
+        "knockTtl": 10,
+        "knockSilence": 15,
+        "tlsFragment": 0,
+        "certPins": "",
+        "dnsTunnel": "",
+        "dnsTunnelResolver": "",
+        "dnsTunnelDomain": "",
+        "dnsTunnelKey": "",
+        "dnsTunnelMethod": 2,
+        "dnsTunnelFixedUpstream": false,
+        "dnsTunnelAuth": "",
+        "dnsTunnelSeal": "",
+        "dnsTunnelSpare": "",
+        "dnsTunnelTls": "",
+        "udpPrelude": 0,
+        "udpPreludeSni": "",
+        "udpPreludeTtl": 0,
+        "udpReorderInitial": false,
+        "yggPeer": "",
+        "yggKey": "",
+        "yggVia": ""
+      }
+    }
+  ],
+  "deleted": [],
+  "changed": 1,
+  "added": [
+    "192.0.2.68:51820"
+  ],
+  "updated": [],
+  "deletedNames": [],
+  "duplicate": []
+}

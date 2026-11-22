@@ -1,0 +1,1 @@
+{"type": "trojan", "server": "single.example.com", "server_port": 443, "password": "fake-single-pass", "tls": {"enabled": true}}

@@ -1,0 +1,190 @@
+# Clash Meta, synthetic
+mixed-port: 7890
+global-client-fingerprint: firefox
+x-defaults: &tlsdefaults
+  tls: yes
+  skip-cert-verify: false
+  servername: shared.example.com
+proxies:
+  - name: "VMess WS TLS"
+    type: vmess
+    server: vmess.example.com
+    port: 443
+    uuid: 00000000-0000-4000-8000-000000000021
+    alterId: 0
+    cipher: auto
+    tls: true
+    network: ws
+    ws-opts:
+      path: /vmess
+      headers:
+        Host: cdn.example.com
+      max-early-data: 2048
+      early-data-header-name: Sec-WebSocket-Protocol
+  - name: VMess merged
+    type: vmess
+    server: 203.0.113.21
+    port: '8443'
+    uuid: 00000000-0000-4000-8000-000000000022
+    <<: *tlsdefaults
+    network: h2
+    h2-opts:
+      host: [h2a.example.com, h2b.example.com]
+      path: /h2
+  - name: VLESS Reality
+    type: vless
+    server: 203.0.113.22
+    port: 443
+    uuid: 00000000-0000-4000-8000-000000000023
+    flow: xtls-rprx-vision
+    tls: true
+    servername: www.example.org
+    reality-opts:
+      public-key: examplePublicKeyBBBBBBBBBBBBBBBBBBBBBBBBBBB
+      short-id: 0c1d
+    client-fingerprint: chrome
+    encryption: none
+  - name: VLESS gRPC global fp
+    type: vless
+    server: vless.example.net
+    port: 2053
+    uuid: 00000000-0000-4000-8000-000000000024
+    network: grpc
+    grpc-opts:
+      grpc-service-name: gsvc
+    reality-opts:
+      public-key: examplePublicKeyCCCCCCCCCCCCCCCCCCCCCCCCCCC
+    packet-encoding: packetaddr
+    smux:
+      enabled: true
+      max-streams: 8
+      padding: true
+  - name: Trojan WS
+    type: trojan
+    server: trojan.example.com
+    port: 443
+    password: fake-trojan-password
+    sni: trojan.example.com
+    alpn: [h2, http/1.1]
+    network: ws
+    ws-opts:
+      path: /tr
+      v2ray-http-upgrade: true
+  - name: Trojan HTTP opts
+    type: trojan
+    server: 198.51.100.23
+    port: 443
+    password: fake-trojan-password-2
+    network: http
+    http-opts:
+      path: [/a, /b]
+      headers:
+        Host: [httpa.example.com]
+    ech-opts:
+      enable: true
+  - name: SS obfs
+    type: ss
+    server: ss.example.com
+    port: 8388
+    cipher: aes-128-gcm
+    password: fake-ss-pass
+    plugin: obfs
+    plugin-opts:
+      mode: tls
+      host: bing.example.com
+  - name: SS v2ray-plugin
+    type: ss
+    server: ss2.example.com
+    port: 443
+    cipher: dummy
+    password: !str 12345
+    plugin: v2ray-plugin
+    plugin-opts:
+      mode: websocket
+      tls: true
+      host: ss2.example.com
+      path: /v2
+      mux: true
+  - name: SOCKS5
+    type: socks5
+    server: 192.0.2.50
+    port: 1080
+    username: u
+    password: fake-socks-pass
+  - name: SOCKS broken port
+    type: socks5
+    server: 192.0.2.51
+    port: 10.5
+  - name: HTTP TLS
+    type: http
+    server: http.example.com
+    port: 0x1BB
+    username: hu
+    password: fake-http-pass
+    tls: true
+    sni: http.example.com
+    skip-cert-verify: on
+  - name: Hysteria 1
+    type: hysteria
+    server: hy1.example.com
+    port: 443
+    ports: 20000-30000
+    auth_str: fake-hy1-auth
+    obfs: fake-hy1-obfs
+    up: 50 Mbps
+    down: 200 Mbps
+    recv-window-conn: 12582912
+    recv-window: 52428800
+    disable_mtu_discovery: true
+    alpn: [h3]
+    sni: hy1.example.com
+    skip-cert-verify: false
+  - name: Hysteria 2
+    type: hysteria2
+    server: hy2.example.com
+    port: 8443
+    password: fake-hy2-password
+    obfs: salamander
+    obfs-password: fake-hy2-obfs
+    up: "30 Mbps"
+    down: fast
+    sni: hy2.example.com
+  - name: TUIC v5
+    type: tuic
+    server: tuic.example.com
+    ip: 203.0.113.30
+    port: 443
+    uuid: 00000000-0000-4000-8000-000000000031
+    password: fake-tuic-password
+    alpn: [h3]
+    congestion-controller: bbr
+    udp-relay-mode: quic
+    reduce-rtt: true
+  - name: TUIC v4
+    type: tuic
+    server: tuic4.example.com
+    port: 8443
+    token: fake-tuic-token
+    disable-sni: true
+  - name: AnyTLS
+    type: anytls
+    server: anytls.example.com
+    port: 443
+    password: fake-anytls-password
+    client-fingerprint: chrome
+    sni: anytls.example.com
+    alpn: [h2]
+    skip-cert-verify: true
+  - name: WireGuard is not read
+    type: wireguard
+    server: 192.0.2.60
+    port: 51820
+  - name: no server
+    type: vmess
+    port: 443
+  - type: snell
+    server: 192.0.2.61
+proxy-groups:
+  - name: auto
+    type: url-test
+    proxies: [SOCKS5]

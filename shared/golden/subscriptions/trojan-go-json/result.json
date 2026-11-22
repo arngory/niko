@@ -1,0 +1,63 @@
+{
+  "name": "Subscription #1",
+  "subscription": {
+    "subscriptionUserinfo": "",
+    "announce": "",
+    "autoUpdate": false,
+    "autoUpdateDelay": 1440
+  },
+  "profiles": [
+    {
+      "order": 1,
+      "state": "added",
+      "type": "trojan-go",
+      "bean": {
+        "password": "",
+        "sni": "",
+        "type": "original",
+        "host": "",
+        "path": "",
+        "encryption": "none",
+        "plugin": "",
+        "allowInsecure": false,
+        "mux": false,
+        "serverAddress": "tgo.example.com",
+        "serverPort": 8443,
+        "name": "",
+        "customOutboundJson": "",
+        "customConfigJson": "",
+        "knockSequence": "",
+        "knockInterval": 200,
+        "knockTtl": 10,
+        "knockSilence": 15,
+        "tlsFragment": 0,
+        "certPins": "",
+        "dnsTunnel": "",
+        "dnsTunnelResolver": "",
+        "dnsTunnelDomain": "",
+        "dnsTunnelKey": "",
+        "dnsTunnelMethod": 2,
+        "dnsTunnelFixedUpstream": false,
+        "dnsTunnelAuth": "",
+        "dnsTunnelSeal": "",
+        "dnsTunnelSpare": "",
+        "dnsTunnelTls": "",
+        "udpPrelude": 0,
+        "udpPreludeSni": "",
+        "udpPreludeTtl": 0,
+        "udpReorderInitial": false,
+        "yggPeer": "",
+        "yggKey": "",
+        "yggVia": ""
+      }
+    }
+  ],
+  "deleted": [],
+  "changed": 1,
+  "added": [
+    "tgo.example.com:8443"
+  ],
+  "updated": [],
+  "deletedNames": [],
+  "duplicate": []
+}

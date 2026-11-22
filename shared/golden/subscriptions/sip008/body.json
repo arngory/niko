@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "servers": [
+    {
+      "id": "1",
+      "remarks": "SIP one",
+      "server": "sip1.example.com",
+      "server_port": 8388,
+      "password": "fake-sip-1",
+      "method": "chacha20-ietf-poly1305"
+    },
+    {
+      "id": "2",
+      "remarks": "SIP two",
+      "server": "198.51.100.40",
+      "server_port": "443",
+      "password": "fake-sip-2",
+      "method": "aes-128-gcm",
+      "plugin": "v2ray-plugin",
+      "plugin_opts": "tls;host=sip2.example.com"
+    },
+    {
+      "id": "3",
+      "remarks": "no method",
+      "server": "sip3.example.com",
+      "server_port": 1
+    }
+  ],
+  "bytes_used": 100,
+  "bytes_remaining": 900
+}

@@ -1,0 +1,68 @@
+{
+  "log": {
+    "level": "warn"
+  },
+  "outbounds": [
+    {
+      "type": "selector",
+      "tag": "proxy",
+      "outbounds": [
+        "one",
+        "two"
+      ]
+    },
+    {
+      "type": "vless",
+      "tag": "one",
+      "server": "203.0.113.41",
+      "server_port": 443,
+      "uuid": "00000000-0000-4000-8000-000000000041",
+      "flow": "xtls-rprx-vision",
+      "tls": {
+        "enabled": true,
+        "server_name": "one.example.com",
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        }
+      }
+    },
+    {
+      "type": "shadowsocks",
+      "tag": "two",
+      "server": "two.example.com",
+      "server_port": 8388,
+      "method": "2022-blake3-aes-128-gcm",
+      "password": "AAAAAAAAAAAAAAAAAAAAAA==",
+      "multiplex": {
+        "enabled": false,
+        "max_connections": 4,
+        "padding": 1.5
+      }
+    },
+    {
+      "type": "hysteria2",
+      "server": "203.0.113.42",
+      "server_port": 443,
+      "password": "fake-hy2-no-tag",
+      "up_mbps": 100,
+      "tls": {
+        "enabled": true,
+        "server_name": "a/b.example.com"
+      }
+    },
+    {
+      "type": "direct",
+      "tag": "direct"
+    },
+    {
+      "type": "dns",
+      "tag": "dns-out"
+    },
+    {
+      "type": "",
+      "tag": "empty"
+    },
+    "a string"
+  ]
+}

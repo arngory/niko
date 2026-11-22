@@ -1,0 +1,6 @@
+socks5://192.0.2.101:1080#first
+socks5://192.0.2.101:1080#again
+ss://YWVzLTI1Ni1nY206ZmFrZQ@192.0.2.101:1080#other class
+socks5://192.0.2.10:11080#joined
+socks5://192.0.2.101:1080#third
+socks5://192.0.2.102:1080#second

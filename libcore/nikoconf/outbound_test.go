@@ -214,14 +214,14 @@ func TestXhttpExtraOptions(t *testing.T) {
 
 // org.json's literals: hexadecimal and octal integers, Double.valueOf's grammar, anything else a string.
 func TestOrgJSONLiterals(t *testing.T) {
-	o, err := orgJSONObject(`{a:0x10,b:010,c:08,d:1e2,e:2147483648,f:1.5f,g:-0x5,h:NULL;i=>"A\x"} not read`)
+	o, err := nikofmt.OrgJSONObject(`{a:0x10,b:010,c:08,d:1e2,e:2147483648,f:1.5f,g:-0x5,h:NULL;i=>"A\x"} not read`)
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := map[string]any{"a": int32(16), "b": int32(8), "c": 8.0, "d": 100.0, "e": int64(2147483648), "f": 1.5,
-		"g": "-0x5", "h": orgNull{}, "i": "Ax"}
-	if !reflect.DeepEqual(o.values, want) || strings.Join(o.keys, "") != "abcdefghi" {
-		t.Errorf("got %v %#v", o.keys, o.values)
+		"g": "-0x5", "h": nikofmt.OrgNull{}, "i": "Ax"}
+	if !reflect.DeepEqual(o.Values, want) || strings.Join(o.Keys, "") != "abcdefghi" {
+		t.Errorf("got %v %#v", o.Keys, o.Values)
 	}
 }
 

@@ -1,0 +1,21 @@
+[
+  {
+    "id": 31,
+    "order": 1,
+    "link": "socks5://192.0.2.111:1080#twice"
+  },
+  {
+    "id": 32,
+    "order": 2,
+    "link": "socks5://192.0.2.113:1080#twice",
+    "patch": {
+      "knockSequence": "7000,8000/udp",
+      "knockInterval": 300
+    }
+  },
+  {
+    "id": 33,
+    "order": 3,
+    "link": "socks5://192.0.2.112:1080#other"
+  }
+]

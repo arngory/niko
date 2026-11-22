@@ -1,0 +1,7 @@
+# a provider's comment
+trojan://fake-trojan-pass@trojan.example.net:443?sni=trojan.example.net&type=grpc&serviceName=grpcsvc#Trojan%20gRPC
+ss://YWVzLTI1Ni1nY206ZmFrZS1zcy1wYXNzd29yZA@198.51.100.10:8388#Example%20SS
+hysteria2://fake-hy2-auth@hy2.example.com:8443?sni=hy2.example.com&obfs=salamander&obfs-password=fake-obfs#Hy2
+not a link
+
+socks5://user:fake-pass@192.0.2.40:1080#SOCKS%20one
