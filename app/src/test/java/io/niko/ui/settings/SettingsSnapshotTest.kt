@@ -44,7 +44,7 @@ class SettingsSnapshotTest(private val mode: String) {
             SettingKeys.STRATEGY_REMOTE to "auto", SettingKeys.STRATEGY_DIRECT to "auto", SettingKeys.STRATEGY_SERVER to "auto",
             Key.RULE_SET_UPDATE_HOURS to "24", Key.RULES_PROVIDER to "0", Key.IPV6_MODE to "0", Key.ROOT_STORE to "chrome",
             Key.CONNECTION_TEST_URL to "http://cp.cloudflare.com/", SettingKeys.CONNECTION_TEST_CONCURRENT to "5",
-            Key.APP_TLS_VERSION to "1.2", Key.TLS_FRAGMENT_BYPASS to "0", Key.TRAFFIC_SNIFFING to "1", Key.LOG_LEVEL to "0",
+            Key.APP_TLS_VERSION to "1.2", Key.TLS_FRAGMENT_BYPASS to "0", Key.HY2_PROBE to "0", Key.TRAFFIC_SNIFFING to "1", Key.LOG_LEVEL to "0",
             Key.SPEED_INTERVAL to "1000", Key.LOG_BUF_SIZE to "0", Key.RAYCONTROL_DNSTT_RESOLVER to "auto",
             Key.RAYCONTROL_MASTERDNS_RESOLVERS to "auto",
         ),

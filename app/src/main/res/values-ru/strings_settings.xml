@@ -84,7 +84,7 @@
     <string name="set_hy2_probe_1200">Пакеты по 1200 байт</string>
     <string name="set_hy2_probe_no_parrot">Без Chrome-parrot</string>
     <string name="set_hy2_log">Журнал соединений Hysteria2</string>
-    <string name="set_hy2_log_sub">Каждые 10 с и остановки, журнал на debug; тестовый прогон добавляет 30 с загрузки</string>
+    <string name="set_hy2_log_sub">Трафик и остановки в журнале</string>
     <string name="set_tls_fragment">Фрагментация TLS для прямых правил</string>
     <string name="set_tls_fragment_records">Записи</string>
     <string name="set_sniffing">Сниффинг</string>

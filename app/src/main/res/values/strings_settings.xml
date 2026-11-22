@@ -84,7 +84,7 @@
     <string name="set_hy2_probe_1200">Packets of 1200 bytes</string>
     <string name="set_hy2_probe_no_parrot">No Chrome parrot</string>
     <string name="set_hy2_log">Hysteria2 connection log</string>
-    <string name="set_hy2_log_sub">Every 10 s and stalls, the log at debug; a test run adds 30 s of download</string>
+    <string name="set_hy2_log_sub">Traffic and stalls in the log, +30 s in a test run</string>
     <string name="set_tls_fragment">TLS fragmentation for direct rules</string>
     <string name="set_tls_fragment_records">Records</string>
     <string name="set_sniffing">Sniffing</string>
