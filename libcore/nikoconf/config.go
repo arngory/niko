@@ -494,8 +494,9 @@ func (b *builder) build() ([]byte, error) {
 		dnsRules = nil
 	} else {
 		// per-app proxy: an app left out of the VPN, bound to tun0, refused (below the DNS hijack); the phone's
-		// VpnService alone leaves apps out, a computer's programs go by their rules
-		if b.isVPN && s.ProxyApps && !b.desktop {
+		// VpnService alone leaves apps out, a computer's programs go by their rules. A hotspot's devices let through
+		// the VPN look the same (no owner): allowTethering drops the guard
+		if b.isVPN && s.ProxyApps && !s.AllowTethering && !b.desktop {
 			b.prependRules(outsideVPNGuard())
 		}
 		// built-in DNS rules

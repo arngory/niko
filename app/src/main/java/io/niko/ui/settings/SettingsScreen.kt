@@ -326,6 +326,7 @@ private fun Tun(values: SettingValues, actions: SettingsActions) = Page("TUN", a
             ),
             values, actions, divider = true,
         )
+        Switch(values, Key.ALLOW_TETHERING, R.string.set_allow_tethering, divider = true, sub = stringResource(R.string.set_allow_tethering_sum))
     }
 }
 
