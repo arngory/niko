@@ -1,0 +1,17 @@
+[
+  {
+    "id": 21,
+    "order": 1,
+    "link": "socks5://192.0.2.92:1080#twin (1)"
+  },
+  {
+    "id": 22,
+    "order": 2,
+    "link": "socks5://192.0.2.99:1080#shadowed"
+  },
+  {
+    "id": 23,
+    "order": 2,
+    "link": "socks5://192.0.2.98:1080#shadowed"
+  }
+]

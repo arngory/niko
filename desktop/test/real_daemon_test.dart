@@ -196,6 +196,13 @@ void main() {
       // /hold answers when this lets it: a connection that stays open to be seen, and closed
       final release = Completer<void>();
       origin.listen((request) async {
+        if (request.uri.path == '/sub') {
+          // a subscription's provider: a SOCKS5 profile in base64, its traffic and expiry in the headers
+          request.response.headers.set('subscription-userinfo', 'upload=1024; download=2048; total=1073741824');
+          request.response.write(base64.encode(utf8.encode('socks5://192.0.2.80:1080#subscribed')));
+          await request.response.close();
+          return;
+        }
         if (request.uri.path == '/hold') {
           request.response.bufferOutput = false;
           request.response.write('held');
@@ -340,11 +347,25 @@ void main() {
       await until(() => storeChanges.any((c) => c.kind == StoreKind.selected && c.ids.isEmpty), 'the selection gone');
       final back = await controller.daemon!.addProfile(groupId: row.groupId, type: row.type, beanJson: saved.beanJson);
       expect((await controller.daemon!.profiles()).singleWhere((r) => r.id == back).name, 'store-test');
-      // a subscription's link is recognized, and its import comes later
+      // a node's invite is recognized, and its import comes later
+      expect((await controller.daemon!.recognize('rcinv1:eyJ0ZXN0IjoxfQ')).kind, ImportKind.node);
       await expectLater(
-        controller.daemon!.importLinks('https://sub.example/s/0123456789abcdef0123'),
+        controller.daemon!.importLinks('rcinv1:eyJ0ZXN0IjoxfQ'),
         throwsA(isA<GrpcError>().having((e) => e.code, 'code', StatusCode.unimplemented)),
       );
+      // a subscription of this test's own server (slice 9): its group made and updated, what its provider said kept
+      final subscriptionLink = 'http://127.0.0.1:${origin.port}/sub';
+      expect((await controller.daemon!.recognize(subscriptionLink)).kind, ImportKind.subscription);
+      final imported = await controller.daemon!.importSubscription(subscriptionLink);
+      expect(imported.ok, isTrue, reason: imported.error);
+      final subscribed = (await controller.daemon!.groups()).singleWhere((g) => g.id == imported.groupId);
+      expect(subscribed.subscription, isTrue);
+      expect(subscribed.profiles, 1);
+      expect(subscribed.info!.used, 3072);
+      expect(subscribed.info!.total, 1073741824);
+      expect((await controller.daemon!.profiles(groupId: imported.groupId)).single.name, 'subscribed');
+      final refreshed = await controller.daemon!.refreshSubscription(imported.groupId);
+      expect(refreshed.ok, isTrue, reason: refreshed.error);
       // ignore: avoid_print
       print(
         'store: profile ${row.id} "${row.name}" (${row.type}, ${row.address}), selected, '

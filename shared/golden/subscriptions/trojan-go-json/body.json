@@ -1,0 +1,1 @@
+{"run_type": "client", "local_addr": "127.0.0.1", "local_port": 1080, "remote_addr": "tgo.example.com", "remote_port": 8443, "password": ["fake-tgo-pass"], "ssl": {"sni": "ignored.example.com"}}

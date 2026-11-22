@@ -21,6 +21,7 @@ require (
 require (
 	github.com/cloudflare/circl v1.6.5
 	github.com/yggdrasil-network/yggdrasil-go v0.5.14
+	go.yaml.in/yaml/v3 v3.0.5
 	golang.org/x/crypto v0.59.0
 )
 

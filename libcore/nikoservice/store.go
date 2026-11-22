@@ -8,12 +8,14 @@ import (
 	"net"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 
 	"libcore/nikofmt"
 	"libcore/nikopb"
 	"libcore/nikostore"
+	"libcore/nikosub"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -35,8 +37,12 @@ type users struct {
 	sealer nikostore.Sealer
 	// done ends the watchers with the daemon; nil: never
 	done <-chan struct{}
+	// ctx ends with done, cancel ends it
+	ctx    context.Context
+	cancel context.CancelFunc
 
-	mu    sync.Mutex
+	mu sync.Mutex
+	// open are the stores opened, by their directory
 	open  map[string]*user
 	tasks atomic.Uint64
 }
@@ -44,10 +50,34 @@ type users struct {
 type user struct {
 	store *nikostore.Store
 	feed  *feed
+	// updates are its subscriptions' (subscriptions.go)
+	updates *updates
 }
 
 func newUsers(root string, caller func(context.Context) (string, error), done <-chan struct{}) *users {
-	return &users{root: root, caller: caller, done: done, open: map[string]*user{}}
+	u := &users{root: root, caller: caller, done: done, open: map[string]*user{}}
+	u.ctx, u.cancel = context.WithCancel(context.Background())
+	if done != nil {
+		go func() {
+			<-done
+			u.cancel()
+		}()
+	}
+	return u
+}
+
+// context is the daemon's lifetime as a context: what a task runs in, which goes on without the call that asked.
+func (u *users) context() context.Context { return u.ctx }
+
+// opened are the stores open now.
+func (u *users) opened() []*user {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	var out []*user
+	for _, opened := range u.open {
+		out = append(out, opened)
+	}
+	return out
 }
 
 // developmentCaller is the caller as far as NikoService can know it now. The daemon verifies each caller (on Windows
@@ -90,14 +120,19 @@ func (u *users) user(ctx context.Context) (*user, error) {
 	if err != nil {
 		return nil, err
 	}
+	digest := sha256.Sum256([]byte(id))
+	return u.openDir(filepath.Join(u.root, "users", hex.EncodeToString(digest[:]), "niko"))
+}
+
+// openDir is the store of a user's directory, opened if it is not yet.
+func (u *users) openDir(dir string) (*user, error) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
-	if opened := u.open[id]; opened != nil {
+	if opened := u.open[dir]; opened != nil {
 		return opened, nil
 	}
-	digest := sha256.Sum256([]byte(id))
 	f := newFeed()
-	store, err := nikostore.Open(filepath.Join(u.root, "users", hex.EncodeToString(digest[:]), "niko"), nikostore.Options{
+	store, err := nikostore.Open(dir, nikostore.Options{
 		Sealer: u.sealer,
 		OnChange: func(c nikostore.Change) {
 			f.publish(&nikopb.Change{Kind: changeKind(c.Kind), Ids: c.IDs})
@@ -109,8 +144,8 @@ func (u *users) user(ctx context.Context) (*user, error) {
 	if err != nil {
 		return nil, status.Error(codes.Internal, "the store: "+err.Error())
 	}
-	opened := &user{store: store, feed: f}
-	u.open[id] = opened
+	opened := &user{store: store, feed: f, updates: newUpdates()}
+	u.open[dir] = opened
 	return opened, nil
 }
 
@@ -148,13 +183,13 @@ func profileProto(p nikostore.Profile) *nikopb.Profile {
 		BeanJson: string(p.Bean)}
 }
 
-func groupProto(g nikostore.Group) *nikopb.Group {
+func (s *server) groupProto(u *user, g nikostore.Group) *nikopb.Group {
 	kind := nikopb.Group_BASIC
 	if g.Type == nikostore.GroupSubscription {
 		kind = nikopb.Group_SUBSCRIPTION
 	}
 	return &nikopb.Group{Id: g.ID, Order: g.Order, Name: g.Name, Ungrouped: g.Ungrouped, Type: kind,
-		Profiles: int32(g.Profiles)}
+		Profiles: int32(g.Profiles), Subscription: subscriptionProto(g.Subscription, u.updates.isRunning(g.ID))}
 }
 
 func (s *server) Watch(_ *nikopb.WatchRequest, stream grpc.ServerStreamingServer[nikopb.Change]) error {
@@ -188,7 +223,7 @@ func (s *server) ListGroups(ctx context.Context, _ *nikopb.Empty) (*nikopb.Group
 	}
 	list := &nikopb.GroupList{}
 	for _, g := range u.store.Groups() {
-		list.Groups = append(list.Groups, groupProto(g))
+		list.Groups = append(list.Groups, s.groupProto(u, g))
 	}
 	return list, nil
 }
@@ -296,8 +331,12 @@ func (s *server) MoveProfiles(ctx context.Context, request *nikopb.MoveRequest) 
 }
 
 func (s *server) SaveGroup(ctx context.Context, request *nikopb.Group) (*nikopb.Group, error) {
-	if request.Type != nikopb.Group_BASIC {
-		return nil, status.Error(codes.Unimplemented, "a subscription's group comes with subscriptions")
+	switch request.Type {
+	case nikopb.Group_SUBSCRIPTION:
+		return s.saveSubscriptionGroup(ctx, request)
+	case nikopb.Group_BASIC:
+	default:
+		return nil, status.Error(codes.InvalidArgument, "no such type of group")
 	}
 	u, err := s.users.user(ctx)
 	if err != nil {
@@ -307,7 +346,7 @@ func (s *server) SaveGroup(ctx context.Context, request *nikopb.Group) (*nikopb.
 	if err != nil {
 		return nil, storeError(err)
 	}
-	return groupProto(saved), nil
+	return s.groupProto(u, saved), nil
 }
 
 func (s *server) DeleteGroup(ctx context.Context, request *nikopb.GroupId) (*nikopb.Empty, error) {
@@ -322,7 +361,8 @@ func (s *server) DeleteGroup(ctx context.Context, request *nikopb.GroupId) (*nik
 }
 
 // The import (D-ADD-03, -04, -09): what the app's import reads of a text (nikofmt.ParseText), its parsers' settings
-// the app's defaults until the desktop has settings of its own.
+// the app's defaults until the desktop has settings of its own; a subscription's link imports the subscription
+// (subscriptions.go).
 
 const (
 	// maxInput is the most an input may be: the gRPC message's own limit
@@ -352,6 +392,14 @@ func (s *server) Recognize(_ context.Context, input *nikopb.ImportInput) (*nikop
 	text, err := inputText(input)
 	if err != nil {
 		return nil, err
+	}
+	if rayToken.MatchString(text) {
+		return &nikopb.ImportPreview{Kind: nikopb.ImportPreview_NODE}, nil
+	}
+	if link := nikofmt.KtTrim(text); !strings.ContainsAny(link, "\n\r") {
+		if _, ok := nikosub.ParseDeepLink(link); ok {
+			return &nikopb.ImportPreview{Kind: nikopb.ImportPreview_SUBSCRIPTION, Subscription: link}, nil
+		}
 	}
 	beans, err := nikofmt.ParseText(text, nikofmt.DefaultSettings)
 	var found *nikofmt.SubscriptionFound
@@ -384,28 +432,37 @@ func (s *server) Import(request *nikopb.ImportRequest, stream grpc.ServerStreami
 	}
 	task := "import-" + strconv.FormatUint(s.users.tasks.Add(1), 10)
 	// the task goes on without the stream: its result comes in Watch too
-	result := make(chan *nikopb.TaskProgress, 1)
-	go func() { result <- importText(u, task, text, request.GroupId) }()
-	select {
-	case progress := <-result:
-		return stream.Send(progress)
-	case <-stream.Context().Done():
-		return status.FromContextError(stream.Context().Err()).Err()
-	}
+	return runTask(stream, func(progress func(*nikopb.TaskProgress)) *nikopb.TaskProgress {
+		return s.importText(u, task, text, request.GroupId, progress)
+	})
 }
 
-// importText runs an import to its end and tells its result to the user's watchers.
-func importText(u *user, task, text string, group int64) *nikopb.TaskProgress {
+// importText runs an import to its end and tells its result to the user's watchers; a subscription's link is the
+// import of that subscription (importSubscription).
+func (s *server) importText(u *user, task, text string, group int64, progress func(*nikopb.TaskProgress)) *nikopb.TaskProgress {
 	result := &nikopb.TaskProgress{TaskId: task, Done: true}
 	fail := func(err error) {
 		st := status.Convert(err)
 		result.Code, result.Error = int32(st.Code()), st.Message()
 	}
+	if rayToken.MatchString(text) {
+		fail(status.Error(codes.Unimplemented, "a raycontrol node's invite or device package: nodes come later"))
+		u.feed.publish(&nikopb.Change{Kind: nikopb.Change_TASK, Task: proto.Clone(result).(*nikopb.TaskProgress)})
+		return result
+	}
+	if link := nikofmt.KtTrim(text); !strings.ContainsAny(link, "\n\r") {
+		if deep, ok := nikosub.ParseDeepLink(link); ok {
+			return s.importSubscription(u, task, deep, progress)
+		}
+	}
 	beans, err := nikofmt.ParseText(text, nikofmt.DefaultSettings)
 	var found *nikofmt.SubscriptionFound
 	switch {
 	case errors.As(err, &found):
-		fail(status.Error(codes.Unimplemented, "a subscription's link: importing subscriptions comes later"))
+		if link, ok := subscriptionOfLink(found.Link); ok {
+			return s.importSubscription(u, task, link, progress)
+		}
+		fail(status.Error(codes.Unimplemented, "a whole group shared as sn://subscription: not read by this daemon"))
 	case err != nil:
 		fail(status.Error(codes.Internal, err.Error()))
 	case len(beans) == 0:

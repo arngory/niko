@@ -3,10 +3,10 @@
 // writer at a time. The profiles' beans are nikofmt's, the app's JSON field for field; their secret fields are sealed
 // on the disk where the platform has a way to (DPAPI on Windows).
 //
-// store.json, schema 1:
+// store.json, schema 2 (a subscription's group with its subscription, subscription.go):
 //
 //	{
-//	  "schema": 1,
+//	  "schema": 2,
 //	  "next_group": 2, "next_profile": 1,       the ids to give next: an id is never given twice
 //	  "groups": [{"id": 1, "order": 1, "ungrouped": true}, {"id": 2, "order": 2, "name": "…"}],
 //	  "profiles": [{"id": 1, "group": 1, "order": 1, "type": "vmess", "bean": {…}, "sealed": "dpapi:…"}]
@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"libcore/nikofmt"
+	"libcore/nikosub"
 )
 
 const (
@@ -51,7 +52,7 @@ var (
 	// ErrRefused: what was asked is not done to this profile or group (the ungrouped group's deletion, a profile
 	// whose secrets cannot be opened here)
 	ErrRefused = errors.New("refused")
-	// ErrUnsupported: not yet (a subscription's group comes with subscriptions)
+	// ErrUnsupported: not done by this build
 	ErrUnsupported = errors.New("not supported yet")
 )
 
@@ -63,14 +64,35 @@ const (
 
 // Group is a group of profiles, as ListGroups shows it.
 type Group struct {
-	ID    int64  `json:"id"`
-	Order int64  `json:"order"`
-	Name  string `json:"name,omitempty"`
+	ID    int64
+	Order int64
+	Name  string
 	// Ungrouped: the default group, made with the store: the imports with no group go there, it is not deleted
-	Ungrouped bool `json:"ungrouped,omitempty"`
-	Type      int  `json:"type,omitempty"`
+	Ungrouped bool
+	Type      int
 	// Profiles is how many profiles it has (not stored)
-	Profiles int `json:"-"`
+	Profiles int
+	// Subscription is a subscription's group's (subscription.go), nil for a basic group; its Link is "" where the
+	// address was sealed elsewhere
+	Subscription *nikosub.Subscription
+
+	// subscriptionDisk and subscriptionSealed are what store.json holds of the subscription; unreadable: its sealed
+	// fields cannot be opened here, and stay on the disk as they are until it is saved again
+	subscriptionDisk   json.RawMessage
+	subscriptionSealed string
+	unreadable         bool
+}
+
+// diskGroup is a group in store.json.
+type diskGroup struct {
+	ID        int64  `json:"id"`
+	Order     int64  `json:"order"`
+	Name      string `json:"name,omitempty"`
+	Ungrouped bool   `json:"ungrouped,omitempty"`
+	Type      int    `json:"type,omitempty"`
+	// Subscription and Sealed: a subscription's group's, schema 2 (subscription.go)
+	Subscription json.RawMessage `json:"subscription,omitempty"`
+	Sealed       string          `json:"sealed,omitempty"`
 }
 
 // Profile is a profile: its place, its type, the name and address a list shows, and its bean.
@@ -121,6 +143,7 @@ type Store struct {
 	dir      string
 	sealer   Sealer
 	onChange func(Change)
+	now      func() time.Time
 
 	mu    sync.Mutex
 	state *state
@@ -157,7 +180,7 @@ type document struct {
 	Schema      int           `json:"schema"`
 	NextGroup   int64         `json:"next_group"`
 	NextProfile int64         `json:"next_profile"`
-	Groups      []Group       `json:"groups"`
+	Groups      []diskGroup   `json:"groups"`
 	Profiles    []diskProfile `json:"profiles"`
 }
 
@@ -173,14 +196,14 @@ type diskProfile struct {
 // Open opens the store in dir, making it if there is none: the directory for the daemon alone, an older schema
 // migrated after a backup, what a crash left of a write removed. ErrNewerSchema for a store of a newer Niko.
 func Open(dir string, options Options) (*Store, error) {
-	s := &Store{dir: dir, sealer: options.Sealer, onChange: options.OnChange}
+	s := &Store{dir: dir, sealer: options.Sealer, onChange: options.OnChange, now: options.Now}
 	if s.sealer == nil {
 		s.sealer = DefaultSealer()
 	}
-	now := options.Now
-	if now == nil {
-		now = time.Now
+	if s.now == nil {
+		s.now = time.Now
 	}
+	now := s.now
 	if err := privateDir(dir); err != nil {
 		return nil, err
 	}
@@ -325,19 +348,30 @@ func (s *Store) decode(data []byte) (st *state, resealed bool, err error) {
 	st = &state{nextGroup: doc.NextGroup, nextProfile: doc.NextProfile, profiles: map[int64]*record{}}
 	groups := map[int64]bool{}
 	ungrouped := false
-	for _, g := range doc.Groups {
-		if g.ID <= 0 || groups[g.ID] {
-			return nil, false, fmt.Errorf("group %d: not a group's id, or twice", g.ID)
+	for _, d := range doc.Groups {
+		if d.ID <= 0 || groups[d.ID] {
+			return nil, false, fmt.Errorf("group %d: not a group's id, or twice", d.ID)
 		}
-		groups[g.ID] = true
-		if g.Ungrouped {
+		groups[d.ID] = true
+		if d.Ungrouped {
 			if ungrouped {
 				return nil, false, errors.New("two ungrouped groups")
 			}
 			ungrouped = true
 		}
+		g := Group{ID: d.ID, Order: d.Order, Name: d.Name, Ungrouped: d.Ungrouped, Type: d.Type}
+		if d.Type == GroupSubscription {
+			if len(d.Subscription) == 0 || d.Ungrouped {
+				return nil, false, fmt.Errorf("group %d: a subscription's group without its subscription", d.ID)
+			}
+			sealedNow, err := s.decodeSubscription(&g, d)
+			if err != nil {
+				return nil, false, fmt.Errorf("group %d: %w", d.ID, err)
+			}
+			resealed = resealed || sealedNow
+		}
 		st.groups = append(st.groups, g)
-		st.nextGroup = max(st.nextGroup, g.ID+1)
+		st.nextGroup = max(st.nextGroup, d.ID+1)
 	}
 	if !ungrouped {
 		return nil, false, errors.New("no ungrouped group")
@@ -388,8 +422,12 @@ func display(typ string, data json.RawMessage) (string, string, error) {
 
 // write writes st as store.json.
 func (s *Store) write(st *state) error {
-	doc := document{Schema: Schema(), NextGroup: st.nextGroup, NextProfile: st.nextProfile, Groups: st.groups,
+	doc := document{Schema: Schema(), NextGroup: st.nextGroup, NextProfile: st.nextProfile, Groups: []diskGroup{},
 		Profiles: []diskProfile{}}
+	for _, g := range st.groups {
+		doc.Groups = append(doc.Groups, diskGroup{ID: g.ID, Order: g.Order, Name: g.Name, Ungrouped: g.Ungrouped,
+			Type: g.Type, Subscription: g.subscriptionDisk, Sealed: g.subscriptionSealed})
+	}
 	for _, r := range st.sorted(0) {
 		doc.Profiles = append(doc.Profiles, diskProfile{ID: r.id, Group: r.group, Order: r.order, Type: r.typ,
 			Bean: r.disk, Sealed: r.sealed})
@@ -539,6 +577,7 @@ func (s *Store) Groups() []Group {
 	groups := append([]Group(nil), s.state.groups...)
 	for i := range groups {
 		groups[i].Profiles = counts[groups[i].ID]
+		groups[i].Subscription = copySubscription(groups[i].Subscription)
 	}
 	return groups
 }
@@ -748,10 +787,10 @@ func (s *Store) MoveProfiles(ids []int64, group, before int64) error {
 }
 
 // SaveGroup saves a group: a new one (ID 0) at the end, or the name of the one of that ID. A basic group only: a
-// subscription's comes with subscriptions. The group as saved.
+// subscription's is SaveSubscriptionGroup's. The group as saved.
 func (s *Store) SaveGroup(g Group) (Group, error) {
 	if g.Type != GroupBasic {
-		return Group{}, fmt.Errorf("%w: a subscription's group", ErrUnsupported)
+		return Group{}, fmt.Errorf("%w: a subscription's group is saved with its subscription", ErrInvalid)
 	}
 	if len(g.Name) > maxName {
 		return Group{}, fmt.Errorf("%w: a name over %d bytes", ErrInvalid, maxName)
@@ -774,7 +813,7 @@ func (s *Store) SaveGroup(g Group) (Group, error) {
 			return Group{}, ErrNotFound
 		}
 		if old.Type != GroupBasic {
-			return Group{}, fmt.Errorf("%w: a subscription's group", ErrUnsupported)
+			return Group{}, fmt.Errorf("%w: group %d is a subscription's: it is saved with its subscription", ErrRefused, g.ID)
 		}
 		saved = old
 		saved.Name = g.Name

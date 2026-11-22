@@ -13,14 +13,15 @@ import '../ui/icons.dart';
 import '../ui/list.dart';
 import 'nodes_screen.dart' show typeLabel;
 
-/// Добавление (B-Add, D-ADD-02…04): a link, or several, pasted or typed; the daemon says what they are before
-/// anything is written, and the profiles go into the group shown. Invitations and QR codes come with their slices.
+/// Добавление (B-Add, D-ADD-02…04, D-SUB-01): a link, or several, pasted or typed; the daemon says what they are
+/// before anything is written, and the profiles go into the group shown; a subscription's link makes a group of the
+/// subscription, which the daemon updates at once. Invitations and QR codes come with their slices.
 class AddScreen extends StatefulWidget {
   const AddScreen({super.key, required this.feed, required this.onDone});
 
   final ProfilesFeed feed;
 
-  /// The screen is done: [added] profiles, none for a cancel.
+  /// The screen is done: [added] profiles (a subscription's group counts as one), none for a cancel.
   final void Function(int added) onDone;
 
   @override
@@ -75,6 +76,11 @@ class _AddScreenState extends State<AddScreen> {
   Future<void> _add() async {
     setState(() => _busy = true);
     try {
+      if (_preview.kind == ImportKind.subscription) {
+        await widget.feed.addSubscription(_text.text);
+        if (mounted) widget.onDone(1);
+        return;
+      }
       final ids = await widget.feed.add(_text.text);
       if (mounted) widget.onDone(ids.length);
     } catch (e) {
@@ -92,6 +98,8 @@ class _AddScreenState extends State<AddScreen> {
     final colors = NikoTheme.of(context);
     final strings = NikoStrings.of(Localizations.localeOf(context));
     final rows = _preview.kind == ImportKind.profiles ? _preview.profiles : const <ProfileRow>[];
+    final current = _recognized.trim().isNotEmpty && _recognized == _text.text;
+    final subscription = current && _preview.kind == ImportKind.subscription;
     return Align(
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
@@ -122,9 +130,11 @@ class _AddScreenState extends State<AddScreen> {
                 NikoBanner(icon: NikoIcons.alert, title: strings.addFailed, text: _error, danger: true),
                 const SizedBox(height: NikoSpace.s4),
               ],
-              if (_recognized.trim().isNotEmpty && _recognized == _text.text) ...[
-                if (_preview.kind == ImportKind.subscription)
-                  NikoBanner(icon: NikoIcons.alert, title: strings.addSubscriptionLater)
+              if (current) ...[
+                if (subscription)
+                  NikoBanner(icon: NikoIcons.plus, title: strings.addSubscriptionFound, text: strings.addSubscriptionText)
+                else if (_preview.kind == ImportKind.node)
+                  NikoBanner(icon: NikoIcons.alert, title: strings.addNodeLater)
                 else if (rows.isEmpty)
                   Text(strings.addNothing, style: NikoType.body.style(colors.ink2))
                 else
@@ -139,8 +149,12 @@ class _AddScreenState extends State<AddScreen> {
               Row(
                 children: [
                   NikoPrimaryButton(
-                    label: rows.isEmpty ? strings.add : strings.addButton(rows.length),
-                    onPressed: rows.isEmpty || _busy || _recognized != _text.text ? null : _add,
+                    label: subscription
+                        ? strings.addSubscriptionButton
+                        : rows.isEmpty
+                            ? strings.add
+                            : strings.addButton(rows.length),
+                    onPressed: (rows.isEmpty && !subscription) || _busy || _recognized != _text.text ? null : _add,
                   ),
                   const SizedBox(width: NikoSpace.s3),
                   NikoGhostButton(label: strings.cancel, onPressed: () => widget.onDone(0)),

@@ -278,6 +278,7 @@ class GroupRow {
     this.ungrouped = false,
     this.subscription = false,
     this.profiles = 0,
+    this.info,
   });
 
   final int id;
@@ -289,6 +290,52 @@ class GroupRow {
   final bool ungrouped;
   final bool subscription;
   final int profiles;
+
+  /// A subscription's group's: what its updates said; null for a group of the user's.
+  final SubscriptionInfo? info;
+}
+
+/// What a subscription's updates said, and whether one runs now (NikoService's Subscription, D-SUB-01…03).
+class SubscriptionInfo {
+  const SubscriptionInfo({
+    this.link = '',
+    this.used = 0,
+    this.total = 0,
+    this.expire = 0,
+    this.lastUpdated = 0,
+    this.announce = '',
+    this.updating = false,
+  });
+
+  /// Where the profiles come from; empty where its address was sealed on another machine.
+  final String link;
+
+  /// The traffic used and allowed, in bytes; 0: the provider did not say.
+  final int used;
+  final int total;
+
+  /// The expiry and the last update, in unix seconds; 0: none.
+  final int expire;
+  final int lastUpdated;
+
+  /// What the provider announced.
+  final String announce;
+  final bool updating;
+}
+
+/// The result of a task of the daemon's (NikoService's TaskProgress, done): its line for the user, or its code and
+/// words where it failed; the group a subscription's task made or updated, the profiles it added.
+class TaskResult {
+  const TaskResult({this.code = 0, this.error = '', this.line = '', this.groupId = 0, this.ids = const []});
+
+  /// The gRPC code: 0 done.
+  final int code;
+  final String error;
+  final String line;
+  final int groupId;
+  final List<int> ids;
+
+  bool get ok => code == 0;
 }
 
 /// A profile as a list shows it, without its bean (NikoService.ListProfiles).
@@ -312,8 +359,9 @@ class ProfileRow {
   final String address;
 }
 
-/// What an input is (NikoService.Recognize).
-enum ImportKind { nothing, profiles, subscription }
+/// What an input is (NikoService.Recognize): a raycontrol node's invite or package is a [node], which comes with the
+/// nodes.
+enum ImportKind { nothing, profiles, subscription, node }
 
 /// How the computer's traffic reaches the core (D-NAV-02): the local proxy; or the TUN, which the core opens only with
 /// the daemon's privileges.
@@ -446,8 +494,15 @@ abstract interface class Daemon {
 
   /// Imports the share links in [text] into a group ([groupId] 0: the ungrouped one), D-ADD-03, -04: the ids of the
   /// profiles added. Fails with the daemon's code and words where it imported nothing: no link it reads, or a
-  /// subscription's link, whose import comes later.
+  /// node's invite, whose import comes later.
   Future<List<int>> importLinks(String text, {int groupId = 0});
+
+  /// Imports a subscription's link (NikoService.Import, D-SUB-01): the daemon makes a group of the subscription and
+  /// updates it. The result names the group, there also where its first update failed (the result's code and words).
+  Future<TaskResult> importSubscription(String text);
+
+  /// Updates a subscription's group (NikoService.Refresh, D-SUB-03): what the update did, or why it failed.
+  Future<TaskResult> refreshSubscription(int groupId);
 
   Future<void> close();
 }
@@ -487,6 +542,9 @@ class GrpcDaemon implements Daemon {
   static final _short = CallOptions(timeout: const Duration(seconds: 5));
   // a start downloads rule sets and opens a TUN: the daemon answers when the core is up or has failed
   static final _long = CallOptions(timeout: const Duration(seconds: 90));
+
+  // a subscription's update: a provider has two minutes to answer
+  static final _tasks = CallOptions(timeout: const Duration(minutes: 3));
 
   @override
   Future<String> version() async => (await _desktop.getDaemonInfo(Empty(), options: _short)).version;
@@ -764,6 +822,17 @@ class GrpcDaemon implements Daemon {
           ungrouped: g.ungrouped,
           subscription: g.type == niko.Group_Type.SUBSCRIPTION,
           profiles: g.profiles,
+          info: g.type != niko.Group_Type.SUBSCRIPTION
+              ? null
+              : SubscriptionInfo(
+                  link: g.subscription.link,
+                  used: g.subscription.used.toInt(),
+                  total: g.subscription.total.toInt(),
+                  expire: g.subscription.expire.toInt(),
+                  lastUpdated: g.subscription.lastUpdated.toInt(),
+                  announce: g.subscription.announce,
+                  updating: g.subscription.updating,
+                ),
         ),
       ),
     );
@@ -791,6 +860,7 @@ class GrpcDaemon implements Daemon {
       kind: switch (preview.kind) {
         niko.ImportPreview_Kind.PROFILES => ImportKind.profiles,
         niko.ImportPreview_Kind.SUBSCRIPTION => ImportKind.subscription,
+        niko.ImportPreview_Kind.NODE => ImportKind.node,
         _ => ImportKind.nothing,
       },
       profiles: List.unmodifiable(preview.profiles.map(_row)),
@@ -875,6 +945,30 @@ class GrpcDaemon implements Daemon {
     if (result.code != StatusCode.ok) throw GrpcError.custom(result.code, result.error);
     return List.unmodifiable(result.ids.map((id) => id.toInt()));
   }
+
+  /// A task's result: the last of its steps, done.
+  Future<TaskResult> _taskResult(Stream<niko.TaskProgress> steps) async {
+    niko.TaskProgress? result;
+    await for (final progress in steps) {
+      if (progress.done) result = progress;
+    }
+    if (result == null) throw GrpcError.unknown('the task ended without its result');
+    return TaskResult(
+      code: result.code,
+      error: result.error,
+      line: result.line,
+      groupId: result.groupId.toInt(),
+      ids: List.unmodifiable(result.ids.map((id) => id.toInt())),
+    );
+  }
+
+  @override
+  Future<TaskResult> importSubscription(String text) =>
+      _taskResult(_niko.import(niko.ImportRequest(input: niko.ImportInput(text: text)), options: _tasks));
+
+  @override
+  Future<TaskResult> refreshSubscription(int groupId) =>
+      _taskResult(_niko.refresh(niko.RefreshRequest(groupId: Int64(groupId)), options: _tasks));
 
   @override
   Future<void> close() => _channel.shutdown();

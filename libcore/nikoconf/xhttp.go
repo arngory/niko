@@ -84,18 +84,18 @@ func xhttpExtraOptions(extra string) (object, error) {
 	if nikofmt.KtIsBlank(extra) {
 		return options, nil
 	}
-	json, err := orgJSONObject(extra)
+	json, err := nikofmt.OrgJSONObject(extra)
 	if err != nil {
 		return nil, err
 	}
-	for _, rawKey := range json.keys {
+	for _, rawKey := range json.Keys {
 		key := xhttpSnakeCase(rawKey)
 		if !xhttpOptionKeys[key] {
 			continue
 		}
-		value := json.values[rawKey]
+		value := json.Values[rawKey]
 		var option any
-		switch o, isObject := value.(*orgObject); {
+		switch o, isObject := value.(*nikofmt.OrgObject); {
 		case key == "xmux":
 			if !isObject {
 				continue
@@ -123,11 +123,11 @@ func xhttpExtraOptions(extra string) (object, error) {
 			}
 			option = v
 		case xhttpRangeKeys[key] && isObject:
-			from, ok := integralValue(o.values["from"])
+			from, ok := integralValue(o.Values["from"])
 			if !ok {
 				continue
 			}
-			to, ok := integralValue(o.values["to"])
+			to, ok := integralValue(o.Values["to"])
 			if !ok {
 				continue
 			}
@@ -151,11 +151,11 @@ func xhttpExtraOptions(extra string) (object, error) {
 }
 
 // xmuxOptions: ranges as "min-max", a number or [min, max]; h_keep_alive_period a number.
-func xmuxOptions(xmux *orgObject) (object, error) {
+func xmuxOptions(xmux *nikofmt.OrgObject) (object, error) {
 	options := object{}
-	for _, rawKey := range xmux.keys {
+	for _, rawKey := range xmux.Keys {
 		key := xhttpSnakeCase(rawKey)
-		value := xmux.values[rawKey]
+		value := xmux.Values[rawKey]
 		_, isString := value.(string)
 		_, isArray := value.([]any)
 		switch {
@@ -214,10 +214,10 @@ func integralValue(v any) (int64, bool) {
 // null, from "[1,]") is an error, as JSONArray.get throws for it.
 func orgValue(v any) (any, error) {
 	switch v := v.(type) {
-	case *orgObject:
+	case *nikofmt.OrgObject:
 		o := object{}
-		for _, k := range v.keys {
-			e, err := orgValue(v.values[k])
+		for _, k := range v.Keys {
+			e, err := orgValue(v.Values[k])
 			if err != nil {
 				return nil, err
 			}
@@ -236,7 +236,7 @@ func orgValue(v any) (any, error) {
 			}
 		}
 		return list, nil
-	case orgNull:
+	case nikofmt.OrgNull:
 		return nil, nil
 	case int32:
 		return int64(v), nil

@@ -1,7 +1,13 @@
 package nikofmt
 
-// What libcore/nikoconf, the app's config build in Go, shares with the parsers: the same Kotlin and JVM behaviour
-// for the same beans, so the two packages read a field alike.
+import (
+	"math"
+	"strconv"
+	"strings"
+)
+
+// What libcore/nikoconf, the app's config build in Go, and libcore/nikosub, its subscriptions, share with the
+// parsers: the same Kotlin and JVM behaviour for the same beans, so the packages read a field alike.
 
 // KtTrim is Kotlin's String.trim().
 func KtTrim(s string) string { return ktTrim(s) }
@@ -60,3 +66,40 @@ func OkHTTPHost(s string) (string, bool) {
 	}
 	return u.host, true
 }
+
+// JavaDoubleString is Double.toString: a decimal point always, scientific notation outside 10^-3 to 10^7.
+func JavaDoubleString(f float64) string {
+	switch {
+	case math.IsNaN(f):
+		return "NaN"
+	case math.IsInf(f, 1):
+		return "Infinity"
+	case math.IsInf(f, -1):
+		return "-Infinity"
+	case f == 0:
+		if math.Signbit(f) {
+			return "-0.0"
+		}
+		return "0.0"
+	}
+	if a := math.Abs(f); a >= 1e-3 && a < 1e7 {
+		s := strconv.FormatFloat(f, 'f', -1, 64)
+		if !strings.Contains(s, ".") {
+			s += ".0"
+		}
+		return s
+	}
+	mantissa, exponent, _ := strings.Cut(strconv.FormatFloat(f, 'E', -1, 64), "E")
+	if !strings.Contains(mantissa, ".") {
+		mantissa += ".0"
+	}
+	e, _ := strconv.Atoi(exponent)
+	return mantissa + "E" + strconv.Itoa(e)
+}
+
+// JavaURLDecode is URLDecoder.decode(s, "UTF-8"); ok false where Java throws.
+func JavaURLDecode(s string) (string, bool) { return javaURLDecode(s) }
+
+// DecodeBase64UrlSafe is ktx String.decodeBase64UrlSafe: Util.b64Decode (Android's decoder, either alphabet) as UTF-8
+// text; an error where Util.b64Decode throws.
+func DecodeBase64UrlSafe(s string) (string, error) { return decodeBase64UrlSafe(s) }

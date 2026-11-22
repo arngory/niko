@@ -42,6 +42,12 @@ class ProfilesFeed extends ChangeNotifier {
   static const noticeFor = Duration(seconds: 4);
   Timer? _copiedTimer;
 
+  /// What a subscription's update or import from the window did, while its notice shows ([noticeFor]): the daemon's
+  /// line, or its words for why it failed ([updateFailed]); null after.
+  String? updated;
+  bool updateFailed = false;
+  Timer? _updatedTimer;
+
   bool _shown = false;
   bool _disposed = false;
   StreamSubscription<StoreChange>? _subscription;
@@ -90,7 +96,10 @@ class ProfilesFeed extends ChangeNotifier {
         if (!groups.any((g) => g.id == groupId)) groupId = groups.isEmpty ? 0 : groups.first.id;
       }
       if (all || change.kind == StoreKind.profiles || change.kind == StoreKind.groups) {
-        profiles = groupId == 0 ? const [] : await daemon.profiles(groupId: groupId);
+        // a group chosen meanwhile (a subscription's import shows its group) reads its own
+        final shown = groupId;
+        final read = shown == 0 ? const <ProfileRow>[] : await daemon.profiles(groupId: shown);
+        if (shown == groupId) profiles = read;
       }
       if (all || change.kind == StoreKind.selected) {
         selected = await daemon.selected();
@@ -150,6 +159,42 @@ class ProfilesFeed extends ChangeNotifier {
     final daemon = _link.daemon;
     if (daemon == null || text.trim().isEmpty) return const ImportPreview();
     return daemon.recognize(text);
+  }
+
+  /// Imports a subscription's link (D-SUB-01): the daemon makes its group and updates it; that group is shown, and
+  /// what its first update did is said. Fails where the group was not made.
+  Future<void> addSubscription(String text) async {
+    final daemon = _link.daemon;
+    if (daemon == null) return;
+    final result = await daemon.importSubscription(text);
+    if (result.groupId == 0) throw StateError(result.error.isEmpty ? 'the subscription was not added' : result.error);
+    groups = await daemon.groups();
+    await choose(result.groupId);
+    _notice(result);
+  }
+
+  /// Updates a subscription's group (D-SUB-03): the daemon says the group's changes, and what the update did is said.
+  Future<void> refresh(int groupId) async {
+    final daemon = _link.daemon;
+    if (daemon == null) return;
+    try {
+      _notice(await daemon.refreshSubscription(groupId));
+      error = '';
+    } catch (e) {
+      error = '$e';
+      if (!_disposed) notifyListeners();
+    }
+  }
+
+  void _notice(TaskResult result) {
+    _updatedTimer?.cancel();
+    updated = result.ok ? result.line : result.error;
+    updateFailed = !result.ok;
+    _updatedTimer = Timer(noticeFor, () {
+      updated = null;
+      if (!_disposed) notifyListeners();
+    });
+    if (!_disposed) notifyListeners();
   }
 
   /// Imports an input's profiles into [importGroup] and shows that group: their ids.
@@ -252,6 +297,7 @@ class ProfilesFeed extends ChangeNotifier {
     _disposed = true;
     _undoTimer?.cancel();
     _copiedTimer?.cancel();
+    _updatedTimer?.cancel();
     hide();
     super.dispose();
   }

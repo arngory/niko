@@ -106,15 +106,18 @@ class ImportPreview_Kind extends $pb.ProtobufEnum {
       ImportPreview_Kind._(1, _omitEnumNames ? '' : 'PROFILES');
   static const ImportPreview_Kind SUBSCRIPTION =
       ImportPreview_Kind._(2, _omitEnumNames ? '' : 'SUBSCRIPTION');
+  static const ImportPreview_Kind NODE =
+      ImportPreview_Kind._(3, _omitEnumNames ? '' : 'NODE');
 
   static const $core.List<ImportPreview_Kind> values = <ImportPreview_Kind>[
     NOTHING,
     PROFILES,
     SUBSCRIPTION,
+    NODE,
   ];
 
   static final $core.List<ImportPreview_Kind?> _byValue =
-      $pb.ProtobufEnum.$_initByValueList(values, 2);
+      $pb.ProtobufEnum.$_initByValueList(values, 3);
   static ImportPreview_Kind? valueOf($core.int value) =>
       value < 0 || value >= _byValue.length ? null : _byValue[value];
 

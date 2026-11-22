@@ -208,23 +208,23 @@ func TestImportWatch(t *testing.T) {
 
 	// what is refused, and how
 	for name, err := range map[string]error{
-		"no profile":                  second(client.GetProfile(ctx, &nikopb.ProfileId{Id: 1})),
-		"no group's list":             second(client.ListProfiles(ctx, &nikopb.ListProfilesRequest{GroupId: 9})),
-		"a bean of another type":      second(client.SaveProfile(ctx, &nikopb.Profile{Id: 2, Type: "naive", BeanJson: edited})),
-		"not a bean":                  second(client.SaveProfile(ctx, &nikopb.Profile{Type: "socks", BeanJson: `{"port": 1}`})),
-		"a subscription's group":      second(client.SaveGroup(ctx, &nikopb.Group{Name: "s", Type: nikopb.Group_SUBSCRIPTION})),
-		"the ungrouped group":         second(client.DeleteGroup(ctx, &nikopb.GroupId{Id: 1})),
-		"a move into no group":        second(client.MoveProfiles(ctx, &nikopb.MoveRequest{Ids: []int64{2}, GroupId: 9})),
-		"an import into no group":     taskError(runImport(t, client, socksLink, 9)),
-		"an import of nothing":        taskError(runImport(t, client, "hello", 0)),
-		"an import of a subscription": taskError(runImport(t, client, socksLink+"\n"+subLink, 0)),
+		"no profile":                   second(client.GetProfile(ctx, &nikopb.ProfileId{Id: 1})),
+		"no group's list":              second(client.ListProfiles(ctx, &nikopb.ListProfilesRequest{GroupId: 9})),
+		"a bean of another type":       second(client.SaveProfile(ctx, &nikopb.Profile{Id: 2, Type: "naive", BeanJson: edited})),
+		"not a bean":                   second(client.SaveProfile(ctx, &nikopb.Profile{Type: "socks", BeanJson: `{"port": 1}`})),
+		"a subscription's group":       second(client.SaveGroup(ctx, &nikopb.Group{Name: "s", Type: nikopb.Group_SUBSCRIPTION})),
+		"the ungrouped group":          second(client.DeleteGroup(ctx, &nikopb.GroupId{Id: 1})),
+		"a move into no group":         second(client.MoveProfiles(ctx, &nikopb.MoveRequest{Ids: []int64{2}, GroupId: 9})),
+		"an import into no group":      taskError(runImport(t, client, socksLink, 9)),
+		"an import of nothing":         taskError(runImport(t, client, "hello", 0)),
+		"an import of a node's invite": taskError(runImport(t, client, "the invite: rcinv1:eyJ0ZXN0IjoxfQ", 0)),
 	} {
 		want := map[string]codes.Code{
 			"no profile": codes.NotFound, "no group's list": codes.NotFound, "a bean of another type": codes.InvalidArgument,
-			"not a bean": codes.InvalidArgument, "a subscription's group": codes.Unimplemented,
+			"not a bean": codes.InvalidArgument, "a subscription's group": codes.InvalidArgument,
 			"the ungrouped group": codes.FailedPrecondition, "a move into no group": codes.NotFound,
 			"an import into no group": codes.NotFound,
-			"an import of nothing":    codes.InvalidArgument, "an import of a subscription": codes.Unimplemented,
+			"an import of nothing":    codes.InvalidArgument, "an import of a node's invite": codes.Unimplemented,
 		}[name]
 		if code(err) != want {
 			t.Errorf("%s: %v, want %v", name, err, want)

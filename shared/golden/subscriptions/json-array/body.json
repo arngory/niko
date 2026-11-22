@@ -1,0 +1,1 @@
+[{"remote_addr": "tgo2.example.com", "remote_port": 443, "password": "fake-tgo-pass-2"}, {"server": "ssa.example.com", "server_port": 8389, "password": "fake-ssa", "method": "aes-256-gcm", "remarks": "SS in an array"}, [{"server": "hy1a.example.com:443", "up_mbps": 10, "down_mbps": 50, "auth_str": "fake-hy1a", "server_name": "hy1a.example.com", "insecure": "TRUE"}], "not JSON"]

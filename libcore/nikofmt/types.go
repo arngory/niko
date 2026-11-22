@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"math"
 	"strconv"
 )
 
@@ -107,17 +108,35 @@ func DecodeBean(typ string, data []byte) (Bean, error) {
 	return bean, nil
 }
 
-// DisplayName is AbstractBean.displayName: the profile's name, or its address where the name is blank.
+// DisplayName is AbstractBean.displayName: the profile's name, or its address where the name is blank; a custom
+// config's is "Custom " and its hashCode (ConfigBean.displayName: Arrays.hashCode of its Kryo without the name).
 func DisplayName(b Bean) string {
 	if name := b.base().Name; name != nil && !ktIsBlank(*name) {
 		return *name
+	}
+	if _, ok := b.(*ConfigBean); ok {
+		_, data, err := kryoSerialize(b, true)
+		if err != nil {
+			return "Custom" // the app's hashCode throws
+		}
+		h := int32(1)
+		for _, c := range data {
+			h = 31*h + int32(int8(c))
+		}
+		if h < 0 && h != math.MinInt32 {
+			h = -h // Math.abs, which leaves Integer.MIN_VALUE as it is
+		}
+		return "Custom " + strconv.Itoa(int(h))
 	}
 	return DisplayAddress(b)
 }
 
 // DisplayAddress is AbstractBean.displayAddress, wrapIPV6Host(serverAddress) + ":" + serverPort; Hysteria's is its
-// ports (HysteriaBean.displayAddress). A field left null reads "null", as Java's string concatenation writes it.
+// ports (HysteriaBean.displayAddress), a custom config's none (InternalBean). A field left null reads "null", as Java's string concatenation writes it.
 func DisplayAddress(b Bean) string {
+	if _, ok := b.(*ConfigBean); ok {
+		return "" // InternalBean.displayAddress
+	}
 	base := b.base()
 	address := "null"
 	if base.ServerAddress != nil {

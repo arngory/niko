@@ -1,0 +1,8 @@
+{
+  "name": "Named by the user",
+  "subscription": {
+    "lastUpdated": 1790000000,
+    "autoUpdate": true,
+    "autoUpdateDelay": 360
+  }
+}

@@ -120,6 +120,10 @@ class TracedDaemon implements Daemon {
   @override
   Future<List<GroupRow>> groups() => _inner.groups();
   @override
+  Future<TaskResult> importSubscription(String text) => _inner.importSubscription(text);
+  @override
+  Future<TaskResult> refreshSubscription(int groupId) => _inner.refreshSubscription(groupId);
+  @override
   Future<int> selected() => _inner.selected();
   @override
   Future<void> select(int profileId) => _inner.select(profileId);

@@ -15,9 +15,28 @@ import (
 // takes schema i+1 to i+2.
 type migration func(document map[string]json.RawMessage) error
 
-// migrations: none yet, schema 1 is the first. A layout change adds one here and a fixture of the old layout to the
-// tests; the forward path itself is held by a test's own migration (schema_test.go).
-var migrations []migration
+// migrations: a layout change adds one here and a fixture of the old layout to the tests (schema_test.go).
+var migrations = []migration{
+	// 1 to 2: a subscription's group holds its subscription (subscription.go). Schema 1 could hold no subscription's
+	// group, its SaveGroup refused them; a group of type 1 there, which no build wrote, becomes a basic one. The schema
+	// itself says that a build of schema 1 must not open the store: it would write the subscriptions away.
+	func(document map[string]json.RawMessage) error {
+		var groups []map[string]json.RawMessage
+		if err := json.Unmarshal(document["groups"], &groups); err != nil {
+			return err
+		}
+		for _, g := range groups {
+			if t := string(g["type"]); t != "" && t != "0" {
+				if _, ok := g["subscription"]; !ok {
+					delete(g, "type")
+				}
+			}
+		}
+		data, err := json.Marshal(groups)
+		document["groups"] = data
+		return err
+	},
+}
 
 // Schema is the layout this build writes: the first, and one more for each migration it has.
 func Schema() int { return 1 + len(migrations) }

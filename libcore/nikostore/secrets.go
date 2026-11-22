@@ -80,6 +80,11 @@ func sealBean(sealer Sealer, bean json.RawMessage) (json.RawMessage, string, err
 	if len(secrets) == 0 {
 		return bean, "", nil
 	}
+	return sealFields(sealer, fields, secrets)
+}
+
+// sealFields is an object for the disk: its public fields, and its secret ones sealed as "<sealer>:<base64>".
+func sealFields(sealer Sealer, fields, secrets map[string]json.RawMessage) (json.RawMessage, string, error) {
 	plain, err := json.Marshal(secrets)
 	if err != nil {
 		return nil, "", err
@@ -96,7 +101,7 @@ func sealBean(sealer Sealer, bean json.RawMessage) (json.RawMessage, string, err
 }
 
 // openBean is the whole bean of what the disk holds: its secret fields opened and put back. errSealed where this
-// sealer cannot open them.
+// sealer cannot open them. A subscription's fields are opened alike.
 func openBean(sealer Sealer, public json.RawMessage, sealed string) (json.RawMessage, error) {
 	if sealed == "" {
 		return public, nil

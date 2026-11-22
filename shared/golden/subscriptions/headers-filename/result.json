@@ -1,0 +1,58 @@
+{
+  "name": "Моя sub one.yaml",
+  "subscription": {
+    "subscriptionUserinfo": "",
+    "announce": "Новости",
+    "autoUpdate": false,
+    "autoUpdateDelay": 1440
+  },
+  "profiles": [
+    {
+      "order": 1,
+      "state": "added",
+      "type": "ss",
+      "bean": {
+        "method": "aes-256-gcm",
+        "password": "fake-ss-password",
+        "plugin": "",
+        "sUoT": false,
+        "serverAddress": "198.51.100.10",
+        "serverPort": 8388,
+        "name": "Example SS",
+        "customOutboundJson": "",
+        "customConfigJson": "",
+        "knockSequence": "",
+        "knockInterval": 200,
+        "knockTtl": 10,
+        "knockSilence": 15,
+        "tlsFragment": 0,
+        "certPins": "",
+        "dnsTunnel": "",
+        "dnsTunnelResolver": "",
+        "dnsTunnelDomain": "",
+        "dnsTunnelKey": "",
+        "dnsTunnelMethod": 2,
+        "dnsTunnelFixedUpstream": false,
+        "dnsTunnelAuth": "",
+        "dnsTunnelSeal": "",
+        "dnsTunnelSpare": "",
+        "dnsTunnelTls": "",
+        "udpPrelude": 0,
+        "udpPreludeSni": "",
+        "udpPreludeTtl": 0,
+        "udpReorderInitial": false,
+        "yggPeer": "",
+        "yggKey": "",
+        "yggVia": ""
+      }
+    }
+  ],
+  "deleted": [],
+  "changed": 1,
+  "added": [
+    "Example SS"
+  ],
+  "updated": [],
+  "deletedNames": [],
+  "duplicate": []
+}
