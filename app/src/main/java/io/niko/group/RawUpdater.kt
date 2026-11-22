@@ -8,7 +8,6 @@ import io.niko.R
 import io.niko.bg.SubscriptionUpdater
 import io.niko.database.*
 import io.niko.fmt.AbstractBean
-import io.niko.fmt.keepDnsTunnelOf
 import io.niko.fmt.http.HttpBean
 import io.niko.fmt.hysteria.HysteriaBean
 import io.niko.fmt.hysteria.parseHysteria1Json
@@ -26,7 +25,6 @@ import io.niko.fmt.wireguard.AmneziaWG
 import io.niko.fmt.wireguard.WireGuardBean
 import io.niko.ktx.*
 import libcore.Libcore
-import io.niko.Protocols
 import io.niko.proxy.anytls.AnyTLSBean
 import io.niko.proxy.config.ConfigBean
 import io.niko.utils.Util
@@ -102,167 +100,20 @@ object RawUpdater : GroupUpdater() {
             subscription.fallbackLink =
                 spareAfterAnswer(subscription.fallbackLink, move.spare, fetched.fromSpare && movedProxies == null)
 
-            subscription.subscriptionUserinfo =
-                Util.getStringBox(response.getHeader("Subscription-Userinfo"))
-
-            subscription.announce =
-                decodeSubscriptionHeader(Util.getStringBox(response.getHeader("announce")))
-
-            // a freshly imported subscription (default name) takes the provider's name and interval
-            if (proxyGroup.name?.startsWith("Subscription #") == true) {
-                var remoteName =
-                    decodeSubscriptionHeader(Util.getStringBox(response.getHeader("profile-title")))
-                if (remoteName.isBlank()) {
-                    remoteName = Util.getStringBox(response.getHeader("content-disposition"))
-                    if (remoteName.isNotBlank()) remoteName = Util.decodeFilename(remoteName)
-                }
-                if (remoteName.isNotBlank()) {
-                    proxyGroup.name = remoteName
-                }
-            }
-            // the provider's interval only on the first update: later the user's choice wins
-            if (subscription.lastUpdated == 0) subscriptionUpdateIntervalMinutes(
-                Util.getStringBox(response.getHeader("profile-update-interval"))
-            )?.let {
-                subscription.autoUpdate = true
-                subscription.autoUpdateDelay = it
-            }
+            // the traffic, the announcement, the provider's name and interval (SubscriptionMerge.applyAnswer)
+            SubscriptionMerge.applyAnswer(proxyGroup, subscription) { Util.getStringBox(response.getHeader(it)) }
         }
 
-        // the provider must not rewrite the whole local config (inbounds, DNS, Clash API) of the app
-        proxies = proxies.filter { bean ->
-            if (bean is ConfigBean && bean.type == 0) {
-                Logs.w("skip ${bean.displayName()}: a subscription can not ship a full sing-box config")
-                false
-            } else {
-                bean.customConfigJson = ""
-                true
-            }
-        }
-
-        val proxiesMap = LinkedHashMap<String, AbstractBean>()
-        for (proxy in proxies) {
-            var index = 0
-            var name = proxy.displayName()
-            while (proxiesMap.containsKey(name)) {
-                println("Exists name: $name")
-                index++
-                name = name.replace(" (${index - 1})", "")
-                name = "$name ($index)"
-                proxy.name = name
-            }
-            proxiesMap[proxy.displayName()] = proxy
-        }
-        proxies = proxiesMap.values.toList()
+        proxies = SubscriptionMerge.prepare(proxies)
 
         if (subscription.forceResolve) forceResolve(proxies, proxyGroup.id)
 
         val exists = SagerDatabase.proxyDao.getByGroup(proxyGroup.id)
-        val duplicate = ArrayList<String>()
-        if (subscription.deduplication) {
-            Logs.d("Before deduplication: ${proxies.size}")
-            val uniqueProxies = LinkedHashSet<Protocols.Deduplication>()
-            val uniqueNames = HashMap<Protocols.Deduplication, String>()
-            for (_proxy in proxies) {
-                val proxy = Protocols.Deduplication(_proxy, _proxy.javaClass.toString())
-                if (!uniqueProxies.add(proxy)) {
-                    val index = uniqueProxies.indexOf(proxy)
-                    if (uniqueNames.containsKey(proxy)) {
-                        val name = uniqueNames[proxy]!!.replace(" ($index)", "")
-                        if (name.isNotBlank()) {
-                            duplicate.add("$name ($index)")
-                            uniqueNames[proxy] = ""
-                        }
-                    }
-                    duplicate.add(_proxy.displayName() + " ($index)")
-                } else {
-                    uniqueNames[proxy] = _proxy.displayName()
-                }
-            }
-            uniqueProxies.retainAll(uniqueNames.keys)
-            proxies = uniqueProxies.toList().map { it.bean }
+        val plan = SubscriptionMerge.plan(proxyGroup.id, exists, proxies, subscription.deduplication) {
+            SagerDatabase.proxyDao.addProxy(it)
         }
-
-        Logs.d("New profiles: ${proxies.size}")
-
-        val nameMap = proxies.associateBy { bean ->
-            bean.displayName()
-        }
-
-        Logs.d("Unique profiles: ${nameMap.size}")
-
-        val toDelete = ArrayList<ProxyEntity>()
-        val toReplace = exists.mapNotNull { entity ->
-            val name = entity.displayName()
-            if (nameMap.contains(name)) name to entity else let {
-                toDelete.add(entity)
-                null
-            }
-        }.toMap()
-
-        Logs.d("toDelete profiles: ${toDelete.size}")
-        Logs.d("toReplace profiles: ${toReplace.size}")
-
-        val toUpdate = ArrayList<ProxyEntity>()
-        val added = mutableListOf<String>()
-        val updated = mutableMapOf<String, String>()
-        val deleted = toDelete.map { it.displayName() }
-
-        var userOrder = 1L
-        var changed = toDelete.size
-        for ((name, bean) in nameMap.entries) {
-            if (toReplace.contains(name)) {
-                val entity = toReplace[name]!!
-                val existsBean = entity.requireBean()
-                // 更新订阅，保留自定义覆写设置
-                bean.customOutboundJson = existsBean.customOutboundJson
-                bean.customConfigJson = existsBean.customConfigJson
-                bean.knockSequence = existsBean.knockSequence
-                bean.knockInterval = existsBean.knockInterval
-                bean.knockTtl = existsBean.knockTtl
-                bean.knockSilence = existsBean.knockSilence
-                bean.tlsFragment = existsBean.tlsFragment
-                bean.certPins = existsBean.certPins
-                bean.keepDnsTunnelOf(existsBean)
-                bean.udpPrelude = existsBean.udpPrelude
-                bean.udpPreludeSni = existsBean.udpPreludeSni
-                bean.udpPreludeTtl = existsBean.udpPreludeTtl
-                bean.udpReorderInitial = existsBean.udpReorderInitial
-                when {
-                    existsBean != bean -> {
-                        changed++
-                        entity.putBean(bean)
-                        toUpdate.add(entity)
-                        updated[entity.displayName()] = name
-
-                        Logs.d("Updated profile: $name")
-                    }
-
-                    entity.userOrder != userOrder -> {
-                        entity.putBean(bean)
-                        toUpdate.add(entity)
-                        entity.userOrder = userOrder
-
-                        Logs.d("Reordered profile: $name")
-                    }
-
-                    else -> {
-                        Logs.d("Ignored profile: $name")
-                    }
-                }
-            } else {
-                changed++
-                SagerDatabase.proxyDao.addProxy(
-                    ProxyEntity(
-                        groupId = proxyGroup.id, userOrder = userOrder
-                    ).apply {
-                        putBean(bean)
-                    })
-                added.add(name)
-                Logs.d("Inserted profile: $name")
-            }
-            userOrder++
-        }
+        val toUpdate = plan.toUpdate
+        val toDelete = plan.toDelete
 
         SagerDatabase.proxyDao.updateProxy(toUpdate).also {
             Logs.d("Updated profiles: $it")
@@ -290,7 +141,7 @@ object RawUpdater : GroupUpdater() {
         finishUpdate(proxyGroup)
 
         userInterface?.onUpdateSuccess(
-            proxyGroup, changed, added, updated, deleted, duplicate, byUser
+            proxyGroup, plan.changed, plan.added, plan.updated, plan.deleted, plan.duplicate, byUser
         )
     }
 

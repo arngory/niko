@@ -1,0 +1,20 @@
+{
+  "name": "Subscription #1",
+  "subscription": {
+    "subscriptionUserinfo": "",
+    "announce": "",
+    "autoUpdate": false,
+    "autoUpdateDelay": 1440
+  },
+  "profiles": [],
+  "deleted": [
+    3
+  ],
+  "changed": 1,
+  "added": [],
+  "updated": [],
+  "deletedNames": [
+    "gone"
+  ],
+  "duplicate": []
+}

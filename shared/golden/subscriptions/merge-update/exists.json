@@ -1,0 +1,28 @@
+[
+  {
+    "id": 11,
+    "order": 1,
+    "link": "socks5://192.0.2.82:1080#moved"
+  },
+  {
+    "id": 12,
+    "order": 2,
+    "link": "socks5://192.0.2.83:1080#changed",
+    "patch": {
+      "customOutboundJson": "{\"domain_strategy\":\"prefer_ipv4\"}",
+      "knockSequence": "7000,8000/udp",
+      "tlsFragment": 1,
+      "certPins": "AAAA"
+    }
+  },
+  {
+    "id": 13,
+    "order": 3,
+    "link": "socks5://192.0.2.85:1080#removed"
+  },
+  {
+    "id": 14,
+    "order": 4,
+    "link": "socks5://192.0.2.84:1080#same"
+  }
+]

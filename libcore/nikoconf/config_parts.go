@@ -556,32 +556,5 @@ func javaToString(v any) string {
 	return fmt.Sprint(v)
 }
 
-// javaDoubleString is Double.toString: a decimal point always, scientific notation outside 10^-3 to 10^7.
-func javaDoubleString(f float64) string {
-	switch {
-	case math.IsNaN(f):
-		return "NaN"
-	case math.IsInf(f, 1):
-		return "Infinity"
-	case math.IsInf(f, -1):
-		return "-Infinity"
-	case f == 0:
-		if math.Signbit(f) {
-			return "-0.0"
-		}
-		return "0.0"
-	}
-	if a := math.Abs(f); a >= 1e-3 && a < 1e7 {
-		s := strconv.FormatFloat(f, 'f', -1, 64)
-		if !strings.Contains(s, ".") {
-			s += ".0"
-		}
-		return s
-	}
-	mantissa, exponent, _ := strings.Cut(strconv.FormatFloat(f, 'E', -1, 64), "E")
-	if !strings.Contains(mantissa, ".") {
-		mantissa += ".0"
-	}
-	e, _ := strconv.Atoi(exponent)
-	return mantissa + "E" + strconv.Itoa(e)
-}
+// javaDoubleString is Double.toString (nikofmt.JavaDoubleString).
+func javaDoubleString(f float64) string { return nikofmt.JavaDoubleString(f) }

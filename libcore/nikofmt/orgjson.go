@@ -1,4 +1,4 @@
-package nikoconf
+package nikofmt
 
 import (
 	"errors"
@@ -7,45 +7,51 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf16"
-
-	"libcore/nikofmt"
 )
 
-// Android's org.json (the platform's, not JSON-java), which the app's XHTTP code reads an extra JSON with: its
-// JSONTokener's lenient grammar and its types. Values are *orgObject, []any (JSONArray: nil for Java's null, which
-// a missing element is), string, bool, int32 (Integer), int64 (Long), float64 (Double) and orgNull (JSONObject.NULL).
+// Android's org.json (the platform's, not JSON-java), which the app reads an XHTTP extra JSON with (nikoconf) and a
+// subscription's JSON (nikosub): its JSONTokener's lenient grammar and its types. Values are *OrgObject, []any
+// (JSONArray: nil for Java's null, which a missing element is), string, bool, int32 (Integer), int64 (Long), float64
+// (Double) and OrgNull (JSONObject.NULL).
 
-// orgObject is a JSONObject: its names in the order first put (a LinkedHashMap; a name again replaces the value).
-type orgObject struct {
-	keys   []string
-	values map[string]any
+// OrgObject is a JSONObject: its names in the order first put (a LinkedHashMap; a name again replaces the value).
+type OrgObject struct {
+	Keys   []string
+	Values map[string]any
 }
 
-func (o *orgObject) put(name string, v any) {
-	if _, ok := o.values[name]; !ok {
-		o.keys = append(o.keys, name)
+func (o *OrgObject) put(name string, v any) {
+	if _, ok := o.Values[name]; !ok {
+		o.Keys = append(o.Keys, name)
 	}
-	o.values[name] = v
+	o.Values[name] = v
 }
 
-// orgNull is JSONObject.NULL.
-type orgNull struct{}
+// OrgNull is JSONObject.NULL.
+type OrgNull struct{}
 
 var errOrgJSON = errors.New("malformed JSON")
 
-// orgJSONObject is new JSONObject(text): the first value of the text, which must be an object; what follows it is
+// OrgJSONObject is new JSONObject(text): the first value of the text, which must be an object; what follows it is
 // not looked at. A leading BOM is skipped.
-func orgJSONObject(text string) (*orgObject, error) {
+func OrgJSONObject(text string) (*OrgObject, error) {
 	t := &orgTokener{s: []rune(strings.TrimPrefix(text, "\ufeff"))}
 	v, err := t.nextValue()
 	if err != nil {
 		return nil, err
 	}
-	o, ok := v.(*orgObject)
+	o, ok := v.(*OrgObject)
 	if !ok {
 		return nil, errors.New("not a JSON object")
 	}
 	return o, nil
+}
+
+// OrgNextValue is new JSONTokener(text).nextValue(): the first value of the text, of any type; what follows it is
+// not looked at. A leading BOM is skipped.
+func OrgNextValue(text string) (any, error) {
+	t := &orgTokener{s: []rune(strings.TrimPrefix(text, "\ufeff"))}
+	return t.nextValue()
 }
 
 // orgTokener is JSONTokener. It reads chars; runes differ only outside the BMP, which no token starts with.
@@ -143,7 +149,7 @@ func (t *orgTokener) nextString(quote rune) (string, error) {
 				return "", errOrgJSON
 			}
 			// Integer.parseInt(hex, 16): a sign is taken too, "-001" being (char) -1
-			v, ok := nikofmt.JavaParseLong(string(t.s[t.pos:t.pos+4]), 16)
+			v, ok := javaParseLong(string(t.s[t.pos:t.pos+4]), 16)
 			if !ok {
 				return "", errOrgJSON // invalid escape sequence
 			}
@@ -178,7 +184,7 @@ func (t *orgTokener) readLiteral() (any, error) {
 	case literal == "":
 		return nil, errOrgJSON // expected literal value
 	case strings.EqualFold(literal, "null"):
-		return orgNull{}, nil
+		return OrgNull{}, nil
 	case strings.EqualFold(literal, "true"):
 		return true, nil
 	case strings.EqualFold(literal, "false"):
@@ -191,21 +197,21 @@ func (t *orgTokener) readLiteral() (any, error) {
 		} else if strings.HasPrefix(number, "0") && len(number) > 1 {
 			number, base = number[1:], 8
 		}
-		if n, ok := nikofmt.JavaParseLong(number, base); ok {
+		if n, ok := javaParseLong(number, base); ok {
 			if n == int64(int32(n)) {
 				return int32(n), nil
 			}
 			return n, nil
 		}
 	}
-	if f, ok := javaDoubleValueOf(literal); ok {
+	if f, ok := JavaDoubleValueOf(literal); ok {
 		return f, nil
 	}
 	return literal, nil
 }
 
-func (t *orgTokener) readObject() (*orgObject, error) {
-	o := &orgObject{values: map[string]any{}}
+func (t *orgTokener) readObject() (*OrgObject, error) {
+	o := &OrgObject{Values: map[string]any{}}
 	first, err := t.nextClean()
 	if err != nil {
 		return nil, err
@@ -295,15 +301,15 @@ func (t *orgTokener) readArray() ([]any, error) {
 	}
 }
 
-// javaDouble is the grammar of Double.valueOf, after its trim: a sign, then NaN, Infinity, or decimal or
+// javaDoubleGrammar is the grammar of Double.valueOf, after its trim: a sign, then NaN, Infinity, or decimal or
 // hexadecimal digits with a type suffix (f, F, d or D) that changes nothing.
-var javaDouble = regexp.MustCompile(`^[+-]?(?:NaN|Infinity|(?:(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?|0[xX](?:[0-9a-fA-F]+\.?[0-9a-fA-F]*|\.[0-9a-fA-F]+)[pP][+-]?[0-9]+)[fFdD]?)$`)
+var javaDoubleGrammar = regexp.MustCompile(`^[+-]?(?:NaN|Infinity|(?:(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?|0[xX](?:[0-9a-fA-F]+\.?[0-9a-fA-F]*|\.[0-9a-fA-F]+)[pP][+-]?[0-9]+)[fFdD]?)$`)
 
-// javaDoubleValueOf is Double.valueOf(s), ok false where it throws. The characters up to ' ' around it are trimmed,
+// JavaDoubleValueOf is Double.valueOf(s), ok false where it throws. The characters up to ' ' around it are trimmed,
 // as String.trim does.
-func javaDoubleValueOf(s string) (float64, bool) {
+func JavaDoubleValueOf(s string) (float64, bool) {
 	s = strings.TrimFunc(s, func(r rune) bool { return r <= ' ' })
-	if !javaDouble.MatchString(s) {
+	if !javaDoubleGrammar.MatchString(s) {
 		return 0, false
 	}
 	switch {

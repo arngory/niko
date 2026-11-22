@@ -1,0 +1,62 @@
+{
+  "name": "Subscription #1",
+  "subscription": {
+    "subscriptionUserinfo": "",
+    "announce": "",
+    "autoUpdate": false,
+    "autoUpdateDelay": 1440
+  },
+  "profiles": [
+    {
+      "order": 1,
+      "state": "added",
+      "type": "wg",
+      "bean": {
+        "localAddress": "10.66.0.2/32\n fd00:66::2/128\n10.67.0.2/32",
+        "privateKey": "cGxhY2Vob2xkZXItcHJpdmF0ZS1rZXktMDAwMDAwMDA=",
+        "peerPublicKey": "cGxhY2Vob2xkZXItcHVibGljLWtleS0yMjIyMjIyMjI=",
+        "peerPreSharedKey": "cGxhY2Vob2xkZXItcHJlc2hhcmVkLWtleS0wMDAwMDA=",
+        "mtu": 1280,
+        "reserved": "",
+        "persistentKeepalive": 0,
+        "amneziaWG": "Jc = 4\nJmin = 40\nJmax = 70\nS1 = 15\nH1 = 1234-1240\nPersistentKeepalive = 25-30",
+        "serverAddress": "2001:db8::66",
+        "serverPort": 51821,
+        "name": "",
+        "customOutboundJson": "",
+        "customConfigJson": "",
+        "knockSequence": "",
+        "knockInterval": 200,
+        "knockTtl": 10,
+        "knockSilence": 15,
+        "tlsFragment": 0,
+        "certPins": "",
+        "dnsTunnel": "",
+        "dnsTunnelResolver": "",
+        "dnsTunnelDomain": "",
+        "dnsTunnelKey": "",
+        "dnsTunnelMethod": 2,
+        "dnsTunnelFixedUpstream": false,
+        "dnsTunnelAuth": "",
+        "dnsTunnelSeal": "",
+        "dnsTunnelSpare": "",
+        "dnsTunnelTls": "",
+        "udpPrelude": 0,
+        "udpPreludeSni": "",
+        "udpPreludeTtl": 0,
+        "udpReorderInitial": false,
+        "yggPeer": "",
+        "yggKey": "",
+        "yggVia": ""
+      }
+    }
+  ],
+  "deleted": [],
+  "changed": 1,
+  "added": [
+    "[2001:db8::66]:51821"
+  ],
+  "updated": [],
+  "deletedNames": [],
+  "duplicate": []
+}

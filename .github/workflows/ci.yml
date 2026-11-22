@@ -107,7 +107,7 @@ jobs:
         # also after Kotlin failed: against the fixtures it wrote, or the committed ones
         if: ${{ !cancelled() }}
         working-directory: libcore
-        run: go test -count=1 ./nikofmt/... ./nikoconf/...
+        run: go test -count=1 ./nikofmt/... ./nikoconf/... ./nikosub/...
       - name: The fixtures Kotlin wrote
         id: written
         if: ${{ !cancelled() }}
