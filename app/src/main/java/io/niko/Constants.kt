@@ -46,7 +46,11 @@ object Key {
     const val HONEST_CONNECT = "honestConnect"
     const val ICMP_THROUGH_NODE = "icmpThroughNode"
     const val ICMP_NO_LOCAL_REPLY = "icmpNoLocalReply"
+    /** the old «Фрагментация TLS для прямых правил» ("1" records, "2" TCP), read once by migrateLegacySettings */
     const val TLS_FRAGMENT_BYPASS = "tlsFragmentBypass"
+    const val DPI_DIRECT = "dpiDirect"
+    const val DPI_DIRECT_PRESET = "dpiDirectPreset"
+    const val DPI_DIRECT_CUSTOM = "dpiDirectCustom"
     const val RULE_SET_UPDATE_HOURS = "ruleSetUpdateHours"
 
     const val MIXED_PORT = "mixedPort"
@@ -168,6 +172,7 @@ object Key {
     const val ROUTE_PROTOCOL = "routeProtocol"
     const val ROUTE_OUTBOUND = "routeOutbound"
     const val ROUTE_PACKAGES = "routePackages"
+    const val ROUTE_DPI_BYPASS = "routeDpiBypass"
 
     const val GROUP_NAME = "groupName"
     const val GROUP_TYPE = "groupType"
@@ -219,6 +224,7 @@ object Key {
     const val RAYCONTROL_DNSTT_RESOLVER = "raycontrolDnsttResolver"
     const val RAYCONTROL_MASTERDNS_RESOLVERS = "raycontrolMasterDnsResolvers"
     const val MIGRATED_DNS_RESOLVERS_AUTO = "migratedDnsResolversAuto"
+    const val MIGRATED_DPI_DIRECT = "migratedDpiDirect"
 }
 
 object TunImplementation {

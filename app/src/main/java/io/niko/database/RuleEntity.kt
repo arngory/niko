@@ -25,6 +25,10 @@ data class RuleEntity(
     var protocol: String = "",
     var outbound: Long = 0,
     var packages: Set<String> = emptySet(),
+    /** «Обход DPI»: the setting's strategy (DpiDirect) on this rule where it is direct. Last: a backup's rules are
+     * parcels, and an older one's end before it (false) */
+    @ColumnInfo(defaultValue = "0")
+    var dpiBypass: Boolean = false,
 ) : Parcelable {
 
     fun displayName(): String {
@@ -64,6 +68,10 @@ data class RuleEntity(
 
     @androidx.room.Dao
     interface Dao {
+
+        /** Once, for the old «Фрагментация TLS для прямых правил», which was on every direct rule (DataStore) */
+        @Query("UPDATE rules SET dpiBypass = 1 WHERE outbound = -1 AND id NOT IN (:except)")
+        fun setDpiBypassOnDirect(except: List<Long>): Int
 
         @Query("SELECT * from rules WHERE (packages != '') AND enabled = 1")
         fun checkVpnNeeded(): List<RuleEntity>

@@ -41,10 +41,14 @@ import io.niko.ui.home.Trail
 // as P-SetInbound is, of the same rows and fields.
 
 /** The settings' pages: the list, and the pages its rows open. */
-enum class SettingsPage { ROOT, INBOUND, DNS, TUN, YGGDRASIL, NODES, CHECK, ROOTS, EXPERIMENTS, LOG }
+enum class SettingsPage { ROOT, INBOUND, DNS, TUN, YGGDRASIL, NODES, CHECK, ROOTS, EXPERIMENTS, LOG, DPI;
+
+    /** The page back goes to: the list, or the page that opened it. */
+    val parent get() = if (this == DPI) EXPERIMENTS else ROOT
+}
 
 /** What the pages show that is not a setting of the store. */
-class SettingsInfo(val version: String, val customConfigLines: Int, val yggdrasilAddress: String?)
+class SettingsInfo(val version: String, val customConfigLines: Int, val yggdrasilAddress: String?, val dpi: DpiInfo = DpiInfo())
 
 /** A setting chosen from a few: its name, its key, the stored values with their names. */
 class Choice(val title: String, val key: String, val options: List<Pair<String, String>>)
@@ -82,6 +86,7 @@ fun SettingsScreen(
             SettingsPage.ROOTS -> Roots(values, actions)
             SettingsPage.EXPERIMENTS -> Experiments(values, actions)
             SettingsPage.LOG -> Log(values, actions)
+            SettingsPage.DPI -> DpiScreen(values, info.dpi, actions::back)
         }
         if (sheet != null) ChoiceSheet(sheet, values.text(sheet.key), { values.setChoice(sheet.key, it); onDismissSheet() }, onDismissSheet)
     }
@@ -404,13 +409,7 @@ private fun Experiments(values: SettingValues, actions: SettingsActions) = Page(
         Switch(values, Key.RESOLVE_DESTINATION, R.string.set_resolve_destination, divider = true)
     }
     ListGroup {
-        ChoiceRow(
-            Choice(
-                stringResource(R.string.set_tls_fragment), Key.TLS_FRAGMENT_BYPASS,
-                listOf("0" to stringResource(R.string.set_no), "1" to stringResource(R.string.set_tls_fragment_records), "2" to "TCP"),
-            ),
-            values, actions, divider = false,
-        )
+        ValueRow(stringResource(R.string.set_dpi_direct), dpiSummary(values), divider = false, onClick = { actions.open(SettingsPage.DPI) })
         ChoiceRow(
             Choice(stringResource(R.string.set_sniffing), Key.TRAFFIC_SNIFFING, listOf("0" to stringResource(R.string.set_no), "1" to stringResource(R.string.set_sniffing_route))),
             values, actions, divider = true,

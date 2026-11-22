@@ -218,7 +218,11 @@
         ],
         "outbound": "bypass",
         "rule_set": [],
-        "tls_record_fragment": true
+        "tcp_desync": {
+          "tlsrec": [
+            "sni+1"
+          ]
+        }
       },
       {
         "action": "reject",
@@ -261,7 +265,11 @@
         "source_ip_cidr": [
           "192.168.1.0/24"
         ],
-        "tls_record_fragment": true
+        "tcp_desync": {
+          "tlsrec": [
+            "sni+1"
+          ]
+        }
       },
       {
         "action": "reject",

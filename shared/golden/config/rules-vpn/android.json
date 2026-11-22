@@ -208,7 +208,11 @@
         ],
         "rule_set": [],
         "outbound": "bypass",
-        "tls_record_fragment": true
+        "tcp_desync": {
+          "tlsrec": [
+            "sni+1"
+          ]
+        }
       },
       {
         "domain_suffix": [
@@ -224,8 +228,7 @@
         "user_id": [
           10123
         ],
-        "outbound": "bypass",
-        "tls_record_fragment": true
+        "outbound": "bypass"
       },
       {
         "network": [
@@ -258,7 +261,11 @@
           "192.168.1.0/24"
         ],
         "outbound": "bypass",
-        "tls_record_fragment": true
+        "tcp_desync": {
+          "tlsrec": [
+            "sni+1"
+          ]
+        }
       },
       {
         "source_ip_cidr": [
