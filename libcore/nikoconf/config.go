@@ -703,26 +703,58 @@ func (b *builder) dnsServers(remoteDNS, directDNS []string) ([]object, error) {
 		if len(remoteDNS) == 0 {
 			return nil, errors.New("No remote DNS, check your settings!")
 		}
-		remote, err := dnsServerFromAddress(remoteDNS[0], "dns-remote", ptrTo(tagProxy), ptrTo("dns-direct"))
-		if err != nil {
-			return nil, err
+		// a line each: one is dns-remote itself; more are dns-remote-1..N, asked in order by dns-remote, a fallback
+		// server of the core fork's that moves on when one fails or keeps silent. Not in an export: a core of
+		// sing-box's own has no fallback, an export keeps the first line
+		lines := remoteDNS
+		if b.forExport {
+			lines = lines[:1]
 		}
-		// the same resolver over a TCP transport: UDP, DoQ and DoH3 cannot pass a DNS tunnel
-		if b.tunnelledHop {
-			switch remote["type"] {
-			case "udp":
-				remote["type"] = "tcp"
-			case "quic":
-				remote["type"] = "tls"
-				delete(remote, "server_port")
-			case "h3":
-				remote["type"] = "https"
-				delete(remote, "server_port")
+		if len(lines) == 1 {
+			remote, err := b.remoteDNSServer(lines[0], "dns-remote")
+			if err != nil {
+				return nil, err
 			}
+			dnsServers = append(dnsServers, remote)
+		} else {
+			members := make([]object, 0, len(lines))
+			tags := make([]any, 0, len(lines))
+			for i, line := range lines {
+				tag := "dns-remote-" + strconv.Itoa(i+1)
+				member, err := b.remoteDNSServer(line, tag)
+				if err != nil {
+					return nil, err
+				}
+				members = append(members, member)
+				tags = append(tags, tag)
+			}
+			dnsServers = append(dnsServers, object{"type": "fallback", "tag": "dns-remote", "servers": tags})
+			dnsServers = append(dnsServers, members...)
 		}
-		dnsServers = append(dnsServers, remote)
 	}
 	return dnsServers, nil
+}
+
+// remoteDNSServer is a line of the remote DNS as a server of its own: through the proxy, its name by dns-direct.
+func (b *builder) remoteDNSServer(address, tag string) (object, error) {
+	remote, err := dnsServerFromAddress(address, tag, ptrTo(tagProxy), ptrTo("dns-direct"))
+	if err != nil {
+		return nil, err
+	}
+	// the same resolver over a TCP transport: UDP, DoQ and DoH3 cannot pass a DNS tunnel
+	if b.tunnelledHop {
+		switch remote["type"] {
+		case "udp":
+			remote["type"] = "tcp"
+		case "quic":
+			remote["type"] = "tls"
+			delete(remote, "server_port")
+		case "h3":
+			remote["type"] = "https"
+			delete(remote, "server_port")
+		}
+	}
+	return remote, nil
 }
 
 // addRule and prependRules add route rules at the end, and at the start in their order.

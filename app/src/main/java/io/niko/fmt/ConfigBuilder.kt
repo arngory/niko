@@ -1392,25 +1392,41 @@ fun buildConfig(
         ))
         val dohOfNode = nodeDoh
         if (!forTest && dohOfNode != null) dns.servers.add(nodeDohServer(dohOfNode.first, dohOfNode.second))
-        else if (!forTest) dns.servers.add(DNSServerOptions.fromAddress(
-            remoteDns.firstOrNull() ?: throw Exception("No remote DNS, check your settings!"),
-            "dns-remote", TAG_PROXY, "dns-direct"
-        ).apply {
-            // the same resolver over a TCP transport: UDP, DoQ and DoH3 cannot pass a DNS tunnel
-            if (tunnelledHop) when (type) {
-                "udp" -> type = "tcp"
-                // a DoQ or DoH3 port is not the DoT or DoH port: back to the default
-                "quic" -> {
-                    type = "tls"
-                    server_port = null
-                }
+        else if (!forTest) {
+            if (remoteDns.isEmpty()) throw Exception("No remote DNS, check your settings!")
+            fun remoteServer(address: String, tag: String) = DNSServerOptions.fromAddress(
+                address, tag, TAG_PROXY, "dns-direct"
+            ).apply {
+                // the same resolver over a TCP transport: UDP, DoQ and DoH3 cannot pass a DNS tunnel
+                if (tunnelledHop) when (type) {
+                    "udp" -> type = "tcp"
+                    // a DoQ or DoH3 port is not the DoT or DoH port: back to the default
+                    "quic" -> {
+                        type = "tls"
+                        server_port = null
+                    }
 
-                "h3" -> {
-                    type = "https"
-                    server_port = null
+                    "h3" -> {
+                        type = "https"
+                        server_port = null
+                    }
                 }
             }
-        })
+            // a line each: one is dns-remote itself; more are dns-remote-1..N, asked in order by dns-remote, a
+            // fallback server of the core fork's that moves on when one fails or keeps silent. Not in an export: a
+            // core of sing-box's own has no fallback, an export keeps the first line
+            val remoteLines = if (forExport) remoteDns.take(1) else remoteDns
+            if (remoteLines.size == 1) dns.servers.add(remoteServer(remoteLines[0], "dns-remote"))
+            else {
+                val members = remoteLines.mapIndexed { i, address -> remoteServer(address, "dns-remote-${i + 1}") }
+                dns.servers.add(DNSServerOptions().apply {
+                    type = "fallback"
+                    tag = "dns-remote"
+                    _hack_config_map["servers"] = members.map { it.tag }
+                })
+                dns.servers.addAll(members)
+            }
+        }
 
         // server address lookups go straight to a transport, so they need the direct strategy
         autoDnsDomainStrategy(settings.domainStrategy("dns-direct"))?.let { strategy ->

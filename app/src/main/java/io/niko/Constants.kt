@@ -2,6 +2,10 @@ package io.niko
 
 const val CONNECTION_TEST_URL = "http://cp.cloudflare.com/"
 
+// the remote DNS of the defaults: Cloudflare's DoH, Quad9's when it fails (a line each, the config's fallback server
+// between them: ConfigBuilder)
+const val DEFAULT_REMOTE_DNS = "https://cloudflare-dns.com/dns-query\nhttps://dns.quad9.net/dns-query"
+
 // where the app looks for its own updates; GitHub redirects the API after a repository rename
 const val RELEASE_REPO = "arngory/niko"
 

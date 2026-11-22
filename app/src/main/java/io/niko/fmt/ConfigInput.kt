@@ -2,6 +2,7 @@ package io.niko.fmt
 
 import android.widget.Toast
 import io.niko.CONNECTION_TEST_URL
+import io.niko.DEFAULT_REMOTE_DNS
 import io.niko.IPv6Mode
 import io.niko.Key
 import io.niko.R
@@ -54,7 +55,7 @@ class ConfigInput(
 data class ConfigSettings(
     val serviceMode: String = Key.MODE_VPN,
     val allowAccess: Boolean = false,
-    val remoteDns: String = "https://dns.google/dns-query",
+    val remoteDns: String = DEFAULT_REMOTE_DNS,
     val directDns: String = "local",
     val enableDnsRouting: Boolean = true,
     val enableFakeDns: Boolean = true,

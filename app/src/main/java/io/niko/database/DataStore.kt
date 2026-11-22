@@ -3,6 +3,7 @@ package io.niko.database
 import android.os.Binder
 import androidx.preference.PreferenceDataStore
 import io.niko.CONNECTION_TEST_URL
+import io.niko.DEFAULT_REMOTE_DNS
 import io.niko.GroupType
 import io.niko.IPv6Mode
 import io.niko.Key
@@ -177,7 +178,7 @@ object DataStore : OnPreferenceDataStoreChangeListener {
 
     var globalCustomConfig by configurationStore.string(Key.GLOBAL_CUSTOM_CONFIG) { "" }
 
-    var remoteDns by configurationStore.string(Key.REMOTE_DNS) { "https://dns.google/dns-query" }
+    var remoteDns by configurationStore.string(Key.REMOTE_DNS) { DEFAULT_REMOTE_DNS }
     // the network's own resolver (Android's, Private DNS included): a direct name looks like any app's (R8)
     var directDns by configurationStore.string(Key.DIRECT_DNS) { "local" }
     var enableDnsRouting by configurationStore.boolean(Key.ENABLE_DNS_ROUTING) { true }
