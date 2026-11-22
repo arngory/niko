@@ -9,11 +9,13 @@ import android.os.Build
 import android.os.Bundle
 import android.os.RemoteException
 import android.view.KeyEvent
+import android.view.View
 import androidx.core.net.toUri
 import androidx.activity.addCallback
 import androidx.annotation.IdRes
 import androidx.compose.runtime.mutableStateOf
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.preference.PreferenceDataStore
@@ -300,6 +302,12 @@ class MainActivity : ThemedActivity(),
         binding = LayoutMainBinding.inflate(layoutInflater)
         binding.fab.initProgress(binding.fabProgress)
 
+        // the bars follow the screen shown, the one the fragment manager restores after a recreation too
+        supportFragmentManager.registerFragmentLifecycleCallbacks(object : FragmentManager.FragmentLifecycleCallbacks() {
+            override fun onFragmentViewCreated(fm: FragmentManager, f: Fragment, v: View, savedInstanceState: Bundle?) {
+                if (f.id == R.id.fragment_holder) applyBars(f)
+            }
+        }, false)
         if (savedInstanceState == null) {
             displayFragmentWithId(R.id.nav_home)
         }
@@ -632,22 +640,28 @@ class MainActivity : ThemedActivity(),
         if (DataStore.serviceState.connected) binding.stats.performShow()
     }
 
-    @SuppressLint("CommitTransaction")
-    fun displayFragment(fragment: Fragment) {
-        if (fragment is ConfigurationFragment) {
+    /**
+     * The old bar at the bottom (state, speeds, the connect button): only on the old screens, and only with the
+     * setting on (off by default). The main screen has its own button and state; the screens drawn as the canvas has
+     * them (a node's card, the settings, the log) have none. Applied to whatever screen is shown, the restored one
+     * too: an activity the system recreated would otherwise keep the layout's default, the bar shown on the main
+     * screen over its configs.
+     */
+    private fun applyBars(fragment: Fragment) {
+        val old = fragment !is HomeFragment && fragment !is io.niko.ui.node.NodeFragment && fragment !is SettingsFragment &&
+            fragment !is io.niko.ui.log.LogFragment
+        if (old && DataStore.showBottomBar) {
             showStats()
-        } else if (fragment is HomeFragment || fragment is io.niko.ui.node.NodeFragment || fragment is SettingsFragment ||
-            fragment is io.niko.ui.log.LogFragment || !DataStore.showBottomBar
-        ) {
-            // the main screen has its own button and state; a node's card is a screen of the main one (P-Node), and
-            // the settings and the log are drawn as the canvas has them, without the button
+        } else {
             binding.stats.allowShow = false
             binding.stats.performHide()
             binding.fab.hide()
-        } else {
-            // the setting keeps the bar on the other screens (the app no longer opens on the profiles, which showed it)
-            showStats()
         }
+    }
+
+    @SuppressLint("CommitTransaction")
+    fun displayFragment(fragment: Fragment) {
+        applyBars(fragment)
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_holder, fragment)
             .commitAllowingStateLoss()
