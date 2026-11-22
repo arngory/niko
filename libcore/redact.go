@@ -28,6 +28,9 @@ var (
 	// a path segment that looks like a credential: long, and mixing letters with digits
 	tokenSegment = regexp.MustCompile(`^[A-Za-z0-9_\-=.~%]{16,}$`)
 	longWord     = regexp.MustCompile(`^[A-Za-z0-9_]+$`)
+	// hex of 16 digits and more: Yggdrasil's keys (the endpoint's own in full, ironwood's lines with the first 8 bytes
+	// of a peer's), the device's and the nodes'; a run of digits alone (a time, a count) stays
+	redactHex = regexp.MustCompile(`\b[0-9a-fA-F]{16,}\b`)
 	// literal strings the app registered (node hosts), as one case-insensitive alternation, longest first
 	redactLiterals atomic.Pointer[regexp.Regexp]
 )
@@ -61,6 +64,12 @@ func RedactLog(text string) string {
 	text = redactURL.ReplaceAllStringFunc(text, redactURLPath)
 	text = redactUserinfo.ReplaceAllString(text, `$1<redacted>@`)
 	text = redactQuery.ReplaceAllString(text, `$1<redacted>`)
+	text = redactHex.ReplaceAllStringFunc(text, func(s string) string {
+		if strings.IndexAny(s, "abcdefABCDEF") < 0 {
+			return s
+		}
+		return "<key>"
+	})
 	if re := redactLiterals.Load(); re != nil {
 		text = re.ReplaceAllLiteralString(text, "<node>")
 	}

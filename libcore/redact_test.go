@@ -26,6 +26,23 @@ func TestRedactLog(t *testing.T) {
 	}
 }
 
+// Yggdrasil's keys in hex (the endpoint's own, ironwood's peer prefixes) leave the log; times and counts of digits stay.
+func TestRedactHexKeys(t *testing.T) {
+	in := "Yggdrasil address 200:1234::1, public key 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08\n" +
+		"PQ: 3c2a91be07f4d2a1 announced an ML-KEM key\nat 1795323047761234 ms, 20000 packets, id 01HZX"
+	out := RedactLog(in)
+	for _, leak := range []string{"9f86d081", "3c2a91be07f4d2a1"} {
+		if strings.Contains(out, leak) {
+			t.Fatalf("%q left in %s", leak, out)
+		}
+	}
+	for _, kept := range []string{"public key <key>", "PQ: <key> announced", "1795323047761234", "200:1234::1", "20000"} {
+		if !strings.Contains(out, kept) {
+			t.Fatalf("%q lost in %s", kept, out)
+		}
+	}
+}
+
 // TestRedactLiteralsNonASCII: text whose case folding changes byte lengths (Ⱥ grows, K and İ shrink, bad UTF-8)
 // before a node host: the host goes, nothing panics, the rest stays as it was.
 func TestRedactLiteralsNonASCII(t *testing.T) {
