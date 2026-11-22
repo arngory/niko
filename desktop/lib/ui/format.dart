@@ -47,3 +47,10 @@ String formatMoment(DateTime at) {
   String two(int value) => value.toString().padLeft(2, '0');
   return '${two(local.day)}.${two(local.month)}.${local.year} ${two(local.hour)}:${two(local.minute)}';
 }
+
+/// A day as the window shows it, in the system's time: `17.11.2026`.
+String formatDate(DateTime at) {
+  final local = at.toLocal();
+  String two(int value) => value.toString().padLeft(2, '0');
+  return '${two(local.day)}.${two(local.month)}.${local.year}';
+}

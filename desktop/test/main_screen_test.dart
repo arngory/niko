@@ -150,6 +150,33 @@ class MemoryDaemon implements Daemon {
   @override
   Future<String> shareLink(int id) async => 'socks5://shared.example:1080/#$id';
 
+  /// A subscription's import makes a group of one profile, with what its provider said; the updates the window asked.
+  final refreshed = <int>[];
+  @override
+  Future<TaskResult> importSubscription(String text) async {
+    final group = ++_nextId;
+    groupRows = [
+      ...groupRows,
+      GroupRow(
+        id: group,
+        name: 'Провайдер',
+        subscription: true,
+        profiles: 1,
+        info: const SubscriptionInfo(used: 1073741824, total: 10737418240, lastUpdated: 1790000000),
+      ),
+    ];
+    final id = ++_nextId;
+    profileRows.add(ProfileRow(id: id, groupId: group, order: 1, type: 'socks', name: 'Из подписки', address: '192.0.2.80:1080'));
+    _changed(StoreKind.groups, [group]);
+    return TaskResult(line: 'Провайдер: 1 added, 0 changed, 0 deleted', groupId: group, ids: [id]);
+  }
+
+  @override
+  Future<TaskResult> refreshSubscription(int groupId) async {
+    refreshed.add(groupId);
+    return TaskResult(line: 'Провайдер: no difference', groupId: groupId);
+  }
+
   /// The profiles the window connected with, 0 for the selected one, and the modes it asked.
   final connected = <int>[];
   final connectModes = <ConnectMode?>[];
@@ -1083,13 +1110,25 @@ void main() {
     expect(find.text('Офис'), findsOneWidget);
     expect(daemon.profileRows.map((p) => p.name), ['Хельсинки', 'Амстердам', 'Офис']);
 
-    // a subscription's link is said to come later, and is not added
+    // a subscription's link makes a group of the subscription, shown with what its provider said; it updates on
+    // demand, and what the update did is said
     await tester.tap(find.bySemanticsLabel('Добавить'));
     await settle();
     await tester.enterText(find.byType(EditableText), 'https://provider.example/sub/0123456789');
     await settle(const Duration(milliseconds: 300));
-    expect(find.textContaining('подписки придут'), findsOneWidget);
-    await tester.tap(find.text('Отмена'));
+    expect(find.text('Это ссылка подписки'), findsOneWidget);
+    await tester.tap(find.text('Добавить подписку'));
+    await settle();
+    expect(find.text('Вставьте ссылку'), findsNothing);
+    expect(find.text('Провайдер'), findsNWidgets(2), reason: 'the group in the panel and as the title');
+    expect(find.text('Из подписки'), findsOneWidget);
+    expect(find.textContaining('1.0 GB из 10 GB'), findsNWidgets(2), reason: 'in the panel and under the title');
+    expect(find.text('Провайдер: 1 added, 0 changed, 0 deleted'), findsOneWidget);
+    await tester.tap(find.text('Обновить'));
+    await settle();
+    expect(daemon.refreshed, [daemon.groupRows.last.id]);
+    expect(find.text('Провайдер: no difference'), findsOneWidget);
+    await tester.tap(find.text('Свои профили'));
     await settle();
 
     // deleted: gone, the selection with it; put back: in its place, selected again
@@ -1100,7 +1139,7 @@ void main() {
     expect(radios(), [false, false]);
     await tester.tap(find.text('Вернуть'));
     await settle();
-    expect(daemon.profileRows.map((p) => p.name), ['Хельсинки', 'Амстердам', 'Офис']);
+    expect(daemon.profileRows.where((p) => p.groupId == 1).map((p) => p.name), ['Хельсинки', 'Амстердам', 'Офис']);
     expect(radios(), [true, false, false]);
     expect(find.text('Профиль «Хельсинки» удалён'), findsNothing);
 
