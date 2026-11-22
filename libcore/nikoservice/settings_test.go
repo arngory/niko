@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -13,6 +15,7 @@ import (
 	"libcore/nikopb"
 	"libcore/nikostore"
 
+	"github.com/sagernet/sing-box/experimental/boxdd"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/proto"
 )
@@ -49,8 +52,9 @@ func TestSettingsCalls(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// the system proxy on by default on Windows alone
 	want := &nikopb.Settings{ServiceMode: "proxy", Mtu: 9000, RemoteDns: "https://dns.google/dns-query",
-		DirectDns: "local", EnableFakeDns: true, MixedPort: 2080, TrafficSniffing: 1}
+		DirectDns: "local", EnableFakeDns: true, MixedPort: 2080, TrafficSniffing: 1, SystemProxy: runtime.GOOS == "windows"}
 	if !proto.Equal(got, want) {
 		t.Fatalf("the defaults: %v", got)
 	}
@@ -99,10 +103,12 @@ func TestSettingsCalls(t *testing.T) {
 // settings' where the request asks none, with their TUN; a mode asked for over theirs.
 func TestConnectSettings(t *testing.T) {
 	var started []string
+	var proxies []*boxdd.SystemProxy
 	root := t.TempDir()
 	s := storeServer(root)
-	s.start = func(_ context.Context, config string) error {
+	s.start = func(_ context.Context, config string, systemProxy *boxdd.SystemProxy) error {
 		started = append(started, config)
+		proxies = append(proxies, systemProxy)
 		return nil
 	}
 	client := serve(t, s)
@@ -141,6 +147,15 @@ func TestConnectSettings(t *testing.T) {
 		t.Fatalf("its login: %v", user)
 	}
 	coreReads(t, started[len(started)-1])
+	// the system proxy by the platform's default: on Windows the local proxy, for the daemon to set for its owner; the
+	// config itself never sets it (the core would, for the user it runs as)
+	var want *boxdd.SystemProxy
+	if runtime.GOOS == "windows" {
+		want = &boxdd.SystemProxy{Server: "127.0.0.1", Port: 2081}
+	}
+	if got := proxies[len(proxies)-1]; !reflect.DeepEqual(got, want) || in["set_system_proxy"] != nil {
+		t.Fatalf("the system proxy %+v, want %+v; the inbound's %v", got, want, in["set_system_proxy"])
+	}
 	if config.Log["level"] != "warn" || config.DNS["optimistic"] != true {
 		t.Fatalf("the log %v, the DNS %v", config.Log, config.DNS)
 	}
@@ -180,6 +195,30 @@ func TestConnectSettings(t *testing.T) {
 	}
 	if config = parseConfig(t, started[len(started)-1]); len(config.Inbounds) != 1 || config.Inbounds[0]["type"] != "mixed" {
 		t.Fatalf("proxy mode asked for: %v", config.Inbounds)
+	}
+	// the system proxy as set, in proxy mode alone; GetSettings says it as it is
+	update(&nikopb.Settings{SystemProxy: true}, "system_proxy")
+	if _, err := client.Connect(ctx, &nikopb.ConnectRequest{Mode: nikopb.ConnectRequest_PROXY.Enum()}); err != nil {
+		t.Fatal(err)
+	}
+	if got := proxies[len(proxies)-1]; got == nil || got.Server != "127.0.0.1" || got.Port != 2081 {
+		t.Fatalf("the system proxy turned on: %+v", got)
+	}
+	if _, err := client.Connect(ctx, &nikopb.ConnectRequest{}); err != nil {
+		t.Fatal(err)
+	}
+	if got := proxies[len(proxies)-1]; got != nil {
+		t.Fatalf("a system proxy in VPN mode: %+v", got)
+	}
+	update(&nikopb.Settings{SystemProxy: false}, "system_proxy")
+	if got, err := client.GetSettings(ctx, &nikopb.Empty{}); err != nil || got.SystemProxy {
+		t.Fatalf("turned off: %v %v", got, err)
+	}
+	if _, err := client.Connect(ctx, &nikopb.ConnectRequest{Mode: nikopb.ConnectRequest_PROXY.Enum()}); err != nil {
+		t.Fatal(err)
+	}
+	if got := proxies[len(proxies)-1]; got != nil {
+		t.Fatalf("the system proxy turned off: %+v", got)
 	}
 
 	// only the programs chosen through Niko: their rule first, the rest direct

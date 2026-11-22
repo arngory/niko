@@ -62,7 +62,8 @@ func Build(in Input) (Result, error) {
 	if err != nil {
 		return Result{Warnings: b.warnings}, err
 	}
-	return Result{Config: config, Warnings: b.warnings}, nil
+	b.result.Config, b.result.Warnings = config, b.warnings
+	return b.result, nil
 }
 
 // option is a SingBoxOption on its way to the config: its own map (the builder's, as Outbound gives it, or the typed
@@ -99,7 +100,9 @@ type builder struct {
 	forTest   bool
 	forExport bool
 	// desktop: the config of a computer's (Windows or Linux), not the phone's (desktop.go)
-	desktop  bool
+	desktop bool
+	// result: what the build gives beside the config (its system proxy)
+	result   Result
 	warnings []string
 
 	all      []*Profile
@@ -663,8 +666,8 @@ func (b *builder) addInbounds(bind string) {
 	// in VPN mode the port only serves what the user set it up for
 	if localProxyWanted(b.isVPN, s) {
 		mixed := object{"type": "mixed", "tag": tagMixed, "listen": bind, "listen_port": int64(s.MixedPort)}
-		if b.desktop && !b.isVPN && b.systemProxy() {
-			mixed["set_system_proxy"] = true
+		if b.desktop && !b.isVPN && !b.forTest && !b.forExport && b.systemProxy() {
+			b.result.SystemProxy = &SystemProxy{Server: localhost, Port: s.MixedPort}
 		}
 		if users := localProxyUsers(b.isVPN, s); users != nil {
 			list := []any{}

@@ -60,7 +60,7 @@ func settingNames(fields []string) ([]string, error) {
 func settingsProto(s nikoconf.Settings) *nikopb.Settings {
 	return &nikopb.Settings{
 		ServiceMode:             s.ServiceMode,
-		SystemProxy:             s.SystemProxy != nil && *s.SystemProxy,
+		SystemProxy:             s.SystemProxyOn(connectPlatform()),
 		TunImplementation:       int32(s.TunImplementation),
 		Mtu:                     int32(s.MTU),
 		Ipv6Mode:                int32(s.IPv6Mode),

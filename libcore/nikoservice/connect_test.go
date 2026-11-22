@@ -9,6 +9,7 @@ import (
 
 	"libcore/nikopb"
 
+	"github.com/sagernet/sing-box/experimental/boxdd"
 	"github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/option"
 
@@ -25,7 +26,7 @@ func TestConnect(t *testing.T) {
 	var started []string
 	var refusal error
 	s := storeServer(t.TempDir())
-	s.start = func(_ context.Context, config string) error {
+	s.start = func(_ context.Context, config string, _ *boxdd.SystemProxy) error {
 		started = append(started, config)
 		return refusal
 	}
