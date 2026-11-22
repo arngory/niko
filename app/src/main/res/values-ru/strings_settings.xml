@@ -77,6 +77,14 @@
     <string name="set_honest_connect">Честное подключение</string>
     <string name="set_icmp_node">ping через узел</string>
     <string name="set_icmp_no_local">Не отвечать на ping за сервер</string>
+    <string name="set_hy2_probe">Проба Hysteria2</string>
+    <string name="set_hy2_probe_443">Порт 443, без слота</string>
+    <string name="set_hy2_probe_bbr">Без скорости (BBR)</string>
+    <string name="set_hy2_probe_10">10 Мбит/с в обе стороны</string>
+    <string name="set_hy2_probe_1200">Пакеты по 1200 байт</string>
+    <string name="set_hy2_probe_no_parrot">Без Chrome-parrot</string>
+    <string name="set_hy2_log">Журнал соединений Hysteria2</string>
+    <string name="set_hy2_log_sub">Трафик и остановки в журнале</string>
     <string name="set_dpi_direct">Обход DPI для прямых соединений</string>
     <string name="dpi_title">Обход DPI</string>
     <string name="dpi_about">Режет первый пакет прямого соединения, чтобы DPI не прочёл имя сайта. Действует на правила «Обход», у которых включён «Обход DPI».</string>

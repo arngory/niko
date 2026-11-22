@@ -101,7 +101,8 @@ class SagerNet : Application(),
                 filesDir.absolutePath + "/",
                 routeAssets.absolutePath + "/",
                 DataStore.logBufSize,
-                DataStore.logLevel > 0,
+                // the Hysteria2 connection log (a debug setting) needs the writer whatever the level
+                DataStore.logLevel > 0 || DataStore.hy2LogConnections,
                 nativeInterface, nativeInterface, LocalResolverImpl
             )
             // client-min-v1 §1: this version on every request to a raycontrol node, so the node can say "update"

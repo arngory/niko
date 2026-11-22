@@ -76,6 +76,60 @@ class ConfigInputTest {
         assertNull(config.get("experimental")?.asJsonObject?.get("clash_api"))
     }
 
+    private fun hy2(id: Long) = ProxyEntity(id = id, groupId = 1, userOrder = id).putBean(io.niko.fmt.hysteria.HysteriaBean().apply {
+        protocolVersion = 2
+        serverAddress = "198.51.100.$id"
+        serverPorts = "443"
+        authPayload = "fake-pass"
+        uploadMbps = 50
+        downloadMbps = 100
+        name = "hy2"
+        initializeDefaultValues()
+    })
+
+    /** The Hysteria2 probes (Hy2Probe): one change over the profile's own, the connection log at debug, none exported. */
+    @Test
+    fun hy2Probes() {
+        val plain = build(hy2(1)).tagged("outbounds", TAG_PROXY)!!
+        assertEquals(50, plain.get("up_mbps").asInt)
+        assertNull(plain.get("log_connections"))
+        assertNull(plain.get("initial_packet_size"))
+
+        fun proxyWith(probe: String, log: Boolean = false) =
+            build(hy2(1), ConfigSettings(hy2Probe = probe, hy2LogConnections = log)).tagged("outbounds", TAG_PROXY)!!
+        proxyWith(Hy2Probe.BBR).let {
+            assertEquals(0, it.get("up_mbps").asInt)
+            assertEquals(0, it.get("down_mbps").asInt)
+        }
+        proxyWith(Hy2Probe.RATE_10).let {
+            assertEquals(10, it.get("up_mbps").asInt)
+            assertEquals(10, it.get("down_mbps").asInt)
+        }
+        proxyWith(Hy2Probe.PACKET_1200).let {
+            assertEquals(1200, it.get("initial_packet_size").asInt)
+            assertTrue(it.get("disable_path_mtu_discovery").asBoolean)
+        }
+        assertTrue(proxyWith(Hy2Probe.NO_PARROT).get("disable_chrome_parrot").asBoolean)
+        proxyWith(Hy2Probe.OFF, log = true).let {
+            assertTrue(it.get("log_connections").asBoolean)
+            assertTrue(it.get("brutal_debug").asBoolean)
+            assertEquals(50, it.get("up_mbps").asInt)
+        }
+        val logged = build(hy2(1), ConfigSettings(hy2LogConnections = true))
+        assertEquals("debug", logged.getAsJsonObject("log").get("level").asString)
+
+        val input = ConfigInput(
+            hy2(1), ConfigSettings(hy2Probe = Hy2Probe.RATE_10, hy2LogConnections = true),
+            ConfigStore.Of(listOf(hy2(1)), listOf(ProxyGroup(id = 1)), emptyList()), ConfigRay.None, Device(),
+        )
+        val exported = JsonParser.parseString(buildConfig(input, forExport = true, notes = false).config).asJsonObject
+            .tagged("outbounds", TAG_PROXY)!!
+        assertEquals(50, exported.get("up_mbps").asInt)
+        assertNull(exported.get("log_connections"))
+        assertFalse(Hy2Probe.keepsServicePort(Hy2Probe.OFF))
+        assertTrue(Hy2Probe.keepsServicePort(Hy2Probe.PORT_443))
+    }
+
     @Test
     fun sameInputSameConfig() {
         val proxy = ss(1, "a")

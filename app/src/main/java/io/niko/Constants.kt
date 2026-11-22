@@ -47,6 +47,8 @@ object Key {
     const val HONEST_CONNECT = "honestConnect"
     const val ICMP_THROUGH_NODE = "icmpThroughNode"
     const val ICMP_NO_LOCAL_REPLY = "icmpNoLocalReply"
+    const val HY2_PROBE = "hy2Probe"
+    const val HY2_LOG_CONNECTIONS = "hy2LogConnections"
     /** the old «Фрагментация TLS для прямых правил» ("1" records, "2" TCP), read once by migrateLegacySettings */
     const val TLS_FRAGMENT_BYPASS = "tlsFragmentBypass"
     const val DPI_DIRECT = "dpiDirect"

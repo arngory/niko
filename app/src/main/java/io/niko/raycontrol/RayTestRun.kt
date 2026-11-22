@@ -154,12 +154,30 @@ object RayTestRun {
                             RayChannel.record(node.spa.nodeId, network, key, score)
                         }
                     }
+                    // with the Hysteria2 connection log on (a debug setting): 30 s of download, for a path that stalls
+                    // after its first seconds; not recorded, the profile's score is the step's above
+                    if (DataStore.hy2LogConnections && profile.type == io.niko.database.ProxyEntity.TYPE_HYSTERIA && score != null) {
+                        val long = RayChannel.probe(profile, deep = true, mobile = network.mobile, sustained = true)
+                        step("profile_sustained") {
+                            addProperty("key", key)
+                            addProperty("window_s", 30)
+                            if (long == null) {
+                                addProperty("error", "the profile is in use")
+                            } else {
+                                addProperty("tcp_ok", long.tcpOk)
+                                addProperty("first_byte_ms", long.firstByteMs)
+                                addProperty("kbps", long.kbps)
+                                if (long.stalledAt >= 0) addProperty("stalled_at", long.stalledAt)
+                                long.tcpError?.let { addProperty("tcp_error", it) }
+                            }
+                        }
+                    }
                 }
                 step("end")
             }
         } finally {
             io.niko.fmt.testLogLevel = null
-            Libcore.setLogEnable(DataStore.logLevel > 0)
+            Libcore.setLogEnable(DataStore.logLevel > 0 || DataStore.hy2LogConnections)
             running.set(false)
         }
 

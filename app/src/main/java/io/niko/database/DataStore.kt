@@ -190,6 +190,10 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var honestConnect by configurationStore.boolean(Key.HONEST_CONNECT)
     var icmpThroughNode by configurationStore.boolean(Key.ICMP_THROUGH_NODE)
     var icmpNoLocalReply by configurationStore.boolean(Key.ICMP_NO_LOCAL_REPLY)
+    // Hysteria2 debugging (raycontrol's A/B probes): one change against the profile as it is ([Hy2Probe]), and each
+    // QUIC connection's traffic and stalls in the log
+    var hy2Probe by configurationStore.string(Key.HY2_PROBE) { io.niko.fmt.Hy2Probe.OFF }
+    var hy2LogConnections by configurationStore.boolean(Key.HY2_LOG_CONNECTIONS)
     var dpiDirect by configurationStore.stringToInt(Key.DPI_DIRECT)
     var dpiDirectPreset by configurationStore.string(Key.DPI_DIRECT_PRESET) { DpiDirect.DEFAULT_PRESET }
     var dpiDirectCustom by configurationStore.string(Key.DPI_DIRECT_CUSTOM)

@@ -91,6 +91,9 @@ data class ConfigSettings(
     val naiveQuicPhoneRoots: Boolean = false,
     val icmpThroughNode: Boolean = false,
     val icmpNoLocalReply: Boolean = false,
+    /** a Hysteria2 probe of [Hy2Probe] (a debug setting of Android's), and the core's log of its connections */
+    val hy2Probe: String = Hy2Probe.OFF,
+    val hy2LogConnections: Boolean = false,
     val refuseQuicOverStreams: Boolean = false,
     /** «Обход DPI для прямых соединений» ([DpiDirect]): off, a preset ([dpiDirectPreset]) or a ByeDPI string
      * ([dpiDirectCustom]), on the direct rules with their dpiBypass */
@@ -152,6 +155,8 @@ data class ConfigSettings(
                 naiveQuicPhoneRoots = DataStore.naiveQuicPhoneRoots,
                 icmpThroughNode = DataStore.icmpThroughNode,
                 icmpNoLocalReply = DataStore.icmpNoLocalReply,
+                hy2Probe = DataStore.hy2Probe,
+                hy2LogConnections = DataStore.hy2LogConnections,
                 refuseQuicOverStreams = DataStore.refuseQuicOverStreams,
                 dpiDirect = DataStore.dpiDirect,
                 dpiDirectPreset = DataStore.dpiDirectPreset,

@@ -77,6 +77,14 @@
     <string name="set_honest_connect">Honest connect</string>
     <string name="set_icmp_node">ping through the node</string>
     <string name="set_icmp_no_local">Don\'t answer ping for the server</string>
+    <string name="set_hy2_probe">Hysteria2 probe</string>
+    <string name="set_hy2_probe_443">Port 443, no slot</string>
+    <string name="set_hy2_probe_bbr">No rate (BBR)</string>
+    <string name="set_hy2_probe_10">10 Mbit/s each way</string>
+    <string name="set_hy2_probe_1200">Packets of 1200 bytes</string>
+    <string name="set_hy2_probe_no_parrot">No Chrome parrot</string>
+    <string name="set_hy2_log">Hysteria2 connection log</string>
+    <string name="set_hy2_log_sub">Traffic and stalls in the log, +30 s in a test run</string>
     <string name="set_dpi_direct">DPI bypass for direct connections</string>
     <string name="dpi_title">DPI bypass</string>
     <string name="dpi_about">Cuts the first packet of a direct connection so that DPI misses the site\'s name. It works on the «Bypass» rules that have «DPI bypass» on.</string>
