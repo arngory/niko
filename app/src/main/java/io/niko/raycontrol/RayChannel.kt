@@ -314,10 +314,11 @@ object RayChannel {
         else -> 5_000
     }
 
-    // sustained: what 30 s carry at about 17 Mbit/s on mobile and 70 on Wi-Fi, the window ends it on a faster path
+    // sustained: what 30 s carry at about 17 Mbit/s on mobile and 35 on Wi-Fi, the window ends it on a faster path; a
+    // node's probe-v1 takes at most 256 MiB a probe and 1 GiB a device a UTC day, so six runs on Wi-Fi stay within it
     internal fun downBytes(deep: Boolean, mobile: Boolean, sustained: Boolean = false): Long = when {
         sustained && mobile -> 64L shl 20
-        sustained -> 256L shl 20
+        sustained -> 128L shl 20
         !deep -> 256L shl 10
         mobile -> 2L shl 20
         else -> 8L shl 20
