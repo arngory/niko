@@ -14,8 +14,10 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:grpc/grpc.dart';
+import 'package:protobuf/well_known_types/google/protobuf/empty.pb.dart';
 import 'package:niko_desktop/daemon/daemon.dart';
 import 'package:niko_desktop/daemon/endpoint.dart';
+import 'package:niko_desktop/gen/daemon/managed_service.pbgrpc.dart';
 import 'package:niko_desktop/state/connection_controller.dart';
 import 'package:niko_desktop/state/connections_feed.dart';
 import 'package:niko_desktop/state/log_feed.dart';
@@ -686,6 +688,106 @@ void main() {
       expect(await systemProxy(), proxyBefore);
     },
   );
+
+  test(
+    'the system proxy (Windows): set for the user by the daemon in proxy mode, off and on, and gone with the core',
+    skip: nikod.isEmpty
+        ? 'NIKO_DAEMON is not set'
+        : !Platform.isWindows || Platform.environment['NIKO_PROXY_TEST'] != '1'
+            ? 'the user\'s system proxy changes: on Windows, with NIKO_PROXY_TEST=1 (CI)'
+            : false,
+    timeout: const Timeout(Duration(minutes: 3)),
+    () async {
+      final work = await Directory.systemTemp.createTemp('niko-proxy-');
+      final daemonPort = await freePort();
+      final mixedPort = await freePort();
+      final log = <String>[];
+      final asked = <String>[];
+      final socks = await socksServer(asked);
+      final before = await proxyValues();
+      // ignore: avoid_print
+      print('the system proxy before: $before');
+      final process = await runDaemon(nikod, daemonPort, work, log);
+      final daemon = GrpcDaemon.dev(DevEndpoint.parse('127.0.0.1:$daemonPort')!);
+      final channel = ClientChannel(
+        '127.0.0.1',
+        port: daemonPort,
+        options: const ChannelOptions(credentials: ChannelCredentials.insecure()),
+      );
+      final managed = ManagedServiceClient(channel);
+      addTearDown(() async {
+        try {
+          await daemon.stop();
+        } catch (_) {}
+        await daemon.close();
+        await channel.shutdown();
+        process.kill();
+        await socks.close();
+        // whatever happened, the user's proxy as it was
+        await restoreProxyValues(before);
+        // ignore: avoid_print
+        print('--- the daemon said\n${log.join('\n')}');
+        try {
+          await work.delete(recursive: true);
+        } catch (_) {}
+      });
+      await until(() => daemon.version().then((_) => true, onError: (Object _) => false), 'the daemon to answer');
+      // on by default on Windows
+      final settings = await daemon.updateSettings({'mixedPort': mixedPort});
+      expect((settings['serviceMode'], settings['systemProxy']), ('proxy', true));
+      final added = await daemon.importLinks('socks5://127.0.0.1:${socks.port}#proxy-test');
+      await daemon.select(added.single);
+
+      // proxy mode: the local proxy is the user's system proxy while the core runs
+      await daemon.connect(0);
+      await until(() => listening(mixedPort), 'the local proxy');
+      Future<void> isSet() async {
+        final now = await proxyValues();
+        expect(now['ProxyEnable']?.$2, '0x1', reason: '$now');
+        expect(now['ProxyServer']?.$2, contains('127.0.0.1:$mixedPort'), reason: '$now');
+        final status = await managed.getSystemProxyStatus(Empty());
+        expect((status.available, status.enabled), (true, true));
+      }
+
+      await isSet();
+      // ignore: avoid_print
+      print('the system proxy while the core runs: ${await proxyValues()}');
+
+      // turned off: as it was before
+      await managed.setSystemProxyEnabled(SetSystemProxyEnabledRequest(enabled: false));
+      expect(await proxyValues(), before, reason: 'turned off');
+      // on again, then the core stopped: as it was before
+      await managed.setSystemProxyEnabled(SetSystemProxyEnabledRequest(enabled: true));
+      await isSet();
+      await daemon.stop();
+      await until(() async => !await listening(mixedPort), 'the local proxy closed');
+      expect(await proxyValues(), before, reason: 'the core stopped');
+    },
+  );
+}
+
+const _internetSettings = r'HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings';
+const _proxyValues = ['ProxyEnable', 'ProxyServer', 'ProxyOverride', 'AutoConfigURL'];
+
+/// WinINet's proxy values of the user (HKCU) as `reg` has them: each one there, by its name, its type and data.
+Future<Map<String, (String, String)>> proxyValues() async {
+  final result = await Process.run('reg', ['query', _internetSettings]);
+  final line = RegExp(r'^\s+(\w+)\s+(REG_\w+)\s*(.*)$');
+  return {
+    for (final match in const LineSplitter().convert('${result.stdout}').map(line.firstMatch).nonNulls)
+      if (_proxyValues.contains(match[1])) match[1]!: (match[2]!, match[3]!.trim()),
+  };
+}
+
+/// Puts WinINet's proxy values back as [values] had them: those it had not, deleted.
+Future<void> restoreProxyValues(Map<String, (String, String)> values) async {
+  for (final name in _proxyValues) {
+    final value = values[name];
+    await Process.run('reg', [
+      if (value == null) ...['delete', _internetSettings, '/v', name, '/f']
+      else ...['add', _internetSettings, '/v', name, '/t', value.$1, '/d', value.$2, '/f'],
+    ]);
+  }
 }
 
 /// The user's system proxy on Windows: what WinINet's settings say of it (ProxyEnable, ProxyServer, AutoConfigURL).

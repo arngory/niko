@@ -152,7 +152,7 @@ jobs:
         working-directory: ../sing-box
         env:
           CGO_ENABLED: "0"
-        run: go test -count=1 -ldflags=-checklinkname=0 -tags="$TAGS" ./protocol/knock ./common/certificate ./common/udpdesync ./common/nikoicmp
+        run: go test -count=1 -ldflags=-checklinkname=0 -tags="$TAGS" ./protocol/knock ./common/certificate ./common/udpdesync ./common/nikoicmp ./experimental/boxdd
 
       # libcronet.dll of the fork's module through purego, beside the test's executable as beside the desktop's (the
       # loader takes it from there, not from PATH): naive over HTTP/2 and QUIC against the core's own naive inbound,
@@ -292,6 +292,36 @@ jobs:
         run: |
           NIKO_DAEMON="$RUNNER_TEMP/daemon/windows-amd64/nikod.exe" flutter test test/real_daemon_test.dart \
             --plain-name 'VPN mode'
+
+      # The system proxy of proxy mode (slice 8b): set for the user by nikod's platform, off and on through
+      # ManagedService, gone with the core; WinINet's values of HKCU are read while it runs and checked to be as before
+      # after. The runner's own are kept first and put back after, whatever the test did
+      - name: The runner's proxy settings, kept
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: reg export 'HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings' "$env:RUNNER_TEMP\internet-settings.reg" /y
+
+      - name: The system proxy against the real daemon
+        if: runner.os == 'Windows'
+        working-directory: desktop
+        env:
+          NIKO_PROXY_TEST: "1"
+        run: |
+          NIKO_DAEMON="$RUNNER_TEMP/daemon/windows-amd64/nikod.exe" flutter test test/real_daemon_test.dart \
+            --plain-name 'the system proxy'
+
+      - name: The runner's proxy settings, put back
+        if: ${{ always() && runner.os == 'Windows' }}
+        shell: pwsh
+        run: |
+          $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings'
+          if (Test-Path "$env:RUNNER_TEMP\internet-settings.reg") {
+            foreach ($name in 'ProxyEnable', 'ProxyServer', 'ProxyOverride', 'AutoConfigURL') {
+              Remove-ItemProperty -Path $key -Name $name -ErrorAction SilentlyContinue
+            }
+            reg import "$env:RUNNER_TEMP\internet-settings.reg"
+          }
+          Get-ItemProperty $key | Select-Object ProxyEnable, ProxyServer, ProxyOverride, AutoConfigURL | Format-List
 
       # «Что решить», п. 2 of docs/design/desktop.md: what dart:io can open towards the daemon's worker here
       - name: Local sockets dart:io has on this system (informational)
