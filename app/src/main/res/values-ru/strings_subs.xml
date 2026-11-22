@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="subs_update_all">Обновить все</string>
+    <string name="subs_update">Обновить «%s»</string>
+    <string name="subs_menu">Меню «%s»</string>
+    <string name="subs_node_tag">узел</string>
+    <string name="subs_admin_tag">админ</string>
+    <string name="subs_until">до %s</string>
+    <string name="subs_expired">истекла %s</string>
+    <string name="subs_updated">обновлено %s</string>
+    <string name="subs_updating">обновляется…</string>
+    <string name="subs_none">Подписок и групп пока нет</string>
+    <plurals name="subs_configs">
+        <item quantity="one">%d конфиг</item>
+        <item quantity="few">%d конфига</item>
+        <item quantity="many">%d конфигов</item>
+        <item quantity="other">%d конфига</item>
+    </plurals>
+    <string name="subs_settings">Настройки</string>
+    <string name="subs_qr">Поделиться QR-кодом</string>
+    <string name="subs_copy_link">Скопировать ссылку</string>
+    <string name="subs_clear">Убрать конфиги</string>
+    <string name="subs_clear_confirm">Убрать конфиги «%s»?</string>
+    <string name="subs_delete">Удалить</string>
+    <string name="subs_delete_confirm">Удалить «%s» вместе с конфигами?</string>
+</resources>

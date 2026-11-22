@@ -122,6 +122,7 @@ class MainActivity : ThemedActivity(),
             configsOpen = open
             if (open) refreshConfigs() else {
                 configsState.value = null
+                subsState.value = null
                 ConfigsTest.forget()
             }
         }
@@ -180,12 +181,17 @@ class MainActivity : ThemedActivity(),
                 while (configsDirty && configsOpen) {
                     configsDirty = false
                     val loaded = try {
-                        ConfigsLoader.load()
+                        ConfigsLoader.load() to io.niko.ui.home.SubsLoader.load()
                     } catch (e: Exception) {
                         Logs.w(e)
                         continue
                     }
-                    onMainDispatcher { if (configsOpen) configsState.value = loaded }
+                    onMainDispatcher {
+                        if (configsOpen) {
+                            configsState.value = loaded.first
+                            subsState.value = loaded.second
+                        }
+                    }
                 }
             } finally {
                 configsReading.set(false)
@@ -239,10 +245,17 @@ class MainActivity : ThemedActivity(),
         override fun add() {
             displayFragmentWithId(R.id.nav_configuration)
         }
+    }
 
-        override fun subscriptions() {
-            displayFragmentWithId(R.id.nav_group)
-        }
+    /** The groups the sheet's Subscriptions tab lists (P-Subs), read with its configs while it is open. */
+    val subsState = mutableStateOf<List<io.niko.ui.home.SubRow>?>(null)
+
+    // a group added, changed, fetched or gone: the sheet's tabs read again (while it is open)
+    private val groupsListener = object : GroupManager.Listener {
+        override suspend fun groupAdd(group: ProxyGroup) = onMainDispatcher { refreshHome() }
+        override suspend fun groupUpdated(group: ProxyGroup) = onMainDispatcher { refreshHome() }
+        override suspend fun groupRemoved(groupId: Long) = onMainDispatcher { refreshHome() }
+        override suspend fun groupUpdated(groupId: Long) = onMainDispatcher { refreshConfigs() }
     }
 
     // refreshHome's reads, counted (it is called from any thread: the store's listener), and the last one shown
@@ -324,6 +337,7 @@ class MainActivity : ThemedActivity(),
         connection.connect(this, this)
         DataStore.configurationStore.registerChangeListener(this)
         GroupManager.userInterface = GroupInterfaceAdapter(this)
+        GroupManager.addListener(groupsListener)
 
         // on a fresh start, and after a relaunch that closed the link's question unanswered; a relaunch after it was
         // answered or cancelled (theme, rotation) does not ask again
@@ -825,6 +839,7 @@ class MainActivity : ThemedActivity(),
         linkQuestion = null
         super.onDestroy()
         GroupManager.userInterface = null
+        GroupManager.removeListener(groupsListener)
         DataStore.configurationStore.unregisterChangeListener(this)
         connection.disconnect(this)
     }

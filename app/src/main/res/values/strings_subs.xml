@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Subscriptions tab of the configs' sheet (P-Subs). -->
+<resources>
+    <string name="subs_update_all">Update all</string>
+    <string name="subs_update">Update «%s»</string>
+    <string name="subs_menu">Menu «%s»</string>
+    <string name="subs_node_tag">node</string>
+    <string name="subs_admin_tag">admin</string>
+    <string name="subs_until">until %s</string>
+    <string name="subs_expired">expired %s</string>
+    <string name="subs_updated">updated %s</string>
+    <string name="subs_updating">updating…</string>
+    <string name="subs_none">No subscriptions or groups yet</string>
+    <plurals name="subs_configs">
+        <item quantity="one">%d config</item>
+        <item quantity="other">%d configs</item>
+    </plurals>
+    <string name="subs_settings">Settings</string>
+    <string name="subs_qr">Share as QR code</string>
+    <string name="subs_copy_link">Copy the link</string>
+    <string name="subs_clear">Remove its configs</string>
+    <string name="subs_clear_confirm">Remove the configs of «%s»?</string>
+    <string name="subs_delete">Delete</string>
+    <string name="subs_delete_confirm">Delete «%s» with its configs?</string>
+</resources>

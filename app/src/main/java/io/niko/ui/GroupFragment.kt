@@ -116,22 +116,7 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
                 startActivity(Intent(context, GroupSettingsActivity::class.java))
             }
 
-            R.id.action_update_all -> {
-                MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.confirm)
-                    .setMessage(R.string.update_all_subscription)
-                    .setPositiveButton(R.string.yes) { _, _ ->
-                        SagerDatabase.groupDao.allGroups()
-                            .filter { it.type == GroupType.SUBSCRIPTION }
-                            .forEach {
-                                GroupUpdater.startUpdate(it, true)
-                            }
-                        // raycontrol nodes too: their subscriptions come from the nodes
-                        RayNodes.list().filter { it.subscription != null && it.groupId != 0L }
-                            .forEach { updateRayNode(it, it.groupId) }
-                    }
-                    .setNegativeButton(R.string.no, null)
-                    .show()
-            }
+            R.id.action_update_all -> updateAllGroups()
         }
         return true
     }

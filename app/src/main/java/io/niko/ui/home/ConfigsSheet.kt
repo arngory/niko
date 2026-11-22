@@ -45,6 +45,7 @@ import io.niko.ui.compose.NikoRadius
 import io.niko.ui.compose.NikoSize
 import io.niko.ui.compose.NikoSpace
 import io.niko.ui.compose.NikoType
+import io.niko.ui.node.NodeFormat
 
 /** What the configs' sheet asks of the activity. */
 interface ConfigsActions {
@@ -58,13 +59,13 @@ interface ConfigsActions {
     fun edit(id: Long)
     /** adding a profile: the list where that is done today, until the Add screen (P-Add) */
     fun add()
-    fun subscriptions()
 }
 
 /**
  * P-Configs: the profiles in their groups over the main screen, one chosen (a radio), the ping on the right, a group
  * tested at once from its head (D-MAIN-07, 10, 11; D-PROFILE-05). A tap chooses and closes the sheet, a long press opens
- * the profile's editor. [groups] null: not read yet.
+ * the profile's editor. [groups] null: not read yet. Its second tab, P-Subs: the groups themselves ([SubsList]), open
+ * first when [onSubs].
  */
 @Composable
 internal fun ConfigsSheet(
@@ -74,9 +75,18 @@ internal fun ConfigsSheet(
     testing: Set<Long>,
     results: Map<Long, ConfigsTest.Result>,
     actions: ConfigsActions,
+    subs: List<SubRow>? = null,
+    subsActions: SubsActions? = null,
+    format: NodeFormat? = null,
+    now: Long = System.currentTimeMillis() / 1000,
+    onSubs: Boolean = false,
     onClose: () -> Unit,
 ) {
     val c = Niko.colors
+    // without the tab's actions (a snapshot of the configs alone) the tab stays on the configs
+    var subsTab by rememberSaveable { mutableStateOf(onSubs && subsActions != null) }
+    // the group whose menu is up, over the sheet
+    var menuOf by rememberSaveable { mutableStateOf<Long?>(null) }
     var searching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     BackHandler {
@@ -101,14 +111,26 @@ internal fun ConfigsSheet(
                 horizontalArrangement = Arrangement.spacedBy(NikoSpace.s2),
             ) {
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(NikoSpace.s6)) {
-                    Tab(stringResource(R.string.home_profiles), profiles, active = true) { }
-                    Tab(stringResource(R.string.home_subscriptions), subscriptions, active = false, onClick = actions::subscriptions)
+                    Tab(stringResource(R.string.home_profiles), profiles, active = !subsTab) { subsTab = false }
+                    Tab(stringResource(R.string.home_subscriptions), subscriptions, active = subsTab) {
+                        if (subsActions != null) {
+                            subsTab = true
+                            searching = false
+                            query = ""
+                        }
+                    }
                 }
-                PlainIconButton(R.drawable.ic_l_search, stringResource(R.string.home_search)) {
-                    searching = !searching
-                    if (!searching) query = ""
+                if (subsTab && subsActions != null) SubsButtons(subsActions) else {
+                    PlainIconButton(R.drawable.ic_l_search, stringResource(R.string.home_search)) {
+                        searching = !searching
+                        if (!searching) query = ""
+                    }
+                    TonalIconButton(R.drawable.ic_l_plus, stringResource(R.string.home_add), actions::add)
                 }
-                TonalIconButton(R.drawable.ic_l_plus, stringResource(R.string.home_add), actions::add)
+            }
+            if (subsTab && subsActions != null && format != null) {
+                SubsList(subs, format, now, subsActions, Modifier.weight(1f)) { menuOf = it.id }
+                return@Sheet
             }
             if (searching) SearchField(query, { query = it })
             val shown = groups?.let { ConfigsLoader.filter(ConfigsLoader.withResults(it, results), query) }
@@ -131,6 +153,12 @@ internal fun ConfigsSheet(
                     }
                 }
             }
+        }
+        if (subsTab && subsActions != null) subs?.firstOrNull { it.id == menuOf }?.let { row ->
+            SubMenu(row, onPick = { action ->
+                menuOf = null
+                subsActions.action(row, action)
+            }) { menuOf = null }
         }
     }
 }

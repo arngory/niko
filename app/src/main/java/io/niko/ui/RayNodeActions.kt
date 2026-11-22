@@ -4,6 +4,7 @@ import android.content.Intent
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.withResumed
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import io.niko.GroupType
 import io.niko.R
 import io.niko.SagerNet
 import io.niko.database.DataStore
@@ -72,6 +73,28 @@ fun Fragment.updateRayNode(node: RayNode, groupId: Long, done: () -> Unit = {}) 
             done()
         }
     }
+}
+
+/**
+ * Every provider's subscription and every raycontrol node that serves one fetched anew, after the question (the
+ * groups' list and the Subscriptions tab ask it alike).
+ */
+fun Fragment.updateAllGroups() {
+    MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.confirm)
+        .setMessage(R.string.update_all_subscription)
+        .setPositiveButton(R.string.yes) { _, _ ->
+            runOnDefaultDispatcher {
+                val subscriptions = SagerDatabase.groupDao.allGroups().filter { it.type == GroupType.SUBSCRIPTION }
+                // raycontrol nodes too: their subscriptions come from the nodes
+                val nodes = RayNodes.list().filter { it.subscription != null && it.groupId != 0L }
+                onMainDispatcher {
+                    subscriptions.forEach { GroupUpdater.startUpdate(it, true) }
+                    if (isAdded) nodes.forEach { updateRayNode(it, it.groupId) }
+                }
+            }
+        }
+        .setNegativeButton(R.string.no, null)
+        .show()
 }
 
 fun Fragment.updateRaySubscription(node: RayNode) {

@@ -1,7 +1,6 @@
 package io.niko.ui.home
 
 import android.content.Context
-import io.niko.GroupType
 import io.niko.Key
 import io.niko.RoutePresets
 import io.niko.database.DataStore
@@ -40,7 +39,8 @@ object HomeLoader {
             route = route,
             apps = HomeApps(perApp = DataStore.proxyApps, bypass = DataStore.bypass, count = apps),
             profiles = SagerDatabase.proxyDao.count().toInt(),
-            subscriptions = SagerDatabase.groupDao.allGroups().count { it.type == GroupType.SUBSCRIPTION },
+            // the groups the Subscriptions tab lists (SubsLoader): all but an empty ungrouped one
+            subscriptions = SagerDatabase.groupDao.allGroups().count { !it.ungrouped || SagerDatabase.proxyDao.countByGroup(it.id) > 0 },
         )
     }
 }
