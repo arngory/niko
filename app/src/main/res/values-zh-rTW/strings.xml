@@ -320,7 +320,6 @@
     <string name="hysteria_auth_payload">認證密碼</string>
     <string name="hysteria_auth_type">認證類型</string>
     <string name="hysteria_obfs">混淆密碼</string>
-    <string name="menu_tools">工具</string>
     <string name="translate_platform">翻譯平台</string>
     <string name="menu_log">記錄檔</string>
     <string name="app_statistics_disabled">應用程式流量統計資料被停用</string>
@@ -347,7 +346,6 @@
     <string name="backup">備份</string>
     <string name="backup_rules">路由規則</string>
     <string name="invalid_backup_file">無效的備份檔</string>
-    <string name="tools_network">網路</string>
     <string name="backup_settings">設定</string>
     <string name="backup_import">匯入</string>
     <string name="backup_import_summary">匯入將覆蓋現有資料。</string>

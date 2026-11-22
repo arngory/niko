@@ -107,7 +107,6 @@ class SettingsFragment : Fragment() {
             }
             // another mode is another service: the running one stops, as the old screen did
             Key.SERVICE_MODE -> if (DataStore.serviceState.started) SagerNet.stopService()
-            Key.ENABLE_CLASH_API -> (activity as? MainActivity)?.refreshNavMenu(DataStore.enableClashAPI)
             Key.YGGDRASIL_ENABLED -> info = SettingsInfo(info.version, info.customConfigLines, yggdrasilAddress())
         }
         val effects = keys.map(SettingKeys::effect)

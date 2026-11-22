@@ -326,7 +326,6 @@
     <string name="ssh_auth_type_none">无</string>
     <string name="clear_logcat">清空日志</string>
     <string name="menu_log">日志</string>
-    <string name="menu_tools">工具</string>
     <string name="translate_platform">翻译平台</string>
     <string name="wireguard_local_address">本地地址</string>
     <string name="wireguard_public_key">节点公钥</string>
@@ -348,7 +347,6 @@
     <string name="naive_insecure_concurrency_summary">使用N个并发的隧道连接，在恶劣的网络条件下更加强大。更多的连接使隧道更容易被发现，安全性更低。这个项目力求对流量分析有最强的安全性。以不安全的方式使用它就违背了它的目的。
         \n
         \n如果你必须使用它，先试试N=2，看看是否能解决你的问题。强烈建议不要在这里使用超过4个连接。</string>
-    <string name="tools_network">网络</string>
     <string name="backup">备份</string>
     <string name="backup_groups_and_configurations">分组和配置</string>
     <string name="backup_import">导入</string>

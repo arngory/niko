@@ -362,7 +362,6 @@
     <string name="ssh_private_key">Приватний ключ</string>
     <string name="ssh_private_key_passphrase">Парольна фраза приватного ключа</string>
     <string name="translate_platform">Платформа для перекладу</string>
-    <string name="menu_tools">Інструменти</string>
     <string name="menu_log">Журнали</string>
     <string name="clear_logcat">Очистити Logcat</string>
     <string name="wireguard_local_address">Локальна адреса</string>
@@ -384,7 +383,6 @@
     <string name="stun_attest_loading">Це може зайняти кілька хвилин…</string>
     <string name="nat_stun_server_hint">STUN-сервер</string>
     <string name="nat_result_hint">Результат перевірки NAT</string>
-    <string name="tools_network">Мережа</string>
     <string name="mtu" translatable="false">MTU</string>
     <string name="backup">Резервне копіювання</string>
     <string name="backup_groups_and_configurations">Групи та конфігурації</string>

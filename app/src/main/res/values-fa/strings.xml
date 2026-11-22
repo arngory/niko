@@ -367,7 +367,6 @@
     <string name="ssh_private_key">کلید خصوصی</string>
     <string name="ssh_private_key_passphrase">عبارات عبور کلید خصوصی</string>
     <string name="translate_platform">سکوی ترجمه</string>
-    <string name="menu_tools">ابزارها</string>
     <string name="menu_log">آمار و اطلاعات</string>
     <string name="clear_logcat">پاک‌کردن اطلاعات Logcat</string>
     <string name="wireguard_local_address">نشانی محلی</string>
@@ -391,7 +390,6 @@
     <string name="stun_attest_loading">ممکن است چند دقیقه‌ای طول بکشد...</string>
     <string name="nat_stun_server_hint">سرور STUN</string>
     <string name="nat_result_hint">بررسی نتیجه NAT</string>
-    <string name="tools_network">شبکه</string>
     <string name="mtu" translatable="false">MTU</string>
 
     <string name="backup">پشتیبان‌گیری</string>

@@ -82,7 +82,6 @@
     <string name="port_transproxy">Port du Transproxy</string>
     <string name="cag_ws">Paramètres WebSocket</string>
     <string name="security_settings">Paramètres de sécurité</string>
-    <string name="menu_tools">Outils</string>
     <string name="allow_insecure">Autoriser non sécurisé</string>
     <string name="menu_log">Journaux</string>
     <string name="experimental_settings">Expérimental</string>
@@ -259,6 +258,5 @@
     <string name="stun_attest_loading">Cela peut prendre quelques minutes…</string>
     <string name="invalid_backup_file">Fichier de sauvegarde invalide</string>
     <string name="backup_import_summary">L\'importation écrasera les données existantes.</string>
-    <string name="tools_network">Réseaux</string>
     <string name="backup_importing">Importation…</string>
 </resources>

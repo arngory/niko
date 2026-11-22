@@ -53,7 +53,6 @@
         <item name="fabHoveredFocusedTranslationZ">6dp</item>
         <item name="fabRingThickness">8dp</item>
         <item name="fabHalo">@null</item>
-        <item name="drawerBackground">?android:windowBackground</item>
         <item name="drawerIconColor">?android:textColorPrimary</item>
         <item name="materialCardViewStyle">@style/Widget.SagerNet.Card</item>
         <!-- the drawer's chosen row has no fill of its own -->
@@ -138,7 +137,6 @@
         <item name="fabHoveredFocusedTranslationZ">6dp</item>
         <item name="fabRingThickness">8dp</item>
         <item name="fabHalo">@null</item>
-        <item name="drawerBackground">?android:windowBackground</item>
         <item name="drawerIconColor">?android:textColorPrimary</item>
         <item name="materialCardViewStyle">@style/Widget.SagerNet.Card</item>
         <!-- the drawer's chosen row has no fill of its own -->
@@ -348,7 +346,6 @@
         <item name="statusErrorColor">@color/niko_danger</item>
         <item name="materialCardViewStyle">@style/Widget.Niko.Card</item>
         <!-- the drawer: surface-1, its rows ink (the chosen one 600), their icons ink-2 -->
-        <item name="drawerBackground">@color/niko_surface_1</item>
         <item name="drawerIconColor">@color/niko_ink_2</item>
         <!-- the group tabs as the window's header sections: the chosen one ink and 600, the others ink-2, no strip
              (ink and ink-2 differ less than 3:1, so the weight marks it too) -->
@@ -450,7 +447,6 @@
         <item name="statusErrorColor">@color/niko_danger</item>
         <item name="materialCardViewStyle">@style/Widget.Niko.Card</item>
         <!-- the drawer: surface-1, its rows ink (the chosen one 600), their icons ink-2 -->
-        <item name="drawerBackground">@color/niko_surface_1</item>
         <item name="drawerIconColor">@color/niko_ink_2</item>
         <!-- the group tabs as the window's header sections: the chosen one ink and 600, the others ink-2, no strip
              (ink and ink-2 differ less than 3:1, so the weight marks it too) -->

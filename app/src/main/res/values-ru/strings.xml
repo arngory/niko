@@ -324,7 +324,6 @@
 <string name="menu_group">Группы</string>
 <string name="menu_log">Журналы</string>
 <string name="menu_route">Маршруты</string>
-<string name="menu_tools">Инструменты</string>
 <string name="menu_traffic">Трафик</string>
 <string name="minimize">Свернуть</string>
 <string name="missing_plugin">Отсутствующий плагин</string>
@@ -512,7 +511,6 @@
 <string name="tile_title">Переключатель</string>
 <string name="tls">Использовать TLS</string>
 <string name="tls_camouflage_settings">Настройки защиты TLS</string>
-<string name="tools_network">Сеть</string>
 <string name="trojan_provider">Провайдер Trojan</string>
 <string name="tuic_congestion_controller">Контроллер перегрузки</string>
 <string name="tuic_disable_sni">Отключить SNI</string>
@@ -1053,6 +1051,7 @@
     <string name="log_crashes">Отчёты о падениях</string>
     <string name="log_empty">Журнал пуст</string>
     <string name="log_no_errors">Ошибок нет</string>
+    <string name="log_tools">Инструменты</string>
     <string name="inbound_title">Вход</string>
     <string name="inbound_user">Пользователь</string>
     <string name="inbound_port">Порт</string>

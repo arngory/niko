@@ -38,8 +38,6 @@
     <string name="plugin">插件</string>
     <string name="action_download">下載</string>
     <string name="install_from_fdroid">從 F-Droid 安裝</string>
-    <string name="menu_tools">工具</string>
-    <string name="tools_network">網絡</string>
     <string name="backup">備份</string>
     <string name="delete">移除</string>
     <string name="enable">啟用</string>

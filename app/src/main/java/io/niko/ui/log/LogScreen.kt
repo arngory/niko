@@ -26,6 +26,7 @@ import io.niko.ui.compose.NikoSpace
 import io.niko.ui.compose.NikoType
 import io.niko.ui.home.ListGroup
 import io.niko.ui.home.ListRow
+import io.niko.ui.home.Section
 import io.niko.ui.home.Text
 import io.niko.ui.home.Trail
 import io.niko.ui.settings.IconButton
@@ -40,12 +41,17 @@ interface LogActions {
     fun share()
     fun clear()
     fun statsHour()
+    /** The NAT's behaviour through STUN (D-LOG-03, D-TOOLS-01). */
+    fun nat()
+    /** The sing-box panel over the Clash API, while the setting has it on (D-TOOLS-02). */
+    fun dashboard()
 }
 
 /**
  * Журнал (P-Log): the top bar's refresh, export and clear, «Все / Ошибки», the log's last part in Geist Mono (the clock
- * in ink-2, an error in danger), then the core's crash reports (in the export) and the statistics for the last hour.
- * [state] null: not read yet.
+ * in ink-2, an error in danger), then the core's crash reports (in the export) and the statistics for the last hour;
+ * below, the tools that were a screen of the side menu: the NAT's behaviour and, with the Clash API on ([dashboard]),
+ * the sing-box panel. [state] null: not read yet.
  */
 @Composable
 fun LogScreen(
@@ -53,6 +59,7 @@ fun LogScreen(
     filter: LogFilter,
     onFilter: (LogFilter) -> Unit,
     actions: LogActions,
+    dashboard: Boolean = false,
     scroll: ScrollState = rememberScrollState(),
 ) {
     val c = Niko.colors
@@ -79,6 +86,12 @@ fun LogScreen(
                 onClick = if (crashes > 0) actions::share else null,
             )
             ListRow(stringResource(R.string.stats_hour), divider = true, trail = { Trail(null) }, onClick = actions::statsHour)
+        }
+        Section(stringResource(R.string.log_tools)) {
+            ListRow(stringResource(R.string.stun_test), trail = { Trail(null) }, onClick = actions::nat)
+            if (dashboard) {
+                ListRow(stringResource(R.string.menu_dashboard), divider = true, trail = { Trail(null) }, onClick = actions::dashboard)
+            }
         }
     }
 }

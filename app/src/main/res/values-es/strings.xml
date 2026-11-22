@@ -344,7 +344,6 @@
     <string name="ssh_private_key">Llave privada</string> 
     <string name="ssh_private_key_passphrase">Frase de contraseña de clave privada</string> 
     <string name="translate_platform">Plataforma de traducción</string> 
-    <string name="menu_tools">Herramientas</string> 
     <string name="menu_log">Registros</string> 
     <string name="clear_logcat">Borrar Logcat</string> 
     <string name="wireguard_local_address">Dirección local</string> 
@@ -368,7 +367,6 @@
     <string name="stun_attest_loading">Esto puede tomar unos pocos minutos…</string> 
     <string name="nat_stun_server_hint">Servidor Stun</string> 
     <string name="nat_result_hint">Resultado de la comprobación de NAT</string> 
-    <string name="tools_network">Red</string> 
     <string name="mtu" translatable="false">MTU</string> 
  
     <string name="backup">Respaldo</string> 

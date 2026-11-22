@@ -30,6 +30,8 @@ class LogSnapshotTest(private val mode: String) {
         override fun share() {}
         override fun clear() {}
         override fun statsHour() {}
+        override fun nat() {}
+        override fun dashboard() {}
     }
 
     private val log = LogState.read(
@@ -47,9 +49,9 @@ class LogSnapshotTest(private val mode: String) {
         crashes = 1,
     )
 
-    private fun shot(state: LogState?, filter: LogFilter = LogFilter.All) = paparazzi.snapshot {
+    private fun shot(state: LogState?, filter: LogFilter = LogFilter.All, dashboard: Boolean = false) = paparazzi.snapshot {
         NikoTheme(dark = mode == "dark") {
-            LogScreen(state, filter, {}, none)
+            LogScreen(state, filter, {}, none, dashboard)
         }
     }
 
@@ -57,7 +59,7 @@ class LogSnapshotTest(private val mode: String) {
     fun log() = shot(log)
 
     @Test
-    fun errors() = shot(log, LogFilter.Errors)
+    fun errors() = shot(log, LogFilter.Errors, dashboard = true)
 
     @Test
     fun empty() = shot(LogState(emptyList(), crashes = 0))
