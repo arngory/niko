@@ -388,9 +388,9 @@ message ImportPreview {
     NOTHING = 0;
     PROFILES = 1;
     SUBSCRIPTION = 2;
-    // a raycontrol node's invite or device package: nodes come with slice 11
     NODE = 3;
   }
+  // NODE: a raycontrol node's invite or device package, whose import comes with the nodes
   Kind kind = 1;
   // the profiles an import would add, as rows without ids
   repeated Profile profiles = 2;

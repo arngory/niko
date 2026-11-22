@@ -187,7 +187,7 @@ class Info extends $pb.GeneratedMessage {
 
   /// the version of this API: what the window may ask. 2: the store, Watch and the import; 3: Select and GetSelected;
   /// 4: ShareProfile; 5: Connect; 6: Connect's mode, the config a computer's; 7: the computer's settings, Connect
-  /// with them; 8: the programs through Niko
+  /// with them; 8: the programs through Niko; 9: subscriptions (Group.subscription, Refresh, their import)
   @$pb.TagNumber(4)
   $core.int get api => $_getIZ(3);
   @$pb.TagNumber(4)
@@ -722,6 +722,7 @@ class TaskProgress extends $pb.GeneratedMessage {
     $core.int? code,
     $core.String? error,
     $core.Iterable<$fixnum.Int64>? ids,
+    $fixnum.Int64? groupId,
   }) {
     final result = TaskProgress._();
     if (taskId != null) result.taskId = taskId;
@@ -730,6 +731,7 @@ class TaskProgress extends $pb.GeneratedMessage {
     if (code != null) result.code = code;
     if (error != null) result.error = error;
     if (ids != null) result.ids.addAll(ids);
+    if (groupId != null) result.groupId = groupId;
     return result;
   }
 
@@ -752,6 +754,7 @@ class TaskProgress extends $pb.GeneratedMessage {
     ..aI(4, _omitFieldNames ? '' : 'code')
     ..aOS(5, _omitFieldNames ? '' : 'error')
     ..p<$fixnum.Int64>(7, _omitFieldNames ? '' : 'ids', $pb.PbFieldType.K6)
+    ..aInt64(8, _omitFieldNames ? '' : 'groupId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -824,9 +827,19 @@ class TaskProgress extends $pb.GeneratedMessage {
   @$pb.TagNumber(5)
   void clearError() => $_clearField(5);
 
-  /// what the task added or changed: the profiles an import added
+  /// what the task added or changed: the profiles an import or an update added
   @$pb.TagNumber(7)
   $pb.PbList<$fixnum.Int64> get ids => $_getList(5);
+
+  /// the subscription's group the task made or updated
+  @$pb.TagNumber(8)
+  $fixnum.Int64 get groupId => $_getI64(6);
+  @$pb.TagNumber(8)
+  set groupId($fixnum.Int64 value) => $_setInt64(6, value);
+  @$pb.TagNumber(8)
+  $core.bool hasGroupId() => $_has(6);
+  @$pb.TagNumber(8)
+  void clearGroupId() => $_clearField(8);
 }
 
 class Group extends $pb.GeneratedMessage {
@@ -837,6 +850,7 @@ class Group extends $pb.GeneratedMessage {
     $core.bool? ungrouped,
     Group_Type? type,
     $core.int? profiles,
+    Subscription? subscription,
   }) {
     final result = Group._();
     if (id != null) result.id = id;
@@ -845,6 +859,7 @@ class Group extends $pb.GeneratedMessage {
     if (ungrouped != null) result.ungrouped = ungrouped;
     if (type != null) result.type = type;
     if (profiles != null) result.profiles = profiles;
+    if (subscription != null) result.subscription = subscription;
     return result;
   }
 
@@ -868,6 +883,8 @@ class Group extends $pb.GeneratedMessage {
     ..aE<Group_Type>(5, _omitFieldNames ? '' : 'type',
         enumValues: Group_Type.values)
     ..aI(6, _omitFieldNames ? '' : 'profiles')
+    ..aOM<Subscription>(7, _omitFieldNames ? '' : 'subscription',
+        subBuilder: Subscription.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -945,6 +962,290 @@ class Group extends $pb.GeneratedMessage {
   $core.bool hasProfiles() => $_has(5);
   @$pb.TagNumber(6)
   void clearProfiles() => $_clearField(6);
+
+  /// a subscription's group's
+  @$pb.TagNumber(7)
+  Subscription get subscription => $_getN(6);
+  @$pb.TagNumber(7)
+  set subscription(Subscription value) => $_setField(7, value);
+  @$pb.TagNumber(7)
+  $core.bool hasSubscription() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearSubscription() => $_clearField(7);
+  @$pb.TagNumber(7)
+  Subscription ensureSubscription() => $_ensure(6);
+}
+
+/// A group's subscription (the app's SubscriptionBean). The settings are the user's; what an update says is read only.
+class Subscription extends $pb.GeneratedMessage {
+  factory Subscription({
+    $core.String? link,
+    $core.bool? deduplication,
+    $core.bool? forceResolve,
+    $core.bool? updateWhenConnectedOnly,
+    $core.String? customUserAgent,
+    $core.bool? autoUpdate,
+    $core.int? autoUpdateDelay,
+    $fixnum.Int64? lastUpdated,
+    $fixnum.Int64? used,
+    $fixnum.Int64? total,
+    $fixnum.Int64? expire,
+    $core.String? announce,
+    $core.bool? updating,
+  }) {
+    final result = Subscription._();
+    if (link != null) result.link = link;
+    if (deduplication != null) result.deduplication = deduplication;
+    if (forceResolve != null) result.forceResolve = forceResolve;
+    if (updateWhenConnectedOnly != null)
+      result.updateWhenConnectedOnly = updateWhenConnectedOnly;
+    if (customUserAgent != null) result.customUserAgent = customUserAgent;
+    if (autoUpdate != null) result.autoUpdate = autoUpdate;
+    if (autoUpdateDelay != null) result.autoUpdateDelay = autoUpdateDelay;
+    if (lastUpdated != null) result.lastUpdated = lastUpdated;
+    if (used != null) result.used = used;
+    if (total != null) result.total = total;
+    if (expire != null) result.expire = expire;
+    if (announce != null) result.announce = announce;
+    if (updating != null) result.updating = updating;
+    return result;
+  }
+
+  Subscription._();
+
+  factory Subscription.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      Subscription()..mergeFromBuffer(data, registry);
+  factory Subscription.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      Subscription()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'Subscription',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: Subscription.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'link')
+    ..aOB(2, _omitFieldNames ? '' : 'deduplication')
+    ..aOB(3, _omitFieldNames ? '' : 'forceResolve')
+    ..aOB(4, _omitFieldNames ? '' : 'updateWhenConnectedOnly')
+    ..aOS(5, _omitFieldNames ? '' : 'customUserAgent')
+    ..aOB(6, _omitFieldNames ? '' : 'autoUpdate')
+    ..aI(7, _omitFieldNames ? '' : 'autoUpdateDelay')
+    ..aInt64(8, _omitFieldNames ? '' : 'lastUpdated')
+    ..aInt64(9, _omitFieldNames ? '' : 'used')
+    ..aInt64(10, _omitFieldNames ? '' : 'total')
+    ..aInt64(11, _omitFieldNames ? '' : 'expire')
+    ..aOS(12, _omitFieldNames ? '' : 'announce')
+    ..aOB(13, _omitFieldNames ? '' : 'updating')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  Subscription clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  Subscription copyWith(void Function(Subscription) updates) =>
+      super.copyWith((message) => updates(message as Subscription))
+          as Subscription;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use Subscription() / Subscription.new instead')
+  static Subscription create() => Subscription._();
+  static $pb.GeneratedMessage $_createMessage() => Subscription._();
+  @$core.override
+  Subscription createEmptyInstance() => Subscription._();
+  @$core.pragma('dart2js:noInline')
+  static Subscription getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<Subscription>(
+          Subscription.$_createMessage);
+  static Subscription? _defaultInstance;
+
+  /// the address the profiles are fetched from: http or https; empty where it was sealed on another machine and is
+  /// to be given again
+  @$pb.TagNumber(1)
+  $core.String get link => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set link($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasLink() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearLink() => $_clearField(1);
+
+  /// one profile of each server
+  @$pb.TagNumber(2)
+  $core.bool get deduplication => $_getBF(1);
+  @$pb.TagNumber(2)
+  set deduplication($core.bool value) => $_setBool(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasDeduplication() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearDeduplication() => $_clearField(2);
+
+  /// the servers' names resolved at each update
+  @$pb.TagNumber(3)
+  $core.bool get forceResolve => $_getBF(2);
+  @$pb.TagNumber(3)
+  set forceResolve($core.bool value) => $_setBool(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasForceResolve() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearForceResolve() => $_clearField(3);
+
+  /// the timed update waits for a connection
+  @$pb.TagNumber(4)
+  $core.bool get updateWhenConnectedOnly => $_getBF(3);
+  @$pb.TagNumber(4)
+  set updateWhenConnectedOnly($core.bool value) => $_setBool(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasUpdateWhenConnectedOnly() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearUpdateWhenConnectedOnly() => $_clearField(4);
+
+  /// the User-Agent the provider is asked with; empty: the app's
+  @$pb.TagNumber(5)
+  $core.String get customUserAgent => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set customUserAgent($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasCustomUserAgent() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearCustomUserAgent() => $_clearField(5);
+
+  /// the timed update, every auto_update_delay minutes (at least 15; a day by default); the provider's interval turns
+  /// it on at the first update
+  @$pb.TagNumber(6)
+  $core.bool get autoUpdate => $_getBF(5);
+  @$pb.TagNumber(6)
+  set autoUpdate($core.bool value) => $_setBool(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasAutoUpdate() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearAutoUpdate() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.int get autoUpdateDelay => $_getIZ(6);
+  @$pb.TagNumber(7)
+  set autoUpdateDelay($core.int value) => $_setSignedInt32(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasAutoUpdateDelay() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearAutoUpdateDelay() => $_clearField(7);
+
+  /// read only, from the updates: the last one's time (unix seconds, 0 for none); the traffic used and allowed
+  /// (bytes) and the expiry (unix seconds) the provider said, 0 for unknown; the provider's announcement
+  @$pb.TagNumber(8)
+  $fixnum.Int64 get lastUpdated => $_getI64(7);
+  @$pb.TagNumber(8)
+  set lastUpdated($fixnum.Int64 value) => $_setInt64(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasLastUpdated() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearLastUpdated() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $fixnum.Int64 get used => $_getI64(8);
+  @$pb.TagNumber(9)
+  set used($fixnum.Int64 value) => $_setInt64(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasUsed() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearUsed() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $fixnum.Int64 get total => $_getI64(9);
+  @$pb.TagNumber(10)
+  set total($fixnum.Int64 value) => $_setInt64(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasTotal() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearTotal() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $fixnum.Int64 get expire => $_getI64(10);
+  @$pb.TagNumber(11)
+  set expire($fixnum.Int64 value) => $_setInt64(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasExpire() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearExpire() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.String get announce => $_getSZ(11);
+  @$pb.TagNumber(12)
+  set announce($core.String value) => $_setString(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasAnnounce() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearAnnounce() => $_clearField(12);
+
+  /// an update of it runs now
+  @$pb.TagNumber(13)
+  $core.bool get updating => $_getBF(12);
+  @$pb.TagNumber(13)
+  set updating($core.bool value) => $_setBool(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasUpdating() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearUpdating() => $_clearField(13);
+}
+
+class RefreshRequest extends $pb.GeneratedMessage {
+  factory RefreshRequest({
+    $fixnum.Int64? groupId,
+  }) {
+    final result = RefreshRequest._();
+    if (groupId != null) result.groupId = groupId;
+    return result;
+  }
+
+  RefreshRequest._();
+
+  factory RefreshRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RefreshRequest()..mergeFromBuffer(data, registry);
+  factory RefreshRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RefreshRequest()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RefreshRequest',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: RefreshRequest.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'groupId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RefreshRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RefreshRequest copyWith(void Function(RefreshRequest) updates) =>
+      super.copyWith((message) => updates(message as RefreshRequest))
+          as RefreshRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use RefreshRequest() / RefreshRequest.new instead')
+  static RefreshRequest create() => RefreshRequest._();
+  static $pb.GeneratedMessage $_createMessage() => RefreshRequest._();
+  @$core.override
+  RefreshRequest createEmptyInstance() => RefreshRequest._();
+  @$core.pragma('dart2js:noInline')
+  static RefreshRequest getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<RefreshRequest>(
+          RefreshRequest.$_createMessage);
+  static RefreshRequest? _defaultInstance;
+
+  /// the subscription's group; 0: every one
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get groupId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set groupId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasGroupId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearGroupId() => $_clearField(1);
 }
 
 class GroupId extends $pb.GeneratedMessage {
@@ -2185,6 +2486,7 @@ class ImportPreview extends $pb.GeneratedMessage {
           ImportPreview.$_createMessage);
   static ImportPreview? _defaultInstance;
 
+  /// NODE: a raycontrol node's invite or device package, whose import comes with the nodes
   @$pb.TagNumber(1)
   ImportPreview_Kind get kind => $_getN(0);
   @$pb.TagNumber(1)
@@ -2198,7 +2500,7 @@ class ImportPreview extends $pb.GeneratedMessage {
   @$pb.TagNumber(2)
   $pb.PbList<Profile> get profiles => $_getList(1);
 
-  /// the subscription's link, with kind SUBSCRIPTION: its import comes later
+  /// the subscription's link, with kind SUBSCRIPTION: its import makes a group of it
   @$pb.TagNumber(3)
   $core.String get subscription => $_getSZ(2);
   @$pb.TagNumber(3)

@@ -196,8 +196,7 @@ const (
 	ImportPreview_NOTHING      ImportPreview_Kind = 0
 	ImportPreview_PROFILES     ImportPreview_Kind = 1
 	ImportPreview_SUBSCRIPTION ImportPreview_Kind = 2
-	// a raycontrol node's invite or device package: nodes come with slice 11
-	ImportPreview_NODE ImportPreview_Kind = 3
+	ImportPreview_NODE         ImportPreview_Kind = 3
 )
 
 // Enum value maps for ImportPreview_Kind.
@@ -2079,7 +2078,8 @@ func (x *ImportInput) GetFileName() string {
 
 type ImportPreview struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	Kind  ImportPreview_Kind     `protobuf:"varint,1,opt,name=kind,proto3,enum=niko.v1.ImportPreview_Kind" json:"kind,omitempty"`
+	// NODE: a raycontrol node's invite or device package, whose import comes with the nodes
+	Kind ImportPreview_Kind `protobuf:"varint,1,opt,name=kind,proto3,enum=niko.v1.ImportPreview_Kind" json:"kind,omitempty"`
 	// the profiles an import would add, as rows without ids
 	Profiles []*Profile `protobuf:"bytes,2,rep,name=profiles,proto3" json:"profiles,omitempty"`
 	// the subscription's link, with kind SUBSCRIPTION: its import makes a group of it

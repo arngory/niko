@@ -7,12 +7,13 @@ import '../state/profiles_feed.dart';
 import '../theme/niko_theme.dart';
 import '../ui/banner.dart';
 import '../ui/controls.dart';
+import '../ui/format.dart';
 import '../ui/icons.dart';
 import '../ui/pressable.dart';
 
 /// Узлы (B-Profiles, D-MAIN-07): the groups beside the profiles of the one chosen; a profile pressed is the one the
-/// window connects with; one is added from a link (+) and deleted, with a way back for a while. Sharing and the
-/// order come with the next part of slice 5.
+/// window connects with; one is added from a link (+) and deleted, with a way back for a while. A subscription's
+/// group says its traffic, expiry and last update, and updates on demand (D-SUB-01…03).
 class NodesScreen extends StatelessWidget {
   const NodesScreen({super.key, required this.feed, required this.linked, required this.onAdd});
 
@@ -90,6 +91,14 @@ class NodesScreen extends StatelessWidget {
                     style: NikoType.title.style(colors.ink),
                   ),
                 ),
+                if (group?.info case final info? when linked) ...[
+                  const SizedBox(height: NikoSpace.s2),
+                  _SubscriptionLine(
+                    info: info,
+                    strings: strings,
+                    onUpdate: info.updating ? null : () => feed.refresh(group!.id),
+                  ),
+                ],
                 const SizedBox(height: NikoSpace.s4),
                 if (feed.error.isNotEmpty) ...[
                   NikoBanner(icon: NikoIcons.alert, title: strings.storeUnreachable, text: feed.error, danger: true),
@@ -102,6 +111,9 @@ class NodesScreen extends StatelessWidget {
                 ] else if (feed.copied case final name?) ...[
                   const SizedBox(height: NikoSpace.s4),
                   _Snackbar(text: strings.linkCopied(name)),
+                ] else if (feed.updated case final line?) ...[
+                  const SizedBox(height: NikoSpace.s4),
+                  _Snackbar(text: feed.updateFailed ? '${strings.subscriptionUpdateFailed}: $line' : line),
                 ],
               ],
             ),
@@ -115,6 +127,56 @@ class NodesScreen extends StatelessWidget {
 /// A group's name: the ungrouped one is the window's to name.
 String groupName(GroupRow group, NikoStrings strings) =>
     group.ungrouped || group.name.isEmpty ? strings.groupOwn : group.name;
+
+/// What a subscription's provider said of it: the traffic used of the allowed (or used alone), the expiry; empty
+/// where it said nothing.
+String subscriptionUsage(SubscriptionInfo info, NikoStrings strings) => [
+      if (info.total > 0)
+        strings.subscriptionTraffic(formatBytes(info.used), formatBytes(info.total))
+      else if (info.used > 0)
+        strings.subscriptionUsed(formatBytes(info.used)),
+      if (info.expire > 0) strings.subscriptionExpires(formatDate(DateTime.fromMillisecondsSinceEpoch(info.expire * 1000))),
+    ].join(' · ');
+
+/// A subscription's group under its title: what the provider said, when it was updated, its announcement, and the
+/// update on demand (disabled while one runs).
+class _SubscriptionLine extends StatelessWidget {
+  const _SubscriptionLine({required this.info, required this.strings, required this.onUpdate});
+
+  final SubscriptionInfo info;
+  final NikoStrings strings;
+  final VoidCallback? onUpdate;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = NikoTheme.of(context);
+    final when = info.lastUpdated > 0
+        ? strings.subscriptionUpdated(formatMoment(DateTime.fromMillisecondsSinceEpoch(info.lastUpdated * 1000)))
+        : strings.subscriptionNever;
+    final usage = subscriptionUsage(info, strings);
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(usage.isEmpty ? when : '$usage · $when',
+                  maxLines: 1, overflow: TextOverflow.ellipsis, style: NikoType.bodySm.style(colors.ink2)),
+              if (info.announce.isNotEmpty)
+                Text(info.announce, maxLines: 2, overflow: TextOverflow.ellipsis, style: NikoType.bodySm.style(colors.ink2)),
+            ],
+          ),
+        ),
+        const SizedBox(width: NikoSpace.s3),
+        NikoTonalButton(
+          label: info.updating ? strings.subscriptionUpdating : strings.subscriptionUpdate,
+          onPressed: onUpdate,
+        ),
+      ],
+    );
+  }
+}
 
 /// The panel of groups (m-list with its title): the one shown on surface-2.
 class _Groups extends StatelessWidget {
@@ -153,7 +215,10 @@ class _Groups extends StatelessWidget {
                 sub: g.ungrouped
                     ? strings.groupOwnSub(g.profiles)
                     : g.subscription
-                        ? strings.groupSubscriptionSub(g.profiles)
+                        ? [
+                            strings.groupSubscriptionSub(g.profiles),
+                            if (g.info case final info?) subscriptionUsage(info, strings),
+                          ].where((part) => part.isNotEmpty).join(' · ')
                         : strings.groupBasicSub(g.profiles),
                 chosen: g.id == feed.groupId,
                 onPressed: () => feed.choose(g.id),

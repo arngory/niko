@@ -110,8 +110,11 @@ class NikoServiceClient extends $grpc.Client {
     return $createUnaryCall(_$moveProfiles, request, options: options);
   }
 
-  /// A group of the user's own: a new one (id 0), or a new name. A subscription's group comes with subscriptions:
-  /// UNIMPLEMENTED.
+  /// A group: of the user's own (BASIC), a new one (id 0) or a new name; of a subscription (SUBSCRIPTION, D-SUB-01,
+  /// -02, -08), a new one with its subscription's address and settings (its name the app's default, "Subscription
+  /// #…", where none is given, which its first update replaces by the provider's), or the name and settings of one;
+  /// what its updates set is kept. Saving makes no update: Refresh does. INVALID_ARGUMENT for an address that is no
+  /// http(s) URL, an interval under 15 minutes; FAILED_PRECONDITION for a group of the other type.
   $grpc.ResponseFuture<$0.Group> saveGroup(
     $0.Group request, {
     $grpc.CallOptions? options,
@@ -199,13 +202,32 @@ class NikoServiceClient extends $grpc.Client {
     return $createUnaryCall(_$recognize, request, options: options);
   }
 
-  /// Imports an input: the task's progress, then its result, the last message (done). Share links and sn:// now; a
-  /// subscription's link is recognized, its import comes later (UNIMPLEMENTED as the result's code).
+  /// Imports an input: the task's progress, then its result, the last message (done). Share links and sn://; a
+  /// subscription's link (http(s), clash://install-config, another client's "add subscription" link) makes a group of
+  /// that subscription and updates it, as the app's import does: the result names the group (group_id). A raycontrol
+  /// node's invite or device package is recognized, its import comes with the nodes (UNIMPLEMENTED as the result's
+  /// code), and so is a whole group shared as sn://subscription.
   $grpc.ResponseStream<$0.TaskProgress> import(
     $0.ImportRequest request, {
     $grpc.CallOptions? options,
   }) {
     return $createStreamingCall(_$import, $async.Stream.fromIterable([request]),
+        options: options);
+  }
+
+  /// Updates a subscription's group (D-SUB-03), or every one (group_id 0), as the app's update does: the answer
+  /// fetched, its profiles merged into the group's, its traffic and expiry kept (Subscription). A task, as Import is:
+  /// its progress, then its result; the result in Watch too, and the group's change. The daemon updates the groups
+  /// that say so on their own, by their interval. NOT_FOUND; FAILED_PRECONDITION for a group of no subscription or
+  /// one whose address cannot be opened on this machine (to be given again); ABORTED where an update of the group runs
+  /// already; UNAVAILABLE where the provider did not answer, INVALID_ARGUMENT where its answer has no profiles,
+  /// PERMISSION_DENIED where its panel refused this device: as the result's code.
+  $grpc.ResponseStream<$0.TaskProgress> refresh(
+    $0.RefreshRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createStreamingCall(
+        _$refresh, $async.Stream.fromIterable([request]),
         options: options);
   }
 
@@ -291,6 +313,11 @@ class NikoServiceClient extends $grpc.Client {
       '/niko.v1.NikoService/Import',
       ($0.ImportRequest value) => value.writeToBuffer(),
       $0.TaskProgress.fromBuffer);
+  static final _$refresh =
+      $grpc.ClientMethod<$0.RefreshRequest, $0.TaskProgress>(
+          '/niko.v1.NikoService/Refresh',
+          ($0.RefreshRequest value) => value.writeToBuffer(),
+          $0.TaskProgress.fromBuffer);
 }
 
 @$pb.GrpcServiceName('niko.v1.NikoService')
@@ -431,6 +458,13 @@ abstract class NikoServiceBase extends $grpc.Service {
         false,
         true,
         ($core.List<$core.int> value) => $0.ImportRequest.fromBuffer(value),
+        ($0.TaskProgress value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.RefreshRequest, $0.TaskProgress>(
+        'Refresh',
+        refresh_Pre,
+        false,
+        true,
+        ($core.List<$core.int> value) => $0.RefreshRequest.fromBuffer(value),
         ($0.TaskProgress value) => value.writeToBuffer()));
   }
 
@@ -583,4 +617,12 @@ abstract class NikoServiceBase extends $grpc.Service {
 
   $async.Stream<$0.TaskProgress> import(
       $grpc.ServiceCall call, $0.ImportRequest request);
+
+  $async.Stream<$0.TaskProgress> refresh_Pre($grpc.ServiceCall $call,
+      $async.Future<$0.RefreshRequest> $request) async* {
+    yield* refresh($call, await $request);
+  }
+
+  $async.Stream<$0.TaskProgress> refresh(
+      $grpc.ServiceCall call, $0.RefreshRequest request);
 }

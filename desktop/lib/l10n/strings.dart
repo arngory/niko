@@ -49,8 +49,21 @@ class NikoStrings {
   String get addPaste => _ru ? 'Вставить' : 'Paste';
   String addFound(int count) => _ru ? 'Профилей в ссылке: $count' : 'Profiles in the link: $count';
   String addButton(int count) => _ru ? 'Добавить: $count' : 'Add $count';
-  String get addSubscriptionLater =>
-      _ru ? 'Это ссылка подписки: подписки придут в следующих выпусках' : 'This is a subscription\'s link: subscriptions come in later releases';
+  String get addSubscriptionFound => _ru ? 'Это ссылка подписки' : 'This is a subscription\'s link';
+  String get addSubscriptionText => _ru
+      ? 'Добавится группа подписки, профили придут с её первым обновлением'
+      : 'A group of the subscription is added, its profiles come with its first update';
+  String get addSubscriptionButton => _ru ? 'Добавить подписку' : 'Add the subscription';
+  String get addNodeLater =>
+      _ru ? 'Это приглашение узла: узлы придут в следующих выпусках' : 'This is a node\'s invite: nodes come in later releases';
+  String get subscriptionUpdate => _ru ? 'Обновить' : 'Update';
+  String get subscriptionUpdating => _ru ? 'Обновление…' : 'Updating…';
+  String get subscriptionUpdateFailed => _ru ? 'Подписка не обновлена' : 'The subscription was not updated';
+  String get subscriptionNever => _ru ? 'ещё не обновлялась' : 'not updated yet';
+  String subscriptionUpdated(String at) => _ru ? 'обновлена $at' : 'updated $at';
+  String subscriptionTraffic(String used, String total) => _ru ? '$used из $total' : '$used of $total';
+  String subscriptionUsed(String used) => _ru ? 'израсходовано $used' : '$used used';
+  String subscriptionExpires(String date) => _ru ? 'до $date' : 'until $date';
   String get addNothing => _ru ? 'Ссылок на профили не найдено' : 'No profile links found';
   String get addFailed => _ru ? 'Не добавлено' : 'Not added';
   String get cancel => _ru ? 'Отмена' : 'Cancel';
