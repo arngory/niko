@@ -42,6 +42,8 @@ object Key {
     const val HONEST_CONNECT = "honestConnect"
     const val ICMP_THROUGH_NODE = "icmpThroughNode"
     const val ICMP_NO_LOCAL_REPLY = "icmpNoLocalReply"
+    const val HY2_PROBE = "hy2Probe"
+    const val HY2_LOG_CONNECTIONS = "hy2LogConnections"
     const val TLS_FRAGMENT_BYPASS = "tlsFragmentBypass"
     const val RULE_SET_UPDATE_HOURS = "ruleSetUpdateHours"
 

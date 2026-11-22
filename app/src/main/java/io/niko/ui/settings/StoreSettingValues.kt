@@ -36,6 +36,7 @@ object SettingKeys {
         Key.SHOW_DIRECT_SPEED to true,
         Key.LOG_LEVEL to "0",
         Key.TLS_FRAGMENT_BYPASS to "0",
+        Key.HY2_PROBE to "0",
         Key.RULE_SET_UPDATE_HOURS to "24",
         Key.TRAFFIC_SNIFFING to "1",
         Key.IPV6_MODE to "0",
@@ -64,7 +65,7 @@ object SettingKeys {
     private val numberDefaults = mapOf(CONNECTION_TEST_CONCURRENT to 5, Key.LOG_BUF_SIZE to 0)
     fun numberDefault(key: String) = numberDefaults[key] ?: 0
 
-    private val restart = setOf(Key.LOG_LEVEL, Key.LOG_BUF_SIZE)
+    private val restart = setOf(Key.LOG_LEVEL, Key.LOG_BUF_SIZE, Key.HY2_LOG_CONNECTIONS)
 
     // what the core's config is built of; the rest (the view, the node's options read when they are used, the
     // check's address) takes effect without it, as the old screen's preferences did
@@ -78,7 +79,7 @@ object SettingKeys {
         Key.DNS_OPTIMISTIC_CACHE, Key.REMOTE_DNS, Key.DIRECT_DNS, Key.ENABLE_DNS_ROUTING, STRATEGY_REMOTE,
         STRATEGY_DIRECT, STRATEGY_SERVER, Key.GLOBAL_CUSTOM_CONFIG, Key.ENABLE_CLASH_API, Key.YGGDRASIL_ENABLED,
         Key.YGGDRASIL_PEERS, Key.YGGDRASIL_PEERS_VIA_PROXY, Key.YGGDRASIL_TLS_CHROME, Key.YGGDRASIL_ALLOW_INBOUND,
-        Key.YGGDRASIL_INBOUND_PORTS,
+        Key.YGGDRASIL_INBOUND_PORTS, Key.HY2_PROBE,
     )
 
     fun effect(key: String) = when (key) {

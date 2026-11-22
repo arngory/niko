@@ -87,6 +87,9 @@ data class ConfigSettings(
     val naiveQuicPhoneRoots: Boolean = false,
     val icmpThroughNode: Boolean = false,
     val icmpNoLocalReply: Boolean = false,
+    /** a Hysteria2 probe of [Hy2Probe] (a debug setting of Android's), and the core's log of its connections */
+    val hy2Probe: String = Hy2Probe.OFF,
+    val hy2LogConnections: Boolean = false,
     val refuseQuicOverStreams: Boolean = false,
     val tlsFragmentBypass: Int = 0,
     val connectionTestURL: String = CONNECTION_TEST_URL,
@@ -143,6 +146,8 @@ data class ConfigSettings(
                 naiveQuicPhoneRoots = DataStore.naiveQuicPhoneRoots,
                 icmpThroughNode = DataStore.icmpThroughNode,
                 icmpNoLocalReply = DataStore.icmpNoLocalReply,
+                hy2Probe = DataStore.hy2Probe,
+                hy2LogConnections = DataStore.hy2LogConnections,
                 refuseQuicOverStreams = DataStore.refuseQuicOverStreams,
                 tlsFragmentBypass = DataStore.tlsFragmentBypass,
                 connectionTestURL = DataStore.connectionTestURL,

@@ -408,6 +408,24 @@ private fun Experiments(values: SettingValues, actions: SettingsActions) = Page(
             values, actions, divider = true,
         )
     }
+    // raycontrol's A/B probes for Hysteria2: one change at a time, the connection log beside it
+    ListGroup {
+        ChoiceRow(
+            Choice(
+                stringResource(R.string.set_hy2_probe), Key.HY2_PROBE,
+                listOf(
+                    io.niko.fmt.Hy2Probe.OFF to stringResource(R.string.set_no),
+                    io.niko.fmt.Hy2Probe.PORT_443 to stringResource(R.string.set_hy2_probe_443),
+                    io.niko.fmt.Hy2Probe.BBR to stringResource(R.string.set_hy2_probe_bbr),
+                    io.niko.fmt.Hy2Probe.RATE_10 to stringResource(R.string.set_hy2_probe_10),
+                    io.niko.fmt.Hy2Probe.PACKET_1200 to stringResource(R.string.set_hy2_probe_1200),
+                    io.niko.fmt.Hy2Probe.NO_PARROT to stringResource(R.string.set_hy2_probe_no_parrot),
+                ),
+            ),
+            values, actions, divider = false,
+        )
+        Switch(values, Key.HY2_LOG_CONNECTIONS, R.string.set_hy2_log, divider = true, sub = stringResource(R.string.set_hy2_log_sub))
+    }
 }
 
 @Composable

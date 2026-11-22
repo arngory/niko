@@ -243,19 +243,18 @@ object RayChannel {
     private const val FRESH_WIFI = 7 * 24 * 3600L
     private const val FRESH_MOBILE = 24 * 3600L
 
-    /** Probe options; [deep] is a check the user asked for: a longer window and more data, less on mobile. */
-    fun options(deep: Boolean, mobile: Boolean): String = JsonObject().apply {
-        val bytes = when {
-            !deep -> 256 shl 10
-            mobile -> 2 shl 20
-            else -> 8 shl 20
-        }
+    /**
+     * Probe options; [deep] is a check the user asked for: a longer window and more data, less on mobile. [sustained]:
+     * a deep check's 30 s download, the longest the probe takes, for a path that stalls after its first seconds.
+     */
+    fun options(deep: Boolean, mobile: Boolean, sustained: Boolean = false): String = JsonObject().apply {
+        val bytes = downBytes(deep, mobile, sustained)
         addProperty("tcp_url", TCP_URL + bytes)
         addProperty("tcp_bytes", bytes)
         addProperty("udp_server", UDP_SERVER)
         addProperty("udp_count", if (deep) 30 else 10)
         addProperty("udp_interval_ms", 200)
-        addProperty("window_ms", if (deep) 10_000 else 5_000)
+        addProperty("window_ms", windowMs(deep, sustained))
     }.toString()
 
     /**
@@ -263,10 +262,11 @@ object RayChannel {
      * node's probe slot busy. A node that answers probes (probe-v1) is measured through the profile's tunnel at its
      * probe name: the tunnel as a whole, its exit included; other profiles through a download from Cloudflare.
      */
-    suspend fun probe(profile: ProxyEntity, deep: Boolean, mobile: Boolean): ChannelScore? {
+    suspend fun probe(profile: ProxyEntity, deep: Boolean, mobile: Boolean, sustained: Boolean = false): ChannelScore? {
         val at = System.currentTimeMillis() / 1000
         val nodeRequest = RayNodes.ownerOf(profile.id)?.let { (node, key) ->
-            node.probe?.takeIf { it.reachesThrough(key.substringBefore('#').toIntOrNull()) }?.let { probeRequest(node, it, deep, mobile) }
+            node.probe?.takeIf { it.reachesThrough(key.substringBefore('#').toIntOrNull()) }
+                ?.let { probeRequest(node, it, deep, mobile, sustained) }
         }
         // the resolver its DNS tunnel goes through, as the probe's config takes it now (the summary's obs dns)
         val dnsKind = runCatching { RayDnsResolvers.usedKind(profile) }.getOrNull()
@@ -275,7 +275,7 @@ object RayChannel {
             if (nodeRequest != null) {
                 ChannelScore.fromNodeProbe(at, TestInstance(profile, "", 0).doProbeNode(nodeRequest.toString()))
             } else {
-                ChannelScore.fromProbe(at, TestInstance(profile, "", 0).doProbe(options(deep, mobile)))
+                ChannelScore.fromProbe(at, TestInstance(profile, "", 0).doProbe(options(deep, mobile, sustained)))
             }?.copy(dnsKind = dnsKind, dnsZone = dnsZone)
         } catch (e: CancellationException) {
             // cancelled, not failed: nothing to record
@@ -290,7 +290,7 @@ object RayChannel {
     }
 
     /** A probe-v1 request through a profile's tunnel: the subscription's endpoint and the device, then the steps. */
-    private fun probeRequest(node: RayNode, info: RayProbeInfo, deep: Boolean, mobile: Boolean): JsonObject? {
+    private fun probeRequest(node: RayNode, info: RayProbeInfo, deep: Boolean, mobile: Boolean, sustained: Boolean): JsonObject? {
         val sub = node.subscription ?: return null
         return JsonObject().apply {
             RayNames.reach(this, node)
@@ -299,16 +299,25 @@ object RayChannel {
             addProperty("device_id", node.deviceId)
             add("spa", node.spaJson().apply { addProperty("device_key", RayNodes.deviceKeyHex(node)) })
             addProperty("tunnel", info.tunnel)
-            addProperty("down_bytes", downBytes(deep, mobile))
+            addProperty("down_bytes", downBytes(deep, mobile, sustained))
             if (info.udp) {
                 addProperty("echo_count", if (deep) 50 else 20)
                 addProperty("echo_size", 1200)
             }
-            addProperty("window_ms", if (deep) 10_000 else 5_000)
+            addProperty("window_ms", windowMs(deep, sustained))
         }
     }
 
-    private fun downBytes(deep: Boolean, mobile: Boolean): Long = when {
+    private fun windowMs(deep: Boolean, sustained: Boolean) = when {
+        sustained -> 30_000
+        deep -> 10_000
+        else -> 5_000
+    }
+
+    // sustained: what 30 s carry at about 17 Mbit/s on mobile and 70 on Wi-Fi, the window ends it on a faster path
+    internal fun downBytes(deep: Boolean, mobile: Boolean, sustained: Boolean = false): Long = when {
+        sustained && mobile -> 64L shl 20
+        sustained -> 256L shl 20
         !deep -> 256L shl 10
         mobile -> 2L shl 20
         else -> 8L shl 20

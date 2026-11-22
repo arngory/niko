@@ -168,6 +168,10 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var honestConnect by configurationStore.boolean(Key.HONEST_CONNECT)
     var icmpThroughNode by configurationStore.boolean(Key.ICMP_THROUGH_NODE)
     var icmpNoLocalReply by configurationStore.boolean(Key.ICMP_NO_LOCAL_REPLY)
+    // Hysteria2 debugging (raycontrol's A/B probes): one change against the profile as it is ([Hy2Probe]), and each
+    // QUIC connection's traffic and stalls in the log
+    var hy2Probe by configurationStore.string(Key.HY2_PROBE) { io.niko.fmt.Hy2Probe.OFF }
+    var hy2LogConnections by configurationStore.boolean(Key.HY2_LOG_CONNECTIONS)
     var tlsFragmentBypass by configurationStore.stringToInt(Key.TLS_FRAGMENT_BYPASS)
     var ruleSetUpdateHours by configurationStore.stringToInt(Key.RULE_SET_UPDATE_HOURS) { 24 }
 

@@ -363,7 +363,9 @@ fun buildConfig(
         }
 
         log = LogOptions().apply {
-            level = when (if (forTest) testLogLevel ?: settings.logLevel else settings.logLevel) {
+            // the Hysteria2 connection log (a debug setting) wants the core's lines and the Brutal sender's: debug
+            val asked = if (forTest) testLogLevel ?: settings.logLevel else settings.logLevel
+            level = when (if (settings.hy2LogConnections) maxOf(asked, 3) else asked) {
                 0 -> "panic"
                 1 -> "warn"
                 2 -> "info"
@@ -722,6 +724,11 @@ fun buildConfig(
                     // docs/research/keepalive.md)
                     if (bean.obfuscation.isNotBlank()) currentOutbound._hack_config_map["disable_chrome_parrot"] = true
                 }
+                // a Hysteria2 probe and the connection log (debug settings, Hy2Probe): over what the profile and the
+                // node set above. Fields of the core fork's: not in an export
+                if (!forExport && bean is HysteriaBean && bean.protocolVersion == 2 && !proxyEntity.needExternal()) {
+                    currentOutbound._hack_config_map.putAll(Hy2Probe.options(settings.hy2Probe, settings.hy2LogConnections))
+                }
                 // honest connect (experiment, off by default): an app's TCP connection opens only once the node has
                 // reached the destination, so a refusal or a dead host fails it at once instead of a connection that
                 // ends empty; only where the link says the server answers right after its dial (niko-ack=1). A field
@@ -810,7 +817,9 @@ fun buildConfig(
                     )
                     // the node's UDP service port rotates (spa-v2.md §11): the knock outbound follows it
                     // a relay forwards UDP 443 only (relay-v1 §4): no slot ports through it
-                    rayNode?.takeIf { rayRelay == null }?.let { rotatingUdpPorts(ray, it, proxyEntity, bean) }?.let {
+                    // the 443 probe (Hy2Probe) keeps the service port
+                    rayNode?.takeIf { rayRelay == null && (forExport || !Hy2Probe.keepsServicePort(settings.hy2Probe)) }
+                        ?.let { rotatingUdpPorts(ray, it, proxyEntity, bean) }?.let {
                         knockOutbound._hack_config_map["udp_ports"] = it
                     }
                     // only for the node's TCP 443 profiles (REALITY, naive): with Hysteria2 or a DNS tunnel the node's
