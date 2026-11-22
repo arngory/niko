@@ -2,13 +2,16 @@
 // (docs/design/desktop-stage3.md): the daemon's info and the route tester (slice 1); each user's store of groups and
 // profiles, its changes through Watch, the import of share links (slice 4, store.go); the connection to a stored
 // profile, its config built here for this computer, in proxy or VPN mode (slices 7 and 8, connect.go), with the
-// computer's settings (slice 13's part for a computer, settings.go).
+// computer's settings (slice 13's part for a computer, settings.go); subscriptions, updated on demand and by their
+// interval (slice 9, subscriptions.go).
 package nikoservice
 
 import (
 	"context"
 	"errors"
+	"net/http"
 	"os"
+	"time"
 
 	"libcore/nikopb"
 	"libcore/nikostore"
@@ -26,8 +29,9 @@ var Version = "dev"
 
 // API is the version of NikoService: what the window may ask of this daemon. 2: the store, Watch and the import; 3:
 // Select and GetSelected; 4: ShareProfile; 5: Connect; 6: Connect's mode, the config a computer's; 7: the computer's
-// settings (GetSettings, UpdateSettings), Connect with them; 8: the programs through Niko (programs_mode, programs).
-const API = 8
+// settings (GetSettings, UpdateSettings), Connect with them; 8: the programs through Niko (programs_mode, programs); 9:
+// subscriptions (Group.subscription, Refresh, their import).
+const API = 9
 
 // Service is NikoService as the daemon serves it: GetInfo for any caller the daemon verified, RouteTest for its
 // owner only (it reads the owner's core, as the daemon's own calls on the running core do). RouteTest is checked as
@@ -48,7 +52,7 @@ func Service() boxdd.Service {
 				return nil, err
 			}
 			users := newUsers(root, developmentCaller, host.Context().Done())
-			return &server{users: users, start: host.StartService, core: func() (context.Context, func()) {
+			s := &server{users: users, start: host.StartService, core: func() (context.Context, func()) {
 				instance := host.StartedService().RunningInstance()
 				if instance == nil {
 					return nil, nil
@@ -58,7 +62,10 @@ func Service() boxdd.Service {
 					return nil, nil
 				}
 				return instance.Context(), release
-			}}, nil
+			}}
+			// the subscriptions' timed updates, without the window
+			go s.scheduleUpdates()
+			return s, nil
 		},
 		Policy:  boxdd.PolicyCaller,
 		Methods: map[string]boxdd.MethodPolicy{"RouteTest": boxdd.PolicyOwnerUnlocked},
@@ -74,6 +81,10 @@ type server struct {
 	// start starts the core with a config for the caller, as DesktopService.StartService, and the system proxy the
 	// daemon sets for its owner while the core runs (nil: none); nil: no daemon
 	start func(ctx context.Context, config string, systemProxy *boxdd.SystemProxy) error
+	// transport carries the subscriptions' requests; nil: nikosub's own, direct
+	transport http.RoundTripper
+	// now is the clock of the subscriptions' updates; nil: time.Now
+	now func() time.Time
 }
 
 // GetInfo: the store's schema to a caller the store serves; to one it refuses (store.go's caller), 0, as from a daemon

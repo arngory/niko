@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"syscall"
 	"testing"
 	"time"
@@ -65,12 +66,12 @@ func TestPermissions(t *testing.T) {
 	// a backup before a migration
 	saved := migrations
 	defer func() { migrations = saved }()
-	migrations = []migration{func(map[string]json.RawMessage) error { return nil }}
+	migrations = append(append([]migration(nil), saved...), func(map[string]json.RawMessage) error { return nil })
 	at := time.Date(2026, 11, 21, 10, 0, 0, 0, time.UTC)
 	if _, err := Open(dir, Options{Sealer: NoSealer{}, Now: func() time.Time { return at }}); err != nil {
 		t.Fatal(err)
 	}
-	copyDir := filepath.Join(dir, backupDir, "1-20261121-100000")
+	copyDir := filepath.Join(dir, backupDir, strconv.Itoa(len(saved)+1)+"-20261121-100000")
 	for path, want := range map[string]os.FileMode{
 		filepath.Join(dir, backupDir):     0o700,
 		copyDir:                           0o700,

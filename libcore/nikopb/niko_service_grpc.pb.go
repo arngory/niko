@@ -42,6 +42,7 @@ const (
 	NikoService_UpdateSettings_FullMethodName = "/niko.v1.NikoService/UpdateSettings"
 	NikoService_Recognize_FullMethodName      = "/niko.v1.NikoService/Recognize"
 	NikoService_Import_FullMethodName         = "/niko.v1.NikoService/Import"
+	NikoService_Refresh_FullMethodName        = "/niko.v1.NikoService/Refresh"
 )
 
 // NikoServiceClient is the client API for NikoService service.
@@ -71,8 +72,11 @@ type NikoServiceClient interface {
 	DeleteProfiles(ctx context.Context, in *ProfileIds, opts ...grpc.CallOption) (*Empty, error)
 	// Puts profiles, in their order, into a group before one of its profiles or at its end.
 	MoveProfiles(ctx context.Context, in *MoveRequest, opts ...grpc.CallOption) (*Empty, error)
-	// A group of the user's own: a new one (id 0), or a new name. A subscription's group comes with subscriptions:
-	// UNIMPLEMENTED.
+	// A group: of the user's own (BASIC), a new one (id 0) or a new name; of a subscription (SUBSCRIPTION, D-SUB-01,
+	// -02, -08), a new one with its subscription's address and settings (its name the app's default, "Subscription
+	// #…", where none is given, which its first update replaces by the provider's), or the name and settings of one;
+	// what its updates set is kept. Saving makes no update: Refresh does. INVALID_ARGUMENT for an address that is no
+	// http(s) URL, an interval under 15 minutes; FAILED_PRECONDITION for a group of the other type.
 	SaveGroup(ctx context.Context, in *Group, opts ...grpc.CallOption) (*Group, error)
 	// Deletes a group and its profiles; the ungrouped group stays (FAILED_PRECONDITION).
 	DeleteGroup(ctx context.Context, in *GroupId, opts ...grpc.CallOption) (*Empty, error)
@@ -106,9 +110,20 @@ type NikoServiceClient interface {
 	UpdateSettings(ctx context.Context, in *SettingsUpdate, opts ...grpc.CallOption) (*Settings, error)
 	// What an input is and what its import would add; nothing is written, and no store is needed.
 	Recognize(ctx context.Context, in *ImportInput, opts ...grpc.CallOption) (*ImportPreview, error)
-	// Imports an input: the task's progress, then its result, the last message (done). Share links and sn:// now; a
-	// subscription's link is recognized, its import comes later (UNIMPLEMENTED as the result's code).
+	// Imports an input: the task's progress, then its result, the last message (done). Share links and sn://; a
+	// subscription's link (http(s), clash://install-config, another client's "add subscription" link) makes a group of
+	// that subscription and updates it, as the app's import does: the result names the group (group_id). A raycontrol
+	// node's invite or device package is recognized, its import comes with the nodes (UNIMPLEMENTED as the result's
+	// code), and so is a whole group shared as sn://subscription.
 	Import(ctx context.Context, in *ImportRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TaskProgress], error)
+	// Updates a subscription's group (D-SUB-03), or every one (group_id 0), as the app's update does: the answer
+	// fetched, its profiles merged into the group's, its traffic and expiry kept (Subscription). A task, as Import is:
+	// its progress, then its result; the result in Watch too, and the group's change. The daemon updates the groups
+	// that say so on their own, by their interval. NOT_FOUND; FAILED_PRECONDITION for a group of no subscription or
+	// one whose address cannot be opened on this machine (to be given again); ABORTED where an update of the group runs
+	// already; UNAVAILABLE where the provider did not answer, INVALID_ARGUMENT where its answer has no profiles,
+	// PERMISSION_DENIED where its panel refused this device: as the result's code.
+	Refresh(ctx context.Context, in *RefreshRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TaskProgress], error)
 }
 
 type nikoServiceClient struct {
@@ -327,6 +342,25 @@ func (c *nikoServiceClient) Import(ctx context.Context, in *ImportRequest, opts 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type NikoService_ImportClient = grpc.ServerStreamingClient[TaskProgress]
 
+func (c *nikoServiceClient) Refresh(ctx context.Context, in *RefreshRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TaskProgress], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &NikoService_ServiceDesc.Streams[2], NikoService_Refresh_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[RefreshRequest, TaskProgress]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type NikoService_RefreshClient = grpc.ServerStreamingClient[TaskProgress]
+
 // NikoServiceServer is the server API for NikoService service.
 // All implementations must embed UnimplementedNikoServiceServer
 // for forward compatibility.
@@ -354,8 +388,11 @@ type NikoServiceServer interface {
 	DeleteProfiles(context.Context, *ProfileIds) (*Empty, error)
 	// Puts profiles, in their order, into a group before one of its profiles or at its end.
 	MoveProfiles(context.Context, *MoveRequest) (*Empty, error)
-	// A group of the user's own: a new one (id 0), or a new name. A subscription's group comes with subscriptions:
-	// UNIMPLEMENTED.
+	// A group: of the user's own (BASIC), a new one (id 0) or a new name; of a subscription (SUBSCRIPTION, D-SUB-01,
+	// -02, -08), a new one with its subscription's address and settings (its name the app's default, "Subscription
+	// #…", where none is given, which its first update replaces by the provider's), or the name and settings of one;
+	// what its updates set is kept. Saving makes no update: Refresh does. INVALID_ARGUMENT for an address that is no
+	// http(s) URL, an interval under 15 minutes; FAILED_PRECONDITION for a group of the other type.
 	SaveGroup(context.Context, *Group) (*Group, error)
 	// Deletes a group and its profiles; the ungrouped group stays (FAILED_PRECONDITION).
 	DeleteGroup(context.Context, *GroupId) (*Empty, error)
@@ -389,9 +426,20 @@ type NikoServiceServer interface {
 	UpdateSettings(context.Context, *SettingsUpdate) (*Settings, error)
 	// What an input is and what its import would add; nothing is written, and no store is needed.
 	Recognize(context.Context, *ImportInput) (*ImportPreview, error)
-	// Imports an input: the task's progress, then its result, the last message (done). Share links and sn:// now; a
-	// subscription's link is recognized, its import comes later (UNIMPLEMENTED as the result's code).
+	// Imports an input: the task's progress, then its result, the last message (done). Share links and sn://; a
+	// subscription's link (http(s), clash://install-config, another client's "add subscription" link) makes a group of
+	// that subscription and updates it, as the app's import does: the result names the group (group_id). A raycontrol
+	// node's invite or device package is recognized, its import comes with the nodes (UNIMPLEMENTED as the result's
+	// code), and so is a whole group shared as sn://subscription.
 	Import(*ImportRequest, grpc.ServerStreamingServer[TaskProgress]) error
+	// Updates a subscription's group (D-SUB-03), or every one (group_id 0), as the app's update does: the answer
+	// fetched, its profiles merged into the group's, its traffic and expiry kept (Subscription). A task, as Import is:
+	// its progress, then its result; the result in Watch too, and the group's change. The daemon updates the groups
+	// that say so on their own, by their interval. NOT_FOUND; FAILED_PRECONDITION for a group of no subscription or
+	// one whose address cannot be opened on this machine (to be given again); ABORTED where an update of the group runs
+	// already; UNAVAILABLE where the provider did not answer, INVALID_ARGUMENT where its answer has no profiles,
+	// PERMISSION_DENIED where its panel refused this device: as the result's code.
+	Refresh(*RefreshRequest, grpc.ServerStreamingServer[TaskProgress]) error
 	mustEmbedUnimplementedNikoServiceServer()
 }
 
@@ -458,6 +506,9 @@ func (UnimplementedNikoServiceServer) Recognize(context.Context, *ImportInput) (
 }
 func (UnimplementedNikoServiceServer) Import(*ImportRequest, grpc.ServerStreamingServer[TaskProgress]) error {
 	return status.Error(codes.Unimplemented, "method Import not implemented")
+}
+func (UnimplementedNikoServiceServer) Refresh(*RefreshRequest, grpc.ServerStreamingServer[TaskProgress]) error {
+	return status.Error(codes.Unimplemented, "method Refresh not implemented")
 }
 func (UnimplementedNikoServiceServer) mustEmbedUnimplementedNikoServiceServer() {}
 func (UnimplementedNikoServiceServer) testEmbeddedByValue()                     {}
@@ -808,6 +859,17 @@ func _NikoService_Import_Handler(srv interface{}, stream grpc.ServerStream) erro
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type NikoService_ImportServer = grpc.ServerStreamingServer[TaskProgress]
 
+func _NikoService_Refresh_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(RefreshRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(NikoServiceServer).Refresh(m, &grpc.GenericServerStream[RefreshRequest, TaskProgress]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type NikoService_RefreshServer = grpc.ServerStreamingServer[TaskProgress]
+
 // NikoService_ServiceDesc is the grpc.ServiceDesc for NikoService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -893,6 +955,11 @@ var NikoService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "Import",
 			Handler:       _NikoService_Import_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "Refresh",
+			Handler:       _NikoService_Refresh_Handler,
 			ServerStreams: true,
 		},
 	},

@@ -346,7 +346,7 @@ func TestProfiles(t *testing.T) {
 	if g, err := s.SaveGroup(Group{ID: work.ID, Name: "office"}); err != nil || g.Name != "office" || g.Profiles != 3 {
 		t.Fatalf("%+v %v", g, err)
 	}
-	if _, err = s.SaveGroup(Group{Name: "sub", Type: GroupSubscription}); !errors.Is(err, ErrUnsupported) {
+	if _, err = s.SaveGroup(Group{Name: "sub", Type: GroupSubscription}); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("a subscription's group: %v", err)
 	}
 	if _, err = s.SaveGroup(Group{ID: 9}); !errors.Is(err, ErrNotFound) {
