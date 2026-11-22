@@ -89,7 +89,11 @@ data class ConfigSettings(
     val icmpThroughNode: Boolean = false,
     val icmpNoLocalReply: Boolean = false,
     val refuseQuicOverStreams: Boolean = false,
-    val tlsFragmentBypass: Int = 0,
+    /** «Обход DPI для прямых соединений» ([DpiDirect]): off, a preset ([dpiDirectPreset]) or a ByeDPI string
+     * ([dpiDirectCustom]), on the direct rules with their dpiBypass */
+    val dpiDirect: Int = DpiDirect.OFF,
+    val dpiDirectPreset: String = DpiDirect.DEFAULT_PRESET,
+    val dpiDirectCustom: String = "",
     val connectionTestURL: String = CONNECTION_TEST_URL,
     val ruleSetUpdateHours: Int = 24,
     val globalAllowInsecure: Boolean = false,
@@ -145,7 +149,9 @@ data class ConfigSettings(
                 icmpThroughNode = DataStore.icmpThroughNode,
                 icmpNoLocalReply = DataStore.icmpNoLocalReply,
                 refuseQuicOverStreams = DataStore.refuseQuicOverStreams,
-                tlsFragmentBypass = DataStore.tlsFragmentBypass,
+                dpiDirect = DataStore.dpiDirect,
+                dpiDirectPreset = DataStore.dpiDirectPreset,
+                dpiDirectCustom = DataStore.dpiDirectCustom,
                 connectionTestURL = DataStore.connectionTestURL,
                 ruleSetUpdateHours = DataStore.ruleSetUpdateHours,
                 globalAllowInsecure = DataStore.globalAllowInsecure,

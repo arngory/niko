@@ -1183,6 +1183,11 @@ fun buildConfig(
         // apply user rules
         // an exported config keeps the rules as they are: the rule-sets go by their URLs
         val russiaDirectWaits = !forExport && RoutePresets.russiaDirectWaits(extraRules)
+        val dpi = if (forExport) null else DpiDirect.strategy(settings.dpiDirect, settings.dpiDirectPreset, settings.dpiDirectCustom)
+        // a stored string that no longer parses (or a preset gone): no cut, said once per build, not silently
+        if (!forExport && dpi == null && settings.dpiDirect != DpiDirect.OFF) {
+            Logs.w("DPI bypass for direct connections is on, but its strategy does not parse: no tcp_desync")
+        }
         val missingInConfig = mutableSetOf<String>()
         for (rule in extraRules) {
             if (russiaDirectWaits && RoutePresets.isRussiaDirect(rule)) {
@@ -1320,10 +1325,10 @@ fun buildConfig(
                         ruleObj.outbound = null
                         ruleObj.action = "reject"
                     }
-                    // split ClientHello of directly routed TLS, e.g. for SNI-throttled sites
-                    if (ruleObj.outbound == TAG_BYPASS) when (settings.tlsFragmentBypass) {
-                        1 -> ruleObj._hack_config_map["tls_record_fragment"] = true
-                        2 -> ruleObj._hack_config_map["tls_fragment"] = true
+                    // «Обход DPI»: the setting's strategy on the direct rules with the flag; the fork's own, none
+                    // in an export
+                    if (dpi != null && rule.dpiBypass && ruleObj.outbound == TAG_BYPASS) {
+                        ruleObj._hack_config_map["tcp_desync"] = dpi.toConfig()
                     }
                     // its QUIC refused before it takes it into the proxy (refuseQuic): otherwise only what reaches
                     // the final outbound would be, and the user's lists to the proxy are what the setting is for

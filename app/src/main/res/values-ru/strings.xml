@@ -433,6 +433,8 @@
 <string name="route_assets">Ресурсы</string>
 <string name="route_block">Блокировать</string>
 <string name="route_bypass">Обход</string>
+<string name="route_dpi_bypass">Обход DPI</string>
+<string name="route_dpi_bypass_summary">Как — в Настройки › Опыты › Обход DPI для прямых соединений</string>
 <string name="route_bypass_domain">Правило домена для %s</string>
 <string name="route_bypass_ip">Правило IP для %s</string>
 <string name="route_for">Правило для %s</string>
@@ -925,7 +927,6 @@
     <string name="tls_fragment_record">Разбивать на TLS-записи</string>
     <string name="tls_fragment_tcp">Разбивать на TCP-сегменты (медленнее)</string>
     <string name="tls_fragment_summary">Разбивает TLS ClientHello к этому серверу, чтобы простой DPI не распознал SNI. Сначала попробуйте TLS-записи. Работает только для TLS поверх TCP (VMess, VLESS, Trojan, HTTP, AnyTLS, ShadowTLS).</string>
-    <string name="tls_fragment_bypass_summary">Разбивать TLS ClientHello соединений, которые правила обхода отправляют напрямую</string>
     <string name="udp_desync">UDP (QUIC): обход DPI</string>
     <string name="udp_prelude">Фейковые пакеты перед первым (0–8)</string>
     <string name="udp_prelude_sni">Фейки как QUIC с этим именем сервера (пусто — случайные байты)</string>

@@ -31,7 +31,8 @@
     "org.example.system": 999
   },
   "settings": {
-    "tlsFragmentBypass": 1
+    "dpiDirect": 1,
+    "dpiDirectPreset": "tlsrec_sni"
   },
   "rules": [
     {
@@ -40,7 +41,8 @@
       "enabled": true,
       "userOrder": 1,
       "domains": "full:direct.example\ndomain:example.org\nkeyword:cdn\nregexp:^api\\.\nplain.example",
-      "outbound": -1
+      "outbound": -1,
+      "dpiBypass": true
     },
     {
       "id": 2,
@@ -104,7 +106,8 @@
       "userOrder": 8,
       "source": "192.168.1.0/24",
       "protocol": "bittorrent",
-      "outbound": -1
+      "outbound": -1,
+      "dpiBypass": true
     }
   ]
 }

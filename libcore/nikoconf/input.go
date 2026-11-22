@@ -132,6 +132,8 @@ type Rule struct {
 	// Programs are a computer's apps (D-RULES-02): a process's name ("firefox.exe") or its full path, as the
 	// phone's rules have Packages; a computer's own, the app has no such field and Android's build reads none
 	Programs []string `json:"programs"`
+	// DpiBypass: «Обход DPI», the setting's strategy on this rule where it is direct
+	DpiBypass bool `json:"dpiBypass"`
 }
 
 // displayName is RuleEntity.displayName.
@@ -180,12 +182,16 @@ type Settings struct {
 	IcmpThroughNode         bool    `json:"icmpThroughNode"`
 	IcmpNoLocalReply        bool    `json:"icmpNoLocalReply"`
 	RefuseQuicOverStreams   bool    `json:"refuseQuicOverStreams"`
-	TLSFragmentBypass       int     `json:"tlsFragmentBypass"`
 	ConnectionTestURL       string  `json:"connectionTestURL"`
 	RuleSetUpdateHours      int     `json:"ruleSetUpdateHours"`
 	GlobalAllowInsecure     bool    `json:"globalAllowInsecure"`
 	GlobalCustomConfig      string  `json:"globalCustomConfig"`
 	Secrets                 Secrets `json:"secrets"`
+	// DpiDirect is «Обход DPI для прямых соединений» (dpi.go): DpiOff, DpiPreset (DpiDirectPreset, a preset's id) or
+	// DpiCustom (DpiDirectCustom, a ByeDPI string), on the direct rules with their DpiBypass
+	DpiDirect       int    `json:"dpiDirect"`
+	DpiDirectPreset string `json:"dpiDirectPreset"`
+	DpiDirectCustom string `json:"dpiDirectCustom"`
 	// SystemProxy, a computer's own (D-NAV-02): in proxy mode the local proxy is the system's while the core runs;
 	// nil for the default, on Windows on (SystemProxyOn)
 	SystemProxy *bool `json:"systemProxy"`
@@ -244,6 +250,7 @@ func DefaultSettings() Settings {
 		RootStore:          "chrome",
 		ConnectionTestURL:  "http://cp.cloudflare.com/",
 		RuleSetUpdateHours: 24,
+		DpiDirectPreset:    DpiDefaultPreset,
 	}
 }
 

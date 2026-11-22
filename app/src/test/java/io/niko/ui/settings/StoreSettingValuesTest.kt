@@ -70,6 +70,21 @@ class StoreSettingValuesTest {
     }
 
     @Test
+    fun dpiStringOnlyWhereItIsTaken() {
+        values.setText(Key.DPI_DIRECT_CUSTOM, " -s 1 -r 1+s ")
+        assertEquals(listOf(Key.DPI_DIRECT_CUSTOM), values.commit())
+        assertEquals("-s 1 -r 1+s", store.map[Key.DPI_DIRECT_CUSTOM])
+        values.setText(Key.DPI_DIRECT_CUSTOM, "-f -1")
+        assertTrue(values.commit().isEmpty())
+        assertEquals("-s 1 -r 1+s", values.text(Key.DPI_DIRECT_CUSTOM))
+        values.setText(Key.DPI_DIRECT_CUSTOM, "")
+        assertEquals(listOf(Key.DPI_DIRECT_CUSTOM), values.commit())
+        assertEquals(SettingEffect.RELOAD, SettingKeys.effect(Key.DPI_DIRECT_CUSTOM))
+        assertEquals(SettingEffect.RELOAD, SettingKeys.effect(Key.DPI_DIRECT))
+        assertEquals(SettingEffect.RELOAD, SettingKeys.effect(Key.DPI_DIRECT_PRESET))
+    }
+
+    @Test
     fun effects() {
         assertEquals(SettingEffect.RESTART, SettingKeys.effect(Key.LOG_LEVEL))
         assertEquals(SettingEffect.RELOAD, SettingKeys.effect(Key.REMOTE_DNS))

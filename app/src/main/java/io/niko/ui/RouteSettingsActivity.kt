@@ -74,6 +74,7 @@ class RouteSettingsActivity(
             else -> 3
         }
         DataStore.routePackages = packages.joinToString("\n")
+        DataStore.routeDpiBypass = dpiBypass
     }
 
     fun RuleEntity.serialize() {
@@ -93,6 +94,7 @@ class RouteSettingsActivity(
             else -> DataStore.routeOutboundRule
         }
         packages = DataStore.routePackages.split("\n").filter { it.isNotBlank() }.toSet()
+        dpiBypass = DataStore.routeDpiBypass
 
         if (DataStore.editingId == 0L) {
             enabled = true
@@ -150,8 +152,12 @@ class RouteSettingsActivity(
     fun PreferenceFragmentCompat.viewCreated(view: View, savedInstanceState: Bundle?) {
         outbound = findPreference(Key.ROUTE_OUTBOUND)!!
         apps = findPreference(Key.ROUTE_PACKAGES)!!
+        // «Обход DPI» is a direct rule's («Обход», "1"): the setting's strategy goes on no other
+        val dpiBypass = findPreference<Preference>(Key.ROUTE_DPI_BYPASS)!!
+        dpiBypass.isVisible = DataStore.routeOutbound == 1
 
         outbound.setOnPreferenceChangeListener { _, newValue ->
+            dpiBypass.isVisible = newValue.toString() == "1"
             if (newValue.toString() == "3") {
                 selectProfileForAdd.launch(
                     Intent(
