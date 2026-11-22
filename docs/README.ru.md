@@ -14,6 +14,7 @@
 
 - [Отпечаток TLS: держать его равным Chrome](design/fingerprint.md)
 - [Доверенные корни: что какой список берёт](design/trust.md)
+- [Обход DPI без сервера: zapret и ByeDPI внутри Niko](design/dpi.md) (проект)
 - [Niko для компьютера](design/desktop.md) и [его этап 3: `nikod` и `NikoService`](design/desktop-stage3.md)
 
 ## Контракты
