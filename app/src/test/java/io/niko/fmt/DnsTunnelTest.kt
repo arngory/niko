@@ -308,7 +308,7 @@ class SlipstreamTunnelTest {
     fun whatItRefuses() {
         val good = DnsTunnel.of(bean())
         for ((name, tunnel) in listOf(
-            "a zone past 134 characters" to good.copy(domain = "${"a".repeat(62)}.${"b".repeat(51)}.slipstream.example"),
+            "a zone past 134 characters" to good.copy(domain = "${"a".repeat(62)}.${"b".repeat(53)}.slipstream.example"),
             "two zones" to good.copy(domain = "s.example.com,t.example.com"),
             "a spare zone" to good.copy(spare = "t.example.com"),
             "a range for a resolver" to good.copy(resolver = "10.0.0.0/30"),
@@ -324,12 +324,12 @@ class SlipstreamTunnelTest {
         }
         // 134 characters with dnsauth-v2, 148 without: the longest the client fits a packet of 64 bytes under, the
         // least the server takes
-        val zone134 = "${"a".repeat(62)}.${"b".repeat(50)}.slipstream.example"
+        val zone134 = "${"a".repeat(62)}.${"b".repeat(52)}.slipstream.example"
         assertEquals(134, zone134.length)
         assertNull(good.copy(domain = zone134).validate())
         val open = good.copy(auth = "")
         assertNull(open.authNode)
-        val zone148 = "${"a".repeat(62)}.${"b".repeat(62)}.c.slipstream.example"
+        val zone148 = "${"a".repeat(62)}.${"b".repeat(62)}.ccc.slipstream.example"
         assertEquals(148, zone148.length)
         assertNull(open.copy(domain = zone148).validate())
         assertNotNull(open.copy(domain = "d$zone148").validate())
