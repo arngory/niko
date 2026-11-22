@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A group's and a subscription's settings (P-SubSettings). -->
+<resources>
+    <string name="gs_back">Back</string>
+    <string name="gs_new">New group</string>
+    <string name="gs_share">Share</string>
+    <string name="gs_delete">Delete the group</string>
+    <string name="gs_delete_confirm">Delete «%s» with its configs?</string>
+    <string name="gs_name">Name</string>
+    <string name="gs_kind">Kind</string>
+    <string name="gs_kind_own">Own group</string>
+    <string name="gs_kind_subscription">Subscription</string>
+    <string name="gs_link">Link</string>
+    <string name="gs_copy_link">Copy the link</string>
+    <string name="gs_update">Update</string>
+    <string name="gs_auto_update">Update by itself</string>
+    <string name="gs_interval">Interval</string>
+    <string name="gs_connected_only">Only while connected</string>
+    <string name="gs_request">Request</string>
+    <string name="gs_user_agent_default">Empty: the app\'s own</string>
+    <string name="gs_hwid_sub">A random id of this install, for panels that limit devices</string>
+    <string name="gs_force_resolve">Resolve names to addresses</string>
+    <string name="gs_group">Group</string>
+    <string name="gs_dedup">Drop duplicates</string>
+    <string name="gs_pick">Choice</string>
+    <string name="gs_pick_manual">By hand</string>
+    <string name="gs_pick_fastest">Fastest</string>
+    <string name="gs_order">Order</string>
+    <string name="gs_order_origin">as given</string>
+    <string name="gs_order_name">by name</string>
+    <string name="gs_order_delay">by delay</string>
+    <string name="gs_proxy_none">None</string>
+    <string name="gs_proxy_pick">Choose a config…</string>
+    <string name="gs_link_needed">A subscription needs its link</string>
+    <plurals name="gs_minutes">
+        <item quantity="one">%d min</item>
+        <item quantity="other">%d min</item>
+    </plurals>
+    <plurals name="gs_hours">
+        <item quantity="one">%d h</item>
+        <item quantity="other">%d h</item>
+    </plurals>
+    <plurals name="gs_days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
+</resources>

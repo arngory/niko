@@ -130,7 +130,7 @@ private fun TextField(
 
 /** m-sheet of a [choice]: its name, then a radio row for each value; a pick closes it. */
 @Composable
-private fun ChoiceSheet(choice: Choice, selected: String, onPick: (String) -> Unit, onDismiss: () -> Unit) {
+internal fun ChoiceSheet(choice: Choice, selected: String, onPick: (String) -> Unit, onDismiss: () -> Unit) {
     val c = Niko.colors
     Box(
         Modifier.fillMaxSize().background(c.scrim)
