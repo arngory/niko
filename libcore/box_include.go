@@ -112,6 +112,8 @@ func nekoboxAndroidDNSTransportRegistry(localTransport LocalDNSTransport) *dns.T
 	transport.RegisterUDP(registry)
 	transport.RegisterTLS(registry)
 	transport.RegisterHTTPS(registry)
+	// the fork's: the remote DNS's servers asked in order (ConfigBuilder, a line each)
+	transport.RegisterFallback(registry)
 	hosts.RegisterTransport(registry)
 	// local.RegisterTransport(registry)
 	fakeip.RegisterTransport(registry)
