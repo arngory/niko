@@ -61,6 +61,9 @@ const val OUTSIDE_VPN_PACKAGE = "niko:outside-vpn"
  * TCP alone: Android names no owner either for a socket it no longer finds, and a UDP socket can be closed before the
  * lookup (a datagram sent and the socket dropped). Such UDP of an app inside the VPN goes through the proxy, as before
  * the guard; a TCP connection's socket is there when its SYN arrives, so no owner on TCP means outside the VPN.
+ *
+ * A device on the phone's hotspot let through the VPN (VPN tethering, LineageOS and others) has no owner on the phone
+ * either and comes from the tunnel's own address: the guard refuses all of its TCP. «Раздача через VPN» turns it off.
  */
 fun outsideVpnGuard() = Rule_DefaultOptions().apply {
     inbound = listOf("tun-in")
@@ -1515,7 +1518,7 @@ fun buildConfig(
             dns.rules = listOf()
         } else {
             // per-app proxy: an app left out of the VPN, bound to tun0, refused (below the DNS hijack)
-            if (isVPN && settings.proxyApps) route.rules.add(0, outsideVpnGuard())
+            if (isVPN && settings.proxyApps && !settings.allowTethering) route.rules.add(0, outsideVpnGuard())
             // built-in DNS rules
             route.rules.add(0, Rule_DefaultOptions().apply {
                 protocol = listOf("dns")

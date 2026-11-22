@@ -168,6 +168,7 @@ type Settings struct {
 	MixedUsername           string  `json:"mixedUsername"`
 	LocalProxyNoAuthInVpn   bool    `json:"localProxyNoAuthInVpn"`
 	ProxyApps               bool    `json:"proxyApps"`
+	AllowTethering          bool    `json:"allowTethering"`
 	BypassLanInCore         bool    `json:"bypassLanInCore"`
 	YggdrasilEnabled        bool    `json:"yggdrasilEnabled"`
 	YggdrasilPeers          string  `json:"yggdrasilPeers"`

@@ -75,6 +75,9 @@ data class ConfigSettings(
     val mixedUsername: String = "",
     val localProxyNoAuthInVpn: Boolean = false,
     val proxyApps: Boolean = false,
+    // per-app proxy lets the hotspot's devices through the VPN (VPN tethering): no owner on the phone, as an app left
+    // out that binds to tun0, so the guard against those goes (outsideVpnGuard)
+    val allowTethering: Boolean = false,
     val bypassLanInCore: Boolean = false,
     val yggdrasilEnabled: Boolean = false,
     val yggdrasilPeers: String = "",
@@ -135,6 +138,7 @@ data class ConfigSettings(
                 mixedUsername = DataStore.mixedUsername,
                 localProxyNoAuthInVpn = DataStore.localProxyNoAuthInVpn,
                 proxyApps = DataStore.proxyApps,
+                allowTethering = DataStore.allowTethering,
                 bypassLanInCore = DataStore.bypassLanInCore,
                 yggdrasilEnabled = DataStore.yggdrasilEnabled,
                 yggdrasilPeers = DataStore.yggdrasilPeers,

@@ -113,4 +113,6 @@
     <string name="set_group_in_notification">Группа в уведомлении</string>
     <string name="set_show_address">Адрес сервера в списке</string>
     <string name="set_bottom_bar">Панель внизу</string>
+    <string name="set_allow_tethering">Раздача через VPN</string>
+    <string name="set_allow_tethering_sum">Пропускает устройства на точке доступа телефона через VPN (VPN tethering), когда через Niko идут не все приложения. Выключено: их TCP отклоняется, такое устройство не отличить от приложения, исключённого из VPN</string>
 </resources>
