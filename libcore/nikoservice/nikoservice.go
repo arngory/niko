@@ -26,8 +26,8 @@ var Version = "dev"
 
 // API is the version of NikoService: what the window may ask of this daemon. 2: the store, Watch and the import; 3:
 // Select and GetSelected; 4: ShareProfile; 5: Connect; 6: Connect's mode, the config a computer's; 7: the computer's
-// settings (GetSettings, UpdateSettings), Connect with them.
-const API = 7
+// settings (GetSettings, UpdateSettings), Connect with them; 8: the programs through Niko (programs_mode, programs).
+const API = 8
 
 // Service is NikoService as the daemon serves it: GetInfo for any caller the daemon verified, RouteTest for its
 // owner only (it reads the owner's core, as the daemon's own calls on the running core do). RouteTest is checked as

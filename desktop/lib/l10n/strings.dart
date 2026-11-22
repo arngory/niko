@@ -168,6 +168,29 @@ class NikoStrings {
   String get setNoPingReply => _ru ? 'Не отвечать на ping за сервер' : 'No ping reply for the server';
   String get setSniffing => _ru ? 'Сниффинг' : 'Sniffing';
   String get setResolveDestination => _ru ? 'Разрешать адрес назначения' : 'Resolve the destination';
+  String get setPrograms => _ru ? 'Программы' : 'Programs';
+  String get setProgramsThrough => _ru ? 'Через Niko' : 'Through Niko';
+  String get setProgramsAll => _ru ? 'Все' : 'All';
+  String get setProgramsOnly => _ru ? 'Только выбранные' : 'Only chosen';
+  String get setProgramsExcept => _ru ? 'Кроме выбранных' : 'All but chosen';
+  String get setProgramsList => _ru ? 'Выбранные программы' : 'Chosen programs';
+  String get setProgramsNone => _ru ? 'не выбраны' : 'none';
+  String programsCount(int count) {
+    if (!_ru) return count == 1 ? '1 program' : '$count programs';
+    final tens = count % 100, ones = count % 10;
+    final word = tens >= 11 && tens <= 14
+        ? 'программ'
+        : ones == 1
+            ? 'программа'
+            : ones >= 2 && ones <= 4
+                ? 'программы'
+                : 'программ';
+    return '$count $word';
+  }
+
+  String get setProgramsHint => _ru
+      ? 'По одной в строке: имя (firefox.exe) или полный путь. Остальные программы идут напрямую или через Niko'
+      : 'One a line: a name (firefox.exe) or a full path. The other programs go direct or through Niko';
   String get setLog => _ru ? 'Журнал' : 'Log';
   String get setLogLevel => _ru ? 'Уровень журнала' : 'Log level';
 

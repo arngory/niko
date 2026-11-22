@@ -88,9 +88,10 @@ Future<Process> runDaemon(String nikod, int port, Directory work, List<String> l
   return started;
 }
 
-/// A SOCKS5 server on 127.0.0.1 without a login (RFC 1928), CONNECT alone: it dials where it is asked itself and
-/// notes each `host:port` in [asked].
-Future<ServerSocket> socksServer(List<String> asked) async {
+/// A SOCKS5 server on 127.0.0.1 without a login (RFC 1928), CONNECT alone: it dials where it is asked itself, and
+/// notes each `host:port` asked in [asked]. With [redirect], only to where it sends those `host:port` it knows, and
+/// nowhere for the others: a TUN brings it the whole machine's traffic, whose dials would come back to the TUN.
+Future<ServerSocket> socksServer(List<String> asked, {Map<String, (String, int)> redirect = const {}}) async {
   final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
   server.listen((client) {
     final buffer = <int>[];
@@ -119,8 +120,16 @@ Future<ServerSocket> socksServer(List<String> asked) async {
       buffer.clear();
       asked.add('$host:$port');
       reading.pause();
+      final redirected = redirect['$host:$port'];
+      if (redirect.isNotEmpty && redirected == null) {
+        // not allowed by the ruleset
+        client.add([5, 2, 0, 1, 0, 0, 0, 0, 0, 0]);
+        client.destroy();
+        return;
+      }
+      final (dialHost, dialPort) = redirected ?? (host, port);
       try {
-        upstream = await Socket.connect(host, port, timeout: const Duration(seconds: 5));
+        upstream = await Socket.connect(dialHost, dialPort, timeout: const Duration(seconds: 5));
       } catch (_) {
         // a host unreachable
         client.add([5, 4, 0, 1, 0, 0, 0, 0, 0, 0]);
@@ -533,7 +542,7 @@ void main() {
         }
       });
       await until(() => daemon.version().then((_) => true, onError: (Object _) => false), 'the daemon to answer');
-      expect((await daemon.nikoInfo()).api, greaterThanOrEqualTo(7));
+      expect((await daemon.nikoInfo()).api, greaterThanOrEqualTo(8));
 
       // the computer's settings: a computer's defaults, then the local proxy's port and login, kept and read back; a
       // value out of range refused, and nothing of it kept
@@ -580,4 +589,113 @@ void main() {
       await until(() async => !await listening(mixedPort), 'the local proxy closed');
     },
   );
+
+  test(
+    'VPN mode (Windows): the TUN carries a request through the profile, by the programs chosen; no system proxy',
+    skip: nikod.isEmpty
+        ? 'NIKO_DAEMON is not set'
+        : !Platform.isWindows || Platform.environment['NIKO_VPN_TEST'] != '1'
+            ? 'the TUN changes the machine\'s routes: on Windows, with NIKO_VPN_TEST=1 (CI)'
+            : false,
+    timeout: const Timeout(Duration(minutes: 4)),
+    () async {
+      final work = await Directory.systemTemp.createTemp('niko-vpn-');
+      final daemonPort = await freePort();
+      final log = <String>[];
+      // TEST-NET-3: no machine has it, so only the TUN takes it anywhere; the SOCKS server sends it to the origin
+      const target = '203.0.113.10';
+      final origin = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      origin.listen((request) async {
+        request.response.write('through the TUN');
+        await request.response.close();
+      });
+      final asked = <String>[];
+      final socks = await socksServer(asked, redirect: {'$target:80': ('127.0.0.1', origin.port)});
+      final proxyBefore = await systemProxy();
+      final process = await runDaemon(nikod, daemonPort, work, log);
+      final daemon = GrpcDaemon.dev(DevEndpoint.parse('127.0.0.1:$daemonPort')!);
+      addTearDown(() async {
+        try {
+          await daemon.stop();
+        } catch (_) {}
+        await daemon.close();
+        process.kill();
+        await origin.close(force: true);
+        await socks.close();
+        // ignore: avoid_print
+        print('--- the daemon said\n${log.join('\n')}');
+        try {
+          await work.delete(recursive: true);
+        } catch (_) {
+          // Windows may still hold a file of the killed daemon
+        }
+      });
+      await until(() => daemon.version().then((_) => true, onError: (Object _) => false), 'the daemon to answer');
+      // the local proxy beside the TUN on a free port, not 2080 of a machine's own
+      await daemon.updateSettings({'mixedPort': await freePort()});
+      final added = await daemon.importLinks('socks5://127.0.0.1:${socks.port}#vpn-test');
+      await daemon.select(added.single);
+
+      // a plain request to the target, with no proxy of the client's: its body, or null where it did not come
+      Future<String?> fetch() async {
+        final client = HttpClient()
+          ..findProxy = ((_) => 'DIRECT')
+          ..connectionTimeout = const Duration(seconds: 3);
+        try {
+          final request = await client.getUrl(Uri.parse('http://$target/'));
+          final response = await request.close().timeout(const Duration(seconds: 5));
+          return await response.transform(utf8.decoder).join().timeout(const Duration(seconds: 5));
+        } catch (_) {
+          return null;
+        } finally {
+          client.close(force: true);
+        }
+      }
+
+      // VPN mode asked of Connect: once the TUN is up, the request goes through the profile's server
+      await daemon.connect(0, mode: ConnectMode.vpn);
+      String? body;
+      await until(() async => (body = await fetch()) != null, 'a request through the TUN', seconds: 60);
+      expect(body, 'through the TUN');
+      expect(asked, contains('$target:80'));
+      // ignore: avoid_print
+      print('vpn: $target:80 through the TUN and the SOCKS server, which was asked for $asked');
+
+      // the programs (D-RULES-06): this test's own process the only one through Niko, then the one left direct
+      final self = Platform.resolvedExecutable.split(RegExp(r'[\\/]')).last;
+      await daemon.updateSettings({'programsMode': 1, 'programs': self});
+      asked.clear();
+      await daemon.connect(0, mode: ConnectMode.vpn);
+      await until(() async => (body = await fetch()) != null, 'a request of $self through the TUN', seconds: 60);
+      expect(asked, contains('$target:80'), reason: '$self is the one program through Niko');
+      await daemon.updateSettings({'programsMode': 2});
+      await daemon.connect(0, mode: ConnectMode.vpn);
+      // the reload done: what the previous core took is over; the next request goes direct, to an address nowhere
+      await Future<void>.delayed(const Duration(seconds: 2));
+      asked.clear();
+      expect(await fetch(), isNull, reason: '$self went direct, where $target is not');
+      // the machine's other programs still go through Niko, and are asked of the SOCKS server: not this one
+      expect(asked, isNot(contains('$target:80')), reason: '$self is left out of Niko');
+      // ignore: avoid_print
+      print('vpn: $self only through Niko, then left out of it');
+
+      // the system proxy was never touched: VPN mode has none
+      expect(await systemProxy(), proxyBefore);
+      await daemon.stop();
+      await until(() async => (await fetch()) == null, 'the TUN gone');
+      expect(await systemProxy(), proxyBefore);
+    },
+  );
+}
+
+/// The user's system proxy on Windows: what WinINet's settings say of it (ProxyEnable, ProxyServer, AutoConfigURL).
+Future<String> systemProxy() async {
+  final result = await Process.run('reg', [
+    'query',
+    r'HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings',
+  ]);
+  return const LineSplitter()
+      .convert('${result.stdout}')
+      .where((line) => RegExp(r'^\s*(ProxyEnable|ProxyServer|ProxyOverride|AutoConfigURL)\s').hasMatch(line))
+      .join('\n');
 }

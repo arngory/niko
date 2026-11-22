@@ -189,6 +189,11 @@ type Settings struct {
 	// SystemProxy, a computer's own (D-NAV-02): in proxy mode the local proxy is the system's while the core runs;
 	// nil for the default, off for now (desktop.go)
 	SystemProxy *bool `json:"systemProxy"`
+	// ProgramsMode and Programs, a computer's own (D-RULES-06), what the phone's per-app proxy is: which programs go
+	// through Niko, ProgramsAll, ProgramsOnly or ProgramsExcept those of Programs, a name or a full path a line, as a
+	// rule's programs are (desktop.go)
+	ProgramsMode int    `json:"programsMode"`
+	Programs     string `json:"programs"`
 }
 
 // Secrets are the install's secrets a config may carry (ConfigSecrets).
@@ -212,6 +217,10 @@ const (
 
 	tunGVisor = 0
 	tunSystem = 1
+
+	ProgramsAll    = 0
+	ProgramsOnly   = 1
+	ProgramsExcept = 2
 )
 
 // DefaultSettings are ConfigSettings' defaults, the app's.

@@ -51,6 +51,14 @@ func TestSettingsRoundTrip(t *testing.T) {
 		t.Fatalf("a second change: %+v %v", got, err)
 	}
 	want.SystemProxy, want.MTU = &on, 1500
+	// the programs through Niko (D-RULES-06): the list as it is, empty lines and all
+	list := "firefox.exe\r\nC:\\Program Files\\App\tx\\app.exe\n\n"
+	got, err = s.UpdateSettings(nikoconf.Settings{ProgramsMode: nikoconf.ProgramsOnly, Programs: list},
+		[]string{"programsMode", "programs"})
+	if err != nil || got.ProgramsMode != nikoconf.ProgramsOnly || got.Programs != list {
+		t.Fatalf("the programs: %+v %v", got, err)
+	}
+	want.ProgramsMode, want.Programs = nikoconf.ProgramsOnly, list
 
 	again := open(t, dir, NoSealer{}, nil)
 	if got, err = again.Settings(); err != nil || !reflect.DeepEqual(got, want) {
@@ -62,7 +70,7 @@ func TestSettingsRoundTrip(t *testing.T) {
 	if err = json.Unmarshal(data, &doc); err != nil {
 		t.Fatal(err)
 	}
-	if doc.Schema != 1 || len(doc.Settings) != 4 || string(doc.Settings["mixedPort"]) != "2081" ||
+	if doc.Schema != 1 || len(doc.Settings) != 6 || string(doc.Settings["mixedPort"]) != "2081" ||
 		string(doc.Secrets["mixedPassword"]) != `"aaaa1111"` || doc.Sealed != "" {
 		t.Fatalf("settings.json: %s", data)
 	}
@@ -119,6 +127,11 @@ func TestSettingsRefused(t *testing.T) {
 		{"mixedUsername", nikoconf.Settings{MixedUsername: "a:b"}},
 		{"mixedUsername", nikoconf.Settings{MixedUsername: strings.Repeat("a", 256)}},
 		{"mixedPassword", nikoconf.Settings{Secrets: nikoconf.Secrets{MixedPassword: "aaaa\n1111"}}},
+		{"programsMode", nikoconf.Settings{ProgramsMode: 3}},
+		{"programsMode", nikoconf.Settings{ProgramsMode: -1}},
+		{"programs", nikoconf.Settings{Programs: "curl\x00.exe"}},
+		{"programs", nikoconf.Settings{Programs: "a\n" + strings.Repeat("a", 32<<10+1)}},
+		{"programs", nikoconf.Settings{Programs: strings.Repeat("a\n", 32<<10+1)}},
 		{"yggdrasilEnabled", nikoconf.Settings{YggdrasilEnabled: true}},
 		{"enableClashAPI", nikoconf.Settings{EnableClashAPI: true}},
 		{"secrets", nikoconf.Settings{}},

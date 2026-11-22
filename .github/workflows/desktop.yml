@@ -281,6 +281,18 @@ jobs:
           fi
           NIKO_DAEMON="$daemon" flutter test test/real_daemon_test.dart
 
+      # VPN mode (slice 8b of docs/design/desktop-stage3.md): nikod in development mode opens its TUN on the runner (an
+      # administrator's), Connect in VPN mode carries a request to an address of TEST-NET-3 through the profile, by the
+      # programs chosen. Not the runner's system proxy: the test reads it before, while and after the TUN, the same
+      - name: VPN mode against the real daemon
+        if: runner.os == 'Windows'
+        working-directory: desktop
+        env:
+          NIKO_VPN_TEST: "1"
+        run: |
+          NIKO_DAEMON="$RUNNER_TEMP/daemon/windows-amd64/nikod.exe" flutter test test/real_daemon_test.dart \
+            --plain-name 'VPN mode'
+
       # «Что решить», п. 2 of docs/design/desktop.md: what dart:io can open towards the daemon's worker here
       - name: Local sockets dart:io has on this system (informational)
         if: ${{ !cancelled() }}

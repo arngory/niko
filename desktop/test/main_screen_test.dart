@@ -73,9 +73,11 @@ class MemoryDaemon implements Daemon {
 
   /// The STUN test: each run gets a stream of its own, fed by the test.
   final stunRuns = <(String, StreamController<StunProgress>)>[];
+  /// NikoService's version: 1 for a daemon without the store and Connect.
+  int api = 1;
   @override
   Future<NikoInfo> nikoInfo() async =>
-      const NikoInfo(nikoVersion: '1.58.0', coreVersion: '1.14.4-niko', storeSchema: 0, api: 1);
+      NikoInfo(nikoVersion: '1.58.0', coreVersion: '1.14.4-niko', storeSchema: 0, api: api);
 
   @override
   Future<RouteVerdict> routeTest(
@@ -148,10 +150,14 @@ class MemoryDaemon implements Daemon {
   @override
   Future<String> shareLink(int id) async => 'socks5://shared.example:1080/#$id';
 
-  /// The profiles the window connected with, 0 for the selected one.
+  /// The profiles the window connected with, 0 for the selected one, and the modes it asked.
   final connected = <int>[];
+  final connectModes = <ConnectMode?>[];
   @override
-  Future<void> connect(int profileId, {ConnectMode? mode}) async => connected.add(profileId);
+  Future<void> connect(int profileId, {ConnectMode? mode}) async {
+    connected.add(profileId);
+    connectModes.add(mode);
+  }
 
   /// The computer's settings as the daemon keeps them: a computer's defaults; [refused] are the names of those whose
   /// change it refuses, as a value out of its range.
@@ -184,6 +190,8 @@ class MemoryDaemon implements Daemon {
     'refuseQuicOverStreams': false,
     'icmpNoLocalReply': false,
     'logLevel': 0,
+    'programsMode': 0,
+    'programs': '',
   };
 
   @override
@@ -266,6 +274,7 @@ void main() {
     String locale = 'ru',
     bool withDaemon = true,
     bool withConfig = true,
+    int api = 1,
     WindowSettings? settings,
     Directory? Function()? saveTo,
     Size size = const Size(960, 720),
@@ -273,7 +282,7 @@ void main() {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    daemon = MemoryDaemon();
+    daemon = MemoryDaemon()..api = api;
     controller = ConnectionController(
       daemon: withDaemon ? daemon : null,
       loadConfig: withConfig ? () async => '{}' : null,
@@ -393,6 +402,62 @@ void main() {
     await core(tester, ServicePhase.idle);
     expect(find.text('Нет конфига'), findsOneWidget);
     expect(tester.widget<ConnectButton>(find.byType(ConnectButton)).onPressed, isNull);
+  });
+
+  testWidgets('NikoService and no config: the selected profile connected in the mode chosen here (D-NAV-02)', (
+    tester,
+  ) async {
+    await show(tester, brightness: Brightness.light, withConfig: false, api: 8);
+    Future<void> settle() async {
+      for (var i = 0; i < 6; i++) {
+        await tester.pump();
+      }
+    }
+
+    await core(tester, ServicePhase.idle);
+    await settle();
+    // the settings' mode, and no word of a missing config
+    expect(find.text('Нет конфига'), findsNothing);
+    final mode = find.byType(NikoSegmented<ConnectMode>);
+    expect(tester.widget<NikoSegmented<ConnectMode>>(mode).value, ConnectMode.proxy);
+    await picture('main_mode_light');
+
+    // chosen while off: kept as the settings' mode, nothing started; the press connects in it
+    await tester.tap(find.text('VPN'));
+    await settle();
+    expect(daemon.settingsChanged.last, {'serviceMode': 'vpn'});
+    expect(daemon.connected, isEmpty);
+    expect(tester.widget<NikoSegmented<ConnectMode>>(mode).value, ConnectMode.vpn);
+    await tester.tap(find.byType(ConnectButton));
+    await settle();
+    expect(daemon.connected, [0]);
+    expect(daemon.connectModes, [ConnectMode.vpn]);
+    expect(daemon.started, isEmpty, reason: 'no config of the window\'s');
+
+    // chosen while connected: the core started again in it
+    await core(tester, ServicePhase.started);
+    await tester.tap(find.text('Прокси'));
+    await settle();
+    expect(daemon.connectModes, [ConnectMode.vpn, ConnectMode.proxy]);
+    expect(daemon.settingValues['serviceMode'], 'proxy');
+    // the same mode again starts nothing
+    await tester.tap(find.text('Прокси'));
+    await settle();
+    expect(daemon.connectModes, hasLength(2));
+    // the button stops it
+    await tester.tap(find.byType(ConnectButton));
+    await settle();
+    expect(daemon.stopped, 1);
+  });
+
+  testWidgets('a config given: no mode here, the config is what starts', (tester) async {
+    await show(tester, api: 8);
+    await core(tester, ServicePhase.idle);
+    expect(find.byType(NikoSegmented<ConnectMode>), findsNothing);
+    await tester.tap(find.byType(ConnectButton));
+    await tester.pump();
+    expect(daemon.started, ['{}']);
+    expect(daemon.connected, isEmpty);
   });
 
   testWidgets('English', (tester) async {

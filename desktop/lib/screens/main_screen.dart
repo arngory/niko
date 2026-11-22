@@ -8,14 +8,17 @@ import '../state/connection_controller.dart';
 import '../theme/niko_theme.dart';
 import '../ui/banner.dart';
 import '../ui/connect_button.dart';
+import '../ui/controls.dart';
 import '../ui/format.dart';
 import '../ui/icons.dart';
 import '../ui/list.dart';
 import '../ui/status_block.dart';
 
 /// The main screen in the view Простой (B · Simple on the canvas), as far as stage 2b goes: the connect button, the
-/// status with the time and the rates, the reason of a failure. The node and the tiles come with NikoService
-/// (stage 3); what stands in their place is the development group, marked as such. The header is the shell's.
+/// status with the time and the rates, the reason of a failure. Without a config of the window's the button connects
+/// the daemon's selected profile (NikoService.Connect) in the mode chosen under the status (D-NAV-02). The node and the
+/// other tiles come with NikoService (stage 3); what stands in their place is the development group, marked as such.
+/// The header is the shell's.
 class MainScreen extends StatefulWidget {
   const MainScreen({
     super.key,
@@ -23,9 +26,16 @@ class MainScreen extends StatefulWidget {
     this.daemonAddress = '',
     this.configName = '',
     this.now = DateTime.now,
+    this.mode,
+    this.onMode,
   });
 
   final ConnectionController controller;
+
+  /// The mode the button connects the selected profile in (D-NAV-02): the settings'; null where the button starts a
+  /// config of the window's, or the settings are not read yet, and nothing is chosen here.
+  final ConnectMode? mode;
+  final ValueChanged<ConnectMode>? onMode;
 
   /// For the development group: where the daemon was asked for, and the config's file.
   final String daemonAddress;
@@ -116,7 +126,8 @@ class _MainScreenState extends State<MainScreen> {
         : '';
 
     final error = phase == ServicePhase.fatal && state.service.error.isNotEmpty ? state.service.error : state.actionError;
-    final canPress = ready && !state.busy && phase != ServicePhase.stopping && (state.hasConfig || phase == ServicePhase.started);
+    final canPress = ready && !state.busy && phase != ServicePhase.stopping && (state.canStart || phase == ServicePhase.started);
+    final mode = widget.mode;
 
     return SingleChildScrollView(
       child: Center(
@@ -129,11 +140,27 @@ class _MainScreenState extends State<MainScreen> {
               children: [
                 // D-MAIN-04
                 Center(
-                  child: ConnectButton(look: look, label: label, onPressed: canPress ? state.toggle : null),
+                  child: ConnectButton(
+                    look: look,
+                    label: label,
+                    onPressed: canPress ? () => state.toggle(mode: mode) : null,
+                  ),
                 ),
                 const SizedBox(height: NikoSpace.s4),
                 // D-MAIN-02, D-MAIN-06
                 StatusBlock(label: status, detail: detail, tone: tone),
+                // D-NAV-02: the mode, chosen here as in the settings; a running core is started again in it
+                if (state.connectsProfile && mode != null) ...[
+                  const SizedBox(height: NikoSpace.s6),
+                  Center(
+                    child: NikoSegmented<ConnectMode>(
+                      label: strings.setMode,
+                      choices: [(ConnectMode.proxy, strings.setModeProxy), (ConnectMode.vpn, strings.setModeVpn)],
+                      value: mode,
+                      onChanged: ready && !state.busy ? (m) => widget.onMode?.call(m) : (_) {},
+                    ),
+                  ),
+                ],
                 // D-MAIN-16
                 if (failed && error.isNotEmpty) ...[
                   const SizedBox(height: NikoSpace.s6),
@@ -152,7 +179,7 @@ class _MainScreenState extends State<MainScreen> {
                     danger: true,
                   ),
                 ],
-                if (ready && !state.hasConfig) ...[
+                if (ready && !state.canStart) ...[
                   const SizedBox(height: NikoSpace.s6),
                   NikoBanner(icon: NikoIcons.alert, title: strings.noConfigTitle, text: '--config <file.json>'),
                 ],

@@ -187,7 +187,7 @@ class Info extends $pb.GeneratedMessage {
 
   /// the version of this API: what the window may ask. 2: the store, Watch and the import; 3: Select and GetSelected;
   /// 4: ShareProfile; 5: Connect; 6: Connect's mode, the config a computer's; 7: the computer's settings, Connect
-  /// with them
+  /// with them; 8: the programs through Niko
   @$pb.TagNumber(4)
   $core.int get api => $_getIZ(3);
   @$pb.TagNumber(4)
@@ -1502,6 +1502,8 @@ class Settings extends $pb.GeneratedMessage {
     $core.bool? refuseQuicOverStreams,
     $core.bool? icmpNoLocalReply,
     $core.int? logLevel,
+    $core.int? programsMode,
+    $core.String? programs,
   }) {
     final result = Settings._();
     if (serviceMode != null) result.serviceMode = serviceMode;
@@ -1534,6 +1536,8 @@ class Settings extends $pb.GeneratedMessage {
       result.refuseQuicOverStreams = refuseQuicOverStreams;
     if (icmpNoLocalReply != null) result.icmpNoLocalReply = icmpNoLocalReply;
     if (logLevel != null) result.logLevel = logLevel;
+    if (programsMode != null) result.programsMode = programsMode;
+    if (programs != null) result.programs = programs;
     return result;
   }
 
@@ -1573,6 +1577,8 @@ class Settings extends $pb.GeneratedMessage {
     ..aOB(21, _omitFieldNames ? '' : 'refuseQuicOverStreams')
     ..aOB(22, _omitFieldNames ? '' : 'icmpNoLocalReply')
     ..aI(23, _omitFieldNames ? '' : 'logLevel')
+    ..aI(24, _omitFieldNames ? '' : 'programsMode')
+    ..aOS(25, _omitFieldNames ? '' : 'programs')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1822,6 +1828,28 @@ class Settings extends $pb.GeneratedMessage {
   $core.bool hasLogLevel() => $_has(22);
   @$pb.TagNumber(23)
   void clearLogLevel() => $_clearField(23);
+
+  /// which programs go through Niko (D-RULES-06), as the phone's per-app proxy: 0 all, 1 only those of programs (the
+  /// rest direct), 2 all but those; a rule by program ahead of the rules
+  @$pb.TagNumber(24)
+  $core.int get programsMode => $_getIZ(23);
+  @$pb.TagNumber(24)
+  set programsMode($core.int value) => $_setSignedInt32(23, value);
+  @$pb.TagNumber(24)
+  $core.bool hasProgramsMode() => $_has(23);
+  @$pb.TagNumber(24)
+  void clearProgramsMode() => $_clearField(24);
+
+  /// the programs, a line each: a name ("firefox.exe") or a full path, as the system names the process; empty lines
+  /// are none
+  @$pb.TagNumber(25)
+  $core.String get programs => $_getSZ(24);
+  @$pb.TagNumber(25)
+  set programs($core.String value) => $_setString(24, value);
+  @$pb.TagNumber(25)
+  $core.bool hasPrograms() => $_has(24);
+  @$pb.TagNumber(25)
+  void clearPrograms() => $_clearField(25);
 }
 
 class SettingsUpdate extends $pb.GeneratedMessage {

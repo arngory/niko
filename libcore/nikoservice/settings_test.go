@@ -182,6 +182,24 @@ func TestConnectSettings(t *testing.T) {
 		t.Fatalf("proxy mode asked for: %v", config.Inbounds)
 	}
 
+	// only the programs chosen through Niko: their rule first, the rest direct
+	update(&nikopb.Settings{ProgramsMode: 1, Programs: "curl\n"}, "programs_mode", "programs")
+	if _, err := client.Connect(ctx, &nikopb.ConnectRequest{}); err != nil {
+		t.Fatal(err)
+	}
+	config = parseConfig(t, started[len(started)-1])
+	found := false
+	for _, r := range config.Route["rules"].([]any) {
+		rule := r.(map[string]any)
+		if names, _ := rule["process_name"].([]any); len(names) == 1 && names[0] == "curl" {
+			found = rule["outbound"] == "proxy"
+			break
+		}
+	}
+	if !found || config.Route["final"] != "bypass" || config.DNS["final"] != "dns-direct" {
+		t.Fatalf("the programs' rule or the rest direct missing: %v", config.Route)
+	}
+
 	// the password on the disk is not in the open where the store seals
 	sealed := storeServer(t.TempDir())
 	sealed.users.sealer = testSealer{}

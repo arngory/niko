@@ -43,6 +43,13 @@ class ConnectionController extends ChangeNotifier {
   bool _quickSpent = false;
   String daemonVersion = '';
 
+  /// The version of the daemon's NikoService (its API); 0 for a daemon without it, or not asked yet.
+  int nikoApi = 0;
+
+  /// NikoService's first version that has what the button connects with without a config: Connect in a mode, the
+  /// computer's settings with the mode chosen (D-NAV-02).
+  static const connectApi = 7;
+
   ServiceState service = const ServiceState(ServicePhase.idle);
   Traffic? traffic;
   DateTime? startedAt;
@@ -54,6 +61,15 @@ class ConnectionController extends ChangeNotifier {
   String actionError = '';
 
   bool get hasConfig => _loadConfig != null;
+
+  /// The button connects the selected profile through NikoService (Connect), with no config of the window's.
+  bool get connectsProfile => _loadConfig == null && nikoApi >= connectApi;
+
+  /// The button has something to start: a config, or the daemon's selected profile.
+  bool get canStart => hasConfig || connectsProfile;
+
+  /// The mode the core was last started in by [connectsProfile] (D-NAV-02); null while none was.
+  ConnectMode? startedMode;
 
   /// The daemon, for what reads it beside this (the log, the connections); they ask only while [link] is ready.
   Daemon? get daemon => _daemon;
@@ -76,7 +92,12 @@ class ConnectionController extends ChangeNotifier {
     try {
       final version = await daemon.version();
       if (_stale(generation)) return;
+      // without a config of the window's the button connects the daemon's profile, where it has NikoService (the
+      // core's daemon alone has none)
+      final api = _loadConfig != null ? 0 : await daemon.nikoInfo().then((info) => info.api, onError: (Object _) => 0);
+      if (_stale(generation)) return;
       daemonVersion = version;
+      nikoApi = api;
       link = LinkPhase.ready;
       linkError = '';
       notifyListeners();
@@ -159,24 +180,47 @@ class ConnectionController extends ChangeNotifier {
     startedAt = null;
   }
 
-  /// The connect button: starts the core with the config, or stops it. D-MAIN-04.
-  Future<void> toggle() async {
+  /// The connect button: starts the core with the config, or with the selected profile in [mode] (null: the
+  /// settings') where the window has no config of its own; or stops it. D-MAIN-04, D-NAV-02.
+  Future<void> toggle({ConnectMode? mode}) => _act(() async {
+        final daemon = _daemon!;
+        switch (service.phase) {
+          case ServicePhase.idle || ServicePhase.fatal:
+            final load = _loadConfig;
+            if (load != null) {
+              await daemon.start(await load());
+            } else if (connectsProfile) {
+              await daemon.connect(0, mode: mode);
+              startedMode = mode;
+            } else {
+              throw StateError('no config to start with');
+            }
+          case ServicePhase.starting || ServicePhase.started:
+            await daemon.stop();
+          case ServicePhase.stopping:
+            break;
+        }
+      });
+
+  /// The mode chosen while the core runs with the selected profile: started again in it, as Connect reloads the core
+  /// (D-NAV-02); nothing otherwise, the next press takes it.
+  Future<void> switchMode(ConnectMode mode) async {
+    final running = service.phase == ServicePhase.starting || service.phase == ServicePhase.started;
+    if (!connectsProfile || !running || mode == startedMode) return;
+    await _act(() async {
+      await _daemon!.connect(0, mode: mode);
+      startedMode = mode;
+    });
+  }
+
+  Future<void> _act(Future<void> Function() action) async {
     final daemon = _daemon;
     if (daemon == null || link != LinkPhase.ready || busy) return;
     busy = true;
     actionError = '';
     notifyListeners();
     try {
-      switch (service.phase) {
-        case ServicePhase.idle || ServicePhase.fatal:
-          final load = _loadConfig;
-          if (load == null) throw StateError('no config to start with');
-          await daemon.start(await load());
-        case ServicePhase.starting || ServicePhase.started:
-          await daemon.stop();
-        case ServicePhase.stopping:
-          break;
-      }
+      await action();
     } catch (error) {
       if (!_disposed) actionError = error is StateError ? error.message : daemonError(error);
     }

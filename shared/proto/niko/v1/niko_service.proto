@@ -92,7 +92,7 @@ message Info {
   int32 store_schema = 3;
   // the version of this API: what the window may ask. 2: the store, Watch and the import; 3: Select and GetSelected;
   // 4: ShareProfile; 5: Connect; 6: Connect's mode, the config a computer's; 7: the computer's settings, Connect
-  // with them
+  // with them; 8: the programs through Niko
   int32 api = 4;
 }
 
@@ -294,6 +294,12 @@ message Settings {
   bool icmp_no_local_reply = 22;
   // the core's log: 0 none (panic alone), 1 warn, 2 info, 3 debug, 4 trace
   int32 log_level = 23;
+  // which programs go through Niko (D-RULES-06), as the phone's per-app proxy: 0 all, 1 only those of programs (the
+  // rest direct), 2 all but those; a rule by program ahead of the rules
+  int32 programs_mode = 24;
+  // the programs, a line each: a name ("firefox.exe") or a full path, as the system names the process; empty lines
+  // are none
+  string programs = 25;
 }
 
 message SettingsUpdate {

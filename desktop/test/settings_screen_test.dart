@@ -28,7 +28,7 @@ void main() {
       );
 
   Future<void> show(WidgetTester tester, SettingValues values,
-      {Brightness brightness = Brightness.light, Size size = const Size(1040, 1720), String locale = 'ru'}) async {
+      {Brightness brightness = Brightness.light, Size size = const Size(1040, 1920), String locale = 'ru'}) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -126,6 +126,35 @@ void main() {
     expect(find.text('разные'), findsOneWidget);
   });
 
+  testWidgets('the programs through Niko (D-RULES-06): the choice, and the list a line each', (tester) async {
+    final values = defaults();
+    await show(tester, values);
+    expect(find.text('не выбраны'), findsOneWidget);
+    await tester.tap(find.text('Кроме выбранных'));
+    await tester.pump();
+    expect(values.text('programsMode'), '2');
+    await tester.tap(find.text('Выбранные программы'));
+    await tester.pump();
+    final field = tester.widget<EditableText>(find.byType(EditableText));
+    expect((field.maxLines, field.keyboardType), (6, TextInputType.multiline));
+    await tester.enterText(find.byType(EditableText), 'firefox.exe\nC:\\Tools\\curl.exe\n\n firefox.exe \nTelegram.exe');
+    await tester.tap(find.text('Сохранить'));
+    await tester.pump();
+    expect(values.text('programs'), 'firefox.exe\nC:\\Tools\\curl.exe\n\n firefox.exe \nTelegram.exe');
+    // each program once, an empty line none
+    expect(find.text('3 программы'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  test('the programs counted in words', () {
+    final ru = NikoStrings.of(const Locale('ru')), en = NikoStrings.of(const Locale('en'));
+    expect([for (final n in [1, 2, 5, 11, 12, 21, 22, 25, 111]) ru.programsCount(n)], [
+      '1 программа', '2 программы', '5 программ', '11 программ', '12 программ', '21 программа', '22 программы',
+      '25 программ', '111 программ',
+    ]);
+    expect((en.programsCount(1), en.programsCount(3)), ('1 program', '3 programs'));
+  });
+
   testWidgets('a value the store refuses: said in the dialog, which stays open', (tester) async {
     final values = _Refusing();
     await show(tester, values);
@@ -159,7 +188,7 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Inbound for other programs'.toUpperCase()), findsOneWidget);
     expect(find.text('Experiments'), findsNothing, reason: 'the menu is for a wide window');
-    expect(find.byType(NikoChoiceRow<String>), findsNWidgets(4));
+    expect(find.byType(NikoChoiceRow<String>), findsNWidgets(5));
   });
 }
 
@@ -174,6 +203,7 @@ const _defaultTexts = {
   'directDns': 'local',
   'mixedPort': '2080',
   'logLevel': '0',
+  'programsMode': '0',
 };
 
 /// Values whose store refuses a DNS server it does not know, in the daemon's words.
