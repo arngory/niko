@@ -1184,6 +1184,10 @@ fun buildConfig(
         // an exported config keeps the rules as they are: the rule-sets go by their URLs
         val russiaDirectWaits = !forExport && RoutePresets.russiaDirectWaits(extraRules)
         val dpi = if (forExport) null else DpiDirect.strategy(settings.dpiDirect, settings.dpiDirectPreset, settings.dpiDirectCustom)
+        // a stored string that no longer parses (or a preset gone): no cut, said once per build, not silently
+        if (!forExport && dpi == null && settings.dpiDirect != DpiDirect.OFF) {
+            Logs.w("DPI bypass for direct connections is on, but its strategy does not parse: no tcp_desync")
+        }
         val missingInConfig = mutableSetOf<String>()
         for (rule in extraRules) {
             if (russiaDirectWaits && RoutePresets.isRussiaDirect(rule)) {
