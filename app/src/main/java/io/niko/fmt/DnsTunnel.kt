@@ -55,10 +55,12 @@ data class DnsTunnel(
         const val MASTERDNSVPN = "masterdnsvpn"
         // raycontrol slipstream-v1: QUIC over DNS, the bundled slipstream client (a process of its own)
         const val SLIPSTREAM = "slipstream"
-        // a query's name under the zone must hold the dnsauth field and a QUIC packet of 129 bytes, the least the
-        // server takes: 29 characters with the client's exact fit (the fork's slipstream_mtu.c; (240 - zone) / 1.6 held
-        // it to 20, slipstream-v1 §3)
-        const val SLIPSTREAM_MAX_ZONE = 29
+        // a query's name under the zone must hold the dnsauth field and a QUIC packet of 64 bytes, the least the
+        // server takes (server-v0.3.0, picoquic from arngory/picoquic; 129 and 29 characters before): 134 characters
+        // with the field, 148 without, the client's exact fit (the fork's slipstream_mtu.c; raycontrol
+        // dns-zone-length-v1)
+        const val SLIPSTREAM_MAX_ZONE = 134
+        const val SLIPSTREAM_MAX_ZONE_OPEN = 148
         // a path each: the client's multipath adds them up
         const val MAX_SLIP_RESOLVERS = 4
         private val SLIP_PIN = Regex("^[A-Za-z0-9_-]{43}$")
@@ -164,8 +166,8 @@ data class DnsTunnel(
             SLIPSTREAM -> when {
                 domains.size != 1 -> "DNS tunnel: slipstream takes one zone"
                 spareZones.isNotEmpty() -> "DNS tunnel: slipstream has no spare zones"
-                domains.first().length > SLIPSTREAM_MAX_ZONE ->
-                    "DNS tunnel: slipstream's zone is $SLIPSTREAM_MAX_ZONE characters at most (a query must hold a packet)"
+                domains.first().length > slipstreamMaxZone ->
+                    "DNS tunnel: slipstream's zone is $slipstreamMaxZone characters at most (a query must hold a packet)"
                 resolvers.isEmpty() -> "DNS tunnel: no resolvers, one IP per line"
                 resolvers.size > MAX_SLIP_RESOLVERS -> "DNS tunnel: slipstream takes $MAX_SLIP_RESOLVERS resolvers at most"
                 resolvers.any { !SLIP_RESOLVER.matches(it) } ->
@@ -214,6 +216,9 @@ data class DnsTunnel(
             add("--clock-offset=$clockOffset")
         }
     }
+
+    /** The longest slipstream zone: the dnsauth field takes room in every query name. */
+    val slipstreamMaxZone: Int get() = if (authNode != null) SLIPSTREAM_MAX_ZONE else SLIPSTREAM_MAX_ZONE_OPEN
 
     /**
      * The node id and the service id of dnsauth (dnstt, masterdns since raycontrol v0.14), or null when it is off:
