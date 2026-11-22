@@ -291,22 +291,9 @@
     <string name="protocol_settings">Налаштування протоколу</string>
     <string name="trojan_provider">Постачальник Trojan</string>
     <string name="group_basic">Основні</string>
-    <string name="group_settings">Налаштування групи</string>
     <string name="subscription">Підписка</string>
-    <string name="subscription_settings">Налаштування підписки</string>
-    <string name="group_type">Тип групи</string>
     <string name="subscription_type">Тип підписки</string>
-    <string name="delete_group_prompt">Ви впевнені, що хочете видалити цю групу?</string>
-    <string name="force_resolve">Примусове визначення</string>
-    <string name="force_resolve_sum">Визначати всі доменні імена в IP-адреси під час оновлення. Хост і SNI будуть автоматично додані, якщо це можливо</string>
-    <string name="deduplication_sum">Видаляти дублікати конфігурацій під час оновлення</string>
     <string name="raw">Raw</string>
-    <string name="update_settings">Налаштування оновлення</string>
-    <string name="auto_update">Автоматичне оновлення</string>
-    <string name="auto_update_delay">Затримка автооновлення (у хвилинах)</string>
-    <string name="update_when_connected_only">Оновлювати лише при підключенні</string>
-    <string name="update_when_connected_only_sum">Запобігати витоку IP-адреси</string>
-    <string name="subscription_user_agent">UserAgent</string>
     <string name="confirm">Підтвердити</string>
     <string name="missing_plugin">Відсутній плагін</string>
     <string name="profile_requiring_plugin">Профіль %s вимагає встановлення плагіна %s, але його не знайдено.</string>
@@ -433,8 +420,6 @@
     <string name="ads">Реклама</string>
     <string name="need_restart">Перезапустіть програму, щоб застосувати зміни</string>
     <string name="use_selector">Використовувати селектор</string>
-    <string name="front_proxy">Передній проксі</string>
-    <string name="landing_proxy">Проксі-призначення</string>
     <string name="action_shadowtls" translatable="false">ShadowTLS</string>
     <string name="protocol_version">Версія протоколу</string>
     <string name="share_subscription">Поділитися підпискою</string>
