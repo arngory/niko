@@ -173,7 +173,7 @@ class MemoryDaemon implements Daemon {
     'mtu': 9000,
     'ipv6Mode': 0,
     'globalAllowInsecure': false,
-    'remoteDns': 'https://dns.google/dns-query',
+    'remoteDns': 'https://cloudflare-dns.com/dns-query\nhttps://dns.quad9.net/dns-query',
     'directDns': 'local',
     'enableFakeDns': true,
     'domainStrategyForRemote': '',

@@ -74,6 +74,7 @@
     <string name="connection_test_error">Failed: %s</string>
     <string name="connection_test_fail">Internet Unavailable</string>
     <string name="connection_test_error_status_code">Error code: #%d</string>
+    <string name="remote_dns_help">One per line: https://…/dns-query, tls://…, 1.1.1.1. When a server fails or keeps silent, the next one is asked</string>
     <string name="direct_dns_help">local: the network\'s own resolver, as other apps use it (Private DNS included). Or a server: https://…/dns-query, tls://…, 1.1.1.1</string>
     <string name="private_dns_strict">Private DNS is set to %s: apps send their DNS over TLS to it, past Niko\'s DNS. Domain rules then rest on sniffing, and that resolver sees every name. Settings → Network → Private DNS: Automatic or Off.</string>
     <string name="dns_hosts">Domain rewrite</string>

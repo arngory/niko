@@ -51,7 +51,7 @@ void main() {
     final values = defaults();
     await show(tester, values);
     expect(find.text('2080'), findsOneWidget);
-    expect(find.text('https://dns.google/dns-query'), findsOneWidget);
+    expect(find.text('cloudflare-dns.com +1'), findsOneWidget, reason: 'the first server\'s host, and one after it');
     expect(find.text('не заданы'), findsOneWidget);
     expect(find.text('Авто'), findsOneWidget, reason: 'every domain strategy the core\'s own');
     // what the window has not yet is not shown
@@ -167,7 +167,7 @@ void main() {
     expect(find.text('Не сохранено'), findsOneWidget);
     expect(find.text('invalid: remoteDns: Unsupported DNS transport: ftp'), findsOneWidget);
     expect(find.text('Сохранить'), findsOneWidget);
-    expect(values.text('remoteDns'), 'https://dns.google/dns-query');
+    expect(values.text('remoteDns'), _defaultTexts['remoteDns']);
     if (Platform.isLinux) {
       await expectLater(find.byType(SettingsScreen), matchesGoldenFile('goldens/settings_refused_light.png'));
     }
@@ -199,7 +199,7 @@ const _defaultTexts = {
   'tunImplementation': '0',
   'mtu': '9000',
   'ipv6Mode': '0',
-  'remoteDns': 'https://dns.google/dns-query',
+  'remoteDns': 'https://cloudflare-dns.com/dns-query\nhttps://dns.quad9.net/dns-query',
   'directDns': 'local',
   'mixedPort': '2080',
   'logLevel': '0',

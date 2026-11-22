@@ -139,6 +139,9 @@ class NikoStrings {
   String get setRemoteDns => _ru ? 'Удалённый DNS' : 'Remote DNS';
   String get setDirectDns => _ru ? 'Прямой DNS' : 'Direct DNS';
   String get setDnsHint => _ru ? 'Сервер: https://, tls://, quic://, udp:// или local' : 'A server: https://, tls://, quic://, udp:// or local';
+  String get setRemoteDnsHint => _ru
+      ? 'По серверу в строке: https://, tls://, quic://, udp:// или local. Когда сервер не отвечает или отвечает ошибкой, спрашивается следующий'
+      : 'A server a line: https://, tls://, quic://, udp:// or local. When a server fails or keeps silent, the next one is asked';
   String get setFakeIp => 'FakeIP';
   String get setInVpn => _ru ? 'В режиме VPN' : 'In VPN mode';
   String get setStrategy => _ru ? 'Стратегия доменов' : 'Domain strategy';

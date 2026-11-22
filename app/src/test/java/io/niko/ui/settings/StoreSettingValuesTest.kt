@@ -1,6 +1,7 @@
 package io.niko.ui.settings
 
 import androidx.preference.PreferenceDataStore
+import io.niko.DEFAULT_REMOTE_DNS
 import io.niko.Key
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -61,7 +62,7 @@ class StoreSettingValuesTest {
         assertFalse(Key.DIRECT_DNS in store.map)
         assertEquals(listOf(Key.DIRECT_DNS, SettingKeys.CONNECTION_TEST_CONCURRENT), values.commit())
         assertEquals("2080", values.text(Key.MIXED_PORT))
-        assertEquals("https://dns.google/dns-query", values.text(Key.REMOTE_DNS))
+        assertEquals(DEFAULT_REMOTE_DNS, values.text(Key.REMOTE_DNS))
         assertEquals("1.1.1.1", store.map[Key.DIRECT_DNS])
         assertEquals(8, store.map[SettingKeys.CONNECTION_TEST_CONCURRENT])
         assertTrue(heard.isEmpty())
@@ -75,5 +76,9 @@ class StoreSettingValuesTest {
         assertEquals(SettingEffect.NONE, SettingKeys.effect(Key.SHOW_BOTTOM_BAR))
         assertEquals("dns.google", dnsHost("https://dns.google/dns-query"))
         assertEquals("local", dnsHost("local"))
+        assertEquals("1.1.1.1:53", dnsHost("udp://1.1.1.1:53"))
+        assertEquals("cloudflare-dns.com +1", dnsHost(DEFAULT_REMOTE_DNS))
+        assertEquals("1.1.1.1 +2", dnsHost("# mine\n\n tls://1.1.1.1 \nlocal\n# off: udp://9.9.9.9\nhttps://dns.quad9.net/dns-query\n"))
+        assertEquals("", dnsHost(""))
     }
 }

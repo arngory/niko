@@ -3,6 +3,7 @@ package io.niko.ui.settings
 import app.cash.paparazzi.DeviceConfig
 import app.cash.paparazzi.Paparazzi
 import com.android.resources.NightMode
+import io.niko.DEFAULT_REMOTE_DNS
 import io.niko.Key
 import io.niko.ui.compose.NikoTheme
 import org.junit.Rule
@@ -40,7 +41,7 @@ class SettingsSnapshotTest(private val mode: String) {
         ),
         texts = mapOf(
             Key.NIGHT_THEME to "1", Key.SERVICE_MODE to "vpn", Key.TUN_IMPLEMENTATION to "0", Key.MTU to "9000",
-            Key.MIXED_PORT to "2080", Key.REMOTE_DNS to "https://dns.google/dns-query", Key.DIRECT_DNS to "local",
+            Key.MIXED_PORT to "2080", Key.REMOTE_DNS to DEFAULT_REMOTE_DNS, Key.DIRECT_DNS to "local",
             SettingKeys.STRATEGY_REMOTE to "auto", SettingKeys.STRATEGY_DIRECT to "auto", SettingKeys.STRATEGY_SERVER to "auto",
             Key.RULE_SET_UPDATE_HOURS to "24", Key.RULES_PROVIDER to "0", Key.IPV6_MODE to "0", Key.ROOT_STORE to "chrome",
             Key.CONNECTION_TEST_URL to "http://cp.cloudflare.com/", SettingKeys.CONNECTION_TEST_CONCURRENT to "5",
