@@ -64,10 +64,16 @@ fun HomeScreen(
     results: Map<Long, ConfigsTest.Result> = emptyMap(),
     configsActions: ConfigsActions? = null,
     configsOpen: Boolean = false,
+    subs: List<SubRow>? = null,
+    subsActions: SubsActions? = null,
+    format: io.niko.ui.node.NodeFormat? = null,
+    subsOpen: Boolean = false,
 ) {
     val c = Niko.colors
     var modeSheet by rememberSaveable { mutableStateOf(sheet) }
-    var configsSheet by rememberSaveable { mutableStateOf(configsOpen) }
+    var configsSheet by rememberSaveable { mutableStateOf(configsOpen || subsOpen) }
+    // the sheet opened on its Subscriptions tab (P-Subs)
+    var onSubs by rememberSaveable { mutableStateOf(subsOpen) }
     // the activity reads the sheet's groups while it is open; the screen gone (another screen in its place) closes it
     DisposableEffect(configsSheet) {
         actions.configs(configsSheet)
@@ -75,7 +81,18 @@ fun HomeScreen(
     }
     // the configs' sheet from the node row and the Configs tab; without its actions (a snapshot of the screen alone) the
     // old list as before
-    val openConfigs = { if (configsActions != null) configsSheet = true else actions.profiles() }
+    val openConfigs = {
+        if (configsActions != null) {
+            onSubs = false
+            configsSheet = true
+        } else actions.profiles()
+    }
+    val openSubs = {
+        if (configsActions != null && subsActions != null) {
+            onSubs = true
+            configsSheet = true
+        } else actions.subscriptions()
+    }
     var now by remember { mutableLongStateOf(clock()) }
     LaunchedEffect(state.service, ticking) {
         while (ticking && state.service == BaseService.State.Connected) {
@@ -88,7 +105,7 @@ fun HomeScreen(
             TopBar(view, actions::view, Modifier.statusBarsPadding())
             when (view) {
                 HomeView.Simple -> Simple(state, now, actions, openConfigs, Modifier.weight(1f)) { modeSheet = true }
-                HomeView.Advanced -> Advanced(state, now, actions, openConfigs, Modifier.weight(1f)) { modeSheet = true }
+                HomeView.Advanced -> Advanced(state, now, actions, openConfigs, openSubs, Modifier.weight(1f)) { modeSheet = true }
             }
         }
         if (modeSheet) {
@@ -99,7 +116,10 @@ fun HomeScreen(
             }) { modeSheet = false }
         }
         if (configsSheet && configsActions != null) {
-            ConfigsSheet(configs, state.profiles, state.subscriptions, testing, results, configsActions) { configsSheet = false }
+            ConfigsSheet(
+                configs, state.profiles, state.subscriptions, testing, results, configsActions,
+                subs = subs, subsActions = subsActions, format = format, now = now / 1000, onSubs = onSubs,
+            ) { configsSheet = false }
         }
     }
 }
@@ -252,7 +272,7 @@ private fun NodeRow(profile: HomeProfile?, profiles: Int, actions: HomeActions, 
 
 /** P-Advanced: the connection card, the main settings and the rest as rows, the configs and subscriptions on the sheet. */
 @Composable
-private fun Advanced(state: HomeState, now: Long, actions: HomeActions, onConfigs: () -> Unit, modifier: Modifier, onMode: () -> Unit) {
+private fun Advanced(state: HomeState, now: Long, actions: HomeActions, onConfigs: () -> Unit, onSubs: () -> Unit, modifier: Modifier, onMode: () -> Unit) {
     val (label, tone) = statusLabel(state)
     Column(modifier.fillMaxWidth()) {
         Column(
@@ -290,7 +310,7 @@ private fun Advanced(state: HomeState, now: Long, actions: HomeActions, onConfig
             ) {
                 Row(Modifier.weight(1f).padding(horizontal = NikoSpace.s5), horizontalArrangement = Arrangement.spacedBy(NikoSpace.s6)) {
                     Tab(stringResource(R.string.home_profiles), state.profiles, active = true, onClick = onConfigs)
-                    Tab(stringResource(R.string.home_subscriptions), state.subscriptions, active = false, onClick = actions::subscriptions)
+                    Tab(stringResource(R.string.home_subscriptions), state.subscriptions, active = false, onClick = onSubs)
                 }
                 TonalIconButton(R.drawable.ic_l_plus, stringResource(R.string.home_add), actions::profiles)
             }

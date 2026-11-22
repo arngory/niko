@@ -66,8 +66,40 @@ class HomeSnapshotTest(private val mode: String) {
         override fun stopTest() {}
         override fun edit(id: Long) {}
         override fun add() {}
-        override fun subscriptions() {}
     }
+
+    private val noSubs = object : SubsActions {
+        override fun open(row: SubRow) {}
+        override fun update(row: SubRow) {}
+        override fun updateAll() {}
+        override fun add() {}
+        override fun action(row: SubRow, action: SubAction) {}
+    }
+
+    private fun utc(pattern: String) = java.text.SimpleDateFormat(pattern, java.util.Locale.ENGLISH).apply {
+        timeZone = java.util.TimeZone.getTimeZone("UTC")
+    }
+
+    private val format = io.niko.ui.node.NodeFormat(
+        day = { utc("d MMM").format(java.util.Date(it * 1000)) },
+        time = { utc("HH:mm").format(java.util.Date(it * 1000)) },
+        bytes = { "%.0f GB".format(java.util.Locale.ENGLISH, it / 1e9) },
+    )
+
+    // P-Subs: a node with its limit, a provider's subscription fetched, one that has ended, the user's own group
+    private val day = 86_400L
+    private val subs = listOf(
+        SubRow(
+            1, "arngory", SubKind.NODE, profiles = 3, expire = NOW / 1000 + 20 * day, updatedAt = NOW / 1000 - 3600,
+            used = 38_000_000_000, total = 100_000_000_000, reset = NOW / 1000 + 12 * day, canUpdate = true, nodeId = "n1",
+        ),
+        SubRow(
+            2, "provider.net", SubKind.SUBSCRIPTION, profiles = 2, expire = NOW / 1000 + 31 * day, updatedAt = NOW / 1000 - 600,
+            used = 12_000_000_000, total = 50_000_000_000, canUpdate = true,
+        ),
+        SubRow(3, "old.example", SubKind.SUBSCRIPTION, profiles = 5, expire = NOW / 1000 - 13 * day, updatedAt = NOW / 1000 - 15 * day, canUpdate = true),
+        SubRow(4, "Свои", SubKind.OWN, profiles = 4),
+    )
 
     // P-Configs: a node's group and a subscription's, one profile chosen, one tested and failed, one not tested
     private val groups = listOf(
@@ -88,11 +120,12 @@ class HomeSnapshotTest(private val mode: String) {
         ),
     )
 
-    private fun shot(state: HomeState, view: HomeView, sheet: Boolean = false, configs: Boolean = false) = paparazzi.snapshot {
+    private fun shot(state: HomeState, view: HomeView, sheet: Boolean = false, configs: Boolean = false, onSubs: Boolean = false) = paparazzi.snapshot {
         NikoTheme(dark = mode == "dark") {
             HomeScreen(
                 state, view, none, clock = { NOW }, ticking = false, sheet = sheet,
                 configs = groups, testing = setOf(2L), configsActions = noConfigs, configsOpen = configs,
+                subs = subs, subsActions = noSubs, format = format, subsOpen = onSubs,
                 // the test's results over the rows read: Helsinki answered meanwhile
                 results = mapOf(22L to ConfigsTest.Result(pingMs = 88, unreachable = false)),
             )
@@ -111,6 +144,10 @@ class HomeSnapshotTest(private val mode: String) {
     /** P-Configs over the main screen: the second group's test running, its stop in place of the test button. */
     @Test
     fun configsSheet() = shot(connected, HomeView.Advanced, configs = true)
+
+    /** P-Subs: the sheet on its Subscriptions tab, opened from the Advanced view's tab. */
+    @Test
+    fun subsSheet() = shot(connected.copy(subscriptions = 4), HomeView.Advanced, onSubs = true)
 
     @Test
     fun simpleFailed() = shot(
