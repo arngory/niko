@@ -71,8 +71,9 @@ type server struct {
 	core func() (context.Context, func())
 	// users are the users' stores
 	users *users
-	// start starts the core with a config for the caller, as DesktopService.StartService; nil: no daemon
-	start func(ctx context.Context, config string) error
+	// start starts the core with a config for the caller, as DesktopService.StartService, and the system proxy the
+	// daemon sets for its owner while the core runs (nil: none); nil: no daemon
+	start func(ctx context.Context, config string, systemProxy *boxdd.SystemProxy) error
 }
 
 // GetInfo: the store's schema to a caller the store serves; to one it refuses (store.go's caller), 0, as from a daemon

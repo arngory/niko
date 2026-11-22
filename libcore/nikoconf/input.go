@@ -187,7 +187,7 @@ type Settings struct {
 	GlobalCustomConfig      string  `json:"globalCustomConfig"`
 	Secrets                 Secrets `json:"secrets"`
 	// SystemProxy, a computer's own (D-NAV-02): in proxy mode the local proxy is the system's while the core runs;
-	// nil for the default, off for now (desktop.go)
+	// nil for the default, on Windows on (SystemProxyOn)
 	SystemProxy *bool `json:"systemProxy"`
 	// ProgramsMode and Programs, a computer's own (D-RULES-06), what the phone's per-app proxy is: which programs go
 	// through Niko, ProgramsAll, ProgramsOnly or ProgramsExcept those of Programs, a name or a full path a line, as a
@@ -330,6 +330,15 @@ type Result struct {
 	// Warnings, in the golden fixtures' words: "rule needs VPN: <rule>", "no such outbound: <rule>"; on a computer
 	// "rule needs Android: <rule>" too
 	Warnings []string
+	// SystemProxy: the system's proxy while the core runs, a computer's in proxy mode where its settings say so
+	// (desktop.go); the daemon sets it for its owner. Nil for none
+	SystemProxy *SystemProxy
+}
+
+// SystemProxy is an HTTP proxy of the config's, its local proxy, for the system to use.
+type SystemProxy struct {
+	Server string `json:"server"`
+	Port   int    `json:"port"`
 }
 
 var errNoProfile = errors.New("no such profile")

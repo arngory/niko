@@ -1611,7 +1611,8 @@ class Settings extends $pb.GeneratedMessage {
   @$pb.TagNumber(1)
   void clearServiceMode() => $_clearField(1);
 
-  /// in proxy mode the local proxy is the system's while the core runs
+  /// in proxy mode the local proxy is the system's while the core runs: the daemon sets it for the user who connected,
+  /// and ManagedService.SetSystemProxyEnabled turns it off and on; on by default on Windows
   @$pb.TagNumber(2)
   $core.bool get systemProxy => $_getBF(1);
   @$pb.TagNumber(2)

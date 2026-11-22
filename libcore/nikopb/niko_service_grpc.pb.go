@@ -89,8 +89,9 @@ type NikoServiceClient interface {
 	// Builds the config of a profile in the daemon, as the app builds it, for this computer (Windows or Linux) with the
 	// computer's settings (GetSettings) in the mode asked, else theirs, and starts the core with it (reloads the one
 	// running), as DesktopService.StartService starts a config with no options: the caller becomes the daemon's owner.
-	// By default proxy mode: the local proxy on 127.0.0.1:2080 with no login, not the system's proxy; VPN mode is the
-	// TUN, which the core opens only with the daemon's privileges. FAILED_PRECONDITION for no profile selected, one
+	// By default proxy mode: the local proxy on 127.0.0.1:2080 with no login, on Windows the caller's system proxy too
+	// (system_proxy), set by the daemon for the caller; VPN mode is the TUN, which the core opens only with the daemon's
+	// privileges. FAILED_PRECONDITION for no profile selected, one
 	// whose secrets cannot be opened on this machine, or settings whose secrets cannot; NOT_FOUND; INVALID_ARGUMENT for
 	// a profile the build refuses, or no such mode; UNIMPLEMENTED for a plugin's profile; PERMISSION_DENIED where another
 	// user owns the daemon; the core's own error for a config it refuses or cannot start.
@@ -371,8 +372,9 @@ type NikoServiceServer interface {
 	// Builds the config of a profile in the daemon, as the app builds it, for this computer (Windows or Linux) with the
 	// computer's settings (GetSettings) in the mode asked, else theirs, and starts the core with it (reloads the one
 	// running), as DesktopService.StartService starts a config with no options: the caller becomes the daemon's owner.
-	// By default proxy mode: the local proxy on 127.0.0.1:2080 with no login, not the system's proxy; VPN mode is the
-	// TUN, which the core opens only with the daemon's privileges. FAILED_PRECONDITION for no profile selected, one
+	// By default proxy mode: the local proxy on 127.0.0.1:2080 with no login, on Windows the caller's system proxy too
+	// (system_proxy), set by the daemon for the caller; VPN mode is the TUN, which the core opens only with the daemon's
+	// privileges. FAILED_PRECONDITION for no profile selected, one
 	// whose secrets cannot be opened on this machine, or settings whose secrets cannot; NOT_FOUND; INVALID_ARGUMENT for
 	// a profile the build refuses, or no such mode; UNIMPLEMENTED for a plugin's profile; PERMISSION_DENIED where another
 	// user owns the daemon; the core's own error for a config it refuses or cannot start.

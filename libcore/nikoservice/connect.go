@@ -15,6 +15,8 @@ import (
 	"libcore/nikopb"
 	"libcore/nikostore"
 
+	"github.com/sagernet/sing-box/experimental/boxdd"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -58,10 +60,19 @@ func (s *server) Connect(ctx context.Context, request *nikopb.ConnectRequest) (*
 	if s.start == nil {
 		return nil, status.Error(codes.Unimplemented, "no daemon to start the core")
 	}
-	if err = s.start(ctx, string(result.Config)); err != nil {
+	if err = s.start(ctx, string(result.Config), systemProxy(result.SystemProxy)); err != nil {
 		return nil, err
 	}
 	return &nikopb.Empty{}, nil
+}
+
+// systemProxy is the build's system proxy as the daemon sets it for its owner (the fork's Host.StartService): the
+// local proxy of proxy mode, for the user who connected, not for SYSTEM or root the service runs as.
+func systemProxy(p *nikoconf.SystemProxy) *boxdd.SystemProxy {
+	if p == nil {
+		return nil
+	}
+	return &boxdd.SystemProxy{Server: p.Server, Port: uint16(p.Port)}
 }
 
 // connectSettings are the build's settings of the computer's (nikostore's settings.json over nikoconf.DesktopSettings):

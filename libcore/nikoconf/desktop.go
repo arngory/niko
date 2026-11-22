@@ -85,14 +85,22 @@ func resolverPrefix(line string) (netip.Prefix, bool) {
 }
 
 // systemProxy: in proxy mode the local proxy is the system's while the core runs (D-NAV-02), where the settings say
-// so; off by default everywhere until the daemon sets it for its owner (slice 8b). The core sets it itself (the mixed inbound's set_system_proxy: wininet on
-// Windows, gsettings or kwriteconfig on Linux) for the user it runs as: the user's own in the daemon's development
-// mode and in a worker of the user's (slice 16). The daemon as a service runs as SYSTEM, whose own setting Windows
-// would change, or as root, for which the core refuses Linux's (no SUDO_USER) and the inbound does not start. The
-// daemon sets the owner's system proxy only for a TUN's platform.http_proxy, and that one alone is what
-// ManagedService.SetSystemProxyEnabled turns on and off.
+// so (SystemProxyOn). The build does not have the core set it (the mixed inbound's set_system_proxy sets it for the
+// user the core runs as, which in the service is SYSTEM or root, and on Linux root with no SUDO_USER refuses it and
+// the inbound does not start): it gives it beside the config (Result.SystemProxy), and the daemon has its platform set
+// it for its owner (the fork's Host.StartService), as a TUN's platform.http_proxy; ManagedService.SetSystemProxyEnabled
+// turns it off and on.
 func (b *builder) systemProxy() bool {
-	return b.s.SystemProxy != nil && *b.s.SystemProxy
+	return b.s.SystemProxyOn(b.in.Platform)
+}
+
+// SystemProxyOn: the system proxy of proxy mode, for a computer of the platform: the setting, else on Windows on, as
+// a desktop client's proxy mode is there, off elsewhere.
+func (s *Settings) SystemProxyOn(platform string) bool {
+	if s.SystemProxy != nil {
+		return *s.SystemProxy
+	}
+	return platform == PlatformWindows
 }
 
 // programMatch is how the core matches a rule's programs (D-RULES-02), each once, in their order: names by
@@ -158,8 +166,8 @@ func putPrograms(r object, match object) {
 }
 
 // DesktopSettings are a computer's defaults (nikostore's settings.json holds what the user changed over them): the
-// app's, but in proxy mode, which needs no privileges of the daemon's. The system's proxy stays off by default
-// (systemProxy above).
+// app's, but in proxy mode, which needs no privileges of the daemon's. The system's proxy is the platform's default
+// (SystemProxyOn).
 func DesktopSettings() Settings {
 	s := DefaultSettings()
 	s.ServiceMode = ModeProxy
