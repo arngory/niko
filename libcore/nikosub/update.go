@@ -3,6 +3,7 @@ package nikosub
 import (
 	"context"
 	"errors"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -96,6 +97,10 @@ type Update struct {
 	Plan Plan
 	// Moved: the provider moved the subscription to Subscription.Link
 	Moved bool
+	// FromName and From are the group's name and subscription the update began with: what the user changed
+	// meanwhile stays (the store's ApplyUpdate)
+	FromName string
+	From     Subscription
 }
 
 // Options are an update's.
@@ -155,7 +160,15 @@ func announceText(announce string) string {
 // FetchError is an answer the subscription did not get: no connection, a status other than 200, a body too large.
 type FetchError struct{ Err error }
 
-func (e *FetchError) Error() string { return "the subscription's answer: " + e.Err.Error() }
+// Error leaves out the address: a url.Error names it whole, and its path is the token the store seals.
+func (e *FetchError) Error() string {
+	err := e.Err
+	var u *url.Error
+	if errors.As(err, &u) {
+		err = u.Err
+	}
+	return "the subscription's answer: " + err.Error()
+}
 
 func (e *FetchError) Unwrap() error { return e.Err }
 
@@ -201,6 +214,7 @@ func hostOf(address string) string {
 // address answers with profiles, the body read, the headers applied, the profiles merged. Nothing is written: the
 // caller writes the result in one go (the app's partial writes, where its store throws midway, are not repeated).
 func Run(ctx context.Context, name string, sub Subscription, exists []Existing, o Options) (Update, error) {
+	fromName, from := name, sub
 	c := o.Client
 	if c == nil {
 		c = &Client{}
@@ -264,5 +278,5 @@ func Run(ctx context.Context, name string, sub Subscription, exists []Existing, 
 		return Update{}, err
 	}
 	sub.LastUpdated = now().Unix()
-	return Update{Name: name, Subscription: sub, Plan: plan, Moved: moved}, nil
+	return Update{Name: name, Subscription: sub, Plan: plan, Moved: moved, FromName: fromName, From: from}, nil
 }

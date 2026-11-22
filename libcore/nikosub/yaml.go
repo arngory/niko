@@ -321,6 +321,7 @@ func (c *yamlComposer) mapping(n *yaml.Node) (any, error) {
 		// over later ones
 		var values []tuple
 		index := map[string]int{}
+		merging := map[*yaml.Node]bool{}
 		var merge func(ts []tuple, preferred bool) error
 		merge = func(ts []tuple, preferred bool) error {
 			for _, t := range ts {
@@ -340,6 +341,13 @@ func (c *yamlComposer) mapping(n *yaml.Node) (any, error) {
 						subs = []*yaml.Node{value}
 					case value.Kind == yaml.SequenceNode:
 						for _, s := range value.Content {
+							// an alias in the list counts as any other: SnakeYAML's parser counts every alias event
+							if s.Kind == yaml.AliasNode {
+								c.aliases++
+								if c.aliases > maxAliasesForCollections {
+									return errYAML
+								}
+							}
 							s = resolveAlias(s)
 							if s == nil || s.Kind != yaml.MappingNode {
 								return errYAML
@@ -350,11 +358,21 @@ func (c *yamlComposer) mapping(n *yaml.Node) (any, error) {
 						return errYAML
 					}
 					for _, sub := range subs {
+						// a mapping whose merge leads back to itself, or merges nested past the depth limit: Java
+						// overflows its stack and the update fails, Go would take the daemon down
+						if merging[sub] || c.depth > nestingDepthLimit {
+							return errYAML
+						}
 						var inner []tuple
 						for i := 0; i+1 < len(sub.Content); i += 2 {
 							inner = append(inner, tuple{sub.Content[i], sub.Content[i+1]})
 						}
-						if err := merge(inner, false); err != nil {
+						merging[sub] = true
+						c.depth++
+						err := merge(inner, false)
+						c.depth--
+						merging[sub] = false
+						if err != nil {
 							return err
 						}
 					}

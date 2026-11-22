@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -107,7 +108,7 @@ func TestSubscriptionGroup(t *testing.T) {
 	// its settings: what its updates set stays, another address forgets the provider's spare
 	if _, err = s.ApplyUpdate(g.ID, nikosub.Update{Name: "Provider", Subscription: nikosub.Subscription{Link: subLink,
 		AutoUpdateDelay: 720, AutoUpdate: true, LastUpdated: 1790000500, UserInfo: "upload=1; total=10",
-		FallbackLink: "https://spare.example.com/s/fake-token"}}); err != nil {
+		FallbackLink: "https://spare.example.com/s/fake-token"}, FromName: g.Name, From: *g.Subscription}); err != nil {
 		t.Fatal(err)
 	}
 	g, err = s.SaveSubscriptionGroup(g.ID, "", SubscriptionSettings{Link: subLink, AutoUpdate: true, AutoUpdateDelay: 60})
@@ -188,7 +189,8 @@ func TestApplyUpdate(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		applied, err := s.ApplyUpdate(g.ID, nikosub.Update{Name: group.Name, Subscription: *group.Subscription, Plan: plan})
+		applied, err := s.ApplyUpdate(g.ID, nikosub.Update{Name: group.Name, Subscription: *group.Subscription, Plan: plan,
+			FromName: group.Name, From: *group.Subscription})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -223,7 +225,8 @@ func TestApplyUpdate(t *testing.T) {
 	}
 	// b came back as a new profile; the plan's c is deleted
 	changes = nil
-	applied, err := s.ApplyUpdate(g.ID, nikosub.Update{Name: "renamed", Subscription: *group.Subscription, Plan: plan})
+	applied, err := s.ApplyUpdate(g.ID, nikosub.Update{Name: "renamed", Subscription: *group.Subscription, Plan: plan,
+		FromName: group.Name, From: *group.Subscription})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -250,5 +253,49 @@ func TestApplyUpdate(t *testing.T) {
 	// into a basic group: refused
 	if _, err = s.ApplyUpdate(s.DefaultGroup(), nikosub.Update{}); !errors.Is(err, ErrRefused) {
 		t.Fatal(err)
+	}
+}
+
+// An update runs for a while: what the user changed meanwhile stays, what the update changed and the user did not is
+// the update's, a link changed meanwhile refuses the update.
+func TestApplyUpdateMeanwhile(t *testing.T) {
+	s := open(t, t.TempDir(), NoSealer{}, nil)
+	g, err := s.SaveSubscriptionGroup(0, "", SubscriptionSettings{Link: subLink})
+	if err != nil {
+		t.Fatal(err)
+	}
+	from, fromName := *g.Subscription, g.Name
+	updated := from
+	updated.UserInfo, updated.LastUpdated, updated.AutoUpdate, updated.AutoUpdateDelay = "upload=1", 1790000500, true, 720
+	// meanwhile the user renames the group and sets the delay and deduplication
+	if _, err = s.SaveSubscriptionGroup(g.ID, "mine", SubscriptionSettings{Link: subLink, AutoUpdateDelay: 60,
+		Deduplication: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.ApplyUpdate(g.ID, nikosub.Update{Name: "Provider", Subscription: updated, FromName: fromName,
+		From: from}); err != nil {
+		t.Fatal(err)
+	}
+	got, _, err := s.SubscriptionOf(g.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sub := got.Subscription
+	if got.Name != "mine" || sub.AutoUpdateDelay != 60 || !sub.Deduplication || sub.UserInfo != "upload=1" ||
+		sub.LastUpdated != 1790000500 {
+		t.Fatalf("%q %+v", got.Name, sub)
+	}
+	// another link meanwhile: the update read the old provider's
+	from = *got.Subscription
+	if _, err = s.SaveSubscriptionGroup(g.ID, "mine", SubscriptionSettings{Link: subLink + "&new=1"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.ApplyUpdate(g.ID, nikosub.Update{Name: "mine", Subscription: from, FromName: "mine",
+		From: from}); !errors.Is(err, ErrRefused) {
+		t.Fatalf("an update of the old link: %v", err)
+	}
+	// every field of a subscription is merged
+	if n := reflect.TypeOf(nikosub.Subscription{}).NumField(); n != 13 {
+		t.Fatalf("%d fields: merge the new ones in mergeSubscription", n)
 	}
 }

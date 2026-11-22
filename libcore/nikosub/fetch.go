@@ -58,8 +58,9 @@ type Response struct {
 	Body   string
 }
 
-// header is GetHeader: the first value, "" for none.
-func (r *Response) header(name string) string { return r.Header.Get(name) }
+// header is GetHeader: the first value, "" for none, as OkHttp reads it, UTF-8 with what is not as U+FFFD (a
+// provider's raw bytes reach names, the announcement and the window, where protobuf takes valid UTF-8 only).
+func (r *Response) header(name string) string { return nikofmt.DecodeUTF8([]byte(r.Header.Get(name))) }
 
 // panelRefusals are libcore's: the headers a panel refusing the device answers with, named in the error.
 var panelRefusals = []string{"x-hwid-not-supported", "x-hwid-max-devices-reached", "x-hwid-limit"}

@@ -33,16 +33,28 @@ func Prepare(parsed []nikofmt.Bean) []nikofmt.Bean {
 		proxies = append(proxies, bean)
 	}
 	names := map[string]bool{}
+	// where the loop stopped for a name: the names it went through stay taken, so the next of that name goes on from
+	// there, the same names in linear time (thousands of one name were quadratic: a provider's body is anyone's)
+	type stop struct {
+		index int
+		name  string
+	}
+	stopped := map[string]stop{}
 	var out []nikofmt.Bean
 	for _, proxy := range proxies {
 		index := 0
-		name := nikofmt.DisplayName(proxy)
+		start := nikofmt.DisplayName(proxy)
+		name := start
+		if at, ok := stopped[start]; ok {
+			index, name = at.index, at.name
+		}
 		for names[name] {
 			index++
 			name = strings.ReplaceAll(name, " ("+strconv.Itoa(index-1)+")", "")
 			name = name + " (" + strconv.Itoa(index) + ")"
 			nikofmt.Base(proxy).Name = ptrTo(name)
 		}
+		stopped[start] = stop{index, name}
 		names[nikofmt.DisplayName(proxy)] = true
 		out = append(out, proxy)
 	}

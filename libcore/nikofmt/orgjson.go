@@ -32,6 +32,9 @@ type OrgNull struct{}
 
 var errOrgJSON = errors.New("malformed JSON")
 
+// orgMaxDepth bounds the objects and arrays inside each other a text may hold.
+const orgMaxDepth = 512
+
 // OrgJSONObject is new JSONObject(text): the first value of the text, which must be an object; what follows it is
 // not looked at. A leading BOM is skipped.
 func OrgJSONObject(text string) (*OrgObject, error) {
@@ -56,8 +59,9 @@ func OrgNextValue(text string) (any, error) {
 
 // orgTokener is JSONTokener. It reads chars; runes differ only outside the BMP, which no token starts with.
 type orgTokener struct {
-	s   []rune
-	pos int
+	s     []rune
+	pos   int
+	depth int // objects and arrays open around pos
 }
 
 // nextClean is nextCleanInternal: the next character after whitespace and comments (/* */, // and # to the line's
@@ -114,9 +118,17 @@ func (t *orgTokener) nextValue() (any, error) {
 	switch c {
 	case -1:
 		return nil, errOrgJSON // end of input
-	case '{':
-		return t.readObject()
-	case '[':
+	case '{', '[':
+		// a provider's body can nest without end: past orgMaxDepth it is not JSON to us (the JVM's stack
+		// overflow fails the same update on the phone; in Go it would take the daemon down)
+		if t.depth >= orgMaxDepth {
+			return nil, errOrgJSON
+		}
+		t.depth++
+		defer func() { t.depth-- }()
+		if c == '{' {
+			return t.readObject()
+		}
 		return t.readArray()
 	case '\'', '"':
 		return t.nextString(c)

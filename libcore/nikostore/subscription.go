@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"libcore/nikofmt"
 	"libcore/nikosub"
@@ -240,7 +241,12 @@ type Applied struct {
 // gone already is no matter; the selected profile deleted is no selection.
 func (s *Store) ApplyUpdate(id int64, update nikosub.Update) (Applied, error) {
 	if len(update.Name) > maxName {
-		update.Name = update.Name[:maxName]
+		// at a character's start: protobuf takes valid UTF-8 only
+		cut := maxName
+		for cut > 0 && !utf8.RuneStart(update.Name[cut]) {
+			cut--
+		}
+		update.Name = update.Name[:cut]
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -252,8 +258,17 @@ func (s *Store) ApplyUpdate(id int64, update nikosub.Update) (Applied, error) {
 	if g.Type != GroupSubscription {
 		return Applied{}, fmt.Errorf("%w: group %d is no subscription's", ErrRefused, id)
 	}
-	g.Name = update.Name
-	if err := s.setSubscription(&g, update.Subscription); err != nil {
+	// an update runs for a while with the network: what the user changed meanwhile wins over what it read at its
+	// start; a link changed is another provider's, whose profiles these are not
+	cur := g.Subscription
+	if cur == nil || g.unreadable {
+		return Applied{}, fmt.Errorf("%w: group %d has no subscription to update", ErrRefused, id)
+	}
+	if cur.Link != update.From.Link {
+		return Applied{}, fmt.Errorf("%w: the subscription's link changed while it updated", ErrRefused)
+	}
+	g.Name = mergeField(g.Name, update.FromName, update.Name)
+	if err := s.setSubscription(&g, mergeSubscription(*cur, update.From, update.Subscription)); err != nil {
 		return Applied{}, err
 	}
 	st.groups[i] = g
@@ -328,4 +343,33 @@ func (s *Store) decodeSubscription(g *Group, d diskGroup) (resealed bool, err er
 		return sealed != "", nil
 	}
 	return false, nil
+}
+
+// mergeField is a field's value after an update that began from from: the update's where it changed the field and
+// the user did not meanwhile, else the current one.
+func mergeField[T comparable](current, from, updated T) T {
+	if updated != from && current == from {
+		return updated
+	}
+	return current
+}
+
+// mergeSubscription merges each field of an update's subscription into the current one (mergeField).
+func mergeSubscription(current, from, updated nikosub.Subscription) nikosub.Subscription {
+	m := current
+	m.Link = mergeField(current.Link, from.Link, updated.Link)
+	m.ForceResolve = mergeField(current.ForceResolve, from.ForceResolve, updated.ForceResolve)
+	m.Deduplication = mergeField(current.Deduplication, from.Deduplication, updated.Deduplication)
+	m.UpdateWhenConnectedOnly = mergeField(current.UpdateWhenConnectedOnly, from.UpdateWhenConnectedOnly,
+		updated.UpdateWhenConnectedOnly)
+	m.CustomUserAgent = mergeField(current.CustomUserAgent, from.CustomUserAgent, updated.CustomUserAgent)
+	m.AutoUpdate = mergeField(current.AutoUpdate, from.AutoUpdate, updated.AutoUpdate)
+	m.AutoUpdateDelay = mergeField(current.AutoUpdateDelay, from.AutoUpdateDelay, updated.AutoUpdateDelay)
+	m.LastUpdated = mergeField(current.LastUpdated, from.LastUpdated, updated.LastUpdated)
+	m.UserInfo = mergeField(current.UserInfo, from.UserInfo, updated.UserInfo)
+	m.Announce = mergeField(current.Announce, from.Announce, updated.Announce)
+	m.FallbackLink = mergeField(current.FallbackLink, from.FallbackLink, updated.FallbackLink)
+	m.HwidHost = mergeField(current.HwidHost, from.HwidHost, updated.HwidHost)
+	m.SendHwid = mergeField(current.SendHwid, from.SendHwid, updated.SendHwid)
+	return m
 }
