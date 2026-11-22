@@ -654,10 +654,10 @@ class MainActivity : ThemedActivity(),
         if (fragment is ConfigurationFragment) {
             showStats()
         } else if (fragment is HomeFragment || fragment is io.niko.ui.node.NodeFragment || fragment is SettingsFragment ||
-            !DataStore.showBottomBar
+            fragment is io.niko.ui.log.LogFragment || !DataStore.showBottomBar
         ) {
             // the main screen has its own button and state; a node's card is a screen of the main one (P-Node), and
-            // the settings are drawn as the canvas has them, without the button
+            // the settings and the log are drawn as the canvas has them, without the button
             binding.stats.allowShow = false
             binding.stats.performHide()
             binding.fab.hide()
@@ -683,7 +683,7 @@ class MainActivity : ThemedActivity(),
             R.id.nav_settings -> displayFragment(SettingsFragment())
             R.id.nav_traffic -> displayFragment(WebviewFragment())
             R.id.nav_tools -> displayFragment(ToolsFragment())
-            R.id.nav_logcat -> displayFragment(LogcatFragment())
+            R.id.nav_logcat -> displayFragment(io.niko.ui.log.LogFragment())
             R.id.nav_faq -> {
                 launchCustomTab("https://github.com/$RELEASE_REPO#readme")
                 return false

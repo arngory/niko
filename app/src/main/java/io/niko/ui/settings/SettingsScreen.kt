@@ -255,7 +255,7 @@ private fun Page(title: Int, actions: SettingsActions, content: @Composable Colu
 
 @Composable
 private fun Page(title: String, actions: SettingsActions, content: @Composable ColumnScope.() -> Unit) =
-    ListPage(title, stringResource(R.string.screen_back), actions::back, content)
+    ListPage(title, stringResource(R.string.screen_back), actions::back, content = content)
 
 @Composable
 private fun Dns(values: SettingValues, actions: SettingsActions) = Page(R.string.set_dns_route, actions) {
