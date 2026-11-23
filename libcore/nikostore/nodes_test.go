@@ -113,6 +113,9 @@ func TestNodes(t *testing.T) {
 	if err = s.DeleteGroup(applied.Group); !errors.Is(err, ErrRefused) {
 		t.Fatalf("deleted a node's group: %v", err)
 	}
+	if _, err = s.ProfileToShare(applied.Added[0]); !errors.Is(err, ErrRefused) {
+		t.Fatalf("a node's profile to share: %v", err)
+	}
 	stored, _ := s.Node(id)
 	first, second := stored.ProfileIDs["3"], stored.ProfileIDs["4"]
 	if first == 0 || second == 0 || stored.Links != nil && len(stored.Links) != 0 {

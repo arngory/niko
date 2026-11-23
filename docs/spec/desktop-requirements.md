@@ -267,7 +267,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-PROFILE-04 | Цепочка прокси: добавить, порядок, проверка кольца | `NikoService` | Kotlin: `ui/profile/ChainSettingsActivity.kt`, `fmt/ConfigBuilder.kt` | есть | есть | нет |
 | D-PROFILE-05 | Список профилей: поиск, порядок (исходный, по имени, по задержке), карточка с трафиком и задержкой | `NikoService` | Kotlin: `ui/ConfigurationFragment.kt` | есть | есть | нет |
 | D-PROFILE-06 | Проверить группу (TCPing, URL-тест), очистить результаты и недоступные, удалить дубликаты, обнулить статистику | `NikoService.TestProfiles` + `NikoService` | Kotlin + Go: `ui/ConfigurationFragment.kt`, см. D-MAIN-08 | есть | есть | нет |
-| D-PROFILE-07 | Поделиться профилем: QR, ссылка; конфиг в буфер или файл | `NikoService.Export` | Kotlin: `ui/ConfigurationFragment.kt`, ссылки — `fmt/*`, `fmt/UniversalFmt.kt` | есть | есть | нет |
+| D-PROFILE-07 | Поделиться профилем: QR, ссылка; конфиг в буфер или файл; не у профилей узла (`FAILED_PRECONDITION`, salamander-device-v1 §6) | `NikoService.Export` | Kotlin: `ui/ConfigurationFragment.kt`, ссылки — `fmt/*`, `fmt/UniversalFmt.kt` | есть | есть | нет |
 | D-PROFILE-08 | Перенести профиль в группу, удалить с отменой, перетащить | `NikoService` | Kotlin: `ui/ConfigurationFragment.kt`, `database/ProfileManager.kt` | есть | есть | нет |
 
 ## Инструменты (D-TOOLS)

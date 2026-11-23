@@ -204,6 +204,7 @@ private fun menuItem(action: SubAction): Pair<Int, String> = when (action) {
     SubAction.LAN -> R.drawable.ic_l_network to stringResource(R.string.raycontrol_lan)
     SubAction.QR -> R.drawable.ic_l_share_2 to stringResource(R.string.subs_qr)
     SubAction.COPY_LINK -> R.drawable.ic_l_link to stringResource(R.string.subs_copy_link)
+    SubAction.ANOTHER_DEVICE -> R.drawable.ic_l_monitor_smartphone to stringResource(R.string.subs_another_device)
     SubAction.EXPORT_CLIPBOARD -> R.drawable.ic_l_upload to stringResource(R.string.action_export_clipboard)
     SubAction.EXPORT_FILE -> R.drawable.ic_l_file_up to stringResource(R.string.action_export_file)
     SubAction.CLEAR -> R.drawable.ic_l_x to stringResource(R.string.subs_clear)

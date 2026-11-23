@@ -686,6 +686,12 @@ object RayNodes {
     fun get(nodeId: String) = list().firstOrNull { it.spa.nodeId == nodeId }
 
     /**
+     * Whether a group is a node's: its rows are this device's (its credentials, the knock with this device's key), so
+     * they are not shared; another device registers with an invite of its own (salamander-device-v1 §6).
+     */
+    fun ownsGroup(groupId: Long) = groupId != 0L && list().any { it.groupId == groupId }
+
+    /**
      * Changes the stored node in place: [change] gets the current entry, so a re-import (a new key) in between is
      * kept. Returns the stored node, or null when it was removed meanwhile.
      */

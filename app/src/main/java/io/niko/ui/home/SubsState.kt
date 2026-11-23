@@ -13,7 +13,7 @@ import io.niko.raycontrol.RayNodes
 enum class SubKind { SUBSCRIPTION, NODE, OWN, UNGROUPED }
 
 /** What a group's menu offers (P-Subs ⋮), in its order. */
-enum class SubAction { SETTINGS, ADMIN, LAN, QR, COPY_LINK, EXPORT_CLIPBOARD, EXPORT_FILE, CLEAR, DELETE }
+enum class SubAction { SETTINGS, ADMIN, LAN, QR, COPY_LINK, ANOTHER_DEVICE, EXPORT_CLIPBOARD, EXPORT_FILE, CLEAR, DELETE }
 
 /**
  * A group as the Subscriptions tab lists it (P-Subs, D-SUB-01…07): its name, when it ends and was fetched, its
@@ -93,18 +93,27 @@ object SubsLoader {
         )
     }
 
-    /** A group's menu: the ungrouped can only be exported or cleared; a node's adds its panel and its network. */
+    /**
+     * A group's menu: the ungrouped can only be exported or cleared; a node's adds its panel and its network, and in
+     * place of the link and the export says how another device is added: its rows are this device's, the other takes
+     * an invite of its own (salamander-device-v1 §6).
+     */
     fun menu(row: SubRow): List<SubAction> = buildList {
+        val node = row.kind == SubKind.NODE
         if (row.kind != SubKind.UNGROUPED) add(SubAction.SETTINGS)
         if (row.admin) add(SubAction.ADMIN)
         if (row.lan) add(SubAction.LAN)
-        if (row.kind != SubKind.UNGROUPED) {
+        if (node) {
+            add(SubAction.ANOTHER_DEVICE)
+        } else if (row.kind != SubKind.UNGROUPED) {
             add(SubAction.QR)
             add(SubAction.COPY_LINK)
         }
         if (row.profiles > 0) {
-            add(SubAction.EXPORT_CLIPBOARD)
-            add(SubAction.EXPORT_FILE)
+            if (!node) {
+                add(SubAction.EXPORT_CLIPBOARD)
+                add(SubAction.EXPORT_FILE)
+            }
             add(SubAction.CLEAR)
         }
         if (row.kind != SubKind.UNGROUPED) add(SubAction.DELETE)

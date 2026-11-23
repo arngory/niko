@@ -96,8 +96,9 @@ type NikoServiceClient interface {
 	// The selected profile; id 0: none.
 	GetSelected(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ProfileId, error)
 	// The link to share a profile by (D-PROFILE-07), as the app writes it: a link of its type's own, else sn://.
-	// NOT_FOUND; FAILED_PRECONDITION where its secrets cannot be opened on this machine; UNIMPLEMENTED for a kind with
-	// no link (a plugin's profile).
+	// NOT_FOUND; FAILED_PRECONDITION where its secrets cannot be opened on this machine, and for a raycontrol node's
+	// profile (its rows are this device's: another device registers with an invite of its own); UNIMPLEMENTED for a kind
+	// with no link (a plugin's profile).
 	ShareProfile(ctx context.Context, in *ProfileId, opts ...grpc.CallOption) (*ShareLink, error)
 	// Builds the config of a profile in the daemon, as the app builds it, for this computer (Windows or Linux) with the
 	// computer's settings (GetSettings) in the mode asked, else theirs, and starts the core with it (reloads the one
@@ -547,8 +548,9 @@ type NikoServiceServer interface {
 	// The selected profile; id 0: none.
 	GetSelected(context.Context, *Empty) (*ProfileId, error)
 	// The link to share a profile by (D-PROFILE-07), as the app writes it: a link of its type's own, else sn://.
-	// NOT_FOUND; FAILED_PRECONDITION where its secrets cannot be opened on this machine; UNIMPLEMENTED for a kind with
-	// no link (a plugin's profile).
+	// NOT_FOUND; FAILED_PRECONDITION where its secrets cannot be opened on this machine, and for a raycontrol node's
+	// profile (its rows are this device's: another device registers with an invite of its own); UNIMPLEMENTED for a kind
+	// with no link (a plugin's profile).
 	ShareProfile(context.Context, *ProfileId) (*ShareLink, error)
 	// Builds the config of a profile in the daemon, as the app builds it, for this computer (Windows or Linux) with the
 	// computer's settings (GetSettings) in the mode asked, else theirs, and starts the core with it (reloads the one

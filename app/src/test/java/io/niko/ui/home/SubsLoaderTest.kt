@@ -68,11 +68,24 @@ class SubsLoaderTest {
         val row = SubRow(1, "arngory", SubKind.NODE, profiles = 3, nodeId = "n1", admin = true, lan = true)
         assertEquals(
             listOf(
-                SubAction.SETTINGS, SubAction.ADMIN, SubAction.LAN, SubAction.QR, SubAction.COPY_LINK,
-                SubAction.EXPORT_CLIPBOARD, SubAction.EXPORT_FILE, SubAction.CLEAR, SubAction.DELETE,
+                SubAction.SETTINGS, SubAction.ADMIN, SubAction.LAN, SubAction.ANOTHER_DEVICE, SubAction.CLEAR,
+                SubAction.DELETE,
             ),
             SubsLoader.menu(row),
         )
         assertFalse(SubAction.ADMIN in SubsLoader.menu(row.copy(admin = false, lan = false)))
+    }
+
+    @Test
+    fun aNodesRowsAreNotSharedOnlyItsWayToAnotherDevice() {
+        // salamander-device-v1 §6: the rows are this device's, another device takes an invite of its own
+        val node = SubsLoader.menu(SubRow(1, "arngory", SubKind.NODE, profiles = 3, nodeId = "n1"))
+        for (action in listOf(SubAction.QR, SubAction.COPY_LINK, SubAction.EXPORT_CLIPBOARD, SubAction.EXPORT_FILE)) {
+            assertFalse("$action", action in node)
+        }
+        assertTrue(SubAction.ANOTHER_DEVICE in node)
+        val own = SubsLoader.menu(SubRow(2, "mine", SubKind.OWN, profiles = 3))
+        assertTrue(SubAction.QR in own && SubAction.EXPORT_FILE in own)
+        assertFalse(SubAction.ANOTHER_DEVICE in own)
     }
 }

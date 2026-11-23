@@ -106,6 +106,24 @@ class HomeFragment : Fragment() {
     private fun groupSettings(id: Long) =
         startActivity(Intent(requireContext(), GroupSettingsActivity::class.java).putExtra(GroupSettingsActivity.EXTRA_GROUP_ID, id))
 
+    /**
+     * How another device gets a node: an invite of its own, not this device's rows (salamander-device-v1 §6); an
+     * admin of the node is sent to the panel that makes one.
+     */
+    private fun anotherDevice(row: SubRow) {
+        val dialog = MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.subs_another_device)
+            .setMessage(if (row.admin) R.string.subs_another_device_admin else R.string.subs_another_device_message)
+        val node = row.nodeId
+        if (row.admin && node != null) {
+            dialog.setPositiveButton(R.string.raycontrol_admin) { _, _ ->
+                startActivity(Intent(requireContext(), RayAdminActivity::class.java).putExtra(RayAdminActivity.EXTRA_NODE, node))
+            }.setNegativeButton(android.R.string.cancel, null)
+        } else {
+            dialog.setPositiveButton(android.R.string.ok, null)
+        }
+        dialog.show()
+    }
+
     private fun ask(message: String, then: () -> Unit) {
         MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.confirm).setMessage(message)
             .setPositiveButton(R.string.yes) { _, _ -> then() }
@@ -154,6 +172,7 @@ class HomeFragment : Fragment() {
                         else snackbar(if (SagerNet.trySetPrimaryClip(link)) R.string.action_export_msg else R.string.action_export_err).show()
                     }
                 }
+                SubAction.ANOTHER_DEVICE -> anotherDevice(row)
                 SubAction.EXPORT_CLIPBOARD -> runOnDefaultDispatcher {
                     val text = links(row.id)
                     onMainDispatcher {
