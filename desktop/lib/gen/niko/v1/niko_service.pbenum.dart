@@ -124,5 +124,26 @@ class ImportPreview_Kind extends $pb.ProtobufEnum {
   const ImportPreview_Kind._(super.value, super.name);
 }
 
+class PresetRequest_Preset extends $pb.ProtobufEnum {
+  static const PresetRequest_Preset PRESET_UNSPECIFIED =
+      PresetRequest_Preset._(0, _omitEnumNames ? '' : 'PRESET_UNSPECIFIED');
+
+  /// blocked in Russia through the proxy, Russian services directly (runetfreedom's lists)
+  static const PresetRequest_Preset RUSSIA =
+      PresetRequest_Preset._(1, _omitEnumNames ? '' : 'RUSSIA');
+
+  static const $core.List<PresetRequest_Preset> values = <PresetRequest_Preset>[
+    PRESET_UNSPECIFIED,
+    RUSSIA,
+  ];
+
+  static final $core.List<PresetRequest_Preset?> _byValue =
+      $pb.ProtobufEnum.$_initByValueList(values, 1);
+  static PresetRequest_Preset? valueOf($core.int value) =>
+      value < 0 || value >= _byValue.length ? null : _byValue[value];
+
+  const PresetRequest_Preset._(super.value, super.name);
+}
+
 const $core.bool _omitEnumNames =
     $core.bool.fromEnvironment('protobuf.omit_enum_names');

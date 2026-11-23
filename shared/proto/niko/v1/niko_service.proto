@@ -93,6 +93,32 @@ service NikoService {
   // already; UNAVAILABLE where the provider did not answer, INVALID_ARGUMENT where its answer has no profiles,
   // PERMISSION_DENIED where its panel refused this device: as the result's code.
   rpc Refresh(RefreshRequest) returns (stream TaskProgress);
+
+  // The route rules (D-RULES-01), in the order the build takes them: what Connect builds the config with, the
+  // enabled ones. Watch says RULES.
+  rpc ListRules(Empty) returns (RuleList);
+  // Saves a rule: a new one (id 0) at the end, or the one of that id with these fields where it is (its order and
+  // its apps stay). The rule as saved. INVALID_ARGUMENT for what a rule may not be (an outbound that is no profile, a
+  // network other than tcp or udp, its own JSON not an object, a list over 1 MiB); NOT_FOUND.
+  rpc SaveRule(Rule) returns (Rule);
+  rpc DeleteRules(RuleIds) returns (Empty);
+  // Puts rules, in the order given, before another one (0: at the end); the rules are numbered again from 1.
+  // NOT_FOUND; INVALID_ARGUMENT for no rule, or one to put them before that is not there or among them.
+  rpc MoveRules(MoveRulesRequest) returns (Empty);
+  // A ready-made set of rules (D-RULES-05): Russia's two replace its rules there are, at the end. The rules added;
+  // their rule-sets are downloaded by UpdateRuleSets (rule_sets).
+  rpc ApplyPreset(PresetRequest) returns (PresetResult);
+  // The rule-sets the rules name that the daemon downloads (BG-09, D-RULES-03): each with its file, when it was
+  // fetched, what it holds and its last download's error. Watch says RULE_SETS.
+  rpc ListRuleSets(Empty) returns (RuleSetList);
+  // Downloads rule-sets (D-RULES-03): those asked, or those of the enabled rules, each missing or older than the
+  // update interval (rule_set_update_hours), or each with force. Directly, with the limits of the app's (https alone,
+  // 32 MiB, 120 s in all, 30 s without a byte); a list replaces its file only once the core's reader takes it
+  // (libcore's CheckRuleSet). A task, as Refresh is; the result's code the first failure's (UNAVAILABLE where a
+  // server did not answer, INVALID_ARGUMENT for what is not a rule-set or not https, ABORTED where an update runs
+  // already). The core takes a list it started without when it starts again. While the core runs, the daemon updates
+  // the enabled rules' lists on its own, by the interval.
+  rpc UpdateRuleSets(RuleSetRequest) returns (stream TaskProgress);
 }
 
 message Empty {}
@@ -108,7 +134,8 @@ message Info {
   int32 store_schema = 3;
   // the version of this API: what the window may ask. 2: the store, Watch and the import; 3: Select and GetSelected;
   // 4: ShareProfile; 5: Connect; 6: Connect's mode, the config a computer's; 7: the computer's settings, Connect
-  // with them; 8: the programs through Niko; 9: subscriptions (Group.subscription, Refresh, their import)
+  // with them; 8: the programs through Niko; 9: subscriptions (Group.subscription, Refresh, their import); 10: the
+  // route rules, the Russian preset and the rule-sets (ListRules…UpdateRuleSets), their settings
   int32 api = 4;
 }
 
@@ -355,6 +382,15 @@ message Settings {
   // the programs, a line each: a name ("firefox.exe") or a full path, as the system names the process; empty lines
   // are none
   string programs = 25;
+  // the rules' DNS rules: a rule's domains looked up by its way's DNS (direct ones by the direct DNS)
+  bool enable_dns_routing = 26;
+  // how often the rule-sets are fetched again, in hours: from 1 to 720
+  int32 rule_set_update_hours = 27;
+  // «Обход DPI для прямых соединений» on the direct rules with their dpi_bypass: 0 off, 1 a ready-made strategy
+  // (dpi_direct_preset: tlsrec_sni, split_sni, disoob_sld, disorder_1), 2 a ByeDPI string (dpi_direct_custom)
+  int32 dpi_direct = 28;
+  string dpi_direct_preset = 29;
+  string dpi_direct_custom = 30;
 }
 
 message SettingsUpdate {
@@ -402,4 +438,106 @@ message ImportRequest {
   ImportInput input = 1;
   // the group the profiles go into; 0: the ungrouped one
   int64 group_id = 2;
+}
+
+// A route rule (RuleEntity): what it matches, all its fields together, and where that goes. The lists are text as
+// the app's editor takes them: items by lines or commas. Domains: "full:", "domain:", "regexp:", "keyword:" or a
+// suffix; "srs:https://…" a rule-set the daemon downloads, "rule-set:https://…" one the core fetches as it starts.
+message Rule {
+  int64 id = 1;
+  string name = 2;
+  // its place: the build takes the rules by it (read only: MoveRules)
+  int64 order = 3;
+  bool enabled = 4;
+  string domains = 5;
+  // addresses and subnets; "geoip:private" the private ones
+  string ip = 6;
+  // ports and ranges ("8000:9000")
+  string port = 7;
+  string source_port = 8;
+  // "", tcp or udp
+  string network = 9;
+  // the source's subnets
+  string source = 10;
+  // sniffed protocols: tls, http, quic, bittorrent…
+  string protocol = 11;
+  // 0 the proxy, -1 directly (bypass), -2 blocked, else a profile's id
+  int64 outbound = 12;
+  // a computer's programs (D-RULES-02): a process's name ("firefox.exe") or its full path
+  repeated string programs = 13;
+  // «Обход DPI»: the strategy of dpi_direct on this rule where it goes directly
+  bool dpi_bypass = 14;
+  // the rule's own JSON, merged over it: an object, or none
+  string config = 15;
+  // how many of the phone's apps it names (read only): a computer leaves such a rule out where it has no programs
+  int32 packages = 16;
+}
+
+message RuleList {
+  repeated Rule rules = 1;
+}
+
+message RuleIds {
+  repeated int64 ids = 1;
+}
+
+message MoveRulesRequest {
+  repeated int64 ids = 1;
+  // the rule they go before; 0: at the end
+  int64 before = 2;
+}
+
+message PresetRequest {
+  enum Preset {
+    PRESET_UNSPECIFIED = 0;
+    // blocked in Russia through the proxy, Russian services directly (runetfreedom's lists)
+    RUSSIA = 1;
+  }
+  Preset preset = 1;
+  // the rules' names, in the window's language: what is blocked, what goes directly; none for the app's English
+  string blocked_name = 2;
+  string direct_name = 3;
+}
+
+message PresetResult {
+  // the rules added, in their order
+  repeated Rule rules = 1;
+  // their rule-sets, for UpdateRuleSets
+  repeated string rule_sets = 2;
+}
+
+// A rule-set the daemon downloads, as a rule names it.
+message RuleSet {
+  // as the rules have it: "srs:" and its address
+  string item = 1;
+  // its address; the window shows it to the user alone
+  string url = 2;
+  // fetched over https: a list in the clear is never fetched
+  bool fetchable = 3;
+  // named by a rule that is on
+  bool enabled = 4;
+  // its file is here: the build takes it
+  bool downloaded = 5;
+  int64 size = 6;
+  // when its file was fetched, Unix seconds; 0: never
+  int64 updated = 7;
+  // what it holds: 1 domains, 2 addresses, 3 both; 0 not known
+  int32 kinds = 8;
+  // its last download's error, since the daemon started; "" for none
+  string error = 9;
+  // a download of it runs now
+  bool updating = 10;
+}
+
+message RuleSetList {
+  repeated RuleSet rule_sets = 1;
+  // the interval of the updates (Settings.rule_set_update_hours)
+  int32 update_hours = 2;
+}
+
+message RuleSetRequest {
+  // the items to download; none: those of the enabled rules
+  repeated string items = 1;
+  // fetched even where its file is newer than the interval
+  bool force = 2;
 }

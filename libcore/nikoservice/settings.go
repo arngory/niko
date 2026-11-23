@@ -84,6 +84,11 @@ func settingsProto(s nikoconf.Settings) *nikopb.Settings {
 		LogLevel:                int32(s.LogLevel),
 		ProgramsMode:            int32(s.ProgramsMode),
 		Programs:                s.Programs,
+		EnableDnsRouting:        s.EnableDNSRouting,
+		RuleSetUpdateHours:      int32(s.RuleSetUpdateHours),
+		DpiDirect:               int32(s.DpiDirect),
+		DpiDirectPreset:         s.DpiDirectPreset,
+		DpiDirectCustom:         s.DpiDirectCustom,
 	}
 }
 
@@ -119,6 +124,11 @@ func settingsFrom(p *nikopb.Settings) nikoconf.Settings {
 		LogLevel:                int(p.LogLevel),
 		ProgramsMode:            int(p.ProgramsMode),
 		Programs:                p.Programs,
+		EnableDNSRouting:        p.EnableDnsRouting,
+		RuleSetUpdateHours:      int(p.RuleSetUpdateHours),
+		DpiDirect:               int(p.DpiDirect),
+		DpiDirectPreset:         p.DpiDirectPreset,
+		DpiDirectCustom:         p.DpiDirectCustom,
 	}
 }
 

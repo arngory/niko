@@ -3,7 +3,8 @@
 // profiles, its changes through Watch, the import of share links (slice 4, store.go); the connection to a stored
 // profile, its config built here for this computer, in proxy or VPN mode (slices 7 and 8, connect.go), with the
 // computer's settings (slice 13's part for a computer, settings.go); subscriptions, updated on demand and by their
-// interval (slice 9, subscriptions.go).
+// interval (slice 9, subscriptions.go); the route rules, the Russian preset and the rule-sets the daemon downloads
+// (slice 10, rules.go).
 package nikoservice
 
 import (
@@ -30,8 +31,9 @@ var Version = "dev"
 // API is the version of NikoService: what the window may ask of this daemon. 2: the store, Watch and the import; 3:
 // Select and GetSelected; 4: ShareProfile; 5: Connect; 6: Connect's mode, the config a computer's; 7: the computer's
 // settings (GetSettings, UpdateSettings), Connect with them; 8: the programs through Niko (programs_mode, programs); 9:
-// subscriptions (Group.subscription, Refresh, their import).
-const API = 9
+// subscriptions (Group.subscription, Refresh, their import); 10: the route rules, the Russian preset and the
+// rule-sets (ListRules…UpdateRuleSets), their settings.
+const API = 10
 
 // Service is NikoService as the daemon serves it: GetInfo for any caller the daemon verified, RouteTest for its
 // owner only (it reads the owner's core, as the daemon's own calls on the running core do). RouteTest is checked as
@@ -63,7 +65,7 @@ func Service() boxdd.Service {
 				}
 				return instance.Context(), release
 			}}
-			// the subscriptions' timed updates, without the window
+			// the subscriptions' timed updates, without the window, and the rule-sets' while the core runs
 			go s.scheduleUpdates()
 			return s, nil
 		},

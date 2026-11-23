@@ -14,6 +14,7 @@ import (
 	"libcore/nikofmt"
 	"libcore/nikopb"
 	"libcore/nikostore"
+	"libcore/ruleset"
 
 	"github.com/sagernet/sing-box/experimental/boxdd"
 
@@ -49,7 +50,6 @@ func (s *server) Connect(ctx context.Context, request *nikopb.ConnectRequest) (*
 	if err != nil {
 		return nil, err
 	}
-	// no rules yet, so no warnings either
 	result, err := nikoconf.Build(in)
 	if errors.Is(err, nikoconf.ErrNeedsPlugin) {
 		return nil, status.Error(codes.Unimplemented, err.Error())
@@ -63,6 +63,9 @@ func (s *server) Connect(ctx context.Context, request *nikopb.ConnectRequest) (*
 	if err = s.start(ctx, string(result.Config), systemProxy(result.SystemProxy)); err != nil {
 		return nil, err
 	}
+	// the enabled rules' lists missing or stale fetched now (the config left out those not here: the core takes them
+	// when it starts again)
+	s.updateRuleSetsSoon(u, time.Now())
 	return &nikopb.Empty{}, nil
 }
 
@@ -110,7 +113,8 @@ func connectInput(store *nikostore.Store, id int64, settings nikoconf.Settings) 
 		return nikoconf.Input{}, err
 	}
 	in := nikoconf.Input{Profile: id, Profiles: []nikoconf.Profile{profile}, Settings: settings,
-		Platform: connectPlatform(), Device: desktopDevice{}}
+		Platform: connectPlatform(), Device: desktopDevice{}, Rules: store.Rules(),
+		RuleSets: ruleset.Files{Dir: ruleSetsDir(store)}}
 	var group *nikoconf.Group
 	for _, g := range store.Groups() {
 		if g.ID == profile.Group {
@@ -118,12 +122,9 @@ func connectInput(store *nikostore.Store, id int64, settings nikoconf.Settings) 
 			in.Groups = append(in.Groups, *group)
 		}
 	}
-	if group == nil {
-		return in, nil
-	}
 	// a selector's or urltest's members, and the group's front and landing hops
 	var more []int64
-	if group.IsSelector || group.AutoSelect {
+	if group != nil && (group.IsSelector || group.AutoSelect) {
 		rows, err := store.Profiles(group.ID)
 		if err != nil {
 			return nikoconf.Input{}, storeError(err)
@@ -132,7 +133,15 @@ func connectInput(store *nikostore.Store, id int64, settings nikoconf.Settings) 
 			more = append(more, row.ID)
 		}
 	}
-	more = append(more, group.FrontProxy, group.LandingProxy)
+	if group != nil {
+		more = append(more, group.FrontProxy, group.LandingProxy)
+	}
+	// the profiles the enabled rules send their traffic to
+	for _, r := range in.Rules {
+		if r.Enabled && r.Outbound > 0 {
+			more = append(more, r.Outbound)
+		}
+	}
 	taken := map[int64]bool{id: true}
 	for _, other := range more {
 		if other <= 0 || taken[other] {
@@ -141,7 +150,7 @@ func connectInput(store *nikostore.Store, id int64, settings nikoconf.Settings) 
 		taken[other] = true
 		stored, err := store.Profile(other)
 		if errors.Is(err, nikostore.ErrNotFound) {
-			// a hop that is no more: the app's build leaves it out
+			// a hop or a rule's profile that is no more: the app's build leaves it out (a rule's with a warning)
 			continue
 		}
 		if err != nil {
