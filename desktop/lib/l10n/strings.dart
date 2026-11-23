@@ -216,4 +216,73 @@ class NikoStrings {
   String get inboundPassword => _ru ? 'Пароль' : 'Password';
   String get inboundNewPassword => _ru ? 'Новый пароль' : 'New password';
   String get inboundLan => _ru ? 'Доступ из локальной сети' : 'Access from the LAN';
+
+  String get sectionRules => _ru ? 'Правила' : 'Rules';
+  String get rulesList => _ru ? 'Правила маршрутизации' : 'Route rules';
+  String get rulesEmpty => _ru
+      ? 'Правил нет: всё идёт через прокси'
+      : 'No rules: everything goes through the proxy';
+  String get rulesSub =>
+      _ru ? 'Сверху вниз: первое подошедшее правило решает' : 'From the top: the first rule that matches decides';
+  String get rulesUnread => _ru ? 'Правила не прочитаны' : 'The rules were not read';
+  String get ruleAdd => _ru ? 'Новое правило' : 'New rule';
+  String ruleDisplayName(int id) => _ru ? 'Правило $id' : 'Rule $id';
+  String ruleUpLabel(String name) => _ru ? 'Поднять: $name' : 'Move up: $name';
+  String ruleDownLabel(String name) => _ru ? 'Опустить: $name' : 'Move down: $name';
+  String ruleDeleteLabel(String name) => _ru ? 'Удалить правило: $name' : 'Delete the rule: $name';
+  String ruleEnabledLabel(String name) => _ru ? 'Включено: $name' : 'On: $name';
+  String get ruleEdit => _ru ? 'Правило' : 'Rule';
+  String get ruleName => _ru ? 'Название' : 'Name';
+  String get ruleDomains => _ru ? 'Домены' : 'Domains';
+  String get ruleDomainsHint => _ru
+      ? 'По одному в строке: суффикс, full:, domain:, keyword:, regexp:; srs:https://… — набор правил'
+      : 'One a line: a suffix, full:, domain:, keyword:, regexp:; srs:https://… a rule-set';
+  String get ruleIp => 'IP';
+  String get rulePort => _ru ? 'Порт' : 'Port';
+  String get ruleSourcePort => _ru ? 'Порт источника' : 'Source port';
+  String get ruleSource => _ru ? 'Адрес источника' : 'Source address';
+  String get ruleProtocol => _ru ? 'Протокол' : 'Protocol';
+  String get ruleNetwork => _ru ? 'Сеть' : 'Network';
+  String get ruleNetworkBoth => 'TCP + UDP';
+  String get rulePrograms => _ru ? 'Программы' : 'Programs';
+  String get ruleProgramsHint =>
+      _ru ? 'По одной в строке: имя (firefox.exe) или полный путь' : 'One a line: a name (firefox.exe) or a full path';
+  String get ruleOutbound => _ru ? 'Куда' : 'Where';
+  String get routeProxy => _ru ? 'Прокси' : 'Proxy';
+  String get routeDirect => _ru ? 'Напрямую' : 'Direct';
+  String get routeBlock => _ru ? 'Блок' : 'Block';
+  String routeProfile(int id) => _ru ? 'Профиль $id' : 'Profile $id';
+  String get ruleDpi => _ru ? 'Обход DPI' : 'DPI bypass';
+  String get ruleDpiSub => _ru
+      ? 'Стратегия из настроек на прямых соединениях этого правила'
+      : 'The settings\' strategy on this rule\'s direct connections';
+  String get ruleApps => _ru ? 'приложения телефона' : 'the phone\'s apps';
+  String get ruleOwnJson => _ru ? 'свой JSON' : 'own JSON';
+  String get ruleSave => _ru ? 'Сохранить' : 'Save';
+  String get ruleCancel => _ru ? 'Отмена' : 'Cancel';
+  String get ruleNotSaved => _ru ? 'Правило не сохранено' : 'The rule was not saved';
+  String get presetRussia => _ru ? 'Пресет «Россия»' : 'Preset: Russia';
+  String get presetRussiaSub => _ru
+      ? 'Заблокированное в России — через прокси, российские сервисы — напрямую (списки runetfreedom). Повторное добавление заменит правила пресета'
+      : 'What is blocked in Russia through the proxy, Russian services directly (runetfreedom\'s lists). Adding it again replaces its rules';
+  String get presetRussiaBlocked => _ru ? 'Заблокированное в России — через прокси' : 'Blocked in Russia: through the proxy';
+  String get presetRussiaDirect => _ru ? 'Российские сервисы — напрямую' : 'Russian services: directly';
+  String get ruleSetsTitle => _ru ? 'Наборы правил' : 'Rule-sets';
+  String ruleSetsSub(int hours) => _ru
+      ? 'Служба скачивает их сама и обновляет раз в $hours ч, пока ядро работает'
+      : 'The service fetches them itself, and again every $hours h while the core runs';
+  String get ruleSetsNone => _ru ? 'Правила не называют наборов' : 'No rule names a rule-set';
+  String get ruleSetsUpdate => _ru ? 'Обновить' : 'Update';
+  String get ruleSetsUpdating => _ru ? 'Обновление…' : 'Updating…';
+  String get ruleSetsFailed => _ru ? 'Наборы не обновлены' : 'The rule-sets were not updated';
+  String get ruleSetNotYet => _ru ? 'ещё не скачан' : 'not fetched yet';
+  String get ruleSetNotHttps => _ru ? 'не https: не скачивается' : 'not https: never fetched';
+  String get ruleSetOff => _ru ? 'правило выключено' : 'its rule is off';
+  String ruleSetFetched(String size, String when) => _ru ? '$size, скачан $when' : '$size, fetched $when';
+  String ruleSetKinds(int kinds) => switch (kinds) {
+        1 => _ru ? 'домены' : 'domains',
+        2 => _ru ? 'адреса' : 'addresses',
+        3 => _ru ? 'домены и адреса' : 'domains and addresses',
+        _ => '',
+      };
 }

@@ -283,6 +283,116 @@ class MemoryDaemon implements Daemon {
     storeEvents.add(StoreChange(revision: ++_revision, kind: StoreKind.selected, ids: [profileId]));
   }
 
+  /// The rules as the daemon keeps them, and the rule-sets they name; the updates the window asked.
+  var ruleRows = <RuleRow>[];
+  var ruleSetRows = <RuleSetRow>[];
+  final ruleSetUpdates = <(List<String>, bool)>[];
+  int _nextRule = 0;
+
+  RuleRow _ordered(RuleRow r, int order) => RuleRow(
+        id: r.id,
+        name: r.name,
+        order: order,
+        enabled: r.enabled,
+        domains: r.domains,
+        ip: r.ip,
+        port: r.port,
+        sourcePort: r.sourcePort,
+        network: r.network,
+        source: r.source,
+        protocol: r.protocol,
+        outbound: r.outbound,
+        programs: r.programs,
+        dpiBypass: r.dpiBypass,
+        config: r.config,
+      );
+
+  @override
+  Future<List<RuleRow>> rules() async => [...ruleRows];
+
+  @override
+  Future<RuleRow> saveRule(RuleRow rule) async {
+    if (rule.domains.contains('refused.example')) throw GrpcError.invalidArgument('invalid: the rule\'s JSON is not an object');
+    final RuleRow saved;
+    if (rule.id == 0) {
+      saved = RuleRow(
+        id: ++_nextRule,
+        name: rule.name,
+        order: ruleRows.length + 1,
+        enabled: rule.enabled,
+        domains: rule.domains,
+        ip: rule.ip,
+        port: rule.port,
+        sourcePort: rule.sourcePort,
+        network: rule.network,
+        source: rule.source,
+        protocol: rule.protocol,
+        outbound: rule.outbound,
+        programs: rule.programs,
+        dpiBypass: rule.dpiBypass,
+      );
+      ruleRows.add(saved);
+    } else {
+      final at = ruleRows.indexWhere((r) => r.id == rule.id);
+      saved = _ordered(rule, ruleRows[at].order);
+      ruleRows[at] = saved;
+    }
+    _changed(StoreKind.rules, [saved.id]);
+    return saved;
+  }
+
+  @override
+  Future<void> deleteRules(List<int> ids) async {
+    ruleRows.removeWhere((r) => ids.contains(r.id));
+    _changed(StoreKind.rules, ids);
+  }
+
+  @override
+  Future<void> moveRules(List<int> ids, {int before = 0}) async {
+    final moved = ruleRows.where((r) => ids.contains(r.id)).toList();
+    ruleRows.removeWhere((r) => ids.contains(r.id));
+    final at = before == 0 ? ruleRows.length : ruleRows.indexWhere((r) => r.id == before);
+    ruleRows.insertAll(at, moved);
+    ruleRows = [for (final (i, r) in ruleRows.indexed) _ordered(r, i + 1)];
+    _changed(StoreKind.rules, ids);
+  }
+
+  static const russiaLists = [
+    'srs:https://lists.example.com/geosite-ru-blocked.srs',
+    'srs:https://lists.example.com/geoip-ru-blocked.srs',
+  ];
+
+  @override
+  Future<PresetApplied> applyRussiaPreset({required String blockedName, required String directName}) async {
+    final blocked = await saveRule(RuleRow(name: blockedName, domains: russiaLists[0], ip: russiaLists[1]));
+    final direct = await saveRule(RuleRow(name: directName, domains: 'domain:ru', outbound: RuleOutbound.direct));
+    ruleSetRows = [for (final item in russiaLists) RuleSetRow(item: item, url: item.substring(4), enabled: true)];
+    _changed(StoreKind.ruleSets, const []);
+    return PresetApplied(rules: [blocked, direct], ruleSets: russiaLists);
+  }
+
+  @override
+  Future<RuleSetStatus> ruleSets() async => RuleSetStatus(ruleSets: [...ruleSetRows], updateHours: 24);
+
+  @override
+  Future<TaskResult> updateRuleSets({List<String> items = const [], bool force = false}) async {
+    ruleSetUpdates.add((items, force));
+    ruleSetRows = [
+      for (final r in ruleSetRows)
+        RuleSetRow(
+          item: r.item,
+          url: r.url,
+          enabled: r.enabled,
+          downloaded: true,
+          size: 812000,
+          updated: 1790000000,
+          kinds: r.item.contains('geoip') ? 2 : 1,
+        ),
+    ];
+    _changed(StoreKind.ruleSets, const []);
+    return TaskResult(line: 'rule-sets: ${ruleSetRows.length} fetched');
+  }
+
   @override
   Future<void> close() async {}
 }
@@ -1253,6 +1363,140 @@ void main() {
     await tester.pump();
     expect(find.text('Нет связи со службой'), findsOneWidget);
     expect(find.text('Порт'), findsNothing);
+  });
+
+  group('Правила', () {
+    Future<void> settle(WidgetTester tester, [Duration wait = Duration.zero]) async {
+      await tester.pump(wait);
+      for (var i = 0; i < 8; i++) {
+        await tester.pump();
+      }
+    }
+
+    Future<void> rules(WidgetTester tester) async {
+      await show(tester, brightness: Brightness.light, size: const Size(960, 900));
+      await core(tester, ServicePhase.idle);
+      daemon.ruleRows = [
+        const RuleRow(id: 1, name: 'Блок рекламы', order: 1, domains: 'ads.example', outbound: RuleOutbound.block),
+        const RuleRow(
+          id: 2,
+          name: 'Офис напрямую',
+          order: 2,
+          ip: '203.0.113.0/24',
+          outbound: RuleOutbound.direct,
+          dpiBypass: true,
+        ),
+      ];
+      daemon._nextRule = 2;
+      await tester.tap(find.text('Расширенный'));
+      await settle(tester);
+      await tester.tap(find.text('Правила').first);
+      await settle(tester);
+    }
+
+    List<String> names() => daemon.ruleRows.map((r) => r.name).toList();
+
+    // the screen scrolls: what is pressed is brought into view first, once its own scrolling has ended
+    Future<void> press(WidgetTester tester, Finder finder) async {
+      // a field typed into scrolls itself into view: the screen takes no press until that ends
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.ensureVisible(finder);
+      await tester.pump();
+      await tester.tap(finder);
+      await settle(tester);
+    }
+
+    testWidgets('the simple view has no rules; the advanced one lists them with where each goes', (tester) async {
+      await show(tester);
+      expect(find.text('Правила'), findsNothing, reason: 'the advanced view\'s section (D-NAV-03)');
+      await rules(tester);
+      expect(find.text('Блок рекламы'), findsOneWidget);
+      expect(find.text('Блок · ads.example'), findsOneWidget);
+      expect(find.text('Напрямую · Обход DPI · 203.0.113.0/24'), findsOneWidget);
+      expect(find.text('Правила не называют наборов'), findsOneWidget);
+      await picture('rules_light');
+    });
+
+    testWidgets('a switch turns one off, the chevrons move it, the bin deletes it', (tester) async {
+      await rules(tester);
+      await press(tester, find.bySemanticsLabel('Включено: Блок рекламы'));
+      expect(daemon.ruleRows.first.enabled, isFalse);
+      await press(tester, find.bySemanticsLabel('Опустить: Блок рекламы'));
+      expect(names(), ['Офис напрямую', 'Блок рекламы']);
+      await press(tester, find.bySemanticsLabel('Поднять: Блок рекламы'));
+      expect(names(), ['Блок рекламы', 'Офис напрямую']);
+      await press(tester, find.bySemanticsLabel('Удалить правило: Офис напрямую'));
+      expect(names(), ['Блок рекламы']);
+      expect(find.text('Офис напрямую'), findsNothing);
+    });
+
+    testWidgets('a new rule: refused with the daemon\'s words, then saved at the end; one edited where it is', (
+      tester,
+    ) async {
+      await rules(tester);
+      await press(tester, find.text('Новое правило'));
+      final fields = find.byType(EditableText);
+      await tester.enterText(fields.at(0), 'Сайты');
+      await tester.enterText(fields.at(1), 'refused.example');
+      await press(tester, find.text('Напрямую'));
+      // «Обход DPI» is a direct rule's
+      expect(find.text('Обход DPI'), findsOneWidget);
+      await press(tester, find.text('Обход DPI'));
+      await press(tester, find.text('Сохранить'));
+      expect(find.text('Правило не сохранено'), findsOneWidget);
+      expect(find.text('invalid: the rule\'s JSON is not an object'), findsOneWidget);
+      expect(names(), hasLength(2));
+      await tester.enterText(fields.at(1), 'domain:sites.example');
+      await tester.enterText(fields.at(7), 'firefox.exe\n\nC:\\Apps\\app.exe');
+      await press(tester, find.text('UDP'));
+      await press(tester, find.text('Сохранить'));
+      expect(find.text('Правило не сохранено'), findsNothing);
+      final added = daemon.ruleRows.last;
+      expect([added.name, added.domains, added.outbound, added.dpiBypass, added.network, added.programs], [
+        'Сайты',
+        'domain:sites.example',
+        RuleOutbound.direct,
+        true,
+        'udp',
+        ['firefox.exe', r'C:\Apps\app.exe'],
+      ]);
+      expect(find.text('Сайты'), findsOneWidget);
+
+      // edited: its fields in the editor, saved in its place
+      await press(tester, find.text('Блок рекламы'));
+      expect(find.text('ads.example'), findsOneWidget);
+      await tester.enterText(find.byType(EditableText).at(0), 'Реклама');
+      await press(tester, find.text('Сохранить'));
+      expect(names(), ['Реклама', 'Офис напрямую', 'Сайты']);
+      expect(daemon.ruleRows.first.outbound, RuleOutbound.block);
+    });
+
+    testWidgets('the Russian preset: its rules, then its lists fetched; the update on demand', (tester) async {
+      await rules(tester);
+      await press(tester, find.text('Пресет «Россия»'));
+      expect(names().skip(2), ['Заблокированное в России — через прокси', 'Российские сервисы — напрямую']);
+      expect(daemon.ruleSetUpdates, [(MemoryDaemon.russiaLists, true)]);
+      expect(find.text('rule-sets: 2 fetched'), findsOneWidget);
+      expect(find.text('lists.example.com/geosite-ru-blocked.srs'), findsOneWidget);
+      expect(find.textContaining('793 KB, скачан'), findsNWidgets(2));
+      expect(find.textContaining('· домены'), findsOneWidget);
+      expect(find.textContaining('· адреса'), findsOneWidget);
+      await press(tester, find.text('Обновить'));
+      expect(daemon.ruleSetUpdates.last, (const <String>[], true));
+      // the notice goes after a while
+      await settle(tester, const Duration(seconds: 7));
+      expect(find.text('rule-sets: 2 fetched'), findsNothing);
+    });
+
+    testWidgets('a narrow window: the list and the editor fit', (tester) async {
+      await rules(tester);
+      tester.view.physicalSize = const Size(360, 720);
+      await settle(tester);
+      expect(find.text('Офис напрямую'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await press(tester, find.text('Новое правило'));
+      expect(tester.takeException(), isNull);
+    });
   });
 
   testWidgets('a narrow and low window: nothing overflows', (tester) async {
