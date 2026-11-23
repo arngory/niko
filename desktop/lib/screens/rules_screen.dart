@@ -408,33 +408,34 @@ class _RuleEditorState extends State<_RuleEditor> {
         LayoutBuilder(
           // the choices' cells narrow with the window, the row's title keeping some room
           builder: (context, constraints) {
-            double cell(int count) => ((constraints.maxWidth - 2 * NikoSpace.s4 - NikoSpace.s3 - 72) / count).clamp(48, 96);
+            double cell(int count) =>
+                ((constraints.maxWidth - 2 * NikoSpace.s4 - NikoSpace.s3 - 72) / count).clamp(48, 96);
             return NikoGroup(
-          rows: [
-            NikoChoiceRow<String>(
-              title: strings.ruleNetwork,
-              choices: [('', strings.ruleNetworkBoth), ('tcp', 'TCP'), ('udp', 'UDP')],
-              value: rule.network,
-              cell: cell(3),
-              onChanged: (v) => _set(_draft.copyWith(network: v)),
-            ),
-            NikoChoiceRow<int>(
-              title: strings.ruleOutbound,
-              choices: outbounds,
-              value: rule.outbound,
-              cell: cell(outbounds.length),
-              divider: true,
-              onChanged: (v) => _set(_draft.copyWith(outbound: v)),
-            ),
-            if (rule.outbound == RuleOutbound.direct)
-              NikoSwitchRow(
-                title: strings.ruleDpi,
-                sub: strings.ruleDpiSub,
-                on: rule.dpiBypass,
-                divider: true,
-                onChanged: (v) => _set(_draft.copyWith(dpiBypass: v)),
-              ),
-          ],
+              rows: [
+                NikoChoiceRow<String>(
+                  title: strings.ruleNetwork,
+                  choices: [('', strings.ruleNetworkBoth), ('tcp', 'TCP'), ('udp', 'UDP')],
+                  value: rule.network,
+                  cell: cell(3),
+                  onChanged: (v) => _set(_draft.copyWith(network: v)),
+                ),
+                NikoChoiceRow<int>(
+                  title: strings.ruleOutbound,
+                  choices: outbounds,
+                  value: rule.outbound,
+                  cell: cell(outbounds.length),
+                  divider: true,
+                  onChanged: (v) => _set(_draft.copyWith(outbound: v)),
+                ),
+                if (rule.outbound == RuleOutbound.direct)
+                  NikoSwitchRow(
+                    title: strings.ruleDpi,
+                    sub: strings.ruleDpiSub,
+                    on: rule.dpiBypass,
+                    divider: true,
+                    onChanged: (v) => _set(_draft.copyWith(dpiBypass: v)),
+                  ),
+              ],
             );
           },
         ),
