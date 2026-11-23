@@ -122,13 +122,14 @@ jobs:
           # a service with a profile in the subscription (the hints are for those), without a domain
           rc service add hy2-obfs hy2-obfs
           rc user add interop
-          rc device invite interop phone -role admin -o /tmp/rc/invite
+          rc device invite interop phone -role admin -format rcinv1 -o /tmp/rc/invite
           # invites with a PIN (api-v1 §4, v0.13.0): rcinv1, the short rcinv2 (§3a), one to withdraw by wrong
-          # tries; the PIN goes to rayctl's output only, never into the file
+          # tries; the PIN goes to rayctl's output only, never into the file. The format said: rayctl gives rcinv3 by
+          # default from v0.36.0, which the app reads (Kotlin) and these Go tests do not
           mkdir -p /tmp/rc/pin
-          rc device invite interop pin1 -pin -o /tmp/rc/pin/pin.invite > /tmp/rc/pin/pin.out
+          rc device invite interop pin1 -pin -format rcinv1 -o /tmp/rc/pin/pin.invite > /tmp/rc/pin/pin.out
           rc device invite interop pin2 -pin -format rcinv2 -o /tmp/rc/pin/v2.invite > /tmp/rc/pin/v2.out
-          rc device invite interop pin3 -pin -o /tmp/rc/pin/gone.invite > /tmp/rc/pin/gone.out
+          rc device invite interop pin3 -pin -format rcinv1 -o /tmp/rc/pin/gone.invite > /tmp/rc/pin/gone.out
           grep -q '^RCINV2:' /tmp/rc/pin/v2.invite
           for f in pin v2 gone; do
             pin=$(sed -n 's/^PIN \([0-9]\{3\}\) \([0-9]\{3\}\):.*/\1\2/p' /tmp/rc/pin/$f.out)
