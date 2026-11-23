@@ -50,7 +50,7 @@ func TestMigration2to3(t *testing.T) {
 		t.Fatalf("the backup: %v", err)
 	}
 	data, _ := os.ReadFile(filepath.Join(dir, storeFile))
-	if schema, _ := schemaOf(data); schema != 3 {
+	if schema, _ := schemaOf(data); schema != Schema() {
 		t.Fatalf("written as schema %d", schema)
 	}
 }
