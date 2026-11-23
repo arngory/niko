@@ -925,6 +925,7 @@ jobs:
           mkdir -p /tmp/rcbin /tmp/rccert
           (cd raycontrol && CGO_ENABLED=0 go build -o /tmp/rcbin/rayd ./cmd/rayd &&
             CGO_ENABLED=0 go build -o /tmp/rcbin/rayctl ./cmd/rayctl &&
+            CGO_ENABLED=0 go build -o /tmp/rcbin/rayspa ./cmd/rayspa &&
             go run ./test/supervise/testcert -o /tmp/rccert '*.example.test')
           (cd xray && CGO_ENABLED=0 GOTOOLCHAIN=auto go build -o /tmp/rcbin/xray -trimpath ./main)
           . .github/niko-server.env
@@ -939,9 +940,12 @@ jobs:
         id: node
         run: |
           docker network create --subnet 203.0.113.0/24 --gateway 203.0.113.1 rc-net > /dev/null
-          docker run -d --name rc-node --network rc-net --ip 203.0.113.2 -v /tmp/rcbin:/opt/rc:ro -v /tmp/rccert:/opt/cert:ro \
-            debian:13 sleep infinity > /dev/null
+          # the perimeter as a node runs it (rayspa, nftables): closed but to SPA, the hy2-obfs ports rotating by the
+          # slot, which the app's knock opens and its Hysteria2 follows (as ci.yml's e2e)
+          docker run -d --name rc-node --network rc-net --ip 203.0.113.2 --cap-add NET_ADMIN -v /tmp/rcbin:/opt/rc:ro \
+            -v /tmp/rccert:/opt/cert:ro debian:13 sleep infinity > /dev/null
           x() { docker exec rc-node "$@"; }
+          x sh -c 'apt-get update -qq > /dev/null && apt-get install -y -qq nftables > /dev/null'
           x mkdir -p /var/lib/raycontrol /run/raycontrol
           x /opt/rc/rayd init -host 203.0.113.2 -domain example.test > /dev/null
           # NIKO_SERVER_UNSAFE_ANY_DESTINATION: the tunnels may reach this private network, the runner's server; never
@@ -958,6 +962,9 @@ jobs:
             for i in $(seq 150); do x test -S "$sock" && break; sleep 0.2; done
             x test -S "$sock" || { echo "no $sock"; x tail -n 80 /var/log/rayd.log; exit 1; }
           done
+          docker exec -d rc-node sh -c '/opt/rc/rayspa run -debug > /var/log/rayspa.log 2>&1'
+          for i in $(seq 150); do x grep -q 'snapshot applied' /var/log/rayspa.log 2>/dev/null && break; sleep 0.2; done
+          x grep -q 'snapshot applied' /var/log/rayspa.log || { x cat /var/log/rayspa.log; exit 1; }
           # an invite with a PIN in the form the node makes by its name (rcinv3; rcinv2 from a node without one); the
           # PIN goes to rayctl's output only, never into the file, and to the test through the environment, masked
           format=rcinv3
@@ -1009,6 +1016,7 @@ jobs:
         run: |
           echo "--- nikod"; tail -n 120 /tmp/nikod.log || true
           echo "--- rayd"; docker exec rc-node tail -n 80 /var/log/rayd.log || true
+          echo "--- the perimeter"; docker exec rc-node tail -n 60 /var/log/rayspa.log || true
           pkill -x nikod || true
           docker rm -f rc-node > /dev/null 2>&1 || true
 
