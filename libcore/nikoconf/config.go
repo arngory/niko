@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"libcore/nikofmt"
+	"libcore/nikoray"
 )
 
 // The whole config of a profile (ConfigBuilder.kt buildConfig), with no raycontrol node imported: every ConfigRay
@@ -152,6 +153,9 @@ type builder struct {
 	// the mesh nodes of Yggdrasil profiles (niko-ygg), one per device key: key → tag and peer, in their order
 	yggProfileKeys []string
 	yggProfileTags map[string][2]string
+	// nodeDoH: the raycontrol node whose DoH is the remote DNS, through its knock nodeDoHKnock (ray.go)
+	nodeDoH      *nikoray.Node
+	nodeDoHKnock string
 }
 
 func (b *builder) warn(format string, rule *Rule) {
@@ -708,7 +712,13 @@ func (b *builder) dnsServers(remoteDNS, directDNS []string) ([]object, error) {
 		return nil, err
 	}
 	dnsServers = append(dnsServers, direct)
-	if !b.forTest {
+	if !b.forTest && b.nodeDoH != nil {
+		server, err := nodeDoHServer(b.nodeDoH, b.nodeDoHKnock)
+		if err != nil {
+			return nil, err
+		}
+		dnsServers = append(dnsServers, server)
+	} else if !b.forTest {
 		if len(remoteDNS) == 0 {
 			return nil, errors.New("No remote DNS, check your settings!")
 		}

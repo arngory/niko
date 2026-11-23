@@ -1,0 +1,191 @@
+{
+  "dns": {
+    "final": "dns-remote",
+    "rules": [
+      {
+        "domain": [
+          "dns.quad9.net",
+          "cloudflare-dns.com"
+        ],
+        "server": "dns-direct",
+        "strategy": "ipv4_only"
+      },
+      {
+        "action": "predefined",
+        "domain_suffix": [
+          "niko.internal"
+        ],
+        "rcode": "NXDOMAIN"
+      },
+      {
+        "disable_cache": true,
+        "inbound": [
+          "tun-in"
+        ],
+        "server": "dns-fake",
+        "strategy": "ipv4_only"
+      }
+    ],
+    "servers": [
+      {
+        "tag": "dns-local",
+        "type": "local"
+      },
+      {
+        "tag": "dns-direct",
+        "type": "local"
+      },
+      {
+        "detour": "proxy-knock",
+        "path": "/dns-query/tttttttttttttttttttttttt",
+        "server": "203.0.113.7",
+        "server_port": 443,
+        "tag": "dns-remote",
+        "tls": {
+          "certificate_public_key_sha256": [
+            "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA="
+          ],
+          "curve_preferences": [
+            "X25519MLKEM768"
+          ],
+          "enabled": true,
+          "server_name": "d.example.com"
+        },
+        "type": "https"
+      },
+      {
+        "inet4_range": "198.18.0.0/15",
+        "inet6_range": "fc00::/18",
+        "tag": "dns-fake",
+        "type": "fakeip"
+      }
+    ],
+    "strategy": "ipv4_only"
+  },
+  "endpoints": [],
+  "experimental": {
+    "cache_file": {
+      "enabled": true,
+      "path": "cache.db",
+      "store_fakeip": true
+    }
+  },
+  "inbounds": [
+    {
+      "address": [
+        "172.19.0.1/28"
+      ],
+      "auto_route": true,
+      "interface_name": "Niko",
+      "mtu": 9000,
+      "stack": "gvisor",
+      "strict_route": true,
+      "tag": "tun-in",
+      "type": "tun"
+    }
+  ],
+  "log": {
+    "level": "panic"
+  },
+  "outbounds": [
+    {
+      "silence": "15s",
+      "spa_v2": {
+        "device_key_ref": "raycontrol:aaaaaaaabbbbbbbbccccccccdddddddd:3333333333333333",
+        "epoch_len_s": 86400,
+        "len_max": 200,
+        "len_min": 64,
+        "node_id": "aaaaaaaabbbbbbbbccccccccdddddddd",
+        "port_base": 20000,
+        "port_key": "2222222222222222222222222222222222222222222222222222222222222222",
+        "port_range": 1000,
+        "slot_len_s": 600
+      },
+      "tag": "proxy-knock",
+      "type": "knock"
+    },
+    {
+      "detour": "proxy-knock",
+      "encryption": "mlkem768x25519plus.native.0rtt.exampleKeyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "flow": "xtls-rprx-vision",
+      "packet_encoding": "",
+      "prewarm": "12s",
+      "server": "203.0.113.7",
+      "server_port": 443,
+      "tag": "proxy",
+      "tls": {
+        "enabled": true,
+        "insecure": false,
+        "reality": {
+          "enabled": true,
+          "key_share": "hybrid",
+          "mldsa65_verify": "exampleMldsa65VerifyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "public_key": "examplePublicKeyAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "short_id": "0123456789abcd"
+        },
+        "server_name": "www.example.com",
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        }
+      },
+      "type": "vless",
+      "uuid": "00000000-0000-4000-8000-000000000003"
+    },
+    {
+      "tag": "direct",
+      "type": "direct"
+    },
+    {
+      "tag": "bypass",
+      "type": "direct"
+    }
+  ],
+  "route": {
+    "auto_detect_interface": true,
+    "default_domain_resolver": {
+      "server": "dns-direct",
+      "strategy": "ipv4_only"
+    },
+    "final": "proxy",
+    "rule_set": [],
+    "rules": [
+      {
+        "action": "reject",
+        "domain_suffix": [
+          "niko.internal"
+        ]
+      },
+      {
+        "action": "sniff",
+        "inbound": [
+          "tun-in",
+          "mixed-in"
+        ]
+      },
+      {
+        "action": "hijack-dns",
+        "port": [
+          53
+        ]
+      },
+      {
+        "action": "hijack-dns",
+        "protocol": [
+          "dns"
+        ]
+      },
+      {
+        "action": "reject",
+        "ip_cidr": [
+          "224.0.0.0/3",
+          "ff00::/8"
+        ],
+        "source_ip_cidr": [
+          "224.0.0.0/3",
+          "ff00::/8"
+        ]
+      }
+    ]
+  }
+}
