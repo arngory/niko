@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"libcore/nikoconf"
 	"libcore/nikopb"
@@ -228,6 +229,22 @@ func TestRulesAndRuleSets(t *testing.T) {
 	}
 	if _, err = client.Connect(ctx, &nikopb.ConnectRequest{ProfileId: 1}); err != nil {
 		t.Fatal(err)
+	}
+	// the lists Connect fetches behind it (none here: the preset's are not this server's, ours is gone) end with the
+	// test, which removes their directory
+	u := s.users.opened()[0]
+	deadline := time.Now().Add(20 * time.Second)
+	for {
+		u.ruleSets.mu.Lock()
+		running := u.ruleSets.running
+		u.ruleSets.mu.Unlock()
+		if !running {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the update after Connect did not end")
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 	config := started[len(started)-1]
 	coreReads(t, config)
