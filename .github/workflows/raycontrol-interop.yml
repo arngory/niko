@@ -36,6 +36,7 @@ on:
       - "libcore/raycontrol_pins_interop_test.go"
       - "libcore/raycontrol_revoke_interop_test.go"
       - "libcore/raycontrol_zones_interop_test.go"
+      - "libcore/raycontrol_relays_interop_test.go"
       - "libcore/raycontrol_naive_sni_interop_test.go"
       - "libcore/raycontrol_naive_udp_interop_test.go"
       - "libcore/raycontrol_naive_udp_probe_interop_test.go"
@@ -126,13 +127,15 @@ jobs:
           # a service with a profile in the subscription (the hints are for those), without a domain
           rc service add hy2-obfs hy2-obfs
           rc user add interop
-          rc device invite interop phone -role admin -o /tmp/rc/invite
+          # no PIN: v0.36.0 gives an admin invite one unless -pin=false, and TestRaycontrolInterop registers without
+          rc device invite interop phone -role admin -pin=false -format rcinv1 -o /tmp/rc/invite
           # invites with a PIN (api-v1 §4, v0.13.0): rcinv1, the short rcinv2 (§3a), one to withdraw by wrong
-          # tries; the PIN goes to rayctl's output only, never into the file
+          # tries; the PIN goes to rayctl's output only, never into the file. The format said: rayctl gives rcinv3 by
+          # default from v0.36.0, which the app reads (Kotlin) and these Go tests do not
           mkdir -p /tmp/rc/pin
-          rc device invite interop pin1 -pin -o /tmp/rc/pin/pin.invite > /tmp/rc/pin/pin.out
+          rc device invite interop pin1 -pin -format rcinv1 -o /tmp/rc/pin/pin.invite > /tmp/rc/pin/pin.out
           rc device invite interop pin2 -pin -format rcinv2 -o /tmp/rc/pin/v2.invite > /tmp/rc/pin/v2.out
-          rc device invite interop pin3 -pin -o /tmp/rc/pin/gone.invite > /tmp/rc/pin/gone.out
+          rc device invite interop pin3 -pin -format rcinv1 -o /tmp/rc/pin/gone.invite > /tmp/rc/pin/gone.out
           grep -q '^RCINV2:' /tmp/rc/pin/v2.invite
           for f in pin v2 gone; do
             pin=$(sed -n 's/^PIN \([0-9]\{3\}\) \([0-9]\{3\}\):.*/\1\2/p' /tmp/rc/pin/$f.out)
@@ -527,6 +530,43 @@ jobs:
           # dnsauth.v goes by a user's dnstt and masterdns (slipstream signs by v2 always): bob's has none
           RAYCONTROL_DNSAUTH_V2= \
             go test -count=1 -v -timeout 5m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
+          if [ ! -f ../raycontrol/internal/provision/zonelen.go ]; then
+            echo "::notice::this raycontrol has no zone limits nor relays by user (v0.36.0 does)"
+            exit 0
+          fi
+          # v0.36.0: a user's subscription lists only their relays. r1 forwards none of bob's services (slipstream
+          # alone), so he has none; alice, whose profiles r1 forwards, has it
+          RAYCONTROL_RELAYS= \
+            go test -count=1 -v -timeout 3m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolRelayAudience .
+          RAYCONTROL_BUNDLE=/tmp/phone.bundle RAYCONTROL_RELAYS=r1 \
+            go test -count=1 -v -timeout 3m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolRelayAudience .
+          # rayctl relay set -users: r1 for bob alone takes it from alice's relays[] and via; all gives it back
+          docker exec rc-node /opt/rc/rayctl relay set -users bob r1
+          docker exec rc-node /opt/rc/rayctl relay list
+          RAYCONTROL_BUNDLE=/tmp/phone.bundle RAYCONTROL_RELAYS= \
+            go test -count=1 -v -timeout 3m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolRelayAudience .
+          docker exec rc-node /opt/rc/rayctl relay set -users all r1
+          RAYCONTROL_BUNDLE=/tmp/phone.bundle RAYCONTROL_RELAYS=r1 \
+            go test -count=1 -v -timeout 3m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolRelayAudience .
+          # dns-zone-length-v1 (v0.36.0): a slipstream zone past 29 characters only under a minimum of Niko 1.67.0,
+          # whose client (picoquic of arngory/picoquic) and server-v0.3.0 take packets from 64 bytes; without the
+          # minimum the node refuses the zone. 120 characters, a user and a device of their own
+          long=$(python3 -c "print('a' * 50 + '.' + 'b' * 56 + '.example.test')")
+          if docker exec rc-node /opt/rc/rayctl service add slipstream slip2 -settings "{\"zone\":\"$long\"}"; then
+            echo "::error::a slipstream zone of ${#long} characters taken with no minimum client version"
+            exit 1
+          fi
+          docker exec rc-node /opt/rc/rayctl client min niko 1.67.0
+          docker exec rc-node /opt/rc/rayctl service add slipstream slip2 -settings "{\"zone\":\"$long\"}"
+          docker exec rc-node /opt/rc/rayctl user add erin -services slip2 > /dev/null
+          docker exec rc-node /opt/rc/rayctl device add erin phone -o /root/erin.bundle
+          docker exec rc-node cat /root/erin.bundle > /tmp/slip2.bundle
+          RAYCONTROL_BUNDLE=/tmp/slip2.bundle RAYCONTROL_DNSAUTH_V2= \
+            go test -count=1 -v -timeout 5m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop .
+          # the node as the next steps had it: no long zone, no minimum
+          docker exec rc-node /opt/rc/rayctl user del erin
+          docker exec rc-node /opt/rc/rayctl service del slip2
+          docker exec rc-node /opt/rc/rayctl client min niko none
 
       # dnszones-v1 (raycontrol v0.14.0): dnstt with a spare zone, the main one cut by the network's resolver, its
       # queries dropped and then answered SERVFAIL: dnsprobe fails in the main zone and passes in the spare, the tunnel
@@ -636,6 +676,34 @@ jobs:
             docker exec rc-node sh -c 'grep -iE "ygg|lan" /var/log/rayd.log | tail -n 40' || true
             exit 1
           }
+
+      # niko-server v0.19 (raycontrol v0.36.0): Yggdrasil's hybrid post-quantum sessions. The app starts them (pq on);
+      # the node answers by default (the main run), and its row goes through with the node starting them too (on) and
+      # with classic sessions only (off). Back to answer after
+      - name: Yggdrasil with the node's PQ modes
+        working-directory: libcore
+        env:
+          RAYCONTROL_BUNDLE: /tmp/phone.bundle
+          RAYCONTROL_ADDRESS: ${{ steps.node.outputs.address }}
+          RAYCONTROL_CA: /tmp/rccert/root.pem
+          RAYCONTROL_ONLY: yggdrasil
+        run: |
+          if ! grep -q "YggdrasilPQ" ../raycontrol/internal/provision/provision.go; then
+            echo "::notice::this raycontrol has no Yggdrasil PQ modes (v0.36.0 does)"
+            exit 0
+          fi
+          TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
+          for mode in on off; do
+            docker exec rc-node /opt/rc/rayctl service set ygg "pq=$mode"
+            sleep 8
+            echo "::group::the node's pq=$mode"
+            go test -count=1 -v -timeout 5m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolTunnelInterop . || {
+              docker exec rc-node sh -c 'grep -iE "ygg|pq" /var/log/rayd.log | tail -n 40' || true
+              exit 1
+            }
+            echo "::endgroup::"
+          done
+          docker exec rc-node /opt/rc/rayctl service set ygg pq=answer
 
       # conn-limit-v1 parts 2 and 3 (raycontrol v0.25.0): alice holds as many TCP connections open through Hysteria2,
       # then REALITY, as the node lets one user have; the next ones are refused ("too many connections" through
