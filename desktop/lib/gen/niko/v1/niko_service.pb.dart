@@ -188,7 +188,8 @@ class Info extends $pb.GeneratedMessage {
   /// the version of this API: what the window may ask. 2: the store, Watch and the import; 3: Select and GetSelected;
   /// 4: ShareProfile; 5: Connect; 6: Connect's mode, the config a computer's; 7: the computer's settings, Connect
   /// with them; 8: the programs through Niko; 9: subscriptions (Group.subscription, Refresh, their import); 10: the
-  /// route rules, the Russian preset and the rule-sets (ListRules…UpdateRuleSets), their settings
+  /// route rules, the Russian preset and the rule-sets (ListRules…UpdateRuleSets), their settings; 11: raycontrol
+  /// nodes (their import by invite with its PIN, ListNodes, DeleteNode, Refresh of a node, their profiles in Connect)
   @$pb.TagNumber(4)
   $core.int get api => $_getIZ(3);
   @$pb.TagNumber(4)
@@ -722,8 +723,10 @@ class TaskProgress extends $pb.GeneratedMessage {
     $core.bool? done,
     $core.int? code,
     $core.String? error,
+    PinNeeded? pin,
     $core.Iterable<$fixnum.Int64>? ids,
     $fixnum.Int64? groupId,
+    $core.String? nodeId,
   }) {
     final result = TaskProgress._();
     if (taskId != null) result.taskId = taskId;
@@ -731,8 +734,10 @@ class TaskProgress extends $pb.GeneratedMessage {
     if (done != null) result.done = done;
     if (code != null) result.code = code;
     if (error != null) result.error = error;
+    if (pin != null) result.pin = pin;
     if (ids != null) result.ids.addAll(ids);
     if (groupId != null) result.groupId = groupId;
+    if (nodeId != null) result.nodeId = nodeId;
     return result;
   }
 
@@ -754,8 +759,11 @@ class TaskProgress extends $pb.GeneratedMessage {
     ..aOB(3, _omitFieldNames ? '' : 'done')
     ..aI(4, _omitFieldNames ? '' : 'code')
     ..aOS(5, _omitFieldNames ? '' : 'error')
+    ..aOM<PinNeeded>(6, _omitFieldNames ? '' : 'pin',
+        subBuilder: PinNeeded.$_createMessage)
     ..p<$fixnum.Int64>(7, _omitFieldNames ? '' : 'ids', $pb.PbFieldType.K6)
     ..aInt64(8, _omitFieldNames ? '' : 'groupId')
+    ..aOS(9, _omitFieldNames ? '' : 'nodeId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -828,19 +836,124 @@ class TaskProgress extends $pb.GeneratedMessage {
   @$pb.TagNumber(5)
   void clearError() => $_clearField(5);
 
+  /// an invite's import that needs its PIN (D-ADD-06): asked of the user, then Import again with it
+  @$pb.TagNumber(6)
+  PinNeeded get pin => $_getN(5);
+  @$pb.TagNumber(6)
+  set pin(PinNeeded value) => $_setField(6, value);
+  @$pb.TagNumber(6)
+  $core.bool hasPin() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearPin() => $_clearField(6);
+  @$pb.TagNumber(6)
+  PinNeeded ensurePin() => $_ensure(5);
+
   /// what the task added or changed: the profiles an import or an update added
   @$pb.TagNumber(7)
-  $pb.PbList<$fixnum.Int64> get ids => $_getList(5);
+  $pb.PbList<$fixnum.Int64> get ids => $_getList(6);
 
-  /// the subscription's group the task made or updated
+  /// the subscription's group the task made or updated, a node's too
   @$pb.TagNumber(8)
-  $fixnum.Int64 get groupId => $_getI64(6);
+  $fixnum.Int64 get groupId => $_getI64(7);
   @$pb.TagNumber(8)
-  set groupId($fixnum.Int64 value) => $_setInt64(6, value);
+  set groupId($fixnum.Int64 value) => $_setInt64(7, value);
   @$pb.TagNumber(8)
-  $core.bool hasGroupId() => $_has(6);
+  $core.bool hasGroupId() => $_has(7);
   @$pb.TagNumber(8)
   void clearGroupId() => $_clearField(8);
+
+  /// the raycontrol node the task imported or updated
+  @$pb.TagNumber(9)
+  $core.String get nodeId => $_getSZ(8);
+  @$pb.TagNumber(9)
+  set nodeId($core.String value) => $_setString(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasNodeId() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearNodeId() => $_clearField(9);
+}
+
+/// An invite asks for its PIN: 6 digits the user got from the node's administrator by another way.
+class PinNeeded extends $pb.GeneratedMessage {
+  factory PinNeeded({
+    $core.String? host,
+    $core.int? left,
+    $core.bool? wrong,
+  }) {
+    final result = PinNeeded._();
+    if (host != null) result.host = host;
+    if (left != null) result.left = left;
+    if (wrong != null) result.wrong = wrong;
+    return result;
+  }
+
+  PinNeeded._();
+
+  factory PinNeeded.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      PinNeeded()..mergeFromBuffer(data, registry);
+  factory PinNeeded.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      PinNeeded()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'PinNeeded',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: PinNeeded.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'host')
+    ..aI(2, _omitFieldNames ? '' : 'left')
+    ..aOB(3, _omitFieldNames ? '' : 'wrong')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  PinNeeded clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  PinNeeded copyWith(void Function(PinNeeded) updates) =>
+      super.copyWith((message) => updates(message as PinNeeded)) as PinNeeded;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use PinNeeded() / PinNeeded.new instead')
+  static PinNeeded create() => PinNeeded._();
+  static $pb.GeneratedMessage $_createMessage() => PinNeeded._();
+  @$core.override
+  PinNeeded createEmptyInstance() => PinNeeded._();
+  @$core.pragma('dart2js:noInline')
+  static PinNeeded getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<PinNeeded>(PinNeeded.$_createMessage);
+  static PinNeeded? _defaultInstance;
+
+  /// the node's host, as the invite names it
+  @$pb.TagNumber(1)
+  $core.String get host => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set host($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasHost() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearHost() => $_clearField(1);
+
+  /// the tries the invite has left; -1: not known yet (the invite says it needs one, nothing was sent)
+  @$pb.TagNumber(2)
+  $core.int get left => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set left($core.int value) => $_setSignedInt32(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasLeft() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearLeft() => $_clearField(2);
+
+  /// the PIN sent was wrong
+  @$pb.TagNumber(3)
+  $core.bool get wrong => $_getBF(2);
+  @$pb.TagNumber(3)
+  set wrong($core.bool value) => $_setBool(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasWrong() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearWrong() => $_clearField(3);
 }
 
 class Group extends $pb.GeneratedMessage {
@@ -852,6 +965,7 @@ class Group extends $pb.GeneratedMessage {
     Group_Type? type,
     $core.int? profiles,
     Subscription? subscription,
+    $core.String? nodeId,
   }) {
     final result = Group._();
     if (id != null) result.id = id;
@@ -861,6 +975,7 @@ class Group extends $pb.GeneratedMessage {
     if (type != null) result.type = type;
     if (profiles != null) result.profiles = profiles;
     if (subscription != null) result.subscription = subscription;
+    if (nodeId != null) result.nodeId = nodeId;
     return result;
   }
 
@@ -886,6 +1001,7 @@ class Group extends $pb.GeneratedMessage {
     ..aI(6, _omitFieldNames ? '' : 'profiles')
     ..aOM<Subscription>(7, _omitFieldNames ? '' : 'subscription',
         subBuilder: Subscription.$_createMessage)
+    ..aOS(8, _omitFieldNames ? '' : 'nodeId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -975,6 +1091,16 @@ class Group extends $pb.GeneratedMessage {
   void clearSubscription() => $_clearField(7);
   @$pb.TagNumber(7)
   Subscription ensureSubscription() => $_ensure(6);
+
+  /// a raycontrol node's group: its profiles are the node's subscription's, which only its updates change
+  @$pb.TagNumber(8)
+  $core.String get nodeId => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set nodeId($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasNodeId() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearNodeId() => $_clearField(8);
 }
 
 /// A group's subscription (the app's SubscriptionBean). The settings are the user's; what an update says is read only.
@@ -1194,9 +1320,11 @@ class Subscription extends $pb.GeneratedMessage {
 class RefreshRequest extends $pb.GeneratedMessage {
   factory RefreshRequest({
     $fixnum.Int64? groupId,
+    $core.String? nodeId,
   }) {
     final result = RefreshRequest._();
     if (groupId != null) result.groupId = groupId;
+    if (nodeId != null) result.nodeId = nodeId;
     return result;
   }
 
@@ -1214,6 +1342,7 @@ class RefreshRequest extends $pb.GeneratedMessage {
       package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
       createEmptyInstance: RefreshRequest.$_createMessage)
     ..aInt64(1, _omitFieldNames ? '' : 'groupId')
+    ..aOS(2, _omitFieldNames ? '' : 'nodeId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1238,7 +1367,7 @@ class RefreshRequest extends $pb.GeneratedMessage {
           RefreshRequest.$_createMessage);
   static RefreshRequest? _defaultInstance;
 
-  /// the subscription's group; 0: every one
+  /// the subscription's group (a node's group: its node); 0 with no node_id: every subscription's
   @$pb.TagNumber(1)
   $fixnum.Int64 get groupId => $_getI64(0);
   @$pb.TagNumber(1)
@@ -1247,6 +1376,16 @@ class RefreshRequest extends $pb.GeneratedMessage {
   $core.bool hasGroupId() => $_has(0);
   @$pb.TagNumber(1)
   void clearGroupId() => $_clearField(1);
+
+  /// a raycontrol node (D-NODE-02): its subscription
+  @$pb.TagNumber(2)
+  $core.String get nodeId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set nodeId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasNodeId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearNodeId() => $_clearField(2);
 }
 
 class GroupId extends $pb.GeneratedMessage {
@@ -1422,6 +1561,7 @@ class Profile extends $pb.GeneratedMessage {
     $core.String? name,
     $core.String? address,
     $core.String? beanJson,
+    $core.String? nodeId,
   }) {
     final result = Profile._();
     if (id != null) result.id = id;
@@ -1431,6 +1571,7 @@ class Profile extends $pb.GeneratedMessage {
     if (name != null) result.name = name;
     if (address != null) result.address = address;
     if (beanJson != null) result.beanJson = beanJson;
+    if (nodeId != null) result.nodeId = nodeId;
     return result;
   }
 
@@ -1454,6 +1595,7 @@ class Profile extends $pb.GeneratedMessage {
     ..aOS(5, _omitFieldNames ? '' : 'name')
     ..aOS(6, _omitFieldNames ? '' : 'address')
     ..aOS(7, _omitFieldNames ? '' : 'beanJson')
+    ..aOS(9, _omitFieldNames ? '' : 'nodeId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1541,6 +1683,16 @@ class Profile extends $pb.GeneratedMessage {
   $core.bool hasBeanJson() => $_has(6);
   @$pb.TagNumber(7)
   void clearBeanJson() => $_clearField(7);
+
+  /// the raycontrol node whose subscription's profile this is; "" for none
+  @$pb.TagNumber(9)
+  $core.String get nodeId => $_getSZ(7);
+  @$pb.TagNumber(9)
+  set nodeId($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(9)
+  $core.bool hasNodeId() => $_has(7);
+  @$pb.TagNumber(9)
+  void clearNodeId() => $_clearField(9);
 }
 
 class ProfileList extends $pb.GeneratedMessage {
@@ -2502,11 +2654,13 @@ class ImportPreview extends $pb.GeneratedMessage {
     ImportPreview_Kind? kind,
     $core.Iterable<Profile>? profiles,
     $core.String? subscription,
+    NodePreview? node,
   }) {
     final result = ImportPreview._();
     if (kind != null) result.kind = kind;
     if (profiles != null) result.profiles.addAll(profiles);
     if (subscription != null) result.subscription = subscription;
+    if (node != null) result.node = node;
     return result;
   }
 
@@ -2528,6 +2682,8 @@ class ImportPreview extends $pb.GeneratedMessage {
     ..pPM<Profile>(2, _omitFieldNames ? '' : 'profiles',
         subBuilder: Profile.$_createMessage)
     ..aOS(3, _omitFieldNames ? '' : 'subscription')
+    ..aOM<NodePreview>(4, _omitFieldNames ? '' : 'node',
+        subBuilder: NodePreview.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2575,16 +2731,705 @@ class ImportPreview extends $pb.GeneratedMessage {
   $core.bool hasSubscription() => $_has(2);
   @$pb.TagNumber(3)
   void clearSubscription() => $_clearField(3);
+
+  /// the node, with kind NODE: what the window says before the import
+  @$pb.TagNumber(4)
+  NodePreview get node => $_getN(3);
+  @$pb.TagNumber(4)
+  set node(NodePreview value) => $_setField(4, value);
+  @$pb.TagNumber(4)
+  $core.bool hasNode() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearNode() => $_clearField(4);
+  @$pb.TagNumber(4)
+  NodePreview ensureNode() => $_ensure(3);
+}
+
+/// What an invite or a device package names (D-ADD-06, -07); INVALID_ARGUMENT from Recognize where it does not read.
+class NodePreview extends $pb.GeneratedMessage {
+  factory NodePreview({
+    $core.bool? invite,
+    $core.String? host,
+    $core.String? dnsName,
+    $core.bool? pinRequired,
+    $fixnum.Int64? expires,
+    $core.bool? replaces,
+    $core.String? knownHost,
+  }) {
+    final result = NodePreview._();
+    if (invite != null) result.invite = invite;
+    if (host != null) result.host = host;
+    if (dnsName != null) result.dnsName = dnsName;
+    if (pinRequired != null) result.pinRequired = pinRequired;
+    if (expires != null) result.expires = expires;
+    if (replaces != null) result.replaces = replaces;
+    if (knownHost != null) result.knownHost = knownHost;
+    return result;
+  }
+
+  NodePreview._();
+
+  factory NodePreview.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      NodePreview()..mergeFromBuffer(data, registry);
+  factory NodePreview.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      NodePreview()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'NodePreview',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: NodePreview.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'invite')
+    ..aOS(2, _omitFieldNames ? '' : 'host')
+    ..aOS(3, _omitFieldNames ? '' : 'dnsName')
+    ..aOB(4, _omitFieldNames ? '' : 'pinRequired')
+    ..aInt64(5, _omitFieldNames ? '' : 'expires')
+    ..aOB(6, _omitFieldNames ? '' : 'replaces')
+    ..aOS(7, _omitFieldNames ? '' : 'knownHost')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  NodePreview clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  NodePreview copyWith(void Function(NodePreview) updates) =>
+      super.copyWith((message) => updates(message as NodePreview))
+          as NodePreview;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use NodePreview() / NodePreview.new instead')
+  static NodePreview create() => NodePreview._();
+  static $pb.GeneratedMessage $_createMessage() => NodePreview._();
+  @$core.override
+  NodePreview createEmptyInstance() => NodePreview._();
+  @$core.pragma('dart2js:noInline')
+  static NodePreview getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<NodePreview>(
+          NodePreview.$_createMessage);
+  static NodePreview? _defaultInstance;
+
+  /// an invite (it registers this computer), else a device package
+  @$pb.TagNumber(1)
+  $core.bool get invite => $_getBF(0);
+  @$pb.TagNumber(1)
+  set invite($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasInvite() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearInvite() => $_clearField(1);
+
+  /// the node's host and name (names-v1, "" for none)
+  @$pb.TagNumber(2)
+  $core.String get host => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set host($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasHost() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearHost() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get dnsName => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set dnsName($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasDnsName() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearDnsName() => $_clearField(3);
+
+  /// the invite needs a PIN
+  @$pb.TagNumber(4)
+  $core.bool get pinRequired => $_getBF(3);
+  @$pb.TagNumber(4)
+  set pinRequired($core.bool value) => $_setBool(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasPinRequired() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearPinRequired() => $_clearField(4);
+
+  /// when the invite expires, Unix seconds; 0: a package's, none
+  @$pb.TagNumber(5)
+  $fixnum.Int64 get expires => $_getI64(4);
+  @$pb.TagNumber(5)
+  set expires($fixnum.Int64 value) => $_setInt64(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasExpires() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearExpires() => $_clearField(5);
+
+  /// a node kept already: the import replaces its device key (and its admin access), its group and profiles stay;
+  /// known_host is its host where the new one is another (a moved node, or someone else's link)
+  @$pb.TagNumber(6)
+  $core.bool get replaces => $_getBF(5);
+  @$pb.TagNumber(6)
+  set replaces($core.bool value) => $_setBool(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasReplaces() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearReplaces() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get knownHost => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set knownHost($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasKnownHost() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearKnownHost() => $_clearField(7);
+}
+
+class NodeId extends $pb.GeneratedMessage {
+  factory NodeId({
+    $core.String? id,
+  }) {
+    final result = NodeId._();
+    if (id != null) result.id = id;
+    return result;
+  }
+
+  NodeId._();
+
+  factory NodeId.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      NodeId()..mergeFromBuffer(data, registry);
+  factory NodeId.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      NodeId()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'NodeId',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: NodeId.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'id')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  NodeId clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  NodeId copyWith(void Function(NodeId) updates) =>
+      super.copyWith((message) => updates(message as NodeId)) as NodeId;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use NodeId() / NodeId.new instead')
+  static NodeId create() => NodeId._();
+  static $pb.GeneratedMessage $_createMessage() => NodeId._();
+  @$core.override
+  NodeId createEmptyInstance() => NodeId._();
+  @$core.pragma('dart2js:noInline')
+  static NodeId getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<NodeId>(NodeId.$_createMessage);
+  static NodeId? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get id => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set id($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+}
+
+class NodeList extends $pb.GeneratedMessage {
+  factory NodeList({
+    $core.Iterable<Node>? nodes,
+  }) {
+    final result = NodeList._();
+    if (nodes != null) result.nodes.addAll(nodes);
+    return result;
+  }
+
+  NodeList._();
+
+  factory NodeList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      NodeList()..mergeFromBuffer(data, registry);
+  factory NodeList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      NodeList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'NodeList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: NodeList.$_createMessage)
+    ..pPM<Node>(1, _omitFieldNames ? '' : 'nodes',
+        subBuilder: Node.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  NodeList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  NodeList copyWith(void Function(NodeList) updates) =>
+      super.copyWith((message) => updates(message as NodeList)) as NodeList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use NodeList() / NodeList.new instead')
+  static NodeList create() => NodeList._();
+  static $pb.GeneratedMessage $_createMessage() => NodeList._();
+  @$core.override
+  NodeList createEmptyInstance() => NodeList._();
+  @$core.pragma('dart2js:noInline')
+  static NodeList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<NodeList>(NodeList.$_createMessage);
+  static NodeList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<Node> get nodes => $_getList(0);
+}
+
+/// A raycontrol node as its package and last subscription have it: what its card shows (D-NODE-01…07, D-MAIN-13).
+class Node extends $pb.GeneratedMessage {
+  factory Node({
+    $core.String? id,
+    $core.String? host,
+    $core.String? name,
+    $core.String? note,
+    $fixnum.Int64? groupId,
+    $core.int? profiles,
+    $core.String? dnsName,
+    $core.bool? admin,
+    $core.bool? subscription,
+    $fixnum.Int64? updated,
+    $fixnum.Int64? expires,
+    $fixnum.Int64? nextUpdate,
+    $core.bool? refused,
+    $core.int? failed,
+    $core.String? error,
+    NodeTraffic? traffic,
+    $core.String? minVersion,
+    $core.bool? refusedVersion,
+    $fixnum.Int64? clockSkew,
+    $core.bool? updating,
+    $core.bool? unreadable,
+  }) {
+    final result = Node._();
+    if (id != null) result.id = id;
+    if (host != null) result.host = host;
+    if (name != null) result.name = name;
+    if (note != null) result.note = note;
+    if (groupId != null) result.groupId = groupId;
+    if (profiles != null) result.profiles = profiles;
+    if (dnsName != null) result.dnsName = dnsName;
+    if (admin != null) result.admin = admin;
+    if (subscription != null) result.subscription = subscription;
+    if (updated != null) result.updated = updated;
+    if (expires != null) result.expires = expires;
+    if (nextUpdate != null) result.nextUpdate = nextUpdate;
+    if (refused != null) result.refused = refused;
+    if (failed != null) result.failed = failed;
+    if (error != null) result.error = error;
+    if (traffic != null) result.traffic = traffic;
+    if (minVersion != null) result.minVersion = minVersion;
+    if (refusedVersion != null) result.refusedVersion = refusedVersion;
+    if (clockSkew != null) result.clockSkew = clockSkew;
+    if (updating != null) result.updating = updating;
+    if (unreadable != null) result.unreadable = unreadable;
+    return result;
+  }
+
+  Node._();
+
+  factory Node.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      Node()..mergeFromBuffer(data, registry);
+  factory Node.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      Node()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'Node',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: Node.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'id')
+    ..aOS(2, _omitFieldNames ? '' : 'host')
+    ..aOS(3, _omitFieldNames ? '' : 'name')
+    ..aOS(4, _omitFieldNames ? '' : 'note')
+    ..aInt64(5, _omitFieldNames ? '' : 'groupId')
+    ..aI(6, _omitFieldNames ? '' : 'profiles')
+    ..aOS(7, _omitFieldNames ? '' : 'dnsName')
+    ..aOB(8, _omitFieldNames ? '' : 'admin')
+    ..aOB(9, _omitFieldNames ? '' : 'subscription')
+    ..aInt64(10, _omitFieldNames ? '' : 'updated')
+    ..aInt64(11, _omitFieldNames ? '' : 'expires')
+    ..aInt64(12, _omitFieldNames ? '' : 'nextUpdate')
+    ..aOB(13, _omitFieldNames ? '' : 'refused')
+    ..aI(14, _omitFieldNames ? '' : 'failed')
+    ..aOS(15, _omitFieldNames ? '' : 'error')
+    ..aOM<NodeTraffic>(16, _omitFieldNames ? '' : 'traffic',
+        subBuilder: NodeTraffic.$_createMessage)
+    ..aOS(17, _omitFieldNames ? '' : 'minVersion')
+    ..aOB(18, _omitFieldNames ? '' : 'refusedVersion')
+    ..aInt64(19, _omitFieldNames ? '' : 'clockSkew')
+    ..aOB(20, _omitFieldNames ? '' : 'updating')
+    ..aOB(21, _omitFieldNames ? '' : 'unreadable')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  Node clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  Node copyWith(void Function(Node) updates) =>
+      super.copyWith((message) => updates(message as Node)) as Node;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use Node() / Node.new instead')
+  static Node create() => Node._();
+  static $pb.GeneratedMessage $_createMessage() => Node._();
+  @$core.override
+  Node createEmptyInstance() => Node._();
+  @$core.pragma('dart2js:noInline')
+  static Node getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<Node>(Node.$_createMessage);
+  static Node? _defaultInstance;
+
+  /// spa.node_id
+  @$pb.TagNumber(1)
+  $core.String get id => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set id($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get host => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set host($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasHost() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearHost() => $_clearField(2);
+
+  /// its admin's name for it, else "raycontrol · <host>" (D-NODE-01); note, what its owner tells its users (D-NODE-03)
+  @$pb.TagNumber(3)
+  $core.String get name => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set name($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasName() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearName() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get note => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set note($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasNote() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearNote() => $_clearField(4);
+
+  /// its group, 0 before its first subscription; how many profiles it has (D-NODE-06: ListProfiles of it)
+  @$pb.TagNumber(5)
+  $fixnum.Int64 get groupId => $_getI64(4);
+  @$pb.TagNumber(5)
+  set groupId($fixnum.Int64 value) => $_setInt64(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasGroupId() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearGroupId() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.int get profiles => $_getIZ(5);
+  @$pb.TagNumber(6)
+  set profiles($core.int value) => $_setSignedInt32(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasProfiles() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearProfiles() => $_clearField(6);
+
+  /// names-v1: the node's name, "" for none
+  @$pb.TagNumber(7)
+  $core.String get dnsName => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set dnsName($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasDnsName() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearDnsName() => $_clearField(7);
+
+  /// the device is an admin of the node (its remote API); the admin mode is not the desktop's yet
+  @$pb.TagNumber(8)
+  $core.bool get admin => $_getBF(7);
+  @$pb.TagNumber(8)
+  set admin($core.bool value) => $_setBool(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasAdmin() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearAdmin() => $_clearField(8);
+
+  /// the device's subscription, signed by the node's ed25519 and ML-DSA-65 keys, each checked (D-NODE-05)
+  @$pb.TagNumber(9)
+  $core.bool get subscription => $_getBF(8);
+  @$pb.TagNumber(9)
+  set subscription($core.bool value) => $_setBool(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasSubscription() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearSubscription() => $_clearField(9);
+
+  /// the last subscription taken and until when it holds (this computer's clock, Unix seconds, 0: none yet), when the
+  /// next is fetched (0: not planned) (D-NODE-05, D-MAIN-13)
+  @$pb.TagNumber(10)
+  $fixnum.Int64 get updated => $_getI64(9);
+  @$pb.TagNumber(10)
+  set updated($fixnum.Int64 value) => $_setInt64(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasUpdated() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearUpdated() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $fixnum.Int64 get expires => $_getI64(10);
+  @$pb.TagNumber(11)
+  set expires($fixnum.Int64 value) => $_setInt64(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasExpires() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearExpires() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $fixnum.Int64 get nextUpdate => $_getI64(11);
+  @$pb.TagNumber(12)
+  set nextUpdate($fixnum.Int64 value) => $_setInt64(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasNextUpdate() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearNextUpdate() => $_clearField(12);
+
+  /// the node refused this device (revoked, or another key): no update is planned, a new invite is needed
+  @$pb.TagNumber(13)
+  $core.bool get refused => $_getBF(12);
+  @$pb.TagNumber(13)
+  set refused($core.bool value) => $_setBool(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasRefused() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearRefused() => $_clearField(13);
+
+  /// updates failed in a row, the last one's error since the daemon started
+  @$pb.TagNumber(14)
+  $core.int get failed => $_getIZ(13);
+  @$pb.TagNumber(14)
+  set failed($core.int value) => $_setSignedInt32(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasFailed() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearFailed() => $_clearField(14);
+
+  @$pb.TagNumber(15)
+  $core.String get error => $_getSZ(14);
+  @$pb.TagNumber(15)
+  set error($core.String value) => $_setString(14, value);
+  @$pb.TagNumber(15)
+  $core.bool hasError() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearError() => $_clearField(15);
+
+  /// the traffic used and allowed (bytes) since and until when (Unix seconds, 0: no reset) (D-NODE-04, D-MAIN-13);
+  /// none for a user without a limit
+  @$pb.TagNumber(16)
+  NodeTraffic get traffic => $_getN(15);
+  @$pb.TagNumber(16)
+  set traffic(NodeTraffic value) => $_setField(16, value);
+  @$pb.TagNumber(16)
+  $core.bool hasTraffic() => $_has(15);
+  @$pb.TagNumber(16)
+  void clearTraffic() => $_clearField(16);
+  @$pb.TagNumber(16)
+  NodeTraffic ensureTraffic() => $_ensure(15);
+
+  /// the node's minimum version of Niko, "" for none; refused_version: no profiles came for this version
+  @$pb.TagNumber(17)
+  $core.String get minVersion => $_getSZ(16);
+  @$pb.TagNumber(17)
+  set minVersion($core.String value) => $_setString(16, value);
+  @$pb.TagNumber(17)
+  $core.bool hasMinVersion() => $_has(16);
+  @$pb.TagNumber(17)
+  void clearMinVersion() => $_clearField(17);
+
+  @$pb.TagNumber(18)
+  $core.bool get refusedVersion => $_getBF(17);
+  @$pb.TagNumber(18)
+  set refusedVersion($core.bool value) => $_setBool(17, value);
+  @$pb.TagNumber(18)
+  $core.bool hasRefusedVersion() => $_has(17);
+  @$pb.TagNumber(18)
+  void clearRefusedVersion() => $_clearField(18);
+
+  /// the node's clock minus this one's (s): over 30 SPA fails
+  @$pb.TagNumber(19)
+  $fixnum.Int64 get clockSkew => $_getI64(18);
+  @$pb.TagNumber(19)
+  set clockSkew($fixnum.Int64 value) => $_setInt64(18, value);
+  @$pb.TagNumber(19)
+  $core.bool hasClockSkew() => $_has(18);
+  @$pb.TagNumber(19)
+  void clearClockSkew() => $_clearField(19);
+
+  /// an update of it runs now
+  @$pb.TagNumber(20)
+  $core.bool get updating => $_getBF(19);
+  @$pb.TagNumber(20)
+  set updating($core.bool value) => $_setBool(19, value);
+  @$pb.TagNumber(20)
+  $core.bool hasUpdating() => $_has(19);
+  @$pb.TagNumber(20)
+  void clearUpdating() => $_clearField(20);
+
+  /// its keys were sealed on another machine or by another account: it is to be imported again
+  @$pb.TagNumber(21)
+  $core.bool get unreadable => $_getBF(20);
+  @$pb.TagNumber(21)
+  set unreadable($core.bool value) => $_setBool(20, value);
+  @$pb.TagNumber(21)
+  $core.bool hasUnreadable() => $_has(20);
+  @$pb.TagNumber(21)
+  void clearUnreadable() => $_clearField(21);
+}
+
+class NodeTraffic extends $pb.GeneratedMessage {
+  factory NodeTraffic({
+    $fixnum.Int64? used,
+    $fixnum.Int64? limit,
+    $fixnum.Int64? since,
+    $fixnum.Int64? reset,
+    $core.bool? exhausted,
+    $core.bool? nearLimit,
+  }) {
+    final result = NodeTraffic._();
+    if (used != null) result.used = used;
+    if (limit != null) result.limit = limit;
+    if (since != null) result.since = since;
+    if (reset != null) result.reset = reset;
+    if (exhausted != null) result.exhausted = exhausted;
+    if (nearLimit != null) result.nearLimit = nearLimit;
+    return result;
+  }
+
+  NodeTraffic._();
+
+  factory NodeTraffic.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      NodeTraffic()..mergeFromBuffer(data, registry);
+  factory NodeTraffic.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      NodeTraffic()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'NodeTraffic',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'niko.v1'),
+      createEmptyInstance: NodeTraffic.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'used')
+    ..aInt64(2, _omitFieldNames ? '' : 'limit')
+    ..aInt64(3, _omitFieldNames ? '' : 'since')
+    ..aInt64(4, _omitFieldNames ? '' : 'reset')
+    ..aOB(5, _omitFieldNames ? '' : 'exhausted')
+    ..aOB(6, _omitFieldNames ? '' : 'nearLimit')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  NodeTraffic clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  NodeTraffic copyWith(void Function(NodeTraffic) updates) =>
+      super.copyWith((message) => updates(message as NodeTraffic))
+          as NodeTraffic;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use NodeTraffic() / NodeTraffic.new instead')
+  static NodeTraffic create() => NodeTraffic._();
+  static $pb.GeneratedMessage $_createMessage() => NodeTraffic._();
+  @$core.override
+  NodeTraffic createEmptyInstance() => NodeTraffic._();
+  @$core.pragma('dart2js:noInline')
+  static NodeTraffic getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<NodeTraffic>(
+          NodeTraffic.$_createMessage);
+  static NodeTraffic? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get used => $_getI64(0);
+  @$pb.TagNumber(1)
+  set used($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasUsed() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearUsed() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get limit => $_getI64(1);
+  @$pb.TagNumber(2)
+  set limit($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasLimit() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearLimit() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get since => $_getI64(2);
+  @$pb.TagNumber(3)
+  set since($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasSince() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearSince() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get reset => $_getI64(3);
+  @$pb.TagNumber(4)
+  set reset($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasReset() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearReset() => $_clearField(4);
+
+  /// used up, as the node says: no profiles until the reset
+  @$pb.TagNumber(5)
+  $core.bool get exhausted => $_getBF(4);
+  @$pb.TagNumber(5)
+  set exhausted($core.bool value) => $_setBool(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasExhausted() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearExhausted() => $_clearField(5);
+
+  /// 90 % of the limit used
+  @$pb.TagNumber(6)
+  $core.bool get nearLimit => $_getBF(5);
+  @$pb.TagNumber(6)
+  set nearLimit($core.bool value) => $_setBool(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasNearLimit() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearNearLimit() => $_clearField(6);
 }
 
 class ImportRequest extends $pb.GeneratedMessage {
   factory ImportRequest({
     ImportInput? input,
     $fixnum.Int64? groupId,
+    $core.String? pin,
   }) {
     final result = ImportRequest._();
     if (input != null) result.input = input;
     if (groupId != null) result.groupId = groupId;
+    if (pin != null) result.pin = pin;
     return result;
   }
 
@@ -2604,6 +3449,7 @@ class ImportRequest extends $pb.GeneratedMessage {
     ..aOM<ImportInput>(1, _omitFieldNames ? '' : 'input',
         subBuilder: ImportInput.$_createMessage)
     ..aInt64(2, _omitFieldNames ? '' : 'groupId')
+    ..aOS(3, _omitFieldNames ? '' : 'pin')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2648,6 +3494,16 @@ class ImportRequest extends $pb.GeneratedMessage {
   $core.bool hasGroupId() => $_has(1);
   @$pb.TagNumber(2)
   void clearGroupId() => $_clearField(2);
+
+  /// an invite's PIN, 6 digits (TaskProgress.pin asked for it)
+  @$pb.TagNumber(3)
+  $core.String get pin => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set pin($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasPin() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearPin() => $_clearField(3);
 }
 
 /// A route rule (RuleEntity): what it matches, all its fields together, and where that goes. The lists are text as

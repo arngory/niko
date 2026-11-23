@@ -205,8 +205,12 @@ class NikoServiceClient extends $grpc.Client {
   /// Imports an input: the task's progress, then its result, the last message (done). Share links and sn://; a
   /// subscription's link (http(s), clash://install-config, another client's "add subscription" link) makes a group of
   /// that subscription and updates it, as the app's import does: the result names the group (group_id). A raycontrol
-  /// node's invite or device package is recognized, its import comes with the nodes (UNIMPLEMENTED as the result's
-  /// code), and so is a whole group shared as sn://subscription.
+  /// node's invite (rcinv1, RCINV2, RCINV3) registers this computer with the node (D-ADD-06), a device package
+  /// (rcdev1) is kept as it is; either way the node is kept with its device key sealed, and its subscription fetched
+  /// into a group of its own (the result names the node, node_id, and its group). An invite that needs a PIN and has
+  /// none, or a wrong one, ends with pin (FAILED_PRECONDITION): the window asks for it and imports again with it; the
+  /// client key the first try made is sent again, so a retry after an answer that was lost gets the same device. A
+  /// whole group shared as sn://subscription is recognized, its import UNIMPLEMENTED.
   $grpc.ResponseStream<$0.TaskProgress> import(
     $0.ImportRequest request, {
     $grpc.CallOptions? options,
@@ -229,6 +233,25 @@ class NikoServiceClient extends $grpc.Client {
     return $createStreamingCall(
         _$refresh, $async.Stream.fromIterable([request]),
         options: options);
+  }
+
+  /// The raycontrol nodes (D-NODE-01…07, D-MAIN-13), in the order imported: what their packages and last
+  /// subscriptions say, never their keys. Watch says NODES. A node's subscription is fetched by Refresh (node_id, or
+  /// its group's id), and by the daemon on its own when its next update is due.
+  $grpc.ResponseFuture<$0.NodeList> listNodes(
+    $0.Empty request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$listNodes, request, options: options);
+  }
+
+  /// Removes a node with its device key, its group and its profiles (D-NODE-07): it comes back only with a new
+  /// invite. NOT_FOUND.
+  $grpc.ResponseFuture<$0.Empty> deleteNode(
+    $0.NodeId request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$deleteNode, request, options: options);
   }
 
   /// The route rules (D-RULES-01), in the order the build takes them: what Connect builds the config with, the
@@ -387,6 +410,14 @@ class NikoServiceClient extends $grpc.Client {
           '/niko.v1.NikoService/Refresh',
           ($0.RefreshRequest value) => value.writeToBuffer(),
           $0.TaskProgress.fromBuffer);
+  static final _$listNodes = $grpc.ClientMethod<$0.Empty, $0.NodeList>(
+      '/niko.v1.NikoService/ListNodes',
+      ($0.Empty value) => value.writeToBuffer(),
+      $0.NodeList.fromBuffer);
+  static final _$deleteNode = $grpc.ClientMethod<$0.NodeId, $0.Empty>(
+      '/niko.v1.NikoService/DeleteNode',
+      ($0.NodeId value) => value.writeToBuffer(),
+      $0.Empty.fromBuffer);
   static final _$listRules = $grpc.ClientMethod<$0.Empty, $0.RuleList>(
       '/niko.v1.NikoService/ListRules',
       ($0.Empty value) => value.writeToBuffer(),
@@ -565,6 +596,20 @@ abstract class NikoServiceBase extends $grpc.Service {
         true,
         ($core.List<$core.int> value) => $0.RefreshRequest.fromBuffer(value),
         ($0.TaskProgress value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.Empty, $0.NodeList>(
+        'ListNodes',
+        listNodes_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.Empty.fromBuffer(value),
+        ($0.NodeList value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.NodeId, $0.Empty>(
+        'DeleteNode',
+        deleteNode_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.NodeId.fromBuffer(value),
+        ($0.Empty value) => value.writeToBuffer()));
     $addMethod($grpc.ServiceMethod<$0.Empty, $0.RuleList>(
         'ListRules',
         listRules_Pre,
@@ -773,6 +818,21 @@ abstract class NikoServiceBase extends $grpc.Service {
 
   $async.Stream<$0.TaskProgress> refresh(
       $grpc.ServiceCall call, $0.RefreshRequest request);
+
+  $async.Future<$0.NodeList> listNodes_Pre(
+      $grpc.ServiceCall $call, $async.Future<$0.Empty> $request) async {
+    return listNodes($call, await $request);
+  }
+
+  $async.Future<$0.NodeList> listNodes(
+      $grpc.ServiceCall call, $0.Empty request);
+
+  $async.Future<$0.Empty> deleteNode_Pre(
+      $grpc.ServiceCall $call, $async.Future<$0.NodeId> $request) async {
+    return deleteNode($call, await $request);
+  }
+
+  $async.Future<$0.Empty> deleteNode($grpc.ServiceCall call, $0.NodeId request);
 
   $async.Future<$0.RuleList> listRules_Pre(
       $grpc.ServiceCall $call, $async.Future<$0.Empty> $request) async {

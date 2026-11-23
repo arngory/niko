@@ -43,6 +43,8 @@ const (
 	NikoService_Recognize_FullMethodName      = "/niko.v1.NikoService/Recognize"
 	NikoService_Import_FullMethodName         = "/niko.v1.NikoService/Import"
 	NikoService_Refresh_FullMethodName        = "/niko.v1.NikoService/Refresh"
+	NikoService_ListNodes_FullMethodName      = "/niko.v1.NikoService/ListNodes"
+	NikoService_DeleteNode_FullMethodName     = "/niko.v1.NikoService/DeleteNode"
 	NikoService_ListRules_FullMethodName      = "/niko.v1.NikoService/ListRules"
 	NikoService_SaveRule_FullMethodName       = "/niko.v1.NikoService/SaveRule"
 	NikoService_DeleteRules_FullMethodName    = "/niko.v1.NikoService/DeleteRules"
@@ -120,8 +122,12 @@ type NikoServiceClient interface {
 	// Imports an input: the task's progress, then its result, the last message (done). Share links and sn://; a
 	// subscription's link (http(s), clash://install-config, another client's "add subscription" link) makes a group of
 	// that subscription and updates it, as the app's import does: the result names the group (group_id). A raycontrol
-	// node's invite or device package is recognized, its import comes with the nodes (UNIMPLEMENTED as the result's
-	// code), and so is a whole group shared as sn://subscription.
+	// node's invite (rcinv1, RCINV2, RCINV3) registers this computer with the node (D-ADD-06), a device package
+	// (rcdev1) is kept as it is; either way the node is kept with its device key sealed, and its subscription fetched
+	// into a group of its own (the result names the node, node_id, and its group). An invite that needs a PIN and has
+	// none, or a wrong one, ends with pin (FAILED_PRECONDITION): the window asks for it and imports again with it; the
+	// client key the first try made is sent again, so a retry after an answer that was lost gets the same device. A
+	// whole group shared as sn://subscription is recognized, its import UNIMPLEMENTED.
 	Import(ctx context.Context, in *ImportRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TaskProgress], error)
 	// Updates a subscription's group (D-SUB-03), or every one (group_id 0), as the app's update does: the answer
 	// fetched, its profiles merged into the group's, its traffic and expiry kept (Subscription). A task, as Import is:
@@ -131,6 +137,13 @@ type NikoServiceClient interface {
 	// already; UNAVAILABLE where the provider did not answer, INVALID_ARGUMENT where its answer has no profiles,
 	// PERMISSION_DENIED where its panel refused this device: as the result's code.
 	Refresh(ctx context.Context, in *RefreshRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TaskProgress], error)
+	// The raycontrol nodes (D-NODE-01…07, D-MAIN-13), in the order imported: what their packages and last
+	// subscriptions say, never their keys. Watch says NODES. A node's subscription is fetched by Refresh (node_id, or
+	// its group's id), and by the daemon on its own when its next update is due.
+	ListNodes(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*NodeList, error)
+	// Removes a node with its device key, its group and its profiles (D-NODE-07): it comes back only with a new
+	// invite. NOT_FOUND.
+	DeleteNode(ctx context.Context, in *NodeId, opts ...grpc.CallOption) (*Empty, error)
 	// The route rules (D-RULES-01), in the order the build takes them: what Connect builds the config with, the
 	// enabled ones. Watch says RULES.
 	ListRules(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*RuleList, error)
@@ -393,6 +406,26 @@ func (c *nikoServiceClient) Refresh(ctx context.Context, in *RefreshRequest, opt
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type NikoService_RefreshClient = grpc.ServerStreamingClient[TaskProgress]
 
+func (c *nikoServiceClient) ListNodes(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*NodeList, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NodeList)
+	err := c.cc.Invoke(ctx, NikoService_ListNodes_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) DeleteNode(ctx context.Context, in *NodeId, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, NikoService_DeleteNode_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *nikoServiceClient) ListRules(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*RuleList, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(RuleList)
@@ -540,8 +573,12 @@ type NikoServiceServer interface {
 	// Imports an input: the task's progress, then its result, the last message (done). Share links and sn://; a
 	// subscription's link (http(s), clash://install-config, another client's "add subscription" link) makes a group of
 	// that subscription and updates it, as the app's import does: the result names the group (group_id). A raycontrol
-	// node's invite or device package is recognized, its import comes with the nodes (UNIMPLEMENTED as the result's
-	// code), and so is a whole group shared as sn://subscription.
+	// node's invite (rcinv1, RCINV2, RCINV3) registers this computer with the node (D-ADD-06), a device package
+	// (rcdev1) is kept as it is; either way the node is kept with its device key sealed, and its subscription fetched
+	// into a group of its own (the result names the node, node_id, and its group). An invite that needs a PIN and has
+	// none, or a wrong one, ends with pin (FAILED_PRECONDITION): the window asks for it and imports again with it; the
+	// client key the first try made is sent again, so a retry after an answer that was lost gets the same device. A
+	// whole group shared as sn://subscription is recognized, its import UNIMPLEMENTED.
 	Import(*ImportRequest, grpc.ServerStreamingServer[TaskProgress]) error
 	// Updates a subscription's group (D-SUB-03), or every one (group_id 0), as the app's update does: the answer
 	// fetched, its profiles merged into the group's, its traffic and expiry kept (Subscription). A task, as Import is:
@@ -551,6 +588,13 @@ type NikoServiceServer interface {
 	// already; UNAVAILABLE where the provider did not answer, INVALID_ARGUMENT where its answer has no profiles,
 	// PERMISSION_DENIED where its panel refused this device: as the result's code.
 	Refresh(*RefreshRequest, grpc.ServerStreamingServer[TaskProgress]) error
+	// The raycontrol nodes (D-NODE-01…07, D-MAIN-13), in the order imported: what their packages and last
+	// subscriptions say, never their keys. Watch says NODES. A node's subscription is fetched by Refresh (node_id, or
+	// its group's id), and by the daemon on its own when its next update is due.
+	ListNodes(context.Context, *Empty) (*NodeList, error)
+	// Removes a node with its device key, its group and its profiles (D-NODE-07): it comes back only with a new
+	// invite. NOT_FOUND.
+	DeleteNode(context.Context, *NodeId) (*Empty, error)
 	// The route rules (D-RULES-01), in the order the build takes them: what Connect builds the config with, the
 	// enabled ones. Watch says RULES.
 	ListRules(context.Context, *Empty) (*RuleList, error)
@@ -645,6 +689,12 @@ func (UnimplementedNikoServiceServer) Import(*ImportRequest, grpc.ServerStreamin
 }
 func (UnimplementedNikoServiceServer) Refresh(*RefreshRequest, grpc.ServerStreamingServer[TaskProgress]) error {
 	return status.Error(codes.Unimplemented, "method Refresh not implemented")
+}
+func (UnimplementedNikoServiceServer) ListNodes(context.Context, *Empty) (*NodeList, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListNodes not implemented")
+}
+func (UnimplementedNikoServiceServer) DeleteNode(context.Context, *NodeId) (*Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteNode not implemented")
 }
 func (UnimplementedNikoServiceServer) ListRules(context.Context, *Empty) (*RuleList, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListRules not implemented")
@@ -1027,6 +1077,42 @@ func _NikoService_Refresh_Handler(srv interface{}, stream grpc.ServerStream) err
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type NikoService_RefreshServer = grpc.ServerStreamingServer[TaskProgress]
 
+func _NikoService_ListNodes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).ListNodes(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_ListNodes_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).ListNodes(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_DeleteNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NodeId)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).DeleteNode(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_DeleteNode_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).DeleteNode(ctx, req.(*NodeId))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _NikoService_ListRules_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Empty)
 	if err := dec(in); err != nil {
@@ -1220,6 +1306,14 @@ var NikoService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Recognize",
 			Handler:    _NikoService_Recognize_Handler,
+		},
+		{
+			MethodName: "ListNodes",
+			Handler:    _NikoService_ListNodes_Handler,
+		},
+		{
+			MethodName: "DeleteNode",
+			Handler:    _NikoService_DeleteNode_Handler,
 		},
 		{
 			MethodName: "ListRules",
