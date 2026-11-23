@@ -96,7 +96,7 @@ func TestNodes(t *testing.T) {
 	}
 
 	parsed := goldenRows(t, "every-kind")
-	applied, err := s.ApplyNodeRows(id, 7, parsed.Rows, func(n *nikoray.Node) { n.Name = parsed.Name })
+	applied, err := s.ApplyNodeRows(id, "", 7, parsed.Rows, func(n *nikoray.Node) { n.Name = parsed.Name })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +135,7 @@ func TestNodes(t *testing.T) {
 	// the next subscription: row 3 gone, the others as they were
 	rows := parsed.Rows[1:]
 	changes = nil
-	applied, err = s.ApplyNodeRows(id, 8, rows, func(n *nikoray.Node) { n.Name = "Renamed" })
+	applied, err = s.ApplyNodeRows(id, "", 8, rows, func(n *nikoray.Node) { n.Name = "Renamed" })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,8 +154,15 @@ func TestNodes(t *testing.T) {
 		t.Fatalf("the tweak or the order went: %v %d", bean["tlsFragment"], p.Order)
 	}
 	// an older subscription changes nothing
-	if applied, err = s.ApplyNodeRows(id, 7, parsed.Rows, func(n *nikoray.Node) {}); err != nil || !applied.Stale {
+	if applied, err = s.ApplyNodeRows(id, "", 7, parsed.Rows, func(n *nikoray.Node) {}); err != nil || !applied.Stale {
 		t.Fatalf("%+v %v", applied, err)
+	}
+	// nor does one fetched for another registration of the node (a device the node no longer is)
+	if applied, err = s.ApplyNodeRows(id, "another-device", 9, parsed.Rows, func(n *nikoray.Node) { n.Name = "Other" }); err != nil || !applied.Stale {
+		t.Fatalf("another device's: %+v %v", applied, err)
+	}
+	if n, _ := s.Node(id); n == nil || n.Name == "Other" || n.SubSeq != 8 {
+		t.Fatalf("another device's subscription written: %+v", n)
 	}
 
 	// a registration under way: its key kept 30 minutes from its last try
@@ -207,7 +214,7 @@ func TestNodeImportAgain(t *testing.T) {
 	device := goldenDevice(t, "rcdev1-user")
 	node, _ := s.ImportNode(device, nil, "")
 	parsed := goldenRows(t, "rotation-due")
-	applied, err := s.ApplyNodeRows(node.ID(), 5, parsed.Rows, func(*nikoray.Node) {})
+	applied, err := s.ApplyNodeRows(node.ID(), "", 5, parsed.Rows, func(*nikoray.Node) {})
 	if err != nil {
 		t.Fatal(err)
 	}

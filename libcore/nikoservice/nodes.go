@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand/v2"
+	"net"
 	"net/netip"
 	"runtime"
 	"strconv"
@@ -111,11 +112,30 @@ func setRaycontrolClient() {
 	rayclient.Set("niko/" + Version + " (" + runtime.GOOS + "; " + runtime.GOARCH + ")")
 }
 
-// bypass is what the daemon's own requests to a node go by while the core runs: a socket bound to the interface the
-// core's own connections take (its network manager's, as route.auto_detect_interface binds them), so that they go
-// around the TUN; and the node's name looked up by the core's direct DNS, which is the system's under the TUN, not
-// its FakeIP. Nils without a running core: the system's own route and resolver.
+// bypass is what the daemon's own requests to a node go by: each dial and each lookup asks currentBypass then, so
+// that a core started (or stopped) during a registration or fetch of 90 s is taken into account by the next dial,
+// as the app's protect() is applied to each socket.
 func (s *server) bypass() (func(network, address string, conn syscall.RawConn) error, raynames.Lookup) {
+	control := func(network, address string, conn syscall.RawConn) error {
+		if current, _ := s.currentBypass(); current != nil {
+			return current(network, address, conn)
+		}
+		return nil
+	}
+	lookup := func(ctx context.Context, name string) ([]netip.Addr, error) {
+		if _, current := s.currentBypass(); current != nil {
+			return current(ctx, name)
+		}
+		return net.DefaultResolver.LookupNetIP(ctx, "ip", name)
+	}
+	return control, lookup
+}
+
+// currentBypass is the bypass while the core runs: a socket bound to the interface the core's own connections take
+// (its network manager's, as route.auto_detect_interface binds them), so that they go around the TUN; and the
+// node's name looked up by the core's direct DNS, which is the system's under the TUN, not its FakeIP. Nils without
+// a running core: the system's own route and resolver.
+func (s *server) currentBypass() (func(network, address string, conn syscall.RawConn) error, raynames.Lookup) {
 	if s.core == nil {
 		return nil, nil
 	}
@@ -540,8 +560,14 @@ func (s *server) updateNodeLocked(ctx context.Context, u *user, id string) (stri
 	defer cancel()
 	fetched, err := s.fetch(fetchCtx, request)
 	now := s.clock().Unix()
+	// the registration this fetch is of: a node deleted and added again, or registered anew, meanwhile is another
+	// device of it, and this fetch's answer is not that device's
+	device := node.DeviceID
 	if err != nil {
 		_, _ = u.store.UpdateNode(id, func(n *nikoray.Node) bool {
+			if n.DeviceID != device {
+				return false
+			}
 			n.FailedFetches++
 			if refused(err) {
 				n.RefreshAt = nikoray.Stopped
@@ -559,16 +585,28 @@ func (s *server) updateNodeLocked(ctx context.Context, u *user, id string) (stri
 	}
 	skew := fetched.ClockSkew
 	nodeNow := now + skew
+	// a subscription the node signed but this daemon cannot take: the next try as late as a failed fetch's last, not
+	// every minAutoRetry (a full knock, TLS and a fetch of up to 4 MiB each time)
+	unusable := func(failure error) (string, int64, []int64, error) {
+		_, _ = u.store.UpdateNode(id, func(n *nikoray.Node) bool {
+			if n.DeviceID != device {
+				return false
+			}
+			n.RefreshAt = now + maxRetry - maxRetry/10 + jitter(maxRetry/5)
+			return true
+		})
+		return "", node.GroupID, nil, failure
+	}
 	parsed, err := nikoray.Parse(payload, node.Kinds(), nodeNow, nikofmt.DefaultSettings)
 	if err != nil {
-		return "", node.GroupID, nil, status.Error(codes.InvalidArgument, err.Error())
+		return unusable(status.Error(codes.InvalidArgument, err.Error()))
 	}
 	if len(parsed.Rows) > maxImport {
-		return "", node.GroupID, nil, errOverImport
+		return unusable(errOverImport)
 	}
 	next, err := nikoray.NextRefresh(payload, nodeNow)
 	if err != nil {
-		return "", node.GroupID, nil, status.Error(codes.InvalidArgument, "the subscription's times: "+err.Error())
+		return unusable(status.Error(codes.InvalidArgument, "the subscription's times: "+err.Error()))
 	}
 	// a moment every device of the node shares (a rotation's from): each fetches within 15 minutes after it
 	planned := max(now+60, next-skew)
@@ -587,7 +625,7 @@ func (s *server) updateNodeLocked(ctx context.Context, u *user, id string) (stri
 	// the selection stay as they are; only what the card shows and the next fetch change
 	if parsed.Traffic != nil && parsed.Traffic.Exhausted || parsed.Client != nil && parsed.Client.Refused {
 		_, err = u.store.UpdateNode(id, func(n *nikoray.Node) bool {
-			if seq < n.SubSeq {
+			if seq < n.SubSeq || n.DeviceID != device {
 				return false
 			}
 			n.SubSeq = seq
@@ -606,7 +644,7 @@ func (s *server) updateNodeLocked(ctx context.Context, u *user, id string) (stri
 	for _, row := range parsed.Rows {
 		links[row.Key] = row.Links
 	}
-	applied, err := u.store.ApplyNodeRows(id, seq, parsed.Rows, func(n *nikoray.Node) {
+	applied, err := u.store.ApplyNodeRows(id, device, seq, parsed.Rows, func(n *nikoray.Node) {
 		record(n)
 		n.Links, n.DoH, n.DoHPins, n.Name = links, parsed.DoH, parsed.DoHPins, parsed.Name
 		n.SPACarriers, n.SPAVersions = parsed.Carriers, parsed.SPAVersions
@@ -621,7 +659,7 @@ func (s *server) updateNodeLocked(ctx context.Context, u *user, id string) (stri
 		return "", node.GroupID, nil, storeError(err)
 	}
 	if applied.Stale {
-		return node.DisplayName() + ": a newer subscription is kept already", node.GroupID, nil, nil
+		return node.DisplayName() + ": nothing taken: a newer subscription is kept already, or the node was registered anew", node.GroupID, nil, nil
 	}
 	line := nikoray.GroupName(node.Host, parsed.Name) + ": " + strconv.Itoa(len(parsed.Rows)) + " profiles"
 	if parsed.Skipped > 0 {

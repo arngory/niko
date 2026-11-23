@@ -406,7 +406,8 @@ func (s *Store) UpdateNode(id string, change func(n *nikoray.Node) bool) (*nikor
 
 // NodeRows is what ApplyNodeRows did.
 type NodeRows struct {
-	// Stale: a newer subscription was kept already, nothing was written
+	// Stale: a newer subscription was kept already, or the node is now another registration (another device), nothing
+	// was written
 	Stale bool
 	// Group is the node's group; GroupCreated: made now
 	Group        int64
@@ -425,8 +426,9 @@ var userTweaks = []string{"customOutboundJson", "customConfigJson", "tlsFragment
 // deleted; the group is made where the node has none, renamed with the node where the user did not name it. update
 // sets the node's fields from the subscription, on a copy, before the rows are written; the rows' keys and the group
 // are set after it. Nothing is written for a seq older than the one kept (Stale). The selected profile gone, the
-// first of the node's is selected.
-func (s *Store) ApplyNodeRows(id string, seq uint64, rows []nikoray.Row, update func(n *nikoray.Node)) (NodeRows, error) {
+// first of the node's is selected. device, where not empty, is the registration the subscription is of: a node
+// registered anew meanwhile (another device) takes nothing of it (Stale).
+func (s *Store) ApplyNodeRows(id, device string, seq uint64, rows []nikoray.Row, update func(n *nikoray.Node)) (NodeRows, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := s.state.clone()
@@ -438,7 +440,7 @@ func (s *Store) ApplyNodeRows(id string, seq uint64, rows []nikoray.Row, update 
 		return NodeRows{}, fmt.Errorf("%w: node %s: its secrets cannot be opened here", ErrRefused, id)
 	}
 	old := r.node
-	if seq < old.SubSeq {
+	if seq < old.SubSeq || device != "" && old.DeviceID != device {
 		return NodeRows{Stale: true}, nil
 	}
 	n := copyNode(old)

@@ -232,10 +232,14 @@ func (n *Node) OwnerOf(profile int64) string {
 	return ""
 }
 
+// distinct keeps each value once, in order (Kotlin's distinct): a set, not a scan of what is kept, which a node's
+// list of addresses made quadratic.
 func distinct(values []string) []string {
 	var out []string
+	seen := make(map[string]bool, len(values))
 	for _, v := range values {
-		if !slices.Contains(out, v) {
+		if !seen[v] {
+			seen[v] = true
 			out = append(out, v)
 		}
 	}

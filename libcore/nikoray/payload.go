@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
+	"slices"
 	"strings"
 
 	"libcore/nikofmt"
@@ -438,7 +440,11 @@ func clientOf(o map[string]any) *ClientMin {
 		return nil
 	}
 	c := &ClientMin{V: 1, Min: map[string]string{}}
-	for product, version := range object(o, "min") {
+	// the app keeps the first 8 in the document's order; encoding/json does not keep it, so here they go by name, the
+	// same 8 each time (and "niko" not dropped by chance): only a node sending over 8 products sees the difference
+	products := object(o, "min")
+	for _, product := range slices.Sorted(maps.Keys(products)) {
+		version := products[product]
 		v, ok := version.(string)
 		if !ok || !productName.MatchString(product) || v == "" || utf16Len(v) > 64 || len(c.Min) >= 8 {
 			continue
