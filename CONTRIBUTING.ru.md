@@ -91,8 +91,8 @@
 | приложение Android | `app/` |
 | снимки частей темы Niko (Paparazzi) | эталоны в `app/src/test/snapshots/`, CI сверяет их с `app/src/test/java/io/niko/ui/NikoSnapshotTest.kt`. Новые эталоны: удалите эту папку в PR, CI запишет их в артефакт `paparazzi-goldens`, закоммитьте его содержимое |
 | библиотека приложения на Go | `libcore/`; тесты — как в `.github/workflows/build.yml` (шаг тестов libcore: `-ldflags=-checklinkname=0` и теги `TAGS`) |
-| окно для ПК (Flutter) | `desktop/`, своя проверка `desktop.yml` |
-| общие протоколы окна и демона | `shared/proto/` (Go: `shared/tool/gen_proto_go.sh`, Dart: `desktop/tool/gen_proto.sh`) |
+| окно для ПК (Flutter) | репозиторий [arngory/niko-desktop](https://github.com/arngory/niko-desktop), пинит этот по коммиту; здесь — демон `nikod` и его Go, своя проверка `desktop.yml` |
+| общие протоколы окна и демона | `shared/proto/` (Go: `shared/tool/gen_proto_go.sh`, Dart: `tool/gen_proto.sh` в arngory/niko-desktop); токены и значки окна пишут `shared/tool/gen_tokens.py` и `gen_icons.py` с `--desktop <checkout окна>` |
 | ядро | форк `arngory/sing-box`, закреплён в `buildScript/lib/core/get_source_env.sh` |
 | сборка и подпись | `.github/workflows/build.yml`, `docs/guide/release.md` |
 | документы | [`docs/`](docs/README.ru.md): инструкции, как устроено, контракты, решения, план |

@@ -96,8 +96,8 @@ Everything that goes into the APK is listed in `NOTICE` with its license, and th
 | the Android app | `app/` |
 | snapshots of the Niko theme's parts (Paparazzi) | goldens in `app/src/test/snapshots/`, CI compares them with `app/src/test/java/io/niko/ui/NikoSnapshotTest.kt`. New goldens: delete that folder in the PR, CI records them into the artifact `paparazzi-goldens`, commit its contents |
 | the app's Go library | `libcore/`; tests as in `.github/workflows/build.yml` (libcore's test step: `-ldflags=-checklinkname=0` and the `TAGS` tags) |
-| the desktop window (Flutter) | `desktop/`, with its own check `desktop.yml` |
-| the shared protocols of the window and the daemon | `shared/proto/` (Go: `shared/tool/gen_proto_go.sh`, Dart: `desktop/tool/gen_proto.sh`) |
+| the desktop window (Flutter) | the repository [arngory/niko-desktop](https://github.com/arngory/niko-desktop), which pins this one by commit; here: the daemon `nikod` and its Go, with its own check `desktop.yml` |
+| the shared protocols of the window and the daemon | `shared/proto/` (Go: `shared/tool/gen_proto_go.sh`, Dart: `tool/gen_proto.sh` in arngory/niko-desktop); the window's tokens and icons are written by `shared/tool/gen_tokens.py` and `gen_icons.py` with `--desktop <the window's checkout>` |
 | the core | the fork `arngory/sing-box`, pinned in `buildScript/lib/core/get_source_env.sh` |
 | building and signing | `.github/workflows/build.yml`, `docs/guide/release.md` |
 | documents | [`docs/`](docs/README.md): guides, how it works, contracts, decisions, plans |

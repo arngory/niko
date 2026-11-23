@@ -1,44 +1,51 @@
 #!/usr/bin/env python3
 """The design system's tokens (shared/tokens.json) as code for each platform.
 
-  gen_tokens.py            write the generated files
-  gen_tokens.py --check    exit 1 if one of them is not what the tokens give (CI)
+  gen_tokens.py [--desktop DIR]            write the generated files
+  gen_tokens.py --check [--desktop DIR]    exit 1 if one of them is not what the tokens give (CI)
+
+DIR is a checkout of the window, arngory/niko-desktop: its files (below) are written or checked there, and left alone
+without --desktop (its CI checks them against the Niko it pins).
 
 One source for the phone and the computer (docs/ui/platforms.md, variant В): a colour, a size or a text style is
 changed in tokens.json and regenerated, never edited in a generated file.
 
-  desktop/lib/theme/tokens.g.dart                  Flutter: colours of both themes, text styles, sizes
+  DIR/lib/theme/tokens.g.dart                      the window, Flutter: colours of both themes, text styles, sizes
+  DIR/fonts/*.ttf                                  the window: the fonts, copies of the app's (FONT_COPIES)
   app/src/main/res/values/niko_tokens.xml          Android: the colours, light (niko_<token>)
   app/src/main/res/values-night/niko_tokens.xml    Android: the colours, dark
   app/src/main/res/values/niko_type.xml            Android: the text styles, each by name (TextAppearance.Niko.Body)
                                                    and on Material's slots (TextAppearance.Niko.Slot.*)
   app/src/main/res/values/niko_dimens.xml          Android: spacing, radii, sizes and strokes (niko_space_4)
-  app/src/main/res/font/*.ttf                      Android: the fonts, copies of desktop/fonts (FONT_COPIES)
+  app/src/main/res/font/*.ttf                      Android: the fonts, the source of the window's
   app/src/main/java/io/niko/ui/compose/NikoTokens.kt
                                                    Android, Compose: colours of both themes, text styles, sizes
 
 Both modes also hold the colours to the contrast their usage promises (CONTRAST): a token changed so that ink-2 no
 longer reads on surface-3 fails here, for both platforms at once.
 """
+import argparse
 import json
 import os
 import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DART = "desktop/lib/theme/tokens.g.dart"
+# in the window's checkout (--desktop)
+DART = "lib/theme/tokens.g.dart"
 ANDROID = {"light": "app/src/main/res/values/niko_tokens.xml", "dark": "app/src/main/res/values-night/niko_tokens.xml"}
 ANDROID_TYPE = "app/src/main/res/values/niko_type.xml"
 ANDROID_DIMENS = "app/src/main/res/values/niko_dimens.xml"
 COMPOSE = "app/src/main/java/io/niko/ui/compose/NikoTokens.kt"
 
-# The fonts of the window are the source; the app's are byte copies under the names Android's resources allow
+# The window's fonts (in its checkout) are byte copies of the app's, which are here under the names Android's
+# resources allow. Until the window had a repository of its own the window's were the source; the bytes are the same
 FONT_COPIES = {
-    "app/src/main/res/font/geist_regular.ttf": "desktop/fonts/Geist-Regular.ttf",
-    "app/src/main/res/font/geist_medium.ttf": "desktop/fonts/Geist-Medium.ttf",
-    "app/src/main/res/font/geist_semibold.ttf": "desktop/fonts/Geist-SemiBold.ttf",
-    "app/src/main/res/font/geist_mono.ttf": "desktop/fonts/GeistMono-Regular.ttf",
-    "app/src/main/res/font/geist_mono_medium.ttf": "desktop/fonts/GeistMono-Medium.ttf",
+    "fonts/Geist-Regular.ttf": "app/src/main/res/font/geist_regular.ttf",
+    "fonts/Geist-Medium.ttf": "app/src/main/res/font/geist_medium.ttf",
+    "fonts/Geist-SemiBold.ttf": "app/src/main/res/font/geist_semibold.ttf",
+    "fonts/GeistMono-Regular.ttf": "app/src/main/res/font/geist_mono.ttf",
+    "fonts/GeistMono-Medium.ttf": "app/src/main/res/font/geist_mono_medium.ttf",
 }
 
 # The contrast the colours' usage in tokens.json promises, in both themes: (text or line, on which, at least), WCAG
@@ -354,39 +361,47 @@ def compose(tokens):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="The design system's tokens as code for each platform.")
+    parser.add_argument("--check", action="store_true", help="exit 1 if a generated file is not what the tokens give")
+    parser.add_argument("--desktop", metavar="DIR", help="a checkout of the window, arngory/niko-desktop")
+    args = parser.parse_args()
+    desktop = os.path.abspath(args.desktop) if args.desktop else None
+    if desktop and not os.path.isfile(os.path.join(desktop, "pubspec.yaml")):
+        print(f"{args.desktop} is not a checkout of the window (no pubspec.yaml)")
+        return 2
     tokens = json.load(open(os.path.join(ROOT, "shared", "tokens.json"), encoding="utf-8"))
-    files = {DART: dart(tokens), COMPOSE: compose(tokens)}
+    files = {os.path.join(ROOT, COMPOSE): compose(tokens)}
     for theme, path in ANDROID.items():
-        files[path] = android(tokens, theme)
-    files[ANDROID_TYPE] = android_type(tokens)
-    files[ANDROID_DIMENS] = android_dimens(tokens)
+        files[os.path.join(ROOT, path)] = android(tokens, theme)
+    files[os.path.join(ROOT, ANDROID_TYPE)] = android_type(tokens)
+    files[os.path.join(ROOT, ANDROID_DIMENS)] = android_dimens(tokens)
+    if desktop:
+        files[os.path.join(desktop, DART)] = dart(tokens)
     problems = contrast_problems(tokens)
     if problems:
         print("shared/tokens.json:\n  " + "\n  ".join(problems))
         return 1
     stale = 0
-    check = "--check" in sys.argv[1:]
-    for copy, source in FONT_COPIES.items():
+    check = args.check
+    for copy, source in FONT_COPIES.items() if desktop else ():
         data = open(os.path.join(ROOT, source), "rb").read()
-        full = os.path.join(ROOT, copy)
+        full = os.path.join(desktop, copy)
         if check:
             if not os.path.exists(full) or open(full, "rb").read() != data:
-                print(f"{copy} is not {source}: run shared/tool/gen_tokens.py")
+                print(f"{os.path.relpath(full)} is not {source}: run shared/tool/gen_tokens.py --desktop")
                 stale = 1
             continue
         open(full, "wb").write(data)
-    for path, text in files.items():
-        full = os.path.join(ROOT, path)
+    for full, text in files.items():
         if check:
             have = open(full, encoding="utf-8").read() if os.path.exists(full) else ""
             if have != text:
-                print(f"{path} is not what shared/tokens.json gives: run shared/tool/gen_tokens.py")
+                print(f"{os.path.relpath(full)} is not what shared/tokens.json gives: run shared/tool/gen_tokens.py")
                 stale = 1
             continue
         os.makedirs(os.path.dirname(full), exist_ok=True)
         open(full, "w", encoding="utf-8").write(text)
     return stale
-
 
 if __name__ == "__main__":
     sys.exit(main())

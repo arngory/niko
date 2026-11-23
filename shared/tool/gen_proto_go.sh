@@ -4,9 +4,9 @@
 #   shared/tool/gen_proto_go.sh           regenerate libcore/nikopb
 #   shared/tool/gen_proto_go.sh --check   exit 1 if libcore/nikopb is not what the protos give (CI)
 #
-# Needs protoc (python3 -m grpc_tools.protoc, pip install grpcio-tools==1.85.1, as desktop/tool/gen_proto.sh) and Go:
-# the plugins of the versions below are built into a temporary directory. The generated files are committed: a build
-# needs neither.
+# Needs protoc (python3 -m grpc_tools.protoc, pip install grpcio-tools==1.85.1, as arngory/niko-desktop's
+# tool/gen_proto.sh) and Go: the plugins of the versions below are built into a temporary directory. The generated
+# files are committed: a build needs neither.
 set -euo pipefail
 GEN_GO=v1.36.11
 GEN_GRPC=v1.6.0

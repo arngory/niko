@@ -7,9 +7,8 @@ name: CI
 on:
   push:
     branches: [main]
-    # the window for the computer has its own workflow (desktop.yml); a push of it alone neither builds the app nor
-    # cancels a run of this one
-    paths-ignore: ["**.md", "desktop/**"]
+    # documents alone neither build the app nor cancel a run of this one
+    paths-ignore: ["**.md"]
   pull_request:
   workflow_dispatch:
 
@@ -22,8 +21,8 @@ permissions:
   contents: read
 
 jobs:
-  # what the change touches: a pull request of documents or of the window alone (desktop.yml) builds nothing here,
-  # and "CI result" takes the skipped jobs as passed
+  # what the change touches: a pull request of documents alone builds nothing here, and "CI result" takes the
+  # skipped jobs as passed
   changes:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -45,7 +44,7 @@ jobs:
           sources=false
           golden=true
           if [ -n "$BASE" ]; then
-            rest=$(git diff --name-only "$BASE...$HEAD" | grep -vE '\.md$|^desktop/' || true)
+            rest=$(git diff --name-only "$BASE...$HEAD" | grep -vE '\.md$' || true)
             [ -n "$rest" ] || code=false
             # the release's sources archive: its script, the release workflow, or what it fetches by a pin
             git diff --name-only "$BASE...$HEAD" | grep -qxE '\.github/scripts/release-sources\.sh|\.github/workflows/release\.yml|buildScript/lib/core/get_source_env\.sh|buildScript/lib/slipstream/env\.sh|libcore/go\.(mod|sum)' &&

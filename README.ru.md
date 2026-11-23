@@ -31,7 +31,8 @@ Hysteria 1/2, WireGuard, AmneziaWG, NaïveProxy, Mieru, Yggdrasil и DNS-тун�
 ## Сборка
 
 Библиотеку на Go и APK собирает GitHub Actions ([build.yml](.github/workflows/build.yml)), там же подписываются
-релизы ([docs/guide/release.md](docs/guide/release.md)). Окно для компьютера — в [desktop/](desktop/).
+релизы ([docs/guide/release.md](docs/guide/release.md)). Окно для компьютера — в своём репозитории,
+[arngory/niko-desktop](https://github.com/arngory/niko-desktop); его демон `nikod` — здесь (`libcore/cmd/nikod`).
 
 ## Дальше
 
