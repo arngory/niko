@@ -3112,7 +3112,7 @@ class Node extends $pb.GeneratedMessage {
   @$pb.TagNumber(2)
   void clearHost() => $_clearField(2);
 
-  /// its admin's name for it, else "raycontrol · <host>" (D-NODE-01); note, what its owner tells its users (D-NODE-03)
+  /// its admin's name for it, else "raycontrol · " and its host (D-NODE-01); note, what its owner tells its users (D-NODE-03)
   @$pb.TagNumber(3)
   $core.String get name => $_getSZ(2);
   @$pb.TagNumber(3)

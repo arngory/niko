@@ -54,8 +54,63 @@ class NikoStrings {
       ? 'Добавится группа подписки, профили придут с её первым обновлением'
       : 'A group of the subscription is added, its profiles come with its first update';
   String get addSubscriptionButton => _ru ? 'Добавить подписку' : 'Add the subscription';
-  String get addNodeLater =>
-      _ru ? 'Это приглашение узла: узлы придут в следующих выпусках' : 'This is a node\'s invite: nodes come in later releases';
+  String get addNodeInvite => _ru ? 'Приглашение узла' : 'A node\'s invite';
+  String get addNodeDevice => _ru ? 'Пакет устройства узла' : 'A node\'s device package';
+  String addNodeInviteText(String host) => _ru
+      ? 'Компьютер зарегистрируется на узле $host и получит его способы подключения'
+      : 'This computer registers with the node $host and gets its ways to connect';
+  String addNodeDeviceText(String host) =>
+      _ru ? 'Узел $host добавится с этим пакетом устройства' : 'The node $host is added with this device package';
+  String addNodeName(String name) => _ru ? 'имя узла: $name' : 'the node\'s name: $name';
+  String addNodeExpires(String at) => _ru ? 'приглашение действует до $at' : 'the invite works until $at';
+  String get addNodeReplaces => _ru
+      ? 'Этот узел уже добавлен: у устройства будет новый ключ, его группа и профили останутся'
+      : 'This node is added already: the device gets a new key, its group and profiles stay';
+  String addNodeMoved(String known, String host) => _ru
+      ? 'Узел добавлен с адресом $known, приглашение — на $host. Узел мог переехать; если ссылка не от его администратора, не добавляйте'
+      : 'The node is added with the address $known, the invite is for $host. The node may have moved; if the link is not its administrator\'s, do not add it';
+  String get addNodePin => _ru ? 'PIN приглашения' : 'The invite\'s PIN';
+  String get addNodePinHint => _ru ? '6 цифр от администратора узла' : '6 digits from the node\'s administrator';
+  String get addNodePinFormat => _ru ? 'PIN — 6 цифр' : 'The PIN is 6 digits';
+  String addNodePinWrong(int left) =>
+      _ru ? 'PIN неверный, попыток осталось: $left' : 'The PIN is wrong, tries left: $left';
+  String addNodePinLeft(int left) => _ru ? 'Попыток: $left' : 'Tries: $left';
+  String get addNodeButton => _ru ? 'Добавить узел' : 'Add the node';
+  String get addNodeRegistering => _ru ? 'Регистрация на узле…' : 'Registering with the node…';
+  String groupNodeSub(int count) => _ru ? 'узел · $count' : 'node · $count';
+  String get nodeNever => _ru ? 'подписка ещё не получена' : 'no subscription yet';
+  String nodeUpdated(String at) => _ru ? 'обновлено $at' : 'updated $at';
+  String nodeNext(String at) => _ru ? 'следующее обновление $at' : 'next update $at';
+  String get nodeSigned => _ru
+      ? 'Подписка заверена ключами узла ed25519 и ML-DSA-65, обе подписи проверены'
+      : 'The subscription is signed by the node\'s ed25519 and ML-DSA-65 keys, both signatures checked';
+  String nodeTraffic(String used, String limit) => _ru ? 'трафик $used из $limit' : 'traffic $used of $limit';
+  String nodeTrafficReset(String at) => _ru ? 'сброс $at' : 'reset $at';
+  String nodeTrafficExhausted(String at) => _ru
+      ? 'трафик израсходован, профили вернутся $at'
+      : 'the traffic is used up, the profiles come back $at';
+  String get nodeTrafficExhaustedAdmin =>
+      _ru ? 'трафик израсходован: лимит поднимает администратор' : 'the traffic is used up: the administrator raises the limit';
+  String nodeExpires(String at) => _ru ? 'подписка действует до $at' : 'the subscription holds until $at';
+  String nodeExpired(String at) => _ru ? 'подписка истекла $at' : 'the subscription expired $at';
+  String get nodeRefused => _ru
+      ? 'Узел отказал этому устройству: добавьте узел заново по новому приглашению'
+      : 'The node refused this device: add it again by a new invite';
+  String nodeFailing(int times) => _ru ? 'обновление не проходит: $times раз подряд' : 'the update fails: $times times in a row';
+  String nodeClock(int skew) => _ru
+      ? 'часы компьютера расходятся с узлом на $skew с: подключение по SPA не пройдёт'
+      : 'this computer\'s clock is $skew s off the node\'s: SPA will fail';
+  String nodeMinVersion(String version) =>
+      _ru ? 'узел требует Niko $version или новее' : 'the node requires Niko $version or later';
+  String get nodeUnreadable => _ru
+      ? 'Ключи узла запечатаны на другом компьютере: добавьте узел заново по новому приглашению'
+      : 'The node\'s keys were sealed on another computer: add it again by a new invite';
+  String get mainNode => _ru ? 'Узел' : 'Node';
+  String get nodeDelete => _ru ? 'Удалить узел' : 'Remove the node';
+  String nodeDeleteConfirm(String name) => _ru
+      ? 'Удалить узел «$name» и его ключ устройства? Вернуть его можно только новым приглашением.'
+      : 'Remove the node “$name” and its device key? It comes back only with a new invite.';
+  String get nodeUpdateFailed => _ru ? 'Узел не обновлён' : 'The node was not updated';
   String get subscriptionUpdate => _ru ? 'Обновить' : 'Update';
   String get subscriptionUpdating => _ru ? 'Обновление…' : 'Updating…';
   String get subscriptionUpdateFailed => _ru ? 'Подписка не обновлена' : 'The subscription was not updated';

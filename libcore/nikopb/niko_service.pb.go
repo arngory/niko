@@ -2543,7 +2543,7 @@ type Node struct {
 	// spa.node_id
 	Id   string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Host string `protobuf:"bytes,2,opt,name=host,proto3" json:"host,omitempty"`
-	// its admin's name for it, else "raycontrol · <host>" (D-NODE-01); note, what its owner tells its users (D-NODE-03)
+	// its admin's name for it, else "raycontrol · " and its host (D-NODE-01); note, what its owner tells its users (D-NODE-03)
 	Name string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Note string `protobuf:"bytes,4,opt,name=note,proto3" json:"note,omitempty"`
 	// its group, 0 before its first subscription; how many profiles it has (D-NODE-06: ListProfiles of it)
