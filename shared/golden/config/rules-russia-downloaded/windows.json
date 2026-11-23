@@ -1,0 +1,305 @@
+{
+  "dns": {
+    "final": "dns-remote",
+    "rules": [
+      {
+        "domain": [
+          "dns.quad9.net",
+          "cloudflare-dns.com"
+        ],
+        "server": "dns-direct",
+        "strategy": "ipv4_only"
+      },
+      {
+        "action": "predefined",
+        "domain_suffix": [
+          "niko.internal"
+        ],
+        "rcode": "NXDOMAIN"
+      },
+      {
+        "inbound": [
+          "tun-in"
+        ],
+        "rule_set": [
+          "srs:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geosite/geosite-ru-blocked.srs"
+        ],
+        "server": "dns-fake",
+        "strategy": "ipv4_only"
+      },
+      {
+        "rule_set": [
+          "srs:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geosite/geosite-ru-blocked.srs"
+        ],
+        "server": "dns-remote",
+        "strategy": "ipv4_only"
+      },
+      {
+        "domain_suffix": [
+          "ru",
+          "su",
+          "xn--p1ai"
+        ],
+        "rule_set": [
+          "srs:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geosite/geosite-ru-available-only-inside.srs"
+        ],
+        "server": "dns-direct",
+        "strategy": "ipv4_only"
+      },
+      {
+        "domain": [
+          "own.example"
+        ],
+        "rule_set": [
+          "srs:https://lists.example.com/mixed.json",
+          "srs:https://lists.example.com/geoip-named.srs"
+        ],
+        "server": "dns-direct",
+        "strategy": "ipv4_only"
+      },
+      {
+        "disable_cache": true,
+        "inbound": [
+          "tun-in"
+        ],
+        "server": "dns-fake",
+        "strategy": "ipv4_only"
+      }
+    ],
+    "servers": [
+      {
+        "tag": "dns-local",
+        "type": "local"
+      },
+      {
+        "tag": "dns-direct",
+        "type": "local"
+      },
+      {
+        "servers": [
+          "dns-remote-1",
+          "dns-remote-2"
+        ],
+        "tag": "dns-remote",
+        "type": "fallback"
+      },
+      {
+        "detour": "proxy",
+        "domain_resolver": {
+          "server": "dns-direct",
+          "strategy": "ipv4_only"
+        },
+        "path": "/dns-query",
+        "server": "cloudflare-dns.com",
+        "tag": "dns-remote-1",
+        "type": "https"
+      },
+      {
+        "detour": "proxy",
+        "domain_resolver": {
+          "server": "dns-direct",
+          "strategy": "ipv4_only"
+        },
+        "path": "/dns-query",
+        "server": "dns.quad9.net",
+        "tag": "dns-remote-2",
+        "type": "https"
+      },
+      {
+        "inet4_range": "198.18.0.0/15",
+        "inet6_range": "fc00::/18",
+        "tag": "dns-fake",
+        "type": "fakeip"
+      }
+    ],
+    "strategy": "ipv4_only"
+  },
+  "endpoints": [],
+  "experimental": {
+    "cache_file": {
+      "enabled": true,
+      "path": "cache.db",
+      "store_fakeip": true
+    }
+  },
+  "inbounds": [
+    {
+      "address": [
+        "172.19.0.1/28"
+      ],
+      "auto_route": true,
+      "interface_name": "Niko",
+      "mtu": 9000,
+      "stack": "gvisor",
+      "strict_route": true,
+      "tag": "tun-in",
+      "type": "tun"
+    }
+  ],
+  "log": {
+    "level": "panic"
+  },
+  "outbounds": [
+    {
+      "method": "aes-256-gcm",
+      "password": "fake-ss-password",
+      "server": "198.51.100.10",
+      "server_port": 8388,
+      "tag": "proxy",
+      "type": "shadowsocks"
+    },
+    {
+      "tag": "direct",
+      "type": "direct"
+    },
+    {
+      "tag": "bypass",
+      "type": "direct"
+    }
+  ],
+  "route": {
+    "auto_detect_interface": true,
+    "default_domain_resolver": {
+      "server": "dns-direct",
+      "strategy": "ipv4_only"
+    },
+    "final": "proxy",
+    "rule_set": [
+      {
+        "format": "binary",
+        "path": "/golden/rule-sets/9780da1160028c42cc60952bd34197cc.srs",
+        "tag": "srs:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geosite/geosite-ru-blocked.srs",
+        "type": "local"
+      },
+      {
+        "format": "binary",
+        "path": "/golden/rule-sets/f6476ebf612153b28793c874f9d7bc67.srs",
+        "tag": "srs:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geoip/geoip-ru-blocked.srs",
+        "type": "local"
+      },
+      {
+        "format": "binary",
+        "path": "/golden/rule-sets/c4ff8aa7c70fdf5b7ad60334da6ebb43.srs",
+        "tag": "srs:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geosite/geosite-ru-available-only-inside.srs",
+        "type": "local"
+      },
+      {
+        "format": "binary",
+        "path": "/golden/rule-sets/8c4a55e63679fa7410fb0fbe7331d4e3.srs",
+        "tag": "srs:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geoip/geoip-ru.srs",
+        "type": "local"
+      },
+      {
+        "format": "source",
+        "path": "/golden/rule-sets/34c45c83804df38f68ccdc7f8bd1d636.json",
+        "tag": "srs:https://lists.example.com/mixed.json",
+        "type": "local"
+      },
+      {
+        "format": "binary",
+        "path": "/golden/rule-sets/9598d9618bd42bd4d02fb54da43a0a6c.srs",
+        "tag": "srs:https://lists.example.com/geoip-named.srs",
+        "type": "local"
+      },
+      {
+        "format": "binary",
+        "path": "/golden/rule-sets/f4f6d91eaca4fedcdc09dff8f4b3edb6.srs",
+        "tag": "srs:https://lists.example.com/sites.srs",
+        "type": "local"
+      }
+    ],
+    "rules": [
+      {
+        "action": "reject",
+        "domain_suffix": [
+          "niko.internal"
+        ]
+      },
+      {
+        "action": "sniff",
+        "inbound": [
+          "tun-in",
+          "mixed-in"
+        ]
+      },
+      {
+        "action": "hijack-dns",
+        "port": [
+          53
+        ]
+      },
+      {
+        "action": "hijack-dns",
+        "protocol": [
+          "dns"
+        ]
+      },
+      {
+        "action": "reject",
+        "network": [
+          "udp"
+        ],
+        "port": [
+          443
+        ],
+        "port_range": []
+      },
+      {
+        "outbound": "proxy",
+        "rule_set": [
+          "srs:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geosite/geosite-ru-blocked.srs",
+          "srs:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geoip/geoip-ru-blocked.srs"
+        ]
+      },
+      {
+        "domain_suffix": [
+          "ru",
+          "su",
+          "xn--p1ai"
+        ],
+        "outbound": "bypass",
+        "rule_set": [
+          "srs:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geosite/geosite-ru-available-only-inside.srs",
+          "srs:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geoip/geoip-ru.srs"
+        ],
+        "tcp_desync": {
+          "tlsrec": [
+            "sni+1"
+          ]
+        }
+      },
+      {
+        "domain": [
+          "own.example"
+        ],
+        "outbound": "bypass",
+        "rule_set": [
+          "srs:https://lists.example.com/mixed.json",
+          "srs:https://lists.example.com/geoip-named.srs"
+        ],
+        "tcp_desync": {
+          "tlsrec": [
+            "sni+1"
+          ]
+        }
+      },
+      {
+        "outbound": "proxy",
+        "rule_set": [
+          "srs:https://lists.example.com/sites.srs"
+        ]
+      },
+      {
+        "action": "reject",
+        "ip_cidr": [
+          "224.0.0.0/3",
+          "ff00::/8"
+        ],
+        "source_ip_cidr": [
+          "224.0.0.0/3",
+          "ff00::/8"
+        ]
+      }
+    ]
+  }
+}

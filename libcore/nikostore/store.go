@@ -3,13 +3,15 @@
 // writer at a time. The profiles' beans are nikofmt's, the app's JSON field for field; their secret fields are sealed
 // on the disk where the platform has a way to (DPAPI on Windows).
 //
-// store.json, schema 2 (a subscription's group with its subscription, subscription.go):
+// store.json, schema 3 (a subscription's group with its subscription, subscription.go; the route rules, rules.go):
 //
 //	{
-//	  "schema": 2,
+//	  "schema": 3,
 //	  "next_group": 2, "next_profile": 1,       the ids to give next: an id is never given twice
+//	  "next_rule": 1,
 //	  "groups": [{"id": 1, "order": 1, "ungrouped": true}, {"id": 2, "order": 2, "name": "…"}],
-//	  "profiles": [{"id": 1, "group": 1, "order": 1, "type": "vmess", "bean": {…}, "sealed": "dpapi:…"}]
+//	  "profiles": [{"id": 1, "group": 1, "order": 1, "type": "vmess", "bean": {…}, "sealed": "dpapi:…"}],
+//	  "rules": [{"id": 1, "name": "…", "userOrder": 1, "enabled": true, "domains": "…", "outbound": -1, …}]
 //	}
 //
 // The ungrouped group (the app's ProxyGroup.ungrouped) is made with the store and stays: an import with no group goes
@@ -30,6 +32,7 @@ import (
 	"sync"
 	"time"
 
+	"libcore/nikoconf"
 	"libcore/nikofmt"
 	"libcore/nikosub"
 )
@@ -119,6 +122,8 @@ const (
 	KindSelected
 	// KindSettings: the computer's settings changed (settings.go)
 	KindSettings
+	// KindRules: route rules added, changed or removed (rules.go)
+	KindRules
 )
 
 // Change is what one write changed: the ids of the profiles or groups added, changed or removed.
@@ -160,6 +165,9 @@ type state struct {
 	profiles    map[int64]*record
 	// selected is the selected profile's id (state.json); 0: none
 	selected int64
+	// nextRule and rules: the route rules (rules.go), by their order
+	nextRule int64
+	rules    []nikoconf.Rule
 }
 
 type record struct {
@@ -180,8 +188,11 @@ type document struct {
 	Schema      int           `json:"schema"`
 	NextGroup   int64         `json:"next_group"`
 	NextProfile int64         `json:"next_profile"`
+	NextRule    int64         `json:"next_rule"`
 	Groups      []diskGroup   `json:"groups"`
 	Profiles    []diskProfile `json:"profiles"`
+	// Rules: schema 3
+	Rules []nikoconf.Rule `json:"rules"`
 }
 
 type diskProfile struct {
@@ -211,7 +222,7 @@ func Open(dir string, options Options) (*Store, error) {
 	path := filepath.Join(dir, storeFile)
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
-		fresh := &state{nextGroup: 2, nextProfile: 1, groups: []Group{{ID: 1, Order: 1, Ungrouped: true}},
+		fresh := &state{nextGroup: 2, nextProfile: 1, nextRule: 1, groups: []Group{{ID: 1, Order: 1, Ungrouped: true}},
 			profiles: map[int64]*record{}}
 		if err = s.write(fresh); err != nil {
 			return nil, err
@@ -403,6 +414,9 @@ func (s *Store) decode(data []byte) (st *state, resealed bool, err error) {
 	}
 	st.nextGroup = max(st.nextGroup, 1)
 	st.nextProfile = max(st.nextProfile, 1)
+	if st.rules, st.nextRule, err = decodeRules(doc.Rules, doc.NextRule); err != nil {
+		return nil, false, err
+	}
 	return st, resealed, nil
 }
 
@@ -422,8 +436,8 @@ func display(typ string, data json.RawMessage) (string, string, error) {
 
 // write writes st as store.json.
 func (s *Store) write(st *state) error {
-	doc := document{Schema: Schema(), NextGroup: st.nextGroup, NextProfile: st.nextProfile, Groups: []diskGroup{},
-		Profiles: []diskProfile{}}
+	doc := document{Schema: Schema(), NextGroup: st.nextGroup, NextProfile: st.nextProfile, NextRule: st.nextRule,
+		Groups: []diskGroup{}, Profiles: []diskProfile{}, Rules: append([]nikoconf.Rule{}, st.rules...)}
 	for _, g := range st.groups {
 		doc.Groups = append(doc.Groups, diskGroup{ID: g.ID, Order: g.Order, Name: g.Name, Ungrouped: g.Ungrouped,
 			Type: g.Type, Subscription: g.subscriptionDisk, Sealed: g.subscriptionSealed})
@@ -461,7 +475,8 @@ func (s *Store) commit(st *state, changes ...Change) error {
 
 func (st *state) clone() *state {
 	next := &state{nextGroup: st.nextGroup, nextProfile: st.nextProfile, groups: append([]Group(nil), st.groups...),
-		profiles: make(map[int64]*record, len(st.profiles)), selected: st.selected}
+		profiles: make(map[int64]*record, len(st.profiles)), selected: st.selected, nextRule: st.nextRule,
+		rules: append([]nikoconf.Rule(nil), st.rules...)}
 	for id, r := range st.profiles {
 		next.profiles[id] = r
 	}

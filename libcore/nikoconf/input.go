@@ -31,6 +31,11 @@ type Input struct {
 	Platform string `json:"platform"`
 	// Device: nil for a FixedDevice of Apps and PrivateDNS
 	Device Device `json:"-"`
+	// RuleSetFiles are the golden fixtures' downloaded rule-sets: item → what it holds (RuleSetHasDomain,
+	// RuleSetHasIP), under GoldenRuleSetDir
+	RuleSetFiles map[string]int `json:"rule_sets"`
+	// RuleSets are the rule-sets downloaded: nil for a FixedRuleSets of RuleSetFiles
+	RuleSets RuleSets `json:"-"`
 }
 
 // The platforms a config is built for.
@@ -340,11 +345,14 @@ type Result struct {
 	// config's own text (a ConfigBean of type 0), as it is
 	Config []byte
 	// Warnings, in the golden fixtures' words: "rule needs VPN: <rule>", "no such outbound: <rule>"; on a computer
-	// "rule needs Android: <rule>" too
+	// "rule needs Android: <rule>" and "rule needs geo assets: <rule>" too
 	Warnings []string
 	// SystemProxy: the system's proxy while the core runs, a computer's in proxy mode where its settings say so
 	// (desktop.go); the daemon sets it for its owner. Nil for none
 	SystemProxy *SystemProxy
+	// MissingRuleSets are the rule-sets the config left out, not downloaded (RuleSetFiles.missingInConfig): once one
+	// is here, the core is to start again to take it in. None in an export
+	MissingRuleSets []string
 }
 
 // SystemProxy is an HTTP proxy of the config's, its local proxy, for the system to use.

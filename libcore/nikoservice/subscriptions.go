@@ -332,6 +332,7 @@ func (s *server) scheduleUpdates() {
 			return
 		case now := <-ticker.C:
 			s.autoUpdates(now)
+			s.autoRuleSets(now)
 		}
 	}
 }

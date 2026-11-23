@@ -1,0 +1,116 @@
+{
+  "schema": 2,
+  "next_group": 4,
+  "next_profile": 4,
+  "groups": [
+    {
+      "id": 1,
+      "order": 1,
+      "ungrouped": true
+    },
+    {
+      "id": 2,
+      "order": 2,
+      "name": "work"
+    },
+    {
+      "id": 3,
+      "order": 3,
+      "name": "provider",
+      "type": 1,
+      "subscription": {
+        "link": "https://sub.example.com/s/fake-token",
+        "autoUpdateDelay": 1440
+      }
+    }
+  ],
+  "profiles": [
+    {
+      "id": 1,
+      "group": 1,
+      "order": 1,
+      "type": "socks",
+      "bean": {
+        "protocol": 2,
+        "sUoT": false,
+        "username": "user",
+        "password": "fake-pass",
+        "serverAddress": "198.51.100.40",
+        "serverPort": 1080,
+        "name": "SOCKS5",
+        "customOutboundJson": "",
+        "customConfigJson": "",
+        "knockSequence": "",
+        "knockInterval": 200,
+        "knockTtl": 10,
+        "knockSilence": 15,
+        "tlsFragment": 0,
+        "certPins": "",
+        "dnsTunnel": "",
+        "dnsTunnelResolver": "",
+        "dnsTunnelDomain": "",
+        "dnsTunnelKey": "",
+        "dnsTunnelMethod": 2,
+        "dnsTunnelFixedUpstream": false,
+        "dnsTunnelAuth": "",
+        "dnsTunnelSeal": "",
+        "dnsTunnelSpare": "",
+        "dnsTunnelTls": "",
+        "udpPrelude": 0,
+        "udpPreludeSni": "",
+        "udpPreludeTtl": 0,
+        "udpReorderInitial": false,
+        "yggPeer": "",
+        "yggKey": "",
+        "yggVia": ""
+      }
+    },
+    {
+      "id": 3,
+      "group": 2,
+      "order": 1,
+      "type": "naive",
+      "bean": {
+        "proto": "https",
+        "username": "niko",
+        "password": "examplepass0000000000000",
+        "extraHeaders": "",
+        "sni": "naive.example.com",
+        "certificates": "",
+        "insecureConcurrency": 0,
+        "sUoT": false,
+        "nikoIcmp": false,
+        "nikoAck": false,
+        "nikoUdp": false,
+        "serverAddress": "203.0.113.7",
+        "serverPort": 443,
+        "name": "naive",
+        "customOutboundJson": "",
+        "customConfigJson": "",
+        "knockSequence": "",
+        "knockInterval": 200,
+        "knockTtl": 10,
+        "knockSilence": 15,
+        "tlsFragment": 0,
+        "certPins": "",
+        "dnsTunnel": "",
+        "dnsTunnelResolver": "",
+        "dnsTunnelDomain": "",
+        "dnsTunnelKey": "",
+        "dnsTunnelMethod": 2,
+        "dnsTunnelFixedUpstream": false,
+        "dnsTunnelAuth": "",
+        "dnsTunnelSeal": "",
+        "dnsTunnelSpare": "",
+        "dnsTunnelTls": "",
+        "udpPrelude": 0,
+        "udpPreludeSni": "",
+        "udpPreludeTtl": 0,
+        "udpReorderInitial": false,
+        "yggPeer": "",
+        "yggKey": "",
+        "yggVia": ""
+      }
+    }
+  ]
+}

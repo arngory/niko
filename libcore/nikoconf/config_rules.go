@@ -7,8 +7,10 @@ import (
 	"libcore/nikofmt"
 )
 
-// The user's route rules (buildConfig's "apply user rules", SingBoxOptionsUtil.kt), with no rule-set downloaded:
-// RuleSetFiles has no file here, so a running config leaves every "srs:" list out (an export names it by its URL).
+// The user's route rules (buildConfig's "apply user rules", SingBoxOptionsUtil.kt): a rule-set the app downloads
+// ("srs:") is a local one by its file where it is here (rulesets.go), else left out of a running config, which says
+// so (Result.MissingRuleSets); an export names it by its URL. A computer has none of the app's geo assets: its
+// config leaves their lists (geosite:, geoip:) out as lists not here, with a warning.
 
 // The rule-set items the app downloads and the remote ones (RuleSetFiles, SingBoxOptionsUtil.kt).
 const (
@@ -25,7 +27,8 @@ const (
 func (b *builder) userRules(rules []*Rule, refuseQuic bool) error {
 	s := b.s
 	// an exported config keeps the rules as they are: the rule-sets go by their URLs
-	russiaDirectWaits := !b.forExport && russiaDirectWaits(rules)
+	russiaDirectWaits := !b.forExport && b.russiaDirectWaits(rules)
+	missingSeen := map[string]bool{}
 	var dpi *DpiStrategy
 	if !b.forExport {
 		dpi = s.dpiStrategy()
@@ -71,15 +74,31 @@ func (b *builder) userRules(rules []*Rule, refuseQuic bool) error {
 		putPrograms(ruleObj, programs)
 		var domainList []string
 		// a rule-set the app has not downloaded is left out; a rule it leaves without any address is left out whole
-		missingRuleSet := false
+		missingRuleSet, geoLeftOut := false, false
 		downloaded := func(list []string) []string {
 			kept := []string{}
 			for _, item := range list {
-				// an export: those the app would fetch (https), by their URLs; the running config: none is here
-				if !isRuleSetFile(item) || b.forExport && ruleSetFetchable(item) {
+				switch {
+				case b.desktop && isGeoItem(item):
+					// a computer's: no geo assets to read it from
+					missingRuleSet, geoLeftOut = true, true
+				case !isRuleSetFile(item):
 					kept = append(kept, item)
-				} else {
+				case b.forExport:
+					// those the app would fetch (https), by their URLs
+					if ruleSetFetchable(item) {
+						kept = append(kept, item)
+					} else {
+						missingRuleSet = true
+					}
+				case b.ruleSetAvailable(item):
+					kept = append(kept, item)
+				default:
 					missingRuleSet = true
+					if !missingSeen[item] {
+						missingSeen[item] = true
+						b.result.MissingRuleSets = append(b.result.MissingRuleSets, item)
+					}
 				}
 			}
 			return kept
@@ -92,10 +111,13 @@ func (b *builder) userRules(rules []*Rule, refuseQuic bool) error {
 			makeRouteRule(ruleObj, downloaded(listOf(rule.IP)), true)
 		}
 		dropRule := missingRuleSet && !routeRuleHasAddress(ruleObj)
+		if geoLeftOut {
+			b.warn("rule needs geo assets: %s", rule)
+		}
 
 		var ruleSets []object
 		if list, ok := ruleObj["rule_set"].([]any); ok {
-			ruleSets = generateRuleSet(list, s.RuleSetUpdateHours, b.forExport)
+			ruleSets = b.generateRuleSet(list, s.RuleSetUpdateHours)
 		}
 		if !nikofmt.KtIsBlank(rule.Port) {
 			ruleObj["port"], ruleObj["port_range"] = ports(rule.Port)
@@ -120,7 +142,7 @@ func (b *builder) userRules(rules []*Rule, refuseQuic bool) error {
 			}
 			putPrograms(dnsRule, programs)
 			if domainList != nil {
-				makeDNSRule(dnsRule, domainList, b.forExport)
+				b.makeDNSRule(dnsRule, domainList)
 			}
 			return dnsRule
 		}
@@ -267,7 +289,7 @@ func makeRouteRule(r object, list []string, isIP bool) {
 }
 
 // makeDNSRule is DNSRule_DefaultOptions.makeSingBoxRule: domains, and the rule-sets a DNS rule can use.
-func makeDNSRule(r object, list []string, forExport bool) {
+func (b *builder) makeDNSRule(r object, list []string) {
 	for _, k := range []string{"rule_set", "domain", "domain_suffix", "domain_regex", "domain_keyword"} {
 		r[k] = []any{}
 	}
@@ -277,8 +299,8 @@ func makeDNSRule(r object, list []string, forExport bool) {
 		case strings.HasPrefix(item, "geosite:"):
 			add("rule_set", item)
 		case isRuleSetFile(item):
-			// a downloaded one by what it holds (none is here); an export's by its name
-			if ruleSetFetchable(item) && forExport && !isIPRuleSetName(item) {
+			// a downloaded one by what it holds (an IP-only one in a DNS rule would take every name)
+			if b.usableInDNS(item) {
 				add("rule_set", item)
 			}
 		case strings.HasPrefix(item, remoteRuleSetPrefix):
@@ -327,7 +349,8 @@ func dropBlank(r object, key string, dropEmpty bool) {
 }
 
 // generateRuleSet is generateRuleSet: the rule-sets a rule names.
-func generateRuleSet(items []any, updateHours int, forExport bool) []object {
+func (b *builder) generateRuleSet(items []any, updateHours int) []object {
+	forExport := b.forExport
 	interval := fmt.Sprintf("%dh", coerceIn(updateHours, 1, 24*30))
 	var out []object
 	for _, v := range items {
@@ -344,7 +367,9 @@ func generateRuleSet(items []any, updateHours int, forExport bool) []object {
 			out = append(out, object{"type": "remote", "tag": item, "format": ruleSetFormat(url), "url": url,
 				"update_interval": interval})
 		case isRuleSetFile(item):
-			// the app's download: none is here, and the build left it out before
+			// the app's download (the build left out those not here)
+			out = append(out, object{"type": "local", "tag": item, "format": RuleSetFormat(item),
+				"path": b.ruleSetFiles.Path(item)})
 		case strings.HasPrefix(item, "geoip:"), strings.HasPrefix(item, "geosite:"):
 			out = append(out, object{"type": "local", "tag": item, "format": "binary", "path": item})
 		}
@@ -506,8 +531,7 @@ func quicRefusalBefore(rule *option, sniffed bool) (object, error) {
 	return match, nil
 }
 
-// The Russian preset (RoutePresets): its direct rule waits while its blocked rule's lists are not all downloaded,
-// which here is never.
+// The Russian preset (RoutePresets): its direct rule waits while its blocked rule's lists are not all downloaded.
 
 func isRussiaBlocked(r *Rule) bool {
 	return strings.Contains(r.Domains, ruBlockedDomain) && strings.Contains(r.IP, ruBlockedIPs)
@@ -517,14 +541,14 @@ func isRussiaDirect(r *Rule) bool {
 	return strings.Contains(r.Domains, ruInsideDomains) && strings.Contains(r.IP, ruIPs) && r.Outbound == -1
 }
 
-// russiaDirectWaits: a blocked rule is on, and some of its lists are not downloaded (none is).
-func russiaDirectWaits(rules []*Rule) bool {
+// russiaDirectWaits: a blocked rule is on, and some of its lists are not downloaded.
+func (b *builder) russiaDirectWaits(rules []*Rule) bool {
 	for _, r := range rules {
 		if !isRussiaBlocked(r) {
 			continue
 		}
 		for _, item := range append(listOf(r.Domains), listOf(r.IP)...) {
-			if isRuleSetFile(item) {
+			if isRuleSetFile(item) && !b.ruleSetAvailable(item) {
 				return true
 			}
 		}

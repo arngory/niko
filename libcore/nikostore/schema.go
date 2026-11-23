@@ -36,6 +36,13 @@ var migrations = []migration{
 		document["groups"] = data
 		return err
 	},
+	// 2 to 3: the route rules (rules.go), none yet. The schema says that a build of schema 2 must not open the store:
+	// it would write the rules away.
+	func(document map[string]json.RawMessage) error {
+		document["rules"] = json.RawMessage("[]")
+		document["next_rule"] = json.RawMessage("1")
+		return nil
+	},
 }
 
 // Schema is the layout this build writes: the first, and one more for each migration it has.

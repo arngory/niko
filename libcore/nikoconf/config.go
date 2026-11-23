@@ -51,6 +51,13 @@ func Build(in Input) (Result, error) {
 	if b.dev == nil {
 		b.dev = NewFixedDevice(in.Apps, in.PrivateDNS)
 	}
+	b.ruleSetFiles = in.RuleSets
+	if b.ruleSetFiles == nil {
+		b.ruleSetFiles = noRuleSets{}
+		if len(in.RuleSetFiles) > 0 {
+			b.ruleSetFiles = FixedRuleSets{Dir: GoldenRuleSetDir, Files: in.RuleSetFiles}
+		}
+	}
 	switch in.Platform {
 	case "", PlatformAndroid:
 	case PlatformWindows, PlatformLinux:
@@ -94,11 +101,12 @@ func (o *option) asMap() (object, error) {
 
 // builder is one build: buildConfig's state.
 type builder struct {
-	in        Input
-	s         *Settings
-	dev       Device
-	forTest   bool
-	forExport bool
+	in           Input
+	s            *Settings
+	dev          Device
+	ruleSetFiles RuleSets
+	forTest      bool
+	forExport    bool
 	// desktop: the config of a computer's (Windows or Linux), not the phone's (desktop.go)
 	desktop bool
 	// result: what the build gives beside the config (its system proxy)
@@ -562,7 +570,7 @@ func (b *builder) build() ([]byte, error) {
 		// force bypass (always top DNS rule)
 		if len(b.directForce) > 0 {
 			rule := object{"server": "dns-direct"}
-			makeDNSRule(rule, javaHashSetOrder(b.directForce, javaStringHash), false)
+			b.makeDNSRule(rule, javaHashSetOrder(b.directForce, javaStringHash))
 			dnsRules = append([]object{rule}, dnsRules...)
 		}
 	}

@@ -242,6 +242,53 @@ func (ImportPreview_Kind) EnumDescriptor() ([]byte, []int) {
 	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{25, 0}
 }
 
+type PresetRequest_Preset int32
+
+const (
+	PresetRequest_PRESET_UNSPECIFIED PresetRequest_Preset = 0
+	// blocked in Russia through the proxy, Russian services directly (runetfreedom's lists)
+	PresetRequest_RUSSIA PresetRequest_Preset = 1
+)
+
+// Enum value maps for PresetRequest_Preset.
+var (
+	PresetRequest_Preset_name = map[int32]string{
+		0: "PRESET_UNSPECIFIED",
+		1: "RUSSIA",
+	}
+	PresetRequest_Preset_value = map[string]int32{
+		"PRESET_UNSPECIFIED": 0,
+		"RUSSIA":             1,
+	}
+)
+
+func (x PresetRequest_Preset) Enum() *PresetRequest_Preset {
+	p := new(PresetRequest_Preset)
+	*p = x
+	return p
+}
+
+func (x PresetRequest_Preset) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PresetRequest_Preset) Descriptor() protoreflect.EnumDescriptor {
+	return file_niko_v1_niko_service_proto_enumTypes[4].Descriptor()
+}
+
+func (PresetRequest_Preset) Type() protoreflect.EnumType {
+	return &file_niko_v1_niko_service_proto_enumTypes[4]
+}
+
+func (x PresetRequest_Preset) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PresetRequest_Preset.Descriptor instead.
+func (PresetRequest_Preset) EnumDescriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{31, 0}
+}
+
 type Empty struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -324,7 +371,8 @@ type Info struct {
 	StoreSchema int32 `protobuf:"varint,3,opt,name=store_schema,json=storeSchema,proto3" json:"store_schema,omitempty"`
 	// the version of this API: what the window may ask. 2: the store, Watch and the import; 3: Select and GetSelected;
 	// 4: ShareProfile; 5: Connect; 6: Connect's mode, the config a computer's; 7: the computer's settings, Connect
-	// with them; 8: the programs through Niko; 9: subscriptions (Group.subscription, Refresh, their import)
+	// with them; 8: the programs through Niko; 9: subscriptions (Group.subscription, Refresh, their import); 10: the
+	// route rules, the Russian preset and the rule-sets (ListRules…UpdateRuleSets), their settings
 	Api           int32 `protobuf:"varint,4,opt,name=api,proto3" json:"api,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1645,9 +1693,18 @@ type Settings struct {
 	ProgramsMode int32 `protobuf:"varint,24,opt,name=programs_mode,json=programsMode,proto3" json:"programs_mode,omitempty"`
 	// the programs, a line each: a name ("firefox.exe") or a full path, as the system names the process; empty lines
 	// are none
-	Programs      string `protobuf:"bytes,25,opt,name=programs,proto3" json:"programs,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Programs string `protobuf:"bytes,25,opt,name=programs,proto3" json:"programs,omitempty"`
+	// the rules' DNS rules: a rule's domains looked up by its way's DNS (direct ones by the direct DNS)
+	EnableDnsRouting bool `protobuf:"varint,26,opt,name=enable_dns_routing,json=enableDnsRouting,proto3" json:"enable_dns_routing,omitempty"`
+	// how often the rule-sets are fetched again, in hours: from 1 to 720
+	RuleSetUpdateHours int32 `protobuf:"varint,27,opt,name=rule_set_update_hours,json=ruleSetUpdateHours,proto3" json:"rule_set_update_hours,omitempty"`
+	// «Обход DPI для прямых соединений» on the direct rules with their dpi_bypass: 0 off, 1 a ready-made strategy
+	// (dpi_direct_preset: tlsrec_sni, split_sni, disoob_sld, disorder_1), 2 a ByeDPI string (dpi_direct_custom)
+	DpiDirect       int32  `protobuf:"varint,28,opt,name=dpi_direct,json=dpiDirect,proto3" json:"dpi_direct,omitempty"`
+	DpiDirectPreset string `protobuf:"bytes,29,opt,name=dpi_direct_preset,json=dpiDirectPreset,proto3" json:"dpi_direct_preset,omitempty"`
+	DpiDirectCustom string `protobuf:"bytes,30,opt,name=dpi_direct_custom,json=dpiDirectCustom,proto3" json:"dpi_direct_custom,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Settings) Reset() {
@@ -1851,6 +1908,41 @@ func (x *Settings) GetProgramsMode() int32 {
 func (x *Settings) GetPrograms() string {
 	if x != nil {
 		return x.Programs
+	}
+	return ""
+}
+
+func (x *Settings) GetEnableDnsRouting() bool {
+	if x != nil {
+		return x.EnableDnsRouting
+	}
+	return false
+}
+
+func (x *Settings) GetRuleSetUpdateHours() int32 {
+	if x != nil {
+		return x.RuleSetUpdateHours
+	}
+	return 0
+}
+
+func (x *Settings) GetDpiDirect() int32 {
+	if x != nil {
+		return x.DpiDirect
+	}
+	return 0
+}
+
+func (x *Settings) GetDpiDirectPreset() string {
+	if x != nil {
+		return x.DpiDirectPreset
+	}
+	return ""
+}
+
+func (x *Settings) GetDpiDirectCustom() string {
+	if x != nil {
+		return x.DpiDirectCustom
 	}
 	return ""
 }
@@ -2192,6 +2284,673 @@ func (x *ImportRequest) GetGroupId() int64 {
 	return 0
 }
 
+// A route rule (RuleEntity): what it matches, all its fields together, and where that goes. The lists are text as
+// the app's editor takes them: items by lines or commas. Domains: "full:", "domain:", "regexp:", "keyword:" or a
+// suffix; "srs:https://…" a rule-set the daemon downloads, "rule-set:https://…" one the core fetches as it starts.
+type Rule struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name  string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// its place: the build takes the rules by it (read only: MoveRules)
+	Order   int64  `protobuf:"varint,3,opt,name=order,proto3" json:"order,omitempty"`
+	Enabled bool   `protobuf:"varint,4,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Domains string `protobuf:"bytes,5,opt,name=domains,proto3" json:"domains,omitempty"`
+	// addresses and subnets; "geoip:private" the private ones
+	Ip string `protobuf:"bytes,6,opt,name=ip,proto3" json:"ip,omitempty"`
+	// ports and ranges ("8000:9000")
+	Port       string `protobuf:"bytes,7,opt,name=port,proto3" json:"port,omitempty"`
+	SourcePort string `protobuf:"bytes,8,opt,name=source_port,json=sourcePort,proto3" json:"source_port,omitempty"`
+	// "", tcp or udp
+	Network string `protobuf:"bytes,9,opt,name=network,proto3" json:"network,omitempty"`
+	// the source's subnets
+	Source string `protobuf:"bytes,10,opt,name=source,proto3" json:"source,omitempty"`
+	// sniffed protocols: tls, http, quic, bittorrent…
+	Protocol string `protobuf:"bytes,11,opt,name=protocol,proto3" json:"protocol,omitempty"`
+	// 0 the proxy, -1 directly (bypass), -2 blocked, else a profile's id
+	Outbound int64 `protobuf:"varint,12,opt,name=outbound,proto3" json:"outbound,omitempty"`
+	// a computer's programs (D-RULES-02): a process's name ("firefox.exe") or its full path
+	Programs []string `protobuf:"bytes,13,rep,name=programs,proto3" json:"programs,omitempty"`
+	// «Обход DPI»: the strategy of dpi_direct on this rule where it goes directly
+	DpiBypass bool `protobuf:"varint,14,opt,name=dpi_bypass,json=dpiBypass,proto3" json:"dpi_bypass,omitempty"`
+	// the rule's own JSON, merged over it: an object, or none
+	Config string `protobuf:"bytes,15,opt,name=config,proto3" json:"config,omitempty"`
+	// how many of the phone's apps it names (read only): a computer leaves such a rule out where it has no programs
+	Packages      int32 `protobuf:"varint,16,opt,name=packages,proto3" json:"packages,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Rule) Reset() {
+	*x = Rule{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Rule) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Rule) ProtoMessage() {}
+
+func (x *Rule) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Rule.ProtoReflect.Descriptor instead.
+func (*Rule) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *Rule) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *Rule) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Rule) GetOrder() int64 {
+	if x != nil {
+		return x.Order
+	}
+	return 0
+}
+
+func (x *Rule) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *Rule) GetDomains() string {
+	if x != nil {
+		return x.Domains
+	}
+	return ""
+}
+
+func (x *Rule) GetIp() string {
+	if x != nil {
+		return x.Ip
+	}
+	return ""
+}
+
+func (x *Rule) GetPort() string {
+	if x != nil {
+		return x.Port
+	}
+	return ""
+}
+
+func (x *Rule) GetSourcePort() string {
+	if x != nil {
+		return x.SourcePort
+	}
+	return ""
+}
+
+func (x *Rule) GetNetwork() string {
+	if x != nil {
+		return x.Network
+	}
+	return ""
+}
+
+func (x *Rule) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *Rule) GetProtocol() string {
+	if x != nil {
+		return x.Protocol
+	}
+	return ""
+}
+
+func (x *Rule) GetOutbound() int64 {
+	if x != nil {
+		return x.Outbound
+	}
+	return 0
+}
+
+func (x *Rule) GetPrograms() []string {
+	if x != nil {
+		return x.Programs
+	}
+	return nil
+}
+
+func (x *Rule) GetDpiBypass() bool {
+	if x != nil {
+		return x.DpiBypass
+	}
+	return false
+}
+
+func (x *Rule) GetConfig() string {
+	if x != nil {
+		return x.Config
+	}
+	return ""
+}
+
+func (x *Rule) GetPackages() int32 {
+	if x != nil {
+		return x.Packages
+	}
+	return 0
+}
+
+type RuleList struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Rules         []*Rule                `protobuf:"bytes,1,rep,name=rules,proto3" json:"rules,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RuleList) Reset() {
+	*x = RuleList{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RuleList) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RuleList) ProtoMessage() {}
+
+func (x *RuleList) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RuleList.ProtoReflect.Descriptor instead.
+func (*RuleList) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *RuleList) GetRules() []*Rule {
+	if x != nil {
+		return x.Rules
+	}
+	return nil
+}
+
+type RuleIds struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ids           []int64                `protobuf:"varint,1,rep,packed,name=ids,proto3" json:"ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RuleIds) Reset() {
+	*x = RuleIds{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RuleIds) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RuleIds) ProtoMessage() {}
+
+func (x *RuleIds) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RuleIds.ProtoReflect.Descriptor instead.
+func (*RuleIds) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *RuleIds) GetIds() []int64 {
+	if x != nil {
+		return x.Ids
+	}
+	return nil
+}
+
+type MoveRulesRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Ids   []int64                `protobuf:"varint,1,rep,packed,name=ids,proto3" json:"ids,omitempty"`
+	// the rule they go before; 0: at the end
+	Before        int64 `protobuf:"varint,2,opt,name=before,proto3" json:"before,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MoveRulesRequest) Reset() {
+	*x = MoveRulesRequest{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MoveRulesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MoveRulesRequest) ProtoMessage() {}
+
+func (x *MoveRulesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MoveRulesRequest.ProtoReflect.Descriptor instead.
+func (*MoveRulesRequest) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *MoveRulesRequest) GetIds() []int64 {
+	if x != nil {
+		return x.Ids
+	}
+	return nil
+}
+
+func (x *MoveRulesRequest) GetBefore() int64 {
+	if x != nil {
+		return x.Before
+	}
+	return 0
+}
+
+type PresetRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Preset PresetRequest_Preset   `protobuf:"varint,1,opt,name=preset,proto3,enum=niko.v1.PresetRequest_Preset" json:"preset,omitempty"`
+	// the rules' names, in the window's language: what is blocked, what goes directly; none for the app's English
+	BlockedName   string `protobuf:"bytes,2,opt,name=blocked_name,json=blockedName,proto3" json:"blocked_name,omitempty"`
+	DirectName    string `protobuf:"bytes,3,opt,name=direct_name,json=directName,proto3" json:"direct_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PresetRequest) Reset() {
+	*x = PresetRequest{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PresetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PresetRequest) ProtoMessage() {}
+
+func (x *PresetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PresetRequest.ProtoReflect.Descriptor instead.
+func (*PresetRequest) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *PresetRequest) GetPreset() PresetRequest_Preset {
+	if x != nil {
+		return x.Preset
+	}
+	return PresetRequest_PRESET_UNSPECIFIED
+}
+
+func (x *PresetRequest) GetBlockedName() string {
+	if x != nil {
+		return x.BlockedName
+	}
+	return ""
+}
+
+func (x *PresetRequest) GetDirectName() string {
+	if x != nil {
+		return x.DirectName
+	}
+	return ""
+}
+
+type PresetResult struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// the rules added, in their order
+	Rules []*Rule `protobuf:"bytes,1,rep,name=rules,proto3" json:"rules,omitempty"`
+	// their rule-sets, for UpdateRuleSets
+	RuleSets      []string `protobuf:"bytes,2,rep,name=rule_sets,json=ruleSets,proto3" json:"rule_sets,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PresetResult) Reset() {
+	*x = PresetResult{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PresetResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PresetResult) ProtoMessage() {}
+
+func (x *PresetResult) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PresetResult.ProtoReflect.Descriptor instead.
+func (*PresetResult) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *PresetResult) GetRules() []*Rule {
+	if x != nil {
+		return x.Rules
+	}
+	return nil
+}
+
+func (x *PresetResult) GetRuleSets() []string {
+	if x != nil {
+		return x.RuleSets
+	}
+	return nil
+}
+
+// A rule-set the daemon downloads, as a rule names it.
+type RuleSet struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// as the rules have it: "srs:" and its address
+	Item string `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
+	// its address; the window shows it to the user alone
+	Url string `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
+	// fetched over https: a list in the clear is never fetched
+	Fetchable bool `protobuf:"varint,3,opt,name=fetchable,proto3" json:"fetchable,omitempty"`
+	// named by a rule that is on
+	Enabled bool `protobuf:"varint,4,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	// its file is here: the build takes it
+	Downloaded bool  `protobuf:"varint,5,opt,name=downloaded,proto3" json:"downloaded,omitempty"`
+	Size       int64 `protobuf:"varint,6,opt,name=size,proto3" json:"size,omitempty"`
+	// when its file was fetched, Unix seconds; 0: never
+	Updated int64 `protobuf:"varint,7,opt,name=updated,proto3" json:"updated,omitempty"`
+	// what it holds: 1 domains, 2 addresses, 3 both; 0 not known
+	Kinds int32 `protobuf:"varint,8,opt,name=kinds,proto3" json:"kinds,omitempty"`
+	// its last download's error, since the daemon started; "" for none
+	Error string `protobuf:"bytes,9,opt,name=error,proto3" json:"error,omitempty"`
+	// a download of it runs now
+	Updating      bool `protobuf:"varint,10,opt,name=updating,proto3" json:"updating,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RuleSet) Reset() {
+	*x = RuleSet{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RuleSet) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RuleSet) ProtoMessage() {}
+
+func (x *RuleSet) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RuleSet.ProtoReflect.Descriptor instead.
+func (*RuleSet) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *RuleSet) GetItem() string {
+	if x != nil {
+		return x.Item
+	}
+	return ""
+}
+
+func (x *RuleSet) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *RuleSet) GetFetchable() bool {
+	if x != nil {
+		return x.Fetchable
+	}
+	return false
+}
+
+func (x *RuleSet) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *RuleSet) GetDownloaded() bool {
+	if x != nil {
+		return x.Downloaded
+	}
+	return false
+}
+
+func (x *RuleSet) GetSize() int64 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
+}
+
+func (x *RuleSet) GetUpdated() int64 {
+	if x != nil {
+		return x.Updated
+	}
+	return 0
+}
+
+func (x *RuleSet) GetKinds() int32 {
+	if x != nil {
+		return x.Kinds
+	}
+	return 0
+}
+
+func (x *RuleSet) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *RuleSet) GetUpdating() bool {
+	if x != nil {
+		return x.Updating
+	}
+	return false
+}
+
+type RuleSetList struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	RuleSets []*RuleSet             `protobuf:"bytes,1,rep,name=rule_sets,json=ruleSets,proto3" json:"rule_sets,omitempty"`
+	// the interval of the updates (Settings.rule_set_update_hours)
+	UpdateHours   int32 `protobuf:"varint,2,opt,name=update_hours,json=updateHours,proto3" json:"update_hours,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RuleSetList) Reset() {
+	*x = RuleSetList{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RuleSetList) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RuleSetList) ProtoMessage() {}
+
+func (x *RuleSetList) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RuleSetList.ProtoReflect.Descriptor instead.
+func (*RuleSetList) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *RuleSetList) GetRuleSets() []*RuleSet {
+	if x != nil {
+		return x.RuleSets
+	}
+	return nil
+}
+
+func (x *RuleSetList) GetUpdateHours() int32 {
+	if x != nil {
+		return x.UpdateHours
+	}
+	return 0
+}
+
+type RuleSetRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// the items to download; none: those of the enabled rules
+	Items []string `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	// fetched even where its file is newer than the interval
+	Force         bool `protobuf:"varint,2,opt,name=force,proto3" json:"force,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RuleSetRequest) Reset() {
+	*x = RuleSetRequest{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RuleSetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RuleSetRequest) ProtoMessage() {}
+
+func (x *RuleSetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RuleSetRequest.ProtoReflect.Descriptor instead.
+func (*RuleSetRequest) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *RuleSetRequest) GetItems() []string {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *RuleSetRequest) GetForce() bool {
+	if x != nil {
+		return x.Force
+	}
+	return false
+}
+
 var File_niko_v1_niko_service_proto protoreflect.FileDescriptor
 
 const file_niko_v1_niko_service_proto_rawDesc = "" +
@@ -2311,7 +3070,7 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\x04Mode\x12\t\n" +
 	"\x05PROXY\x10\x00\x12\a\n" +
 	"\x03VPN\x10\x01B\a\n" +
-	"\x05_mode\"\x90\b\n" +
+	"\x05_mode\"\xe8\t\n" +
 	"\bSettings\x12!\n" +
 	"\fservice_mode\x18\x01 \x01(\tR\vserviceMode\x12!\n" +
 	"\fsystem_proxy\x18\x02 \x01(\bR\vsystemProxy\x12-\n" +
@@ -2341,7 +3100,13 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\x13icmp_no_local_reply\x18\x16 \x01(\bR\x10icmpNoLocalReply\x12\x1b\n" +
 	"\tlog_level\x18\x17 \x01(\x05R\blogLevel\x12#\n" +
 	"\rprograms_mode\x18\x18 \x01(\x05R\fprogramsMode\x12\x1a\n" +
-	"\bprograms\x18\x19 \x01(\tR\bprograms\"W\n" +
+	"\bprograms\x18\x19 \x01(\tR\bprograms\x12,\n" +
+	"\x12enable_dns_routing\x18\x1a \x01(\bR\x10enableDnsRouting\x121\n" +
+	"\x15rule_set_update_hours\x18\x1b \x01(\x05R\x12ruleSetUpdateHours\x12\x1d\n" +
+	"\n" +
+	"dpi_direct\x18\x1c \x01(\x05R\tdpiDirect\x12*\n" +
+	"\x11dpi_direct_preset\x18\x1d \x01(\tR\x0fdpiDirectPreset\x12*\n" +
+	"\x11dpi_direct_custom\x18\x1e \x01(\tR\x0fdpiDirectCustom\"W\n" +
 	"\x0eSettingsUpdate\x12-\n" +
 	"\bsettings\x18\x01 \x01(\v2\x11.niko.v1.SettingsR\bsettings\x12\x16\n" +
 	"\x06fields\x18\x02 \x03(\tR\x06fields\"\x1e\n" +
@@ -2367,7 +3132,66 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\x04NODE\x10\x03\"V\n" +
 	"\rImportRequest\x12*\n" +
 	"\x05input\x18\x01 \x01(\v2\x14.niko.v1.ImportInputR\x05input\x12\x19\n" +
-	"\bgroup_id\x18\x02 \x01(\x03R\agroupId2\xcd\b\n" +
+	"\bgroup_id\x18\x02 \x01(\x03R\agroupId\"\x92\x03\n" +
+	"\x04Rule\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
+	"\x05order\x18\x03 \x01(\x03R\x05order\x12\x18\n" +
+	"\aenabled\x18\x04 \x01(\bR\aenabled\x12\x18\n" +
+	"\adomains\x18\x05 \x01(\tR\adomains\x12\x0e\n" +
+	"\x02ip\x18\x06 \x01(\tR\x02ip\x12\x12\n" +
+	"\x04port\x18\a \x01(\tR\x04port\x12\x1f\n" +
+	"\vsource_port\x18\b \x01(\tR\n" +
+	"sourcePort\x12\x18\n" +
+	"\anetwork\x18\t \x01(\tR\anetwork\x12\x16\n" +
+	"\x06source\x18\n" +
+	" \x01(\tR\x06source\x12\x1a\n" +
+	"\bprotocol\x18\v \x01(\tR\bprotocol\x12\x1a\n" +
+	"\boutbound\x18\f \x01(\x03R\boutbound\x12\x1a\n" +
+	"\bprograms\x18\r \x03(\tR\bprograms\x12\x1d\n" +
+	"\n" +
+	"dpi_bypass\x18\x0e \x01(\bR\tdpiBypass\x12\x16\n" +
+	"\x06config\x18\x0f \x01(\tR\x06config\x12\x1a\n" +
+	"\bpackages\x18\x10 \x01(\x05R\bpackages\"/\n" +
+	"\bRuleList\x12#\n" +
+	"\x05rules\x18\x01 \x03(\v2\r.niko.v1.RuleR\x05rules\"\x1b\n" +
+	"\aRuleIds\x12\x10\n" +
+	"\x03ids\x18\x01 \x03(\x03R\x03ids\"<\n" +
+	"\x10MoveRulesRequest\x12\x10\n" +
+	"\x03ids\x18\x01 \x03(\x03R\x03ids\x12\x16\n" +
+	"\x06before\x18\x02 \x01(\x03R\x06before\"\xb8\x01\n" +
+	"\rPresetRequest\x125\n" +
+	"\x06preset\x18\x01 \x01(\x0e2\x1d.niko.v1.PresetRequest.PresetR\x06preset\x12!\n" +
+	"\fblocked_name\x18\x02 \x01(\tR\vblockedName\x12\x1f\n" +
+	"\vdirect_name\x18\x03 \x01(\tR\n" +
+	"directName\",\n" +
+	"\x06Preset\x12\x16\n" +
+	"\x12PRESET_UNSPECIFIED\x10\x00\x12\n" +
+	"\n" +
+	"\x06RUSSIA\x10\x01\"P\n" +
+	"\fPresetResult\x12#\n" +
+	"\x05rules\x18\x01 \x03(\v2\r.niko.v1.RuleR\x05rules\x12\x1b\n" +
+	"\trule_sets\x18\x02 \x03(\tR\bruleSets\"\xfd\x01\n" +
+	"\aRuleSet\x12\x12\n" +
+	"\x04item\x18\x01 \x01(\tR\x04item\x12\x10\n" +
+	"\x03url\x18\x02 \x01(\tR\x03url\x12\x1c\n" +
+	"\tfetchable\x18\x03 \x01(\bR\tfetchable\x12\x18\n" +
+	"\aenabled\x18\x04 \x01(\bR\aenabled\x12\x1e\n" +
+	"\n" +
+	"downloaded\x18\x05 \x01(\bR\n" +
+	"downloaded\x12\x12\n" +
+	"\x04size\x18\x06 \x01(\x03R\x04size\x12\x18\n" +
+	"\aupdated\x18\a \x01(\x03R\aupdated\x12\x14\n" +
+	"\x05kinds\x18\b \x01(\x05R\x05kinds\x12\x14\n" +
+	"\x05error\x18\t \x01(\tR\x05error\x12\x1a\n" +
+	"\bupdating\x18\n" +
+	" \x01(\bR\bupdating\"_\n" +
+	"\vRuleSetList\x12-\n" +
+	"\trule_sets\x18\x01 \x03(\v2\x10.niko.v1.RuleSetR\bruleSets\x12!\n" +
+	"\fupdate_hours\x18\x02 \x01(\x05R\vupdateHours\"<\n" +
+	"\x0eRuleSetRequest\x12\x14\n" +
+	"\x05items\x18\x01 \x03(\tR\x05items\x12\x14\n" +
+	"\x05force\x18\x02 \x01(\bR\x05force2\xc8\v\n" +
 	"\vNikoService\x121\n" +
 	"\aGetInfo\x12\x17.niko.v1.GetInfoRequest\x1a\r.niko.v1.Info\x12@\n" +
 	"\tRouteTest\x12\x19.niko.v1.RouteTestRequest\x1a\x18.niko.v1.RouteTestResult\x121\n" +
@@ -2390,7 +3214,14 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\x0eUpdateSettings\x12\x17.niko.v1.SettingsUpdate\x1a\x11.niko.v1.Settings\x129\n" +
 	"\tRecognize\x12\x14.niko.v1.ImportInput\x1a\x16.niko.v1.ImportPreview\x129\n" +
 	"\x06Import\x12\x16.niko.v1.ImportRequest\x1a\x15.niko.v1.TaskProgress0\x01\x12;\n" +
-	"\aRefresh\x12\x17.niko.v1.RefreshRequest\x1a\x15.niko.v1.TaskProgress0\x01B\x17Z\x15libcore/nikopb;nikopbb\x06proto3"
+	"\aRefresh\x12\x17.niko.v1.RefreshRequest\x1a\x15.niko.v1.TaskProgress0\x01\x12.\n" +
+	"\tListRules\x12\x0e.niko.v1.Empty\x1a\x11.niko.v1.RuleList\x12(\n" +
+	"\bSaveRule\x12\r.niko.v1.Rule\x1a\r.niko.v1.Rule\x12/\n" +
+	"\vDeleteRules\x12\x10.niko.v1.RuleIds\x1a\x0e.niko.v1.Empty\x126\n" +
+	"\tMoveRules\x12\x19.niko.v1.MoveRulesRequest\x1a\x0e.niko.v1.Empty\x12<\n" +
+	"\vApplyPreset\x12\x16.niko.v1.PresetRequest\x1a\x15.niko.v1.PresetResult\x124\n" +
+	"\fListRuleSets\x12\x0e.niko.v1.Empty\x1a\x14.niko.v1.RuleSetList\x12B\n" +
+	"\x0eUpdateRuleSets\x12\x17.niko.v1.RuleSetRequest\x1a\x15.niko.v1.TaskProgress0\x01B\x17Z\x15libcore/nikopb;nikopbb\x06proto3"
 
 var (
 	file_niko_v1_niko_service_proto_rawDescOnce sync.Once
@@ -2404,99 +3235,127 @@ func file_niko_v1_niko_service_proto_rawDescGZIP() []byte {
 	return file_niko_v1_niko_service_proto_rawDescData
 }
 
-var file_niko_v1_niko_service_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_niko_v1_niko_service_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
+var file_niko_v1_niko_service_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
+var file_niko_v1_niko_service_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
 var file_niko_v1_niko_service_proto_goTypes = []any{
 	(Change_Kind)(0),            // 0: niko.v1.Change.Kind
 	(Group_Type)(0),             // 1: niko.v1.Group.Type
 	(ConnectRequest_Mode)(0),    // 2: niko.v1.ConnectRequest.Mode
 	(ImportPreview_Kind)(0),     // 3: niko.v1.ImportPreview.Kind
-	(*Empty)(nil),               // 4: niko.v1.Empty
-	(*GetInfoRequest)(nil),      // 5: niko.v1.GetInfoRequest
-	(*Info)(nil),                // 6: niko.v1.Info
-	(*RouteTestRequest)(nil),    // 7: niko.v1.RouteTestRequest
-	(*RouteTestStep)(nil),       // 8: niko.v1.RouteTestStep
-	(*RouteTestResult)(nil),     // 9: niko.v1.RouteTestResult
-	(*WatchRequest)(nil),        // 10: niko.v1.WatchRequest
-	(*Change)(nil),              // 11: niko.v1.Change
-	(*TaskProgress)(nil),        // 12: niko.v1.TaskProgress
-	(*Group)(nil),               // 13: niko.v1.Group
-	(*Subscription)(nil),        // 14: niko.v1.Subscription
-	(*RefreshRequest)(nil),      // 15: niko.v1.RefreshRequest
-	(*GroupId)(nil),             // 16: niko.v1.GroupId
-	(*GroupList)(nil),           // 17: niko.v1.GroupList
-	(*ListProfilesRequest)(nil), // 18: niko.v1.ListProfilesRequest
-	(*Profile)(nil),             // 19: niko.v1.Profile
-	(*ProfileList)(nil),         // 20: niko.v1.ProfileList
-	(*ProfileId)(nil),           // 21: niko.v1.ProfileId
-	(*ShareLink)(nil),           // 22: niko.v1.ShareLink
-	(*ConnectRequest)(nil),      // 23: niko.v1.ConnectRequest
-	(*Settings)(nil),            // 24: niko.v1.Settings
-	(*SettingsUpdate)(nil),      // 25: niko.v1.SettingsUpdate
-	(*ProfileIds)(nil),          // 26: niko.v1.ProfileIds
-	(*MoveRequest)(nil),         // 27: niko.v1.MoveRequest
-	(*ImportInput)(nil),         // 28: niko.v1.ImportInput
-	(*ImportPreview)(nil),       // 29: niko.v1.ImportPreview
-	(*ImportRequest)(nil),       // 30: niko.v1.ImportRequest
+	(PresetRequest_Preset)(0),   // 4: niko.v1.PresetRequest.Preset
+	(*Empty)(nil),               // 5: niko.v1.Empty
+	(*GetInfoRequest)(nil),      // 6: niko.v1.GetInfoRequest
+	(*Info)(nil),                // 7: niko.v1.Info
+	(*RouteTestRequest)(nil),    // 8: niko.v1.RouteTestRequest
+	(*RouteTestStep)(nil),       // 9: niko.v1.RouteTestStep
+	(*RouteTestResult)(nil),     // 10: niko.v1.RouteTestResult
+	(*WatchRequest)(nil),        // 11: niko.v1.WatchRequest
+	(*Change)(nil),              // 12: niko.v1.Change
+	(*TaskProgress)(nil),        // 13: niko.v1.TaskProgress
+	(*Group)(nil),               // 14: niko.v1.Group
+	(*Subscription)(nil),        // 15: niko.v1.Subscription
+	(*RefreshRequest)(nil),      // 16: niko.v1.RefreshRequest
+	(*GroupId)(nil),             // 17: niko.v1.GroupId
+	(*GroupList)(nil),           // 18: niko.v1.GroupList
+	(*ListProfilesRequest)(nil), // 19: niko.v1.ListProfilesRequest
+	(*Profile)(nil),             // 20: niko.v1.Profile
+	(*ProfileList)(nil),         // 21: niko.v1.ProfileList
+	(*ProfileId)(nil),           // 22: niko.v1.ProfileId
+	(*ShareLink)(nil),           // 23: niko.v1.ShareLink
+	(*ConnectRequest)(nil),      // 24: niko.v1.ConnectRequest
+	(*Settings)(nil),            // 25: niko.v1.Settings
+	(*SettingsUpdate)(nil),      // 26: niko.v1.SettingsUpdate
+	(*ProfileIds)(nil),          // 27: niko.v1.ProfileIds
+	(*MoveRequest)(nil),         // 28: niko.v1.MoveRequest
+	(*ImportInput)(nil),         // 29: niko.v1.ImportInput
+	(*ImportPreview)(nil),       // 30: niko.v1.ImportPreview
+	(*ImportRequest)(nil),       // 31: niko.v1.ImportRequest
+	(*Rule)(nil),                // 32: niko.v1.Rule
+	(*RuleList)(nil),            // 33: niko.v1.RuleList
+	(*RuleIds)(nil),             // 34: niko.v1.RuleIds
+	(*MoveRulesRequest)(nil),    // 35: niko.v1.MoveRulesRequest
+	(*PresetRequest)(nil),       // 36: niko.v1.PresetRequest
+	(*PresetResult)(nil),        // 37: niko.v1.PresetResult
+	(*RuleSet)(nil),             // 38: niko.v1.RuleSet
+	(*RuleSetList)(nil),         // 39: niko.v1.RuleSetList
+	(*RuleSetRequest)(nil),      // 40: niko.v1.RuleSetRequest
 }
 var file_niko_v1_niko_service_proto_depIdxs = []int32{
-	8,  // 0: niko.v1.RouteTestResult.steps:type_name -> niko.v1.RouteTestStep
+	9,  // 0: niko.v1.RouteTestResult.steps:type_name -> niko.v1.RouteTestStep
 	0,  // 1: niko.v1.Change.kind:type_name -> niko.v1.Change.Kind
-	12, // 2: niko.v1.Change.task:type_name -> niko.v1.TaskProgress
+	13, // 2: niko.v1.Change.task:type_name -> niko.v1.TaskProgress
 	1,  // 3: niko.v1.Group.type:type_name -> niko.v1.Group.Type
-	14, // 4: niko.v1.Group.subscription:type_name -> niko.v1.Subscription
-	13, // 5: niko.v1.GroupList.groups:type_name -> niko.v1.Group
-	19, // 6: niko.v1.ProfileList.profiles:type_name -> niko.v1.Profile
+	15, // 4: niko.v1.Group.subscription:type_name -> niko.v1.Subscription
+	14, // 5: niko.v1.GroupList.groups:type_name -> niko.v1.Group
+	20, // 6: niko.v1.ProfileList.profiles:type_name -> niko.v1.Profile
 	2,  // 7: niko.v1.ConnectRequest.mode:type_name -> niko.v1.ConnectRequest.Mode
-	24, // 8: niko.v1.SettingsUpdate.settings:type_name -> niko.v1.Settings
+	25, // 8: niko.v1.SettingsUpdate.settings:type_name -> niko.v1.Settings
 	3,  // 9: niko.v1.ImportPreview.kind:type_name -> niko.v1.ImportPreview.Kind
-	19, // 10: niko.v1.ImportPreview.profiles:type_name -> niko.v1.Profile
-	28, // 11: niko.v1.ImportRequest.input:type_name -> niko.v1.ImportInput
-	5,  // 12: niko.v1.NikoService.GetInfo:input_type -> niko.v1.GetInfoRequest
-	7,  // 13: niko.v1.NikoService.RouteTest:input_type -> niko.v1.RouteTestRequest
-	10, // 14: niko.v1.NikoService.Watch:input_type -> niko.v1.WatchRequest
-	4,  // 15: niko.v1.NikoService.ListGroups:input_type -> niko.v1.Empty
-	18, // 16: niko.v1.NikoService.ListProfiles:input_type -> niko.v1.ListProfilesRequest
-	21, // 17: niko.v1.NikoService.GetProfile:input_type -> niko.v1.ProfileId
-	19, // 18: niko.v1.NikoService.SaveProfile:input_type -> niko.v1.Profile
-	26, // 19: niko.v1.NikoService.DeleteProfiles:input_type -> niko.v1.ProfileIds
-	27, // 20: niko.v1.NikoService.MoveProfiles:input_type -> niko.v1.MoveRequest
-	13, // 21: niko.v1.NikoService.SaveGroup:input_type -> niko.v1.Group
-	16, // 22: niko.v1.NikoService.DeleteGroup:input_type -> niko.v1.GroupId
-	21, // 23: niko.v1.NikoService.Select:input_type -> niko.v1.ProfileId
-	4,  // 24: niko.v1.NikoService.GetSelected:input_type -> niko.v1.Empty
-	21, // 25: niko.v1.NikoService.ShareProfile:input_type -> niko.v1.ProfileId
-	23, // 26: niko.v1.NikoService.Connect:input_type -> niko.v1.ConnectRequest
-	4,  // 27: niko.v1.NikoService.GetSettings:input_type -> niko.v1.Empty
-	25, // 28: niko.v1.NikoService.UpdateSettings:input_type -> niko.v1.SettingsUpdate
-	28, // 29: niko.v1.NikoService.Recognize:input_type -> niko.v1.ImportInput
-	30, // 30: niko.v1.NikoService.Import:input_type -> niko.v1.ImportRequest
-	15, // 31: niko.v1.NikoService.Refresh:input_type -> niko.v1.RefreshRequest
-	6,  // 32: niko.v1.NikoService.GetInfo:output_type -> niko.v1.Info
-	9,  // 33: niko.v1.NikoService.RouteTest:output_type -> niko.v1.RouteTestResult
-	11, // 34: niko.v1.NikoService.Watch:output_type -> niko.v1.Change
-	17, // 35: niko.v1.NikoService.ListGroups:output_type -> niko.v1.GroupList
-	20, // 36: niko.v1.NikoService.ListProfiles:output_type -> niko.v1.ProfileList
-	19, // 37: niko.v1.NikoService.GetProfile:output_type -> niko.v1.Profile
-	19, // 38: niko.v1.NikoService.SaveProfile:output_type -> niko.v1.Profile
-	4,  // 39: niko.v1.NikoService.DeleteProfiles:output_type -> niko.v1.Empty
-	4,  // 40: niko.v1.NikoService.MoveProfiles:output_type -> niko.v1.Empty
-	13, // 41: niko.v1.NikoService.SaveGroup:output_type -> niko.v1.Group
-	4,  // 42: niko.v1.NikoService.DeleteGroup:output_type -> niko.v1.Empty
-	4,  // 43: niko.v1.NikoService.Select:output_type -> niko.v1.Empty
-	21, // 44: niko.v1.NikoService.GetSelected:output_type -> niko.v1.ProfileId
-	22, // 45: niko.v1.NikoService.ShareProfile:output_type -> niko.v1.ShareLink
-	4,  // 46: niko.v1.NikoService.Connect:output_type -> niko.v1.Empty
-	24, // 47: niko.v1.NikoService.GetSettings:output_type -> niko.v1.Settings
-	24, // 48: niko.v1.NikoService.UpdateSettings:output_type -> niko.v1.Settings
-	29, // 49: niko.v1.NikoService.Recognize:output_type -> niko.v1.ImportPreview
-	12, // 50: niko.v1.NikoService.Import:output_type -> niko.v1.TaskProgress
-	12, // 51: niko.v1.NikoService.Refresh:output_type -> niko.v1.TaskProgress
-	32, // [32:52] is the sub-list for method output_type
-	12, // [12:32] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	20, // 10: niko.v1.ImportPreview.profiles:type_name -> niko.v1.Profile
+	29, // 11: niko.v1.ImportRequest.input:type_name -> niko.v1.ImportInput
+	32, // 12: niko.v1.RuleList.rules:type_name -> niko.v1.Rule
+	4,  // 13: niko.v1.PresetRequest.preset:type_name -> niko.v1.PresetRequest.Preset
+	32, // 14: niko.v1.PresetResult.rules:type_name -> niko.v1.Rule
+	38, // 15: niko.v1.RuleSetList.rule_sets:type_name -> niko.v1.RuleSet
+	6,  // 16: niko.v1.NikoService.GetInfo:input_type -> niko.v1.GetInfoRequest
+	8,  // 17: niko.v1.NikoService.RouteTest:input_type -> niko.v1.RouteTestRequest
+	11, // 18: niko.v1.NikoService.Watch:input_type -> niko.v1.WatchRequest
+	5,  // 19: niko.v1.NikoService.ListGroups:input_type -> niko.v1.Empty
+	19, // 20: niko.v1.NikoService.ListProfiles:input_type -> niko.v1.ListProfilesRequest
+	22, // 21: niko.v1.NikoService.GetProfile:input_type -> niko.v1.ProfileId
+	20, // 22: niko.v1.NikoService.SaveProfile:input_type -> niko.v1.Profile
+	27, // 23: niko.v1.NikoService.DeleteProfiles:input_type -> niko.v1.ProfileIds
+	28, // 24: niko.v1.NikoService.MoveProfiles:input_type -> niko.v1.MoveRequest
+	14, // 25: niko.v1.NikoService.SaveGroup:input_type -> niko.v1.Group
+	17, // 26: niko.v1.NikoService.DeleteGroup:input_type -> niko.v1.GroupId
+	22, // 27: niko.v1.NikoService.Select:input_type -> niko.v1.ProfileId
+	5,  // 28: niko.v1.NikoService.GetSelected:input_type -> niko.v1.Empty
+	22, // 29: niko.v1.NikoService.ShareProfile:input_type -> niko.v1.ProfileId
+	24, // 30: niko.v1.NikoService.Connect:input_type -> niko.v1.ConnectRequest
+	5,  // 31: niko.v1.NikoService.GetSettings:input_type -> niko.v1.Empty
+	26, // 32: niko.v1.NikoService.UpdateSettings:input_type -> niko.v1.SettingsUpdate
+	29, // 33: niko.v1.NikoService.Recognize:input_type -> niko.v1.ImportInput
+	31, // 34: niko.v1.NikoService.Import:input_type -> niko.v1.ImportRequest
+	16, // 35: niko.v1.NikoService.Refresh:input_type -> niko.v1.RefreshRequest
+	5,  // 36: niko.v1.NikoService.ListRules:input_type -> niko.v1.Empty
+	32, // 37: niko.v1.NikoService.SaveRule:input_type -> niko.v1.Rule
+	34, // 38: niko.v1.NikoService.DeleteRules:input_type -> niko.v1.RuleIds
+	35, // 39: niko.v1.NikoService.MoveRules:input_type -> niko.v1.MoveRulesRequest
+	36, // 40: niko.v1.NikoService.ApplyPreset:input_type -> niko.v1.PresetRequest
+	5,  // 41: niko.v1.NikoService.ListRuleSets:input_type -> niko.v1.Empty
+	40, // 42: niko.v1.NikoService.UpdateRuleSets:input_type -> niko.v1.RuleSetRequest
+	7,  // 43: niko.v1.NikoService.GetInfo:output_type -> niko.v1.Info
+	10, // 44: niko.v1.NikoService.RouteTest:output_type -> niko.v1.RouteTestResult
+	12, // 45: niko.v1.NikoService.Watch:output_type -> niko.v1.Change
+	18, // 46: niko.v1.NikoService.ListGroups:output_type -> niko.v1.GroupList
+	21, // 47: niko.v1.NikoService.ListProfiles:output_type -> niko.v1.ProfileList
+	20, // 48: niko.v1.NikoService.GetProfile:output_type -> niko.v1.Profile
+	20, // 49: niko.v1.NikoService.SaveProfile:output_type -> niko.v1.Profile
+	5,  // 50: niko.v1.NikoService.DeleteProfiles:output_type -> niko.v1.Empty
+	5,  // 51: niko.v1.NikoService.MoveProfiles:output_type -> niko.v1.Empty
+	14, // 52: niko.v1.NikoService.SaveGroup:output_type -> niko.v1.Group
+	5,  // 53: niko.v1.NikoService.DeleteGroup:output_type -> niko.v1.Empty
+	5,  // 54: niko.v1.NikoService.Select:output_type -> niko.v1.Empty
+	22, // 55: niko.v1.NikoService.GetSelected:output_type -> niko.v1.ProfileId
+	23, // 56: niko.v1.NikoService.ShareProfile:output_type -> niko.v1.ShareLink
+	5,  // 57: niko.v1.NikoService.Connect:output_type -> niko.v1.Empty
+	25, // 58: niko.v1.NikoService.GetSettings:output_type -> niko.v1.Settings
+	25, // 59: niko.v1.NikoService.UpdateSettings:output_type -> niko.v1.Settings
+	30, // 60: niko.v1.NikoService.Recognize:output_type -> niko.v1.ImportPreview
+	13, // 61: niko.v1.NikoService.Import:output_type -> niko.v1.TaskProgress
+	13, // 62: niko.v1.NikoService.Refresh:output_type -> niko.v1.TaskProgress
+	33, // 63: niko.v1.NikoService.ListRules:output_type -> niko.v1.RuleList
+	32, // 64: niko.v1.NikoService.SaveRule:output_type -> niko.v1.Rule
+	5,  // 65: niko.v1.NikoService.DeleteRules:output_type -> niko.v1.Empty
+	5,  // 66: niko.v1.NikoService.MoveRules:output_type -> niko.v1.Empty
+	37, // 67: niko.v1.NikoService.ApplyPreset:output_type -> niko.v1.PresetResult
+	39, // 68: niko.v1.NikoService.ListRuleSets:output_type -> niko.v1.RuleSetList
+	13, // 69: niko.v1.NikoService.UpdateRuleSets:output_type -> niko.v1.TaskProgress
+	43, // [43:70] is the sub-list for method output_type
+	16, // [16:43] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_niko_v1_niko_service_proto_init() }
@@ -2510,8 +3369,8 @@ func file_niko_v1_niko_service_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_niko_v1_niko_service_proto_rawDesc), len(file_niko_v1_niko_service_proto_rawDesc)),
-			NumEnums:      4,
-			NumMessages:   27,
+			NumEnums:      5,
+			NumMessages:   36,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

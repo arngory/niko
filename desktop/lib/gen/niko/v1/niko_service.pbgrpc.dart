@@ -231,6 +231,75 @@ class NikoServiceClient extends $grpc.Client {
         options: options);
   }
 
+  /// The route rules (D-RULES-01), in the order the build takes them: what Connect builds the config with, the
+  /// enabled ones. Watch says RULES.
+  $grpc.ResponseFuture<$0.RuleList> listRules(
+    $0.Empty request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$listRules, request, options: options);
+  }
+
+  /// Saves a rule: a new one (id 0) at the end, or the one of that id with these fields where it is (its order and
+  /// its apps stay). The rule as saved. INVALID_ARGUMENT for what a rule may not be (an outbound that is no profile, a
+  /// network other than tcp or udp, its own JSON not an object, a list over 1 MiB); NOT_FOUND.
+  $grpc.ResponseFuture<$0.Rule> saveRule(
+    $0.Rule request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$saveRule, request, options: options);
+  }
+
+  $grpc.ResponseFuture<$0.Empty> deleteRules(
+    $0.RuleIds request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$deleteRules, request, options: options);
+  }
+
+  /// Puts rules, in the order given, before another one (0: at the end); the rules are numbered again from 1.
+  /// NOT_FOUND; INVALID_ARGUMENT for no rule, or one to put them before that is not there or among them.
+  $grpc.ResponseFuture<$0.Empty> moveRules(
+    $0.MoveRulesRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$moveRules, request, options: options);
+  }
+
+  /// A ready-made set of rules (D-RULES-05): Russia's two replace its rules there are, at the end. The rules added;
+  /// their rule-sets are downloaded by UpdateRuleSets (rule_sets).
+  $grpc.ResponseFuture<$0.PresetResult> applyPreset(
+    $0.PresetRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$applyPreset, request, options: options);
+  }
+
+  /// The rule-sets the rules name that the daemon downloads (BG-09, D-RULES-03): each with its file, when it was
+  /// fetched, what it holds and its last download's error. Watch says RULE_SETS.
+  $grpc.ResponseFuture<$0.RuleSetList> listRuleSets(
+    $0.Empty request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$listRuleSets, request, options: options);
+  }
+
+  /// Downloads rule-sets (D-RULES-03): those asked, or those of the enabled rules, each missing or older than the
+  /// update interval (rule_set_update_hours), or each with force. Directly, with the limits of the app's (https alone,
+  /// 32 MiB, 120 s in all, 30 s without a byte); a list replaces its file only once the core's reader takes it
+  /// (libcore's CheckRuleSet). A task, as Refresh is; the result's code the first failure's (UNAVAILABLE where a
+  /// server did not answer, INVALID_ARGUMENT for what is not a rule-set or not https, ABORTED where an update runs
+  /// already). The core takes a list it started without when it starts again. While the core runs, the daemon updates
+  /// the enabled rules' lists on its own, by the interval.
+  $grpc.ResponseStream<$0.TaskProgress> updateRuleSets(
+    $0.RuleSetRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createStreamingCall(
+        _$updateRuleSets, $async.Stream.fromIterable([request]),
+        options: options);
+  }
+
   // method descriptors
 
   static final _$getInfo = $grpc.ClientMethod<$0.GetInfoRequest, $0.Info>(
@@ -317,6 +386,36 @@ class NikoServiceClient extends $grpc.Client {
       $grpc.ClientMethod<$0.RefreshRequest, $0.TaskProgress>(
           '/niko.v1.NikoService/Refresh',
           ($0.RefreshRequest value) => value.writeToBuffer(),
+          $0.TaskProgress.fromBuffer);
+  static final _$listRules = $grpc.ClientMethod<$0.Empty, $0.RuleList>(
+      '/niko.v1.NikoService/ListRules',
+      ($0.Empty value) => value.writeToBuffer(),
+      $0.RuleList.fromBuffer);
+  static final _$saveRule = $grpc.ClientMethod<$0.Rule, $0.Rule>(
+      '/niko.v1.NikoService/SaveRule',
+      ($0.Rule value) => value.writeToBuffer(),
+      $0.Rule.fromBuffer);
+  static final _$deleteRules = $grpc.ClientMethod<$0.RuleIds, $0.Empty>(
+      '/niko.v1.NikoService/DeleteRules',
+      ($0.RuleIds value) => value.writeToBuffer(),
+      $0.Empty.fromBuffer);
+  static final _$moveRules = $grpc.ClientMethod<$0.MoveRulesRequest, $0.Empty>(
+      '/niko.v1.NikoService/MoveRules',
+      ($0.MoveRulesRequest value) => value.writeToBuffer(),
+      $0.Empty.fromBuffer);
+  static final _$applyPreset =
+      $grpc.ClientMethod<$0.PresetRequest, $0.PresetResult>(
+          '/niko.v1.NikoService/ApplyPreset',
+          ($0.PresetRequest value) => value.writeToBuffer(),
+          $0.PresetResult.fromBuffer);
+  static final _$listRuleSets = $grpc.ClientMethod<$0.Empty, $0.RuleSetList>(
+      '/niko.v1.NikoService/ListRuleSets',
+      ($0.Empty value) => value.writeToBuffer(),
+      $0.RuleSetList.fromBuffer);
+  static final _$updateRuleSets =
+      $grpc.ClientMethod<$0.RuleSetRequest, $0.TaskProgress>(
+          '/niko.v1.NikoService/UpdateRuleSets',
+          ($0.RuleSetRequest value) => value.writeToBuffer(),
           $0.TaskProgress.fromBuffer);
 }
 
@@ -465,6 +564,55 @@ abstract class NikoServiceBase extends $grpc.Service {
         false,
         true,
         ($core.List<$core.int> value) => $0.RefreshRequest.fromBuffer(value),
+        ($0.TaskProgress value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.Empty, $0.RuleList>(
+        'ListRules',
+        listRules_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.Empty.fromBuffer(value),
+        ($0.RuleList value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.Rule, $0.Rule>(
+        'SaveRule',
+        saveRule_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.Rule.fromBuffer(value),
+        ($0.Rule value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.RuleIds, $0.Empty>(
+        'DeleteRules',
+        deleteRules_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.RuleIds.fromBuffer(value),
+        ($0.Empty value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.MoveRulesRequest, $0.Empty>(
+        'MoveRules',
+        moveRules_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.MoveRulesRequest.fromBuffer(value),
+        ($0.Empty value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.PresetRequest, $0.PresetResult>(
+        'ApplyPreset',
+        applyPreset_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.PresetRequest.fromBuffer(value),
+        ($0.PresetResult value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.Empty, $0.RuleSetList>(
+        'ListRuleSets',
+        listRuleSets_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.Empty.fromBuffer(value),
+        ($0.RuleSetList value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.RuleSetRequest, $0.TaskProgress>(
+        'UpdateRuleSets',
+        updateRuleSets_Pre,
+        false,
+        true,
+        ($core.List<$core.int> value) => $0.RuleSetRequest.fromBuffer(value),
         ($0.TaskProgress value) => value.writeToBuffer()));
   }
 
@@ -625,4 +773,59 @@ abstract class NikoServiceBase extends $grpc.Service {
 
   $async.Stream<$0.TaskProgress> refresh(
       $grpc.ServiceCall call, $0.RefreshRequest request);
+
+  $async.Future<$0.RuleList> listRules_Pre(
+      $grpc.ServiceCall $call, $async.Future<$0.Empty> $request) async {
+    return listRules($call, await $request);
+  }
+
+  $async.Future<$0.RuleList> listRules(
+      $grpc.ServiceCall call, $0.Empty request);
+
+  $async.Future<$0.Rule> saveRule_Pre(
+      $grpc.ServiceCall $call, $async.Future<$0.Rule> $request) async {
+    return saveRule($call, await $request);
+  }
+
+  $async.Future<$0.Rule> saveRule($grpc.ServiceCall call, $0.Rule request);
+
+  $async.Future<$0.Empty> deleteRules_Pre(
+      $grpc.ServiceCall $call, $async.Future<$0.RuleIds> $request) async {
+    return deleteRules($call, await $request);
+  }
+
+  $async.Future<$0.Empty> deleteRules(
+      $grpc.ServiceCall call, $0.RuleIds request);
+
+  $async.Future<$0.Empty> moveRules_Pre($grpc.ServiceCall $call,
+      $async.Future<$0.MoveRulesRequest> $request) async {
+    return moveRules($call, await $request);
+  }
+
+  $async.Future<$0.Empty> moveRules(
+      $grpc.ServiceCall call, $0.MoveRulesRequest request);
+
+  $async.Future<$0.PresetResult> applyPreset_Pre(
+      $grpc.ServiceCall $call, $async.Future<$0.PresetRequest> $request) async {
+    return applyPreset($call, await $request);
+  }
+
+  $async.Future<$0.PresetResult> applyPreset(
+      $grpc.ServiceCall call, $0.PresetRequest request);
+
+  $async.Future<$0.RuleSetList> listRuleSets_Pre(
+      $grpc.ServiceCall $call, $async.Future<$0.Empty> $request) async {
+    return listRuleSets($call, await $request);
+  }
+
+  $async.Future<$0.RuleSetList> listRuleSets(
+      $grpc.ServiceCall call, $0.Empty request);
+
+  $async.Stream<$0.TaskProgress> updateRuleSets_Pre($grpc.ServiceCall $call,
+      $async.Future<$0.RuleSetRequest> $request) async* {
+    yield* updateRuleSets($call, await $request);
+  }
+
+  $async.Stream<$0.TaskProgress> updateRuleSets(
+      $grpc.ServiceCall call, $0.RuleSetRequest request);
 }

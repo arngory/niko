@@ -9,6 +9,7 @@ import '../state/connection_controller.dart';
 import '../state/connections_feed.dart';
 import '../state/log_feed.dart';
 import '../state/profiles_feed.dart';
+import '../state/rules_feed.dart';
 import '../state/settings_feed.dart';
 import '../state/stun_tool.dart';
 import '../state/window_settings.dart';
@@ -20,15 +21,16 @@ import 'connections_screen.dart';
 import 'log_screen.dart';
 import 'main_screen.dart';
 import 'nodes_screen.dart';
+import 'rules_screen.dart';
 
-/// The sections the window has so far. Проверка маршрута and Правила come with NikoService (stage 3): a section is in
-/// the header only when its screen exists.
-enum AppSection { home, nodes, connections, log, settings }
+/// The sections the window has so far. Проверка маршрута comes with NikoService (stage 3): a section is in the header
+/// only when its screen exists.
+enum AppSection { home, nodes, rules, connections, log, settings }
 
 /// The window under its header: the section shown, in the view chosen. D-NAV-01, D-NAV-03.
 ///
-/// Простой shows the main screen and the log; Расширенный adds the connections. Changing the view changes what
-/// is shown and nothing about the connection.
+/// Простой shows the main screen and the log; Расширенный adds the rules and the connections. Changing the view
+/// changes what is shown and nothing about the connection.
 class NikoShell extends StatefulWidget {
   const NikoShell({
     super.key,
@@ -60,6 +62,7 @@ class _NikoShellState extends State<NikoShell> {
   late ConnectionsFeed _connections;
   late StunTool _stun;
   late ProfilesFeed _profiles;
+  late RulesFeed _rules;
   late SettingsFeed _settings;
   bool _adding = false;
   AppSection _section = AppSection.home;
@@ -77,6 +80,7 @@ class _NikoShellState extends State<NikoShell> {
     _connections = ConnectionsFeed(widget.controller);
     _stun = StunTool(widget.controller);
     _profiles = ProfilesFeed(widget.controller);
+    _rules = RulesFeed(widget.controller);
     _settings = SettingsFeed(widget.controller);
     widget.controller.addListener(_changed);
   }
@@ -87,6 +91,7 @@ class _NikoShellState extends State<NikoShell> {
     _connections.dispose();
     _stun.dispose();
     _profiles.dispose();
+    _rules.dispose();
     _settings.dispose();
   }
 
@@ -118,6 +123,7 @@ class _NikoShellState extends State<NikoShell> {
     _section == AppSection.log ? _log.open() : _log.close();
     _section == AppSection.connections ? _connections.show() : _connections.hide();
     _section == AppSection.nodes ? _profiles.show() : _profiles.hide();
+    _section == AppSection.rules ? _rules.show() : _rules.hide();
     // the main screen shows the mode of the settings where it connects the selected profile (D-NAV-02)
     _section == AppSection.settings || (_section == AppSection.home && widget.controller.connectsProfile)
         ? _settings.show()
@@ -140,7 +146,7 @@ class _NikoShellState extends State<NikoShell> {
     setState(() {
       _advanced = advanced;
       // a section the simple view does not have gives way to the main screen
-      if (!advanced && _section == AppSection.connections) _section = AppSection.home;
+      if (!advanced && (_section == AppSection.connections || _section == AppSection.rules)) _section = AppSection.home;
     });
     _read();
   }
@@ -173,6 +179,7 @@ class _NikoShellState extends State<NikoShell> {
             sections: [
               (AppSection.home, strings.sectionHome),
               (AppSection.nodes, strings.sectionNodes),
+              if (_advanced) (AppSection.rules, strings.sectionRules),
               if (_advanced) (AppSection.connections, strings.sectionConnections),
               (AppSection.log, strings.sectionLog),
               (AppSection.settings, strings.sectionSettings),
@@ -211,6 +218,10 @@ class _NikoShellState extends State<NikoShell> {
                         linked: state.link == LinkPhase.ready,
                         onAdd: () => setState(() => _adding = true),
                       ),
+              ),
+              AppSection.rules => ListenableBuilder(
+                listenable: Listenable.merge([_rules, state]),
+                builder: (context, _) => RulesScreen(feed: _rules, linked: state.link == LinkPhase.ready),
               ),
               AppSection.log => LogScreen(feed: _log, stun: _stun),
               AppSection.settings => ListenableBuilder(

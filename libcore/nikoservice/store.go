@@ -52,6 +52,8 @@ type user struct {
 	feed  *feed
 	// updates are its subscriptions' (subscriptions.go)
 	updates *updates
+	// ruleSets are its rule-sets' downloads (rules.go)
+	ruleSets *ruleSetUpdates
 }
 
 func newUsers(root string, caller func(context.Context) (string, error), done <-chan struct{}) *users {
@@ -144,7 +146,7 @@ func (u *users) openDir(dir string) (*user, error) {
 	if err != nil {
 		return nil, status.Error(codes.Internal, "the store: "+err.Error())
 	}
-	opened := &user{store: store, feed: f, updates: newUpdates()}
+	opened := &user{store: store, feed: f, updates: newUpdates(), ruleSets: newRuleSetUpdates()}
 	u.open[dir] = opened
 	return opened, nil
 }
@@ -159,6 +161,8 @@ func changeKind(kind nikostore.Kind) nikopb.Change_Kind {
 		return nikopb.Change_SELECTED
 	case nikostore.KindSettings:
 		return nikopb.Change_SETTINGS
+	case nikostore.KindRules:
+		return nikopb.Change_RULES
 	}
 	return nikopb.Change_KIND_UNSPECIFIED
 }

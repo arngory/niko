@@ -36,10 +36,13 @@ import java.nio.file.Files
  * - `apps`: package name → uid (ConfigDevice.uid); `private_dns`: the strict Private DNS host;
  * - `for_test`, `for_export`: buildConfig's flags;
  * - `platform`: `windows` or `linux` for a computer's case, which this test skips: its config is libcore/nikoconf's
- *   alone (`linux.json`, `windows.json`; Go writes a `windows.json` of some of the app's cases too).
+ *   alone (`linux.json`, `windows.json`; Go writes a `windows.json` of some of the app's cases too);
+ * - `rule_sets`: the rule-sets downloaded (RuleSetFiles), item → what CheckRuleSet found in it (RuleSetFiles.HAS_DOMAIN,
+ *   HAS_IP): each a file in the test's directory with its `.kinds` beside it, none for a case without; the config's
+ *   paths name that directory as [RULE_SETS].
  *
  * The rest of ConfigDevice is fixed: ports from 20000 on, the clock at 1800000000, no plugin, libcore's protect server
- * not up, the one-time mesh key "golden-one-time-key". No raycontrol node (ConfigRay.None), no rule-set downloaded.
+ * not up, the one-time mesh key "golden-one-time-key". No raycontrol node (ConfigRay.None).
  */
 class ConfigGoldenTest {
 
@@ -47,6 +50,24 @@ class ConfigGoldenTest {
     private val dir: File = File(links.parentFile, "config")
     private val update = System.getenv("NIKO_GOLDEN_UPDATE") == "1"
     private val gson = JavaUtil.gson
+
+    private companion object {
+        /** where the fixtures' rule-sets are (libcore/nikoconf.GoldenRuleSetDir) */
+        const val RULE_SETS = "/golden/rule-sets"
+    }
+
+    /** the case's downloaded rule-sets, the only files in [dir]: each a binary one's head, its kinds after it */
+    private fun downloadRuleSets(input: JsonObject, dir: File) {
+        dir.listFiles()?.forEach { it.delete() }
+        for ((item, kinds) in input.getAsJsonObject("rule_sets")?.entrySet().orEmpty()) {
+            val file = RuleSetFiles.file(item)
+            file.writeBytes(byteArrayOf('S'.code.toByte(), 'R'.code.toByte(), 'S'.code.toByte(), 1))
+            File(dir, file.name + ".kinds").apply {
+                writeText(kinds.asInt.toString())
+                setLastModified(file.lastModified())
+            }
+        }
+    }
 
     private class Device(private val apps: Map<String, Int>, private val privateDns: String?) : ConfigDevice {
         private var next = 20000
@@ -89,7 +110,8 @@ class ConfigGoldenTest {
         ).putBean(patched)
     }
 
-    private fun build(input: JsonObject): Triple<String, List<String>, String?> {
+    private fun build(input: JsonObject, ruleSets: File): Triple<String, List<String>, String?> {
+        downloadRuleSets(input, ruleSets)
         val profiles = input.getAsJsonArray("profiles").map { profile(it.asJsonObject) }
         val groups = input.getAsJsonArray("groups")?.map {
             gson.fromJson(overlay(gson.toJsonTree(ProxyGroup()).asJsonObject, it.asJsonObject), ProxyGroup::class.java)
@@ -109,7 +131,8 @@ class ConfigGoldenTest {
         val forExport = input.get("for_export")?.asBoolean == true
         val built = ConfigInput(proxy, settings, ConfigStore.Of(profiles, groups, rules), ConfigRay.None, device)
         return try {
-            Triple(buildConfig(built, forTest, forExport, notes = false).config, device.warnings, null)
+            val config = buildConfig(built, forTest, forExport, notes = false).config
+            Triple(config.replace(ruleSets.absolutePath, RULE_SETS), device.warnings, null)
         } catch (e: Exception) {
             Triple("", device.warnings, e.message ?: e.toString())
         }
@@ -117,7 +140,7 @@ class ConfigGoldenTest {
 
     @Test
     fun configs() {
-        // no rule-set is downloaded: an empty directory of the test's
+        // the rule-sets downloaded: a directory of the test's, each case's files in it
         val ruleSets = Files.createTempDirectory("rule-sets").toFile()
         RuleSetFiles.dir = { ruleSets }
         val cases = dir.listFiles { f -> File(f, "input.json").isFile }.orEmpty().sortedBy { it.name }
@@ -152,7 +175,7 @@ class ConfigGoldenTest {
             }
             if (input.get("platform")?.asString.let { it != null && it != "android" }) continue
             val (config, warnings, error) = try {
-                build(input)
+                build(input, ruleSets)
             } catch (e: Exception) {
                 problems += "${case.name}/input.json: $e"
                 continue
