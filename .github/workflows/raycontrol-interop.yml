@@ -997,6 +997,9 @@ jobs:
           RAYCONTROL_INVITE_FILE: /tmp/desktop.invite
           RAYCONTROL_NODE: 203.0.113.2
           RAYCONTROL_TARGET_HOST: 203.0.113.1
+          # Xray's freedom refuses the runner's documentation address whatever niko-server may reach: REALITY by a
+          # public address
+          RAYCONTROL_PUBLIC_ROWS: reality
         run: |
           TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
           go test -count=1 -v -timeout 10m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestNikodRaycontrolInterop ./nikoservice

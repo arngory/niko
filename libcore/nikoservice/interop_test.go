@@ -2,6 +2,7 @@ package nikoservice
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -9,13 +10,16 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"libcore/nikopb"
 
+	"github.com/sagernet/sing-box/daemon"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // TestNikodRaycontrolInterop is nikod against a real rayd (arngory/raycontrol), run by
@@ -101,6 +105,35 @@ func TestNikodRaycontrolInterop(t *testing.T) {
 		t.Fatalf("the rows: %v %v", rows, err)
 	}
 
+	// the core at debug, its log kept from here on and shown when a profile fails: what the knock, the TLS and the
+	// tunnel did
+	if _, err = client.UpdateSettings(ctx, &nikopb.SettingsUpdate{Settings: &nikopb.Settings{LogLevel: 3},
+		Fields: []string{"log_level"}}); err != nil {
+		t.Fatalf("log level: %v", err)
+	}
+	var logMu sync.Mutex
+	var coreLog []string
+	if logs, err := daemon.NewStartedServiceClient(conn).SubscribeLog(ctx, &emptypb.Empty{}); err != nil {
+		t.Logf("no core log: %v", err)
+	} else {
+		go func() {
+			for {
+				batch, err := logs.Recv()
+				if err != nil {
+					return
+				}
+				logMu.Lock()
+				for _, m := range batch.Messages {
+					coreLog = append(coreLog, m.Message)
+				}
+				if len(coreLog) > 400 {
+					coreLog = coreLog[len(coreLog)-400:]
+				}
+				logMu.Unlock()
+			}
+		}()
+	}
+
 	// an HTTP server of the test's own, which the node's tunnels may reach (NIKO_SERVER_UNSAFE_ANY_DESTINATION)
 	listener, err := net.Listen("tcp", "0.0.0.0:0")
 	if err != nil {
@@ -122,6 +155,17 @@ func TestNikodRaycontrolInterop(t *testing.T) {
 	proxy, _ := url.Parse("http://127.0.0.1:2080")
 	httpClient := &http.Client{Timeout: 15 * time.Second, Transport: &http.Transport{Proxy: http.ProxyURL(proxy),
 		DisableKeepAlives: true}}
+	// rows the node serves through Xray (REALITY): its freedom refuses private and documentation addresses, the
+	// runner's 203.0.113.1 among them, whatever niko-server is let reach (raycontrol render.go: only the subscription
+	// endpoint is allowed); these go by a public address instead, whose answer says the tunnel carried it, not from
+	// where
+	public := map[string]bool{}
+	for _, name := range strings.Split(os.Getenv("RAYCONTROL_PUBLIC_ROWS"), ",") {
+		if name = strings.TrimSpace(name); name != "" {
+			public[name] = true
+		}
+	}
+	const publicTarget = "http://www.gstatic.com/generate_204"
 	var failed []string
 	for _, row := range rows.Profiles {
 		if row.NodeId != node.Id {
@@ -130,6 +174,25 @@ func TestNikodRaycontrolInterop(t *testing.T) {
 		proxyMode := nikopb.ConnectRequest_PROXY
 		if _, err = client.Connect(ctx, &nikopb.ConnectRequest{ProfileId: row.Id, Mode: &proxyMode}); err != nil {
 			failed = append(failed, row.Name+": Connect: "+err.Error())
+			continue
+		}
+		if public[row.Name] {
+			var getErr error
+			status := 0
+			for deadline := time.Now().Add(45 * time.Second); time.Now().Before(deadline); time.Sleep(time.Second) {
+				var response *http.Response
+				if response, getErr = httpClient.Get(publicTarget); getErr == nil {
+					response.Body.Close()
+					if status = response.StatusCode; status == http.StatusNoContent {
+						break
+					}
+				}
+			}
+			if status != http.StatusNoContent {
+				failed = append(failed, fmt.Sprintf("%s (%s): %s: status %d, %s", row.Name, row.Type, publicTarget, status, errText(getErr)))
+				continue
+			}
+			t.Logf("%s (%s): through the node to %s", row.Name, row.Type, publicTarget)
 			continue
 		}
 		var body string
@@ -158,6 +221,9 @@ func TestNikodRaycontrolInterop(t *testing.T) {
 		t.Logf("%s (%s): through the node, from %s", row.Name, row.Type, from)
 	}
 	if len(failed) > 0 {
+		logMu.Lock()
+		t.Logf("the core's log, its last %d lines:\n%s", len(coreLog), strings.Join(coreLog, "\n"))
+		logMu.Unlock()
 		t.Fatalf("not through the node:\n%s", strings.Join(failed, "\n"))
 	}
 }
