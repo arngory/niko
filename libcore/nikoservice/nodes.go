@@ -50,15 +50,32 @@ const (
 	clockOff = 30
 )
 
-// nodeUpdates are a user's nodes' updates: those running, one at a time a node, and their last errors.
+// nodeUpdates are a user's nodes' updates: those running, one at a time a node, their last errors, and when each
+// was last tried on its own.
 type nodeUpdates struct {
 	mu      sync.Mutex
 	running map[string]bool
 	errors  map[string]string
+	tried   map[string]time.Time
 }
 
 func newNodeUpdates() *nodeUpdates {
-	return &nodeUpdates{running: map[string]bool{}, errors: map[string]string{}}
+	return &nodeUpdates{running: map[string]bool{}, errors: map[string]string{}, tried: map[string]time.Time{}}
+}
+
+// minAutoRetry is the least time between two timed updates of a node: one that fails before its fetch (and so plans
+// no retry of its own) is not tried every minute.
+const minAutoRetry = 5 * time.Minute
+
+// due marks a node's timed update tried now; false where one runs, or was tried within minAutoRetry.
+func (n *nodeUpdates) due(id string, now time.Time) bool {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if n.running[id] || now.Sub(n.tried[id]) < minAutoRetry {
+		return false
+	}
+	n.tried[id] = now
+	return true
 }
 
 func (n *nodeUpdates) start(id string) bool {
@@ -546,6 +563,9 @@ func (s *server) updateNodeLocked(ctx context.Context, u *user, id string) (stri
 	if err != nil {
 		return "", node.GroupID, nil, status.Error(codes.InvalidArgument, err.Error())
 	}
+	if len(parsed.Rows) > maxImport {
+		return "", node.GroupID, nil, errOverImport
+	}
 	next, err := nikoray.NextRefresh(payload, nodeNow)
 	if err != nil {
 		return "", node.GroupID, nil, status.Error(codes.InvalidArgument, "the subscription's times: "+err.Error())
@@ -647,7 +667,7 @@ func (s *server) autoNodes(now time.Time) {
 			if kept.Unreadable || n.Subscription == nil || n.RefreshAt == nikoray.Stopped || n.RefreshAt > now.Unix() {
 				continue
 			}
-			if running, _ := u.nodes.state(n.ID()); running {
+			if !u.nodes.due(n.ID(), now) {
 				continue
 			}
 			task := "node-" + strconv.FormatUint(s.users.tasks.Add(1), 10)

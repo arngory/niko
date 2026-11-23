@@ -117,10 +117,13 @@ func connectInput(store *nikostore.Store, id int64, settings nikoconf.Settings) 
 	in := nikoconf.Input{Profile: id, Profiles: []nikoconf.Profile{profile}, Settings: settings,
 		Platform: connectPlatform(), Device: desktopDevice{}, Rules: store.Rules(),
 		RuleSets: ruleset.Files{Dir: ruleSetsDir(store)}}
-	// the raycontrol nodes, their rows by the profiles' ids; one sealed elsewhere builds nothing
+	// the raycontrol nodes, their rows by the profiles' ids; a row of one sealed elsewhere has no key to knock with
 	for _, kept := range store.Nodes() {
 		if !kept.Unreadable {
 			in.Nodes = append(in.Nodes, *kept.Node)
+		} else if kept.Node.GroupID == stored.Group {
+			return nikoconf.Input{}, status.Error(codes.FailedPrecondition,
+				"the profile's raycontrol node was sealed on another machine: import a new invite")
 		}
 	}
 	var group *nikoconf.Group
