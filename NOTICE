@@ -89,7 +89,7 @@ Android libraries (the app's runtime classpath)
 
 Fonts
   Geist and Geist Mono, Copyright (c) 2023 Vercel, in collaboration with basement.studio: SIL Open Font License 1.1
-  (app/src/main/res/font, desktop/fonts/OFL.txt).
+  (app/src/main/res/font; the window, arngory/niko-desktop, carries them with fonts/OFL.txt).
 
 Icons
   Lucide, https://lucide.dev, Copyright (c) 2026 Lucide Icons and Contributors: ISC; the icons it took from Feather,

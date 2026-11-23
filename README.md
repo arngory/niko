@@ -31,7 +31,8 @@ all built in. Subscriptions: Shadowsocks, ClashMeta, v2rayN and sing-box outboun
 ## Building
 
 GitHub Actions builds the Go library and the APKs ([build.yml](.github/workflows/build.yml)) and signs releases
-([docs/guide/release.md](docs/guide/release.md)). The window for the computer is in [desktop/](desktop/).
+([docs/guide/release.md](docs/guide/release.md)). The window for the computer is in its own repository,
+[arngory/niko-desktop](https://github.com/arngory/niko-desktop); its daemon `nikod` is here (`libcore/cmd/nikod`).
 
 ## More
 

@@ -1,14 +1,20 @@
 #!/usr/bin/env python3
 """The interface's icons, for Android and for the window, from the design system's set.
 
-  gen_icons.py            write app/src/main/res/drawable/ic_l_<name>.xml for every shared/icons/lucide/<name>.svg
-                          (but the window's own, WINDOW_ONLY), and desktop/lib/ui/icons.g.dart with the window's
-  gen_icons.py --check    exit 1 if a file is not what its SVGs give, is missing, or a drawable has no SVG (CI)
+  gen_icons.py [--desktop DIR]          write app/src/main/res/drawable/ic_l_<name>.xml for every
+                                        shared/icons/lucide/<name>.svg (but the window's own, WINDOW_ONLY), and with
+                                        --desktop DIR/lib/ui/icons.g.dart with the window's
+  gen_icons.py --check [--desktop DIR]  exit 1 if a file is not what its SVGs give, is missing, or a drawable has no
+                                        SVG (CI)
+
+DIR is a checkout of the window, arngory/niko-desktop; without --desktop its file is left alone (its CI checks it
+against the Niko it pins).
 
 The set is Lucide (shared/icons/LICENSE), the one the canvas and the window for the computer draw: outlines on a 24
 grid, stroked with the icon stroke of shared/tokens.json. An icon is added by putting its SVG, unchanged, into
 shared/icons/lucide and running this; a drawable is never edited by hand.
 """
+import argparse
 import json
 import os
 import re
@@ -21,7 +27,7 @@ TARGET = os.path.join(ROOT, "app", "src", "main", "res", "drawable")
 SVG = "{http://www.w3.org/2000/svg}"
 # drawn towards the reading direction: mirrored where the text runs right to left
 MIRRORED = {"arrow-left", "arrow-right-to-line", "send", "undo-2", "redo-2", "log-in", "log-out", "align-left"}
-# the icons the window draws: its name for each → the SVG's (desktop/lib/ui/icons.g.dart)
+# the icons the window draws: its name for each → the SVG's (lib/ui/icons.g.dart of the window's checkout)
 WINDOW = {
     "power": "power", "alert": "circle-alert", "close": "x", "search": "search", "trash": "trash",
     "menu": "menu", "copy": "copy", "export": "share", "plus": "plus", "rotateCw": "rotate-cw",
@@ -29,7 +35,8 @@ WINDOW = {
 }
 # drawn by the window alone: no drawable for them (lint fails the APK on a resource nothing uses)
 WINDOW_ONLY = {"circle-alert", "trash", "copy", "share"}
-DART = os.path.join(ROOT, "desktop", "lib", "ui", "icons.g.dart")
+# in the window's checkout (--desktop)
+DART = os.path.join("lib", "ui", "icons.g.dart")
 # icons outside a themed view (a launcher shortcut): a colour of their own in place of the theme's tint
 FIXED = {"ic_qu_camera_foreground": ("camera", "#FF1C1C1C")}
 # lint's VectorPath
@@ -175,6 +182,13 @@ def dart():
 
 
 def main():
+    parser = argparse.ArgumentParser(description="The interface's icons, for Android and for the window.")
+    parser.add_argument("--check", action="store_true", help="exit 1 if a generated file is not what its SVGs give")
+    parser.add_argument("--desktop", metavar="DIR", help="a checkout of the window, arngory/niko-desktop")
+    args = parser.parse_args()
+    if args.desktop and not os.path.isfile(os.path.join(args.desktop, "pubspec.yaml")):
+        print(f"{args.desktop} is not a checkout of the window (no pubspec.yaml)")
+        return 2
     tokens = json.load(open(os.path.join(ROOT, "shared", "tokens.json"), encoding="utf-8"))
     stroke = next(token["value"] for token in tokens["stroke"]["tokens"] if token["name"] == "stroke-icon")
     stroke = number(stroke.replace("px", ""))
@@ -182,7 +196,7 @@ def main():
     files = {f"ic_l_{name.replace('-', '_')}.xml": drawable(name, stroke) for name in names}
     for resource, (name, colour) in FIXED.items():
         files[resource + ".xml"] = drawable(name, stroke, colour)
-    check = "--check" in sys.argv[1:]
+    check = args.check
     stale = 0
     for file, text in files.items():
         path = os.path.join(TARGET, file)
@@ -192,13 +206,14 @@ def main():
                 stale = 1
         else:
             open(path, "w", encoding="utf-8").write(text)
-    window = dart()
-    if check:
-        if not os.path.exists(DART) or open(DART, encoding="utf-8").read() != window:
-            print("desktop/lib/ui/icons.g.dart is not what the SVGs give: run shared/tool/gen_icons.py")
-            stale = 1
-    else:
-        open(DART, "w", encoding="utf-8").write(window)
+    if args.desktop:
+        window, path = dart(), os.path.join(args.desktop, DART)
+        if check:
+            if not os.path.exists(path) or open(path, encoding="utf-8").read() != window:
+                print(f"{path} is not what the SVGs give: run shared/tool/gen_icons.py --desktop")
+                stale = 1
+        else:
+            open(path, "w", encoding="utf-8").write(window)
     for file in sorted(os.listdir(TARGET)):
         if file.startswith("ic_l_") and file not in files:
             if check:

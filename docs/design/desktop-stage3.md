@@ -13,8 +13,8 @@
 
 ### Окно
 
-- Flutter, около 4000 строк Dart в `desktop/lib`. Умеет то, что описано в [desktop/README.md](../../desktop/README.md):
-  главная с готовым JSON, журнал, отчёты, проверка NAT, соединения. Все вызовы — к трём службам форка:
+- Flutter, около 4000 строк Dart в `desktop/lib`. Умеет то, что описано в
+  [README окна](https://github.com/arngory/niko-desktop/blob/main/README.ru.md): главная с готовым JSON, журнал, отчёты, проверка NAT, соединения. Все вызовы — к трём службам форка:
   `DesktopService`, `StartedService`, `ManagedService` (`desktop/lib/daemon/daemon.dart`).
 - **Релизная сборка окна с демоном не связана вовсе.** Связь есть только по TCP и только в сборке с `NIKO_DEV`
   (`desktop/lib/main.dart:14`, `:24`); без флага демона у окна нет. Транспорт для релиза (named pipe через worker или
@@ -194,8 +194,9 @@ trojan, ss, socks, http, tuic, WireGuard и AmneziaWG, anytls, shadowtls, цеп
 ## 3. `NikoService`: набросок API
 
 Proto — в общем слое: `shared/proto/niko/v1/niko_service.proto`. Из него генерируются Go (`libcore/nikoservice`),
-Dart (`desktop/lib/gen/niko`) и позже Kotlin. Сгенерированное лежит в репозитории, CI проверяет его скриптом
-`--check`, как сейчас `desktop/tool/gen_proto.sh`.
+Dart (`lib/gen/niko` окна, arngory/niko-desktop) и позже Kotlin. Сгенерированное лежит в репозитории, CI проверяет
+его скриптом `--check`: Go — `shared/tool/gen_proto_go.sh` здесь, Dart — `tool/gen_proto.sh` окна против коммита Niko,
+который окно пинит.
 
 ```proto
 syntax = "proto3";
@@ -831,6 +832,28 @@ shared/golden/
 - Тест окна с настоящим демоном (`test/real_daemon_test.dart`) идёт против `nikod`: переменная `NIKO_DAEMON`
   вместо `NIKO_BOXDD`.
 - `test` на Windows добавляет новые пакеты Go.
+
+### Где живёт окно (с 2026-11-23)
+
+Решение владельца от 2026-11-23 ([решения](../decisions.md)): после среза 11 окно на Flutter, его сборки архивом и
+их CI ушли в свой репозиторий, [arngory/niko-desktop](https://github.com/arngory/niko-desktop) (публичный, с историей:
+`git subtree split` каталога `desktop/` на `c51d3b0`). Здесь остались демон и его Go (`libcore/cmd/nikod`,
+`nikoservice`, `nikostore`, `nikoconf`, `nikofmt`, `nikosub`, `nikoray`, `ruleset`) и общий слой `shared/` (proto,
+токены, значки, golden) — рядом с Kotlin, с которым их сверяют.
+
+- Окно пинит `niko` по коммиту его `main` в `.github/niko.env`. CI окна (`ci.yml` там) кладёт Niko на этом коммите
+  рядом с собой (`niko/`, ядро на пине Niko — `sing-box/`), собирает там `nikod` и `boxdd` теми же тегами и флагами,
+  что `desktop.yml` здесь, и проверяет: Dart из `shared/proto` (`tool/gen_proto.sh --check`), тему, шрифты и значки
+  окна (`shared/tool/gen_tokens.py` и `gen_icons.py` с `--desktop <checkout окна>`), анализ, тесты и снимки экранов,
+  тест окна с настоящим `nikod` на Windows и Linux, режим VPN и системный прокси на Windows, сборки окна.
+- Здесь `desktop.yml` — сторона демона: `nikod`, `boxdd` и ядро для Windows amd64/arm64 и Linux (артефакт
+  `desktop-windows` — для ручной проверки коммита; окно собирает свои из своего пина), Go на Windows, сгенерированный
+  Go (`gen_proto_go.sh --check`). Без `--desktop` генераторы `shared/tool` файлы окна не трогают. Шрифты Geist
+  теперь берутся из `app/src/main/res/font`, у окна — их копии.
+- Срез, который трогает обе стороны: сначала PR здесь (proto, служба, golden, генераторы), после его слияния — PR в
+  niko-desktop, который ставит новый коммит `main` в `.github/niko.env` и делает сторону окна. Пока пин не сдвинут,
+  окно собирается и проверяется против прежнего коммита, так что PR здесь окно не ломает. Проверить окно против PR
+  здесь до слияния можно ручным запуском `ci.yml` окна с коммитом этого PR (вход `niko`).
 
 ## 7. Нарезка
 
