@@ -73,7 +73,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-MAIN-10 | Узел над списком, переход в карточку | — | UI | есть | есть | нет |
 | D-MAIN-11 | Строка: способ (naive, Hysteria2, REALITY, через ретранслятор, DNS-туннель) и выбор | `SelectOutbound` или перезапуск с новым конфигом | есть; ретрансляторы — Kotlin `raycontrol/RayRelays.kt` | есть | есть | нет |
 | D-MAIN-12 | Пинг строки: число, цвет, полоски | `NikoService.TestProfiles` | см. D-MAIN-08 | есть | есть | нет |
-| D-MAIN-13 | Срок и трафик узла, когда обновлён | `NikoService` | Kotlin: `raycontrol/RaySubscription.kt`, `group/SubscriptionHeaders.kt` | есть | есть | нет |
+| D-MAIN-13 | Срок и трафик узла, когда обновлён | `NikoService` | Go: `libcore/nikoray`, `nikoservice` (`ListNodes`) | есть | есть | есть: строка «Узел» на главной у выбранного профиля узла — трафик и срок, когда обновлён и следующее обновление |
 | D-MAIN-14 | Подтверждение «Узнать IP»: какой сервис спросят | `NikoService.ExitAddress` | Go: `libcore/exitaddress.go` (Cloudflare, ipinfo.io, ipwho.is, ipapi.co) | есть | есть | нет |
 | D-MAIN-16 | Причина ошибки подключения (на главной) | `SubscribeServiceStatus` (FATAL, текст ошибки) | есть | расходится: текст баннера обрезан кнопкой «Почему не работает» | есть | есть |
 | D-MAIN-17 | «Почему не работает» с главной: открывает D-WHY | `NikoService.TestRun` | Kotlin: `raycontrol/RayTestRun.kt` | есть | нет: прогон — в меню узла и в журнале | нет |
@@ -87,7 +87,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-ADD-03 | Распознано: приглашение, подписка или ссылка профиля | `NikoService.Import` | Kotlin: `raycontrol/RayImport.kt`, `fmt/UniversalFmt.kt`, парсеры `fmt/*`, `group/RawUpdater.kt` | есть | есть | нет |
 | D-ADD-04 | Из буфера | — | UI, дальше D-ADD-03 | есть | есть | нет |
 | D-ADD-05 | QR из файла или снимка экрана | — | Kotlin: `ui/ScannerActivity.kt`, QR с камеры и из картинки | есть | есть: QR из картинки (`ui/ScannerActivity.kt`) | нет |
-| D-ADD-06 | PIN приглашения, 6 цифр | `NikoService.Register` | Kotlin + Go: `raycontrol/RayImport.kt`, `libcore/rayapi` | есть | есть | нет |
+| D-ADD-06 | PIN приглашения, 6 цифр | `NikoService.Register` | Go: `libcore/nikoray`, `libcore/rayapi`, `nikoservice` (`Import`) | есть | есть | есть: поле PIN на экране добавления, когда приглашение его требует, и снова после неверного с остатком попыток; регистрация — `Import` (`ImportRequest.pin`, `TaskProgress.pin`) |
 | D-ADD-07 | Что будет добавлено | `NikoService.Import` (dry run) | Kotlin: `ui/ImportReview.kt` | расходится: подсказка внизу обрезана кнопкой | есть | нет |
 | D-ADD-08 | Добавить | `NikoService.Register` / `Import` | Kotlin + Go | есть | есть | нет |
 | D-ADD-09 | Импорт из файла: текст, JSON, WireGuard .zip, пакет устройства `rayctl` | `NikoService.Import` | Kotlin: `ui/ConfigurationFragment.kt`, `group/RawUpdater.kt`, `raycontrol/RayImport.kt` | есть | есть | нет |
@@ -98,13 +98,13 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 
 | ID | Элемент | Вызов демона | Где логика сейчас | Макет | Android | Окно |
 |---|---|---|---|---|---|---|
-| D-NODE-01 | Имя узла | `NikoService` | Kotlin: `raycontrol/RayNodes.kt` | есть | есть | нет |
-| D-NODE-02 | Обновить | `NikoService.Refresh` | Kotlin + Go: `raycontrol/RaySubscription.kt`, `libcore/raysub` | есть | есть | нет |
-| D-NODE-03 | Заметка узла | `NikoService` | Kotlin: `raycontrol/RayNodeCard.kt` | есть | есть | нет |
-| D-NODE-04 | Срок доступа, трафик до сброса | `NikoService` | Kotlin: `raycontrol/RayNodes.kt` (`RayTraffic`: used, limit, since, reset) | есть | есть | нет |
-| D-NODE-05 | Сведения: последнее и следующее обновление, подпись | `NikoService` | Kotlin: `raycontrol/RayNodeCard.kt` | есть | есть | нет |
-| D-NODE-06 | Способы подключения узла | `NikoService` | Kotlin | есть | есть | нет |
-| D-NODE-07 | Удалить узел: с подтверждением, что вернуть его можно только новым приглашением | `NikoService` | Kotlin (хранилище) | есть | есть | нет |
+| D-NODE-01 | Имя узла | `NikoService` | Go: `libcore/nikoray` | есть | есть | есть: имя узла — заголовок его группы в «Узлах» |
+| D-NODE-02 | Обновить | `NikoService.Refresh` | Go: `libcore/nikoray`, `libcore/raysub`, `nikoservice` | есть | есть | есть: «Обновить» в карточке узла (`Refresh` с `node_id`) |
+| D-NODE-03 | Заметка узла | `NikoService` | Go: `libcore/nikoray` (`NodeNote`) | есть | есть | есть: заметка в карточке, обычным текстом в изоляте направления |
+| D-NODE-04 | Срок доступа, трафик до сброса | `NikoService` | Go: `libcore/nikoray` | есть | есть | есть: трафик из лимита, сброс, «израсходован» и срок подписки в карточке и в списке групп |
+| D-NODE-05 | Сведения: последнее и следующее обновление, подпись | `NikoService` | Go: `libcore/nikoray`, `nikoservice` | есть | есть | есть: когда обновлено и следующее обновление, подпись ключами ed25519 и ML-DSA-65; строки «обновление не проходит», «часы расходятся», «узел отказал» |
+| D-NODE-06 | Способы подключения узла | `NikoService` | Go: `libcore/nikoray`, `nikostore` (группа узла) | есть | есть | есть: профили группы узла под карточкой |
+| D-NODE-07 | Удалить узел: с подтверждением, что вернуть его можно только новым приглашением | `NikoService` | Go: `nikostore` (`DeleteNode`) | есть | есть | есть: «Удалить узел» в карточке, после слов, что вернуть его можно только новым приглашением (`DeleteNode`: узел, его группа и ключ) |
 | D-NODE-08 | Свои устройства в сети узла (lan-v1) | `NikoService` | Kotlin: `raycontrol/RayLan.kt`, `ui/RayLanDialog.kt` | расходится: «2 из 3 разрешённых» — предела устройств узел не отдаёт | есть | нет |
 | D-NODE-09 | UDP у способа naive в этой сети: QUIC, через TCP пока идёт проверка, через TCP потому что QUIC не проходит (naive-udp-v1) | `NikoService` (состояние ядра `NaiveDatagramState` и вердикт пробы сети) | Go: `libcore/naive_datagram.go`; проба и память по сетям — Kotlin: `raycontrol/RayDatagrams.kt` | есть | есть | нет |
 | D-NODE-10 | Строки состояния карточки: обновления отклонены или не проходят N раз, путь прямой или через ретранслятор, резолвер DNS-туннеля, часы неверны | `NikoService` | Kotlin: `raycontrol/RayNodeCard.kt` | есть | есть | нет |
@@ -154,7 +154,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-WHY-03 | Шаги проверки | `NikoService.TestRun` | Kotlin: `raycontrol/RayTestRun.kt`, `RayTestFindings.kt` | есть | есть | нет |
 | D-WHY-04 | Что сделать | `NikoService.TestRun` | Kotlin: `raycontrol/RayTestFindings.kt` | есть | есть | нет |
 | D-WHY-05 | Переключиться на другой способ | `SelectOutbound` | есть | есть | есть: выбором в списке (D-MAIN-11) | нет |
-| D-WHY-06 | Обновить узел | `NikoService.Refresh` | см. D-NODE-02 | есть | есть: в меню узла (D-NODE-02) | нет |
+| D-WHY-06 | Обновить узел | `NikoService.Refresh` | см. D-NODE-02 | есть | есть: в меню узла (D-NODE-02) | частично: «Обновить» в карточке узла (D-NODE-02); раздела «Почему не работает» нет |
 | D-WHY-07 | Отчёт для админа | `NikoService.TestRun` | Kotlin: `raycontrol/RayTestRun.kt` (журнал с run ID) | есть | есть | нет |
 | D-WHY-08 | Последний прогон: что он нашёл | `NikoService.TestRun` | Kotlin: `raycontrol/RayTestRun.kt` (`lastFindings`) | есть | есть | нет |
 
@@ -284,7 +284,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 |---|---|---|---|---|
 | BG-01 | Сборка конфига ядра из профиля и настроек — главный перенос | Kotlin: `fmt/ConfigBuilder.kt` | есть | нет |
 | BG-02 | Хранилище профилей и узлов | Kotlin: `database/` (Room) | есть | нет |
-| BG-03 | Обновление подписок по времени: узлы raycontrol и обычные подписки | Kotlin: `bg/SubscriptionUpdater.kt`, `raycontrol/RaySubscription.kt`, `group/GroupUpdater.kt`, `group/RawUpdater.kt` | есть | нет |
+| BG-03 | Обновление подписок по времени: узлы raycontrol и обычные подписки | Kotlin: `bg/SubscriptionUpdater.kt`, `raycontrol/RaySubscription.kt`, `group/GroupUpdater.kt`, `group/RawUpdater.kt` | есть | частично: обычные подписки (срез 9) и узлы raycontrol (срез 11) по времени в `nikod`; без сторожа и отката по сети (этап 4) |
 | BG-04 | Сторож: проверки, DoH, перезагрузка подписки | Kotlin + Go: `raycontrol/RayWatchdog.kt`, `libcore/dohcheck.go` | есть | нет |
 | BG-05 | Адаптивность канала, Brutal по измерению | Kotlin + Go: `raycontrol/RayChannel.kt`, `RayBrutal.kt`, `libcore/rayprobe`, `libcore/probe` | есть | нет |
 | BG-06 | Отчёты для админа | Kotlin: `raycontrol/RayReport.kt` | есть | нет |
@@ -292,7 +292,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | BG-08 | Yggdrasil: публичные пиры | Kotlin + Go: `raycontrol/RayYggPeers.kt`, `libcore/box_yggdrasil.go` | есть | нет |
 | BG-09 | Наборы правил: загрузка и проверка | Kotlin + Go: `RuleSetFiles.kt`, `libcore/ruleset` | есть | есть: `nikod` скачивает сам (`UpdateRuleSets`, по интервалу при работающем ядре), проверка — `ruleset.Check` |
 | BG-10 | Секреты скрыты в журнале | Go: `libcore/redact.go`; в `boxdd` пока не подключено | есть | нет |
-| BG-11 | Ключ устройства в защищённом хранилище | Kotlin: `raycontrol/DeviceKeyVault.kt` (Android Keystore); на Windows DPAPI — нет | есть | нет |
+| BG-11 | Ключ устройства в защищённом хранилище | Kotlin: `raycontrol/DeviceKeyVault.kt` (Android Keystore); Go: `nikostore` (`Sealer`: DPAPI на Windows) | есть | есть: ключ устройства, клиентские ключи, учётные данные строк и DoH узла запечатаны в `store.json` (DPAPI на Windows), в ядро ключ уходит по ссылке, не в конфиге |
 | BG-12 | Обновление приложения с узла | Kotlin + Go: `raycontrol/RayAppMirror.kt`, `libcore/raysub.go`; узел пока раздаёт только APK — нужен сервер | есть | нет |
 
 ## Протоколы под Windows
