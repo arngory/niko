@@ -122,7 +122,8 @@ jobs:
           # a service with a profile in the subscription (the hints are for those), without a domain
           rc service add hy2-obfs hy2-obfs
           rc user add interop
-          rc device invite interop phone -role admin -format rcinv1 -o /tmp/rc/invite
+          # no PIN: v0.36.0 gives an admin invite one unless -pin=false, and TestRaycontrolInterop registers without
+          rc device invite interop phone -role admin -pin=false -format rcinv1 -o /tmp/rc/invite
           # invites with a PIN (api-v1 §4, v0.13.0): rcinv1, the short rcinv2 (§3a), one to withdraw by wrong
           # tries; the PIN goes to rayctl's output only, never into the file. The format said: rayctl gives rcinv3 by
           # default from v0.36.0, which the app reads (Kotlin) and these Go tests do not
