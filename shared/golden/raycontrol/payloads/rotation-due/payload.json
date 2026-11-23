@@ -1,0 +1,33 @@
+{
+  "v": 1,
+  "node_id": "11111111111111111111111111111111",
+  "seq": 7,
+  "time": 1800000003,
+  "issued": 1799996400,
+  "expires": 1800259200,
+  "profiles": [
+    {
+      "svc": 5,
+      "name": "Hysteria2",
+      "link": "hysteria2://password1@203.0.113.7:443/?sni=h.node.example.com&insecure=0&obfs=salamander&obfs-password=obfs1&niko-pin=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB%2CDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD&niko-node=11111111111111111111111111111111&niko-svc=5#hy2",
+      "next": {
+        "link": "hysteria2://password2@203.0.113.7:443/?sni=h2.node.example.com&insecure=0&obfs=salamander&obfs-password=obfs2&niko-pin=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB&niko-node=11111111111111111111111111111111&niko-svc=5#hy2",
+        "from": 1799999940
+      }
+    },
+    {
+      "svc": 5,
+      "name": "Hysteria2 b",
+      "link": "hysteria2://password1@203.0.113.7:443/?sni=h.node.example.com&insecure=0&obfs=salamander&obfs-password=obfs1&niko-pin=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB%2CDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD&niko-node=11111111111111111111111111111111&niko-svc=5#hy2"
+    },
+    {
+      "svc": 6,
+      "link": "naive+https://niko:password3@n.node.example.com:443?sni=n.node.example.com&uot=2&udp=1&niko-ack=1&icmp=1&niko-pin=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB&niko-ip=203.0.113.7&niko-node=11111111111111111111111111111111&niko-svc=6#naive"
+    }
+  ],
+  "spa": {
+    "versions": [
+      2
+    ]
+  }
+}
