@@ -15,7 +15,8 @@ import (
 // platform), that platform's (windows.json, linux.json). <platform>-warnings.json is what the build told, where it
 // told anything; <platform>-system-proxy.json the system proxy it gave for the daemon to set, where it gave one. NIKO_GOLDEN_UPDATE=1 writes them, as the app's golden tests do; without it each must be there and
 // the same by meaning. Each is also a config the core reads, with the registries its daemon has.
-var desktopCases = []string{"dns-tunnel-dnstt-noauth", "dns-tunnel-masterdns-noauth", "group-selector", "rules-vpn",
+var desktopCases = []string{"dns-tunnel-dnstt-noauth", "dns-tunnel-masterdns-noauth", "group-selector",
+	"rules-russia-downloaded", "rules-russia-waits", "rules-vpn",
 	"ss-proxy-mode-login", "ss-vpn-defaults", "yggdrasil"}
 
 func TestDesktopSnapshots(t *testing.T) {

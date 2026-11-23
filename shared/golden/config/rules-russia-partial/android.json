@@ -1,0 +1,159 @@
+{
+  "log": {
+    "level": "panic"
+  },
+  "dns": {
+    "servers": [
+      {
+        "type": "local",
+        "tag": "dns-local"
+      },
+      {
+        "type": "local",
+        "tag": "dns-direct"
+      },
+      {
+        "type": "fallback",
+        "tag": "dns-remote",
+        "servers": [
+          "dns-remote-1",
+          "dns-remote-2"
+        ]
+      },
+      {
+        "type": "https",
+        "tag": "dns-remote-1",
+        "server": "cloudflare-dns.com",
+        "path": "/dns-query",
+        "domain_resolver": {
+          "server": "dns-direct",
+          "strategy": "ipv4_only"
+        },
+        "detour": "proxy"
+      },
+      {
+        "type": "https",
+        "tag": "dns-remote-2",
+        "server": "dns.quad9.net",
+        "path": "/dns-query",
+        "domain_resolver": {
+          "server": "dns-direct",
+          "strategy": "ipv4_only"
+        },
+        "detour": "proxy"
+      }
+    ],
+    "rules": [
+      {
+        "domain": [
+          "dns.quad9.net",
+          "cloudflare-dns.com"
+        ],
+        "strategy": "ipv4_only",
+        "server": "dns-direct"
+      },
+      {
+        "domain_suffix": [
+          "niko.internal"
+        ],
+        "action": "predefined",
+        "rcode": "NXDOMAIN"
+      },
+      {
+        "rule_set": [
+          "srs:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geosite/geosite-ru-blocked.srs"
+        ],
+        "strategy": "ipv4_only",
+        "server": "dns-remote"
+      }
+    ],
+    "final": "dns-remote",
+    "strategy": "ipv4_only"
+  },
+  "inbounds": [
+    {
+      "listen": "127.0.0.1",
+      "listen_port": 2080,
+      "type": "mixed",
+      "tag": "mixed-in"
+    }
+  ],
+  "outbounds": [
+    {
+      "server": "198.51.100.10",
+      "server_port": 8388,
+      "method": "aes-256-gcm",
+      "password": "fake-ss-password",
+      "type": "shadowsocks",
+      "tag": "proxy"
+    },
+    {
+      "type": "direct",
+      "tag": "direct"
+    },
+    {
+      "type": "direct",
+      "tag": "bypass"
+    }
+  ],
+  "endpoints": [],
+  "route": {
+    "rules": [
+      {
+        "domain_suffix": [
+          "niko.internal"
+        ],
+        "action": "reject"
+      },
+      {
+        "inbound": [
+          "mixed-in"
+        ],
+        "action": "sniff"
+      },
+      {
+        "port": [
+          53
+        ],
+        "action": "hijack-dns"
+      },
+      {
+        "protocol": [
+          "dns"
+        ],
+        "action": "hijack-dns"
+      },
+      {
+        "rule_set": [
+          "srs:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geosite/geosite-ru-blocked.srs"
+        ],
+        "outbound": "proxy"
+      },
+      {
+        "source_ip_cidr": [
+          "224.0.0.0/3",
+          "ff00::/8"
+        ],
+        "ip_cidr": [
+          "224.0.0.0/3",
+          "ff00::/8"
+        ],
+        "action": "reject"
+      }
+    ],
+    "rule_set": [
+      {
+        "type": "local",
+        "tag": "srs:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geosite/geosite-ru-blocked.srs",
+        "format": "binary",
+        "path": "/golden/rule-sets/9780da1160028c42cc60952bd34197cc.srs"
+      }
+    ],
+    "final": "proxy",
+    "default_domain_resolver": {
+      "server": "dns-direct",
+      "strategy": "ipv4_only"
+    },
+    "auto_detect_interface": true
+  }
+}
