@@ -44,6 +44,11 @@ on:
       - ".github/xray-interop.env"
       - "buildScript/lib/core/get_source_env.sh"
       - "libcore/box_naive.go"
+      - "libcore/nikoservice/**"
+      - "libcore/nikoray/**"
+      - "libcore/nikostore/**"
+      - "libcore/nikoconf/**"
+      - "libcore/cmd/nikod/**"
   workflow_dispatch:
     inputs:
       raycontrol:
@@ -948,6 +953,140 @@ jobs:
           docker exec rc-relay nft list ruleset 2>/dev/null | tail -n 60 || true
           echo "--- the node with certificates from Pebble"; docker exec rc-pin tail -n 60 /var/log/rayd.log 2> /dev/null || true
           docker rm -f rc-node rc-relay rc-pin > /dev/null 2>&1 || true
+
+  # The desktop's daemon against a real node (docs/design/desktop-stage3.md, slice 11): a node as the job supervised
+  # runs it (REALITY and Hysteria2 with salamander through rayd serve -supervise, the remote API), an invite with a
+  # PIN from rayctl device invite; nikod of this commit in development mode on the runner registers by it through
+  # NikoService's Import, fetches the node's subscription into the node's group and connects through each of its
+  # profiles in proxy mode: a request through its local proxy reaches a server of the test's on the runner from the
+  # node's address (libcore/nikoservice, TestNikodRaycontrolInterop)
+  desktop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Fetch raycontrol, Xray and the core
+        run: |
+          . .github/raycontrol.env
+          COMMIT_RAYCONTROL=${RAYCONTROL_COMMIT_OVERRIDE:-$COMMIT_RAYCONTROL}
+          . .github/xray-interop.env
+          . buildScript/lib/core/get_source_env.sh
+          git clone --filter=blob:none "$REPOSITORY_RAYCONTROL" raycontrol
+          git -C raycontrol checkout -q "$COMMIT_RAYCONTROL"
+          XRAY_REPOSITORY=$(sed -n 's/^XRAY_REPOSITORY="\(.*\)"$/\1/p' raycontrol/deploy/versions.env)
+          XRAY_COMMIT=$(sed -n 's/^XRAY_COMMIT="\(.*\)"$/\1/p' raycontrol/deploy/versions.env)
+          if [ -n "$XRAY_REPOSITORY" ] && [ -n "$XRAY_COMMIT" ]; then
+            REPOSITORY_XRAY=$XRAY_REPOSITORY COMMIT_XRAY=$XRAY_COMMIT
+          fi
+          git clone --filter=blob:none "$REPOSITORY_XRAY" xray
+          git -C xray checkout -q "$COMMIT_XRAY"
+          git clone --filter=blob:none "$REPOSITORY_SING_BOX" ../sing-box
+          git -C ../sing-box checkout -q "$COMMIT_SING_BOX"
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: raycontrol/go.mod
+          cache: false
+      - name: Build rayd, rayctl, Xray; the test certificate; niko-server
+        run: |
+          mkdir -p /tmp/rcbin /tmp/rccert
+          (cd raycontrol && CGO_ENABLED=0 go build -o /tmp/rcbin/rayd ./cmd/rayd &&
+            CGO_ENABLED=0 go build -o /tmp/rcbin/rayctl ./cmd/rayctl &&
+            CGO_ENABLED=0 go build -o /tmp/rcbin/rayspa ./cmd/rayspa &&
+            go run ./test/supervise/testcert -o /tmp/rccert '*.example.test')
+          (cd xray && CGO_ENABLED=0 GOTOOLCHAIN=auto go build -o /tmp/rcbin/xray -trimpath ./main)
+          . .github/niko-server.env
+          NIKO_SERVER_TAG=${NIKO_SERVER_TAG_OVERRIDE:-$NIKO_SERVER_TAG}
+          NIKO_SERVER_SHA256_AMD64=${NIKO_SERVER_SHA256_OVERRIDE:-$NIKO_SERVER_SHA256_AMD64}
+          curl -fsSL --retry 3 -o /tmp/rcbin/niko-server "$NIKO_SERVER_RELEASES/download/$NIKO_SERVER_TAG/niko-server-linux-amd64"
+          echo "$NIKO_SERVER_SHA256_AMD64  /tmp/rcbin/niko-server" | sha256sum -c -
+          chmod +x /tmp/rcbin/niko-server
+          chmod 0644 /tmp/rccert/*.pem
+
+      - name: The node and its invite
+        id: node
+        run: |
+          docker network create --subnet 203.0.113.0/24 --gateway 203.0.113.1 rc-net > /dev/null
+          # the perimeter as a node runs it (rayspa, nftables): closed but to SPA, the hy2-obfs ports rotating by the
+          # slot, which the app's knock opens and its Hysteria2 follows (as ci.yml's e2e)
+          docker run -d --name rc-node --network rc-net --ip 203.0.113.2 --cap-add NET_ADMIN -v /tmp/rcbin:/opt/rc:ro \
+            -v /tmp/rccert:/opt/cert:ro debian:13 sleep infinity > /dev/null
+          x() { docker exec rc-node "$@"; }
+          x sh -c 'apt-get update -qq > /dev/null && apt-get install -y -qq nftables > /dev/null'
+          x mkdir -p /var/lib/raycontrol /run/raycontrol
+          x /opt/rc/rayd init -host 203.0.113.2 -domain example.test > /dev/null
+          # NIKO_SERVER_UNSAFE_ANY_DESTINATION: the tunnels may reach this private network, the runner's server; never
+          # on a real node
+          x sh -c 'NIKO_SERVER_UNSAFE_ANY_DESTINATION=1 nohup /opt/rc/rayd serve -supervise \
+            -xray /opt/rc/xray -niko-server /opt/rc/niko-server -acme-directory "" > /var/log/rayd.log 2>&1 &'
+          for i in $(seq 50); do x test -S /run/raycontrol/rayd.sock && break; sleep 0.2; done
+          x /opt/rc/rayctl service add api api > /dev/null
+          x /opt/rc/rayctl service add reality reality > /dev/null
+          x /opt/rc/rayctl service add hy2-obfs hy2o > /dev/null
+          x /opt/rc/rayctl service cert site -chain /opt/cert/chain.pem -key /opt/cert/key.pem
+          x /opt/rc/rayctl user add alice -services reality,hy2o > /dev/null
+          for sock in /run/niko/reality-in/reality.sock /run/niko/hy2o/stats.sock; do
+            for i in $(seq 150); do x test -S "$sock" && break; sleep 0.2; done
+            x test -S "$sock" || { echo "no $sock"; x tail -n 80 /var/log/rayd.log; exit 1; }
+          done
+          docker exec -d rc-node sh -c '/opt/rc/rayspa run -debug > /var/log/rayspa.log 2>&1'
+          for i in $(seq 150); do x grep -q 'snapshot applied' /var/log/rayspa.log 2>/dev/null && break; sleep 0.2; done
+          x grep -q 'snapshot applied' /var/log/rayspa.log || { x cat /var/log/rayspa.log; exit 1; }
+          # an invite with a PIN in the form the node makes by its name (rcinv3; rcinv2 from a node without one); the
+          # PIN goes to rayctl's output only, never into the file, and to the test through the environment, masked
+          format=rcinv3
+          x /opt/rc/rayctl device invite alice desktop -pin -format rcinv3 -o /root/desktop.invite > /tmp/invite.out 2>&1 || {
+            format=rcinv2
+            x /opt/rc/rayctl device invite alice desktop -pin -format rcinv2 -o /root/desktop.invite > /tmp/invite.out
+          }
+          x cat /root/desktop.invite > /tmp/desktop.invite
+          pin=$(sed -n 's/^PIN \([0-9]\{3\}\) \([0-9]\{3\}\):.*/\1\2/p' /tmp/invite.out)
+          [ -n "$pin" ] || { echo "no PIN shown"; exit 1; }
+          if grep -q "$pin" /tmp/desktop.invite; then echo "the PIN in the invite's file"; exit 1; fi
+          echo "::add-mask::$pin"
+          echo "RAYCONTROL_PIN=$pin" >> "$GITHUB_ENV"
+          echo "the invite: $format, $(head -c 7 /tmp/desktop.invite)…"
+          # the API listener follows the change
+          sleep 2
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: libcore/go.mod
+          cache: false
+      - name: nikod of this commit, in development mode
+        working-directory: libcore
+        run: |
+          TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
+          CGO_ENABLED=0 go build -trimpath -ldflags="-checklinkname=0" -tags="$TAGS" -o /tmp/nikod ./cmd/nikod
+          mkdir -p /tmp/nikod-work
+          # boxdd takes INVOCATION_ID for "started by systemd" and refuses --listen as a service would
+          env -u INVOCATION_ID nohup /tmp/nikod run --listen 127.0.0.1:9090 -D /tmp/nikod-work > /tmp/nikod.log 2>&1 &
+          for i in $(seq 100); do (exec 3<>/dev/tcp/127.0.0.1/9090) 2> /dev/null && break; sleep 0.2; done
+          (exec 3<>/dev/tcp/127.0.0.1/9090) 2> /dev/null || { cat /tmp/nikod.log; exit 1; }
+
+      - name: Register by the invite and connect through the node's profiles (nikod)
+        working-directory: libcore
+        env:
+          NIKOD_ADDRESS: 127.0.0.1:9090
+          RAYCONTROL_INVITE_FILE: /tmp/desktop.invite
+          RAYCONTROL_NODE: 203.0.113.2
+          RAYCONTROL_TARGET_HOST: 203.0.113.1
+          # Xray's freedom refuses the runner's documentation address whatever niko-server may reach: REALITY by a
+          # public address
+          RAYCONTROL_PUBLIC_ROWS: reality
+        run: |
+          TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
+          go test -count=1 -v -timeout 10m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestNikodRaycontrolInterop ./nikoservice
+
+      - name: Logs
+        if: always()
+        run: |
+          echo "--- nikod"; tail -n 120 /tmp/nikod.log || true
+          echo "--- rayd"; docker exec rc-node tail -n 80 /var/log/rayd.log || true
+          echo "--- the perimeter"; docker exec rc-node tail -n 60 /var/log/rayspa.log || true
+          pkill -x nikod || true
+          docker rm -f rc-node > /dev/null 2>&1 || true
 
   naive:
     runs-on: ubuntu-latest

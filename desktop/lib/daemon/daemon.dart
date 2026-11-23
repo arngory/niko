@@ -255,7 +255,7 @@ class RouteVerdict {
 }
 
 /// What a change of the daemon's store is of (NikoService.Watch).
-enum StoreKind { other, profiles, groups, selected, settings, task }
+enum StoreKind { other, profiles, groups, selected, settings, task, rules, ruleSets, nodes }
 
 /// A change of the daemon's store (NikoService.Watch): what it is of and the ids it touched, added, changed or
 /// removed (none: all of that kind). [reset]: the first change, and one after changes were lost: all that is shown is
@@ -279,9 +279,13 @@ class GroupRow {
     this.subscription = false,
     this.profiles = 0,
     this.info,
+    this.nodeId = '',
   });
 
   final int id;
+
+  /// A raycontrol node's group: its id; its profiles are the node's subscription's. Empty for none.
+  final String nodeId;
 
   /// Empty for the ungrouped group, which the window names itself.
   final String name;
@@ -326,7 +330,15 @@ class SubscriptionInfo {
 /// The result of a task of the daemon's (NikoService's TaskProgress, done): its line for the user, or its code and
 /// words where it failed; the group a subscription's task made or updated, the profiles it added.
 class TaskResult {
-  const TaskResult({this.code = 0, this.error = '', this.line = '', this.groupId = 0, this.ids = const []});
+  const TaskResult({
+    this.code = 0,
+    this.error = '',
+    this.line = '',
+    this.groupId = 0,
+    this.ids = const [],
+    this.nodeId = '',
+    this.pin,
+  });
 
   /// The gRPC code: 0 done.
   final int code;
@@ -335,7 +347,124 @@ class TaskResult {
   final int groupId;
   final List<int> ids;
 
+  /// The raycontrol node the task imported or updated; empty for none.
+  final String nodeId;
+
+  /// An invite's import that needs its PIN (D-ADD-06): asked of the user, and the import done again with it.
+  final PinNeeded? pin;
+
   bool get ok => code == 0;
+}
+
+/// An invite asks for its PIN (NikoService's PinNeeded): the node's host, the tries left (-1: not known yet), whether
+/// the one sent was wrong.
+class PinNeeded {
+  const PinNeeded({required this.host, this.left = -1, this.wrong = false});
+
+  final String host;
+  final int left;
+  final bool wrong;
+}
+
+/// What a raycontrol node's invite or device package names (NikoService's NodePreview, D-ADD-06, -07).
+class NodePreview {
+  const NodePreview({
+    this.invite = false,
+    this.host = '',
+    this.dnsName = '',
+    this.pinRequired = false,
+    this.expires = 0,
+    this.replaces = false,
+    this.knownHost = '',
+  });
+
+  /// An invite, which registers this computer; else a device package.
+  final bool invite;
+  final String host;
+  final String dnsName;
+  final bool pinRequired;
+
+  /// When the invite expires, unix seconds; 0 for none.
+  final int expires;
+
+  /// A node kept already: its device key is replaced; [knownHost] its host where the new one is another.
+  final bool replaces;
+  final String knownHost;
+}
+
+/// A raycontrol node as its card shows it (NikoService's Node, D-NODE-01…07, D-MAIN-13); never its keys.
+class NodeRow {
+  const NodeRow({
+    required this.id,
+    required this.host,
+    required this.name,
+    this.note = '',
+    this.groupId = 0,
+    this.profiles = 0,
+    this.dnsName = '',
+    this.subscription = false,
+    this.updated = 0,
+    this.expires = 0,
+    this.nextUpdate = 0,
+    this.refused = false,
+    this.failed = 0,
+    this.error = '',
+    this.traffic,
+    this.minVersion = '',
+    this.refusedVersion = false,
+    this.clockSkew = 0,
+    this.updating = false,
+    this.unreadable = false,
+  });
+
+  final String id;
+  final String host;
+
+  /// Its admin's name for it, else «raycontrol · host»; what its owner tells its users.
+  final String name;
+  final String note;
+  final int groupId;
+  final int profiles;
+  final String dnsName;
+
+  /// The device has the node's subscription, signed by its ed25519 and ML-DSA-65 keys.
+  final bool subscription;
+
+  /// The last subscription and until when it holds, the next update: unix seconds, 0 for none.
+  final int updated;
+  final int expires;
+  final int nextUpdate;
+
+  /// The node refused this device: a new invite is needed.
+  final bool refused;
+
+  /// Updates failed in a row, and the last one's words.
+  final int failed;
+  final String error;
+  final NodeTraffic? traffic;
+
+  /// The node's minimum version of Niko; [refusedVersion]: no profiles for this one.
+  final String minVersion;
+  final bool refusedVersion;
+
+  /// The node's clock minus this one's, seconds.
+  final int clockSkew;
+  final bool updating;
+
+  /// Its keys were sealed elsewhere: to be imported again.
+  final bool unreadable;
+}
+
+/// A node's traffic: used of the limit, since and until the reset (unix seconds, 0: none); used up, or near it.
+class NodeTraffic {
+  const NodeTraffic({this.used = 0, this.limit = 0, this.since = 0, this.reset = 0, this.exhausted = false, this.nearLimit = false});
+
+  final int used;
+  final int limit;
+  final int since;
+  final int reset;
+  final bool exhausted;
+  final bool nearLimit;
 }
 
 /// A profile as a list shows it, without its bean (NikoService.ListProfiles).
@@ -369,11 +498,163 @@ enum ConnectMode { proxy, vpn }
 
 /// What an import of an input would add: the profiles as rows without ids, or a subscription's link.
 class ImportPreview {
-  const ImportPreview({this.kind = ImportKind.nothing, this.profiles = const [], this.subscription = ''});
+  const ImportPreview({this.kind = ImportKind.nothing, this.profiles = const [], this.subscription = '', this.node});
 
   final ImportKind kind;
   final List<ProfileRow> profiles;
   final String subscription;
+
+  /// A node's invite or package: what it names.
+  final NodePreview? node;
+}
+
+/// Where a rule sends what it matches (RuleEntity.outbound): the proxy, directly, blocked; a profile's id above 0.
+abstract final class RuleOutbound {
+  static const proxy = 0;
+  static const direct = -1;
+  static const block = -2;
+}
+
+/// A route rule (NikoService's Rule, D-RULES-01): what it matches, all its fields together, and where that goes. The
+/// lists are text as the app's editor takes them, items by lines or commas.
+class RuleRow {
+  const RuleRow({
+    this.id = 0,
+    this.name = '',
+    this.order = 0,
+    this.enabled = true,
+    this.domains = '',
+    this.ip = '',
+    this.port = '',
+    this.sourcePort = '',
+    this.network = '',
+    this.source = '',
+    this.protocol = '',
+    this.outbound = RuleOutbound.proxy,
+    this.programs = const [],
+    this.dpiBypass = false,
+    this.config = '',
+    this.packages = 0,
+  });
+
+  /// 0 for a rule not saved yet.
+  final int id;
+  final String name;
+
+  /// Its place: the daemon's, changed by moving it.
+  final int order;
+  final bool enabled;
+  final String domains;
+  final String ip;
+  final String port;
+  final String sourcePort;
+
+  /// Empty (both), `tcp` or `udp`.
+  final String network;
+  final String source;
+  final String protocol;
+
+  /// [RuleOutbound]'s, or a profile's id.
+  final int outbound;
+
+  /// A computer's programs: a process's name or its full path.
+  final List<String> programs;
+
+  /// «Обход DPI»: the settings' strategy on this rule where it goes directly.
+  final bool dpiBypass;
+
+  /// Its own JSON, merged over it; empty for none.
+  final String config;
+
+  /// How many of the phone's apps it names (read only).
+  final int packages;
+
+  RuleRow copyWith({
+    String? name,
+    bool? enabled,
+    String? domains,
+    String? ip,
+    String? port,
+    String? sourcePort,
+    String? network,
+    String? source,
+    String? protocol,
+    int? outbound,
+    List<String>? programs,
+    bool? dpiBypass,
+  }) =>
+      RuleRow(
+        id: id,
+        name: name ?? this.name,
+        order: order,
+        enabled: enabled ?? this.enabled,
+        domains: domains ?? this.domains,
+        ip: ip ?? this.ip,
+        port: port ?? this.port,
+        sourcePort: sourcePort ?? this.sourcePort,
+        network: network ?? this.network,
+        source: source ?? this.source,
+        protocol: protocol ?? this.protocol,
+        outbound: outbound ?? this.outbound,
+        programs: programs ?? this.programs,
+        dpiBypass: dpiBypass ?? this.dpiBypass,
+        config: config,
+        packages: packages,
+      );
+}
+
+/// What applying a preset added (NikoService.ApplyPreset): its rules, and the rule-sets they name, to download.
+class PresetApplied {
+  const PresetApplied({this.rules = const [], this.ruleSets = const []});
+
+  final List<RuleRow> rules;
+  final List<String> ruleSets;
+}
+
+/// A rule-set the daemon downloads, as a rule names it (NikoService's RuleSet, BG-09).
+class RuleSetRow {
+  const RuleSetRow({
+    required this.item,
+    required this.url,
+    this.fetchable = true,
+    this.enabled = false,
+    this.downloaded = false,
+    this.size = 0,
+    this.updated = 0,
+    this.kinds = 0,
+    this.error = '',
+    this.updating = false,
+  });
+
+  /// As the rules have it: `srs:` and its address.
+  final String item;
+  final String url;
+
+  /// Over https: one in the clear is never fetched.
+  final bool fetchable;
+
+  /// Named by a rule that is on.
+  final bool enabled;
+  final bool downloaded;
+  final int size;
+
+  /// When its file was fetched, unix seconds; 0: never.
+  final int updated;
+
+  /// What it holds: 1 domains, 2 addresses, 3 both; 0 not known.
+  final int kinds;
+
+  /// Its last download's error; empty for none.
+  final String error;
+  final bool updating;
+}
+
+/// The rule-sets and how often they are fetched again (NikoService.ListRuleSets).
+class RuleSetStatus {
+  const RuleSetStatus({this.ruleSets = const [], this.updateHours = 24});
+
+  final List<RuleSetRow> ruleSets;
+  final int updateHours;
 }
 
 /// A profile with its bean (NikoService.GetProfile): what it takes to put it back after a deletion.
@@ -504,6 +785,42 @@ abstract interface class Daemon {
   /// Updates a subscription's group (NikoService.Refresh, D-SUB-03): what the update did, or why it failed.
   Future<TaskResult> refreshSubscription(int groupId);
 
+  /// The raycontrol nodes (NikoService.ListNodes).
+  Future<List<NodeRow>> nodes();
+
+  /// Imports a node's invite or device package (D-ADD-06): its result, with [TaskResult.pin] where the invite needs
+  /// its PIN, given again as [pin].
+  Future<TaskResult> importNode(String text, {String pin = ''});
+
+  /// Updates a node's subscription (D-NODE-02).
+  Future<TaskResult> refreshNode(String id);
+
+  /// Removes a node with its group and key (D-NODE-07).
+  Future<void> deleteNode(String id);
+
+  /// The route rules, in the order the config takes them (NikoService.ListRules, D-RULES-01).
+  Future<List<RuleRow>> rules();
+
+  /// Saves a rule: a new one ([RuleRow.id] 0) at the end, or the one of its id where it is (NikoService.SaveRule): the
+  /// rule as saved. Fails with INVALID_ARGUMENT, and the daemon's words, for what a rule may not be.
+  Future<RuleRow> saveRule(RuleRow rule);
+
+  Future<void> deleteRules(List<int> ids);
+
+  /// Puts rules before another one, or at the end with [before] 0 (NikoService.MoveRules).
+  Future<void> moveRules(List<int> ids, {int before = 0});
+
+  /// The Russian preset's rules in place of its earlier ones (NikoService.ApplyPreset, D-RULES-05), named in the
+  /// window's language.
+  Future<PresetApplied> applyRussiaPreset({required String blockedName, required String directName});
+
+  /// The rule-sets the rules name (NikoService.ListRuleSets, D-RULES-03).
+  Future<RuleSetStatus> ruleSets();
+
+  /// Downloads rule-sets: those of [items], or the enabled rules'; each only where it is missing or stale, unless
+  /// [force] (NikoService.UpdateRuleSets): what the task did, or why it failed.
+  Future<TaskResult> updateRuleSets({List<String> items = const [], bool force = false});
+
   Future<void> close();
 }
 
@@ -545,6 +862,10 @@ class GrpcDaemon implements Daemon {
 
   // a subscription's update: a provider has two minutes to answer
   static final _tasks = CallOptions(timeout: const Duration(minutes: 3));
+
+  // the rule-sets' update: two minutes a list, one after another (an hour holds 30 slow ones); the daemon goes on
+  // without the window
+  static final _ruleSetTasks = CallOptions(timeout: const Duration(hours: 1));
 
   @override
   Future<String> version() async => (await _desktop.getDaemonInfo(Empty(), options: _short)).version;
@@ -788,6 +1109,9 @@ class GrpcDaemon implements Daemon {
             niko.Change_Kind.SELECTED => StoreKind.selected,
             niko.Change_Kind.SETTINGS => StoreKind.settings,
             niko.Change_Kind.TASK => StoreKind.task,
+            niko.Change_Kind.RULES => StoreKind.rules,
+            niko.Change_Kind.RULE_SETS => StoreKind.ruleSets,
+            niko.Change_Kind.NODES => StoreKind.nodes,
             _ => StoreKind.other,
           },
           ids: List.unmodifiable(change.ids.map((id) => id.toInt())),
@@ -822,6 +1146,7 @@ class GrpcDaemon implements Daemon {
           ungrouped: g.ungrouped,
           subscription: g.type == niko.Group_Type.SUBSCRIPTION,
           profiles: g.profiles,
+          nodeId: g.nodeId,
           info: g.type != niko.Group_Type.SUBSCRIPTION
               ? null
               : SubscriptionInfo(
@@ -865,6 +1190,17 @@ class GrpcDaemon implements Daemon {
       },
       profiles: List.unmodifiable(preview.profiles.map(_row)),
       subscription: preview.subscription,
+      node: !preview.hasNode()
+          ? null
+          : NodePreview(
+              invite: preview.node.invite,
+              host: preview.node.host,
+              dnsName: preview.node.dnsName,
+              pinRequired: preview.node.pinRequired,
+              expires: preview.node.expires.toInt(),
+              replaces: preview.node.replaces,
+              knownHost: preview.node.knownHost,
+            ),
     );
   }
 
@@ -959,6 +1295,10 @@ class GrpcDaemon implements Daemon {
       line: result.line,
       groupId: result.groupId.toInt(),
       ids: List.unmodifiable(result.ids.map((id) => id.toInt())),
+      nodeId: result.nodeId,
+      pin: !result.hasPin()
+          ? null
+          : PinNeeded(host: result.pin.host, left: result.pin.left, wrong: result.pin.wrong),
     );
   }
 
@@ -969,6 +1309,147 @@ class GrpcDaemon implements Daemon {
   @override
   Future<TaskResult> refreshSubscription(int groupId) =>
       _taskResult(_niko.refresh(niko.RefreshRequest(groupId: Int64(groupId)), options: _tasks));
+
+  @override
+  Future<List<NodeRow>> nodes() async {
+    final list = await _niko.listNodes(niko.Empty(), options: _short);
+    return List.unmodifiable(
+      list.nodes.map(
+        (n) => NodeRow(
+          id: n.id,
+          host: n.host,
+          name: n.name,
+          note: n.note,
+          groupId: n.groupId.toInt(),
+          profiles: n.profiles,
+          dnsName: n.dnsName,
+          subscription: n.subscription,
+          updated: n.updated.toInt(),
+          expires: n.expires.toInt(),
+          nextUpdate: n.nextUpdate.toInt(),
+          refused: n.refused,
+          failed: n.failed,
+          error: n.error,
+          traffic: !n.hasTraffic()
+              ? null
+              : NodeTraffic(
+                  used: n.traffic.used.toInt(),
+                  limit: n.traffic.limit.toInt(),
+                  since: n.traffic.since.toInt(),
+                  reset: n.traffic.reset.toInt(),
+                  exhausted: n.traffic.exhausted,
+                  nearLimit: n.traffic.nearLimit,
+                ),
+          minVersion: n.minVersion,
+          refusedVersion: n.refusedVersion,
+          clockSkew: n.clockSkew.toInt(),
+          updating: n.updating,
+          unreadable: n.unreadable,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Future<TaskResult> importNode(String text, {String pin = ''}) =>
+      _taskResult(_niko.import(niko.ImportRequest(input: niko.ImportInput(text: text), pin: pin), options: _tasks));
+
+  @override
+  Future<TaskResult> refreshNode(String id) =>
+      _taskResult(_niko.refresh(niko.RefreshRequest(nodeId: id), options: _tasks));
+
+  @override
+  Future<void> deleteNode(String id) => _niko.deleteNode(niko.NodeId(id: id), options: _short);
+
+  static RuleRow _rule(niko.Rule r) => RuleRow(
+        id: r.id.toInt(),
+        name: r.name,
+        order: r.order.toInt(),
+        enabled: r.enabled,
+        domains: r.domains,
+        ip: r.ip,
+        port: r.port,
+        sourcePort: r.sourcePort,
+        network: r.network,
+        source: r.source,
+        protocol: r.protocol,
+        outbound: r.outbound.toInt(),
+        programs: List.unmodifiable(r.programs),
+        dpiBypass: r.dpiBypass,
+        config: r.config,
+        packages: r.packages,
+      );
+
+  @override
+  Future<List<RuleRow>> rules() async =>
+      List.unmodifiable((await _niko.listRules(niko.Empty(), options: _short)).rules.map(_rule));
+
+  @override
+  Future<RuleRow> saveRule(RuleRow rule) async => _rule(
+        await _niko.saveRule(
+          niko.Rule(
+            id: Int64(rule.id),
+            name: rule.name,
+            enabled: rule.enabled,
+            domains: rule.domains,
+            ip: rule.ip,
+            port: rule.port,
+            sourcePort: rule.sourcePort,
+            network: rule.network,
+            source: rule.source,
+            protocol: rule.protocol,
+            outbound: Int64(rule.outbound),
+            programs: rule.programs,
+            dpiBypass: rule.dpiBypass,
+            config: rule.config,
+          ),
+          options: _short,
+        ),
+      );
+
+  @override
+  Future<void> deleteRules(List<int> ids) => _niko.deleteRules(niko.RuleIds(ids: ids.map(Int64.new)), options: _short);
+
+  @override
+  Future<void> moveRules(List<int> ids, {int before = 0}) =>
+      _niko.moveRules(niko.MoveRulesRequest(ids: ids.map(Int64.new), before: Int64(before)), options: _short);
+
+  @override
+  Future<PresetApplied> applyRussiaPreset({required String blockedName, required String directName}) async {
+    final result = await _niko.applyPreset(
+      niko.PresetRequest(preset: niko.PresetRequest_Preset.RUSSIA, blockedName: blockedName, directName: directName),
+      options: _short,
+    );
+    return PresetApplied(rules: List.unmodifiable(result.rules.map(_rule)), ruleSets: List.unmodifiable(result.ruleSets));
+  }
+
+  @override
+  Future<RuleSetStatus> ruleSets() async {
+    final list = await _niko.listRuleSets(niko.Empty(), options: _short);
+    return RuleSetStatus(
+      updateHours: list.updateHours,
+      ruleSets: List.unmodifiable(
+        list.ruleSets.map(
+          (r) => RuleSetRow(
+            item: r.item,
+            url: r.url,
+            fetchable: r.fetchable,
+            enabled: r.enabled,
+            downloaded: r.downloaded,
+            size: r.size.toInt(),
+            updated: r.updated.toInt(),
+            kinds: r.kinds,
+            error: r.error,
+            updating: r.updating,
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Future<TaskResult> updateRuleSets({List<String> items = const [], bool force = false}) =>
+      _taskResult(_niko.updateRuleSets(niko.RuleSetRequest(items: items, force: force), options: _ruleSetTasks));
 
   @override
   Future<void> close() => _channel.shutdown();

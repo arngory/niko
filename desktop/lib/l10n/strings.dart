@@ -54,8 +54,63 @@ class NikoStrings {
       ? 'Добавится группа подписки, профили придут с её первым обновлением'
       : 'A group of the subscription is added, its profiles come with its first update';
   String get addSubscriptionButton => _ru ? 'Добавить подписку' : 'Add the subscription';
-  String get addNodeLater =>
-      _ru ? 'Это приглашение узла: узлы придут в следующих выпусках' : 'This is a node\'s invite: nodes come in later releases';
+  String get addNodeInvite => _ru ? 'Приглашение узла' : 'A node\'s invite';
+  String get addNodeDevice => _ru ? 'Пакет устройства узла' : 'A node\'s device package';
+  String addNodeInviteText(String host) => _ru
+      ? 'Компьютер зарегистрируется на узле $host и получит его способы подключения'
+      : 'This computer registers with the node $host and gets its ways to connect';
+  String addNodeDeviceText(String host) =>
+      _ru ? 'Узел $host добавится с этим пакетом устройства' : 'The node $host is added with this device package';
+  String addNodeName(String name) => _ru ? 'имя узла: $name' : 'the node\'s name: $name';
+  String addNodeExpires(String at) => _ru ? 'приглашение действует до $at' : 'the invite works until $at';
+  String get addNodeReplaces => _ru
+      ? 'Этот узел уже добавлен: у устройства будет новый ключ, его группа и профили останутся'
+      : 'This node is added already: the device gets a new key, its group and profiles stay';
+  String addNodeMoved(String known, String host) => _ru
+      ? 'Узел добавлен с адресом $known, приглашение — на $host. Узел мог переехать; если ссылка не от его администратора, не добавляйте'
+      : 'The node is added with the address $known, the invite is for $host. The node may have moved; if the link is not its administrator\'s, do not add it';
+  String get addNodePin => _ru ? 'PIN приглашения' : 'The invite\'s PIN';
+  String get addNodePinHint => _ru ? '6 цифр от администратора узла' : '6 digits from the node\'s administrator';
+  String get addNodePinFormat => _ru ? 'PIN — 6 цифр' : 'The PIN is 6 digits';
+  String addNodePinWrong(int left) =>
+      _ru ? 'PIN неверный, попыток осталось: $left' : 'The PIN is wrong, tries left: $left';
+  String addNodePinLeft(int left) => _ru ? 'Попыток: $left' : 'Tries: $left';
+  String get addNodeButton => _ru ? 'Добавить узел' : 'Add the node';
+  String get addNodeRegistering => _ru ? 'Регистрация на узле…' : 'Registering with the node…';
+  String groupNodeSub(int count) => _ru ? 'узел · $count' : 'node · $count';
+  String get nodeNever => _ru ? 'подписка ещё не получена' : 'no subscription yet';
+  String nodeUpdated(String at) => _ru ? 'обновлено $at' : 'updated $at';
+  String nodeNext(String at) => _ru ? 'следующее обновление $at' : 'next update $at';
+  String get nodeSigned => _ru
+      ? 'Подписка заверена ключами узла ed25519 и ML-DSA-65, обе подписи проверены'
+      : 'The subscription is signed by the node\'s ed25519 and ML-DSA-65 keys, both signatures checked';
+  String nodeTraffic(String used, String limit) => _ru ? 'трафик $used из $limit' : 'traffic $used of $limit';
+  String nodeTrafficReset(String at) => _ru ? 'сброс $at' : 'reset $at';
+  String nodeTrafficExhausted(String at) => _ru
+      ? 'трафик израсходован, профили вернутся $at'
+      : 'the traffic is used up, the profiles come back $at';
+  String get nodeTrafficExhaustedAdmin =>
+      _ru ? 'трафик израсходован: лимит поднимает администратор' : 'the traffic is used up: the administrator raises the limit';
+  String nodeExpires(String at) => _ru ? 'подписка действует до $at' : 'the subscription holds until $at';
+  String nodeExpired(String at) => _ru ? 'подписка истекла $at' : 'the subscription expired $at';
+  String get nodeRefused => _ru
+      ? 'Узел отказал этому устройству: добавьте узел заново по новому приглашению'
+      : 'The node refused this device: add it again by a new invite';
+  String nodeFailing(int times) => _ru ? 'обновление не проходит: $times раз подряд' : 'the update fails: $times times in a row';
+  String nodeClock(int skew) => _ru
+      ? 'часы компьютера расходятся с узлом на $skew с: подключение по SPA не пройдёт'
+      : 'this computer\'s clock is $skew s off the node\'s: SPA will fail';
+  String nodeMinVersion(String version) =>
+      _ru ? 'узел требует Niko $version или новее' : 'the node requires Niko $version or later';
+  String get nodeUnreadable => _ru
+      ? 'Ключи узла запечатаны на другом компьютере: добавьте узел заново по новому приглашению'
+      : 'The node\'s keys were sealed on another computer: add it again by a new invite';
+  String get mainNode => _ru ? 'Узел' : 'Node';
+  String get nodeDelete => _ru ? 'Удалить узел' : 'Remove the node';
+  String nodeDeleteConfirm(String name) => _ru
+      ? 'Удалить узел «$name» и его ключ устройства? Вернуть его можно только новым приглашением.'
+      : 'Remove the node “$name” and its device key? It comes back only with a new invite.';
+  String get nodeUpdateFailed => _ru ? 'Узел не обновлён' : 'The node was not updated';
   String get subscriptionUpdate => _ru ? 'Обновить' : 'Update';
   String get subscriptionUpdating => _ru ? 'Обновление…' : 'Updating…';
   String get subscriptionUpdateFailed => _ru ? 'Подписка не обновлена' : 'The subscription was not updated';
@@ -216,4 +271,73 @@ class NikoStrings {
   String get inboundPassword => _ru ? 'Пароль' : 'Password';
   String get inboundNewPassword => _ru ? 'Новый пароль' : 'New password';
   String get inboundLan => _ru ? 'Доступ из локальной сети' : 'Access from the LAN';
+
+  String get sectionRules => _ru ? 'Правила' : 'Rules';
+  String get rulesList => _ru ? 'Правила маршрутизации' : 'Route rules';
+  String get rulesEmpty => _ru
+      ? 'Правил нет: всё идёт через прокси'
+      : 'No rules: everything goes through the proxy';
+  String get rulesSub =>
+      _ru ? 'Сверху вниз: первое подошедшее правило решает' : 'From the top: the first rule that matches decides';
+  String get rulesUnread => _ru ? 'Правила не прочитаны' : 'The rules were not read';
+  String get ruleAdd => _ru ? 'Новое правило' : 'New rule';
+  String ruleDisplayName(int id) => _ru ? 'Правило $id' : 'Rule $id';
+  String ruleUpLabel(String name) => _ru ? 'Поднять: $name' : 'Move up: $name';
+  String ruleDownLabel(String name) => _ru ? 'Опустить: $name' : 'Move down: $name';
+  String ruleDeleteLabel(String name) => _ru ? 'Удалить правило: $name' : 'Delete the rule: $name';
+  String ruleEnabledLabel(String name) => _ru ? 'Включено: $name' : 'On: $name';
+  String get ruleEdit => _ru ? 'Правило' : 'Rule';
+  String get ruleName => _ru ? 'Название' : 'Name';
+  String get ruleDomains => _ru ? 'Домены' : 'Domains';
+  String get ruleDomainsHint => _ru
+      ? 'По одному в строке: суффикс, full:, domain:, keyword:, regexp:; srs:https://… — набор правил'
+      : 'One a line: a suffix, full:, domain:, keyword:, regexp:; srs:https://… a rule-set';
+  String get ruleIp => 'IP';
+  String get rulePort => _ru ? 'Порт' : 'Port';
+  String get ruleSourcePort => _ru ? 'Порт источника' : 'Source port';
+  String get ruleSource => _ru ? 'Адрес источника' : 'Source address';
+  String get ruleProtocol => _ru ? 'Протокол' : 'Protocol';
+  String get ruleNetwork => _ru ? 'Сеть' : 'Network';
+  String get ruleNetworkBoth => 'TCP + UDP';
+  String get rulePrograms => _ru ? 'Программы' : 'Programs';
+  String get ruleProgramsHint =>
+      _ru ? 'По одной в строке: имя (firefox.exe) или полный путь' : 'One a line: a name (firefox.exe) or a full path';
+  String get ruleOutbound => _ru ? 'Куда' : 'Where';
+  String get routeProxy => _ru ? 'Прокси' : 'Proxy';
+  String get routeDirect => _ru ? 'Напрямую' : 'Direct';
+  String get routeBlock => _ru ? 'Блок' : 'Block';
+  String routeProfile(int id) => _ru ? 'Профиль $id' : 'Profile $id';
+  String get ruleDpi => _ru ? 'Обход DPI' : 'DPI bypass';
+  String get ruleDpiSub => _ru
+      ? 'Стратегия из настроек на прямых соединениях этого правила'
+      : 'The settings\' strategy on this rule\'s direct connections';
+  String get ruleApps => _ru ? 'приложения телефона' : 'the phone\'s apps';
+  String get ruleOwnJson => _ru ? 'свой JSON' : 'own JSON';
+  String get ruleSave => _ru ? 'Сохранить' : 'Save';
+  String get ruleCancel => _ru ? 'Отмена' : 'Cancel';
+  String get ruleNotSaved => _ru ? 'Правило не сохранено' : 'The rule was not saved';
+  String get presetRussia => _ru ? 'Пресет «Россия»' : 'Preset: Russia';
+  String get presetRussiaSub => _ru
+      ? 'Заблокированное в России — через прокси, российские сервисы — напрямую (списки runetfreedom). Повторное добавление заменит правила пресета'
+      : 'What is blocked in Russia through the proxy, Russian services directly (runetfreedom\'s lists). Adding it again replaces its rules';
+  String get presetRussiaBlocked => _ru ? 'Заблокированное в России — через прокси' : 'Blocked in Russia: through the proxy';
+  String get presetRussiaDirect => _ru ? 'Российские сервисы — напрямую' : 'Russian services: directly';
+  String get ruleSetsTitle => _ru ? 'Наборы правил' : 'Rule-sets';
+  String ruleSetsSub(int hours) => _ru
+      ? 'Служба скачивает их сама и обновляет раз в $hours ч, пока ядро работает'
+      : 'The service fetches them itself, and again every $hours h while the core runs';
+  String get ruleSetsNone => _ru ? 'Правила не называют наборов' : 'No rule names a rule-set';
+  String get ruleSetsUpdate => _ru ? 'Обновить' : 'Update';
+  String get ruleSetsUpdating => _ru ? 'Обновление…' : 'Updating…';
+  String get ruleSetsFailed => _ru ? 'Наборы не обновлены' : 'The rule-sets were not updated';
+  String get ruleSetNotYet => _ru ? 'ещё не скачан' : 'not fetched yet';
+  String get ruleSetNotHttps => _ru ? 'не https: не скачивается' : 'not https: never fetched';
+  String get ruleSetOff => _ru ? 'правило выключено' : 'its rule is off';
+  String ruleSetFetched(String size, String when) => _ru ? '$size, скачан $when' : '$size, fetched $when';
+  String ruleSetKinds(int kinds) => switch (kinds) {
+        1 => _ru ? 'домены' : 'domains',
+        2 => _ru ? 'адреса' : 'addresses',
+        3 => _ru ? 'домены и адреса' : 'domains and addresses',
+        _ => '',
+      };
 }

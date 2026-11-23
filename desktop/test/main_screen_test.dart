@@ -129,6 +129,12 @@ class MemoryDaemon implements Daemon {
 
   @override
   Future<ImportPreview> recognize(String text) async {
+    if (text.trim().startsWith('rcinv1:')) {
+      return const ImportPreview(
+        kind: ImportKind.node,
+        node: NodePreview(invite: true, host: '203.0.113.7', pinRequired: true, expires: 1790086400),
+      );
+    }
     if (text.trim().startsWith('https://')) return ImportPreview(kind: ImportKind.subscription, subscription: text.trim());
     final rows = _parse(text, 0);
     return rows.isEmpty ? const ImportPreview() : ImportPreview(kind: ImportKind.profiles, profiles: rows);
@@ -175,6 +181,64 @@ class MemoryDaemon implements Daemon {
   Future<TaskResult> refreshSubscription(int groupId) async {
     refreshed.add(groupId);
     return TaskResult(line: 'Провайдер: no difference', groupId: groupId);
+  }
+
+  /// A raycontrol node's invite: «rcinv1:» and anything, which needs the PIN 123456; its import makes the node's
+  /// group of two profiles. The nodes kept, the PINs and updates the window asked, the nodes it removed.
+  var nodeRows = <NodeRow>[];
+  final pins = <String>[];
+  final nodeRefreshed = <String>[];
+  final nodesDeleted = <String>[];
+
+  @override
+  Future<List<NodeRow>> nodes() async => nodeRows;
+
+  @override
+  Future<TaskResult> importNode(String text, {String pin = ''}) async {
+    pins.add(pin);
+    if (pin != '123456') {
+      return TaskResult(code: 9, error: 'the invite needs its PIN', pin: PinNeeded(host: '203.0.113.7', left: pin.isEmpty ? -1 : 2, wrong: pin.isNotEmpty));
+    }
+    final group = ++_nextId;
+    groupRows = [...groupRows, GroupRow(id: group, name: 'Домашний узел', profiles: 2, nodeId: 'n1')];
+    final ids = [++_nextId, ++_nextId];
+    profileRows.add(ProfileRow(id: ids[0], groupId: group, order: 1, type: 'vmess', name: 'REALITY', address: '203.0.113.7:443'));
+    profileRows.add(ProfileRow(id: ids[1], groupId: group, order: 2, type: 'hysteria', name: 'Hysteria2', address: '203.0.113.7:443'));
+    nodeRows = [
+      NodeRow(
+        id: 'n1',
+        host: '203.0.113.7',
+        name: 'Домашний узел',
+        note: 'Оплата до 5-го числа',
+        groupId: group,
+        profiles: 2,
+        subscription: true,
+        updated: 1790000000,
+        expires: 1790259200,
+        nextUpdate: 1790194400,
+        traffic: const NodeTraffic(used: 966367641, limit: 1073741824, reset: 1790500000, nearLimit: true),
+      ),
+    ];
+    _changed(StoreKind.groups, [group]);
+    _changed(StoreKind.nodes, const []);
+    return TaskResult(line: 'registered at 203.0.113.7 as user\nДомашний узел: 2 profiles', groupId: group, ids: ids, nodeId: 'n1');
+  }
+
+  @override
+  Future<TaskResult> refreshNode(String id) async {
+    nodeRefreshed.add(id);
+    return TaskResult(line: 'Домашний узел: 2 profiles', nodeId: id);
+  }
+
+  @override
+  Future<void> deleteNode(String id) async {
+    nodesDeleted.add(id);
+    final node = nodeRows.firstWhere((n) => n.id == id);
+    nodeRows = [];
+    groupRows = groupRows.where((g) => g.id != node.groupId).toList();
+    profileRows.removeWhere((p) => p.groupId == node.groupId);
+    _changed(StoreKind.groups, [node.groupId]);
+    _changed(StoreKind.nodes, const []);
   }
 
   /// The profiles the window connected with, 0 for the selected one, and the modes it asked.
@@ -281,6 +345,116 @@ class MemoryDaemon implements Daemon {
   Future<void> select(int profileId) async {
     selectedId = profileId;
     storeEvents.add(StoreChange(revision: ++_revision, kind: StoreKind.selected, ids: [profileId]));
+  }
+
+  /// The rules as the daemon keeps them, and the rule-sets they name; the updates the window asked.
+  var ruleRows = <RuleRow>[];
+  var ruleSetRows = <RuleSetRow>[];
+  final ruleSetUpdates = <(List<String>, bool)>[];
+  int _nextRule = 0;
+
+  RuleRow _ordered(RuleRow r, int order) => RuleRow(
+        id: r.id,
+        name: r.name,
+        order: order,
+        enabled: r.enabled,
+        domains: r.domains,
+        ip: r.ip,
+        port: r.port,
+        sourcePort: r.sourcePort,
+        network: r.network,
+        source: r.source,
+        protocol: r.protocol,
+        outbound: r.outbound,
+        programs: r.programs,
+        dpiBypass: r.dpiBypass,
+        config: r.config,
+      );
+
+  @override
+  Future<List<RuleRow>> rules() async => [...ruleRows];
+
+  @override
+  Future<RuleRow> saveRule(RuleRow rule) async {
+    if (rule.domains.contains('refused.example')) throw GrpcError.invalidArgument('invalid: the rule\'s JSON is not an object');
+    final RuleRow saved;
+    if (rule.id == 0) {
+      saved = RuleRow(
+        id: ++_nextRule,
+        name: rule.name,
+        order: ruleRows.length + 1,
+        enabled: rule.enabled,
+        domains: rule.domains,
+        ip: rule.ip,
+        port: rule.port,
+        sourcePort: rule.sourcePort,
+        network: rule.network,
+        source: rule.source,
+        protocol: rule.protocol,
+        outbound: rule.outbound,
+        programs: rule.programs,
+        dpiBypass: rule.dpiBypass,
+      );
+      ruleRows.add(saved);
+    } else {
+      final at = ruleRows.indexWhere((r) => r.id == rule.id);
+      saved = _ordered(rule, ruleRows[at].order);
+      ruleRows[at] = saved;
+    }
+    _changed(StoreKind.rules, [saved.id]);
+    return saved;
+  }
+
+  @override
+  Future<void> deleteRules(List<int> ids) async {
+    ruleRows.removeWhere((r) => ids.contains(r.id));
+    _changed(StoreKind.rules, ids);
+  }
+
+  @override
+  Future<void> moveRules(List<int> ids, {int before = 0}) async {
+    final moved = ruleRows.where((r) => ids.contains(r.id)).toList();
+    ruleRows.removeWhere((r) => ids.contains(r.id));
+    final at = before == 0 ? ruleRows.length : ruleRows.indexWhere((r) => r.id == before);
+    ruleRows.insertAll(at, moved);
+    ruleRows = [for (final (i, r) in ruleRows.indexed) _ordered(r, i + 1)];
+    _changed(StoreKind.rules, ids);
+  }
+
+  static const russiaLists = [
+    'srs:https://lists.example.com/geosite-ru-blocked.srs',
+    'srs:https://lists.example.com/geoip-ru-blocked.srs',
+  ];
+
+  @override
+  Future<PresetApplied> applyRussiaPreset({required String blockedName, required String directName}) async {
+    final blocked = await saveRule(RuleRow(name: blockedName, domains: russiaLists[0], ip: russiaLists[1]));
+    final direct = await saveRule(RuleRow(name: directName, domains: 'domain:ru', outbound: RuleOutbound.direct));
+    ruleSetRows = [for (final item in russiaLists) RuleSetRow(item: item, url: item.substring(4), enabled: true)];
+    _changed(StoreKind.ruleSets, const []);
+    return PresetApplied(rules: [blocked, direct], ruleSets: russiaLists);
+  }
+
+  @override
+  Future<RuleSetStatus> ruleSets() async => RuleSetStatus(ruleSets: [...ruleSetRows], updateHours: 24);
+
+  @override
+  Future<TaskResult> updateRuleSets({List<String> items = const [], bool force = false}) async {
+    ruleSetUpdates.add((items, force));
+    ruleSetRows = [
+      for (final r in ruleSetRows)
+        RuleSetRow(
+          item: r.item,
+          url: r.url,
+          enabled: r.enabled,
+          downloaded: true,
+          size: 812000,
+          updated: 1790000000,
+          kinds: r.item.contains('geoip') ? 2 : 1,
+        ),
+    ];
+    _changed(StoreKind.ruleSets, const []);
+    return TaskResult(line: 'rule-sets: ${ruleSetRows.length} fetched');
   }
 
   @override
@@ -1075,6 +1249,99 @@ void main() {
     expect(radios(), [false], reason: 'the selected profile is in another group');
   });
 
+  testWidgets('Узлы: a node by its invite, the PIN asked for; its card, its update; removed after a word', (tester) async {
+    await show(tester, brightness: Brightness.light);
+    await core(tester, ServicePhase.idle);
+    Future<void> settle([Duration wait = Duration.zero]) async {
+      await tester.pump(wait);
+      for (var i = 0; i < 8; i++) {
+        await tester.pump();
+      }
+    }
+
+    await tester.tap(find.text('Узлы'));
+    await settle();
+    await tester.tap(find.bySemanticsLabel('Добавить'));
+    await settle();
+    await tester.enterText(find.byType(EditableText).first, 'rcinv1:AAAA');
+    await settle(const Duration(milliseconds: 300));
+    // D-ADD-06: the invite, its node, and the PIN it says it needs before anything is sent
+    expect(find.text('Приглашение узла'), findsOneWidget);
+    expect(find.textContaining('Компьютер зарегистрируется на узле 203.0.113.7'), findsOneWidget);
+    expect(find.text('PIN приглашения'), findsOneWidget);
+    final add = find.text('Добавить узел');
+    expect(tester.widget<NikoPrimaryButton>(find.ancestor(of: add, matching: find.byType(NikoPrimaryButton))).onPressed, isNull,
+        reason: 'no PIN yet');
+    await tester.enterText(find.byType(EditableText).last, '111111');
+    await settle();
+    await tester.tap(add);
+    await settle();
+    expect(daemon.pins, ['111111']);
+    expect(find.text('PIN неверный, попыток осталось: 2'), findsOneWidget);
+    await picture('add_node_light');
+    await tester.enterText(find.byType(EditableText).last, '123456');
+    await settle();
+    await tester.tap(add);
+    await settle();
+    expect(daemon.pins, ['111111', '123456']);
+
+    // the node's group, its card: the note, traffic and term, the updates, the signature, its profiles
+    expect(find.text('Вставьте ссылку'), findsNothing);
+    expect(find.text('Домашний узел'), findsNWidgets(2), reason: 'the group in the panel and as the title');
+    expect(find.text('\u2068Оплата до 5-го числа\u2069'), findsOneWidget);
+    expect(find.textContaining('трафик 922 MB из 1.0 GB'), findsNWidgets(2), reason: 'in the panel and on the card');
+    expect(find.textContaining('ed25519 и ML-DSA-65'), findsOneWidget);
+    expect(find.text('REALITY'), findsOneWidget);
+    expect(find.text('Hysteria2'), findsOneWidget);
+    await picture('node_light');
+    await tester.tap(find.text('Обновить'));
+    await settle();
+    expect(daemon.nodeRefreshed, ['n1']);
+    expect(find.text('Домашний узел: 2 profiles'), findsOneWidget);
+
+    // D-NODE-07: removed only after the word that a new invite alone brings it back
+    await tester.tap(find.text('Удалить узел'));
+    await settle();
+    expect(find.textContaining('Вернуть его можно только новым приглашением'), findsOneWidget);
+    expect(daemon.nodesDeleted, isEmpty);
+    await tester.tap(find.text('Удалить узел').last);
+    await settle();
+    expect(daemon.nodesDeleted, ['n1']);
+    expect(find.text('Домашний узел'), findsNothing);
+  });
+
+  testWidgets('Главная: the node of the selected profile, its term, traffic and last update (D-MAIN-13)', (tester) async {
+    await show(tester, brightness: Brightness.light);
+    await core(tester, ServicePhase.idle);
+    daemon.groupRows = [
+      const GroupRow(id: 1, name: '', ungrouped: true),
+      const GroupRow(id: 5, name: 'Домашний узел', profiles: 1, nodeId: 'n1'),
+    ];
+    daemon.profileRows = [const ProfileRow(id: 7, groupId: 5, order: 1, type: 'vmess', name: 'REALITY', address: '203.0.113.7:443')];
+    daemon.nodeRows = [
+      const NodeRow(
+        id: 'n1',
+        host: '203.0.113.7',
+        name: 'Домашний узел',
+        groupId: 5,
+        profiles: 1,
+        subscription: true,
+        updated: 1790000000,
+        expires: 1790259200,
+        traffic: NodeTraffic(used: 1073741824, limit: 1073741824, reset: 0, exhausted: true),
+      ),
+    ];
+    daemon.selectedId = 7;
+    // the store read again, as after a change the daemon lost
+    daemon.storeEvents.add(const StoreChange(revision: 99, reset: true));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump();
+    }
+    expect(find.text('УЗЕЛ'), findsOneWidget);
+    expect(find.text('Домашний узел'), findsOneWidget);
+    expect(find.textContaining('трафик израсходован: лимит поднимает администратор'), findsOneWidget);
+  });
+
   testWidgets('Узлы: a profile added from a link; one deleted and put back where it was', (tester) async {
     await show(tester, brightness: Brightness.light);
     await core(tester, ServicePhase.idle);
@@ -1253,6 +1520,147 @@ void main() {
     await tester.pump();
     expect(find.text('Нет связи со службой'), findsOneWidget);
     expect(find.text('Порт'), findsNothing);
+  });
+
+  group('Правила', () {
+    Future<void> settle(WidgetTester tester, [Duration wait = Duration.zero]) async {
+      await tester.pump(wait);
+      for (var i = 0; i < 8; i++) {
+        await tester.pump();
+      }
+    }
+
+    Future<void> rules(WidgetTester tester) async {
+      await show(tester, brightness: Brightness.light, size: const Size(960, 900));
+      await core(tester, ServicePhase.idle);
+      daemon.ruleRows = [
+        const RuleRow(id: 1, name: 'Блок рекламы', order: 1, domains: 'ads.example', outbound: RuleOutbound.block),
+        const RuleRow(
+          id: 2,
+          name: 'Офис напрямую',
+          order: 2,
+          ip: '203.0.113.0/24',
+          outbound: RuleOutbound.direct,
+          dpiBypass: true,
+        ),
+      ];
+      daemon._nextRule = 2;
+      await tester.tap(find.text('Расширенный'));
+      await settle(tester);
+      await tester.tap(find.text('Правила').first);
+      await settle(tester);
+    }
+
+    List<String> names() => daemon.ruleRows.map((r) => r.name).toList();
+
+    // the screen scrolls: what is pressed is brought into view first, once its own scrolling has ended
+    Future<void> press(WidgetTester tester, Finder finder) async {
+      // a field typed into scrolls itself into view: the screen takes no press until that ends
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.ensureVisible(finder);
+      await tester.pump();
+      await tester.tap(finder);
+      await settle(tester);
+    }
+
+    testWidgets('the simple view has no rules; the advanced one lists them with where each goes', (tester) async {
+      await show(tester);
+      expect(find.text('Правила'), findsNothing, reason: 'the advanced view\'s section (D-NAV-03)');
+      await rules(tester);
+      expect(find.text('Блок рекламы'), findsOneWidget);
+      expect(find.text('Блок · ads.example'), findsOneWidget);
+      expect(find.text('Напрямую · Обход DPI · 203.0.113.0/24'), findsOneWidget);
+      expect(find.text('Правила не называют наборов'), findsOneWidget);
+      await picture('rules_light');
+    });
+
+    testWidgets('a switch turns one off, the chevrons move it, the bin deletes it', (tester) async {
+      await rules(tester);
+      await press(tester, find.bySemanticsLabel('Включено: Блок рекламы'));
+      expect(daemon.ruleRows.first.enabled, isFalse);
+      await press(tester, find.bySemanticsLabel('Опустить: Блок рекламы'));
+      expect(names(), ['Офис напрямую', 'Блок рекламы']);
+      await press(tester, find.bySemanticsLabel('Поднять: Блок рекламы'));
+      expect(names(), ['Блок рекламы', 'Офис напрямую']);
+      await press(tester, find.bySemanticsLabel('Удалить правило: Офис напрямую'));
+      expect(names(), ['Блок рекламы']);
+      expect(find.text('Офис напрямую'), findsNothing);
+    });
+
+    testWidgets('a new rule: refused with the daemon\'s words, then saved at the end; one edited where it is', (
+      tester,
+    ) async {
+      await rules(tester);
+      await press(tester, find.text('Новое правило'));
+      final fields = find.byType(EditableText);
+      await tester.enterText(fields.at(0), 'Сайты');
+      await tester.enterText(fields.at(1), 'refused.example');
+      await press(tester, find.text('Напрямую'));
+      // «Обход DPI» is a direct rule's
+      expect(find.text('Обход DPI'), findsOneWidget);
+      await press(tester, find.text('Обход DPI'));
+      await press(tester, find.text('Сохранить'));
+      expect(find.text('Правило не сохранено'), findsOneWidget);
+      expect(find.text('invalid: the rule\'s JSON is not an object'), findsOneWidget);
+      expect(names(), hasLength(2));
+      await tester.enterText(fields.at(1), 'domain:sites.example');
+      // typed as it goes: a new line and a space in a path stay in the field until it is saved
+      await tester.enterText(fields.at(7), 'firefox.exe\n');
+      await tester.pump();
+      expect(tester.widget<EditableText>(fields.at(7)).controller.text, 'firefox.exe\n');
+      await tester.enterText(fields.at(7), 'firefox.exe\nC:\\Program ');
+      await tester.pump();
+      expect(tester.widget<EditableText>(fields.at(7)).controller.text, 'firefox.exe\nC:\\Program ');
+      await tester.enterText(fields.at(7), 'firefox.exe\n\nC:\\Apps\\app.exe');
+      await press(tester, find.text('UDP'));
+      await press(tester, find.text('Сохранить'));
+      expect(find.text('Правило не сохранено'), findsNothing);
+      final added = daemon.ruleRows.last;
+      expect([added.name, added.domains, added.outbound, added.dpiBypass, added.network, added.programs], [
+        'Сайты',
+        'domain:sites.example',
+        RuleOutbound.direct,
+        true,
+        'udp',
+        ['firefox.exe', r'C:\Apps\app.exe'],
+      ]);
+      expect(find.text('Сайты'), findsOneWidget);
+
+      // edited: its fields in the editor, saved in its place
+      await press(tester, find.text('Блок рекламы'));
+      expect(find.text('ads.example'), findsOneWidget);
+      await tester.enterText(find.byType(EditableText).at(0), 'Реклама');
+      await press(tester, find.text('Сохранить'));
+      expect(names(), ['Реклама', 'Офис напрямую', 'Сайты']);
+      expect(daemon.ruleRows.first.outbound, RuleOutbound.block);
+    });
+
+    testWidgets('the Russian preset: its rules, then its lists fetched; the update on demand', (tester) async {
+      await rules(tester);
+      await press(tester, find.text('Пресет «Россия»'));
+      expect(names().skip(2), ['Заблокированное в России — через прокси', 'Российские сервисы — напрямую']);
+      expect(daemon.ruleSetUpdates, [(MemoryDaemon.russiaLists, true)]);
+      expect(find.text('rule-sets: 2 fetched'), findsOneWidget);
+      expect(find.text('lists.example.com/geosite-ru-blocked.srs'), findsOneWidget);
+      expect(find.textContaining('793 KB, скачан'), findsNWidgets(2));
+      expect(find.textContaining('· домены'), findsOneWidget);
+      expect(find.textContaining('· адреса'), findsOneWidget);
+      await press(tester, find.text('Обновить'));
+      expect(daemon.ruleSetUpdates.last, (const <String>[], true));
+      // the notice goes after a while
+      await settle(tester, const Duration(seconds: 7));
+      expect(find.text('rule-sets: 2 fetched'), findsNothing);
+    });
+
+    testWidgets('a narrow window: the list and the editor fit', (tester) async {
+      await rules(tester);
+      tester.view.physicalSize = const Size(360, 720);
+      await settle(tester);
+      expect(find.text('Офис напрямую'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await press(tester, find.text('Новое правило'));
+      expect(tester.takeException(), isNull);
+    });
   });
 
   testWidgets('a narrow and low window: nothing overflows', (tester) async {

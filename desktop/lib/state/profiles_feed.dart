@@ -15,6 +15,12 @@ class ProfilesFeed extends ChangeNotifier {
 
   List<GroupRow> groups = const [];
 
+  /// The raycontrol nodes (D-NODE-01…07): each has a group of its own among [groups].
+  List<NodeRow> nodes = const [];
+
+  /// The group of the selected profile, for the node it may be of (D-MAIN-13); 0: none read.
+  int selectedGroup = 0;
+
   /// The group shown: 0 until the groups are read, then the first one, or the one chosen.
   int groupId = 0;
   List<ProfileRow> profiles = const [];
@@ -101,8 +107,19 @@ class ProfilesFeed extends ChangeNotifier {
         final read = shown == 0 ? const <ProfileRow>[] : await daemon.profiles(groupId: shown);
         if (shown == groupId) profiles = read;
       }
+      if (all || change.kind == StoreKind.nodes || change.kind == StoreKind.groups) {
+        nodes = await daemon.nodes();
+      }
       if (all || change.kind == StoreKind.selected) {
         selected = await daemon.selected();
+        selectedGroup = 0;
+        if (selected != 0) {
+          try {
+            selectedGroup = (await daemon.profile(selected)).row.groupId;
+          } catch (_) {
+            // its secrets sealed elsewhere: no node to show of it
+          }
+        }
       }
       loaded = true;
       error = '';
@@ -148,10 +165,57 @@ class ProfilesFeed extends ChangeNotifier {
     if (!_disposed && groupId == id) notifyListeners();
   }
 
-  /// The group an import from the window goes into: the one shown, unless it is a subscription's.
+  /// The group an import from the window goes into: the one shown, unless it is a subscription's or a node's.
   int get importGroup {
     final group = groups.where((g) => g.id == groupId).firstOrNull;
-    return group == null || group.subscription ? 0 : group.id;
+    return group == null || group.subscription || group.nodeId.isNotEmpty ? 0 : group.id;
+  }
+
+  /// The node whose group [id] is; null for none.
+  NodeRow? nodeOfGroup(int id) => nodes.where((n) => n.groupId == id && id != 0).firstOrNull;
+
+  /// The node of the selected profile (D-MAIN-13); null for none.
+  NodeRow? get selectedNode => nodeOfGroup(selectedGroup);
+
+  /// Imports a node's invite or device package (D-ADD-06): its result, a PIN asked for in [TaskResult.pin]; once
+  /// the node is kept, its group is shown and what its first update did is said.
+  Future<TaskResult> addNode(String text, {String pin = ''}) async {
+    final daemon = _link.daemon;
+    if (daemon == null) return const TaskResult(code: 14, error: 'no link to the service');
+    final result = await daemon.importNode(text, pin: pin);
+    if (result.nodeId.isNotEmpty) {
+      groups = await daemon.groups();
+      nodes = await daemon.nodes();
+      if (result.groupId != 0) await choose(result.groupId);
+      _notice(result);
+    }
+    return result;
+  }
+
+  /// Updates a node's subscription (D-NODE-02); what it did is said.
+  Future<void> refreshNode(String id) async {
+    final daemon = _link.daemon;
+    if (daemon == null) return;
+    try {
+      _notice(await daemon.refreshNode(id));
+      error = '';
+    } catch (e) {
+      error = '$e';
+      if (!_disposed) notifyListeners();
+    }
+  }
+
+  /// Removes a node with its group and key (D-NODE-07): it comes back only with a new invite.
+  Future<void> deleteNode(String id) async {
+    final daemon = _link.daemon;
+    if (daemon == null) return;
+    try {
+      await daemon.deleteNode(id);
+      error = '';
+    } catch (e) {
+      error = '$e';
+      if (!_disposed) notifyListeners();
+    }
   }
 
   /// What an input would add; nothing is written.

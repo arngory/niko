@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"libcore/nikofmt"
+	"libcore/nikoray"
 )
 
 // The whole config of a profile (ConfigBuilder.kt buildConfig), with no raycontrol node imported: every ConfigRay
@@ -50,6 +51,13 @@ func Build(in Input) (Result, error) {
 	b := &builder{in: in, s: &in.Settings, dev: in.Device, forTest: in.ForTest, forExport: in.ForExport}
 	if b.dev == nil {
 		b.dev = NewFixedDevice(in.Apps, in.PrivateDNS)
+	}
+	b.ruleSetFiles = in.RuleSets
+	if b.ruleSetFiles == nil {
+		b.ruleSetFiles = noRuleSets{}
+		if len(in.RuleSetFiles) > 0 {
+			b.ruleSetFiles = FixedRuleSets{Dir: GoldenRuleSetDir, Files: in.RuleSetFiles}
+		}
 	}
 	switch in.Platform {
 	case "", PlatformAndroid:
@@ -94,11 +102,12 @@ func (o *option) asMap() (object, error) {
 
 // builder is one build: buildConfig's state.
 type builder struct {
-	in        Input
-	s         *Settings
-	dev       Device
-	forTest   bool
-	forExport bool
+	in           Input
+	s            *Settings
+	dev          Device
+	ruleSetFiles RuleSets
+	forTest      bool
+	forExport    bool
 	// desktop: the config of a computer's (Windows or Linux), not the phone's (desktop.go)
 	desktop bool
 	// result: what the build gives beside the config (its system proxy)
@@ -144,6 +153,9 @@ type builder struct {
 	// the mesh nodes of Yggdrasil profiles (niko-ygg), one per device key: key → tag and peer, in their order
 	yggProfileKeys []string
 	yggProfileTags map[string][2]string
+	// nodeDoH: the raycontrol node whose DoH is the remote DNS, through its knock nodeDoHKnock (ray.go)
+	nodeDoH      *nikoray.Node
+	nodeDoHKnock string
 }
 
 func (b *builder) warn(format string, rule *Rule) {
@@ -562,7 +574,7 @@ func (b *builder) build() ([]byte, error) {
 		// force bypass (always top DNS rule)
 		if len(b.directForce) > 0 {
 			rule := object{"server": "dns-direct"}
-			makeDNSRule(rule, javaHashSetOrder(b.directForce, javaStringHash), false)
+			b.makeDNSRule(rule, javaHashSetOrder(b.directForce, javaStringHash))
 			dnsRules = append([]object{rule}, dnsRules...)
 		}
 	}
@@ -700,7 +712,13 @@ func (b *builder) dnsServers(remoteDNS, directDNS []string) ([]object, error) {
 		return nil, err
 	}
 	dnsServers = append(dnsServers, direct)
-	if !b.forTest {
+	if !b.forTest && b.nodeDoH != nil {
+		server, err := nodeDoHServer(b.nodeDoH, b.nodeDoHKnock)
+		if err != nil {
+			return nil, err
+		}
+		dnsServers = append(dnsServers, server)
+	} else if !b.forTest {
 		if len(remoteDNS) == 0 {
 			return nil, errors.New("No remote DNS, check your settings!")
 		}

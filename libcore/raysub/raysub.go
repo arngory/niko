@@ -152,6 +152,17 @@ func (p Payload) MarshalJSON() ([]byte, error) {
 	return json.Marshal(plain(p))
 }
 
+// PayloadOf is a payload of its JSON as a node signed it, kept whole as verify keeps it (MarshalJSON gives it back):
+// for a payload that came another way than Fetch, a test's.
+func PayloadOf(raw []byte) (Payload, error) {
+	var p Payload
+	if err := json.Unmarshal(raw, &p); err != nil {
+		return Payload{}, err
+	}
+	p.raw = append(json.RawMessage(nil), raw...)
+	return p, nil
+}
+
 // SPAInfo is the subscription's spa (raycontrol v0.10.1): the carriers the node takes, in the order to try them.
 // Relay is a relay in front of the node: its address and its own SPA, knocked at with K_relay (knock.SPARelay).
 type Relay struct {

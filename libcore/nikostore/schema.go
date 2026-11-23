@@ -36,6 +36,21 @@ var migrations = []migration{
 		document["groups"] = data
 		return err
 	},
+	// 2 to 3: the route rules (rules.go), none yet. The schema says that a build of schema 2 must not open the store:
+	// it would write the rules away.
+	func(document map[string]json.RawMessage) error {
+		document["rules"] = json.RawMessage("[]")
+		document["next_rule"] = json.RawMessage("1")
+		return nil
+	},
+	// 3 to 4: the raycontrol nodes and the client keys of registrations under way (nodes.go), none yet; a node's
+	// group is named by its id ("node"). The schema says that a build of schema 3 must not open the store: it would
+	// write the nodes and their keys away.
+	func(document map[string]json.RawMessage) error {
+		document["nodes"] = json.RawMessage("[]")
+		document["pending_registrations"] = json.RawMessage("{}")
+		return nil
+	},
 }
 
 // Schema is the layout this build writes: the first, and one more for each migration it has.

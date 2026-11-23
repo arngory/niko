@@ -1,0 +1,185 @@
+{
+  "log": {
+    "level": "panic"
+  },
+  "dns": {
+    "servers": [
+      {
+        "type": "local",
+        "tag": "dns-local"
+      },
+      {
+        "type": "local",
+        "tag": "dns-direct"
+      },
+      {
+        "type": "https",
+        "tag": "dns-remote",
+        "server": "203.0.113.7",
+        "server_port": 443,
+        "path": "/dns-query/tttttttttttttttttttttttt",
+        "detour": "proxy-knock",
+        "tls": {
+          "enabled": true,
+          "server_name": "d.example.com",
+          "curve_preferences": [
+            "X25519MLKEM768"
+          ]
+        }
+      },
+      {
+        "type": "fakeip",
+        "tag": "dns-fake",
+        "inet4_range": "198.18.0.0/15",
+        "inet6_range": "fc00::/18"
+      }
+    ],
+    "rules": [
+      {
+        "domain": [
+          "dns.quad9.net",
+          "cloudflare-dns.com"
+        ],
+        "strategy": "ipv4_only",
+        "server": "dns-direct"
+      },
+      {
+        "domain_suffix": [
+          "niko.internal"
+        ],
+        "action": "predefined",
+        "rcode": "NXDOMAIN"
+      },
+      {
+        "inbound": [
+          "tun-in"
+        ],
+        "strategy": "ipv4_only",
+        "server": "dns-fake",
+        "disable_cache": true
+      }
+    ],
+    "final": "dns-remote",
+    "strategy": "ipv4_only"
+  },
+  "inbounds": [
+    {
+      "mtu": 9000,
+      "address": [
+        "172.19.0.1/28"
+      ],
+      "stack": "gvisor",
+      "type": "tun",
+      "tag": "tun-in"
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "knock",
+      "tag": "proxy-knock",
+      "spa_v2": {
+        "node_id": "aaaaaaaabbbbbbbbccccccccdddddddd",
+        "epoch_len_s": 86400,
+        "slot_len_s": 600,
+        "port_key": "2222222222222222222222222222222222222222222222222222222222222222",
+        "port_base": 20000,
+        "port_range": 1000,
+        "len_min": 64,
+        "len_max": 200,
+        "device_key_ref": "raycontrol:aaaaaaaabbbbbbbbccccccccdddddddd:3333333333333333"
+      },
+      "silence": "15s"
+    },
+    {
+      "detour": "proxy-knock",
+      "server": "203.0.113.7",
+      "server_port": 443,
+      "uuid": "00000000-0000-4000-8000-000000000003",
+      "flow": "xtls-rprx-vision",
+      "encryption": "mlkem768x25519plus.native.0rtt.exampleKeyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "tls": {
+        "enabled": true,
+        "server_name": "www.example.com",
+        "insecure": false,
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "reality": {
+          "enabled": true,
+          "public_key": "examplePublicKeyAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "short_id": "0123456789abcd",
+          "mldsa65_verify": "exampleMldsa65VerifyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "key_share": "hybrid"
+        }
+      },
+      "packet_encoding": "",
+      "type": "vless",
+      "tag": "proxy",
+      "prewarm": "12s"
+    },
+    {
+      "type": "direct",
+      "tag": "direct"
+    },
+    {
+      "type": "direct",
+      "tag": "bypass"
+    }
+  ],
+  "endpoints": [],
+  "route": {
+    "rules": [
+      {
+        "domain_suffix": [
+          "niko.internal"
+        ],
+        "action": "reject"
+      },
+      {
+        "inbound": [
+          "tun-in",
+          "mixed-in"
+        ],
+        "action": "sniff"
+      },
+      {
+        "port": [
+          53
+        ],
+        "action": "hijack-dns"
+      },
+      {
+        "protocol": [
+          "dns"
+        ],
+        "action": "hijack-dns"
+      },
+      {
+        "source_ip_cidr": [
+          "224.0.0.0/3",
+          "ff00::/8"
+        ],
+        "ip_cidr": [
+          "224.0.0.0/3",
+          "ff00::/8"
+        ],
+        "action": "reject"
+      }
+    ],
+    "rule_set": [],
+    "final": "proxy",
+    "default_domain_resolver": {
+      "server": "dns-direct",
+      "strategy": "ipv4_only"
+    },
+    "auto_detect_interface": true
+  },
+  "experimental": {
+    "cache_file": {
+      "enabled": true,
+      "store_fakeip": true,
+      "path": "cache.db"
+    }
+  }
+}

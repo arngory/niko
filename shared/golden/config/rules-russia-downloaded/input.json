@@ -1,0 +1,105 @@
+{
+  "profile": 1,
+  "profiles": [
+    {
+      "id": 1,
+      "group": 1,
+      "order": 1,
+      "link": "ss-sip002"
+    }
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "order": 1,
+      "name": "main"
+    }
+  ],
+  "settings": {
+    "dpiDirect": 1,
+    "dpiDirectPreset": "tlsrec_sni"
+  },
+  "rules": [
+    {
+      "id": 1,
+      "name": "block QUIC",
+      "enabled": true,
+      "userOrder": 1,
+      "port": "443",
+      "network": "udp",
+      "outbound": -2
+    },
+    {
+      "id": 2,
+      "name": "block ads",
+      "enabled": true,
+      "userOrder": 2,
+      "domains": "geosite:category-ads-all",
+      "outbound": -2
+    },
+    {
+      "id": 3,
+      "name": "blocked through the proxy",
+      "enabled": true,
+      "userOrder": 3,
+      "domains": "srs:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geosite/geosite-ru-blocked.srs",
+      "ip": "srs:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geoip/geoip-ru-blocked.srs",
+      "outbound": 0
+    },
+    {
+      "id": 4,
+      "name": "Russian services directly",
+      "enabled": true,
+      "userOrder": 4,
+      "domains": "srs:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geosite/geosite-ru-available-only-inside.srs\ndomain:ru\ndomain:su\ndomain:xn--p1ai",
+      "ip": "srs:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geoip/geoip-ru.srs",
+      "outbound": -1,
+      "dpiBypass": true
+    },
+    {
+      "id": 5,
+      "name": "own lists",
+      "enabled": true,
+      "userOrder": 5,
+      "domains": "srs:https://lists.example.com/mixed.json\nsrs:https://lists.example.com/geoip-named.srs\nsrs:http://lists.example.com/plain.srs\nsrs:https://lists.example.com/absent.srs\nfull:own.example",
+      "outbound": -1,
+      "dpiBypass": true
+    },
+    {
+      "id": 6,
+      "name": "an IP-only list among domains",
+      "enabled": true,
+      "userOrder": 6,
+      "domains": "srs:https://lists.example.com/sites.srs",
+      "outbound": 0
+    },
+    {
+      "id": 7,
+      "name": "only lists not here",
+      "enabled": true,
+      "userOrder": 7,
+      "domains": "srs:https://lists.example.com/absent.srs",
+      "port": "8443",
+      "outbound": -1
+    },
+    {
+      "id": 8,
+      "name": "off",
+      "enabled": false,
+      "userOrder": 8,
+      "domains": "srs:https://lists.example.com/off.srs",
+      "outbound": -2
+    }
+  ],
+  "rule_sets": {
+    "srs:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geosite/geosite-ru-blocked.srs": 1,
+    "srs:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geoip/geoip-ru-blocked.srs": 2,
+    "srs:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geosite/geosite-ru-available-only-inside.srs": 1,
+    "srs:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geoip/geoip-ru.srs": 2,
+    "srs:https://lists.example.com/mixed.json": 3,
+    "srs:https://lists.example.com/geoip-named.srs": 1,
+    "srs:http://lists.example.com/plain.srs": 1,
+    "srs:https://lists.example.com/sites.srs": 2,
+    "srs:https://lists.example.com/off.srs": 1
+  }
+}

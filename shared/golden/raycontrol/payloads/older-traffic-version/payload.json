@@ -1,0 +1,26 @@
+{
+  "v": 1,
+  "node_id": "11111111111111111111111111111111",
+  "seq": 7,
+  "time": 1800000003,
+  "issued": 1799996400,
+  "expires": 1800259200,
+  "profiles": [
+    {
+      "svc": 6,
+      "name": "naive",
+      "link": "naive+https://niko:password3@n.node.example.com:443?sni=n.node.example.com&uot=2&udp=1&niko-ack=1&icmp=1&niko-pin=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB&niko-ip=203.0.113.7&niko-node=11111111111111111111111111111111&niko-svc=6#naive"
+    }
+  ],
+  "traffic": {
+    "v": 2,
+    "used": 1
+  },
+  "client": {
+    "v": 2
+  },
+  "spa": {
+    "carriers": []
+  },
+  "name": 12345
+}

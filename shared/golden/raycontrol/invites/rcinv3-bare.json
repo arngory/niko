@@ -1,0 +1,31 @@
+{
+  "invite": {
+    "host": "203.0.113.7",
+    "spa": {
+      "node_id": "000102030405060708090a0b0c0d0e0f",
+      "epoch_len_s": 34380,
+      "slot_len_s": 1620,
+      "port_key": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+      "port_base": 21907,
+      "port_range": 2955,
+      "len_min": 136,
+      "len_max": 206
+    },
+    "invite_id": "a0a1a2a3a4a5a6a7",
+    "invite_key": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+    "services": [
+      {
+        "id": 7,
+        "kind": "api",
+        "name": "api"
+      }
+    ],
+    "api": {
+      "port": 48213,
+      "pin": "YGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn8"
+    },
+    "expires": 1767312000,
+    "pin_required": false,
+    "addrs": []
+  }
+}

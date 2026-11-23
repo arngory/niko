@@ -108,7 +108,8 @@ class _NikoHeaderState<S> extends State<NikoHeader<S>> {
                         explicitChildNodes: true,
                         label: widget.sectionsLabel,
                         child: Wrap(
-                          spacing: NikoSpace.s6,
+                          // the advanced view's six sections stand closer, to keep to one line
+                          spacing: widget.sections.length > 5 ? NikoSpace.s4 : NikoSpace.s6,
                           children: [
                             for (final (id, name) in widget.sections)
                               _NavItem(name: name, active: id == widget.section, onPressed: () => widget.onSection(id)),

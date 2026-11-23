@@ -70,6 +70,13 @@ var computerSettings = map[string]func(s *nikoconf.Settings) error{
 		return within(s.ProgramsMode, nikoconf.ProgramsAll, nikoconf.ProgramsExcept)
 	},
 	"programs": func(s *nikoconf.Settings) error { return programs(s.Programs) },
+	// the rules (slice 10): their DNS rules, the rule-sets' update, «Обход DPI для прямых соединений» on the direct
+	// rules with their flag
+	"enableDnsRouting":   nil,
+	"ruleSetUpdateHours": func(s *nikoconf.Settings) error { return within(s.RuleSetUpdateHours, 1, 24*30) },
+	"dpiDirect":          func(s *nikoconf.Settings) error { return within(s.DpiDirect, nikoconf.DpiOff, nikoconf.DpiCustom) },
+	"dpiDirectPreset":    func(s *nikoconf.Settings) error { return dpiPreset(s.DpiDirectPreset) },
+	"dpiDirectCustom":    func(s *nikoconf.Settings) error { return dpiCustom(s.DpiDirectCustom) },
 }
 
 // secretSettings are those of the settings that are nikoconf.Secrets', sealed on the disk.
@@ -130,6 +137,27 @@ func programs(text string) error {
 		}
 	}
 	return nil
+}
+
+// dpiPreset: one of the app's ready-made strategies.
+func dpiPreset(id string) error {
+	var ids []string
+	for _, p := range nikoconf.DpiPresets {
+		ids = append(ids, p.ID)
+	}
+	return oneOf(id, ids...)
+}
+
+// dpiCustom: a ByeDPI string the build reads (nikoconf.ParseByeDpi), or none.
+func dpiCustom(text string) error {
+	if len(text) > 4096 {
+		return errors.New("too long")
+	}
+	if strings.TrimSpace(text) == "" {
+		return nil
+	}
+	_, err := nikoconf.ParseByeDpi(text)
+	return err
 }
 
 // login: a user's name or password of the local proxy, a line of printable characters without those refused.

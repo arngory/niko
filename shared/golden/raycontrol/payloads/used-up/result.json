@@ -1,0 +1,25 @@
+{
+  "rows": [],
+  "skipped": 0,
+  "note": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…",
+  "traffic": {
+    "v": 1,
+    "used": 1000,
+    "limit": 1000,
+    "since": 1799913600,
+    "reset": 0,
+    "exhausted": true
+  },
+  "client": {
+    "v": 1,
+    "min": {
+      "niko": "9.0.0"
+    },
+    "refused": true
+  },
+  "addrs": [],
+  "spa_versions": [
+    2
+  ],
+  "next_refresh": 1800193500
+}

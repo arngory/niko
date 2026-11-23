@@ -124,6 +124,30 @@ class TracedDaemon implements Daemon {
   @override
   Future<TaskResult> refreshSubscription(int groupId) => _inner.refreshSubscription(groupId);
   @override
+  Future<List<NodeRow>> nodes() => _inner.nodes();
+  @override
+  Future<TaskResult> importNode(String text, {String pin = ''}) => _inner.importNode(text, pin: pin);
+  @override
+  Future<TaskResult> refreshNode(String id) => _inner.refreshNode(id);
+  @override
+  Future<void> deleteNode(String id) => _inner.deleteNode(id);
+  @override
+  Future<List<RuleRow>> rules() => _inner.rules();
+  @override
+  Future<RuleRow> saveRule(RuleRow rule) => _inner.saveRule(rule);
+  @override
+  Future<void> deleteRules(List<int> ids) => _inner.deleteRules(ids);
+  @override
+  Future<void> moveRules(List<int> ids, {int before = 0}) => _inner.moveRules(ids, before: before);
+  @override
+  Future<PresetApplied> applyRussiaPreset({required String blockedName, required String directName}) =>
+      _inner.applyRussiaPreset(blockedName: blockedName, directName: directName);
+  @override
+  Future<RuleSetStatus> ruleSets() => _inner.ruleSets();
+  @override
+  Future<TaskResult> updateRuleSets({List<String> items = const [], bool force = false}) =>
+      _inner.updateRuleSets(items: items, force: force);
+  @override
   Future<int> selected() => _inner.selected();
   @override
   Future<void> select(int profileId) => _inner.select(profileId);

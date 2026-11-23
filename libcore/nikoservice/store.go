@@ -14,6 +14,7 @@ import (
 
 	"libcore/nikofmt"
 	"libcore/nikopb"
+	"libcore/nikoray"
 	"libcore/nikostore"
 	"libcore/nikosub"
 
@@ -52,6 +53,10 @@ type user struct {
 	feed  *feed
 	// updates are its subscriptions' (subscriptions.go)
 	updates *updates
+	// ruleSets are its rule-sets' downloads (rules.go)
+	ruleSets *ruleSetUpdates
+	// nodes are its raycontrol nodes' updates (nodes.go)
+	nodes *nodeUpdates
 }
 
 func newUsers(root string, caller func(context.Context) (string, error), done <-chan struct{}) *users {
@@ -144,7 +149,7 @@ func (u *users) openDir(dir string) (*user, error) {
 	if err != nil {
 		return nil, status.Error(codes.Internal, "the store: "+err.Error())
 	}
-	opened := &user{store: store, feed: f, updates: newUpdates()}
+	opened := &user{store: store, feed: f, updates: newUpdates(), ruleSets: newRuleSetUpdates(), nodes: newNodeUpdates()}
 	u.open[dir] = opened
 	return opened, nil
 }
@@ -159,6 +164,10 @@ func changeKind(kind nikostore.Kind) nikopb.Change_Kind {
 		return nikopb.Change_SELECTED
 	case nikostore.KindSettings:
 		return nikopb.Change_SETTINGS
+	case nikostore.KindRules:
+		return nikopb.Change_RULES
+	case nikostore.KindNodes:
+		return nikopb.Change_NODES
 	}
 	return nikopb.Change_KIND_UNSPECIFIED
 }
@@ -189,7 +198,14 @@ func (s *server) groupProto(u *user, g nikostore.Group) *nikopb.Group {
 		kind = nikopb.Group_SUBSCRIPTION
 	}
 	return &nikopb.Group{Id: g.ID, Order: g.Order, Name: g.Name, Ungrouped: g.Ungrouped, Type: kind,
-		Profiles: int32(g.Profiles), Subscription: subscriptionProto(g.Subscription, u.updates.isRunning(g.ID))}
+		Profiles: int32(g.Profiles), Subscription: subscriptionProto(g.Subscription, u.updates.isRunning(g.ID)),
+		NodeId: g.Node}
+}
+
+// withNode is a profile as NikoService gives it, the node whose row it is named: the node of its group.
+func withNode(u *user, p *nikopb.Profile) *nikopb.Profile {
+	p.NodeId = nodeOfGroup(u, p.GroupId)
+	return p
 }
 
 func (s *server) Watch(_ *nikopb.WatchRequest, stream grpc.ServerStreamingServer[nikopb.Change]) error {
@@ -237,9 +253,15 @@ func (s *server) ListProfiles(ctx context.Context, request *nikopb.ListProfilesR
 	if err != nil {
 		return nil, storeError(err)
 	}
+	nodes := map[int64]string{}
+	for _, g := range u.store.Groups() {
+		nodes[g.ID] = g.Node
+	}
 	list := &nikopb.ProfileList{}
 	for _, row := range rows {
-		list.Profiles = append(list.Profiles, profileProto(row))
+		p := profileProto(row)
+		p.NodeId = nodes[p.GroupId]
+		list.Profiles = append(list.Profiles, p)
 	}
 	return list, nil
 }
@@ -253,7 +275,7 @@ func (s *server) GetProfile(ctx context.Context, request *nikopb.ProfileId) (*ni
 	if err != nil {
 		return nil, storeError(err)
 	}
-	return profileProto(p), nil
+	return withNode(u, profileProto(p)), nil
 }
 
 func (s *server) SaveProfile(ctx context.Context, request *nikopb.Profile) (*nikopb.Profile, error) {
@@ -266,7 +288,7 @@ func (s *server) SaveProfile(ctx context.Context, request *nikopb.Profile) (*nik
 	if err != nil {
 		return nil, storeError(err)
 	}
-	return profileProto(saved), nil
+	return withNode(u, profileProto(saved)), nil
 }
 
 func (s *server) DeleteProfiles(ctx context.Context, request *nikopb.ProfileIds) (*nikopb.Empty, error) {
@@ -388,13 +410,17 @@ func inputText(input *nikopb.ImportInput) (string, error) {
 	return nikofmt.DecodeUTF8(input.File), nil
 }
 
-func (s *server) Recognize(_ context.Context, input *nikopb.ImportInput) (*nikopb.ImportPreview, error) {
+func (s *server) Recognize(ctx context.Context, input *nikopb.ImportInput) (*nikopb.ImportPreview, error) {
 	text, err := inputText(input)
 	if err != nil {
 		return nil, err
 	}
-	if rayToken.MatchString(text) {
-		return &nikopb.ImportPreview{Kind: nikopb.ImportPreview_NODE}, nil
+	if nikoray.Matches(text) {
+		node, err := s.nodePreview(ctx, text)
+		if err != nil {
+			return nil, err
+		}
+		return &nikopb.ImportPreview{Kind: nikopb.ImportPreview_NODE, Node: node}, nil
 	}
 	if link := nikofmt.KtTrim(text); !strings.ContainsAny(link, "\n\r") {
 		if _, ok := nikosub.ParseDeepLink(link); ok {
@@ -433,22 +459,21 @@ func (s *server) Import(request *nikopb.ImportRequest, stream grpc.ServerStreami
 	task := "import-" + strconv.FormatUint(s.users.tasks.Add(1), 10)
 	// the task goes on without the stream: its result comes in Watch too
 	return runTask(stream, func(progress func(*nikopb.TaskProgress)) *nikopb.TaskProgress {
-		return s.importText(u, task, text, request.GroupId, progress)
+		return s.importText(u, task, text, request.GroupId, request.Pin, progress)
 	})
 }
 
 // importText runs an import to its end and tells its result to the user's watchers; a subscription's link is the
 // import of that subscription (importSubscription).
-func (s *server) importText(u *user, task, text string, group int64, progress func(*nikopb.TaskProgress)) *nikopb.TaskProgress {
+func (s *server) importText(u *user, task, text string, group int64, pin string, progress func(*nikopb.TaskProgress)) *nikopb.TaskProgress {
 	result := &nikopb.TaskProgress{TaskId: task, Done: true}
 	fail := func(err error) {
 		st := status.Convert(err)
 		result.Code, result.Error = int32(st.Code()), st.Message()
 	}
-	if rayToken.MatchString(text) {
-		fail(status.Error(codes.Unimplemented, "a raycontrol node's invite or device package: nodes come later"))
-		u.feed.publish(&nikopb.Change{Kind: nikopb.Change_TASK, Task: proto.Clone(result).(*nikopb.TaskProgress)})
-		return result
+	// a raycontrol node's invite or device package (nodes.go)
+	if nikoray.Matches(text) {
+		return s.importNode(u, task, text, pin, progress)
 	}
 	if link := nikofmt.KtTrim(text); !strings.ContainsAny(link, "\n\r") {
 		if deep, ok := nikosub.ParseDeepLink(link); ok {

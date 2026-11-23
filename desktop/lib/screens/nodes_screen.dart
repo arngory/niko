@@ -13,7 +13,9 @@ import '../ui/pressable.dart';
 
 /// Узлы (B-Profiles, D-MAIN-07): the groups beside the profiles of the one chosen; a profile pressed is the one the
 /// window connects with; one is added from a link (+) and deleted, with a way back for a while. A subscription's
-/// group says its traffic, expiry and last update, and updates on demand (D-SUB-01…03).
+/// group says its traffic, expiry and last update, and updates on demand (D-SUB-01…03). A raycontrol node's group is
+/// its card (D-NODE-01…07): its name, its owner's note, its traffic and term, when its subscription came and comes
+/// next, that it is signed, its ways to connect (the group's profiles), its update, its removal.
 class NodesScreen extends StatelessWidget {
   const NodesScreen({super.key, required this.feed, required this.linked, required this.onAdd});
 
@@ -91,7 +93,16 @@ class NodesScreen extends StatelessWidget {
                     style: NikoType.title.style(colors.ink),
                   ),
                 ),
-                if (group?.info case final info? when linked) ...[
+                if (group != null && linked && feed.nodeOfGroup(group.id) != null) ...[
+                  const SizedBox(height: NikoSpace.s2),
+                  NodeCard(
+                    key: ValueKey('node-${group.nodeId}'),
+                    node: feed.nodeOfGroup(group.id)!,
+                    strings: strings,
+                    onUpdate: () => feed.refreshNode(group.nodeId),
+                    onDelete: () => feed.deleteNode(group.nodeId),
+                  ),
+                ] else if (group?.info case final info? when linked) ...[
                   const SizedBox(height: NikoSpace.s2),
                   _SubscriptionLine(
                     info: info,
@@ -113,7 +124,13 @@ class NodesScreen extends StatelessWidget {
                   _Snackbar(text: strings.linkCopied(name)),
                 ] else if (feed.updated case final line?) ...[
                   const SizedBox(height: NikoSpace.s4),
-                  _Snackbar(text: feed.updateFailed ? '${strings.subscriptionUpdateFailed}: $line' : line),
+                  _Snackbar(
+                    text: !feed.updateFailed
+                        ? line
+                        : group?.nodeId.isNotEmpty == true
+                            ? '${strings.nodeUpdateFailed}: $line'
+                            : '${strings.subscriptionUpdateFailed}: $line',
+                  ),
                 ],
               ],
             ),
@@ -137,6 +154,123 @@ String subscriptionUsage(SubscriptionInfo info, NikoStrings strings) => [
         strings.subscriptionUsed(formatBytes(info.used)),
       if (info.expire > 0) strings.subscriptionExpires(formatDate(DateTime.fromMillisecondsSinceEpoch(info.expire * 1000))),
     ].join(' · ');
+
+/// What a node's last subscription said of the user (D-NODE-04, D-MAIN-13): the traffic used of the limit, used up,
+/// the term; empty where it said nothing.
+String nodeUsage(NodeRow node, NikoStrings strings) {
+  String at(int seconds) => formatDate(DateTime.fromMillisecondsSinceEpoch(seconds * 1000));
+  final traffic = node.traffic;
+  return [
+    if (traffic != null && traffic.exhausted)
+      traffic.reset > 0 ? strings.nodeTrafficExhausted(at(traffic.reset)) : strings.nodeTrafficExhaustedAdmin
+    else if (traffic != null && traffic.limit > 0)
+      [
+        strings.nodeTraffic(formatBytes(traffic.used), formatBytes(traffic.limit)),
+        if (traffic.reset > 0) strings.nodeTrafficReset(at(traffic.reset)),
+      ].join(', '),
+    if (node.expires > 0) strings.subscriptionExpires(at(node.expires)),
+  ].join(' · ');
+}
+
+/// When a node's subscription came, and when the next comes (D-NODE-05).
+String nodeUpdates(NodeRow node, NikoStrings strings) {
+  String at(int seconds) => formatMoment(DateTime.fromMillisecondsSinceEpoch(seconds * 1000));
+  return [
+    node.updated > 0 ? strings.nodeUpdated(at(node.updated)) : strings.nodeNever,
+    if (node.nextUpdate > 0 && !node.refused) strings.nodeNext(at(node.nextUpdate)),
+  ].join(' · ');
+}
+
+/// A node's card under its group's title (D-NODE-01…07): its owner's note, what its subscription said of the user,
+/// when it came and comes next, that it is signed, what keeps it from updating; its update, and its removal after a
+/// word that only a new invite brings it back.
+class NodeCard extends StatefulWidget {
+  const NodeCard({super.key, required this.node, required this.strings, required this.onUpdate, required this.onDelete});
+
+  final NodeRow node;
+  final NikoStrings strings;
+  final VoidCallback onUpdate;
+  final VoidCallback onDelete;
+
+  @override
+  State<NodeCard> createState() => _NodeCardState();
+}
+
+class _NodeCardState extends State<NodeCard> {
+  bool _confirming = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = NikoTheme.of(context);
+    final strings = widget.strings;
+    final node = widget.node;
+    final usage = nodeUsage(node, strings);
+    final problems = [
+      if (node.failed > 0 && !node.refused)
+        [strings.nodeFailing(node.failed), if (node.error.isNotEmpty) node.error].join(': '),
+      if (node.clockSkew.abs() > 30) strings.nodeClock(node.clockSkew),
+      if (node.minVersion.isNotEmpty && node.refusedVersion) strings.nodeMinVersion(node.minVersion),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // D-NODE-03: the owner's words, as plain text in an isolate of their own direction
+        if (node.note.isNotEmpty)
+          Text('\u2068${node.note}\u2069', maxLines: 3, overflow: TextOverflow.ellipsis, style: NikoType.body.style(colors.ink)),
+        if (usage.isNotEmpty)
+          Text(
+            usage,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: NikoType.bodySm.style(node.traffic?.exhausted == true ? colors.danger : colors.ink2),
+          ),
+        Text(nodeUpdates(node, strings), maxLines: 2, overflow: TextOverflow.ellipsis, style: NikoType.bodySm.style(colors.ink2)),
+        if (node.subscription && node.updated > 0)
+          Text(strings.nodeSigned, maxLines: 2, style: NikoType.bodySm.style(colors.ink2)),
+        const SizedBox(height: NikoSpace.s3),
+        Wrap(
+          spacing: NikoSpace.s2,
+          runSpacing: NikoSpace.s2,
+          children: [
+            NikoTonalButton(
+              label: node.updating ? strings.subscriptionUpdating : strings.subscriptionUpdate,
+              onPressed: node.updating || node.refused || node.unreadable || !node.subscription ? null : widget.onUpdate,
+            ),
+            NikoGhostButton(label: strings.nodeDelete, onPressed: () => setState(() => _confirming = true)),
+          ],
+        ),
+        if (node.refused || node.unreadable) ...[
+          const SizedBox(height: NikoSpace.s3),
+          NikoBanner(icon: NikoIcons.alert, title: node.unreadable ? strings.nodeUnreadable : strings.nodeRefused, danger: true),
+        ],
+        for (final problem in problems) ...[
+          const SizedBox(height: NikoSpace.s2),
+          NikoBanner(icon: NikoIcons.alert, title: problem),
+        ],
+        // D-NODE-07: removed only after the word that a new invite alone brings it back
+        if (_confirming) ...[
+          const SizedBox(height: NikoSpace.s3),
+          NikoBanner(icon: NikoIcons.trash, title: strings.nodeDeleteConfirm(node.name), danger: true),
+          const SizedBox(height: NikoSpace.s2),
+          Row(
+            children: [
+              NikoPrimaryButton(
+                label: strings.nodeDelete,
+                onPressed: () {
+                  setState(() => _confirming = false);
+                  widget.onDelete();
+                },
+              ),
+              const SizedBox(width: NikoSpace.s3),
+              NikoGhostButton(label: strings.cancel, onPressed: () => setState(() => _confirming = false)),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
 
 /// A subscription's group under its title: what the provider said, when it was updated, its announcement, and the
 /// update on demand (disabled while one runs).
@@ -214,6 +348,11 @@ class _Groups extends StatelessWidget {
                 name: groupName(g, strings),
                 sub: g.ungrouped
                     ? strings.groupOwnSub(g.profiles)
+                    : g.nodeId.isNotEmpty
+                        ? [
+                            strings.groupNodeSub(g.profiles),
+                            if (feed.nodeOfGroup(g.id) case final node?) nodeUsage(node, strings),
+                          ].where((part) => part.isNotEmpty).join(' · ')
                     : g.subscription
                         ? [
                             strings.groupSubscriptionSub(g.profiles),

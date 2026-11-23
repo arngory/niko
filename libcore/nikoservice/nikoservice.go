@@ -3,7 +3,9 @@
 // profiles, its changes through Watch, the import of share links (slice 4, store.go); the connection to a stored
 // profile, its config built here for this computer, in proxy or VPN mode (slices 7 and 8, connect.go), with the
 // computer's settings (slice 13's part for a computer, settings.go); subscriptions, updated on demand and by their
-// interval (slice 9, subscriptions.go).
+// interval (slice 9, subscriptions.go); the route rules, the Russian preset and the rule-sets the daemon downloads
+// (slice 10, rules.go); raycontrol nodes by invite, their subscriptions and their rows in Connect (slice 11,
+// nodes.go).
 package nikoservice
 
 import (
@@ -11,10 +13,13 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"syscall"
 	"time"
 
 	"libcore/nikopb"
 	"libcore/nikostore"
+	"libcore/rayapi"
+	"libcore/raysub"
 	"libcore/routetest"
 
 	C "github.com/sagernet/sing-box/constant"
@@ -30,8 +35,10 @@ var Version = "dev"
 // API is the version of NikoService: what the window may ask of this daemon. 2: the store, Watch and the import; 3:
 // Select and GetSelected; 4: ShareProfile; 5: Connect; 6: Connect's mode, the config a computer's; 7: the computer's
 // settings (GetSettings, UpdateSettings), Connect with them; 8: the programs through Niko (programs_mode, programs); 9:
-// subscriptions (Group.subscription, Refresh, their import).
-const API = 9
+// subscriptions (Group.subscription, Refresh, their import); 10: the route rules, the Russian preset and the
+// rule-sets (ListRules…UpdateRuleSets), their settings; 11: raycontrol nodes (their import by invite with its PIN,
+// ListNodes, DeleteNode, Refresh of a node, their profiles in Connect).
+const API = 11
 
 // Service is NikoService as the daemon serves it: GetInfo for any caller the daemon verified, RouteTest for its
 // owner only (it reads the owner's core, as the daemon's own calls on the running core do). RouteTest is checked as
@@ -52,18 +59,20 @@ func Service() boxdd.Service {
 				return nil, err
 			}
 			users := newUsers(root, developmentCaller, host.Context().Done())
-			s := &server{users: users, start: host.StartService, core: func() (context.Context, func()) {
-				instance := host.StartedService().RunningInstance()
-				if instance == nil {
-					return nil, nil
-				}
-				release, held := instance.Hold()
-				if !held {
-					return nil, nil
-				}
-				return instance.Context(), release
-			}}
-			// the subscriptions' timed updates, without the window
+			setRaycontrolClient()
+			s := &server{users: users, start: host.StartService, registerAt: rayapi.Register, fetch: raysub.Fetch,
+				newIdentity: rayapi.NewIdentity, core: func() (context.Context, func()) {
+					instance := host.StartedService().RunningInstance()
+					if instance == nil {
+						return nil, nil
+					}
+					release, held := instance.Hold()
+					if !held {
+						return nil, nil
+					}
+					return instance.Context(), release
+				}}
+			// the subscriptions' timed updates, without the window, and the rule-sets' while the core runs
 			go s.scheduleUpdates()
 			return s, nil
 		},
@@ -85,6 +94,11 @@ type server struct {
 	transport http.RoundTripper
 	// now is the clock of the subscriptions' updates; nil: time.Now
 	now func() time.Time
+	// registerAt, fetch and newIdentity are the raycontrol node's registration, subscription and client keys
+	// (rayapi.Register, raysub.Fetch, rayapi.NewIdentity; a test's own)
+	registerAt  func(ctx context.Context, invite rayapi.Invite, control func(network, address string, conn syscall.RawConn) error) (*rayapi.Registered, error)
+	fetch       func(ctx context.Context, request raysub.Request) (*raysub.Result, error)
+	newIdentity func() (rayapi.Identity, error)
 }
 
 // GetInfo: the store's schema to a caller the store serves; to one it refuses (store.go's caller), 0, as from a daemon

@@ -3,13 +3,18 @@
 // writer at a time. The profiles' beans are nikofmt's, the app's JSON field for field; their secret fields are sealed
 // on the disk where the platform has a way to (DPAPI on Windows).
 //
-// store.json, schema 2 (a subscription's group with its subscription, subscription.go):
+// store.json, schema 4 (a subscription's group with its subscription, subscription.go; the route rules, rules.go; the
+// raycontrol nodes and the client keys of registrations under way, nodes.go):
 //
 //	{
-//	  "schema": 2,
+//	  "schema": 3,
 //	  "next_group": 2, "next_profile": 1,       the ids to give next: an id is never given twice
+//	  "next_rule": 1,
 //	  "groups": [{"id": 1, "order": 1, "ungrouped": true}, {"id": 2, "order": 2, "name": "…"}],
-//	  "profiles": [{"id": 1, "group": 1, "order": 1, "type": "vmess", "bean": {…}, "sealed": "dpapi:…"}]
+//	  "profiles": [{"id": 1, "group": 1, "order": 1, "type": "vmess", "bean": {…}, "sealed": "dpapi:…"}],
+//	  "rules": [{"id": 1, "name": "…", "userOrder": 1, "enabled": true, "domains": "…", "outbound": -1, …}],
+//	  "nodes": [{"host": "…", "spa": {…}, "group_id": 3, …, "sealed": "dpapi:…"}],
+//	  "pending_registrations": {"<invite id>": {"pin": "…", "created_at": 1800000000, "sealed": "dpapi:…"}}
 //	}
 //
 // The ungrouped group (the app's ProxyGroup.ungrouped) is made with the store and stays: an import with no group goes
@@ -30,6 +35,7 @@ import (
 	"sync"
 	"time"
 
+	"libcore/nikoconf"
 	"libcore/nikofmt"
 	"libcore/nikosub"
 )
@@ -75,6 +81,8 @@ type Group struct {
 	// Subscription is a subscription's group's (subscription.go), nil for a basic group; its Link is "" where the
 	// address was sealed elsewhere
 	Subscription *nikosub.Subscription
+	// Node is the raycontrol node whose rows the group holds (nodes.go), its id; "" for none
+	Node string
 
 	// subscriptionDisk and subscriptionSealed are what store.json holds of the subscription; unreadable: its sealed
 	// fields cannot be opened here, and stay on the disk as they are until it is saved again
@@ -93,6 +101,8 @@ type diskGroup struct {
 	// Subscription and Sealed: a subscription's group's, schema 2 (subscription.go)
 	Subscription json.RawMessage `json:"subscription,omitempty"`
 	Sealed       string          `json:"sealed,omitempty"`
+	// Node: a raycontrol node's group, schema 4 (nodes.go)
+	Node string `json:"node,omitempty"`
 }
 
 // Profile is a profile: its place, its type, the name and address a list shows, and its bean.
@@ -119,6 +129,10 @@ const (
 	KindSelected
 	// KindSettings: the computer's settings changed (settings.go)
 	KindSettings
+	// KindRules: route rules added, changed or removed (rules.go)
+	KindRules
+	// KindNodes: a raycontrol node added, changed or removed (nodes.go); no ids, the nodes are named by theirs
+	KindNodes
 )
 
 // Change is what one write changed: the ids of the profiles or groups added, changed or removed.
@@ -160,6 +174,13 @@ type state struct {
 	profiles    map[int64]*record
 	// selected is the selected profile's id (state.json); 0: none
 	selected int64
+	// nextRule and rules: the route rules (rules.go), by their order
+	nextRule int64
+	rules    []nikoconf.Rule
+	// nodes are the raycontrol nodes (nodes.go), in the order imported; pending the client keys of registrations
+	// under way, by invite
+	nodes   []*nodeRecord
+	pending map[string]*pendingRecord
 }
 
 type record struct {
@@ -180,8 +201,14 @@ type document struct {
 	Schema      int           `json:"schema"`
 	NextGroup   int64         `json:"next_group"`
 	NextProfile int64         `json:"next_profile"`
+	NextRule    int64         `json:"next_rule"`
 	Groups      []diskGroup   `json:"groups"`
 	Profiles    []diskProfile `json:"profiles"`
+	// Rules: schema 3
+	Rules []nikoconf.Rule `json:"rules"`
+	// Nodes and Pending: schema 4 (nodes.go)
+	Nodes   []json.RawMessage          `json:"nodes"`
+	Pending map[string]json.RawMessage `json:"pending_registrations"`
 }
 
 type diskProfile struct {
@@ -211,8 +238,8 @@ func Open(dir string, options Options) (*Store, error) {
 	path := filepath.Join(dir, storeFile)
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
-		fresh := &state{nextGroup: 2, nextProfile: 1, groups: []Group{{ID: 1, Order: 1, Ungrouped: true}},
-			profiles: map[int64]*record{}}
+		fresh := &state{nextGroup: 2, nextProfile: 1, nextRule: 1, groups: []Group{{ID: 1, Order: 1, Ungrouped: true}},
+			profiles: map[int64]*record{}, pending: map[string]*pendingRecord{}}
 		if err = s.write(fresh); err != nil {
 			return nil, err
 		}
@@ -359,7 +386,7 @@ func (s *Store) decode(data []byte) (st *state, resealed bool, err error) {
 			}
 			ungrouped = true
 		}
-		g := Group{ID: d.ID, Order: d.Order, Name: d.Name, Ungrouped: d.Ungrouped, Type: d.Type}
+		g := Group{ID: d.ID, Order: d.Order, Name: d.Name, Ungrouped: d.Ungrouped, Type: d.Type, Node: d.Node}
 		if d.Type == GroupSubscription {
 			if len(d.Subscription) == 0 || d.Ungrouped {
 				return nil, false, fmt.Errorf("group %d: a subscription's group without its subscription", d.ID)
@@ -403,7 +430,14 @@ func (s *Store) decode(data []byte) (st *state, resealed bool, err error) {
 	}
 	st.nextGroup = max(st.nextGroup, 1)
 	st.nextProfile = max(st.nextProfile, 1)
-	return st, resealed, nil
+	if st.rules, st.nextRule, err = decodeRules(doc.Rules, doc.NextRule); err != nil {
+		return nil, false, err
+	}
+	sealedNow, err := s.decodeNodes(st, doc.Nodes, doc.Pending)
+	if err != nil {
+		return nil, false, err
+	}
+	return st, resealed || sealedNow, nil
 }
 
 // display is the name and address of a stored bean, read leniently: fields a newer build of the same schema wrote
@@ -422,11 +456,15 @@ func display(typ string, data json.RawMessage) (string, string, error) {
 
 // write writes st as store.json.
 func (s *Store) write(st *state) error {
-	doc := document{Schema: Schema(), NextGroup: st.nextGroup, NextProfile: st.nextProfile, Groups: []diskGroup{},
-		Profiles: []diskProfile{}}
+	doc := document{Schema: Schema(), NextGroup: st.nextGroup, NextProfile: st.nextProfile, NextRule: st.nextRule,
+		Groups: []diskGroup{}, Profiles: []diskProfile{}, Rules: append([]nikoconf.Rule{}, st.rules...),
+		Nodes: []json.RawMessage{}, Pending: map[string]json.RawMessage{}}
 	for _, g := range st.groups {
 		doc.Groups = append(doc.Groups, diskGroup{ID: g.ID, Order: g.Order, Name: g.Name, Ungrouped: g.Ungrouped,
-			Type: g.Type, Subscription: g.subscriptionDisk, Sealed: g.subscriptionSealed})
+			Type: g.Type, Subscription: g.subscriptionDisk, Sealed: g.subscriptionSealed, Node: g.Node})
+	}
+	if err := st.encodeNodes(&doc); err != nil {
+		return err
 	}
 	for _, r := range st.sorted(0) {
 		doc.Profiles = append(doc.Profiles, diskProfile{ID: r.id, Group: r.group, Order: r.order, Type: r.typ,
@@ -461,7 +499,12 @@ func (s *Store) commit(st *state, changes ...Change) error {
 
 func (st *state) clone() *state {
 	next := &state{nextGroup: st.nextGroup, nextProfile: st.nextProfile, groups: append([]Group(nil), st.groups...),
-		profiles: make(map[int64]*record, len(st.profiles)), selected: st.selected}
+		profiles: make(map[int64]*record, len(st.profiles)), selected: st.selected, nextRule: st.nextRule,
+		rules: append([]nikoconf.Rule(nil), st.rules...), nodes: append([]*nodeRecord(nil), st.nodes...),
+		pending: make(map[string]*pendingRecord, len(st.pending))}
+	for id, p := range st.pending {
+		next.pending[id] = p
+	}
 	for id, r := range st.profiles {
 		next.profiles[id] = r
 	}
@@ -664,6 +707,9 @@ func (st *state) addable(group int64) (int64, error) {
 	if g.Type != GroupBasic {
 		return 0, fmt.Errorf("%w: group %d is a subscription's: its profiles are its subscription's", ErrRefused, group)
 	}
+	if g.Node != "" {
+		return 0, fmt.Errorf("%w: group %d is a raycontrol node's: its profiles are its subscription's", ErrRefused, group)
+	}
 	return group, nil
 }
 
@@ -736,6 +782,9 @@ func (s *Store) MoveProfiles(ids []int64, group, before int64) error {
 	}
 	if g.Type != GroupBasic {
 		return fmt.Errorf("%w: group %d is a subscription's: its profiles are its subscription's", ErrRefused, group)
+	}
+	if g.Node != "" {
+		return fmt.Errorf("%w: group %d is a raycontrol node's: its profiles are its subscription's", ErrRefused, group)
 	}
 	moving := map[int64]bool{}
 	var moved []*record
@@ -841,6 +890,9 @@ func (s *Store) DeleteGroup(id int64) error {
 	}
 	if g.Ungrouped {
 		return fmt.Errorf("%w: the ungrouped group stays", ErrRefused)
+	}
+	if g.Node != "" {
+		return fmt.Errorf("%w: group %d is a raycontrol node's: it goes with the node", ErrRefused, id)
 	}
 	st.groups = append(st.groups[:i:i], st.groups[i+1:]...)
 	var deleted []int64

@@ -43,6 +43,15 @@ const (
 	NikoService_Recognize_FullMethodName      = "/niko.v1.NikoService/Recognize"
 	NikoService_Import_FullMethodName         = "/niko.v1.NikoService/Import"
 	NikoService_Refresh_FullMethodName        = "/niko.v1.NikoService/Refresh"
+	NikoService_ListNodes_FullMethodName      = "/niko.v1.NikoService/ListNodes"
+	NikoService_DeleteNode_FullMethodName     = "/niko.v1.NikoService/DeleteNode"
+	NikoService_ListRules_FullMethodName      = "/niko.v1.NikoService/ListRules"
+	NikoService_SaveRule_FullMethodName       = "/niko.v1.NikoService/SaveRule"
+	NikoService_DeleteRules_FullMethodName    = "/niko.v1.NikoService/DeleteRules"
+	NikoService_MoveRules_FullMethodName      = "/niko.v1.NikoService/MoveRules"
+	NikoService_ApplyPreset_FullMethodName    = "/niko.v1.NikoService/ApplyPreset"
+	NikoService_ListRuleSets_FullMethodName   = "/niko.v1.NikoService/ListRuleSets"
+	NikoService_UpdateRuleSets_FullMethodName = "/niko.v1.NikoService/UpdateRuleSets"
 )
 
 // NikoServiceClient is the client API for NikoService service.
@@ -113,8 +122,12 @@ type NikoServiceClient interface {
 	// Imports an input: the task's progress, then its result, the last message (done). Share links and sn://; a
 	// subscription's link (http(s), clash://install-config, another client's "add subscription" link) makes a group of
 	// that subscription and updates it, as the app's import does: the result names the group (group_id). A raycontrol
-	// node's invite or device package is recognized, its import comes with the nodes (UNIMPLEMENTED as the result's
-	// code), and so is a whole group shared as sn://subscription.
+	// node's invite (rcinv1, RCINV2, RCINV3) registers this computer with the node (D-ADD-06), a device package
+	// (rcdev1) is kept as it is; either way the node is kept with its device key sealed, and its subscription fetched
+	// into a group of its own (the result names the node, node_id, and its group). An invite that needs a PIN and has
+	// none, or a wrong one, ends with pin (FAILED_PRECONDITION): the window asks for it and imports again with it; the
+	// client key the first try made is sent again, so a retry after an answer that was lost gets the same device. A
+	// whole group shared as sn://subscription is recognized, its import UNIMPLEMENTED.
 	Import(ctx context.Context, in *ImportRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TaskProgress], error)
 	// Updates a subscription's group (D-SUB-03), or every one (group_id 0), as the app's update does: the answer
 	// fetched, its profiles merged into the group's, its traffic and expiry kept (Subscription). A task, as Import is:
@@ -124,6 +137,38 @@ type NikoServiceClient interface {
 	// already; UNAVAILABLE where the provider did not answer, INVALID_ARGUMENT where its answer has no profiles,
 	// PERMISSION_DENIED where its panel refused this device: as the result's code.
 	Refresh(ctx context.Context, in *RefreshRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TaskProgress], error)
+	// The raycontrol nodes (D-NODE-01…07, D-MAIN-13), in the order imported: what their packages and last
+	// subscriptions say, never their keys. Watch says NODES. A node's subscription is fetched by Refresh (node_id, or
+	// its group's id), and by the daemon on its own when its next update is due.
+	ListNodes(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*NodeList, error)
+	// Removes a node with its device key, its group and its profiles (D-NODE-07): it comes back only with a new
+	// invite. NOT_FOUND.
+	DeleteNode(ctx context.Context, in *NodeId, opts ...grpc.CallOption) (*Empty, error)
+	// The route rules (D-RULES-01), in the order the build takes them: what Connect builds the config with, the
+	// enabled ones. Watch says RULES.
+	ListRules(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*RuleList, error)
+	// Saves a rule: a new one (id 0) at the end, or the one of that id with these fields where it is (its order and
+	// its apps stay). The rule as saved. INVALID_ARGUMENT for what a rule may not be (an outbound that is no profile, a
+	// network other than tcp or udp, its own JSON not an object, a list over 1 MiB); NOT_FOUND.
+	SaveRule(ctx context.Context, in *Rule, opts ...grpc.CallOption) (*Rule, error)
+	DeleteRules(ctx context.Context, in *RuleIds, opts ...grpc.CallOption) (*Empty, error)
+	// Puts rules, in the order given, before another one (0: at the end); the rules are numbered again from 1.
+	// NOT_FOUND; INVALID_ARGUMENT for no rule, or one to put them before that is not there or among them.
+	MoveRules(ctx context.Context, in *MoveRulesRequest, opts ...grpc.CallOption) (*Empty, error)
+	// A ready-made set of rules (D-RULES-05): Russia's two replace its rules there are, at the end. The rules added;
+	// their rule-sets are downloaded by UpdateRuleSets (rule_sets).
+	ApplyPreset(ctx context.Context, in *PresetRequest, opts ...grpc.CallOption) (*PresetResult, error)
+	// The rule-sets the rules name that the daemon downloads (BG-09, D-RULES-03): each with its file, when it was
+	// fetched, what it holds and its last download's error. Watch says RULE_SETS.
+	ListRuleSets(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*RuleSetList, error)
+	// Downloads rule-sets (D-RULES-03): those asked, or those of the enabled rules, each missing or older than the
+	// update interval (rule_set_update_hours), or each with force. Directly, with the limits of the app's (https alone,
+	// 32 MiB, 120 s in all, 30 s without a byte); a list replaces its file only once the core's reader takes it
+	// (libcore's CheckRuleSet). A task, as Refresh is; the result's code the first failure's (UNAVAILABLE where a
+	// server did not answer, INVALID_ARGUMENT for what is not a rule-set or not https, ABORTED where an update runs
+	// already). The core takes a list it started without when it starts again. While the core runs, the daemon updates
+	// the enabled rules' lists on its own, by the interval.
+	UpdateRuleSets(ctx context.Context, in *RuleSetRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TaskProgress], error)
 }
 
 type nikoServiceClient struct {
@@ -361,6 +406,105 @@ func (c *nikoServiceClient) Refresh(ctx context.Context, in *RefreshRequest, opt
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type NikoService_RefreshClient = grpc.ServerStreamingClient[TaskProgress]
 
+func (c *nikoServiceClient) ListNodes(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*NodeList, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NodeList)
+	err := c.cc.Invoke(ctx, NikoService_ListNodes_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) DeleteNode(ctx context.Context, in *NodeId, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, NikoService_DeleteNode_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) ListRules(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*RuleList, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RuleList)
+	err := c.cc.Invoke(ctx, NikoService_ListRules_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) SaveRule(ctx context.Context, in *Rule, opts ...grpc.CallOption) (*Rule, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Rule)
+	err := c.cc.Invoke(ctx, NikoService_SaveRule_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) DeleteRules(ctx context.Context, in *RuleIds, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, NikoService_DeleteRules_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) MoveRules(ctx context.Context, in *MoveRulesRequest, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, NikoService_MoveRules_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) ApplyPreset(ctx context.Context, in *PresetRequest, opts ...grpc.CallOption) (*PresetResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PresetResult)
+	err := c.cc.Invoke(ctx, NikoService_ApplyPreset_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) ListRuleSets(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*RuleSetList, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RuleSetList)
+	err := c.cc.Invoke(ctx, NikoService_ListRuleSets_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) UpdateRuleSets(ctx context.Context, in *RuleSetRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TaskProgress], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &NikoService_ServiceDesc.Streams[3], NikoService_UpdateRuleSets_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[RuleSetRequest, TaskProgress]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type NikoService_UpdateRuleSetsClient = grpc.ServerStreamingClient[TaskProgress]
+
 // NikoServiceServer is the server API for NikoService service.
 // All implementations must embed UnimplementedNikoServiceServer
 // for forward compatibility.
@@ -429,8 +573,12 @@ type NikoServiceServer interface {
 	// Imports an input: the task's progress, then its result, the last message (done). Share links and sn://; a
 	// subscription's link (http(s), clash://install-config, another client's "add subscription" link) makes a group of
 	// that subscription and updates it, as the app's import does: the result names the group (group_id). A raycontrol
-	// node's invite or device package is recognized, its import comes with the nodes (UNIMPLEMENTED as the result's
-	// code), and so is a whole group shared as sn://subscription.
+	// node's invite (rcinv1, RCINV2, RCINV3) registers this computer with the node (D-ADD-06), a device package
+	// (rcdev1) is kept as it is; either way the node is kept with its device key sealed, and its subscription fetched
+	// into a group of its own (the result names the node, node_id, and its group). An invite that needs a PIN and has
+	// none, or a wrong one, ends with pin (FAILED_PRECONDITION): the window asks for it and imports again with it; the
+	// client key the first try made is sent again, so a retry after an answer that was lost gets the same device. A
+	// whole group shared as sn://subscription is recognized, its import UNIMPLEMENTED.
 	Import(*ImportRequest, grpc.ServerStreamingServer[TaskProgress]) error
 	// Updates a subscription's group (D-SUB-03), or every one (group_id 0), as the app's update does: the answer
 	// fetched, its profiles merged into the group's, its traffic and expiry kept (Subscription). A task, as Import is:
@@ -440,6 +588,38 @@ type NikoServiceServer interface {
 	// already; UNAVAILABLE where the provider did not answer, INVALID_ARGUMENT where its answer has no profiles,
 	// PERMISSION_DENIED where its panel refused this device: as the result's code.
 	Refresh(*RefreshRequest, grpc.ServerStreamingServer[TaskProgress]) error
+	// The raycontrol nodes (D-NODE-01…07, D-MAIN-13), in the order imported: what their packages and last
+	// subscriptions say, never their keys. Watch says NODES. A node's subscription is fetched by Refresh (node_id, or
+	// its group's id), and by the daemon on its own when its next update is due.
+	ListNodes(context.Context, *Empty) (*NodeList, error)
+	// Removes a node with its device key, its group and its profiles (D-NODE-07): it comes back only with a new
+	// invite. NOT_FOUND.
+	DeleteNode(context.Context, *NodeId) (*Empty, error)
+	// The route rules (D-RULES-01), in the order the build takes them: what Connect builds the config with, the
+	// enabled ones. Watch says RULES.
+	ListRules(context.Context, *Empty) (*RuleList, error)
+	// Saves a rule: a new one (id 0) at the end, or the one of that id with these fields where it is (its order and
+	// its apps stay). The rule as saved. INVALID_ARGUMENT for what a rule may not be (an outbound that is no profile, a
+	// network other than tcp or udp, its own JSON not an object, a list over 1 MiB); NOT_FOUND.
+	SaveRule(context.Context, *Rule) (*Rule, error)
+	DeleteRules(context.Context, *RuleIds) (*Empty, error)
+	// Puts rules, in the order given, before another one (0: at the end); the rules are numbered again from 1.
+	// NOT_FOUND; INVALID_ARGUMENT for no rule, or one to put them before that is not there or among them.
+	MoveRules(context.Context, *MoveRulesRequest) (*Empty, error)
+	// A ready-made set of rules (D-RULES-05): Russia's two replace its rules there are, at the end. The rules added;
+	// their rule-sets are downloaded by UpdateRuleSets (rule_sets).
+	ApplyPreset(context.Context, *PresetRequest) (*PresetResult, error)
+	// The rule-sets the rules name that the daemon downloads (BG-09, D-RULES-03): each with its file, when it was
+	// fetched, what it holds and its last download's error. Watch says RULE_SETS.
+	ListRuleSets(context.Context, *Empty) (*RuleSetList, error)
+	// Downloads rule-sets (D-RULES-03): those asked, or those of the enabled rules, each missing or older than the
+	// update interval (rule_set_update_hours), or each with force. Directly, with the limits of the app's (https alone,
+	// 32 MiB, 120 s in all, 30 s without a byte); a list replaces its file only once the core's reader takes it
+	// (libcore's CheckRuleSet). A task, as Refresh is; the result's code the first failure's (UNAVAILABLE where a
+	// server did not answer, INVALID_ARGUMENT for what is not a rule-set or not https, ABORTED where an update runs
+	// already). The core takes a list it started without when it starts again. While the core runs, the daemon updates
+	// the enabled rules' lists on its own, by the interval.
+	UpdateRuleSets(*RuleSetRequest, grpc.ServerStreamingServer[TaskProgress]) error
 	mustEmbedUnimplementedNikoServiceServer()
 }
 
@@ -509,6 +689,33 @@ func (UnimplementedNikoServiceServer) Import(*ImportRequest, grpc.ServerStreamin
 }
 func (UnimplementedNikoServiceServer) Refresh(*RefreshRequest, grpc.ServerStreamingServer[TaskProgress]) error {
 	return status.Error(codes.Unimplemented, "method Refresh not implemented")
+}
+func (UnimplementedNikoServiceServer) ListNodes(context.Context, *Empty) (*NodeList, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListNodes not implemented")
+}
+func (UnimplementedNikoServiceServer) DeleteNode(context.Context, *NodeId) (*Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteNode not implemented")
+}
+func (UnimplementedNikoServiceServer) ListRules(context.Context, *Empty) (*RuleList, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListRules not implemented")
+}
+func (UnimplementedNikoServiceServer) SaveRule(context.Context, *Rule) (*Rule, error) {
+	return nil, status.Error(codes.Unimplemented, "method SaveRule not implemented")
+}
+func (UnimplementedNikoServiceServer) DeleteRules(context.Context, *RuleIds) (*Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteRules not implemented")
+}
+func (UnimplementedNikoServiceServer) MoveRules(context.Context, *MoveRulesRequest) (*Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method MoveRules not implemented")
+}
+func (UnimplementedNikoServiceServer) ApplyPreset(context.Context, *PresetRequest) (*PresetResult, error) {
+	return nil, status.Error(codes.Unimplemented, "method ApplyPreset not implemented")
+}
+func (UnimplementedNikoServiceServer) ListRuleSets(context.Context, *Empty) (*RuleSetList, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListRuleSets not implemented")
+}
+func (UnimplementedNikoServiceServer) UpdateRuleSets(*RuleSetRequest, grpc.ServerStreamingServer[TaskProgress]) error {
+	return status.Error(codes.Unimplemented, "method UpdateRuleSets not implemented")
 }
 func (UnimplementedNikoServiceServer) mustEmbedUnimplementedNikoServiceServer() {}
 func (UnimplementedNikoServiceServer) testEmbeddedByValue()                     {}
@@ -870,6 +1077,161 @@ func _NikoService_Refresh_Handler(srv interface{}, stream grpc.ServerStream) err
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type NikoService_RefreshServer = grpc.ServerStreamingServer[TaskProgress]
 
+func _NikoService_ListNodes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).ListNodes(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_ListNodes_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).ListNodes(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_DeleteNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NodeId)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).DeleteNode(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_DeleteNode_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).DeleteNode(ctx, req.(*NodeId))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_ListRules_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).ListRules(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_ListRules_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).ListRules(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_SaveRule_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Rule)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).SaveRule(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_SaveRule_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).SaveRule(ctx, req.(*Rule))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_DeleteRules_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RuleIds)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).DeleteRules(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_DeleteRules_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).DeleteRules(ctx, req.(*RuleIds))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_MoveRules_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MoveRulesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).MoveRules(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_MoveRules_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).MoveRules(ctx, req.(*MoveRulesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_ApplyPreset_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PresetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).ApplyPreset(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_ApplyPreset_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).ApplyPreset(ctx, req.(*PresetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_ListRuleSets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).ListRuleSets(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_ListRuleSets_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).ListRuleSets(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_UpdateRuleSets_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(RuleSetRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(NikoServiceServer).UpdateRuleSets(m, &grpc.GenericServerStream[RuleSetRequest, TaskProgress]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type NikoService_UpdateRuleSetsServer = grpc.ServerStreamingServer[TaskProgress]
+
 // NikoService_ServiceDesc is the grpc.ServiceDesc for NikoService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -945,6 +1307,38 @@ var NikoService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "Recognize",
 			Handler:    _NikoService_Recognize_Handler,
 		},
+		{
+			MethodName: "ListNodes",
+			Handler:    _NikoService_ListNodes_Handler,
+		},
+		{
+			MethodName: "DeleteNode",
+			Handler:    _NikoService_DeleteNode_Handler,
+		},
+		{
+			MethodName: "ListRules",
+			Handler:    _NikoService_ListRules_Handler,
+		},
+		{
+			MethodName: "SaveRule",
+			Handler:    _NikoService_SaveRule_Handler,
+		},
+		{
+			MethodName: "DeleteRules",
+			Handler:    _NikoService_DeleteRules_Handler,
+		},
+		{
+			MethodName: "MoveRules",
+			Handler:    _NikoService_MoveRules_Handler,
+		},
+		{
+			MethodName: "ApplyPreset",
+			Handler:    _NikoService_ApplyPreset_Handler,
+		},
+		{
+			MethodName: "ListRuleSets",
+			Handler:    _NikoService_ListRuleSets_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
@@ -960,6 +1354,11 @@ var NikoService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "Refresh",
 			Handler:       _NikoService_Refresh_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "UpdateRuleSets",
+			Handler:       _NikoService_UpdateRuleSets_Handler,
 			ServerStreams: true,
 		},
 	},
