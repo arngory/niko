@@ -534,6 +534,14 @@ jobs:
             go test -count=1 -v -timeout 3m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolRelayAudience .
           RAYCONTROL_BUNDLE=/tmp/phone.bundle RAYCONTROL_RELAYS=r1 \
             go test -count=1 -v -timeout 3m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolRelayAudience .
+          # rayctl relay set -users: r1 for bob alone takes it from alice's relays[] and via; all gives it back
+          docker exec rc-node /opt/rc/rayctl relay set -users bob r1
+          docker exec rc-node /opt/rc/rayctl relay list
+          RAYCONTROL_BUNDLE=/tmp/phone.bundle RAYCONTROL_RELAYS= \
+            go test -count=1 -v -timeout 3m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolRelayAudience .
+          docker exec rc-node /opt/rc/rayctl relay set -users all r1
+          RAYCONTROL_BUNDLE=/tmp/phone.bundle RAYCONTROL_RELAYS=r1 \
+            go test -count=1 -v -timeout 3m -ldflags=-checklinkname=0 -tags="$TAGS" -run TestRaycontrolRelayAudience .
           # dns-zone-length-v1 (v0.36.0): a slipstream zone past 29 characters only under a minimum of Niko 1.67.0,
           # whose client (picoquic of arngory/picoquic) and server-v0.3.0 take packets from 64 bytes; without the
           # minimum the node refuses the zone. 120 characters, a user and a device of their own
