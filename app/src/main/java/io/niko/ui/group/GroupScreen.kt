@@ -84,7 +84,10 @@ fun GroupScreen(form: GroupForm, info: GroupInfo, onForm: (GroupForm) -> Unit, a
                 val title = form.name.ifBlank { stringResource(if (info.existing) R.string.gs_group else R.string.gs_new) }
                 Text(title, NikoType.headline, c.ink, Modifier.weight(1f).padding(horizontal = NikoSpace.s2), maxLines = 1)
                 if (info.existing) {
-                    IconButton(R.drawable.ic_l_share_2, stringResource(R.string.gs_share), onClick = actions::share)
+                    // a node's group: its rows are this device's, not shared (salamander-device-v1 §6)
+                    if (info.nodeHost == null) {
+                        IconButton(R.drawable.ic_l_share_2, stringResource(R.string.gs_share), onClick = actions::share)
+                    }
                     IconButton(R.drawable.ic_l_trash_2, stringResource(R.string.gs_delete), onClick = actions::delete)
                 }
             }

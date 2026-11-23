@@ -19,6 +19,9 @@
     <string name="subs_settings">Настройки</string>
     <string name="subs_qr">Поделиться QR-кодом</string>
     <string name="subs_copy_link">Скопировать ссылку</string>
+    <string name="subs_another_device">Подключить другое устройство</string>
+    <string name="subs_another_device_message">Конфиги узла выданы этому устройству, на другом они не заработают. Попросите у администратора узла приглашение для нового устройства и вставьте его в Niko на нём.</string>
+    <string name="subs_another_device_admin">Конфиги узла выданы этому устройству, на другом они не заработают. Создайте в панели администратора приглашение для нового устройства и вставьте его в Niko на нём.</string>
     <string name="subs_clear">Убрать конфиги</string>
     <string name="subs_clear_confirm">Убрать конфиги «%s»?</string>
     <string name="subs_delete">Удалить</string>

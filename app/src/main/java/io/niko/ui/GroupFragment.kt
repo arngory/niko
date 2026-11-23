@@ -411,6 +411,8 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
                 if (proxyGroup.type != GroupType.SUBSCRIPTION) {
                     popup.menu.removeItem(R.id.action_share_subscription)
                 }
+                // a node's rows are this device's: not exported, another device takes an invite (salamander-device-v1 §6)
+                if (rayNode != null) popup.menu.removeItem(R.id.action_export)
                 // a raycontrol node this device is an admin of: its admin panel
                 popup.menu.findItem(R.id.action_ray_admin).isVisible = rayNode?.isAdmin == true
                 // the node's local network (lan-v1): offered by the node, or chosen here before

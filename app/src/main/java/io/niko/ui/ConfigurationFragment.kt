@@ -1,6 +1,7 @@
 package io.niko.ui
 
 import io.niko.raycontrol.RayImport
+import io.niko.raycontrol.RayNodes
 import kotlin.coroutines.resume
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -1762,7 +1763,10 @@ class ConfigurationFragment @JvmOverloads constructor(
                         popup.show()
                     }
 
-                    if (!(select || proxyEntity.type == ProxyEntity.TYPE_CHAIN)) {
+                    // a node's row is this device's: not shared, another device takes an invite (salamander-device-v1 §6)
+                    val nodeRow = RayNodes.ownsGroup(proxyEntity.groupId)
+                    if (nodeRow) onMainDispatcher { shareLayout.isGone = true }
+                    if (!(select || nodeRow || proxyEntity.type == ProxyEntity.TYPE_CHAIN)) {
                         onMainDispatcher {
                             shareLayer.setBackgroundColor(Color.TRANSPARENT)
                             shareButton.setImageResource(R.drawable.ic_l_share_2)

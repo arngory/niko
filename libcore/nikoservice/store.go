@@ -326,7 +326,7 @@ func (s *server) ShareProfile(ctx context.Context, request *nikopb.ProfileId) (*
 	if err != nil {
 		return nil, err
 	}
-	p, err := u.store.Profile(request.Id)
+	p, err := u.store.ProfileToShare(request.Id)
 	if err != nil {
 		return nil, storeError(err)
 	}

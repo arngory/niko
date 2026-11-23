@@ -136,6 +136,7 @@ class GroupSettingsActivity : ThemedActivity() {
         override fun share() {
             runOnDefaultDispatcher {
                 val group = SagerDatabase.groupDao.getById(groupId) ?: return@runOnDefaultDispatcher
+                if (RayNodes.ownsGroup(group.id)) return@runOnDefaultDispatcher // not shared, as the screen shows
                 val link = group.toUniversalLink()
                 onMainDispatcher {
                     if (!isFinishing) QRCodeDialog(link, group.displayName()).showAllowingStateLoss(supportFragmentManager)

@@ -653,6 +653,22 @@ func (s *Store) Profile(id int64) (Profile, error) {
 	return r.profile(true), nil
 }
 
+// ProfileToShare is a profile to give another device by its link (ShareProfile): as Profile, and ErrRefused for a
+// raycontrol node's profile. Its rows carry this device's credentials and the node knocks for this device's key
+// (salamander-device-v1 §6): the other device registers with an invite of its own.
+func (s *Store) ProfileToShare(id int64) (Profile, error) {
+	p, err := s.Profile(id)
+	if err != nil {
+		return p, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if g, i := s.state.group(p.Group); i >= 0 && g.Node != "" {
+		return Profile{}, fmt.Errorf("%w: profile %d is a raycontrol node's: another device takes an invite of its own", ErrRefused, id)
+	}
+	return p, nil
+}
+
 // SaveProfile saves a profile from its type and bean: a new one (ID 0) at the end of its group (0: the ungrouped
 // one), or the one of that ID with a new bean of the same type, where it is. The bean is read strictly as its type
 // and given its defaults; the name and address are its own. The profile as saved.
