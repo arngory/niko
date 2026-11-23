@@ -60,6 +60,8 @@ func (s *server) Connect(ctx context.Context, request *nikopb.ConnectRequest) (*
 	if s.start == nil {
 		return nil, status.Error(codes.Unimplemented, "no daemon to start the core")
 	}
+	// the nodes' device keys into the core by their references, which the config names
+	s.deviceKeys(in.Nodes)
 	if err = s.start(ctx, string(result.Config), systemProxy(result.SystemProxy)); err != nil {
 		return nil, err
 	}
@@ -115,6 +117,15 @@ func connectInput(store *nikostore.Store, id int64, settings nikoconf.Settings) 
 	in := nikoconf.Input{Profile: id, Profiles: []nikoconf.Profile{profile}, Settings: settings,
 		Platform: connectPlatform(), Device: desktopDevice{}, Rules: store.Rules(),
 		RuleSets: ruleset.Files{Dir: ruleSetsDir(store)}}
+	// the raycontrol nodes, their rows by the profiles' ids; a row of one sealed elsewhere has no key to knock with
+	for _, kept := range store.Nodes() {
+		if !kept.Unreadable {
+			in.Nodes = append(in.Nodes, *kept.Node)
+		} else if kept.Node.GroupID == stored.Group {
+			return nikoconf.Input{}, status.Error(codes.FailedPrecondition,
+				"the profile's raycontrol node was sealed on another machine: import a new invite")
+		}
+	}
 	var group *nikoconf.Group
 	for _, g := range store.Groups() {
 		if g.ID == profile.Group {

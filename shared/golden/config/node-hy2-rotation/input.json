@@ -1,0 +1,93 @@
+{
+  "profile": 1,
+  "profiles": [
+    {
+      "id": 1,
+      "group": 1,
+      "order": 1,
+      "link": "hy2-obfs",
+      "patch": {
+        "udpPrelude": 2,
+        "udpPreludeSni": "0a0b0c0d0e0f.invalid",
+        "udpReorderInitial": true
+      }
+    },
+    {
+      "id": 2,
+      "group": 1,
+      "order": 2,
+      "link": "hy2-obfs",
+      "patch": {
+        "udpPrelude": 1,
+        "udpPreludeSni": "www.example.org"
+      }
+    }
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "order": 1,
+      "name": "raycontrol \u00b7 203.0.113.7",
+      "isSelector": true
+    }
+  ],
+  "nodes": [
+    {
+      "host": "203.0.113.7",
+      "spa": {
+        "node_id": "aaaaaaaabbbbbbbbccccccccdddddddd",
+        "epoch_len_s": 86400,
+        "slot_len_s": 600,
+        "port_key": "2222222222222222222222222222222222222222222222222222222222222222",
+        "port_base": 20000,
+        "port_range": 1000,
+        "len_min": 64,
+        "len_max": 200
+      },
+      "device_id": "3333333333333333",
+      "device_key_wrapped": "golden",
+      "services": [
+        {
+          "id": 3,
+          "kind": "reality",
+          "name": "reality"
+        },
+        {
+          "id": 4,
+          "kind": "hy2-obfs",
+          "name": "hy2",
+          "port_key": "6666666666666666666666666666666666666666666666666666666666666666",
+          "port_base": 30000,
+          "port_range": 500
+        },
+        {
+          "id": 5,
+          "kind": "naive",
+          "name": "naive"
+        },
+        {
+          "id": 8,
+          "kind": "ygg",
+          "name": "ygg"
+        }
+      ],
+      "sub_seq": 7,
+      "group_id": 1,
+      "profile_ids": {
+        "4": 1,
+        "4#2": 2
+      },
+      "refresh_at": 0,
+      "links": {},
+      "clock_skew": 4,
+      "spa_carriers": [
+        "udp",
+        "tls"
+      ],
+      "spa_versions": [
+        2,
+        3
+      ]
+    }
+  ]
+}

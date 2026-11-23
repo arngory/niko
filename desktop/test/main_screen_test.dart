@@ -129,6 +129,12 @@ class MemoryDaemon implements Daemon {
 
   @override
   Future<ImportPreview> recognize(String text) async {
+    if (text.trim().startsWith('rcinv1:')) {
+      return const ImportPreview(
+        kind: ImportKind.node,
+        node: NodePreview(invite: true, host: '203.0.113.7', pinRequired: true, expires: 1790086400),
+      );
+    }
     if (text.trim().startsWith('https://')) return ImportPreview(kind: ImportKind.subscription, subscription: text.trim());
     final rows = _parse(text, 0);
     return rows.isEmpty ? const ImportPreview() : ImportPreview(kind: ImportKind.profiles, profiles: rows);
@@ -175,6 +181,64 @@ class MemoryDaemon implements Daemon {
   Future<TaskResult> refreshSubscription(int groupId) async {
     refreshed.add(groupId);
     return TaskResult(line: 'Провайдер: no difference', groupId: groupId);
+  }
+
+  /// A raycontrol node's invite: «rcinv1:» and anything, which needs the PIN 123456; its import makes the node's
+  /// group of two profiles. The nodes kept, the PINs and updates the window asked, the nodes it removed.
+  var nodeRows = <NodeRow>[];
+  final pins = <String>[];
+  final nodeRefreshed = <String>[];
+  final nodesDeleted = <String>[];
+
+  @override
+  Future<List<NodeRow>> nodes() async => nodeRows;
+
+  @override
+  Future<TaskResult> importNode(String text, {String pin = ''}) async {
+    pins.add(pin);
+    if (pin != '123456') {
+      return TaskResult(code: 9, error: 'the invite needs its PIN', pin: PinNeeded(host: '203.0.113.7', left: pin.isEmpty ? -1 : 2, wrong: pin.isNotEmpty));
+    }
+    final group = ++_nextId;
+    groupRows = [...groupRows, GroupRow(id: group, name: 'Домашний узел', profiles: 2, nodeId: 'n1')];
+    final ids = [++_nextId, ++_nextId];
+    profileRows.add(ProfileRow(id: ids[0], groupId: group, order: 1, type: 'vmess', name: 'REALITY', address: '203.0.113.7:443'));
+    profileRows.add(ProfileRow(id: ids[1], groupId: group, order: 2, type: 'hysteria', name: 'Hysteria2', address: '203.0.113.7:443'));
+    nodeRows = [
+      NodeRow(
+        id: 'n1',
+        host: '203.0.113.7',
+        name: 'Домашний узел',
+        note: 'Оплата до 5-го числа',
+        groupId: group,
+        profiles: 2,
+        subscription: true,
+        updated: 1790000000,
+        expires: 1790259200,
+        nextUpdate: 1790194400,
+        traffic: const NodeTraffic(used: 966367641, limit: 1073741824, reset: 1790500000, nearLimit: true),
+      ),
+    ];
+    _changed(StoreKind.groups, [group]);
+    _changed(StoreKind.nodes, const []);
+    return TaskResult(line: 'registered at 203.0.113.7 as user\nДомашний узел: 2 profiles', groupId: group, ids: ids, nodeId: 'n1');
+  }
+
+  @override
+  Future<TaskResult> refreshNode(String id) async {
+    nodeRefreshed.add(id);
+    return TaskResult(line: 'Домашний узел: 2 profiles', nodeId: id);
+  }
+
+  @override
+  Future<void> deleteNode(String id) async {
+    nodesDeleted.add(id);
+    final node = nodeRows.firstWhere((n) => n.id == id);
+    nodeRows = [];
+    groupRows = groupRows.where((g) => g.id != node.groupId).toList();
+    profileRows.removeWhere((p) => p.groupId == node.groupId);
+    _changed(StoreKind.groups, [node.groupId]);
+    _changed(StoreKind.nodes, const []);
   }
 
   /// The profiles the window connected with, 0 for the selected one, and the modes it asked.
@@ -1183,6 +1247,99 @@ void main() {
     expect(find.text('Офис'), findsOneWidget);
     expect(find.text('Хельсинки'), findsNothing);
     expect(radios(), [false], reason: 'the selected profile is in another group');
+  });
+
+  testWidgets('Узлы: a node by its invite, the PIN asked for; its card, its update; removed after a word', (tester) async {
+    await show(tester, brightness: Brightness.light);
+    await core(tester, ServicePhase.idle);
+    Future<void> settle([Duration wait = Duration.zero]) async {
+      await tester.pump(wait);
+      for (var i = 0; i < 8; i++) {
+        await tester.pump();
+      }
+    }
+
+    await tester.tap(find.text('Узлы'));
+    await settle();
+    await tester.tap(find.bySemanticsLabel('Добавить'));
+    await settle();
+    await tester.enterText(find.byType(EditableText).first, 'rcinv1:AAAA');
+    await settle(const Duration(milliseconds: 300));
+    // D-ADD-06: the invite, its node, and the PIN it says it needs before anything is sent
+    expect(find.text('Приглашение узла'), findsOneWidget);
+    expect(find.textContaining('Компьютер зарегистрируется на узле 203.0.113.7'), findsOneWidget);
+    expect(find.text('PIN приглашения'), findsOneWidget);
+    final add = find.text('Добавить узел');
+    expect(tester.widget<NikoPrimaryButton>(find.ancestor(of: add, matching: find.byType(NikoPrimaryButton))).onPressed, isNull,
+        reason: 'no PIN yet');
+    await tester.enterText(find.byType(EditableText).last, '111111');
+    await settle();
+    await tester.tap(add);
+    await settle();
+    expect(daemon.pins, ['111111']);
+    expect(find.text('PIN неверный, попыток осталось: 2'), findsOneWidget);
+    await picture('add_node_light');
+    await tester.enterText(find.byType(EditableText).last, '123456');
+    await settle();
+    await tester.tap(add);
+    await settle();
+    expect(daemon.pins, ['111111', '123456']);
+
+    // the node's group, its card: the note, traffic and term, the updates, the signature, its profiles
+    expect(find.text('Вставьте ссылку'), findsNothing);
+    expect(find.text('Домашний узел'), findsNWidgets(2), reason: 'the group in the panel and as the title');
+    expect(find.text('\u2068Оплата до 5-го числа\u2069'), findsOneWidget);
+    expect(find.textContaining('трафик 922 MB из 1.0 GB'), findsNWidgets(2), reason: 'in the panel and on the card');
+    expect(find.textContaining('ed25519 и ML-DSA-65'), findsOneWidget);
+    expect(find.text('REALITY'), findsOneWidget);
+    expect(find.text('Hysteria2'), findsOneWidget);
+    await picture('node_light');
+    await tester.tap(find.text('Обновить'));
+    await settle();
+    expect(daemon.nodeRefreshed, ['n1']);
+    expect(find.text('Домашний узел: 2 profiles'), findsOneWidget);
+
+    // D-NODE-07: removed only after the word that a new invite alone brings it back
+    await tester.tap(find.text('Удалить узел'));
+    await settle();
+    expect(find.textContaining('Вернуть его можно только новым приглашением'), findsOneWidget);
+    expect(daemon.nodesDeleted, isEmpty);
+    await tester.tap(find.text('Удалить узел').last);
+    await settle();
+    expect(daemon.nodesDeleted, ['n1']);
+    expect(find.text('Домашний узел'), findsNothing);
+  });
+
+  testWidgets('Главная: the node of the selected profile, its term, traffic and last update (D-MAIN-13)', (tester) async {
+    await show(tester, brightness: Brightness.light);
+    await core(tester, ServicePhase.idle);
+    daemon.groupRows = [
+      const GroupRow(id: 1, name: '', ungrouped: true),
+      const GroupRow(id: 5, name: 'Домашний узел', profiles: 1, nodeId: 'n1'),
+    ];
+    daemon.profileRows = [const ProfileRow(id: 7, groupId: 5, order: 1, type: 'vmess', name: 'REALITY', address: '203.0.113.7:443')];
+    daemon.nodeRows = [
+      const NodeRow(
+        id: 'n1',
+        host: '203.0.113.7',
+        name: 'Домашний узел',
+        groupId: 5,
+        profiles: 1,
+        subscription: true,
+        updated: 1790000000,
+        expires: 1790259200,
+        traffic: NodeTraffic(used: 1073741824, limit: 1073741824, reset: 0, exhausted: true),
+      ),
+    ];
+    daemon.selectedId = 7;
+    // the store read again, as after a change the daemon lost
+    daemon.storeEvents.add(const StoreChange(revision: 99, reset: true));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump();
+    }
+    expect(find.text('УЗЕЛ'), findsOneWidget);
+    expect(find.text('Домашний узел'), findsOneWidget);
+    expect(find.textContaining('трафик израсходован: лимит поднимает администратор'), findsOneWidget);
   });
 
   testWidgets('Узлы: a profile added from a link; one deleted and put back where it was', (tester) async {

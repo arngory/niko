@@ -124,6 +124,14 @@ class TracedDaemon implements Daemon {
   @override
   Future<TaskResult> refreshSubscription(int groupId) => _inner.refreshSubscription(groupId);
   @override
+  Future<List<NodeRow>> nodes() => _inner.nodes();
+  @override
+  Future<TaskResult> importNode(String text, {String pin = ''}) => _inner.importNode(text, pin: pin);
+  @override
+  Future<TaskResult> refreshNode(String id) => _inner.refreshNode(id);
+  @override
+  Future<void> deleteNode(String id) => _inner.deleteNode(id);
+  @override
   Future<List<RuleRow>> rules() => _inner.rules();
   @override
   Future<RuleRow> saveRule(RuleRow rule) => _inner.saveRule(rule);

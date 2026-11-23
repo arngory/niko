@@ -13,6 +13,7 @@ import '../ui/format.dart';
 import '../ui/icons.dart';
 import '../ui/list.dart';
 import '../ui/status_block.dart';
+import 'nodes_screen.dart' show nodeUsage, nodeUpdates;
 
 /// The main screen in the view Простой (B · Simple on the canvas), as far as stage 2b goes: the connect button, the
 /// status with the time and the rates, the reason of a failure. Without a config of the window's the button connects
@@ -28,9 +29,13 @@ class MainScreen extends StatefulWidget {
     this.now = DateTime.now,
     this.mode,
     this.onMode,
+    this.node,
   });
 
   final ConnectionController controller;
+
+  /// The raycontrol node of the selected profile, for its term, traffic and last update (D-MAIN-13); null for none.
+  final NodeRow? node;
 
   /// The mode the button connects the selected profile in (D-NAV-02): the settings'; null where the button starts a
   /// config of the window's, or the settings are not read yet, and nothing is chosen here.
@@ -159,6 +164,19 @@ class _MainScreenState extends State<MainScreen> {
                       value: mode,
                       onChanged: ready && !state.busy ? (m) => widget.onMode?.call(m) : (_) {},
                     ),
+                  ),
+                ],
+                // D-MAIN-13: the node of the selected profile, its term and traffic, when it was updated
+                if (widget.node case final node? when ready) ...[
+                  const SizedBox(height: NikoSpace.s6),
+                  NikoSection(
+                    overline: strings.mainNode,
+                    rows: [
+                      NikoInfoRow(
+                        title: node.name,
+                        value: [nodeUsage(node, strings), nodeUpdates(node, strings)].where((p) => p.isNotEmpty).join(' · '),
+                      ),
+                    ],
                   ),
                 ],
                 // D-MAIN-16

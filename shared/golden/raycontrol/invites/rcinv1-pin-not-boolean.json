@@ -1,0 +1,31 @@
+{
+  "invite": {
+    "host": "node.example.com",
+    "spa": {
+      "node_id": "11111111111111111111111111111111",
+      "epoch_len_s": 86400,
+      "slot_len_s": 600,
+      "port_key": "2222222222222222222222222222222222222222222222222222222222222222",
+      "port_base": 20000,
+      "port_range": 1000,
+      "len_min": 64,
+      "len_max": 200
+    },
+    "invite_id": "7777777777777777",
+    "invite_key": "8888888888888888888888888888888888888888888888888888888888888888",
+    "services": [
+      {
+        "id": 1,
+        "kind": "api",
+        "name": "api"
+      }
+    ],
+    "api": {
+      "port": 9443,
+      "pin": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+    },
+    "expires": 1800003600,
+    "pin_required": false,
+    "addrs": []
+  }
+}

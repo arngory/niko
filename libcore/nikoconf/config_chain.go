@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
 	"libcore/nikofmt"
+	"libcore/nikoray"
 )
 
-// buildChain is buildConfig's buildChain: the outbounds of a profile's chain, the exit first; its tag. With no
-// raycontrol node, no hop has a node's options. A plugin profile (ProxyEntity.needExternal) is not ported: the
-// desktop has no plugins, so its build fails.
+// buildChain is buildConfig's buildChain: the outbounds of a profile's chain, the exit first; its tag. A hop to a
+// raycontrol node has the node's options (ray.go); a relay in front of a node is not ported. A plugin profile
+// (ProxyEntity.needExternal) is not ported: the desktop has no plugins, so its build fails.
 func (b *builder) buildChain(chainID int64, entity *Profile) (string, error) {
 	s := b.s
 	profileList := b.resolveChain(entity)
@@ -107,15 +107,53 @@ func (b *builder) buildChain(chainID int64, entity *Profile) (string, error) {
 		current.hack["tag"] = tagOut
 		current.custom = str(base.CustomOutboundJson)
 
-		// a Yggdrasil profile (niko-ygg) as the entry hop: its own mesh node, the peer as given (no node to dial it
-		// at); a DNS tunnel then has no node either
+		// a raycontrol Yggdrasil profile (niko-ygg) as the entry hop: the VLESS server is the node's mesh address, the
+		// link to the mesh goes to the node itself
 		yggPeer := ""
 		if !blank(base.YggPeer) && index == last {
 			yggPeer = *base.YggPeer
 		}
+		tunnel := dnsTunnelOf(base)
+		// the row's node: its peer names the service, not the node, so the row's owner when the name is not a node's
+		// host; the peer is dialled at the node's address with its name as the TLS name, unless the node has a name
+		// (names-v1), which the knock resolves to one of its addresses
+		var yggNode *nikoray.Node
+		if yggPeer != "" {
+			if host, ok := yggPeerHost(yggPeer); ok {
+				yggNode = b.forHost(host)
+			}
+			if yggNode == nil {
+				yggNode, _ = b.ownerOf(p.ID)
+			}
+			if yggNode != nil && yggNode.ReachName() == "" {
+				yggPeer = yggPeerAtNode(yggPeer, yggNode.Host)
+			}
+		}
+		// a raycontrol node this hop dials (a row of its subscription whatever its host: naive dials a name of its
+		// own); a DNS tunnel never reaches its address
+		var rayNode *nikoray.Node
+		switch {
+		case tunnel.enabled():
+		case yggPeer != "":
+			rayNode = yggNode
+		default:
+			if rayNode = b.forHost(str(base.ServerAddress)); rayNode == nil {
+				rayNode, _ = b.ownerOf(p.ID)
+			}
+		}
 
-		// per-profile TLS tweaks, merged into the outbound's tls object (no node's)
+		// per-profile TLS tweaks, merged into the outbound's tls object
 		tlsTweaks := object{}
+		if rayNode != nil {
+			view, err := current.asMap()
+			if err != nil {
+				return "", err
+			}
+			tls, _ := view["tls"].(object)
+			for k, v := range nodeTLSTweaks(outboundType, tls) {
+				tlsTweaks[k] = v
+			}
+		}
 		// fragmentation is only meaningful for TCP-based TLS outbounds
 		if num(base.TlsFragment) > 0 && tlsFragmentTypes[outboundType] {
 			if num(base.TlsFragment) == 2 {
@@ -144,6 +182,26 @@ func (b *builder) buildChain(chainID int64, entity *Profile) (string, error) {
 		}
 		if len(tlsTweaks) > 0 {
 			current.hack["tls"] = mergeTLS(asObject(current.hack["tls"]), tlsTweaks)
+		}
+		// REALITY straight to the node: one connection opened ahead for the next request, closed after a short idle.
+		// A test measures a profile's own first connection, so it runs without
+		if !b.forTest && rayNode != nil {
+			view, err := current.asMap()
+			if err != nil {
+				return "", err
+			}
+			if idle := nodePrewarm(outboundType, view); idle != "" {
+				current.hack["prewarm"] = idle
+			}
+		}
+		// an idle QUIC connection to the node pings every 25 s, not 10 (P1); under salamander the Chrome parrot hides
+		// nothing and pins Chrome's idle timeout, so it goes there (docs/research/keepalive.md)
+		if h, ok := bean.(*nikofmt.HysteriaBean); ok && rayNode != nil && num(h.ProtocolVersion) == 2 {
+			current.hack["keep_alive_period"] = "25s"
+			current.hack["idle_timeout"] = "60s"
+			if !nikofmt.KtIsBlank(str(h.Obfuscation)) {
+				current.hack["disable_chrome_parrot"] = true
+			}
 		}
 		// honest connect (experiment): fields of the core fork's, not in an export
 		if !b.forExport && s.HonestConnect {
@@ -175,10 +233,13 @@ func (b *builder) buildChain(chainID int64, entity *Profile) (string, error) {
 			if prelude := coerceIn(num(base.UdpPrelude), 0, 8); prelude > 0 {
 				desync["prelude"] = int64(prelude)
 			}
-			// never a name of the node: no node here
+			// never a name of the node: its front would pin the flow to that backend, the fakes are random bytes
 			if base.UdpPreludeSni != nil {
 				if sni := nikofmt.KtTrim(*base.UdpPreludeSni); !nikofmt.KtIsBlank(sni) {
-					desync["prelude_sni"] = sni
+					node := b.forHost(str(base.ServerAddress))
+					if node == nil || !b.nodeNames(node)[nikofmt.KtLowercase(sni)] {
+						desync["prelude_sni"] = sni
+					}
 				}
 			}
 			if ttl := coerceIn(num(base.UdpPreludeTtl), 0, 255); ttl > 0 {
@@ -192,21 +253,37 @@ func (b *builder) buildChain(chainID int64, entity *Profile) (string, error) {
 			current.hack["udp_desync"] = desync
 		}
 
-		// port knocking: a libcore "knock" outbound dials the server for this hop (the profile's own sequence)
+		// port knocking: a libcore "knock" outbound dials the server for this hop. A raycontrol node gets SPA v2
+		// instead of the profile's own sequence, its device key by reference
 		knockTag := ""
 		var knockHolder *option
 		pastDetourHolder = nil
-		if !blank(base.KnockSequence) {
+		if rayNode != nil || !blank(base.KnockSequence) {
 			knockTag = tagOut + "-knock"
 			knock := newOption(object{"type": "knock", "tag": knockTag})
-			options, err := knockOutboundOptions(bean)
-			if err != nil {
+			var options object
+			if rayNode != nil {
+				options = rayNode.KnockOptions()
+			} else if options, err = knockOutboundOptions(bean); err != nil {
 				return "", err
 			}
 			for k, v := range options {
 				knock.hack[k] = v
 			}
 			knockHolder = knock
+			// the node's UDP service port rotates (spa-v2.md §11): the knock outbound follows it
+			if rayNode != nil {
+				if ports := b.rotatingUDPPorts(rayNode, p); ports != nil {
+					knock.hack["udp_ports"] = ports
+				}
+			}
+			// only for the node's TCP 443 profiles (REALITY, naive): with Hysteria2 or a DNS tunnel the node's TCP 443
+			// may be unreachable
+			_, isNaive := bean.(*nikofmt.NaiveBean)
+			if b.buildingProxy && entity.ID == b.proxy.ID && index == last && rayNode != nil && rayNode.DoH != "" &&
+				(standardV2Ray(bean) != nil || isNaive) {
+				b.nodeDoH, b.nodeDoHKnock = rayNode, knockTag
+			}
 			if resolver, ok := current.hack["domain_resolver"]; ok {
 				delete(current.hack, "domain_resolver")
 				knock.hack["domain_resolver"] = resolver
@@ -228,13 +305,10 @@ func (b *builder) buildChain(chainID int64, entity *Profile) (string, error) {
 			if known, ok := b.yggProfileTags[seed]; ok && known[1] != yggPeer {
 				return "", fmt.Errorf("%s: its Yggdrasil key is used with another node in this configuration", name)
 			}
-			// the knock outbound knocks at the peer's host (no node's), and dials anything else plainly
+			// only the node gets its SPA: the knock outbound knocks at the node's own names (and what they resolve to)
+			// and dials anything else plainly; no public peer is taken here (RayChannel's, stage 4)
 			if knockHolder != nil {
-				hosts := []any{}
-				if u, err := nikofmt.ParseJavaURI(yggPeer); err == nil && u.Host != "" {
-					hosts = append(hosts, strings.Trim(u.Host, "[]"))
-				}
-				knockHolder.hack["hosts"] = hosts
+				knockHolder.hack["hosts"] = knockHosts(rayNode, yggPeer)
 			}
 			known, ok := b.yggProfileTags[seed]
 			if !ok {
@@ -265,7 +339,6 @@ func (b *builder) buildChain(chainID int64, entity *Profile) (string, error) {
 			pastDetourHolder = nil
 		}
 
-		tunnel := dnsTunnelOf(base)
 		// an entry hop whose server is a Yggdrasil address dials through the mesh; with port knocking the knocks go
 		// through it too
 		if b.yggdrasil && yggPeer == "" && index == last && !tunnel.enabled() &&
@@ -328,13 +401,20 @@ func (b *builder) buildChain(chainID int64, entity *Profile) (string, error) {
 			if tunnel.engine == dnsTunnelMasterDNS {
 				b.tunnelResolvers = append(b.tunnelResolvers, tunnel.resolvers()...)
 			}
-			// dnsauth: the node's device key goes into the core by reference; no node is imported here
-			if _, ok := tunnel.authNode(); ok {
-				return "", errors.New(prefix + ": the raycontrol node of this tunnel is not imported (dnsauth)")
+			// dnsauth-v1: the node's device key goes into the core by reference, never into the config; the tag's epoch
+			// is the node's, by the subscription's skew
+			var authNode *nikoray.Node
+			if auth, ok := tunnel.authNode(); ok {
+				if authNode = b.rayNode(auth[0]); authNode == nil {
+					return "", errors.New(prefix + ": the raycontrol node of this tunnel is not imported (dnsauth)")
+				}
 			}
 			tunnelOutbound := newOption(object{"tag": tunnelTag})
 			for k, v := range tunnel.outboundOptions(protectPath) {
 				tunnelOutbound.hack[k] = v
+			}
+			if auth := tunnel.dnsAuthOptions(authNode); auth != nil {
+				tunnelOutbound.hack["auth"] = auth
 			}
 			b.outbounds = append(b.outbounds, tunnelOutbound)
 			// the tunnel server resolves or ignores the hop's server name

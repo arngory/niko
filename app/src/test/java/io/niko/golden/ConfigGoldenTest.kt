@@ -13,7 +13,14 @@ import io.niko.fmt.ConfigRay
 import io.niko.fmt.ConfigSettings
 import io.niko.fmt.ConfigStore
 import io.niko.fmt.ConfigWarning
+import io.niko.fmt.DnsTunnel
 import io.niko.fmt.buildConfig
+import io.niko.raycontrol.BrutalRates
+import io.niko.raycontrol.RayLan
+import io.niko.raycontrol.RayNode
+import io.niko.raycontrol.RayNodes
+import io.niko.raycontrol.RayRelay
+import io.niko.raycontrol.knockOptions
 import io.niko.utils.JavaUtil
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -39,10 +46,12 @@ import java.nio.file.Files
  *   alone (`linux.json`, `windows.json`; Go writes a `windows.json` of some of the app's cases too);
  * - `rule_sets`: the rule-sets downloaded (RuleSetFiles), item → what CheckRuleSet found in it (RuleSetFiles.HAS_DOMAIN,
  *   HAS_IP): each a file in the test's directory with its `.kinds` beside it, none for a case without; the config's
- *   paths name that directory as [RULE_SETS].
+ *   paths name that directory as [RULE_SETS];
+ * - `nodes`: raycontrol nodes as RayNode.toJson writes them (`device_key_wrapped` any text: no key is read), their
+ *   rows by `profile_ids`; the build sees them as the app's ConfigRay.App with no data of the network ([StaticRay]).
  *
  * The rest of ConfigDevice is fixed: ports from 20000 on, the clock at 1800000000, no plugin, libcore's protect server
- * not up, the one-time mesh key "golden-one-time-key". No raycontrol node (ConfigRay.None).
+ * not up, the one-time mesh key "golden-one-time-key". Without nodes, ConfigRay.None.
  */
 class ConfigGoldenTest {
 
@@ -67,6 +76,54 @@ class ConfigGoldenTest {
                 setLastModified(file.lastModified())
             }
         }
+    }
+
+    /**
+     * The nodes of a case as ConfigRay.App gives them on a network it has no data of: the knock without the key set
+     * (the core is not in the test), no Brutal rates, no public mesh peers, no relay, no LAN, a DNS tunnel as its
+     * profile has it; the names a node serves of its rows in the case and its links (RayNodes.names, the past names
+     * aside). libcore/nikoconf's ray.go is this, the static part of a node.
+     */
+    private class StaticRay(private val nodes: List<RayNode>, private val store: ConfigStore) : ConfigRay {
+        override fun retainCoreKeys() {}
+        override fun nodes() = nodes
+        override fun node(nodeId: String) = nodes.firstOrNull { it.spa.nodeId == nodeId }
+        override fun forHost(address: String?) = if (address.isNullOrBlank()) null else nodes.firstOrNull { it.matchesHost(address) }
+        override fun ownerOf(profileId: Long): Pair<RayNode, String>? {
+            if (profileId <= 0) return null
+            for (node in nodes) {
+                val key = node.profileIds?.entries?.firstOrNull { it.value == profileId && !it.key.startsWith("stale:") }?.key
+                if (key != null) return node to key
+            }
+            return null
+        }
+
+        override fun forRelayHost(address: String?): Pair<RayNode, RayRelay>? = null
+        override fun relayOfRow(profileId: Long): Pair<RayNode, RayRelay>? = null
+        override fun names(node: RayNode): Set<String> {
+            val names = mutableSetOf(node.host.lowercase())
+            node.dnsName?.let { names += it }
+            node.doh?.let { runCatching { java.net.URI(it).host }.getOrNull() }?.let { names += it.lowercase() }
+            for (id in node.profileIds.orEmpty().values) store.profile(id)?.requireBean()?.let { names += RayNodes.servedNames(it) }
+            return names + RayNodes.linkNames(node.links)
+        }
+
+        override fun prepareKnock(node: RayNode, relay: RayRelay?) = node.knockOptions(relay)
+        override fun prepareDeviceKey(node: RayNode) {}
+        override fun dnsAuthKeyHex(node: RayNode, serviceId: Int) = throw IllegalStateException("no device key in a test")
+        override fun brutalRates(node: RayNode): BrutalRates? = null
+        override fun noteBrutal(node: RayNode, rates: BrutalRates?) {}
+        override fun yggViaActive(nodeId: String) = false
+        override fun yggViaPeers(nodeId: String): List<String>? = null
+        override fun noteYggVia(nodeId: String, on: Boolean) {}
+        override fun clearDnsRunning() {}
+        override fun dnsTunnel(tunnel: DnsTunnel, owner: RayNode?, notes: Boolean) = tunnel
+        override fun lanOf(node: RayNode): RayLan? = null
+        override fun lanNeighbours(node: RayNode, now: Long) = emptyList<String>()
+        override fun lanRow(node: RayNode): ProxyEntity? = null
+        override fun lanNames(nodes: List<RayNode>, now: Long) = emptyMap<String, String>()
+        override fun lanDirectPassword(node: RayNode, now: Long): String? = null
+        override fun noteLan(endpoints: Boolean, nodes: List<RayNode>, now: Long, direct: Boolean, nextSwitch: Long?) {}
     }
 
     private class Device(private val apps: Map<String, Int>, private val privateDns: String?) : ConfigDevice {
@@ -129,7 +186,10 @@ class ConfigGoldenTest {
         val proxy = profiles.first { it.id == id }
         val forTest = input.get("for_test")?.asBoolean == true
         val forExport = input.get("for_export")?.asBoolean == true
-        val built = ConfigInput(proxy, settings, ConfigStore.Of(profiles, groups, rules), ConfigRay.None, device)
+        val store = ConfigStore.Of(profiles, groups, rules)
+        val nodes = input.getAsJsonArray("nodes")?.map { RayNode.fromJson(it.asJsonObject) }.orEmpty()
+        val ray = if (nodes.isEmpty()) ConfigRay.None else StaticRay(nodes, store)
+        val built = ConfigInput(proxy, settings, store, ray, device)
         return try {
             val config = buildConfig(built, forTest, forExport, notes = false).config
             Triple(config.replace(ruleSets.absolutePath, RULE_SETS), device.warnings, null)

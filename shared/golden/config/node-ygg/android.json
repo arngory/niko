@@ -1,0 +1,205 @@
+{
+  "log": {
+    "level": "panic"
+  },
+  "dns": {
+    "servers": [
+      {
+        "type": "local",
+        "tag": "dns-local"
+      },
+      {
+        "type": "local",
+        "tag": "dns-direct"
+      },
+      {
+        "type": "fallback",
+        "tag": "dns-remote",
+        "servers": [
+          "dns-remote-1",
+          "dns-remote-2"
+        ]
+      },
+      {
+        "type": "https",
+        "tag": "dns-remote-1",
+        "server": "cloudflare-dns.com",
+        "path": "/dns-query",
+        "domain_resolver": {
+          "server": "dns-direct",
+          "strategy": "ipv4_only"
+        },
+        "detour": "proxy"
+      },
+      {
+        "type": "https",
+        "tag": "dns-remote-2",
+        "server": "dns.quad9.net",
+        "path": "/dns-query",
+        "domain_resolver": {
+          "server": "dns-direct",
+          "strategy": "ipv4_only"
+        },
+        "detour": "proxy"
+      },
+      {
+        "type": "fakeip",
+        "tag": "dns-fake",
+        "inet4_range": "198.18.0.0/15",
+        "inet6_range": "fc00::/18"
+      }
+    ],
+    "rules": [
+      {
+        "domain": [
+          "dns.quad9.net",
+          "cloudflare-dns.com"
+        ],
+        "strategy": "ipv4_only",
+        "server": "dns-direct"
+      },
+      {
+        "domain_suffix": [
+          "niko.internal"
+        ],
+        "action": "predefined",
+        "rcode": "NXDOMAIN"
+      },
+      {
+        "inbound": [
+          "tun-in"
+        ],
+        "strategy": "ipv4_only",
+        "server": "dns-fake",
+        "disable_cache": true
+      }
+    ],
+    "final": "dns-remote",
+    "strategy": "ipv4_only"
+  },
+  "inbounds": [
+    {
+      "mtu": 9000,
+      "address": [
+        "172.19.0.1/28"
+      ],
+      "stack": "gvisor",
+      "type": "tun",
+      "tag": "tun-in"
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "knock",
+      "tag": "proxy-knock",
+      "spa_v2": {
+        "node_id": "aaaaaaaabbbbbbbbccccccccdddddddd",
+        "epoch_len_s": 86400,
+        "slot_len_s": 600,
+        "port_key": "2222222222222222222222222222222222222222222222222222222222222222",
+        "port_base": 20000,
+        "port_range": 1000,
+        "len_min": 64,
+        "len_max": 200,
+        "device_key_ref": "raycontrol:aaaaaaaabbbbbbbbccccccccdddddddd:3333333333333333"
+      },
+      "hosts": [
+        "203.0.113.7"
+      ],
+      "silence": "15s"
+    },
+    {
+      "detour": "proxy-ygg",
+      "server": "203:9d4e:21c7:b8f0:5a63:e19c:7d24:806b",
+      "server_port": 35543,
+      "uuid": "00000000-0000-4000-8000-000000000008",
+      "encryption": "mlkem768x25519plus.native.0rtt.exampleKeyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "packet_encoding": "",
+      "type": "vless",
+      "tag": "proxy"
+    },
+    {
+      "type": "direct",
+      "tag": "direct"
+    },
+    {
+      "type": "direct",
+      "tag": "bypass"
+    }
+  ],
+  "endpoints": [
+    {
+      "type": "yggdrasil",
+      "tag": "proxy-ygg",
+      "pq": "on",
+      "detour": "proxy-knock",
+      "inbound_listed": true,
+      "node_info_privacy": true,
+      "debug_privacy": true,
+      "peers": [
+        "tls://203.0.113.7:443?key=1212121212121212121212121212121212121212121212121212121212121212&sni=ygg.example.com"
+      ],
+      "private_key": "3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a"
+    }
+  ],
+  "route": {
+    "rules": [
+      {
+        "inbound": [
+          "proxy-ygg"
+        ],
+        "action": "reject"
+      },
+      {
+        "domain_suffix": [
+          "niko.internal"
+        ],
+        "action": "reject"
+      },
+      {
+        "inbound": [
+          "tun-in",
+          "mixed-in"
+        ],
+        "action": "sniff"
+      },
+      {
+        "port": [
+          53
+        ],
+        "action": "hijack-dns"
+      },
+      {
+        "protocol": [
+          "dns"
+        ],
+        "action": "hijack-dns"
+      },
+      {
+        "source_ip_cidr": [
+          "224.0.0.0/3",
+          "ff00::/8"
+        ],
+        "ip_cidr": [
+          "224.0.0.0/3",
+          "ff00::/8"
+        ],
+        "action": "reject"
+      }
+    ],
+    "rule_set": [],
+    "final": "proxy",
+    "default_domain_resolver": {
+      "server": "dns-direct",
+      "strategy": "ipv4_only"
+    },
+    "auto_detect_interface": true
+  },
+  "experimental": {
+    "cache_file": {
+      "enabled": true,
+      "store_fakeip": true,
+      "path": "cache.db"
+    }
+  }
+}

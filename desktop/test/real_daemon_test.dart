@@ -347,11 +347,17 @@ void main() {
       await until(() => storeChanges.any((c) => c.kind == StoreKind.selected && c.ids.isEmpty), 'the selection gone');
       final back = await controller.daemon!.addProfile(groupId: row.groupId, type: row.type, beanJson: saved.beanJson);
       expect((await controller.daemon!.profiles()).singleWhere((r) => r.id == back).name, 'store-test');
-      // a node's invite is recognized, and its import comes later
-      expect((await controller.daemon!.recognize('rcinv1:eyJ0ZXN0IjoxfQ')).kind, ImportKind.node);
+      // a node's invite (slice 11): the app's golden one recognized as a node, never imported here (that registers
+      // with the node; raycontrol-interop.yml does it against a real one); one that is no invite refused, by both
+      final invite = File('../shared/golden/raycontrol/invites/rcinv1.txt').readAsStringSync().trim();
+      expect((await controller.daemon!.recognize(invite)).kind, ImportKind.node);
+      await expectLater(
+        controller.daemon!.recognize('rcinv1:eyJ0ZXN0IjoxfQ'),
+        throwsA(isA<GrpcError>().having((e) => e.code, 'code', StatusCode.invalidArgument)),
+      );
       await expectLater(
         controller.daemon!.importLinks('rcinv1:eyJ0ZXN0IjoxfQ'),
-        throwsA(isA<GrpcError>().having((e) => e.code, 'code', StatusCode.unimplemented)),
+        throwsA(isA<GrpcError>().having((e) => e.code, 'code', StatusCode.invalidArgument)),
       );
       // a subscription of this test's own server (slice 9): its group made and updated, what its provider said kept
       final subscriptionLink = 'http://127.0.0.1:${origin.port}/sub';

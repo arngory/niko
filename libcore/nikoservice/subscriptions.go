@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -218,6 +217,17 @@ func (s *server) Refresh(request *nikopb.RefreshRequest, stream grpc.ServerStrea
 	if err != nil {
 		return err
 	}
+	// a node's subscription (D-NODE-02): by its id, or its group's
+	node := request.NodeId
+	if node == "" && request.GroupId != 0 {
+		node = nodeOfGroup(u, request.GroupId)
+	}
+	if node != "" {
+		task := "node-" + strconv.FormatUint(s.users.tasks.Add(1), 10)
+		return runTask(stream, func(progress func(*nikopb.TaskProgress)) *nikopb.TaskProgress {
+			return s.nodeTask(u, task, node, progress)
+		})
+	}
 	ids := []int64{request.GroupId}
 	if request.GroupId == 0 {
 		ids = nil
@@ -256,10 +266,6 @@ func runTask(stream grpc.ServerStreamingServer[nikopb.TaskProgress], run func(fu
 		}
 	}
 }
-
-// rayToken is a raycontrol package in a text, as RayImport.matches finds one: an invite (rcinv1, RCINV2, RCINV3) or a
-// device package (rcdev1).
-var rayToken = regexp.MustCompile(`(?:rcinv1|rcdev1):[A-Za-z0-9_-]|(?:RCINV2|RCINV3):\S`)
 
 // subscriptionOfLink is the subscription a link found in an input names: an http(s) address as it is (the app's
 // parseProxies wraps it into clash://install-config), another client's "add subscription" link read as the app reads
@@ -333,6 +339,7 @@ func (s *server) scheduleUpdates() {
 		case now := <-ticker.C:
 			s.autoUpdates(now)
 			s.autoRuleSets(now)
+			s.autoNodes(now)
 		}
 	}
 }

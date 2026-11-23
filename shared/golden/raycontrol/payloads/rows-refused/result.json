@@ -1,0 +1,64 @@
+{
+  "rows": [
+    {
+      "key": "6#4",
+      "type": "naive",
+      "bean": {
+        "proto": "https",
+        "username": "niko",
+        "password": "password3",
+        "extraHeaders": "",
+        "sni": "n.node.example.com",
+        "certificates": "",
+        "insecureConcurrency": 0,
+        "sUoT": true,
+        "nikoIcmp": true,
+        "nikoAck": true,
+        "nikoUdp": true,
+        "serverAddress": "n.node.example.com",
+        "serverPort": 443,
+        "name": "custom json",
+        "customOutboundJson": "",
+        "customConfigJson": "",
+        "knockSequence": "",
+        "knockInterval": 200,
+        "knockTtl": 10,
+        "knockSilence": 15,
+        "tlsFragment": 0,
+        "certPins": "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+        "dnsTunnel": "",
+        "dnsTunnelResolver": "",
+        "dnsTunnelDomain": "",
+        "dnsTunnelKey": "",
+        "dnsTunnelMethod": 2,
+        "dnsTunnelFixedUpstream": false,
+        "dnsTunnelAuth": "",
+        "dnsTunnelSeal": "",
+        "dnsTunnelSpare": "",
+        "dnsTunnelTls": "",
+        "udpPrelude": 0,
+        "udpPreludeSni": "",
+        "udpPreludeTtl": 0,
+        "udpReorderInitial": false,
+        "yggPeer": "",
+        "yggKey": "",
+        "yggVia": ""
+      },
+      "links": {
+        "name": "custom json",
+        "link": "naive+https://niko:password3@n.node.example.com:443?sni=n.node.example.com&uot=2&udp=1&niko-ack=1&icmp=1&niko-pin=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB&niko-ip=203.0.113.7&niko-node=11111111111111111111111111111111&niko-svc=6#naive&insecure-concurrency=2",
+        "from": 0,
+        "next_active": false
+      }
+    }
+  ],
+  "skipped": 10,
+  "addrs": [
+    "203.0.113.7",
+    "2001:db8::7"
+  ],
+  "spa_versions": [
+    2
+  ],
+  "next_refresh": 1800193500
+}

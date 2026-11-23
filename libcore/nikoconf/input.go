@@ -6,11 +6,13 @@ import (
 	"strings"
 
 	"libcore/nikofmt"
+	"libcore/nikoray"
 )
 
 // What Build reads (app/src/main/java/io/niko/fmt/ConfigInput.kt): the profile, the settings, the stored profiles,
-// groups and rules, and what only the device knows. No raycontrol node: the app's ConfigRay.None. As JSON it is the
-// golden fixtures' input.json (shared/golden/config), but for the profiles' beans, which the fixtures give as links.
+// groups and rules, the raycontrol nodes (ConfigRay's static part, ray.go) and what only the device knows. As JSON it
+// is the golden fixtures' input.json (shared/golden/config), but for the profiles' beans, which the fixtures give as
+// links.
 
 // Input is one build's input, a ConfigInput with ConfigRay.None, and buildConfig's flags.
 type Input struct {
@@ -36,6 +38,9 @@ type Input struct {
 	RuleSetFiles map[string]int `json:"rule_sets"`
 	// RuleSets are the rule-sets downloaded: nil for a FixedRuleSets of RuleSetFiles
 	RuleSets RuleSets `json:"-"`
+	// Nodes are the raycontrol nodes (RayNode's JSON), their rows by the profiles' ids; their device keys are not
+	// read (the knock takes them by reference)
+	Nodes []nikoray.Node `json:"nodes"`
 }
 
 // The platforms a config is built for.

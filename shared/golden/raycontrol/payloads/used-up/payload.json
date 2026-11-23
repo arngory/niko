@@ -1,0 +1,25 @@
+{
+  "v": 1,
+  "node_id": "11111111111111111111111111111111",
+  "seq": 7,
+  "time": 1800000003,
+  "issued": 1799996400,
+  "expires": 1800259200,
+  "profiles": [],
+  "traffic": {
+    "v": 1,
+    "used": 1000,
+    "limit": 1000,
+    "since": 1799913600,
+    "reset": 0,
+    "exhausted": true
+  },
+  "client": {
+    "v": 1,
+    "min": {
+      "niko": "9.0.0"
+    },
+    "refused": true
+  },
+  "note": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+}

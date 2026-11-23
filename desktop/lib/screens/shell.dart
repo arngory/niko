@@ -122,7 +122,8 @@ class _NikoShellState extends State<NikoShell> {
   void _read() {
     _section == AppSection.log ? _log.open() : _log.close();
     _section == AppSection.connections ? _connections.show() : _connections.hide();
-    _section == AppSection.nodes ? _profiles.show() : _profiles.hide();
+    // the main screen too: the node of the selected profile (D-MAIN-13)
+    _section == AppSection.nodes || _section == AppSection.home ? _profiles.show() : _profiles.hide();
     _section == AppSection.rules ? _rules.show() : _rules.hide();
     // the main screen shows the mode of the settings where it connects the selected profile (D-NAV-02)
     _section == AppSection.settings || (_section == AppSection.home && widget.controller.connectsProfile)
@@ -136,6 +137,8 @@ class _NikoShellState extends State<NikoShell> {
       _section = section;
       _adding = false;
     });
+    // the section Узлы reads the store anew, as when it was not followed on the main screen
+    if (section == AppSection.nodes) _profiles.hide();
     _read();
   }
 
@@ -194,9 +197,10 @@ class _NikoShellState extends State<NikoShell> {
           Expanded(
             child: switch (_section) {
               AppSection.home => ListenableBuilder(
-                listenable: _settings,
+                listenable: Listenable.merge([_settings, _profiles]),
                 builder: (context, _) => MainScreen(
                   controller: state,
+                  node: _profiles.selectedNode,
                   daemonAddress: widget.daemonAddress,
                   configName: widget.configName,
                   now: widget.now,

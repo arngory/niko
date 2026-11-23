@@ -1,0 +1,85 @@
+{
+  "log": {
+    "level": "panic"
+  },
+  "dns": {
+    "servers": [
+      {
+        "type": "local",
+        "tag": "dns-local"
+      },
+      {
+        "type": "local",
+        "tag": "dns-direct"
+      }
+    ],
+    "rules": [],
+    "final": "dns-direct",
+    "strategy": "prefer_ipv4"
+  },
+  "inbounds": [],
+  "outbounds": [
+    {
+      "type": "knock",
+      "tag": "proxy-knock",
+      "spa_v2": {
+        "node_id": "aaaaaaaabbbbbbbbccccccccdddddddd",
+        "epoch_len_s": 86400,
+        "slot_len_s": 600,
+        "port_key": "2222222222222222222222222222222222222222222222222222222222222222",
+        "port_base": 20000,
+        "port_range": 1000,
+        "len_min": 64,
+        "len_max": 200,
+        "device_key_ref": "raycontrol:aaaaaaaabbbbbbbbccccccccdddddddd:3333333333333333"
+      },
+      "silence": "15s"
+    },
+    {
+      "detour": "proxy-knock",
+      "server": "203.0.113.7",
+      "server_port": 443,
+      "uuid": "00000000-0000-4000-8000-000000000003",
+      "flow": "xtls-rprx-vision",
+      "encryption": "mlkem768x25519plus.native.0rtt.exampleKeyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "tls": {
+        "enabled": true,
+        "server_name": "www.example.com",
+        "insecure": false,
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "reality": {
+          "enabled": true,
+          "public_key": "examplePublicKeyAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "short_id": "0123456789abcd",
+          "mldsa65_verify": "exampleMldsa65VerifyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "key_share": "hybrid"
+        }
+      },
+      "packet_encoding": "",
+      "type": "vless",
+      "tag": "proxy"
+    },
+    {
+      "type": "direct",
+      "tag": "direct"
+    },
+    {
+      "type": "direct",
+      "tag": "bypass"
+    }
+  ],
+  "endpoints": [],
+  "route": {
+    "rules": [],
+    "rule_set": [],
+    "final": "proxy",
+    "default_domain_resolver": {
+      "server": "dns-direct",
+      "strategy": "prefer_ipv4"
+    },
+    "auto_detect_interface": true
+  }
+}

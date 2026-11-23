@@ -16,8 +16,11 @@ type okURL struct {
 	username     string
 	password     string
 	pathSegments []string
-	query        []okParam // nil without a '?'
-	fragment     *string
+	// rawPath and rawQuery are the path and the query as the input has them, tabs and line ends dropped
+	rawPath  string
+	rawQuery *string
+	query    []okParam // nil without a '?'
+	fragment *string
 }
 
 // okParam is a name and its value; a name without '=' has no value (OkHttp's null).
@@ -81,6 +84,7 @@ func parseOkURL(input string) (*okURL, error) {
 		pathEnd = len(input)
 	}
 	u.pathSegments = okResolvePath(input[pos:pathEnd])
+	u.rawPath = okStripTabs(input[pos:pathEnd])
 	pos = pathEnd
 
 	if pos < len(input) && input[pos] == '?' {
@@ -88,7 +92,9 @@ func parseOkURL(input string) (*okURL, error) {
 		if queryEnd < pos {
 			queryEnd = len(input)
 		}
-		u.query = okQueryNamesAndValues(okStripTabs(input[pos+1 : queryEnd]))
+		raw := okStripTabs(input[pos+1 : queryEnd])
+		u.rawQuery = &raw
+		u.query = okQueryNamesAndValues(raw)
 		pos = queryEnd
 	}
 	if pos < len(input) && input[pos] == '#' {

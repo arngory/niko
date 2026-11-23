@@ -1,6 +1,7 @@
 package nikofmt
 
 import (
+	"errors"
 	"math"
 	"strconv"
 	"strings"
@@ -103,3 +104,91 @@ func JavaURLDecode(s string) (string, bool) { return javaURLDecode(s) }
 // DecodeBase64UrlSafe is ktx String.decodeBase64UrlSafe: Util.b64Decode (Android's decoder, either alphabet) as UTF-8
 // text; an error where Util.b64Decode throws.
 func DecodeBase64UrlSafe(s string) (string, error) { return decodeBase64UrlSafe(s) }
+
+// OkURL is what OkHttp's HttpUrl gives of an http(s) URL (toHttpUrl): its scheme, canonical host and port, its path
+// as given (EncodedPath, "/" for none) and its query's parameters, decoded, and as given (RawQuery, nil without '?').
+type OkURL struct {
+	Scheme      string
+	Host        string
+	Port        int
+	EncodedPath string
+	RawQuery    *string
+	u           *okURL
+}
+
+// ParseOkURL is HttpUrl.toHttpUrl: an error where OkHttp throws.
+func ParseOkURL(s string) (*OkURL, error) {
+	u, err := parseOkURL(s)
+	if err != nil {
+		return nil, err
+	}
+	path := u.rawPath
+	if path == "" {
+		path = "/"
+	}
+	return &OkURL{Scheme: u.scheme, Host: u.host, Port: u.port, EncodedPath: path, RawQuery: u.rawQuery, u: u}, nil
+}
+
+// QueryParameter is HttpUrl.queryParameter: the first value of the name, nil without one.
+func (u *OkURL) QueryParameter(name string) *string { return u.u.queryParameter(name) }
+
+// QueryParameterValues is HttpUrl.queryParameterValues.
+func (u *OkURL) QueryParameterValues(name string) []*string { return u.u.queryParameterValues(name) }
+
+// OkQueryValues is toHttpUrl(s).queryParameterValues(name); ok false where OkHttp takes no URL of s.
+func OkQueryValues(s, name string) ([]*string, bool) {
+	u, err := parseOkURL(s)
+	if err != nil {
+		return nil, false
+	}
+	return u.queryParameterValues(name), true
+}
+
+// ParseVLESSDuckSoft is what RayRows.parse makes of a node's vless:// row: the link's standard form alone (OkHttp's
+// URL of https:// and what follows "://"), a VMessBean with alterId -1 filled by parseDuckSoft. An error where the
+// URL does not read, or where it has a password (not the standard form).
+func ParseVLESSDuckSoft(link string, settings Settings) (*VMessBean, error) {
+	u, err := parseOkURL("https://" + substringAfter(link, "://"))
+	if err != nil {
+		return nil, err
+	}
+	if u.password != "" {
+		return nil, errors.New("vless: not the standard link form")
+	}
+	b := &VMessBean{}
+	b.AlterId = ptr(-1)
+	if err = b.parseDuckSoft(u, settings, kindVLESS, &b.Uuid); err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+// WithoutParams is u.newBuilder() with every query parameter whose name drop takes removed and no fragment, built
+// again (HttpUrl.toString): what RaySubscription.dohUrl makes of a node's DoH row. The path and the parameters kept
+// are as the URL has them.
+func (u *OkURL) WithoutParams(drop func(name string) bool) string {
+	b := newOkBuilder(u.Scheme)
+	b.username(u.u.username)
+	b.password(u.u.password)
+	b.host = u.Host
+	if u.Port != okDefaultPort(u.Scheme) {
+		b.port = u.Port
+	}
+	s := b.String()
+	s = strings.TrimSuffix(s, "/") + u.EncodedPath
+	if u.RawQuery != nil {
+		var kept []string
+		for _, part := range strings.Split(*u.RawQuery, "&") {
+			name, _, _ := strings.Cut(part, "=")
+			if drop(okPercentDecode(name, true)) {
+				continue
+			}
+			kept = append(kept, part)
+		}
+		// HttpUrl.Builder drops the query once no parameter is left
+		if len(kept) > 0 {
+			s += "?" + strings.Join(kept, "&")
+		}
+	}
+	return s
+}

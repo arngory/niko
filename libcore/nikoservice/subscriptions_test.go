@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -158,9 +159,13 @@ func TestSubscriptions(t *testing.T) {
 		preview.Kind != nikopb.ImportPreview_SUBSCRIPTION {
 		t.Fatalf("a deep link: %v %v", preview, err)
 	}
-	if preview, err := client.Recognize(ctx, &nikopb.ImportInput{Text: "RCINV2:AAAA"}); err != nil ||
-		preview.Kind != nikopb.ImportPreview_NODE {
+	invite, _ := os.ReadFile("../../shared/golden/raycontrol/invites/rcinv2-v4.txt")
+	if preview, err := client.Recognize(ctx, &nikopb.ImportInput{Text: string(invite)}); err != nil ||
+		preview.Kind != nikopb.ImportPreview_NODE || !preview.Node.Invite || preview.Node.Host != "203.0.113.7" {
 		t.Fatalf("an invite: %v %v", preview, err)
+	}
+	if _, err := client.Recognize(ctx, &nikopb.ImportInput{Text: "RCINV2:AAAA"}); code(err) != codes.InvalidArgument {
+		t.Fatalf("a broken invite: %v", err)
 	}
 
 	// the import: the group, then its first update

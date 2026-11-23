@@ -1,8 +1,6 @@
 package nikoconf
 
 import (
-	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -338,79 +336,17 @@ func ktHexDigits(s string) bool {
 
 func utf16Len(s string) int { return len(utf16.Encode([]rune(s))) }
 
-// parseCertificatePins is parseCertificatePins: SHA-256 hashes of the server's public key, as base64 or hex (colons
-// allowed), one per line or comma separated; base64 for sing-box.
+// parseCertificatePins is parseCertificatePins (nikofmt.ParseCertificatePins), as sing-box takes the pins.
 func parseCertificatePins(text string) ([]any, error) {
-	pins := []any{}
-	for _, pin := range splitTrimmed(text, ",\n \t") {
-		h := strings.ReplaceAll(pin, ":", "")
-		var raw []byte
-		if utf16Len(h) == 64 && ktHexDigits(h) {
-			// okio's decodeHex: another script's digit passes the check above, then fails here
-			for _, r := range h {
-				if r > unicode.MaxASCII {
-					return nil, fmt.Errorf("Unexpected hex digit: %c", r)
-				}
-			}
-			raw, _ = hex.DecodeString(h)
-		} else {
-			raw = okioDecodeBase64(pin)
-		}
-		if len(raw) != 32 {
-			return nil, errors.New("not a SHA-256 hash: " + pin)
-		}
-		pins = append(pins, base64.StdEncoding.EncodeToString(raw))
+	pins, err := nikofmt.ParseCertificatePins(text)
+	if err != nil {
+		return nil, err
 	}
-	return pins, nil
-}
-
-// okioDecodeBase64 is okio's decodeBase64: standard or URL-safe letters, padding and whitespace at the end left out,
-// whitespace inside skipped; nil where okio gives null.
-func okioDecodeBase64(s string) []byte {
-	chars := utf16.Encode([]rune(s))
-	limit := len(chars)
-	for limit > 0 {
-		if c := chars[limit-1]; c != '=' && c != '\n' && c != '\r' && c != ' ' && c != '\t' {
-			break
-		}
-		limit--
+	out := []any{}
+	for _, pin := range pins {
+		out = append(out, pin)
 	}
-	var out []byte
-	word, count := 0, 0
-	for _, c := range chars[:limit] {
-		var bits int
-		switch {
-		case c >= 'A' && c <= 'Z':
-			bits = int(c) - 65
-		case c >= 'a' && c <= 'z':
-			bits = int(c) - 71
-		case c >= '0' && c <= '9':
-			bits = int(c) + 4
-		case c == '+' || c == '-':
-			bits = 62
-		case c == '/' || c == '_':
-			bits = 63
-		case c == '\n' || c == '\r' || c == ' ' || c == '\t':
-			continue
-		default:
-			return nil
-		}
-		word = word<<6 | bits
-		if count++; count%4 == 0 {
-			out = append(out, byte(word>>16), byte(word>>8), byte(word))
-		}
-	}
-	switch count % 4 {
-	case 1:
-		return nil // 6 bits are a truncated byte
-	case 2:
-		word <<= 12
-		out = append(out, byte(word>>16))
-	case 3:
-		word <<= 6
-		out = append(out, byte(word>>16), byte(word>>8))
-	}
-	return out
+	return out, nil
 }
 
 // meshPorts is MeshPorts: the ports other Yggdrasil nodes may reach on this device.
