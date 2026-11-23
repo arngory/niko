@@ -291,6 +291,9 @@ class _RuleEditor extends StatefulWidget {
 
 class _RuleEditorState extends State<_RuleEditor> {
   late RuleRow _draft = widget.rule;
+  // the programs as typed: split into the list on saving only, so that a new line or a space in a path stays while
+  // typing (the field takes its value back on every change)
+  late String _programs = widget.rule.programs.join('\n');
   String? _error;
   bool _saving = false;
 
@@ -298,7 +301,9 @@ class _RuleEditorState extends State<_RuleEditor> {
 
   Future<void> _save() async {
     setState(() => _saving = true);
-    final error = await widget.onSave(_draft);
+    final error = await widget.onSave(_draft.copyWith(
+      programs: [for (final line in _programs.split('\n')) if (line.trim().isNotEmpty) line.trim()],
+    ));
     if (!mounted) return;
     setState(() {
       _saving = false;
@@ -395,12 +400,10 @@ class _RuleEditorState extends State<_RuleEditor> {
         const SizedBox(height: NikoSpace.s4),
         NikoField(
           label: strings.rulePrograms,
-          value: rule.programs.join('\n'),
+          value: _programs,
           input: FieldInput.lines,
           mono: true,
-          onChanged: (v) => _set(_draft.copyWith(
-            programs: [for (final line in v.split('\n')) if (line.trim().isNotEmpty) line.trim()],
-          )),
+          onChanged: (v) => setState(() => _programs = v),
         ),
         const SizedBox(height: NikoSpace.s1),
         Text(strings.ruleProgramsHint, style: NikoType.bodySm.style(colors.ink2)),

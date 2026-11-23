@@ -363,8 +363,16 @@ func (s *server) dueRuleSets(u *user, now time.Time) []string {
 
 // updateRuleSetsSoon fetches the user's due lists in a task of its own, unless an update runs already.
 func (s *server) updateRuleSetsSoon(u *user, now time.Time) {
+	// marked running before the due lists are marked tried: a list is not held back by ruleSetRetry for an update
+	// that never ran (one the window started is on)
+	if !u.ruleSets.start() {
+		return
+	}
 	due := s.dueRuleSets(u, now)
-	if len(due) == 0 || !u.ruleSets.start() {
+	if len(due) == 0 {
+		u.ruleSets.mu.Lock()
+		u.ruleSets.running = false
+		u.ruleSets.mu.Unlock()
 		return
 	}
 	task := "rule-sets-" + strconv.FormatUint(s.users.tasks.Add(1), 10)

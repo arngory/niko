@@ -147,8 +147,13 @@ class RulesFeed extends ChangeNotifier {
   Future<void> applyRussia({required String blockedName, required String directName}) async {
     final daemon = _link.daemon;
     if (daemon == null || updating) return;
+    // busy from the press: a second one while the preset is applied starts no second preset and update
+    updating = true;
+    if (!_disposed) notifyListeners();
     PresetApplied? applied;
     if (!await _ask((d) async => applied = await d.applyRussiaPreset(blockedName: blockedName, directName: directName))) {
+      updating = false;
+      if (!_disposed) notifyListeners();
       return;
     }
     await _update(daemon, applied!.ruleSets);

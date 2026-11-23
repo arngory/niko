@@ -718,8 +718,9 @@ class GrpcDaemon implements Daemon {
   // a subscription's update: a provider has two minutes to answer
   static final _tasks = CallOptions(timeout: const Duration(minutes: 3));
 
-  // the rule-sets' update: two minutes a list, one after another; the daemon goes on without the window
-  static final _ruleSetTasks = CallOptions(timeout: const Duration(minutes: 10));
+  // the rule-sets' update: two minutes a list, one after another (an hour holds 30 slow ones); the daemon goes on
+  // without the window
+  static final _ruleSetTasks = CallOptions(timeout: const Duration(hours: 1));
 
   @override
   Future<String> version() async => (await _desktop.getDaemonInfo(Empty(), options: _short)).version;

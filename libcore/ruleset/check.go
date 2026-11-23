@@ -104,11 +104,15 @@ func boundedInflate(content []byte) error {
 	return nil
 }
 
+// maxLogicalDepth is how deep sing-box's srs reader lets logical rules nest.
+const maxLogicalDepth = 100
+
 // headlessRuleKinds: what a rule holds; a logical rule whatever its parts hold, as deep as the core lets them nest.
 func headlessRuleKinds(options option.HeadlessRule, depth int) int32 {
 	if options.Type != C.RuleTypeDefault && options.Type != "" {
 		var kinds int32
-		if depth > 64 {
+		// as deep as srs.Read takes a logical rule (sing-box common/srs, maxLogicalRuleDepth)
+		if depth > maxLogicalDepth {
 			return kinds
 		}
 		for _, part := range options.LogicalOptions.Rules {

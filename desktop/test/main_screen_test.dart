@@ -1447,6 +1447,13 @@ void main() {
       expect(find.text('invalid: the rule\'s JSON is not an object'), findsOneWidget);
       expect(names(), hasLength(2));
       await tester.enterText(fields.at(1), 'domain:sites.example');
+      // typed as it goes: a new line and a space in a path stay in the field until it is saved
+      await tester.enterText(fields.at(7), 'firefox.exe\n');
+      await tester.pump();
+      expect(tester.widget<EditableText>(fields.at(7)).controller.text, 'firefox.exe\n');
+      await tester.enterText(fields.at(7), 'firefox.exe\nC:\\Program ');
+      await tester.pump();
+      expect(tester.widget<EditableText>(fields.at(7)).controller.text, 'firefox.exe\nC:\\Program ');
       await tester.enterText(fields.at(7), 'firefox.exe\n\nC:\\Apps\\app.exe');
       await press(tester, find.text('UDP'));
       await press(tester, find.text('Сохранить'));

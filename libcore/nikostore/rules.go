@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"libcore/nikoconf"
+	"libcore/nikofmt"
 )
 
 // The route rules (RuleEntity, D-RULES-01), schema 3: "rules" of store.json, each with the app's field names (as
@@ -97,6 +98,11 @@ func (st *state) checkRule(r *nikoconf.Rule, had int64) error {
 		var object map[string]json.RawMessage
 		if err := json.Unmarshal([]byte(r.Config), &object); err != nil || object == nil {
 			return fmt.Errorf("%w: the rule's JSON is not an object", ErrInvalid)
+		}
+		// as the build reads it (nikoconf's mergeJSON, the app's lenient Gson), which refuses what encoding/json takes,
+		// a key twice among them: saved, it would fail every Connect. encoding/json first, for its depth bound
+		if m, err := nikofmt.GsonMap(r.Config); err != nil || m == nil {
+			return fmt.Errorf("%w: the rule's JSON is not one the build reads", ErrInvalid)
 		}
 	}
 	for _, list := range [][]string{r.Programs, r.Packages} {
@@ -200,11 +206,19 @@ func (s *Store) MoveRules(ids []int64, before int64) error {
 	if len(ids) == 0 {
 		return fmt.Errorf("%w: no rule to move", ErrInvalid)
 	}
+	// each rule once at most: no more ids than the store keeps, looked up in one map (not a scan per id under the lock)
+	if len(ids) > maxRules {
+		return fmt.Errorf("%w: over %d rules to move", ErrInvalid, maxRules)
+	}
+	index := make(map[int64]int, len(st.rules))
+	for i, r := range st.rules {
+		index[r.ID] = i
+	}
 	moving := map[int64]bool{}
 	var moved []nikoconf.Rule
 	for _, id := range ids {
-		i := st.rule(id)
-		if i < 0 {
+		i, ok := index[id]
+		if !ok {
 			return ErrNotFound
 		}
 		if !moving[id] {
@@ -212,7 +226,7 @@ func (s *Store) MoveRules(ids []int64, before int64) error {
 			moved = append(moved, st.rules[i])
 		}
 	}
-	if before != 0 && (st.rule(before) < 0 || moving[before]) {
+	if _, ok := index[before]; before != 0 && (!ok || moving[before]) {
 		return fmt.Errorf("%w: rule %d is not one to put the others before", ErrInvalid, before)
 	}
 	var placed []nikoconf.Rule

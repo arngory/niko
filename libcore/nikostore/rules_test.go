@@ -139,6 +139,7 @@ func TestRuleInvalid(t *testing.T) {
 		"outbound":     {Outbound: -3},
 		"config":       {Config: "[1]"},
 		"not JSON":     {Config: "{"},
+		"a key twice":  {Config: `{"a":1,"a":2}`},
 		"a long list":  {Domains: strings.Repeat("a", maxRuleText+1)},
 		"not UTF-8":    {Domains: "\xff"},
 		"a long name":  {Name: strings.Repeat("n", maxName+1)},
@@ -155,6 +156,9 @@ func TestRuleInvalid(t *testing.T) {
 	}
 	if err := s.MoveRules([]int64{1}, 0); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("move: %v", err)
+	}
+	if err := s.MoveRules(make([]int64, maxRules+1), 0); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("move of more ids than rules kept: %v", err)
 	}
 }
 

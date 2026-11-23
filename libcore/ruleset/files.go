@@ -167,7 +167,9 @@ func (f Files) Download(ctx context.Context, c *Client, item string) (int, error
 	}
 	transport := c.Transport
 	if transport == nil {
-		transport = &http.Transport{Proxy: nil, ForceAttemptHTTP2: true, TLSHandshakeTimeout: 30 * time.Second}
+		// one list a connection: none left idle with its goroutines after the download (as nikosub's fetch)
+		transport = &http.Transport{Proxy: nil, ForceAttemptHTTP2: true, TLSHandshakeTimeout: 30 * time.Second,
+			DisableKeepAlives: true}
 	}
 	client := &http.Client{Transport: transport, CheckRedirect: func(next *http.Request, via []*http.Request) error {
 		// a redirect stays on https: the list is what the user named, not what a plain address gives
