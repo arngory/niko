@@ -1,16 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <resources>
-    <attr name="colorMaterial100" format="color" />
-    <attr name="accentOrTextSecondary" format="color" />
-    <attr name="primaryOrTextPrimary" format="color" />
-    <attr name="whiteOrTextPrimary" format="color" />
-    <!-- the bars' fill (the app bar, the group and tool tabs, Custom Tabs): colorPrimary in the colour themes; Niko keeps
-         colorPrimary the accent, ink, which Material's fields, buttons and indicators take, and fills its bars with
-         surface-0 -->
+    <!-- the fill of a bar that is not the app's own to draw: the Custom Tab's (ktx/Browsers.kt), surface-0 as the
+         screens' bars -->
     <attr name="barBackground" format="color" />
-    <!-- a tool's action (the backup, the debug screen): Niko's tonal button, the colour themes' coloured one -->
-    <attr name="nikoTonalButtonStyle" format="reference" />
-    <!-- a chip that is on or off (show the system's apps) -->
-    <attr name="nikoFilterChipStyle" format="reference" />
 </resources>

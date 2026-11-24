@@ -1,10 +1,10 @@
 <resources>
-    <!-- Base application theme. -->
+    <!-- Base application theme. Every screen is drawn by Compose (ui/compose), so the theme styles no widget: it gives
+         the window its ground, bars and text colours, and the roles a platform or library view would take. -->
     <style name="Theme.SagerNet" parent="Theme.MaterialComponents.DayNight.NoActionBar">
 
-        <!-- Geist, the design system's font, for every theme: the theme's own text and the text appearances that name a
-             font of their own (Material's buttons and headlines, the toolbar's title). A TextView takes the theme's
-             fontFamily over its text appearance's, so a view in Geist Mono (Code, Label) names the font itself too -->
+        <!-- Geist, the design system's font, for the theme's own text and the text appearances that name a font of
+             their own (Material's slots, niko_type.xml) -->
         <item name="android:fontFamily">@font/geist</item>
         <item name="fontFamily">@font/geist</item>
         <item name="textAppearanceHeadline4">@style/TextAppearance.Niko.Slot.Headline4</item>
@@ -17,128 +17,14 @@
         <item name="textAppearanceButton">@style/TextAppearance.Niko.Slot.Button</item>
         <item name="textAppearanceCaption">@style/TextAppearance.Niko.Slot.Caption</item>
         <item name="textAppearanceOverline">@style/TextAppearance.Niko.Slot.Overline</item>
-        <item name="toolbarStyle">@style/Widget.Niko.Toolbar</item>
-        <item name="actionBarStyle">@style/Widget.MaterialComponents.ActionBar.Solid</item>
-        <item name="actionModeCloseDrawable">@drawable/ic_l_x</item>
-        <item name="colorButtonNormal">?colorAccent</item>
         <item name="android:navigationBarColor">?colorPrimaryDark</item>
-        <item name="colorPrimary">@color/material_pink_500</item>
-        <item name="colorPrimaryDark">@color/material_pink_700</item>
-        <item name="colorAccent">@color/material_pink_accent_200</item>
-
-        <item name="colorMaterial100">@color/material_pink_100</item>
-
-        <item name="accentOrTextSecondary">?colorAccent</item>
-        <item name="primaryOrTextPrimary">?colorPrimary</item>
-
-        <item name="actionBarTheme">@style/ThemeOverlay.Niko.ActionBar</item>
-        <item name="tabTextColor">#99FFFFFF</item>
-        <item name="tabSelectedTextColor">@color/white</item>
-        <item name="tabIndicatorColor">@color/white</item>
-        <item name="tabRippleColor">@color/white</item>
-        <item name="whiteOrTextPrimary">@color/white</item>
-        <item name="barBackground">?colorPrimary</item>
 
         <item name="windowActionModeOverlay">true</item>
 
-        <!-- Remove ActionBar but keep styles and themes -->
+        <!-- no action bar -->
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
 
-        <item name="chipStyle">@style/Widget.MaterialComponents.Chip.Choice.SagerNet</item>
-        <item name="nikoFilterChipStyle">@style/Widget.MaterialComponents.Chip.Filter</item>
-        <item name="nikoTonalButtonStyle">@style/Widget.SagerNet.Button.Colored</item>
-        <item name="borderlessButtonStyle">@style/Widget.SagerNet.Button.Borderless</item>
-
-        <item name="itemShapeAppearance">
-            @style/ShapeAppearance.MaterialComponents.MediumComponent
-        </item>
-
-        <item name="alertDialogTheme">
-            @style/ThemeOverlay.MaterialComponents.MaterialAlertDialog.SagerNet
-        </item>
-
-        <item name="materialAlertDialogTheme">
-            @style/ThemeOverlay.MaterialComponents.MaterialAlertDialog.SagerNet
-        </item>
-
-    </style>
-
-
-    <style name="ThemeOverlay.MaterialComponents.MaterialAlertDialog.SagerNet">
-        <!-- a dialog's title is the design system's title (m-dialog__title, 600 24/30), not Material's Subtitle1 -->
-        <item name="materialAlertDialogTitleTextStyle">@style/MaterialAlertDialog.Niko.Title.Text</item>
-        <item name="buttonBarPositiveButtonStyle">
-            @style/Widget.MaterialComponents.Button.TextButton.Dialog.Primary
-        </item>
-        <item name="buttonBarNegativeButtonStyle">
-            @style/Widget.MaterialComponents.Button.TextButton.Dialog.Primary
-        </item>
-        <item name="buttonBarNeutralButtonStyle">
-            @style/Widget.MaterialComponents.Button.TextButton.Dialog.Flush.Primary
-        </item>
-    </style>
-
-    <style name="MaterialAlertDialog.Niko.Title.Text" parent="MaterialAlertDialog.MaterialComponents.Title.Text">
-        <item name="android:textAppearance">?attr/textAppearanceHeadline5</item>
-    </style>
-
-    <style name="Widget.MaterialComponents.Button.TextButton.Dialog.Primary">
-        <item name="android:textColor">?primaryOrTextPrimary</item>
-    </style>
-
-    <style name="Widget.MaterialComponents.Button.TextButton.Dialog.Flush.Primary">
-        <item name="android:textColor">?primaryOrTextPrimary</item>
-    </style>
-
-    <style name="Widget.MaterialComponents.Chip.Choice.SagerNet">
-        <item name="textStartPadding">30dp</item>
-        <item name="textEndPadding">30dp</item>
-        <item name="chipBackgroundColor">@color/chip_background</item>
-        <item name="android:textColor">@color/chip_text_color</item>
-        <item name="checkedIconTint">?primaryOrTextPrimary</item>
-        <item name="rippleColor">@color/chip_ripple_color</item>
-    </style>
-
-    <!-- the bars' overlay: AppCompat's dark one, with the overflow's ⋮ from the shared set (Lucide) in place of
-         Material's; the overlay sets this style itself, so the app theme's alone would not reach it -->
-    <style name="ThemeOverlay.Niko.ActionBar" parent="ThemeOverlay.AppCompat.Dark.ActionBar">
-        <item name="actionOverflowButtonStyle">@style/Widget.Niko.ActionButton.Overflow</item>
-    </style>
-
-    <!-- the Niko theme's bars: surface-0 with ink, in the light theme as in the dark -->
-    <style name="ThemeOverlay.Niko.ActionBar.Neutral" parent="ThemeOverlay.AppCompat.DayNight.ActionBar">
-        <item name="actionOverflowButtonStyle">@style/Widget.Niko.ActionButton.Overflow</item>
-        <item name="colorControlNormal">@color/niko_ink</item>
-        <item name="android:textColorPrimary">@color/niko_ink</item>
-        <item name="android:textColorSecondary">@color/niko_ink_2</item>
-    </style>
-
-    <style name="Widget.Niko.TabLayout" parent="Widget.MaterialComponents.TabLayout">
-        <item name="tabTextAppearance">@style/TextAppearance.Niko.BodySm</item>
-        <item name="tabSelectedTextAppearance">@style/TextAppearance.Niko.BodySm.Selected</item>
-        <item name="tabIndicatorHeight">0dp</item>
-    </style>
-    <style name="TextAppearance.Niko.BodySm.Selected">
-        <item name="android:textStyle">bold</item>
-    </style>
-
-    <!-- snackbar: surface-3, its text body-sm ink, its action ink 600 -->
-    <style name="Widget.Niko.Snackbar" parent="Widget.MaterialComponents.Snackbar">
-        <item name="backgroundTint">@color/niko_surface_3</item>
-    </style>
-    <style name="Widget.Niko.Snackbar.TextView" parent="Widget.MaterialComponents.Snackbar.TextView">
-        <item name="android:textAppearance">@style/TextAppearance.Niko.BodySm</item>
-        <item name="android:textColor">@color/niko_ink</item>
-        <item name="android:alpha">1</item>
-    </style>
-    <style name="Widget.Niko.Snackbar.Button" parent="Widget.MaterialComponents.Button.TextButton.Snackbar">
-        <item name="android:textColor">@color/niko_ink</item>
-        <item name="android:textAppearance">@style/TextAppearance.Niko.Slot.Button</item>
-    </style>
-
-    <style name="Widget.Niko.ActionButton.Overflow" parent="Widget.AppCompat.ActionButton.Overflow">
-        <item name="srcCompat">@drawable/ic_l_ellipsis_vertical</item>
     </style>
 
     <!-- Niko (the app's one theme since 1.62.0): neutral, from the design system's tokens; the accent is the inversion, ink -->
@@ -157,9 +43,7 @@
         <item name="colorControlActivated">@color/niko_ink</item>
         <item name="colorControlHighlight">@color/niko_surface_2</item>
         <item name="colorError">@color/niko_danger</item>
-        <!-- colorPrimary stays the accent, ink: Material's fields (focused outline, hint), filled buttons, progress
-             indicators and the fast scroller's thumb and letter popup (on-ink letters) take it. The bars fill with
-             barBackground; the status bar with colorPrimaryDark and colorPrimaryVariant -->
+        <!-- colorPrimary stays the accent, ink. The status bar fills with colorPrimaryDark and colorPrimaryVariant -->
         <item name="colorPrimary">@color/niko_ink</item>
         <item name="colorPrimaryDark">@color/niko_surface_0</item>
         <item name="colorPrimaryVariant">@color/niko_surface_0</item>
@@ -168,60 +52,9 @@
         <item name="colorSecondary">@color/niko_ink</item>
         <item name="colorSecondaryVariant">@color/niko_ink_pressed</item>
         <item name="colorOnSecondary">@color/niko_on_ink</item>
-        <item name="colorMaterial100">@color/niko_surface_2</item>
 
-        <item name="accentOrTextSecondary">?android:textColorSecondary</item>
-        <item name="primaryOrTextPrimary">?android:textColorPrimary</item>
-
-        <!-- the bars are light in the light theme: their text and icons are ink, no white of the coloured themes;
-             no shadow under them -->
-        <item name="actionBarTheme">@style/ThemeOverlay.Niko.ActionBar.Neutral</item>
-        <item name="whiteOrTextPrimary">@color/niko_ink</item>
+        <!-- the bar of a Custom Tab (ktx/Browsers.kt): surface-0, as the app's own screens -->
         <item name="barBackground">@color/niko_surface_0</item>
-        <!-- the tabs as the window's header sections: the chosen one ink and 600, the others ink-2, no strip
-             (ink and ink-2 differ less than 3:1, so the weight marks it too) -->
-        <item name="tabStyle">@style/Widget.Niko.TabLayout</item>
-        <item name="tabTextColor">@color/niko_ink_2</item>
-        <item name="tabSelectedTextColor">@color/niko_ink</item>
-        <item name="tabIndicatorColor">@android:color/transparent</item>
-        <item name="tabRippleColor">@color/niko_surface_2</item>
-        <item name="snackbarStyle">@style/Widget.Niko.Snackbar</item>
-        <item name="snackbarTextViewStyle">@style/Widget.Niko.Snackbar.TextView</item>
-        <item name="snackbarButtonStyle">@style/Widget.Niko.Snackbar.Button</item>
-        <!-- buttons and chips as capsules (reskin step 2, niko_controls.xml) -->
-        <item name="materialButtonStyle">@style/Widget.Niko.Button</item>
-        <item name="nikoTonalButtonStyle">@style/Widget.Niko.Button.Tonal</item>
-        <item name="borderlessButtonStyle">@style/Widget.Niko.Button.Ghost</item>
-        <item name="chipStyle">@style/Widget.Niko.Chip</item>
-        <item name="nikoFilterChipStyle">@style/Widget.Niko.Chip.Filter</item>
-        <!-- reskin step 3 (niko_dialogs.xml): dialogs, text fields and menus -->
-        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Niko.MaterialAlertDialog</item>
-        <item name="alertDialogTheme">@style/ThemeOverlay.Niko.MaterialAlertDialog</item>
-        <item name="textInputStyle">@style/Widget.Niko.TextField</item>
-        <item name="editTextStyle">@style/Widget.Niko.EditText</item>
-        <item name="android:editTextStyle">@style/Widget.Niko.EditText</item>
-        <item name="popupMenuStyle">@style/Widget.Niko.PopupMenu</item>
-        <item name="android:popupMenuStyle">@style/Widget.Niko.PopupMenu</item>
-        <item name="actionOverflowMenuStyle">@style/Widget.Niko.PopupMenu.Overflow</item>
-        <item name="textAppearanceLargePopupMenu">@style/TextAppearance.Niko.Body</item>
-        <item name="textAppearanceSmallPopupMenu">@style/TextAppearance.Niko.Body</item>
-    </style>
-
-
-    <style name="TextAppearance.Niko.ToolbarTitle" parent="TextAppearance.Widget.AppCompat.Toolbar.Title">
-        <item name="fontFamily">@font/geist</item>
-        <item name="android:fontFamily">@font/geist</item>
-        <item name="android:textStyle">bold</item>
-    </style>
-    <style name="TextAppearance.Niko.ToolbarSubtitle" parent="TextAppearance.Widget.AppCompat.Toolbar.Subtitle">
-        <item name="fontFamily">@font/geist</item>
-        <item name="android:fontFamily">@font/geist</item>
-    </style>
-    <style name="Widget.Niko.Toolbar" parent="Widget.MaterialComponents.Toolbar">
-        <!-- the overflow's menu as the app's (ThemeOverlay.Niko.Popup), not the bar's dark overlay -->
-        <item name="popupTheme">@style/ThemeOverlay.Niko.Popup</item>
-        <item name="titleTextAppearance">@style/TextAppearance.Niko.ToolbarTitle</item>
-        <item name="subtitleTextAppearance">@style/TextAppearance.Niko.ToolbarSubtitle</item>
     </style>
 
     <!-- the launch: surface-0, no white or black flash before the first screen -->
