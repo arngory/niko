@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.os.Parcel
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -45,7 +46,19 @@ class ProfileActivity : ThemedActivity() {
         const val EXTRA_TYPE = "type"
         const val EXTRA_VLESS = "vless"
         private const val FORM = "form"
-        private const val ORIGINAL = "original"
+        // a form saved with the activity's state above this goes unsaved (read again from the database): the Binder
+        // transaction of the saved state is ~1 MB for all of the app's
+        private const val MAX_SAVED_FORM = 256 * 1024
+
+        private fun parcelSize(form: ProfileForm): Int {
+            val parcel = Parcel.obtain()
+            return try {
+                parcel.writeParcelable(form, 0)
+                parcel.dataSize()
+            } finally {
+                parcel.recycle()
+            }
+        }
         private const val PAGE = "page"
         private const val ERROR = "error"
         private const val GROUP = "group"
@@ -82,7 +95,6 @@ class ProfileActivity : ThemedActivity() {
         type = savedInstanceState?.getInt(KIND, -1)?.takeIf { it >= 0 } ?: intent.getIntExtra(EXTRA_TYPE, -1)
         vless = savedInstanceState?.getBoolean(KIND_VLESS) ?: intent.getBooleanExtra(EXTRA_VLESS, false)
         val restored = savedInstanceState?.let { BundleCompat.getParcelable(it, FORM, ProfileForm::class.java) }
-        original = savedInstanceState?.let { BundleCompat.getParcelable(it, ORIGINAL, ProfileForm::class.java) }
         error.value = savedInstanceState?.let { BundleCompat.getParcelable(it, ERROR, FieldError::class.java) }
         savedInstanceState?.getString(PAGE)?.let { page.value = it }
         groupId = savedInstanceState?.getLong(GROUP) ?: 0L
@@ -121,7 +133,8 @@ class ProfileActivity : ThemedActivity() {
                 spec.value = typeSpec
                 if (original == null) original = read
                 if (form.value == null) form.value = restored ?: read
-                info.value = loaded
+                // a link picked meanwhile (a result before this read) keeps its name
+                info.value = ProfileInfo(loaded.existing, loaded.groups, loaded.links + info.value.links)
             }
         }
         setContent {
@@ -138,8 +151,9 @@ class ProfileActivity : ThemedActivity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        form.value?.let { outState.putParcelable(FORM, it) }
-        original?.let { outState.putParcelable(ORIGINAL, it) }
+        // the form alone (the profile as stored is read again), and not one too large for a Binder transaction: a custom
+        // config of hundreds of kilobytes is read again from the database too
+        form.value?.takeIf { parcelSize(it) <= MAX_SAVED_FORM }?.let { outState.putParcelable(FORM, it) }
         error.value?.let { outState.putParcelable(ERROR, it) }
         outState.putString(PAGE, page.value)
         outState.putLong(GROUP, groupId)
@@ -192,9 +206,10 @@ class ProfileActivity : ThemedActivity() {
             } else {
                 val entity = SagerDatabase.proxyDao.getById(profileId)
                 if (entity != null) {
-                    if (entity.id == DataStore.selectedProxy) SagerNet.stopService()
                     typeSpec.save(f, entity.requireBean(), read)
                     ProfileManager.updateProfile(entity)
+                    // after the write: the stopping service saves its last traffic to the row then, not before it
+                    if (entity.id == DataStore.selectedProxy) SagerNet.stopService()
                 }
             }
             onMainDispatcher { finish() }
@@ -254,15 +269,20 @@ class ProfileActivity : ThemedActivity() {
         return proxies.isNotEmpty() && ProfileManager.getProfiles(proxies).any { containsId(it, id, seen) }
     }
 
-    private val editOutbound = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+    // the JSON editor's text only when it saved: its store lives in memory, and after the process was killed it comes
+    // back empty; taking it then would put an empty JSON in place of the profile's
+    private val editOutbound = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
         form.value?.let { change(it.copy(outboundJson = DataStore.serverCustomOutbound)) }
     }
 
-    private val editConfig = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+    private val editConfig = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
         form.value?.let { change(it.copy(configJson = DataStore.serverCustom)) }
     }
 
-    private val editCustom = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+    private val editCustom = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
         form.value?.let { change(it.withText("config", DataStore.serverConfig)) }
     }
 

@@ -115,8 +115,10 @@ internal fun ProfileField(
                         keyboardType = when (input) {
                             Input.TEXT -> KeyboardType.Text
                             Input.PORT, Input.NUMBER -> KeyboardType.Number
-                            Input.SECRET -> if (shown) KeyboardType.Text else KeyboardType.Password
+                            // a password keyboard shown or not: the keyboard neither learns nor suggests a secret
+                            Input.SECRET -> KeyboardType.Password
                         },
+                        autoCorrectEnabled = input != Input.SECRET,
                     ),
                     singleLine = !lines,
                     minLines = if (lines) 3 else 1,
