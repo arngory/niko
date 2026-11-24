@@ -1,4 +1,4 @@
-package io.niko.ui
+package io.niko.ui.admin
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
@@ -10,7 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Locale
 
-class RayAdminTest {
+class AdminLogicTest {
 
     // the strings as patterns of their own, so that a test sees which one was taken and with what
     private val patterns = mapOf(
