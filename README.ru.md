@@ -39,6 +39,10 @@ Hysteria 1/2, WireGuard, AmneziaWG, NaïveProxy, Mieru, Yggdrasil и DNS-тун�
 - [docs/](docs/README.ru.md): инструкции, как устроено, спецификации, исследования
 - [CONTRIBUTING.ru.md](CONTRIBUTING.ru.md): как вносить изменения
 
+## Поддержать проект
+
+Niko даётся как есть, бесплатно. Если он вам помогает, можно поддержать разработку: [donotpromise.space/donate](https://donotpromise.space/donate).
+
 ## Лицензия
 
 GPL-3.0, см. [LICENSE](LICENSE). Niko — изменённая версия проектов ниже; их авторские права остаются за авторами.

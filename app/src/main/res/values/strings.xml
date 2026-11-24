@@ -1022,6 +1022,8 @@
     <string name="port_knocking_silence">Re-knock if a UDP session gets no reply, seconds (0 = off)</string>
     <!-- About → Licenses (LicensesActivity) -->
     <string name="licenses">Licenses</string>
+    <string name="donate">Support the project</string>
+    <string name="donate_sum" translatable="false">donotpromise.space/donate</string>
     <string name="licenses_sum">What Niko is built from, and under which licenses</string>
     <string name="licenses_notice_sum">All of it in one text</string>
     <string name="licenses_part_app">Niko and what it is based on</string>
