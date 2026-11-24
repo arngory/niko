@@ -9,6 +9,7 @@ import android.view.ViewGroup
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.activity.result.contract.ActivityResultContracts
@@ -16,7 +17,11 @@ import androidx.fragment.app.Fragment
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.niko.R
 import io.niko.SagerNet
+import io.niko.bg.BaseService
+import io.niko.database.DataStore
 import io.niko.database.GroupManager
+import io.niko.database.ProfileManager
+import io.niko.database.ProxyEntity
 import io.niko.database.SagerDatabase
 import io.niko.fmt.toUniversalLink
 import io.niko.group.GroupUpdater
@@ -36,6 +41,7 @@ import io.niko.ui.node.NodeFragment
 import io.niko.ui.updateAllGroups
 import io.niko.ui.updateRayNode
 import io.niko.widget.QRCodeDialog
+import io.niko.widget.UndoSnackbarManager
 import java.text.DateFormat
 import java.util.Date
 import io.niko.ui.MainActivity
@@ -61,9 +67,12 @@ class HomeFragment : Fragment() {
                 NikoTheme {
                     HomeScreen(
                         main.homeState.value, main.homeView.value, main.homeActions,
-                        configs = main.configsState.value, testing = testing, results = results,
+                        // a profile deleted, its undo still offered, is out of the list already
+                        configs = main.configsState.value?.let { ConfigsLoader.without(it, deleting.value) },
+                        testing = testing, results = results,
                         configsActions = main.configsActions,
                         subs = main.subsState.value, subsActions = subsActions, format = format(),
+                        configsMenus = configsMenus,
                     )
                 }
             }
@@ -123,11 +132,161 @@ class HomeFragment : Fragment() {
         dialog.show()
     }
 
-    private fun ask(message: String, then: () -> Unit) {
+    private fun ask(message: String, no: Int = android.R.string.cancel, then: () -> Unit) {
         MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.confirm).setMessage(message)
             .setPositiveButton(R.string.yes) { _, _ -> then() }
-            .setNegativeButton(android.R.string.cancel, null)
+            .setNegativeButton(no, null)
             .show().danger()
+    }
+
+    // the profiles deleted whose undo is still offered: gone from the sheet, not yet from the database
+    private val deleting = mutableStateOf<Set<Long>>(emptySet())
+
+    // as the old list: the delete is done when its snackbar goes (or the screen does), undone from it until then
+    private var undo: UndoSnackbarManager<ProxyEntity>? = null
+
+    private fun undoManager() = undo ?: UndoSnackbarManager(
+        requireActivity() as MainActivity,
+        object : UndoSnackbarManager.Interface<ProxyEntity> {
+            override fun undo(actions: List<Pair<Int, ProxyEntity>>) {
+                deleting.value -= actions.map { it.second.id }.toSet()
+            }
+
+            override fun commit(actions: List<Pair<Int, ProxyEntity>>) {
+                val profiles = actions.map { it.second }
+                val main = activity as? MainActivity
+                runOnDefaultDispatcher {
+                    for (entity in profiles) {
+                        ProfileManager.deleteProfile(entity.groupId, entity.id)
+                    }
+                    onMainDispatcher {
+                        main?.refreshHome()
+                        deleting.value -= profiles.map { it.id }.toSet()
+                    }
+                }
+            }
+        },
+    ).also { undo = it }
+
+    // the configuration that goes to the file the user picks
+    private var exportedConfig: String? = null
+
+    private val exportConfig = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        val config = exportedConfig
+        exportedConfig = null
+        if (uri == null || config == null) return@registerForActivityResult
+        val resolver = requireContext().contentResolver
+        runOnDefaultDispatcher {
+            val message = try {
+                resolver.openOutputStream(uri)!!.bufferedWriter().use { it.write(config) }
+                getString(R.string.action_export_msg)
+            } catch (e: Exception) {
+                Logs.w(e)
+                e.readableMessage
+            }
+            onMainDispatcher { if (isAdded) snackbar(message).show() }
+        }
+    }
+
+    /** Asks before [profiles] are deleted, [names] listed under the question; the sheet reads its rows again after. */
+    private suspend fun askDelete(profiles: List<ProxyEntity>, names: String? = null) {
+        if (profiles.isEmpty()) return
+        onMainDispatcher {
+            if (!isAdded) return@onMainDispatcher
+            val main = requireActivity() as MainActivity
+            ask(getString(R.string.delete_confirm_prompt) + names?.let { "\n" + it }.orEmpty(), no = R.string.no) {
+                runOnDefaultDispatcher {
+                    ConfigsOps.delete(profiles)
+                    onMainDispatcher { main.refreshHome() }
+                }
+            }
+        }
+    }
+
+    /** What the sheet's menus ask (a group's ⋮, a profile's sheet): the old profiles' list's actions, from here. */
+    private val configsMenus = object : ConfigsMenuActions {
+        override fun group(groupId: Long, action: GroupAction) {
+            val main = requireActivity() as MainActivity
+            when (action) {
+                // from the device itself, not through the service
+                GroupAction.TCP_PING -> ConfigsTest.start(groupId, null, ConfigsTest.Mode.TCP)
+                GroupAction.URL_TEST -> main.configsActions.test(groupId)
+                GroupAction.CLEAR_RESULTS -> runOnDefaultDispatcher {
+                    ConfigsOps.clearResults(groupId)
+                    onMainDispatcher { main.refreshHome() }
+                }
+                GroupAction.CLEAR_TRAFFIC -> runOnDefaultDispatcher {
+                    ConfigsOps.clearTraffic(groupId)
+                    onMainDispatcher { main.refreshHome() }
+                }
+                GroupAction.DELETE_UNAVAILABLE -> runOnDefaultDispatcher { askDelete(ConfigsOps.unavailable(groupId)) }
+                GroupAction.REMOVE_DUPLICATES -> runOnDefaultDispatcher {
+                    val toClear = ConfigsOps.duplicates(groupId)
+                    askDelete(toClear, ConfigsOps.names(toClear))
+                }
+            }
+        }
+
+        override fun share(id: Long, action: ShareAction) {
+            fun export(link: String) =
+                snackbar(if (SagerNet.trySetPrimaryClip(link)) R.string.action_export_msg else R.string.action_export_err).show()
+            runOnDefaultDispatcher {
+                try {
+                    val entity = ProfileManager.getProfile(id) ?: return@runOnDefaultDispatcher
+                    val name = entity.displayName()
+                    val text = when (action) {
+                        ShareAction.QR, ShareAction.LINK -> entity.toStdLink()
+                        ShareAction.QR_SN, ShareAction.LINK_SN -> entity.requireBean().toUniversalLink()
+                        ShareAction.CONFIG_CLIPBOARD, ShareAction.CONFIG_FILE -> ""
+                    }
+                    val config = if (text.isEmpty()) entity.exportConfig() else null
+                    onMainDispatcher {
+                        if (!isAdded) return@onMainDispatcher
+                        when (action) {
+                            ShareAction.QR, ShareAction.QR_SN -> QRCodeDialog(text, name).showAllowingStateLoss(parentFragmentManager)
+                            ShareAction.LINK, ShareAction.LINK_SN -> export(text)
+                            ShareAction.CONFIG_CLIPBOARD -> export(config!!.first)
+                            ShareAction.CONFIG_FILE -> {
+                                exportedConfig = config!!.first
+                                startFilesForResult(exportConfig, config.second)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Logs.w(e)
+                    onMainDispatcher { if (isAdded) snackbar(e.readableMessage).show() }
+                }
+            }
+        }
+
+        override fun delete(id: Long) {
+            runOnDefaultDispatcher {
+                val entity = ProfileManager.getProfile(id) ?: return@runOnDefaultDispatcher
+                // as the old list: not the one the running service uses
+                if (DataStore.serviceState.started && DataStore.selectedProxy == id && DataStore.currentProfile == id) return@runOnDefaultDispatcher
+                onMainDispatcher {
+                    if (!isAdded) return@onMainDispatcher
+                    deleting.value += id
+                    undoManager().remove(0 to entity)
+                }
+            }
+        }
+
+        // as the old list's drag: not while the service connects or stops
+        override fun move(id: Long, other: Long) {
+            if (!DataStore.serviceState.let { it.canStop || it == BaseService.State.Stopped }) return
+            val main = requireActivity() as MainActivity
+            runOnDefaultDispatcher {
+                ConfigsOps.moveProfile(id, other)
+                main.refreshConfigs()
+            }
+        }
+    }
+
+    // done now: after the screen there is no undo to offer
+    override fun onDestroy() {
+        undo?.flush()
+        super.onDestroy()
     }
 
     /** What the sheet's Subscriptions tab asks (P-Subs): the old groups' list's actions, from here. */
@@ -155,8 +314,18 @@ class HomeFragment : Fragment() {
 
         override fun add() = startActivity(Intent(requireContext(), GroupSettingsActivity::class.java))
 
+        override fun move(row: SubRow, other: SubRow) {
+            val main = requireActivity() as MainActivity
+            runOnDefaultDispatcher {
+                ConfigsOps.moveGroup(row.id, other.id)
+                main.refreshConfigs()
+            }
+        }
+
         override fun action(row: SubRow, action: SubAction) {
             when (action) {
+                // the sheet asks to move with what to change places with (move)
+                SubAction.MOVE_UP, SubAction.MOVE_DOWN -> Unit
                 SubAction.SETTINGS -> groupSettings(row.id)
                 SubAction.ADMIN -> row.nodeId?.let {
                     startActivity(Intent(requireContext(), AdminActivity::class.java).putExtra(AdminActivity.EXTRA_NODE, it))

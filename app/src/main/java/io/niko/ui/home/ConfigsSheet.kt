@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -27,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -46,6 +48,7 @@ import io.niko.ui.compose.NikoSize
 import io.niko.ui.compose.NikoSpace
 import io.niko.ui.compose.NikoType
 import io.niko.ui.node.NodeFormat
+import kotlinx.coroutines.launch
 
 /** What the configs' sheet asks of the activity. */
 interface ConfigsActions {
@@ -64,8 +67,10 @@ interface ConfigsActions {
 /**
  * P-Configs: the profiles in their groups over the main screen, one chosen (a radio), the ping on the right, a group
  * tested at once from its head (D-MAIN-07, 10, 11; D-PROFILE-05). A tap chooses and closes the sheet, a long press opens
- * the profile's editor. [groups] null: not read yet. Its second tab, P-Subs: the groups themselves ([SubsList]), open
- * first when [onSubs].
+ * the profile's sheet (edit, share, move, delete), a group's ⋮ its menu, a failed test's words its error; without
+ * [menus] (a snapshot of the list alone) a long press opens the editor. The Configs tab tapped again scrolls to the
+ * chosen profile, or to the top when it is in view. [groups] null: not read yet. Its second tab, P-Subs: the groups
+ * themselves ([SubsList]), open first when [onSubs].
  */
 @Composable
 internal fun ConfigsSheet(
@@ -80,6 +85,7 @@ internal fun ConfigsSheet(
     format: NodeFormat? = null,
     now: Long = System.currentTimeMillis() / 1000,
     onSubs: Boolean = false,
+    menus: ConfigsMenuActions? = null,
     onClose: () -> Unit,
 ) {
     val c = Niko.colors
@@ -87,8 +93,17 @@ internal fun ConfigsSheet(
     var subsTab by rememberSaveable { mutableStateOf(onSubs && subsActions != null) }
     // the group whose menu is up, over the sheet
     var menuOf by rememberSaveable { mutableStateOf<Long?>(null) }
+    // over the configs: a group's menu, a profile's sheet, its ways to share, its failed test's error
+    var groupMenu by rememberSaveable { mutableStateOf<Long?>(null) }
+    var profileMenu by rememberSaveable { mutableStateOf<Long?>(null) }
+    var shareOf by rememberSaveable { mutableStateOf<Long?>(null) }
+    var errorOf by rememberSaveable { mutableStateOf<Long?>(null) }
+    val list = rememberLazyListState()
+    val scope = rememberCoroutineScope()
     var searching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
+    val current = groups?.let { ConfigsLoader.withResults(it, results) }
+    val shown = current?.let { ConfigsLoader.filter(it, query) }
     BackHandler {
         if (searching) {
             searching = false
@@ -111,7 +126,14 @@ internal fun ConfigsSheet(
                 horizontalArrangement = Arrangement.spacedBy(NikoSpace.s2),
             ) {
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(NikoSpace.s6)) {
-                    Tab(stringResource(R.string.home_profiles), profiles, active = !subsTab) { subsTab = false }
+                    Tab(stringResource(R.string.home_profiles), profiles, active = !subsTab) {
+                        if (subsTab) subsTab = false else {
+                            // on it already: to the chosen profile, or to the top when it is in view (D-PROFILE-05)
+                            val chosen = ConfigsLoader.selectedIndex(shown.orEmpty())
+                            val inView = list.layoutInfo.visibleItemsInfo.any { it.index == chosen }
+                            scope.launch { list.animateScrollToItem(if (chosen >= 0 && !inView) chosen else 0) }
+                        }
+                    }
                     Tab(stringResource(R.string.home_subscriptions), subscriptions, active = subsTab) {
                         if (subsActions != null) {
                             subsTab = true
@@ -133,21 +155,25 @@ internal fun ConfigsSheet(
                 return@Sheet
             }
             if (searching) SearchField(query, { query = it })
-            val shown = groups?.let { ConfigsLoader.filter(ConfigsLoader.withResults(it, results), query) }
             when {
                 shown == null -> Unit
                 shown.isEmpty() -> Text(
                     stringResource(if (query.isBlank()) R.string.home_no_profile else R.string.home_search_none),
                     NikoType.bodySm, c.ink2, Modifier.padding(NikoSpace.s5),
                 )
-                else -> LazyColumn(Modifier.fillMaxWidth().weight(1f)) {
+                else -> LazyColumn(Modifier.fillMaxWidth().weight(1f), list) {
                     for (group in shown) {
                         item(key = "g${group.id}") {
                             val running = group.id in testing
-                            GroupHead(group, running) { if (running) actions.stopTest() else actions.test(group.id) }
+                            GroupHead(group, running, onMenu = menus?.let { { groupMenu = group.id } }) {
+                                if (running) actions.stopTest() else actions.test(group.id)
+                            }
                         }
                         items(group.profiles, key = { it.id }) { row ->
-                            ConfigRowView(row, divider = row !== group.profiles.first(), actions, onClose)
+                            ConfigRowView(
+                                row, divider = row !== group.profiles.first(), actions, onClose,
+                                onMenu = menus?.let { { profileMenu = row.id } }, onError = { errorOf = row.id },
+                            )
                         }
                         item(key = "s${group.id}") { Spacer(Modifier.height(NikoSpace.s4)) }
                     }
@@ -155,17 +181,66 @@ internal fun ConfigsSheet(
             }
         }
         if (subsTab && subsActions != null) subs?.firstOrNull { it.id == menuOf }?.let { row ->
-            SubMenu(row, onPick = { action ->
-                menuOf = null
-                subsActions.action(row, action)
+            val (above, below) = SubsLoader.neighbours(subs, row)
+            SubMenu(row, up = above != null, down = below != null, onPick = { action ->
+                when (action) {
+                    // the menu stays, to move it further
+                    SubAction.MOVE_UP -> above?.let { subsActions.move(row, it) }
+                    SubAction.MOVE_DOWN -> below?.let { subsActions.move(row, it) }
+                    else -> {
+                        menuOf = null
+                        subsActions.action(row, action)
+                    }
+                }
             }) { menuOf = null }
+        }
+        if (!subsTab && current != null) {
+            fun row(id: Long?) = id?.let { current.firstNotNullOfOrNull { g -> g.profiles.firstOrNull { it.id == id } } }
+            row(errorOf)?.let { row -> row.error?.let { ErrorSheet(row.name, it) { errorOf = null } } }
+        }
+        if (!subsTab && menus != null && current != null) {
+            current.firstOrNull { it.id == groupMenu }?.let { group ->
+                GroupMenu(group.name ?: stringResource(R.string.home_ungrouped), testing.isNotEmpty(), onPick = { action ->
+                    groupMenu = null
+                    menus.group(group.id, action)
+                }) { groupMenu = null }
+            }
+            fun row(id: Long?) = id?.let { current.firstNotNullOfOrNull { g -> g.profiles.firstOrNull { it.id == id } } }
+            row(profileMenu)?.let { row ->
+                // moved among all the group's profiles: not while a search hides some of them
+                val (above, below) = if (query.isBlank()) ConfigsLoader.neighbours(current, row.id) else null to null
+                ProfileMenu(row.name, ConfigsLoader.profileMenu(row, above != null, below != null), onPick = { action ->
+                    when (action) {
+                        // the sheet stays, to move it further
+                        ProfileAction.MOVE_UP -> above?.let { menus.move(row.id, it) }
+                        ProfileAction.MOVE_DOWN -> below?.let { menus.move(row.id, it) }
+                        else -> {
+                            profileMenu = null
+                            when (action) {
+                                ProfileAction.EDIT -> actions.edit(row.id)
+                                ProfileAction.SHARE -> shareOf = row.id
+                                else -> menus.delete(row.id)
+                            }
+                        }
+                    }
+                }) { profileMenu = null }
+            }
+            row(shareOf)?.let { row ->
+                ShareMenu(row.name, ConfigsLoader.shareMenu(row), onPick = { action ->
+                    shareOf = null
+                    menus.share(row.id, action)
+                }) { shareOf = null }
+            }
         }
     }
 }
 
-/** m-section__head: the group's name in capitals, and its test button; while the group's test runs, its stop. */
+/**
+ * m-section__head: the group's name in capitals, its test button (while the group's test runs, its stop) and, with
+ * [onMenu], its menu.
+ */
 @Composable
-private fun GroupHead(group: ConfigGroup, testing: Boolean, onTest: () -> Unit) {
+private fun GroupHead(group: ConfigGroup, testing: Boolean, onMenu: (() -> Unit)?, onTest: () -> Unit) {
     val c = Niko.colors
     val name = group.name ?: stringResource(R.string.home_ungrouped)
     Row(
@@ -175,12 +250,23 @@ private fun GroupHead(group: ConfigGroup, testing: Boolean, onTest: () -> Unit) 
         Text(name.uppercase(), NikoType.label, c.ink2, Modifier.weight(1f), maxLines = 1)
         if (testing) PlainIconButton(R.drawable.ic_l_x, stringResource(R.string.home_stop_test, name), onClick = onTest)
         else PlainIconButton(R.drawable.ic_l_zap, stringResource(R.string.home_test_group, name), onClick = onTest)
+        if (onMenu != null) PlainIconButton(R.drawable.ic_l_ellipsis_vertical, stringResource(R.string.subs_menu, name), onClick = onMenu)
     }
 }
 
-/** m-row with a radio: the profile chosen in bold; the ping, or "no answer", on the right in mono. */
+/**
+ * m-row with a radio: the profile chosen in bold; the ping, or "no answer", on the right in mono: a failed test that
+ * said why shows it on a tap ([onError]). A long press: [onMenu], the editor without it.
+ */
 @Composable
-private fun ConfigRowView(row: ConfigRow, divider: Boolean, actions: ConfigsActions, onClose: () -> Unit) {
+private fun ConfigRowView(
+    row: ConfigRow,
+    divider: Boolean,
+    actions: ConfigsActions,
+    onClose: () -> Unit,
+    onMenu: (() -> Unit)?,
+    onError: () -> Unit,
+) {
     val unreachable = stringResource(R.string.home_unreachable)
     val ping = when {
         row.unreachable -> unreachable
@@ -195,13 +281,22 @@ private fun ConfigRowView(row: ConfigRow, divider: Boolean, actions: ConfigsActi
         side = NikoSpace.s5,
         lead = { Radio(row.selected) },
         sub = { row.tags.forEach { Tag(it) } },
-        trail = { Text(ping, NikoType.code, if (row.unreachable) Niko.colors.danger else Niko.colors.ink2, maxLines = 1) },
+        trail = {
+            val why = stringResource(R.string.cfg_error_show)
+            Text(
+                ping, NikoType.code, if (row.unreachable) Niko.colors.danger else Niko.colors.ink2,
+                if (row.unreachable && row.error != null) {
+                    Modifier.clickable(onClickLabel = why, role = Role.Button, onClick = onError).padding(vertical = NikoSpace.s2)
+                } else Modifier,
+                maxLines = 1,
+            )
+        },
         // chosen: back to the main screen, which shows it
         onClick = {
             actions.select(row.id)
             onClose()
         },
-        onLongClick = { actions.edit(row.id) },
+        onLongClick = onMenu ?: { actions.edit(row.id) },
         role = Role.RadioButton,
     )
 }
