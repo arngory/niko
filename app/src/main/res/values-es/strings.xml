@@ -49,13 +49,11 @@
     <string name="port_transproxy">Puerto transproxy</string> 
     <string name="cag_route">Ajustes de ruta</string>     
     <string name="require_http">Activar HTTP entrante</string> 
-    <string name="cag_ws">Ajustes de WebSocket</string> 
     <string name="ws_max_early_data" translatable="false">Max early data</string> 
     <string name="ws_browser_forwarding">Reenvío del navegador</string> 
     <string name="ws_browser_forwarding_sum">Reenvía los WebSockets correspondientes a través del navegador.</string>   
     <string name="show_stop">Mostrar botón Detener</string> 
     <string name="show_stop_sum">Si no desea utilizar mosaico como interruptor</string>   
-    <string name="security_settings">Ajustes de seguridad</string> 
     <string name="allow_insecure">Permitir inseguro</string> 
     <string name="allow_insecure_sum">Desactiva la comprobación de certificados. Cuando está activada, esta configuración es tan segura como el texto sin formato</string> 
     <string name="traffic" translatable="false">%1$s↑ %2$s↓</string> 
@@ -74,19 +72,12 @@
     <!-- proxy category --> 
     <string name="profile_name">Nombre de perfil</string> 
     <string name="server_address">Servidor</string> 
-    <string name="server_port">Puerto remoto</string> 
-    <string name="username">Nombre de usuario</string> 
-    <string name="username_opt">Nombre de usuario (Opcional)</string> 
-    <string name="password_opt">Contraseña (Opcional)</string> 
     <string name="key_opt">Clave (Opcional)</string> 
-    <string name="password">Contraseña</string> 
     <string name="enc_method">Método de cifrado</string> 
     <string name="protocol">Protocolo</string> 
     <string name="protocol_param">Parámetro de protocolo</string> 
     <string name="obfs">Obfs</string> 
     <string name="obfs_param">Parámetro obfs</string> 
-    <string name="uuid">ID de usuario</string> 
-    <string name="alter_id">ID alternativo</string> 
     <string name="security">Cifrado de la capa de transporte</string> 
     <string name="network">Red</string> 
     <string name="header_type">Tipo de encabezado</string> 
@@ -96,8 +87,6 @@
     <string name="http_path">Ruta HTTP</string> 
     <string name="grpc_service_name">Nombre de servicio gRPC</string> 
     <string name="tls">Usar TLS</string> 
-    <string name="sni">Indicación del nombre del servidor</string> 
-    <string name="alpn">Negociación de protocolo de capa de aplicación</string> 
     <string name="certificates">Certificados</string>
     <string name="early_data_header_name">Nombre de encabezado de datos tempranos</string>
     <string name="encryption">Cifrado</string> 
@@ -170,7 +159,6 @@
     <string name="balancer_settings">Ajustes del equilibrador</string> 
     <string name="balancer_type">Tipo</string> 
     <string name="balancer_strategy">Estrategia</string> 
-    <string name="chain_settings">Ajustes de la cadena</string> 
     <string name="config_settings">Ajustes de configuración</string> 
     <string name="circular_reference">Referencia circular</string> 
     <string name="circular_reference_sum">La ruta no puede contenerse a sí misma.</string> 
@@ -190,7 +178,6 @@
     <string name="file_manager_missing">Su dispositivo carece de un selector de archivos estándar de Android, instale uno, como Material Files.</string> 
     <!-- share --> 
     <!-- profile --> 
-    <string name="profile_config">Configuración de perfil</string> 
     <string name="delete">Eliminar</string> 
     <string name="delete_confirm_prompt">¿Está seguro de que desea eliminar este perfil?</string> 
     <string name="share_qr_nfc">Código QR</string> 
@@ -225,12 +212,8 @@
     <string name="ignore_battery_optimizations_sum">Eliminar algunas restricciones</string> 
     <!-- plugin --> 
     <string name="plugin">Complemento</string> 
-    <string name="plugin_configure">Configurar…</string> 
-    <string name="plugin_disabled">Desactivado</string> 
     <string name="plugin_unknown">Complemento desconocido %s</string> 
     <string name="plugin_auto_connect_unlock_only">Es posible que este complemento no funcione con Autoconectar</string> 
-    <string name="proxy_cat">Ajustes del servidor</string> 
-    <string name="ss_cat">Ajustes de Shadowsocks</string> 
     <string name="unsaved_changes_prompt">Cambios no guardados. ¿Quieres guardar?</string> 
     <string name="yes">Sí</string> 
     <string name="no">No</string> 
@@ -300,8 +283,6 @@
     <string name="hysteria_obfs">Contraseña de ofuscación</string> 
     <string name="hysteria_auth_type">Tipo de autenticación</string> 
     <string name="hysteria_auth_payload">Payload de autenticación</string> 
-    <string name="hysteria_upload_mbps">Velocidad máxima de carga (en Mbps)</string> 
-    <string name="hysteria_download_mbps">Velocidad máxima de descarga (en Mbps)</string> 
     <string name="experimental_settings">Experimental</string>
     <string name="hysteria_stream_receive_window">Ventana de recepción de transmisión QUIC</string>
     <string name="hysteria_connection_receive_window">Ventana de recepción de conexión QUIC</string> 
@@ -340,7 +321,6 @@
     <string name="no_statistics">Aún no hay estadísticas</string> 
     <string name="app_statistics_disabled">Estadísticas de tráfico de aplicaciones desactivado</string> 
     <string name="ssh_auth_type_none">Ninguna</string> 
-    <string name="ssh_public_key">Llave pública</string> 
     <string name="ssh_private_key">Llave privada</string> 
     <string name="ssh_private_key_passphrase">Frase de contraseña de clave privada</string> 
     <string name="translate_platform">Plataforma de traducción</string> 

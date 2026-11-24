@@ -19,8 +19,6 @@
     <string name="apply">Bruk</string>
     <string name="no">Nei</string>
     <string name="yes">Ja</string>
-    <string name="proxy_cat">Tjenerinnstillinger</string>
-    <string name="plugin_configure">Sett opp …</string>
     <string name="ignore_battery_optimizations_sum">Fjern noen begrensninger</string>
     <string name="subscriptions">Abonnementer</string>
     <string name="not_connected">Ikke tilkoblet</string>
@@ -48,7 +46,6 @@
     <string name="http_path">HTTP-sti</string>
     <string name="header_type">Hodetype</string>
     <string name="network">Nettverk</string>
-    <string name="alter_id">Alt-ID</string>
     <string name="group_diff">Forskjell (%s)</string>
     <string name="group_show_diff">Forskjell</string>
     <string name="group_updated">%s: Oppdaterte %d mellomtjenere</string>
@@ -97,7 +94,6 @@
     <string name="service_proxy">Mellomtjener-tjeneste</string>
     <string name="service_vpn">VPN-tjeneste</string>
     <string name="http_host">HTTP-vert</string>
-    <string name="uuid">Bruker-ID</string>
     <string name="port_http">HTTP-mellomtjenerport</string>
     <string name="clear_profiles_message">Er du sikker på at du vil slette denne gruppen\?</string>
     <string name="profile_import_message">Bekreft at du vil importere profilen %s\?</string>
@@ -137,10 +133,8 @@
     <string name="route_warn">Sørg for at du har lest dokumentasjonen før du legger til egendefinerte regler, hvis ikke kan du ikke koble deg til Internett.</string>
     <string name="need_reload">Last inn proxy -tjenesten på nytt for å bruke endringer</string>
     <string name="unsaved_changes_prompt">Endringene er ikke lagret. Vil du spare\?</string>
-    <string name="ss_cat">Innstillinger for Shadowsocks</string>
     <string name="plugin_auto_connect_unlock_only">Denne pluginen fungerer kanskje ikke med Auto Connect</string>
     <string name="plugin_unknown">Ukjent plugin %s</string>
-    <string name="plugin_disabled">Funksjonshemmet</string>
     <string name="plugin">Plugg inn</string>
     <string name="ignore_battery_optimizations">Ignorer batterioptimaliseringer</string>
     <string name="deduplication">Deduplisering</string>
@@ -159,7 +153,6 @@
     </plurals>
     <string name="add_profile_methods_manual_settings">Manuelle innstillinger</string>
     <string name="delete_confirm_prompt">Er du sikker på at du vil fjerne denne profilen\?</string>
-    <string name="profile_config">Profilkonfigurasjon</string>
     <string name="file_manager_missing">Enheten din mangler en standard filvelger for Android. Installer en, for eksempel materialfiler.</string>
     <string name="action_import_err">Kunne ikke importere.</string>
     <string name="action_import_msg">Importer vellykket!</string>
@@ -170,7 +163,6 @@
     <string name="action_create_group">Tom gruppe</string>
     <string name="circular_reference_sum">Ruten kan ikke inneholde seg selv.</string>
     <string name="circular_reference">Sirkulær referanse</string>
-    <string name="chain_settings">Kjedeinnstillinger</string>
     <string name="balancer_settings">Balanseinnstillinger</string>
     <string name="balancer">Balanser</string>
     <string name="custom_config">Egendefinert konfigur</string>
@@ -212,8 +204,6 @@
     <string name="config_type">Konfig Type</string>
     <string name="early_data_header_name">Tidlig navn på dataoverskrift</string>
     <string name="certificates">Sertifikater</string>
-    <string name="alpn">Forhandling av applikasjonslagsprotokoll</string>
-    <string name="sni">Servernavn indikasjon</string>
     <string name="grpc_service_name">gRPC -tjenestenavn</string>
     <string name="ws_path">WebSocket -bane</string>
     <string name="ws_host">WebSocket -vert</string>
@@ -222,12 +212,7 @@
     <string name="protocol_param">Protokoll Param</string>
     <string name="protocol">Protokoll</string>
     <string name="enc_method">Krypter metode</string>
-    <string name="password">Passord</string>
     <string name="key_opt">Nøkkel (valgfritt)</string>
-    <string name="password_opt">Passord (valgfritt)</string>
-    <string name="username_opt">Brukernavn (valgfritt)</string>
-    <string name="username">Brukernavn</string>
-    <string name="server_port">Ekstern port</string>
     <string name="server_address">Tjener</string>
     <string name="profile_name">Profil navn</string>
     <string name="transproxy_mode">Transproxy -modus</string>
@@ -244,12 +229,10 @@
 \nDirekte： %3$s↑ %4$s↓</string>
     <string name="allow_insecure_sum">Deaktiver sertifikatkontroll. Når den er aktivert, er denne konfigurasjonen like sikker som ren tekst</string>
     <string name="allow_insecure">Tillat usikker</string>
-    <string name="security_settings">Sikkerhetsinnstillinger</string>
     <string name="show_stop_sum">Hvis du ikke vil bruke Quick Tile som bryter</string>
     <string name="show_stop">Vis stoppknapp</string>
     <string name="ws_browser_forwarding_sum">Videresend tilsvarende WebSockets gjennom nettleseren.</string>
     <string name="ws_browser_forwarding">Videresending av nettleser</string>
-    <string name="cag_ws">WebSocket -innstillinger</string>
     <string name="require_http">Aktiver HTTP inbound</string>
     <string name="cag_route">Ruteinnstillinger</string>
     <string name="port_transproxy">Transproxy- port</string>
@@ -277,8 +260,6 @@
     <string name="hysteria_obfs">Tilsløringspassord</string>
     <string name="hysteria_auth_payload">Identitetbekreftelses-nyttelast</string>
     <string name="experimental_settings">Eksperimentelt</string>
-    <string name="hysteria_download_mbps">Maks. nedlastingshastighet (i Mbps)</string>
-    <string name="hysteria_upload_mbps">Maks. opplastingshastighet (i Mbps)</string>
     <string name="hysteria_auth_type">Identitetbekreftelsestype</string>
     <string name="menu_traffic">Trafikk</string>
     <string name="hysteria_connection_receive_window">Mottaksvindu for QUIC-tilkobling</string>
@@ -301,7 +282,6 @@
     <string name="clear_logcat">Tøm Logcat</string>
     <string name="menu_log">Logger</string>
     <string name="ssh_private_key">Privat nøkkel</string>
-    <string name="ssh_public_key">Offentlig nøkkel</string>
     <string name="ssh_auth_type_none">Ingen</string>
     <string name="no_statistics">Ingen statistikk enda</string>
     <string name="route_for">Regel for %s</string>

@@ -52,19 +52,12 @@
     <string name="header_type">نوع الرأس</string>
     <string name="network">شبكة</string>
     <string name="security">تشفير طبقة النقل</string>
-    <string name="alter_id">تغيير رقم التعريف</string>
-    <string name="uuid">معرف المستخدم</string>
     <string name="obfs_param">Obfs بارام</string>
     <string name="obfs">Obfs(أو بی اِف اِس)</string>
     <string name="protocol_param">بروتوكول بارام</string>
     <string name="protocol">البروتوكول</string>
     <string name="enc_method">طريقة التشفير</string>
-    <string name="password">كلمة المرور</string>
     <string name="key_opt">مفتاح (اختياري)</string>
-    <string name="password_opt">كلمة المرور (اختياري)</string>
-    <string name="username_opt">اسم مستخدِم (اختياري)</string>
-    <string name="username">اسم مستخدِم</string>
-    <string name="server_port">منفذ بعيد</string>
     <string name="server_address">الخادم</string>
     <string name="profile_name">اسم ملف التعريف</string>
     <string name="transproxy_mode">وضع ترانسبروكسى</string>
@@ -85,12 +78,10 @@
     <string name="traffic">%1$s↑ %2$s↓</string>
     <string name="allow_insecure_sum">تعطيل فحص الشهادة. عند التمكين ، يكون هذا التكوين آمنًا مثل النص العادي</string>
     <string name="allow_insecure">السماح بعدم الأمان</string>
-    <string name="security_settings">اعدادات الامان</string>
     <string name="show_stop_sum">إذا كنت لا تريد استخدام \"اللوحة السريعة\" كمفتاح التبديل</string>
     <string name="show_stop">إظهار زر الإيقاف</string>
     <string name="ws_browser_forwarding_sum">إعادة توجيه WebSockets المقابلة من خلال المتصفح.</string>
     <string name="ws_browser_forwarding">إعادة توجيه المتصفح</string>
-    <string name="cag_ws">إعدادات WebSocket</string>
     <string name="require_http">تفعيل HTTP الوارد</string>
     <string name="cag_route">إعدادات الطريق</string>
     <string name="route_asset_updated">محدث</string>
@@ -118,14 +109,11 @@
     <string name="encryption">التشفير</string>
     <string name="early_data_header_name">اسم رأس البيانات المبكر</string>
     <string name="certificates">الشهادات</string>
-    <string name="alpn">تفاوض بروتوكول طبقة التطبيق</string>
-    <string name="sni">بيان اسم الخادم</string>
     <string name="tls">استخدم TLS</string>
     <string name="add_profile_methods_scan_qr_code">مسح رمز كيو آر</string>
     <string name="share_qr_nfc">رمز كيو آر</string>
     <string name="delete_confirm_prompt">هل أنت متأكد أنك تريد إزالة هذا ملف التعريف؟</string>
     <string name="delete">إزالة</string>
-    <string name="profile_config">تكوين ملف التعريف</string>
     <string name="file_manager_missing">جهازك يفتقر إلى محدد ملفات أندرويد القياسي، يرجى تثبيت واحد، مثل Material Files.</string>
     <string name="action_import_err">فشل الاستيراد.</string>
     <string name="action_import_msg">تم الاستيراد بنجاح!</string>
@@ -143,7 +131,6 @@
     <string name="circular_reference_sum">لا يمكن أن يحتوي المسار على نفسه.</string>
     <string name="circular_reference">مرجع دائري</string>
     <string name="config_settings">إعدادات التكوين</string>
-    <string name="chain_settings">إعدادات السلسلة</string>
     <string name="balancer_strategy">إستراتيجية</string>
     <string name="balancer_type">اكتب</string>
     <string name="balancer_settings">إعدادات الموازن</string>
@@ -186,8 +173,6 @@
     <string name="domain_strategy">استراتيجية حل المجال</string>
     <string name="route_opt_block_ads">إعلانات كتلة</string>
     <string name="route_not_asset">ليس ملف أصل: استثناء .db، لكن %s</string>
-    <string name="hysteria_download_mbps">أقصى سرعة تنزيل (بالميجابت في الثانية)</string>
-    <string name="hysteria_upload_mbps">أقصى سرعة تحميل (بالميجابت في الثانية)</string>
     <string name="hysteria_auth_payload">حمولة المصادقة</string>
     <string name="hysteria_auth_type">نوع المصادقة</string>
     <string name="hysteria_obfs">كلمة مرور التشويش</string>
@@ -250,12 +235,8 @@
     <string name="no">لا</string>
     <string name="yes">نعم</string>
     <string name="unsaved_changes_prompt">لم يتم حفظ التغييرات. هل تريد حفظ؟</string>
-    <string name="ss_cat">إعدادات Shadowsocks</string>
-    <string name="proxy_cat">اعدادات الخادم</string>
     <string name="plugin_auto_connect_unlock_only">قد لا يعمل هذا المكون الإضافي مع الاتصال التلقائي</string>
     <string name="plugin_unknown">مكون إضافي غير معروف %s</string>
-    <string name="plugin_disabled">غير مفعّل</string>
-    <string name="plugin_configure">تهيئة…</string>
     <string name="plugin">الإضافات</string>
     <string name="ignore_battery_optimizations_sum">قم بإزالة بعض القيود</string>
     <string name="ignore_battery_optimizations">تجاهل تحسينات البطارية</string>
@@ -321,6 +302,5 @@
     <string name="translate_platform">منصة الترجمة</string>
     <string name="ssh_private_key_passphrase">عبارة مرور المفتاح الخاص</string>
     <string name="ssh_private_key">مفتاح خاص</string>
-    <string name="ssh_public_key">المفتاح العمومي</string>
     <string name="ssh_auth_type_none">لا شيء</string>
 </resources>
