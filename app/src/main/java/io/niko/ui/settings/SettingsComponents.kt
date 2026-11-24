@@ -30,6 +30,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -44,6 +45,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -174,7 +176,7 @@ internal fun FieldsRow(content: @Composable RowScope.() -> Unit) =
 /**
  * m-field: [label] over the control (surface-2, the stroke-bold border in ink while it has the focus), [mono] in
  * Geist Mono (m-field__control--mono), [button] at its end (m-field__trail, a muted small icon button); [multiLine]
- * a list, a line for each, three lines high at least.
+ * a list, a line for each, three lines high at least; [onGo] the keyboard's Go does it (a check's field).
  */
 @Composable
 internal fun Field(
@@ -186,6 +188,7 @@ internal fun Field(
     mono: Boolean = false,
     button: FieldButton? = null,
     multiLine: Boolean = false,
+    onGo: (() -> Unit)? = null,
 ) {
     val c = Niko.colors
     val source = remember { MutableInteractionSource() }
@@ -211,7 +214,9 @@ internal fun Field(
                         FieldInput.PORT -> KeyboardType.Number
                         FieldInput.SECRET -> KeyboardType.Password
                     },
+                    imeAction = if (onGo != null) ImeAction.Go else ImeAction.Default,
                 ),
+                keyboardActions = if (onGo != null) KeyboardActions(onGo = { onGo() }) else KeyboardActions.Default,
                 singleLine = !multiLine,
                 minLines = if (multiLine) 3 else 1,
                 visualTransformation = if (input == FieldInput.SECRET) PasswordVisualTransformation('•') else VisualTransformation.None,

@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="apps_message">%d programmer</string>
     <string name="select_apps">Velg programmer</string>
     <string name="apps">Programmer</string>
     <string name="ooc_warning">Advarsel</string>
@@ -20,7 +19,6 @@
     <string name="no">Nei</string>
     <string name="yes">Ja</string>
     <string name="ignore_battery_optimizations_sum">Fjern noen begrensninger</string>
-    <string name="subscriptions">Abonnementer</string>
     <string name="not_connected">Ikke tilkoblet</string>
     <plurals name="removed">
         <item quantity="one">Fjernet</item>
@@ -36,7 +34,6 @@
     <string name="search_apps">Søk …</string>
     <string name="off">Av</string>
     <string name="on">På</string>
-    <string name="route_reset">Tilbakestill</string>
     <string name="route_profile">Velg profil …</string>
     <string name="route_proxy">Mellomtjener</string>
     <string name="edit_config">Rediger oppsett</string>
@@ -130,7 +127,6 @@
     <string name="disable">Deaktiver</string>
     <string name="enable">Muliggjøre</string>
     <string name="lines">%d linjer</string>
-    <string name="route_warn">Sørg for at du har lest dokumentasjonen før du legger til egendefinerte regler, hvis ikke kan du ikke koble deg til Internett.</string>
     <string name="need_reload">Last inn proxy -tjenesten på nytt for å bruke endringer</string>
     <string name="unsaved_changes_prompt">Endringene er ikke lagret. Vil du spare\?</string>
     <string name="plugin_auto_connect_unlock_only">Denne pluginen fungerer kanskje ikke med Auto Connect</string>
@@ -187,19 +183,12 @@
     <string name="route_not_asset">Ikke en ressursfil: unntatt .db, men %s</string>
     <string name="route_asset_updated">Oppdatert</string>
     <string name="route_asset_no_update">Ingen oppdatering</string>
-    <string name="route_asset_status">Lokal versjon: %s</string>
     <string name="route_rules_official">Offisielt</string>
-    <string name="route_assets">Eiendeler</string>
-    <string name="route_manage_assets">Administrer ruteelementer</string>
     <string name="route_bypass_ip">IP -regel for %s</string>
     <string name="route_bypass_domain">Domeneregel for %s</string>
     <string name="empty_route_notice">Sett noen regler før du lagrer</string>
     <string name="empty_route">Tom rute</string>
-    <string name="route_block">Blokkere</string>
-    <string name="route_bypass">Omgå</string>
-    <string name="route_name">Rutenavn</string>
     <string name="delete_route_prompt">Er du sikker på at du vil fjerne denne ruten\?</string>
-    <string name="route_add">Lag rute</string>
     <string name="menu_route">Rute</string>
     <string name="config_type">Konfig Type</string>
     <string name="early_data_header_name">Tidlig navn på dataoverskrift</string>
@@ -234,7 +223,6 @@
     <string name="ws_browser_forwarding_sum">Videresend tilsvarende WebSockets gjennom nettleseren.</string>
     <string name="ws_browser_forwarding">Videresending av nettleser</string>
     <string name="require_http">Aktiver HTTP inbound</string>
-    <string name="cag_route">Ruteinnstillinger</string>
     <string name="port_transproxy">Transproxy- port</string>
     <string name="group_duplicate">Duplisere:
 \n%s</string>
@@ -284,7 +272,6 @@
     <string name="ssh_private_key">Privat nøkkel</string>
     <string name="ssh_auth_type_none">Ingen</string>
     <string name="no_statistics">Ingen statistikk enda</string>
-    <string name="route_for">Regel for %s</string>
     <string name="app_no_launcher">Programmet har ikke noe grensesnitt.</string>
     <string name="copy_failed">Kunne ikke kopiere.</string>
     <string name="copy_success">Kopiert.</string>

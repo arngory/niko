@@ -52,7 +52,21 @@
 ## 4. Что ещё в B2
 
 - Отдельная настройка «Отпечаток» для REALITY не нужна: в REALITY-ссылках `fp=chrome`, его и заменяет эталон.
-  Отпечатки `firefox`, `safari` и `ios` остаются из uTLS как есть. По ним новых данных нет.
+  Остальные отпечатки — тоже со снимков, а не из профилей uTLS (1.65, arngory/niko#95, ядро 4b5baa4): CI
+  `browser-hellos.yml` снимает настоящие клиенты, а ядро строит из снимка spec (`common/tls/browserhello`). Снимки
+  2026-11-21, X25519MLKEM768 в группах и `key_share`:
+
+  | Отпечаток | Клиент | X25519MLKEM768 |
+  |---|---|---|
+  | `firefox` | Firefox 160, Linux | есть, первым; три ключа (гибрид, X25519, P-256), X25519 гибрида тот же, что отдельный |
+  | `safari` | Safari 27.2, macOS 26.7 | есть |
+  | `ios` | Safari iOS 26.5 | есть |
+  | `edge`, `360`, `qq` | Edge 158, 360 Secure 17.1, QQ Browser 22.4 (Chromium) | есть |
+  | `android` | OkHttp 4.12 на Android 15 (Conscrypt) | нет: X25519, P-256, P-384 |
+
+  `random` выбирает из chrome, firefox, edge, safari и ios, у всех пост-квант есть; `randomized` собирается случайно и
+  его может не иметь. Узлы raycontrol с v0.36.1 открывают туннель naive, DoH и hy2-masq только с X25519MLKEM768, но
+  эти пути идут через cronet и Go, не через uTLS.
 - `tls://`-пиры Yggdrasil в ядре уже берут `chrome`, эталон применится и к ним.
 - naive через cronet: собрать ядро с `with_naive_outbound` на всех ABI, сравнить размер APK, прогнать interop
   `naive` против `rayd` (job уже есть) и заменить плагин, если размер приемлем.

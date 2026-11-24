@@ -2,8 +2,6 @@ package io.niko.database
 
 import android.os.Parcelable
 import androidx.room.*
-import io.niko.R
-import io.niko.ktx.app
 import kotlinx.parcelize.Parcelize
 
 @Entity(tableName = "rules")
@@ -33,37 +31,6 @@ data class RuleEntity(
 
     fun displayName(): String {
         return name.takeIf { it.isNotBlank() } ?: "Rule $id"
-    }
-
-    fun mkSummary(): String {
-        var summary = ""
-        if (config.isNotBlank()) summary += "[config]\n"
-        if (domains.isNotBlank()) summary += "$domains\n"
-        if (ip.isNotBlank()) summary += "$ip\n"
-        if (source.isNotBlank()) summary += "src ip: $source\n"
-        if (sourcePort.isNotBlank()) summary += "src port: $sourcePort\n"
-        if (port.isNotBlank()) summary += "dst port: $port\n"
-        if (network.isNotBlank()) summary += "network: $network\n"
-        if (protocol.isNotBlank()) summary += "protocol: $protocol\n"
-        if (packages.isNotEmpty()) summary += app.getString(
-            R.string.apps_message, packages.size
-        ) + "\n"
-        val lines = summary.trim().split("\n")
-        return if (lines.size > 3) {
-            lines.subList(0, 3).joinToString("\n", postfix = "\n...")
-        } else {
-            summary.trim()
-        }
-    }
-
-    fun displayOutbound(): String {
-        return when (outbound) {
-            0L -> app.getString(R.string.route_proxy)
-            -1L -> app.getString(R.string.route_bypass)
-            -2L -> app.getString(R.string.route_block)
-            else -> ProfileManager.getProfile(outbound)?.displayName()
-                ?: app.getString(R.string.error_title)
-        }
     }
 
     @androidx.room.Dao

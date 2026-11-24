@@ -40,7 +40,6 @@
     <string name="ws_browser_forwarding_sum">Перадайце адпаведныя WebSockets праз браўзэр.</string>
     <string name="ws_browser_forwarding">Пераадрасацыя браўзэра</string>
     <string name="require_http">Уключыць увод HTTP</string>
-    <string name="cag_route">Налады маршруту</string>
     <string name="port_transproxy">Transproxy порт</string>
     <string name="port_http">Проксі -порт HTTP</string>
     <string name="group_duplicate">Дублікат:

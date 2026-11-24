@@ -51,7 +51,6 @@
     <string name="service_mode_vpn" translatable="false">VPN</string>
     <string name="port_http">Проксі-порт HTTP</string>
     <string name="port_transproxy">Транспроксі-порт</string>
-    <string name="cag_route">Налаштування маршруту</string>
     <string name="require_http">Увімкнути вхідний протокол HTTP</string>
     <string name="ws_max_early_data" translatable="false">Max early data</string>
     <string name="ws_browser_forwarding">Переадресація браузера</string>
@@ -99,23 +98,15 @@
     <string name="edit_config">Редагувати конфігурацію</string>
     <!-- feature category -->
     <string name="menu_route">Маршрут</string>
-    <string name="route_add">Створити маршрут</string>
     <string name="delete_route_prompt">Ви впевнені, що хочете видалити цей маршрут?</string>
-    <string name="route_name">Назва маршруту</string>
     <string name="route_proxy">Проксі</string>
-    <string name="route_bypass">В обхід</string>
-    <string name="route_block">Блокувати</string>
     <string name="route_profile">Вибрати профіль…</string>
     <string name="empty_route">Порожній маршрут</string>
     <string name="empty_route_notice">Встановіть правила перед збереженням</string>
     <string name="route_bypass_domain">Правило домену для %s</string>
     <string name="route_play_store">Правило Play Store для %s</string>
     <string name="route_bypass_ip">Правило IP для %s</string>
-    <string name="route_reset">Скинути</string>
-    <string name="route_manage_assets">Керування ресурсами маршрутів</string>
-    <string name="route_assets">Ресурси</string>
     <string name="route_rules_official">Офіційний</string>
-    <string name="route_asset_status">Локальна версія: %s</string>
     <string name="route_asset_no_update">Немає оновлень</string>
     <string name="route_asset_updated">Оновлено</string>
     <string name="route_not_asset">Це не файл ресурсів: очікувався .db, але отримано %s</string>
@@ -224,7 +215,6 @@
     <string name="vpn_connected">Підключено, торкніться, щоб перевірити з\'єднання</string>
     <string name="not_connected">Не підключено</string>
     <!-- subscriptions -->
-    <string name="subscriptions">Підписки</string>
     <string name="cleartext_http_warning">HTTP-трафік у відкритому вигляді є незахищеним</string>
     <string name="error_title">Помилка</string>
     <string name="no_proxies_found">Проксі за посиланням не знайдено</string>
@@ -244,7 +234,6 @@
     <string name="apply">Застосувати</string>
     <string name="need_reload">Перезавантажте службу проксі, щоб застосувати зміни</string>
     <string name="license">Ліцензія</string>
-    <string name="route_warn">Переконайтеся, що ви прочитали документацію перед додаванням власних правил, інакше ви можете не підключитися до Інтернету.</string>
     <string name="lines">%d рядків</string>
     <string name="enable">Увімкнути</string>
     <string name="disable">Вимкнути</string>
@@ -304,7 +293,6 @@
     <string name="clear_profiles_message">Ви впевнені, що хочете очистити цю групу?</string>
     <string name="apps">Програми</string>
     <string name="select_apps">Вибрати програми</string>
-    <string name="apps_message">%d програм</string>
     <string name="hysteria_obfs">Пароль обфускації</string>
     <string name="hysteria_auth_type">Тип автентифікації</string>
     <string name="hysteria_auth_payload">Дані автентифікації</string>
@@ -334,7 +322,6 @@
     <string name="copy_success">Скопійовано успішно!</string>
     <string name="copy_failed">Не вдалося скопіювати.</string>
     <string name="app_no_launcher">Програма не має інтерфейсу.</string>
-    <string name="route_for">Правило для %s</string>
     <string name="route_need_vpn">Правило маршрутизації %s залежить від VPN, щоб набути чинності, тому воно ігнорується.</string>
     <string name="no_statistics">Статистики ще немає</string>
     <string name="app_statistics_disabled">Статистика трафіку програм вимкнена</string>

@@ -30,7 +30,6 @@
     <string name="ws_browser_forwarding_sum">Teruskan WebSocket yang sesuai melalui browser.</string>
     <string name="ws_browser_forwarding">Penerusan Peramban</string>
     <string name="require_http">Aktifkan HTTP inbound</string>
-    <string name="cag_route">Pengaturan Rute</string>
     <string name="port_transproxy">Port Transproxy</string>
     <string name="group_duplicate">Duplikasi:
 \n%s</string>
@@ -93,22 +92,15 @@
     <string name="service_vpn">Layanan VPN</string>
     <string name="scanning">Memindai…</string>
     <string name="search_apps">Cari…</string>
-    <string name="route_name">Nama rute</string>
-    <string name="route_manage_assets">Atur rute aset</string>
-    <string name="route_assets">Aset</string>
     <string name="enable_mux">Aktifkan Multiplexer</string>
     <string name="off">Mati</string>
     <string name="on">Nyala</string>
     <string name="route_opt_block_ads">Blokir ADs</string>
     <string name="route_asset_updated">Diperbarui</string>
     <string name="route_asset_no_update">Tidak ada pembaruan</string>
-    <string name="route_asset_status">Versi lokal: %s</string>
     <string name="route_rules_official">Resmi</string>
-    <string name="route_reset">Setel ulang</string>
     <string name="empty_route">Rute Kosong</string>
     <string name="route_profile">Pilih Profil…</string>
-    <string name="route_block">Blokir</string>
-    <string name="route_bypass">Bypass</string>
     <string name="route_proxy">Proksi</string>
     <string name="edit_config">Sunting Konfigurasi</string>
     <string name="certificates">Sertifikat</string>
@@ -142,7 +134,6 @@
     <string name="route_bypass_domain">Aturan domain untuk %s</string>
     <string name="empty_route_notice">Tetapkan beberapa aturan sebelum menyimpan</string>
     <string name="delete_route_prompt">Apakah anda yakin ingin menghapus rute ini\?</string>
-    <string name="route_add">Buat Rute</string>
     <string name="menu_route">Rute</string>
     <string name="config_type">Jenis Konfigurasi</string>
     <string name="extra_headers">Header Ekstra</string>

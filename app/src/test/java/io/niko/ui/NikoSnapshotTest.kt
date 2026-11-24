@@ -104,20 +104,6 @@ class NikoSnapshotTest(private val mode: String) {
     })
 
     @Test
-    fun routeCard() = paparazzi.snapshot(card(R.layout.layout_route_item).apply {
-        text(R.id.profile_name, "Russian sites")
-        text(R.id.profile_type, "geosite:category-ru\ngeoip:ru")
-        text(R.id.route_outbound, "Bypass")
-        findViewById<SwitchCompat>(R.id.enable).isChecked = true
-    })
-
-    @Test
-    fun assetCard() = paparazzi.snapshot(card(R.layout.layout_asset_item).apply {
-        text(R.id.asset_name, "geosite.db")
-        text(R.id.asset_status, "Local version: 20261118")
-    })
-
-    @Test
     fun appRow() = paparazzi.snapshot(card(R.layout.layout_apps_item).apply {
         // an app's icon: a plain tile (the framework's default icon is adaptive, which layoutlib does not draw)
         findViewById<ImageView>(R.id.itemicon).setImageDrawable(GradientDrawable().apply {

@@ -53,7 +53,6 @@
     <string name="service_mode_vpn" translatable="false">VPN</string>
     <string name="port_http">HTTP Proxy Port</string>
     <string name="port_transproxy">Transproxy Port</string>
-    <string name="cag_route">Route Settings</string>
     <string name="require_http">Enable HTTP inbound</string>
     <string name="ws_max_early_data" translatable="false">Max early data</string>
     <string name="ws_browser_forwarding">Browser Forwarding</string>
@@ -105,25 +104,17 @@
     <string name="edit_config">Edit Config</string>
     <!-- feature category -->
     <string name="menu_route">Route</string>
-    <string name="route_add">Create Route</string>
     <string name="delete_route_prompt">Are you sure you want to remove this route?</string>
-    <string name="route_name">Route Name</string>
     <string name="route_proxy">Proxy</string>
-    <string name="route_bypass">Bypass</string>
     <string name="route_dpi_bypass">DPI bypass</string>
     <string name="route_dpi_bypass_summary">How: Settings › Experiments › DPI bypass for direct connections</string>
-    <string name="route_block">Block</string>
     <string name="route_profile">Select Profile…</string>
     <string name="empty_route">Empty Route</string>
     <string name="empty_route_notice">Set some rules before saving</string>
     <string name="route_bypass_domain">Domain rule for %s</string>
     <string name="route_play_store">Play store rule for %s</string>
     <string name="route_bypass_ip">IP rule for %s</string>
-    <string name="route_reset">Reset</string>
-    <string name="route_manage_assets">Manage Route Assets</string>
-    <string name="route_assets">Assets</string>
     <string name="route_rules_official">Official</string>
-    <string name="route_asset_status">Local version: %s</string>
     <string name="route_asset_no_update">No update</string>
     <string name="route_asset_updated">Updated</string>
     <string name="route_not_asset">Not an asset file: excepted .db, but %s</string>
@@ -237,7 +228,6 @@
     <string name="vpn_connected">Connected, tap to check connection</string>
     <string name="not_connected">Not connected</string>
     <!-- subscriptions -->
-    <string name="subscriptions">Subscriptions</string>
     <string name="cleartext_http_warning">Cleartext HTTP traffic is insecure</string>
     <string name="error_title">Error</string>
     <string name="no_proxies_found">No proxies found in the link</string>
@@ -269,8 +259,6 @@
     <string name="apply">Apply</string>
     <string name="need_reload">Reload proxy service to apply changes</string>
     <string name="license">License</string>
-    <string name="route_warn">Make sure you have read the documentation before adding custom rules,
-        otherwise you may not be able to connect to the Internet.</string>
     <string name="lines">%d Lines</string>
     <string name="enable">Enable</string>
     <string name="disable">Disable</string>
@@ -337,7 +325,6 @@
     <string name="clear_profiles_message">Are you sure you want to clear this group?</string>
     <string name="apps">Applications</string>
     <string name="select_apps">Select Applications</string>
-    <string name="apps_message">%d Applications</string>
     <string name="hysteria_obfs">Obfuscation Password</string>
     <string name="hysteria_auth_type">Authentication Type</string>
     <string name="hysteria_auth_payload">Authentication Payload</string>
@@ -375,7 +362,6 @@
     <string name="copy_success">Copy success!</string>
     <string name="copy_failed">Copy failed.</string>
     <string name="app_no_launcher">The app has no interface.</string>
-    <string name="route_for">Rule for %s</string>
 
     <string name="route_need_vpn">Routing rule %s relies on the VPN to be in effect, so it is
         ignored.</string>
@@ -633,8 +619,6 @@
     <string name="raycontrol_card_dns_net">the network\'s resolver</string>
     <string name="raycontrol_card_dns_none">no resolver answered</string>
     <string name="raycontrol_card_clock">clock off by %d s</string>
-    <string name="route_preset_ru">Preset: Russia</string>
-    <string name="route_test">Which rule matches</string>
     <string name="route_test_target_hint">Host or address, and a port: example.com:443</string>
     <string name="route_test_app_hint">From an app (optional)</string>
     <string name="route_test_udp">UDP</string>
@@ -643,13 +627,9 @@
     <string name="route_test_bad_target">Enter a host or an address, and a port if not 443</string>
     <string name="route_test_not_running">Start Niko first: the rules are checked in the running core</string>
     <string name="route_test_no_rule">No rule matches: the final outbound</string>
-    <string name="route_test_steps">Matched on the way:</string>
     <string name="route_test_failed">No connection</string>
     <string name="route_test_dns">The app\'s DNS query got</string>
     <string name="route_test_seen">The rules saw</string>
-    <string name="route_test_out_proxy">the proxy</string>
-    <string name="route_test_out_direct">direct</string>
-    <string name="route_test_out_block">blocked</string>
     <string name="exit_address">Exit address</string>
     <string name="exit_address_message">Ask a lookup service, through the running profile, which address and country your connection leaves from. The service learns the node\'s address and when you asked. Nothing is sent until you press Ask.</string>
     <string name="exit_address_ask">Ask</string>
