@@ -2,6 +2,4 @@
 <resources>
     <string name="logcat">Esporta informazioni di debug</string>
     <string name="app_version">Versione</string>
-    <string name="oss_licenses">Licenze open source</string>
-    <string name="app_desc">La toolchain proxy universale per Android, scritta in Kotlin.</string>
 </resources>

@@ -1,90 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name" translatable="false">Niko</string>
-    <string name="app_name_long" translatable="false">Niko for Android</string>
-    <string name="app_desc">Універсальний набір інструментів проксі для Android, написаний на Kotlin.</string>
-    <string name="oss_licenses">Ліцензії з відкритим кодом</string>
     <string name="app_version">Версія</string>
     <string name="logcat">Експорт інформації про налагодження</string>
-    <string name="menu_group">Група</string>
-    <string name="theme">Тема</string>
-    <string name="document">Документація</string>
     <string name="group_default">Без групи</string>
     <string name="quick_toggle">Перемикач</string>
     <string name="quick_enable">Увімкнути</string>
     <string name="quick_disable">Вимкнути</string>
     <string name="tile_title">Перемикач</string>
-    <string name="menu_traffic">Трафік</string>
     <string name="menu_dashboard">Панель керування sing-box</string>
     <!-- externel -->
     <string name="action_copy">Копіювати</string>
-    <string name="action_open">Відкрити</string>
     <!-- group -->
     <string name="group_update">Оновити</string>
-    <string name="group_subscription_link">Посилання на підписку</string>
-    <string name="group_name_required">Потрібна назва групи</string>
-    <string name="group_create_subscription">Створити підписку</string>
     <string name="update_all_subscription">Оновити всі підписки</string>
-    <string name="group_edit">Редагувати групу</string>
-    <string name="group_edit_subscription">Редагувати підписку</string>
     <string name="group_status_empty_subscription">Ще не оновлено</string>
     <string name="group_no_difference">%s: Немає різниці</string>
     <string name="group_updated">%s: Оновлено %d проксі</string>
-    <string name="group_show_diff">Різниця</string>
     <string name="group_diff">Різниця (%s)</string>
-    <string name="group_delete_confirm_prompt">Ви впевнені, що хочете видалити цю групу?</string>
     <string name="group_added">Додано: \n%s</string>
     <string name="group_changed">Оновлено: \n%s</string>
     <string name="group_deleted">Видалено: \n%s</string>
     <string name="group_duplicate">Дублікат: \n%s</string>
     <!-- misc -->
     <string name="service_mode_vpn" translatable="false">VPN</string>
-    <string name="port_http">Проксі-порт HTTP</string>
-    <string name="port_transproxy">Транспроксі-порт</string>
-    <string name="require_http">Увімкнути вхідний протокол HTTP</string>
     <string name="ws_max_early_data" translatable="false">Max early data</string>
-    <string name="ws_browser_forwarding">Переадресація браузера</string>
-    <string name="ws_browser_forwarding_sum">Пересилайте відповідні WebSockets через браузер.</string>
-    <string name="show_stop">Показати кнопку зупинки</string>
-    <string name="show_stop_sum">Якщо ви не хочете використовувати Quick Tile як перемикач</string>
     <string name="allow_insecure">Дозволити незахищене</string>
     <string name="allow_insecure_sum">Вимкнути перевірку сертифікатів. Якщо ввімкнено, ця конфігурація є такою ж безпечною, як і відкритий текст</string>
     <string name="traffic" translatable="false">%1$s↑ %2$s↓</string>
     <string name="speed_detail">Проксі: %1$s↑ %2$s↓\nПрямий: %3$s↑ %4$s↓</string>
     <string name="speed">%s/с</string>
-    <string name="connection_test_fail">Інтернет недоступний</string>
-    <string name="connection_test_error_status_code">Код помилки: #%d</string>
-    <string name="dns_hosts">Переписування домену</string>
-    <string name="port_local_dns">Локальний порт DNS</string>
-    <string name="require_transproxy">Увімкнути вхідний сигнал Transproxy</string>
-    <string name="transproxy_mode">Режим Transproxy</string>
     <!-- proxy category -->
-    <string name="key_opt">Ключ (необов’язково)</string>
     <string name="enc_method">Метод шифрування</string>
     <string name="protocol">Протокол</string>
-    <string name="protocol_param">Параметр протоколу</string>
-    <string name="obfs">Obfs</string>
-    <string name="obfs_param">Параметр Obfs</string>
     <string name="security">Шифрування транспортного рівня</string>
     <string name="network">Мережа</string>
-    <string name="header_type">Тип заголовка</string>
     <string name="ws_host">Хост WebSocket</string>
     <string name="ws_path">Шлях WebSocket</string>
     <string name="http_host">Хост HTTP</string>
     <string name="http_path">Шлях HTTP</string>
     <string name="grpc_service_name">ім\'я служби gRPC</string>
-    <string name="tls">Використовувати TLS</string>
     <string name="certificates">Сертифікати</string>
     <string name="early_data_header_name">Назва раннього заголовка даних</string>
     <string name="encryption">Шифрування</string>
     <string name="extra_headers">Додаткові заголовки</string>
-    <string name="config_type">Тип конфігурації</string>
-    <string name="edit_config">Редагувати конфігурацію</string>
     <!-- feature category -->
-    <string name="menu_route">Маршрут</string>
     <string name="delete_route_prompt">Ви впевнені, що хочете видалити цей маршрут?</string>
-    <string name="route_proxy">Проксі</string>
-    <string name="route_profile">Вибрати профіль…</string>
     <string name="empty_route">Порожній маршрут</string>
     <string name="empty_route_notice">Встановіть правила перед збереженням</string>
     <string name="route_bypass_domain">Правило домену для %s</string>
@@ -95,17 +56,10 @@
     <string name="route_asset_updated">Оновлено</string>
     <string name="route_not_asset">Це не файл ресурсів: очікувався .db, але отримано %s</string>
     <string name="route_opt_block_ads">Блокувати рекламу</string>
-    <string name="route_opt_block_analysis">Блокувати аналітику</string>
     <string name="route_opt_block_quic">Блокувати QUIC</string>
-    <string name="domain_strategy">Стратегія визначення доменів</string>
     <string name="enable_mux">Увімкнути мультиплексор</string>
     <string name="mux_sum">Mux призначений для зменшення затримки рукостискання TCP, а не для збільшення пропускної здатності з\'єднання. Використання Mux для перегляду відео, завантаження або тестування швидкості зазвичай є контрпродуктивним. Якщо сервер його не підтримує, ви не зможете отримати доступ до Інтернету.</string>
     <string name="mux_concurrency">Паралельні з\'єднання Mux</string>
-    <string name="tcp_keep_alive_interval">Інтервал доставки пакетів TCP keep-alive</string>
-    <string name="off">Вимк</string>
-    <string name="scanning">Сканування…</string>
-    <string name="direct_boot_aware">Дозволити перемикання на екрані блокування</string>
-    <string name="direct_boot_aware_summary">Інформація про ваш вибраний профіль буде менш захищеною</string>
     <!-- notification category -->
     <string name="service_vpn">Служба VPN</string>
     <string name="service_proxy">Служба проксі</string>
@@ -127,7 +81,6 @@
     <string name="action_socks" translatable="false">SOCKS</string>
     <string name="action_http" translatable="false">HTTP</string>
     <string name="action_shadowsocks" translatable="false">Shadowsocks</string>
-    <string name="action_shadowsocksr" translatable="false">ShadowsocksR</string>
     <string name="action_vmess" translatable="false">VMess</string>
     <string name="action_trojan" translatable="false">Trojan</string>
     <string name="action_trojan_go" translatable="false">Trojan Go</string>
@@ -140,16 +93,9 @@
     <string name="action_tuic" translatable="false">TUIC</string>
     <string name="proxy_chain">Ланцюжок проксі</string>
     <string name="custom_config">Власна конфігурація</string>
-    <string name="balancer">Балансувальник</string>
-    <string name="balancer_settings">Налаштування балансувальника</string>
-    <string name="balancer_type">Тип</string>
-    <string name="balancer_strategy">Стратегія</string>
     <string name="config_settings">Налаштування конфігурації</string>
     <string name="circular_reference">Циклічне посилання</string>
     <string name="circular_reference_sum">Маршрут не може містити самого себе.</string>
-    <string name="action_create_group">Порожня група</string>
-    <string name="action_from_link">З підписки</string>
-    <string name="action_scan_china_apps">Сканувати китайські програми</string>
     <string name="action_export_file">Експортувати у файл</string>
     <string name="action_export_clipboard">Експортувати в буфер обміну</string>
     <string name="action_import_file">Імпортувати з файлу</string>
@@ -177,69 +123,40 @@
         <item quantity="other">Додано %d проксі</item>
     </plurals>
     <string name="undo">Скасувати</string>
-    <string name="insecure">Незахищений</string>
-    <string name="deprecated">Застарілий</string>
     <!-- tasker -->
     <!-- status -->
     <!-- subscriptions -->
-    <string name="cleartext_http_warning">HTTP-трафік у відкритому вигляді є незахищеним</string>
     <string name="error_title">Помилка</string>
     <string name="no_proxies_found">Проксі за посиланням не знайдено</string>
     <string name="no_proxies_found_in_subscription">У підписці не знайдено проксі</string>
     <string name="no_proxies_found_in_file">У файлі не знайдено проксі</string>
     <string name="no_proxies_found_in_clipboard">У буфері обміну не знайдено проксі</string>
-    <string name="deduplication">Дедуплікація</string>
     <!-- plugin -->
     <string name="plugin">Плагін</string>
     <string name="plugin_unknown">Невідомий плагін %s</string>
-    <string name="plugin_auto_connect_unlock_only">Цей плагін може не працювати з автоматичним підключенням</string>
     <string name="unsaved_changes_prompt">Зміни не збережено. Ви хочете зберегти?</string>
     <string name="yes">Так</string>
     <string name="no">Ні</string>
     <string name="apply">Застосувати</string>
     <string name="need_reload">Перезавантажте службу проксі, щоб застосувати зміни</string>
-    <string name="license">Ліцензія</string>
     <string name="lines">%d рядків</string>
     <string name="enable">Увімкнути</string>
-    <string name="disable">Вимкнути</string>
-    <string name="enable_log">Увімкнути журнал</string>
-    <string name="enable_log_sum">Для налагодження</string>
-    <string name="list">Список</string>
-    <string name="random">Випадковий</string>
-    <string name="leastPing" translatable="false">Ping</string>
-    <string name="api_port">Порт API</string>
-    <string name="probe_interval">Інтервал спостереження балансувальника</string>
-    <string name="v2rayn" translatable="false">V2RayN</string>
     <string name="connection_test_clear_results">Очистити результати тесту</string>
     <string name="connection_test_tcp_ping" translatable="false">TCPing</string>
-    <string name="connection_test_tcp_ping_unavailable">TCPing недоступний</string>
-    <string name="connection_test_icmp_ping" translatable="false">ICMPing</string>
-    <string name="connection_test_icmp_ping_unavailable">ICMPing недоступний</string>
     <string name="connection_test_url_test" translatable="false">URL Test</string>
     <string name="connection_test_domain_not_found">Домен не знайдено</string>
     <string name="connection_test_refused">З\'єднання відхилено</string>
     <string name="connection_test_unreachable">Недоступний</string>
     <string name="connection_test_timeout">Час очікування минув</string>
-    <string name="protocol_settings">Налаштування протоколу</string>
-    <string name="trojan_provider">Постачальник Trojan</string>
-    <string name="group_basic">Основні</string>
-    <string name="subscription">Підписка</string>
-    <string name="subscription_type">Тип підписки</string>
-    <string name="raw">Raw</string>
     <string name="confirm">Підтвердити</string>
     <string name="profile_requiring_plugin">Профіль %s вимагає встановлення плагіна %s, але його не знайдено.</string>
-    <string name="action_learn_more">ДІЗНАТИСЯ БІЛЬШЕ</string>
     <string name="install_from_play_store">Встановити з Play Store</string>
     <string name="install_from_fdroid">Встановити з F-Droid</string>
-    <string name="ooc_subscription_token" translatable="false">OOCv1 API Token</string>
-    <string name="ooc_subscription_token_invalid">Неправильний токен OOCv1</string>
     <string name="update_subscription_warning">Проксі не підключено, ви впевнені, що хочете продовжити оновлення?</string>
     <string name="ooc_warning">Попередження</string>
-    <string name="ooc_missing_protocol">Підписка вимагає підтримки протоколу %s, але його не знайдено. Непідтримувані профілі будуть проігноровані.</string>
     <string name="service_subscription">Служба оновлення підписок</string>
     <string name="subscription_update">Оновлення підписки</string>
     <string name="subscription_update_message">Оновлення %s …</string>
-    <string name="group_filter">Фільтр</string>
     <string name="subscription_used">Використано %s</string>
     <string name="subscription_traffic">Використано %s / Залишилося %s</string>
     <string name="subscription_expire">Закінчується: %s</string>
@@ -251,50 +168,17 @@
     <string name="hysteria_obfs">Пароль обфускації</string>
     <string name="hysteria_auth_type">Тип автентифікації</string>
     <string name="hysteria_auth_payload">Дані автентифікації</string>
-    <string name="experimental_settings">Експериментальні</string>
     <string name="hysteria_stream_receive_window">Вікно прийому потоку QUIC</string>
     <string name="hysteria_connection_receive_window">Вікно прийому з\'єднання QUIC</string>
     <string name="hysteria_disable_mtu_discovery">Вимкнути виявлення Path MTU</string>
-    <string name="group_order_origin">За замовчуванням</string>
-    <string name="group_order_by_name">За назвою</string>
-    <string name="group_order_by_delay">За затримкою</string>
-    <string name="plugin_exists_but_on_shit_system">Профіль %s вимагає плагін %s, але ваш виробник обладнання (зазвичай гіганти-капіталісти зі спостереження та виробники шкідливого ПЗ) змінив вашу систему Android, зробивши плагін непридатним для використання.</string>
-    <string name="shadowsocks_plugin_simple_obfs">Simple Obfs (плагін для Shadowsocks)</string>
-    <string name="shadowsocks_plugin_v2ray">V2Ray (плагін для Shadowsocks)</string>
-    <string name="traffic_uplink" translatable="false">%s | %s/с ↑</string>
-    <string name="traffic_downlink" translatable="false">%s | %s/с ↓</string>
-    <string name="traffic_uplink_total" translatable="false">Всього %s ↑</string>
-    <string name="traffic_downlink_total" translatable="false">Всього %s ↓</string>
-    <string name="tcp_connections">%d TCP-з\'єднань</string>
-    <string name="udp_connections">%d UDP-з\'єднань</string>
-    <string name="copy_label">Копіювати назву</string>
-    <string name="copy_package_name">Копіювати назву пакета</string>
-    <string name="open_app">Відкрити програму</string>
-    <string name="open_market">Відкрити в маркеті</string>
-    <string name="create_rule">Створити правило</string>
     <string name="copy_success">Скопійовано успішно!</string>
-    <string name="copy_failed">Не вдалося скопіювати.</string>
-    <string name="app_no_launcher">Програма не має інтерфейсу.</string>
     <string name="route_need_vpn">Правило маршрутизації %s залежить від VPN, щоб набути чинності, тому воно ігнорується.</string>
-    <string name="no_statistics">Статистики ще немає</string>
-    <string name="app_statistics_disabled">Статистика трафіку програм вимкнена</string>
-    <string name="ssh_auth_type_none">Немає</string>
     <string name="ssh_private_key">Приватний ключ</string>
     <string name="ssh_private_key_passphrase">Парольна фраза приватного ключа</string>
-    <string name="translate_platform">Платформа для перекладу</string>
-    <string name="menu_log">Журнали</string>
     <string name="clear_logcat">Очистити Logcat</string>
     <string name="wireguard_local_address">Локальна адреса</string>
     <string name="wireguard_public_key">Публічний ключ піра</string>
     <string name="wireguard_psk">Pre-Shared Key піра</string>
-    <string name="cloudflare_wrap" translatable="false">Cloudflare Warp</string>
-    <string name="warp_license">CloudFlare Warp – це безкоштовний VPN-провайдер, що використовує WireGuard. Використовуючи його, ви погоджуєтеся з Умовами надання послуг.</string>
-    <string name="warp_generate">Згенерувати конфігурацію</string>
-    <string name="generating">Генерація…</string>
-    <string name="destination_override">Перевизначити призначення</string>
-    <string name="destination_override_summary">Використовувати перехоплений домен для перезапису адреси призначення, а не лише для маршрутизації</string>
-    <string name="pcap" translatable="false">Pcap</string>
-    <string name="pcap_notice">Файли Pcap будуть збережені в %s</string>
     <string name="naive_insecure_concurrency">Небезпечна паралельність</string>
     <string name="naive_insecure_concurrency_summary">Використовуйте N паралельних тунельних з\'єднань для більшої стійкості в поганих мережевих умовах. Більша кількість з\'єднань полегшує виявлення тунелювання та робить його менш безпечним. Цей проєкт прагне до найсильнішого захисту від аналізу трафіку. Використання його небезпечним способом суперечить його меті. \n\nЯкщо ви все ж таки повинні це використовувати, спробуйте спочатку N=2, щоб побачити, чи це вирішить ваші проблеми. Наполегливо не рекомендується використовувати більше 4 з\'єднань.</string>
     <string name="stun_test">Виявлення поведінки NAT</string>
@@ -305,43 +189,26 @@
     <string name="backup_summary">Якщо налаштування маршрутизації не будуть збережені разом з конфігураціями, власні вихідні з\'єднання будуть втрачені.</string>
     <string name="backup_not_file">Не є файлом резервної копії: очікувався .json, але отримано %s</string>
     <string name="invalid_backup_file">Неправильний файл резервної копії</string>
-    <string name="backup_import">Імпорт</string>
     <string name="backup_import_summary">Імпортування перезапише наявні дані.</string>
     <string name="backup_importing">Імпортування…</string>
     <string name="packet_encoding">Кодування пакетів</string>
-    <string name="release_wake_lock">Відпускати WakeLock</string>
     <string name="action_switch">Перемкнути</string>
     <string name="tuic_udp_relay_mode">Режим ретрансляції UDP</string>
     <string name="tuic_congestion_controller">Контролер перевантаження</string>
     <string name="tuic_disable_sni">Вимкнути SNI</string>
     <string name="tuic_reduce_rtt">Увімкнути 0-RTT QUIC рукостискання</string>
-    <string name="please_update">Ваша програма занадто стара (%s) і перестане працювати %s. Будь ласка, оновіть її!</string>
-    <string name="please_update_force">Ваша програма занадто стара (%s) і перестала працювати %s. Будь ласка, оновіть її!</string>
     <string name="connection_test_delete_unavailable">Очистити недоступні</string>
-    <string name="move">Перемістити</string>
-    <string name="exe_prefer_provider">Пріоритетний постачальник плагіна</string>
-    <string name="create_shortcut">Створити ярлик</string>
     <string name="utls_fingerprint">Відбиток uTLS</string>
-    <string name="custom_outbound_json">Власний JSON вихідного з\'єднання</string>
-    <string name="custom_config_json">Власний JSON конфігурації</string>
     <string name="is_outbound_only">Встановлений JSON є лише вихідним з\'єднанням</string>
     <string name="save">Зберегти</string>
-    <string name="ads">Реклама</string>
     <string name="need_restart">Перезапустіть програму, щоб застосувати зміни</string>
     <string name="use_selector">Використовувати селектор</string>
     <string name="action_shadowtls" translatable="false">ShadowTLS</string>
     <string name="protocol_version">Версія протоколу</string>
     <string name="reset_connections">Скинути з\'єднання</string>
     <string name="remove_duplicate">Видалити дублікати серверів</string>
-    <string name="mtu_help">Довге натискання на налаштування, щоб встановити власний MTU.</string>
-    <string name="test_concurrency">Паралелізм тесту</string>
     <string name="mux_type">Протокол Mux</string>
-    <string name="sniff_override">Результат аналізу для призначення</string>
-    <string name="resolve_server">Визначати адресу сервера відповідно до політики IPv6</string>
     <string name="auto_select_proxy_apps_message">Автоматично вибрати програми для проксі, це очистить ваш поточний вибір.</string>
-    <string name="enable_ech">Увімкнути ECH</string>
-    <string name="enable_ech_sum">Увімкнути Encrypted Client Hello</string>
-    <string name="ech_settings">Налаштування ECH</string>
     <string name="ech_config">Конфігурація ECH</string>
     <string name="http_upgrade_host">Хост HTTPUpgrade</string>
     <string name="http_upgrade_path">Шлях HTTPUpgrade</string>

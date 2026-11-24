@@ -99,7 +99,6 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("androidx.fragment:fragment-ktx:1.8.6")
     implementation("androidx.browser:browser:1.8.0")
-    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
     implementation("androidx.constraintlayout:constraintlayout:2.2.1")
     implementation("androidx.navigation:navigation-fragment-ktx:2.8.9")
     implementation("androidx.navigation:navigation-ui-ktx:2.8.9")
@@ -119,11 +118,6 @@ dependencies {
     implementation("com.esotericsoftware:kryo:5.6.2")
     implementation("com.google.guava:guava:33.4.8-android")
     implementation("org.ini4j:ini4j:0.5.4")
-
-    implementation("com.simplecityapps:recyclerview-fastscroll:2.0.1") {
-        exclude(group = "androidx.recyclerview")
-        exclude(group = "androidx.appcompat")
-    }
 
     implementation("androidx.room:room-runtime:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")

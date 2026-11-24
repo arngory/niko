@@ -66,11 +66,6 @@
     </style>
 
 
-    <style name="AppearanceFoundation.Title" parent="TextAppearance.AppCompat.Title">
-        <item name="android:textColor">?attr/colorOnSurface</item>
-        <item name="android:textStyle">bold</item>
-    </style>
-
     <style name="ThemeOverlay.MaterialComponents.MaterialAlertDialog.SagerNet">
         <!-- a dialog's title is the design system's title (m-dialog__title, 600 24/30), not Material's Subtitle1 -->
         <item name="materialAlertDialogTitleTextStyle">@style/MaterialAlertDialog.Niko.Title.Text</item>

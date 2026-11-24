@@ -1,13 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="group_default">Desagrupado</string>
-    <string name="document">Documento</string>
-    <string name="theme">Tema</string>
-    <string name="menu_group">Grupo</string>
     <string name="logcat">Exportar informações de depuração</string>
     <string name="app_version">Versão</string>
-    <string name="oss_licenses">Licenças de código aberto</string>
-    <string name="app_desc">Um conjunto de ferramentas de proxy universal para Android, escrito em Kotlin.</string>
-    <string name="group_subscription_link">Link de inscrição</string>
     <string name="group_update">Atualizar</string>
 </resources>
