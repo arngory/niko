@@ -189,10 +189,9 @@ class AdminModel : ViewModel(), AdminActions {
             is AdminPage.Network -> loadNetwork()
             is AdminPage.Detail -> when (page.kind) {
                 DetailKind.AUDIT -> loadAudit()
-                DetailKind.UPDATE -> {
-                    stopWatch()
-                    loadStatus { watchIfUpdating() }
-                }
+                // a watch under way goes on reading by itself: a refresh that fails (the node restarting into its new
+                // version) must not end it
+                DetailKind.UPDATE -> if (watchJob?.isActive != true) loadStatus { watchIfUpdating() }
                 DetailKind.MIRROR, DetailKind.SUMMARY -> loadStatus()
                 DetailKind.PORTS, DetailKind.TEXT -> {}
             }
@@ -720,7 +719,11 @@ class AdminModel : ViewModel(), AdminActions {
         val has = user.strs("services")
         // the node's services in their order, the user's among them
         val chosen = services.orEmpty().map { it.s("name") }.filter { if (it == service) on else it in has }
-        api({ call("SetUserServices", body("name" to name, "services" to chosen)) }) { loadUsers() }
+        // the switch moves at once and the next one counts it: each call carries the whole list, and one built from
+        // the list before this change would undo it
+        user.add("services", com.google.gson.JsonArray().apply { chosen.forEach(::add) })
+        render()
+        api({ call("SetUserServices", body("name" to name, "services" to chosen)) }, failed = { loadUsers() }) { loadUsers() }
     }
 
     override fun userMenu() {
@@ -748,7 +751,7 @@ class AdminModel : ViewModel(), AdminActions {
         AdminField.USER_DAYS -> newUserPage { copy(days = text) }
         AdminField.USER_GB -> newUserPage { copy(gb = text) }
         AdminField.USER_NOTE -> newUserPage { copy(note = text) }
-        AdminField.DEVICE -> invitePage { copy(device = text) }
+        AdminField.DEVICE -> invitePage { copy(device = text, result = null) }
     }
 
     override fun tick(service: String, on: Boolean) = newUserPage {
@@ -766,7 +769,9 @@ class AdminModel : ViewModel(), AdminActions {
             if (answerLost(e)) loadUsers()
         }) {
             // a user reaches the node through their devices: the first one's invite now, in the form's place
-            set { if (page is AdminPage.NewUser) top(AdminPage.Invite(name, created = true)) else this }
+            // the form left meanwhile: the invite over the page shown, a user without a device being of no use
+            if (state.value.page is AdminPage.NewUser) set { top(AdminPage.Invite(name, created = true)) }
+            else push(AdminPage.Invite(name, created = true))
             loadUsers()
         }
     }
@@ -810,13 +815,14 @@ class AdminModel : ViewModel(), AdminActions {
         shownUser()?.let { push(AdminPage.Invite(it)) }
     }
 
-    override fun role(role: String) = invitePage { copy(role = role) }
+    override fun role(role: String) = invitePage { copy(role = role, result = null) }
 
-    override fun pin(on: Boolean) = invitePage { copy(pin = on) }
+    // an invite shown is the one made of the form as it was: a change of the form takes it off the page
+    override fun pin(on: Boolean) = invitePage { copy(pin = on, result = null) }
 
     override fun ttl() {
         val page = state.value.page as? AdminPage.Invite ?: return
-        choice(texts(R.string.raycontrol_admin_invite_ttl), host?.ttls().orEmpty(), page.ttl) { picked -> invitePage { copy(ttl = picked) } }
+        choice(texts(R.string.raycontrol_admin_invite_ttl), host?.ttls().orEmpty(), page.ttl) { picked -> invitePage { copy(ttl = picked, result = null) } }
     }
 
     /**
