@@ -56,9 +56,15 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+
+/** The resource id the positive button answers to, an alert dialog's own. */
+const val POSITIVE_ID = "android:id/button1"
 
 /** A dialog's text field: its [hint], what it starts with, [digits] the longest run of digits it takes (0: any text). */
 data class NikoDialogField(val hint: String = "", val initial: String = "", val digits: Int = 0)
@@ -86,14 +92,16 @@ data class NikoDialogSpec(
  * The card of [NikoDialog], drawn alone (a snapshot): [onButton] with the button's index, the field's text and the
  * choice; [onItem] an item's index.
  */
-@OptIn(ExperimentalLayoutApi::class)
+// FlowRow and testTagsAsResourceId are still marked experimental
+@OptIn(ExperimentalLayoutApi::class, ExperimentalComposeUiApi::class)
 @Composable
 fun NikoDialogCard(spec: NikoDialogSpec, onButton: (Int, String, Int) -> Unit, onItem: (Int) -> Unit) {
     val c = Niko.colors
     var text by remember { mutableStateOf(spec.field?.initial.orEmpty()) }
     var chosen by remember { mutableIntStateOf(spec.chosen) }
     Column(
-        Modifier.widthIn(max = 360.dp).fillMaxWidth().clip(RoundedCornerShape(NikoRadius.md)).background(c.surface1)
+        Modifier.semantics { testTagsAsResourceId = true }
+            .widthIn(max = 360.dp).fillMaxWidth().clip(RoundedCornerShape(NikoRadius.md)).background(c.surface1)
             .verticalScroll(rememberScrollState()).padding(NikoSpace.s6),
         verticalArrangement = Arrangement.spacedBy(NikoSpace.s4),
     ) {
@@ -137,7 +145,12 @@ fun NikoDialogCard(spec: NikoDialogSpec, onButton: (Int, String, Int) -> Unit, o
             horizontalArrangement = Arrangement.spacedBy(NikoSpace.s2, Alignment.End),
             verticalArrangement = Arrangement.spacedBy(NikoSpace.s2),
         ) {
-            spec.buttons.forEachIndexed { i, button -> DialogButton(button) { onButton(i, text, chosen) } }
+            spec.buttons.forEachIndexed { i, button ->
+                // the positive button under the id an alert dialog gives it: what drives the app from outside (the
+                // end-to-end run's uiautomator) finds it as before
+                val positive = button.primary || button.danger
+                DialogButton(button, if (positive) Modifier.testTag(POSITIVE_ID) else Modifier) { onButton(i, text, chosen) }
+            }
         }
     }
 }
@@ -175,7 +188,7 @@ private fun DialogRow(text: String, divider: Boolean, radio: Boolean? = null, ch
 
 /** m-btn: primary in ink (danger: in danger), a ghost in text alone. */
 @Composable
-private fun DialogButton(button: NikoDialogButton, onClick: () -> Unit) {
+private fun DialogButton(button: NikoDialogButton, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val c = Niko.colors
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
@@ -185,7 +198,7 @@ private fun DialogButton(button: NikoDialogButton, onClick: () -> Unit) {
         else -> if (pressed) c.surface2 else Color.Transparent
     }
     Box(
-        Modifier.height(NikoSize.control).clip(CircleShape).background(fill)
+        modifier.height(NikoSize.control).clip(CircleShape).background(fill)
             .clickable(source, indication = null, role = Role.Button, onClick = onClick)
             .padding(horizontal = if (button.primary || button.danger) NikoSpace.s6 else NikoSpace.s4),
         contentAlignment = Alignment.Center,
