@@ -54,7 +54,7 @@
 | Поиск (`action_search`): по имени, типу, адресу | menu/add_profile_menu.xml:9; ui/ConfigurationFragment.kt:235-245, 1377-1390 | D-PROFILE-05 | |
 | Вкладки групп; при одной группе скрыты | layout/layout_group_list.xml:16; ui/ConfigurationFragment.kt:256-263, 1045-1047 | D-PROFILE-05 | уже в P-Configs (группы на листе) |
 | Подзаголовок: трафик и срок подписки текущей группы | ui/ConfigurationFragment.kt:191-199 | D-SUB-02 | |
-| Нажатие на заголовок: прокрутка к выбранному профилю или к началу | ui/ConfigurationFragment.kt:265-287 | GAP | мелочь удобства |
+| Нажатие на заголовок: прокрутка к выбранному профилю или к началу | ui/ConfigurationFragment.kt:265-287 | GAP | мелочь удобства; на новом экране: arngory/niko#NNN (повторное нажатие на вкладку «Конфиги») |
 | «Добавить профиль» › «Сканировать QR» (`action_scan_qr_code`) | menu/add_profile_menu.xml:21; ui/ConfigurationFragment.kt:434-436 | M-ADD-01 | |
 | «Импорт из буфера» (`action_import_clipboard`): ссылки, приглашение raycontrol (буфер после него очищается), подписка | menu/add_profile_menu.xml:24; ui/ConfigurationFragment.kt:438-464 | D-ADD-04 | |
 | «Импорт из файла» (`action_import_file`): текст, JSON, WireGuard .zip, пакет `rayctl` | menu/add_profile_menu.xml:27; ui/ConfigurationFragment.kt:329-376 | D-ADD-09 | |
@@ -62,24 +62,24 @@
 | Вопрос «заменить узел» и PIN при импорте raycontrol | ui/ConfigurationFragment.kt:382-410 | D-ADD-06, D-ADD-07 | |
 | «Вручную» › SOCKS, HTTP, Shadowsocks, VMess, VLESS, Trojan, Trojan-Go, Mieru, naive, Hysteria, TUIC, ShadowTLS, AnyTLS, SSH, WireGuard, «Пользовательская конфигурация», «Прокси-цепочка» (`action_new_*`) | menu/add_profile_menu.xml:29-81; ui/ConfigurationFragment.kt:470-538 | D-PROFILE-01 (цепочка: D-PROFILE-04, свой конфиг: D-PROFILE-02) | 17 пунктов; экран выбора протокола нужен в P-Add |
 | «Обновить подписку» для текущей группы (`action_update_subscription`) | menu/add_profile_menu.xml:90; ui/ConfigurationFragment.kt:540-550 | D-SUB-03 | уже в P-Subs |
-| «Очистить статистику трафика» (`action_clear_traffic_statistics`) | menu/add_profile_menu.xml:93; ui/ConfigurationFragment.kt:552-565 | D-PROFILE-06 | |
-| «Удалить дубликаты», с подтверждением и списком до 20 имён (`action_remove_duplicate`) | menu/add_profile_menu.xml:96; ui/ConfigurationFragment.kt:622-672 | D-PROFILE-06 | |
-| «TCP-пинг» группы (`action_connection_tcp_ping`) | menu/add_profile_menu.xml:99; ui/ConfigurationFragment.kt:674-676, 782-920 | D-PROFILE-06 | в P-Configs есть только URL-тест (ui/home/ConfigsTest.kt) |
+| «Очистить статистику трафика» (`action_clear_traffic_statistics`) | menu/add_profile_menu.xml:93; ui/ConfigurationFragment.kt:552-565 | D-PROFILE-06 | на новом экране: arngory/niko#NNN (⋮ группы › «Обнулить статистику») |
+| «Удалить дубликаты», с подтверждением и списком до 20 имён (`action_remove_duplicate`) | menu/add_profile_menu.xml:96; ui/ConfigurationFragment.kt:622-672 | D-PROFILE-06 | на новом экране: arngory/niko#NNN (⋮ группы) |
+| «TCP-пинг» группы (`action_connection_tcp_ping`) | menu/add_profile_menu.xml:99; ui/ConfigurationFragment.kt:674-676, 782-920 | D-PROFILE-06 | в P-Configs есть только URL-тест (ui/home/ConfigsTest.kt); на новом экране: arngory/niko#NNN (⋮ группы; ход — как у URL-теста, ui/home/ConfigsTest.kt) |
 | «URL-тест» группы (`action_connection_url_test`) | menu/add_profile_menu.xml:102; ui/ConfigurationFragment.kt:678-680, 923-999 | D-PROFILE-06, D-MAIN-08 | уже в P-Configs |
 | Диалог хода проверки: текущий профиль, N из M, «Свернуть» в уведомление, «Отмена» | layout/layout_progress_list.xml; ui/ConfigurationFragment.kt:685-778, 912-919 | D-PROFILE-06, M-SYS-03 | |
-| «Очистить результаты» (`action_connection_test_clear_results`) | menu/add_profile_menu.xml:105; ui/ConfigurationFragment.kt:567-581 | D-PROFILE-06 | |
-| «Удалить недоступные», с подтверждением (`action_connection_test_delete_unavailable`) | menu/add_profile_menu.xml:108; ui/ConfigurationFragment.kt:583-620 | D-PROFILE-06 | |
-| «Сортировка»: «По источнику», «По имени», «По задержке» (`action_order_*`) | menu/add_profile_menu.xml:111-125; ui/ConfigurationFragment.kt:1209-1254 | D-PROFILE-05 | уже есть в P-SubSettings (ui/group/GroupForm.kt:20) |
+| «Очистить результаты» (`action_connection_test_clear_results`) | menu/add_profile_menu.xml:105; ui/ConfigurationFragment.kt:567-581 | D-PROFILE-06 | на новом экране: arngory/niko#NNN (⋮ группы) |
+| «Удалить недоступные», с подтверждением (`action_connection_test_delete_unavailable`) | menu/add_profile_menu.xml:108; ui/ConfigurationFragment.kt:583-620 | D-PROFILE-06 | на новом экране: arngory/niko#NNN (⋮ группы) |
+| «Сортировка»: «По источнику», «По имени», «По задержке» (`action_order_*`) | menu/add_profile_menu.xml:111-125; ui/ConfigurationFragment.kt:1209-1254 | D-PROFILE-05 | уже есть в P-SubSettings (ui/group/GroupForm.kt:20); на новом экране: arngory/niko#NNN (лист конфигов теперь показывает группу в её порядке, ui/home/ConfigsState.kt) |
 | Нажатие на строку: выбрать профиль; при работающей службе — перезапуск | ui/ConfigurationFragment.kt:1608-1626 | D-MAIN-11 | уже в P-Configs |
 | ТВ: нажатие на уже выбранный профиль включает или выключает службу | ui/ConfigurationFragment.kt:1627-1633 | M-SYS-05 | |
 | Строка: имя, тип с цветом, трафик ↑↓, адрес (при «Показывать адрес»), отметка выбранного | ui/ConfigurationFragment.kt:1639-1672, 1593-1596 | D-PROFILE-05, D-SET-24 | |
-| Состояние строки: «Доступно N мс», ошибка; нажатие на ошибку показывает полный текст | ui/ConfigurationFragment.kt:1674-1703 | D-PROFILE-05, D-MAIN-12 | полного текста ошибки нет ни в ID, ни в P-Configs |
-| Кнопка «Изменить» (`edit`), недоступна у профиля, на котором работает служба | layout/layout_profile.xml:62; ui/ConfigurationFragment.kt:1705-1711, 1731-1737 | D-PROFILE-01 | в P-Configs редактор открывает долгое нажатие |
-| Кнопка «Удалить» (`remove`) с отменой в snackbar | layout/layout_profile.xml:99; ui/ConfigurationFragment.kt:1713-1719, 1426-1443 | D-PROFILE-08 | |
-| Перетаскивание профиля (порядок); не работает, пока служба подключается | ui/ConfigurationFragment.kt:1272-1307, 1392-1418, 1169-1172 | D-PROFILE-08 | |
-| «Поделиться» › «QR-код» › «Стандарт» / «SN Link» | menu/profile_share_menu.xml:4-13; ui/ConfigurationFragment.kt:1800, 1802 | D-PROFILE-07 | нет у цепочки, у строк узла и у профиля NekoBox (:1721, 1767, 1726) |
-| «Поделиться» › «Экспорт в буфер» › «Стандарт» / «SN Link» | menu/profile_share_menu.xml:16-25; ui/ConfigurationFragment.kt:1801, 1803 | D-PROFILE-07 | «Стандарт» скрыт, если у типа нет стандартной ссылки (:1745-1756) |
-| «Поделиться» › «Конфигурация» › «Экспорт в буфер» / «Экспорт в файл» | menu/profile_share_menu.xml:28-38; ui/ConfigurationFragment.kt:1807-1814, 1827-1849 | D-PROFILE-07 | |
+| Состояние строки: «Доступно N мс», ошибка; нажатие на ошибку показывает полный текст | ui/ConfigurationFragment.kt:1674-1703 | D-PROFILE-05, D-MAIN-12 | полного текста ошибки нет ни в ID, ни в P-Configs; на новом экране: arngory/niko#NNN (нажатие на «не отвечает» — лист с полным текстом) |
+| Кнопка «Изменить» (`edit`), недоступна у профиля, на котором работает служба | layout/layout_profile.xml:62; ui/ConfigurationFragment.kt:1705-1711, 1731-1737 | D-PROFILE-01 | в P-Configs редактор открывает долгое нажатие; на новом экране: arngory/niko#NNN (долгое нажатие › «Изменить», и у профиля, на котором работает служба) |
+| Кнопка «Удалить» (`remove`) с отменой в snackbar | layout/layout_profile.xml:99; ui/ConfigurationFragment.kt:1713-1719, 1426-1443 | D-PROFILE-08 | на новом экране: arngory/niko#NNN (долгое нажатие › «Удалить», с «Отменить»; не у профиля, на котором работает служба) |
+| Перетаскивание профиля (порядок); не работает, пока служба подключается | ui/ConfigurationFragment.kt:1272-1307, 1392-1418, 1169-1172 | D-PROFILE-08 | на новом экране: arngory/niko#NNN (долгое нажатие › «Выше» / «Ниже» вместо перетаскивания; только у группы в порядке «По источнику») |
+| «Поделиться» › «QR-код» › «Стандарт» / «SN Link» | menu/profile_share_menu.xml:4-13; ui/ConfigurationFragment.kt:1800, 1802 | D-PROFILE-07 | нет у цепочки, у строк узла и у профиля NekoBox (:1721, 1767, 1726); на новом экране: arngory/niko#NNN (долгое нажатие › «Поделиться») |
+| «Поделиться» › «Экспорт в буфер» › «Стандарт» / «SN Link» | menu/profile_share_menu.xml:16-25; ui/ConfigurationFragment.kt:1801, 1803 | D-PROFILE-07 | «Стандарт» скрыт, если у типа нет стандартной ссылки (:1745-1756); на новом экране: arngory/niko#NNN (долгое нажатие › «Поделиться») |
+| «Поделиться» › «Конфигурация» › «Экспорт в буфер» / «Экспорт в файл» | menu/profile_share_menu.xml:28-38; ui/ConfigurationFragment.kt:1807-1814, 1827-1849 | D-PROFILE-07 | на новом экране: arngory/niko#NNN (долгое нажатие › «Поделиться») |
 
 ## 3. GroupFragment: старый список групп
 
@@ -100,7 +100,7 @@
 | Строки карточки узла и пометка «админ» | ui/GroupFragment.kt:525-532 | D-NODE-10 | |
 | Нажатие на строки, если узел требует более новый Niko: «О программе» с проверкой обновления | ui/GroupFragment.kt:533-537; ui/AboutFragment.kt:67 | D-NODE-09, D-SET-12 | client-min-v1 (ui/node/NodeState.kt:16) |
 | Смахнуть группу: удалить с отменой (не «без группы» и не во время обновления) | ui/GroupFragment.kt:68-92, 224-237 | D-SUB-04 | в P-Subs удаление идёт через меню с подтверждением |
-| Перетащить группу: порядок групп (`userOrder`) | ui/GroupFragment.kt:78-108, 192-217 | GAP | в P-Subs порядок не меняется (ui/home/SubsList.kt), ни один ID не называет порядок групп |
+| Перетащить группу: порядок групп (`userOrder`) | ui/GroupFragment.kt:78-108, 192-217 | GAP | в P-Subs порядок не меняется (ui/home/SubsList.kt), ни один ID не называет порядок групп; на новом экране: arngory/niko#NNN (⋮ группы › «Выше» / «Ниже» вместо перетаскивания) |
 | ⋯ › «Управление нодой» (`action_ray_admin`), только админу | menu/group_action_menu.xml:4; ui/GroupFragment.kt:330-333, 417 | D-ADMIN-* | уже в P-Subs |
 | ⋯ › «Локальная сеть» (`action_ray_lan`), если узел её даёт | menu/group_action_menu.xml:8; ui/GroupFragment.kt:335, 419 | D-NODE-08, D-NODE-13 | уже в P-Subs |
 | ⋯ › «Поделиться подпиской» › «Экспорт в буфер» (`action_universal_clipboard`) | menu/group_action_menu.xml:16; ui/GroupFragment.kt:343-345 | D-SUB-06, D-SUB-09 | только у подписки (:411-413); уже в P-Subs |
@@ -773,8 +773,8 @@ TrojanSettingsActivity.kt:5), VLESS — флагом `vless` (VMessSettingsActiv
 | 1 | **M-STATE-PREVIEW** | Диалог «предварительная версия» при первом запуске такой сборки | диалог поверх главной |
 | 2 | **M-SET-04** | «Нет плагина»: загрузка из Play, F-Droid или по ссылке | диалог, рядом с доверием плагину M-SET-03 |
 | — | **D-MAIN-18, D-MAIN-03, D-MAIN-14** | Проверка соединения и IP выхода (сейчас только с нижней панели) | карточка состояния в «Расширенном» (P-Advanced): нажатие — проверка, IP выхода — в её меню |
-| 3 | **D-PROFILE-05** | Прокрутка к выбранному профилю по нажатию на заголовок | лист конфигов (P-Configs) |
-| 4 | **D-SUB-10** | Порядок групп перетаскиванием | вкладка «Подписки» (P-Subs): долгое нажатие и перетаскивание |
+| 3 (перенесено, arngory/niko#NNN) | **D-PROFILE-05** | Прокрутка к выбранному профилю по нажатию на заголовок | лист конфигов (P-Configs) |
+| 4 (перенесено, arngory/niko#NNN) | **D-SUB-10** | Порядок групп | вкладка «Подписки» (P-Subs): ⋮ группы › «Выше» / «Ниже» |
 | 5 (перенесено, arngory/niko#164) | **D-PICK-01** | Выбрать профиль: для цепочки, выхода правила, front и landing proxy группы | лист конфигов в режиме выбора, без своего экрана |
 | 6 (перенесено, arngory/niko#152) | **D-RULES-09** | Предупреждение над правилами со ссылкой на руководство по маршрутизации | заголовок экрана правил |
 | 7–9 (перенесено, arngory/niko#152) | **D-CHECK-08** | Проверка маршрута: «Из приложения», «UDP», «Спросить DNS ядра» | проверка маршрута (D-CHECK-02), под «Ещё» |
@@ -849,9 +849,9 @@ TrojanSettingsActivity.kt:5), VLESS — флагом `vless` (VMessSettingsActiv
 
 Мелкие оговорки при покрытых ID; GAP они не получили, но в макеты их стоит дописать:
 
-- полный текст ошибки по нажатию на состояние профиля (ui/ConfigurationFragment.kt:1694-1700);
+- ~~полный текст ошибки по нажатию на состояние профиля (ui/ConfigurationFragment.kt:1694-1700)~~ (в P-Configs, arngory/niko#NNN);
 - ~~поле «STUN сервер» (layout/layout_stun.xml:66)~~ (на P-NAT, arngory/niko#160);
-- в P-Configs из проверок группы есть только URL-тест, TCP-пинга нет;
+- ~~в P-Configs из проверок группы есть только URL-тест, TCP-пинга нет~~ (в ⋮ группы, arngory/niko#NNN);
 - ~~подписи «Скорость отдачи» и «Скорость приёма» у Hysteria по-русски одинаковы: «Максимальная скорость загрузки»~~
   (исправлено вместе с этой описью: отдачи и загрузки);
 - у нового профиля пункты «Пользовательский исходящий JSON» и «Пользовательская конфигурация JSON» ничего не делают

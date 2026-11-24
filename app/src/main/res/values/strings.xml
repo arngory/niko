@@ -1098,4 +1098,14 @@
     <string name="lan_by_fingerprint">By router and DNS</string>
     <string name="lan_by_ssid">By name</string>
     <string name="lan_this_wifi">this network</string>
+    <!-- Меню листа конфигов on Compose (D-PROFILE-05…08) -->
+    <string name="cfg_edit">Edit</string>
+    <string name="cfg_clear_traffic">Reset the statistics</string>
+    <string name="cfg_share_qr_sn">QR code of the SN link</string>
+    <string name="cfg_share_link">Copy the link</string>
+    <string name="cfg_share_link_sn">Copy the SN link</string>
+    <string name="cfg_share_config">Copy the configuration</string>
+    <string name="cfg_share_config_file">Configuration to a file</string>
+    <string name="cfg_error">The test failed</string>
+    <string name="cfg_error_show">Show the error</string>
 </resources>

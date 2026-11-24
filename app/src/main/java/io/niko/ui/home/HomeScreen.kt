@@ -70,6 +70,7 @@ fun HomeScreen(
     subsActions: SubsActions? = null,
     format: io.niko.ui.node.NodeFormat? = null,
     subsOpen: Boolean = false,
+    configsMenus: ConfigsMenuActions? = null,
 ) {
     val c = Niko.colors
     var modeSheet by rememberSaveable { mutableStateOf(sheet) }
@@ -128,6 +129,7 @@ fun HomeScreen(
             ConfigsSheet(
                 configs, state.profiles, state.subscriptions, testing, results, configsActions,
                 subs = subs, subsActions = subsActions, format = format, now = now / 1000, onSubs = onSubs,
+                menus = configsMenus,
             ) { configsSheet = false }
         }
     }

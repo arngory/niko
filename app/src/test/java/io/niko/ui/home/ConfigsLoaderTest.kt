@@ -2,10 +2,16 @@ package io.niko.ui.home
 
 import io.niko.database.ProxyEntity
 import io.niko.fmt.AbstractBean
+import io.niko.GroupOrder
 import io.niko.fmt.hysteria.HysteriaBean
+import io.niko.fmt.internal.ChainBean
+import io.niko.fmt.ssh.SSHBean
 import io.niko.fmt.naive.NaiveBean
 import io.niko.fmt.v2ray.VMessBean
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** The configs' sheet: the tags a row shows and the search over the groups. */
@@ -67,5 +73,119 @@ class ConfigsLoaderTest {
         assertEquals(41, shown[0].profiles[1].pingMs)
         assertEquals(null, shown[1].profiles[0].pingMs)
         assertEquals(true, shown[1].profiles[0].unreachable)
+    }
+
+    @Test
+    fun aFailedTestKeepsWhatItSaid() {
+        assertEquals("dial tcp 192.0.2.10:443: i/o timeout", ConfigsLoader.error(3, " dial tcp 192.0.2.10:443: i/o timeout\n"))
+        assertEquals("Timeout", ConfigsLoader.error(2, "Timeout"))
+        // passed or not tested: nothing to show, whatever is left in the store
+        assertNull(ConfigsLoader.error(1, "old"))
+        assertNull(ConfigsLoader.error(0, "old"))
+        assertNull(ConfigsLoader.error(3, "  "))
+        assertNull(ConfigsLoader.error(3, null))
+        val failed = entity(NaiveBean().apply { name = "naive" }).apply { status = 3; error = "context deadline exceeded" }
+        assertEquals("context deadline exceeded", ConfigsLoader.row(failed, 0).error)
+        // a test running shows its error over the row read
+        val shown = ConfigsLoader.withResults(groups, mapOf(11L to ConfigsTest.Result(null, unreachable = true, error = "refused")))
+        assertEquals("refused", shown[0].profiles[0].error)
+    }
+
+    @Test
+    fun aChainANodesRowAndAPluginsProfileAreNotShared() {
+        val naive = entity(NaiveBean().apply { name = "naive" })
+        assertTrue(ConfigsLoader.row(naive, 0).share)
+        // salamander-device-v1 §6: a node's rows are this device's
+        assertFalse(ConfigsLoader.row(naive, 0, nodeRow = true).share)
+        assertFalse(ConfigsLoader.shared(entity(ChainBean().apply { name = "chain" }), nodeRow = false))
+        assertEquals(emptyList<ShareAction>(), ConfigsLoader.shareMenu(ConfigsLoader.row(naive, 0, nodeRow = true)))
+        assertFalse(ProfileAction.SHARE in ConfigsLoader.profileMenu(ConfigsLoader.row(naive, 0, nodeRow = true), up = false, down = false))
+    }
+
+    @Test
+    fun theStandardLinkIsOfferedOnlyForTheKindsThatHaveOne() {
+        val naive = ConfigsLoader.row(entity(NaiveBean().apply { name = "naive" }), 0)
+        assertEquals(ShareAction.entries, ConfigsLoader.shareMenu(naive))
+        val ssh = ConfigsLoader.row(entity(SSHBean().apply { name = "ssh" }), 0)
+        assertEquals(
+            listOf(ShareAction.QR_SN, ShareAction.LINK_SN, ShareAction.CONFIG_CLIPBOARD, ShareAction.CONFIG_FILE),
+            ConfigsLoader.shareMenu(ssh),
+        )
+    }
+
+    @Test
+    fun theProfileTheServiceRunsIsNotDeleted() {
+        val naive = entity(NaiveBean().apply { name = "naive" }).apply { id = 7 }
+        val used = ConfigsLoader.row(naive, selected = 7, running = 7)
+        assertTrue(used.inUse)
+        assertEquals(listOf(ProfileAction.EDIT, ProfileAction.SHARE), ConfigsLoader.profileMenu(used, up = false, down = false))
+        // chosen while the service runs another, or stopped: deleted as any
+        val chosen = ConfigsLoader.row(naive, selected = 7, running = 0)
+        assertFalse(chosen.inUse)
+        assertEquals(
+            listOf(ProfileAction.EDIT, ProfileAction.SHARE, ProfileAction.MOVE_UP, ProfileAction.MOVE_DOWN, ProfileAction.DELETE),
+            ConfigsLoader.profileMenu(chosen, up = true, down = true),
+        )
+    }
+
+    @Test
+    fun aGroupsMenuHasNoSecondTestWhileOneRuns() {
+        assertEquals(GroupAction.entries, ConfigsLoader.groupMenu(testing = false))
+        assertEquals(
+            listOf(GroupAction.CLEAR_RESULTS, GroupAction.DELETE_UNAVAILABLE, GroupAction.REMOVE_DUPLICATES, GroupAction.CLEAR_TRAFFIC),
+            ConfigsLoader.groupMenu(testing = true),
+        )
+    }
+
+    @Test
+    fun aProfileMovesWithinItsGroupUnlessTheGroupIsSorted() {
+        assertEquals(null to 12L, ConfigsLoader.neighbours(groups, 11))
+        assertEquals(11L to null, ConfigsLoader.neighbours(groups, 12))
+        // alone in its group: the next group's rows are not its neighbours
+        assertEquals(null to null, ConfigsLoader.neighbours(groups, 21))
+        val sorted = groups.map { it.copy(manual = false) }
+        assertEquals(null to null, ConfigsLoader.neighbours(sorted, 11))
+        assertEquals(null to null, ConfigsLoader.neighbours(groups, 99))
+    }
+
+    @Test
+    fun theChosenProfilesPlaceInTheListCountsTheHeadsAndTheGaps() {
+        // head, naive, Hysteria2 (chosen)
+        assertEquals(2, ConfigsLoader.selectedIndex(groups))
+        val second = groups.map { g -> g.copy(profiles = g.profiles.map { it.copy(selected = it.id == 21L) }) }
+        // head, two rows, gap, head, Amsterdam
+        assertEquals(5, ConfigsLoader.selectedIndex(second))
+        assertEquals(-1, ConfigsLoader.selectedIndex(ConfigsLoader.filter(groups, "amsterdam")))
+    }
+
+    @Test
+    fun aDeletedProfileLeavesTheListBeforeItsUndoIsOver() {
+        assertEquals(groups, ConfigsLoader.without(groups, emptySet()))
+        assertEquals(listOf(12L), ConfigsLoader.without(groups, setOf(11L))[0].profiles.map { it.id })
+        // its group's last: the group goes with it
+        assertEquals(listOf(1L), ConfigsLoader.without(groups, setOf(21L)).map { it.id })
+    }
+
+    @Test
+    fun aGroupIsListedInItsOrder() {
+        val b = entity(NaiveBean().apply { name = "b" }).apply { id = 1; status = 1; ping = 90 }
+        val a = entity(NaiveBean().apply { name = "a" }).apply { id = 2 }
+        val c = entity(NaiveBean().apply { name = "c" }).apply { id = 3; status = 1; ping = 30 }
+        val stored = listOf(b, a, c)
+        assertEquals(listOf(1L, 2L, 3L), ConfigsLoader.ordered(stored, GroupOrder.ORIGIN).map { it.id })
+        assertEquals(listOf(2L, 1L, 3L), ConfigsLoader.ordered(stored, GroupOrder.BY_NAME).map { it.id })
+        // the untested after the tested
+        assertEquals(listOf(3L, 1L, 2L), ConfigsLoader.ordered(stored, GroupOrder.BY_DELAY).map { it.id })
+    }
+
+    @Test
+    fun aTcpPingsFailureIsToldByTheSocketsMessage() {
+        assertEquals(ConfigsTest.TcpFailure.TIMEOUT, ConfigsTest.tcpFailure("connect timed out"))
+        assertEquals(
+            ConfigsTest.TcpFailure.REFUSED,
+            ConfigsTest.tcpFailure("failed to connect to /192.0.2.10 (port 443): connect failed: ECONNREFUSED (Connection refused)"),
+        )
+        assertEquals(ConfigsTest.TcpFailure.UNREACHABLE, ConfigsTest.tcpFailure("connect failed: ENETUNREACH (Network is unreachable)"))
+        assertEquals(ConfigsTest.TcpFailure.OTHER, ConfigsTest.tcpFailure("connect failed: EACCES (Permission denied)"))
     }
 }
