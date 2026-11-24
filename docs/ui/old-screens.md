@@ -670,7 +670,7 @@ TrojanSettingsActivity.kt:5), VLESS — флагом `vless` (VMessSettingsActiv
 
 ## 17. StunActivity: поведение NAT
 
-**Перенесено** в arngory/niko#NNN (`ui/tools/NatScreen.kt`, P-NAT): поле сервера, «Проверить», результат по строкам (тип, сопоставление, фильтрация, внешний адрес), прочие строки ядра — под ними; ошибка остаётся на экране, а не закрывает его.
+**Перенесено** в arngory/niko#160 (`ui/tools/NatScreen.kt`, P-NAT): поле сервера, «Проверить», результат по строкам (тип, сопоставление, фильтрация, внешний адрес), прочие строки ядра — под ними; ошибка остаётся на экране, а не закрывает его.
 
 Сюда ведёт строка «NAT» в журнале (ui/log/LogFragment.kt:68).
 
@@ -684,7 +684,7 @@ TrojanSettingsActivity.kt:5), VLESS — флагом `vless` (VMessSettingsActiv
 
 ## 18. WebviewFragment: панель sing-box (Clash API)
 
-**Перенесено** в arngory/niko#NNN (`ui/tools/PanelScreen.kt`, P-Panel): адрес панели и ключ API — в листе ⋮; «Закрыть» снято, «назад» ведёт в журнал.
+**Перенесено** в arngory/niko#160 (`ui/tools/PanelScreen.kt`, P-Panel): адрес панели и ключ API — в листе ⋮; «Закрыть» снято, «назад» ведёт в журнал.
 
 Сюда ведёт строка «Панель» в журнале, если включён Clash API (ui/log/LogFragment.kt:71).
 
@@ -842,14 +842,14 @@ TrojanSettingsActivity.kt:5), VLESS — флагом `vless` (VMessSettingsActiv
 Мелкие оговорки при покрытых ID; GAP они не получили, но в макеты их стоит дописать:
 
 - полный текст ошибки по нажатию на состояние профиля (ui/ConfigurationFragment.kt:1694-1700);
-- ~~поле «STUN сервер» (layout/layout_stun.xml:66)~~ (на P-NAT, arngory/niko#NNN);
+- ~~поле «STUN сервер» (layout/layout_stun.xml:66)~~ (на P-NAT, arngory/niko#160);
 - в P-Configs из проверок группы есть только URL-тест, TCP-пинга нет;
 - ~~подписи «Скорость отдачи» и «Скорость приёма» у Hysteria по-русски одинаковы: «Максимальная скорость загрузки»~~
   (исправлено вместе с этой описью: отдачи и загрузки);
 - у нового профиля пункты «Пользовательский исходящий JSON» и «Пользовательская конфигурация JSON» ничего не делают
   (ui/profile/ProfileSettingsActivity.kt:472, 488);
 - редактор правила при сохранении без правок пишет «Установите какие-либо правила» (ui/RouteSettingsActivity.kt:268-276);
-- ~~«Закрыть» в панели sing-box открывает старый список профилей (ui/WebviewFragment.kt:101-104)~~ (пункт снят, arngory/niko#NNN).
+- ~~«Закрыть» в панели sing-box открывает старый список профилей (ui/WebviewFragment.kt:101-104)~~ (пункт снят, arngory/niko#160).
 
 ## Итог
 
