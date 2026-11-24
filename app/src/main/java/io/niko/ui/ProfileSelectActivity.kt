@@ -1,37 +1,81 @@
 package io.niko.ui
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import io.niko.R
+import androidx.activity.compose.setContent
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.lifecycleScope
 import io.niko.database.ProxyEntity
+import io.niko.ktx.Logs
+import io.niko.ui.compose.NikoTheme
+import io.niko.ui.home.ConfigsLoader
+import io.niko.ui.pick.PickScreen
+import io.niko.ui.pick.PickState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-class ProfileSelectActivity : ThemedActivity(R.layout.layout_empty),
-    ConfigurationFragment.SelectCallback {
+/**
+ * Выбор профиля on Compose (P-Pick, D-PICK-01), in place of the old list in its select mode: a profile for a chain's
+ * link, a rule's outbound, a group's front or landing proxy. The profiles as the configs' sheet lists them; a tap
+ * returns [EXTRA_PROFILE_ID]. [EXTRA_SELECTED] the profile the choice replaces, the list opened on it;
+ * [EXTRA_PURPOSE] what it is picked for, under the title.
+ */
+class ProfileSelectActivity : ThemedActivity() {
 
     companion object {
         const val EXTRA_SELECTED = "selected"
         const val EXTRA_PROFILE_ID = "id"
+        const val EXTRA_PURPOSE = "purpose"
+        private const val QUERY = "query"
+        private const val SEARCHING = "searching"
+
+        fun intent(context: Context, purpose: String) =
+            Intent(context, ProfileSelectActivity::class.java).putExtra(EXTRA_PURPOSE, purpose)
     }
+
+    private var state by mutableStateOf(PickState())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        @Suppress("DEPRECATION")
         val selected = intent.getParcelableExtra<ProxyEntity>(EXTRA_SELECTED)
-
-        // after recreation the fragment manager restores the fragment with its arguments
-        if (savedInstanceState == null) supportFragmentManager.beginTransaction()
-            .replace(
-                R.id.fragment_holder,
-                ConfigurationFragment(true, selected, R.string.select_profile)
-            )
-            .commitAllowingStateLoss()
+        state = PickState(
+            current = selected?.id,
+            purpose = intent.getStringExtra(EXTRA_PURPOSE),
+            searching = savedInstanceState?.getBoolean(SEARCHING) ?: false,
+            query = savedInstanceState?.getString(QUERY).orEmpty(),
+        )
+        setContent {
+            NikoTheme {
+                PickScreen(
+                    state, ::finish,
+                    onSearch = { on -> state = state.copy(searching = on, query = if (on) state.query else "") },
+                    onQuery = { state = state.copy(query = it) },
+                ) { id ->
+                    setResult(RESULT_OK, Intent().putExtra(EXTRA_PROFILE_ID, id))
+                    finish()
+                }
+            }
+        }
+        lifecycleScope.launch(Dispatchers.IO) {
+            val groups = try {
+                // no profile is «the chosen one» here: the radio's mark is the sheet's
+                ConfigsLoader.load().map { g -> g.copy(profiles = g.profiles.map { it.copy(selected = false) }) }
+            } catch (e: Exception) {
+                Logs.w(e)
+                emptyList()
+            }
+            withContext(Dispatchers.Main) { state = state.copy(groups = groups) }
+        }
     }
 
-    override fun returnProfile(profileId: Long) {
-        setResult(RESULT_OK, Intent().apply {
-            putExtra(EXTRA_PROFILE_ID, profileId)
-        })
-        finish()
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(SEARCHING, state.searching)
+        outState.putString(QUERY, state.query)
     }
-
 }

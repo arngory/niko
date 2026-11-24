@@ -1029,4 +1029,11 @@
     <!-- Редактор JSON on Compose (D-PROFILE-02) -->
     <string name="json_error_line">Строка %1$d: %2$s</string>
     <string name="json_discard">Не сохранять</string>
+    <!-- Выбор профиля on Compose (D-PICK-01) -->
+    <string name="pick_title">Выберите профиль</string>
+    <string name="pick_none">Профилей пока нет</string>
+    <string name="pick_for_rule">Выход правила</string>
+    <string name="pick_for_chain">Звено цепочки</string>
+    <string name="pick_for_front">Front proxy группы</string>
+    <string name="pick_for_landing">Landing proxy группы</string>
 </resources>

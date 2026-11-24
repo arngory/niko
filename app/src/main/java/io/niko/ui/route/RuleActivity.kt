@@ -197,7 +197,7 @@ class RuleActivity : ThemedActivity() {
         }
 
         override fun pickProfile() {
-            pickProfile.launch(Intent(this@RuleActivity, ProfileSelectActivity::class.java))
+            pickProfile.launch(ProfileSelectActivity.intent(this@RuleActivity, getString(R.string.pick_for_rule)))
         }
 
         override fun editJson() {
