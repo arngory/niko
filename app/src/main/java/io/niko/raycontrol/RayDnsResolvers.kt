@@ -193,21 +193,30 @@ object RayDnsResolvers {
 
     private const val SLIP = DnsTunnel.SLIPSTREAM
 
-    /** The main zone of [node]'s dnstt tunnel, where its front answers probes (dnsprobe-v1); null none. */
-    private fun dnsttZone(node: RayNode): String? = node.profileIds.orEmpty().values.firstNotNullOfOrNull { id ->
-        SagerDatabase.proxyDao.getById(id)?.requireBean()?.let(DnsTunnel::of)
-            ?.takeIf { it.enabled && it.engine == DNSTT }?.zones?.firstOrNull()
-    }
+    /** Where [node]'s front answers probes (dnsprobe-v1) for slipstream's measure: [probeZoneOf] its tunnels'; null none. */
+    private fun probeZone(node: RayNode): String? = probeZoneOf(
+        node.profileIds.orEmpty().values.mapNotNull { id ->
+            SagerDatabase.proxyDao.getById(id)?.requireBean()?.let(DnsTunnel::of)?.takeIf { it.enabled }
+        }.map { it.engine to it.zones.firstOrNull() },
+    )
+
+    /**
+     * The zone to probe among [tunnels] (engine to main zone): the dnstt tunnel's, else the slipstream tunnel's (its front
+     * answers probes there too since raycontrol v0.36.1, which gives slipstream's users the probe key); null none.
+     */
+    internal fun probeZoneOf(tunnels: List<Pair<String, String?>>): String? =
+        tunnels.firstNotNullOfOrNull { (engine, zone) -> zone.takeIf { engine == DNSTT } }
+            ?: tunnels.firstNotNullOfOrNull { (engine, zone) -> zone.takeIf { engine == SLIP } }
 
     /**
      * Measures slipstream's candidates on [network] (masterdns's list with Yandex's, addresses only) with a small probe
-     * at [node]'s dnstt zone, the EDNS size each passes on as the node saw it (dnsprobe-v1); keeps, for a day, those
+     * at [node]'s dnstt zone (its slipstream zone when it has no dnstt), the EDNS size each passes on as the node saw it (dnsprobe-v1); keeps, for a day, those
      * under [SLIP_MIN_EDNS] or with none (0), and those at it or over. A resolver that did not answer is in neither. Nothing without
-     * a dnstt zone or a probe key: slipstream's zones answer no probe.
+     * a zone to probe or a probe key (a node before raycontrol v0.36.1 gives slipstream's users none).
      */
     suspend fun measureSlip(node: RayNode, network: ChannelNetwork, progress: (String) -> Unit = {}): Set<String>? {
         val key = node.dnsProbeKey ?: return null
-        val zone = withContext(Dispatchers.IO) { dnsttZone(node) } ?: return null
+        val zone = withContext(Dispatchers.IO) { probeZone(node) } ?: return null
         val candidates = masterdnsResolvers(networkCandidates() + COUNTRY[country()].orEmpty(), fallback = true)
             .filter { '/' !in it.resolver }
         val small = linkedSetOf<String>()
