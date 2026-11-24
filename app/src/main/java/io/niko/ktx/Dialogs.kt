@@ -3,52 +3,14 @@ package io.niko.ktx
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
-import android.view.View
-import android.view.ViewGroup
-import android.widget.FrameLayout
-import android.widget.LinearLayout
-import androidx.appcompat.app.AlertDialog
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.niko.R
+import io.niko.ui.compose.NikoDialog
 
-fun Context.alert(text: String): AlertDialog {
-    return MaterialAlertDialogBuilder(this).setTitle(R.string.error_title)
-        .setMessage(text)
-        .setPositiveButton(android.R.string.ok, null)
-        .create()
-}
+fun Context.alert(text: String): NikoDialog =
+    NikoDialog(this).title(R.string.error_title).message(text).primary(android.R.string.ok)
 
 fun Fragment.alert(text: String) = requireContext().alert(text)
-
-/** A confirmation that deletes or resets (m-dialog's danger action): its positive button in danger, after show(). */
-fun AlertDialog.danger(): AlertDialog = apply {
-    getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(ContextCompat.getColor(context, R.color.niko_danger))
-}
-
-/** [view], a dialog's one field, inset as the dialog's title and words are (space-6), space-2 below them. */
-fun MaterialAlertDialogBuilder.setField(view: View): MaterialAlertDialogBuilder = setView(FrameLayout(context).apply {
-    val side = resources.getDimensionPixelSize(R.dimen.niko_space_6)
-    setPadding(side, resources.getDimensionPixelSize(R.dimen.niko_space_2), side, 0)
-    addView(view)
-})
-
-/** [views] as a dialog's body: inset as [setField], space-2 below each so that fields do not touch. */
-fun Context.dialogColumn(vararg views: View): LinearLayout = LinearLayout(this).apply {
-    orientation = LinearLayout.VERTICAL
-    val side = resources.getDimensionPixelSize(R.dimen.niko_space_6)
-    val gap = resources.getDimensionPixelSize(R.dimen.niko_space_2)
-    setPadding(side, gap, side, 0)
-    for (view in views) {
-        val params = when (val own = view.layoutParams) {
-            is LinearLayout.LayoutParams -> own
-            null -> LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-            else -> LinearLayout.LayoutParams(own)
-        }
-        addView(view, params.apply { bottomMargin = gap })
-    }
-}
 
 /**
  * The first of [start], then what [next] gives for it and so on, that [match] takes: at most [depth] steps, so a
@@ -70,8 +32,8 @@ internal inline fun <T : Any> firstInChain(start: T, depth: Int = 16, next: (T) 
 fun Context.findActivity(): Activity? =
     firstInChain(this, next = { (it as? ContextWrapper)?.baseContext }, match = { it is Activity }) as Activity?
 
-fun AlertDialog.tryToShow() {
-    // the context of a dialog is never the Activity itself: a cast to it failed for every dialog, and none was
+fun NikoDialog.tryToShow() {
+    // the context may be a wrapper around the Activity: a cast to it failed for every dialog, and none was
     // shown (an error of NekoBox's, ThroneForAndroid ac1f62f)
     val activity = context.findActivity()
     if (activity == null || activity.isFinishing || activity.isDestroyed) {
