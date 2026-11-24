@@ -34,7 +34,6 @@
 <string name="app_version">Версия</string>
 <string name="apply">Применить</string>
 <string name="apps">Приложения</string>
-<string name="apps_message">%d приложений</string>
 <string name="auto_select_proxy_apps">Автоматический выбор прокси-приложений</string>
 <string name="auto_select_proxy_apps_message">Автоматический выбор прокси-приложений приведет к очистке текущего выбора.</string>
 <string name="backup">Бэкап</string>
@@ -52,7 +51,6 @@
 <string name="bottomsheet_drag_handle_clicked">Двойное нажатие на маркер перемещения</string>
 <string name="bottomsheet_drag_handle_content_description">Маркер перемещения</string>
 <string name="bypass_apps">Обход</string>
-<string name="cag_route">Настройки маршрута</string>
 <string name="cag_ws">Настройки WebSocket</string>
 <string name="certificates">Сертификаты</string>
 <string name="chain_settings">Настройки цепочки</string>
@@ -276,7 +274,6 @@
 <string name="hysteria_upload_mbps">Максимальная скорость отдачи (в Мбит / с)</string>
 <string name="icon_content_description">Значок диалогового окна</string>
 <string name="ignore_battery_optimizations">Игнорировать оптимизации батареи</string>
-<string name="route_test">Какое правило сработает</string>
 <string name="route_test_target_hint">Хост или адрес и порт: example.com:443</string>
 <string name="route_test_app_hint">Из приложения (необязательно)</string>
 <string name="route_test_udp">UDP</string>
@@ -285,13 +282,9 @@
 <string name="route_test_bad_target">Введите хост или адрес и порт, если не 443</string>
 <string name="route_test_not_running">Сначала запустите Niko: правила проверяются в работающем ядре</string>
 <string name="route_test_no_rule">Ни одно правило не подошло: финальный исходящий</string>
-<string name="route_test_steps">По пути подошли:</string>
 <string name="route_test_failed">Соединения не будет</string>
 <string name="route_test_dns">DNS-запрос приложения вернул</string>
 <string name="route_test_seen">Правила увидели</string>
-<string name="route_test_out_proxy">через прокси</string>
-<string name="route_test_out_direct">напрямую</string>
-<string name="route_test_out_block">блокировка</string>
 <string name="exit_address">Адрес выхода</string>
 <string name="exit_address_message">Спросить у сервиса определения адреса через работающий профиль, с какого адреса и из какой страны выходит ваше соединение. Сервис узнает адрес ноды и время запроса. Ничего не отправляется, пока вы не нажмёте «Спросить».</string>
 <string name="exit_address_ask">Спросить</string>
@@ -426,20 +419,12 @@
 <string name="reset_connections">Сбросить соединения</string>
 <string name="reset_settings">Восстановить настройки по умолчанию</string>
 <string name="reset_settings_message">Восстановить настройки по умолчанию, такие данные, как узлы и группы, будут сохранены. Для полной очистки данных, очистите данные приложения непосредственно в системных настройках.</string>
-<string name="route_add">Создать маршрут</string>
 <string name="route_asset_no_update">Обновлений нет</string>
-<string name="route_asset_status">Локальная версия: %s</string>
 <string name="route_asset_updated">Обновлено</string>
-<string name="route_assets">Ресурсы</string>
-<string name="route_block">Блокировать</string>
-<string name="route_bypass">Обход</string>
 <string name="route_dpi_bypass">Обход DPI</string>
 <string name="route_dpi_bypass_summary">Как — в Настройки › Опыты › Обход DPI для прямых соединений</string>
 <string name="route_bypass_domain">Правило домена для %s</string>
 <string name="route_bypass_ip">Правило IP для %s</string>
-<string name="route_for">Правило для %s</string>
-<string name="route_manage_assets">Управление ресурсами маршрутов</string>
-<string name="route_name">Название маршрута</string>
 <string name="route_need_vpn">Правило маршрутизации `%s` зависит от VPN, поэтому игнорируется.</string>
 <string name="route_not_asset">Не файл ресурса: ожидался .db, а не %s</string>
 <string name="route_import_ca">Добавить корневой сертификат?</string>
@@ -451,9 +436,7 @@
 <string name="route_play_store">Правило Play Store для %s</string>
 <string name="route_profile">Выбрать профиль…</string>
 <string name="route_proxy">Прокси</string>
-<string name="route_reset">Сброс</string>
 <string name="route_rules_official">Официальный</string>
-<string name="route_warn">Перед добавлением собственных правил убедитесь, что вы прочитали документацию, иначе подключение к Интернету может не удасться.</string>
 <string name="scanning">Сканирование…</string>
 <string name="search_apps">Поиск…</string>
 <string name="search_menu_title">Поиск</string>
@@ -505,7 +488,6 @@
 <string name="subscription_update">Обновление подписки</string>
 <string name="subscription_update_message">Обновление %s …</string>
 <string name="subscription_used">%s Использовано</string>
-<string name="subscriptions">Подписки</string>
 <string name="tcp_connections">%d TCP-соединений</string>
 <string name="tcp_keep_alive_interval">Интервал доставки пакетов TCP keep-alive</string>
 <string name="test_concurrency">Число параллельных подключений</string>
@@ -648,7 +630,6 @@
     <string name="raycontrol_card_dns_net">резолвер сети</string>
     <string name="raycontrol_card_dns_none">ни один резолвер не ответил</string>
     <string name="raycontrol_card_clock">часы расходятся на %d с</string>
-    <string name="route_preset_ru">Пресет: Россия</string>
     <string name="route_preset_ru_title">Заблокированное через прокси, российское напрямую</string>
     <string name="route_preset_ru_message">Добавит два правила:\n• заблокированное в России (списки runetfreedom) идёт через прокси;\n• российские сервисы, домены .ru, .su и .рф и российские IP идут напрямую.\nОстальное идёт как прежде; правила выше пресета в списке действуют раньше него. Списки (около 0,8 МБ) скачиваются сейчас и затем раз в %d ч, при работающем прокси — через него; правило «напрямую» ждёт списков заблокированного. Повторное добавление заменит правила пресета.</string>
     <string name="route_preset_ru_add">Добавить</string>

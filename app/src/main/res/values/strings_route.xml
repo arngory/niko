@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Routing: the rules (P-Rules), a rule (P-Rule), the route check (P-Check), the rule sets (P-Lists). -->
+<resources>
+    <string name="rt_title">Routing</string>
+    <string name="rt_guide">Routing guide</string>
+    <string name="rt_add">Add a rule</string>
+    <string name="rt_warn">Your own rules can cut you off the internet: read the routing guide before adding them.</string>
+    <string name="rt_preset">Preset</string>
+    <string name="rt_preset_none">None</string>
+    <string name="rt_preset_russia">Russia</string>
+    <string name="rt_preset_remove_title">Remove the Russia preset?</string>
+    <string name="rt_preset_remove_message">Its rules are deleted. Your own rules stay, and so does a preset rule you changed.</string>
+    <string name="rt_preset_remove">Remove</string>
+    <string name="rt_rules">Rules</string>
+    <string name="rt_rest">Everything else</string>
+    <string name="rt_out_proxy">Through the node</string>
+    <string name="rt_out_direct">Direct</string>
+    <string name="rt_out_block">Block</string>
+    <string name="rt_drag">Move «%s»</string>
+    <string name="rt_move_up">Move up</string>
+    <string name="rt_move_down">Move down</string>
+    <string name="rt_delete">Delete</string>
+    <string name="rt_lists">Rule sets</string>
+    <string name="rt_check">Route check</string>
+    <string name="rt_reset">Reset the rules</string>
+    <string name="rt_reset_title">Reset the rules?</string>
+    <string name="rt_reset_message">Your rules are replaced with the standard ones.</string>
+    <plurals name="rt_apps">
+        <item quantity="one">%d app</item>
+        <item quantity="other">%d apps</item>
+    </plurals>
+
+    <string name="rt_rule">Rule</string>
+    <string name="rt_new_rule">New rule</string>
+    <string name="rt_delete_rule">Delete the rule</string>
+    <string name="rt_name">Name</string>
+    <string name="rt_pick_apps">Choose apps</string>
+    <string name="rt_remove_app">Remove «%s»</string>
+    <string name="rt_any_app">Any app</string>
+    <string name="rt_conditions">And also</string>
+    <string name="rt_domains">Domains</string>
+    <string name="rt_addresses">Addresses</string>
+    <string name="rt_ports">Ports and protocol</string>
+    <string name="rt_json">Own JSON</string>
+    <string name="rt_dst_ip">Destination IP</string>
+    <string name="rt_src_ip">Source IP</string>
+    <string name="rt_dst_port">Destination port</string>
+    <string name="rt_src_port">Source port</string>
+    <string name="rt_network">Network</string>
+    <string name="rt_tcp_udp">TCP and UDP</string>
+    <string name="rt_protocol">Protocol</string>
+    <string name="rt_action">Action</string>
+    <string name="rt_profile">Through a profile</string>
+    <string name="rt_save">Save</string>
+
+    <string name="rt_address">Address</string>
+    <string name="rt_more">More</string>
+    <string name="rt_checking">Checking…</string>
+    <string name="rt_rule_n">Rule %d</string>
+    <string name="rt_exit">Outbound</string>
+    <string name="rt_steps">Steps</string>
+    <string name="rt_notes">The core\'s notes</string>
+
+    <string name="rt_update_all">Check for updates</string>
+    <string name="rt_update_one">Update %s</string>
+    <string name="rt_updating">Updating…</string>
+    <string name="rt_geo">Geo bases</string>
+    <string name="rt_own">Own files</string>
+    <string name="rt_own_none">None yet: import a .db or a root certificate .pem from a file</string>
+    <string name="rt_ca">Root certificate</string>
+    <string name="rt_lists_source">The source of the geo bases and the update interval are in Settings › DNS and route.</string>
+</resources>

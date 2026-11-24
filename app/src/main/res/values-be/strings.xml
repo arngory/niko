@@ -49,7 +49,6 @@
     <string name="ws_browser_forwarding">Пераадрасацыя браўзэра</string>
     <string name="cag_ws">Налады WebSocket</string>
     <string name="require_http">Уключыць увод HTTP</string>
-    <string name="cag_route">Налады маршруту</string>
     <string name="port_transproxy">Transproxy порт</string>
     <string name="port_http">Проксі -порт HTTP</string>
     <string name="group_duplicate">Дублікат:

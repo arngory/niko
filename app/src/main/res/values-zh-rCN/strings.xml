@@ -39,7 +39,6 @@
     <!-- misc -->
     <string name="port_http">HTTP 代理端口</string>
     <string name="port_local_dns">本地 DNS 端口</string>
-    <string name="cag_route">路由设置</string>
     <string name="require_http">启用 HTTP 入站</string>
     <string name="cag_ws">WebSocket 设置</string>
     <string name="ws_browser_forwarding">浏览器转发</string>
@@ -138,7 +137,6 @@
     <string name="vpn_connected">已连接 , 点击此处测试连接</string>
     <string name="not_connected">未连接</string>
     <!-- subscriptions -->
-    <string name="subscriptions">订阅</string>
     <string name="cleartext_http_warning">纯文本 HTTP 流量并不安全</string>
     <string name="error_title">错误</string>
     <string name="no_proxies_found">未在此链接内找到服务器配置</string>
@@ -155,8 +153,6 @@
     <string name="apply">应用</string>
     <string name="license">授权协议</string>
     <string name="route_proxy">代理</string>
-    <string name="route_bypass">绕过</string>
-    <string name="route_block">屏蔽</string>
     <string name="route_opt_block_ads">屏蔽广告</string>
     <string name="route_opt_block_quic">屏蔽 QUIC</string>
     <string name="domain_strategy">域名解析策略</string>
@@ -186,18 +182,14 @@
     <string name="circular_reference_sum">路由中不能包含自己.</string>
     <string name="mux_sum">多路复用是为了减少 TCP 的握手延迟而设计, 而非提高连接的吞吐量. 用于看视频、下载或者测速通常都有反效果。如果服务器不支持，则无法上网。</string>
     <string name="tcp_keep_alive_interval">TCP 保持活跃数据包发送间隔</string>
-    <string name="route_add">新建路由规则</string>
     <string name="delete_route_prompt">您确定要移除此路由吗\?</string>
-    <string name="route_name">路由名称</string>
     <string name="route_profile">选择配置…</string>
     <string name="empty_route">空路由</string>
     <string name="empty_route_notice">在保存前设置一些规则</string>
-    <string name="route_warn">在添加自定义规则之前，请确保您已经阅读了文档，否则您将可能无法连接到互联网。</string>
     <string name="route_bypass_domain">%s 域名规则</string>
     <string name="route_bypass_ip">%s IP 规则</string>
     <string name="no_proxies_found_in_file">未在此文件内找到服务器配置</string>
     <string name="no_proxies_found_in_clipboard">未在剪切板内找到服务器配置</string>
-    <string name="route_reset">重置</string>
     <string name="clear_profiles">清空</string>
     <string name="file_manager_missing">您的设备缺少 Android 标准文件选择器, 请安装一个, 如 Material Files.</string>
     <string name="need_reload">重载代理服务以应用修改</string>
@@ -227,9 +219,6 @@
     <string name="route_not_asset">不是资源文件: 预期 .db 为扩展名, 但 %s</string>
     <string name="route_asset_no_update">已为最新</string>
     <string name="route_asset_updated">已更新</string>
-    <string name="route_asset_status">本地版本: %s</string>
-    <string name="route_assets">资源</string>
-    <string name="route_manage_assets">管理路由资源</string>
     <string name="enable_log">启用日志</string>
     <string name="enable_log_sum">调试用途</string>
     <string name="route_rules_official">官方</string>
@@ -287,7 +276,6 @@
     <string name="dns_hosts">域名重写</string>
     <string name="apps">应用</string>
     <string name="select_apps">选择应用</string>
-    <string name="apps_message">%d 个应用</string>
     <string name="hysteria_obfs">混淆密码</string>
     <string name="hysteria_auth_type">认证类型</string>
     <string name="hysteria_auth_payload">认证密码</string>
@@ -306,7 +294,6 @@
     <string name="shadowsocks_plugin_v2ray">V2Ray （Shadowsocks Android 插件）</string>
     <string name="shadowsocks_plugin_simple_obfs">Simple Obfs （Shadowsocks Android 插件）</string>
     <string name="menu_traffic">流量</string>
-    <string name="route_for">%s 路由</string>
     <string name="app_no_launcher">该应用没有界面。</string>
     <string name="copy_failed">复制失败。</string>
     <string name="copy_success">复制成功！</string>
