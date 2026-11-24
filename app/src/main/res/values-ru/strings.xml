@@ -1009,6 +1009,11 @@
     <string name="home_nodes">Узлы raycontrol</string>
     <string name="home_log">Журнал и вид</string>
     <string name="home_help">Справка</string>
+    <string name="home_check">Проверить соединение</string>
+    <string name="home_check_testing">Проверка…</string>
+    <string name="home_check_done">%d мс</string>
+    <string name="home_check_failed">нет ответа</string>
+    <string name="home_card_menu">Подключение</string>
     <string name="home_profiles">Конфиги</string>
     <string name="home_subscriptions">Подписки</string>
     <string name="home_add">Добавить</string>

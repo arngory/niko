@@ -1,8 +1,10 @@
 package io.niko.ui.home
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -71,6 +73,7 @@ fun HomeScreen(
 ) {
     val c = Niko.colors
     var modeSheet by rememberSaveable { mutableStateOf(sheet) }
+    var cardMenu by rememberSaveable { mutableStateOf(false) }
     var configsSheet by rememberSaveable { mutableStateOf(configsOpen || subsOpen) }
     // the sheet opened on its Subscriptions tab (P-Subs)
     var onSubs by rememberSaveable { mutableStateOf(subsOpen) }
@@ -105,7 +108,9 @@ fun HomeScreen(
             TopBar(view, actions::view, Modifier.statusBarsPadding())
             when (view) {
                 HomeView.Simple -> Simple(state, now, actions, openConfigs, Modifier.weight(1f)) { modeSheet = true }
-                HomeView.Advanced -> Advanced(state, now, actions, openConfigs, openSubs, Modifier.weight(1f)) { modeSheet = true }
+                HomeView.Advanced -> Advanced(state, now, actions, openConfigs, openSubs, Modifier.weight(1f), onCardMenu = { cardMenu = true }) {
+                    modeSheet = true
+                }
             }
         }
         if (modeSheet) {
@@ -114,6 +119,10 @@ fun HomeScreen(
                 modeSheet = false
                 if (vpn != state.mode.vpn) actions.mode(vpn)
             }) { modeSheet = false }
+        }
+        if (cardMenu && state.service == BaseService.State.Connected) {
+            BackHandler { cardMenu = false }
+            CardMenu(onCheck = { cardMenu = false; actions.check() }, onExit = { cardMenu = false; actions.exitAddress() }) { cardMenu = false }
         }
         if (configsSheet && configsActions != null) {
             ConfigsSheet(
@@ -272,7 +281,16 @@ private fun NodeRow(profile: HomeProfile?, profiles: Int, actions: HomeActions, 
 
 /** P-Advanced: the connection card, the main settings and the rest as rows, the configs and subscriptions on the sheet. */
 @Composable
-private fun Advanced(state: HomeState, now: Long, actions: HomeActions, onConfigs: () -> Unit, onSubs: () -> Unit, modifier: Modifier, onMode: () -> Unit) {
+private fun Advanced(
+    state: HomeState,
+    now: Long,
+    actions: HomeActions,
+    onConfigs: () -> Unit,
+    onSubs: () -> Unit,
+    modifier: Modifier,
+    onCardMenu: () -> Unit = {},
+    onMode: () -> Unit,
+) {
     val (label, tone) = statusLabel(state)
     Column(modifier.fillMaxWidth()) {
         Column(
@@ -281,7 +299,7 @@ private fun Advanced(state: HomeState, now: Long, actions: HomeActions, onConfig
             verticalArrangement = Arrangement.spacedBy(NikoSpace.s6),
         ) {
             ListGroup {
-                ConnectionCard(state, now, label, tone, actions)
+                ConnectionCard(state, now, label, tone, actions, onCardMenu)
                 NodeRow(state.profile, state.profiles, actions, onConfigs, bottom = NikoSpace.s3, advanced = true)
             }
             Section(stringResource(R.string.home_section_main)) {
@@ -318,9 +336,25 @@ private fun Advanced(state: HomeState, now: Long, actions: HomeActions, onConfig
     }
 }
 
-/** The connection card's first row (P-Advanced): the small button, the state and speeds, the time online. */
+/**
+ * The connection card's first row (P-Advanced): the small button, the state and speeds, the time online. Connected,
+ * the state and speeds are a button, as the old status bar was: a tap checks the connection (D-MAIN-18), its answer in
+ * place of the time online for a while (a failure's reason under the state); a long press opens the card's menu with
+ * the check and the exit address (D-MAIN-03, D-MAIN-14).
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ConnectionCard(state: HomeState, now: Long, label: String, tone: androidx.compose.ui.graphics.Color, actions: HomeActions) {
+private fun ConnectionCard(
+    state: HomeState,
+    now: Long,
+    label: String,
+    tone: androidx.compose.ui.graphics.Color,
+    actions: HomeActions,
+    onMenu: () -> Unit,
+) {
+    val c = Niko.colors
+    val connected = state.service == BaseService.State.Connected
+    val check = if (connected) state.check else null
     Row(
         Modifier.fillMaxWidth().padding(horizontal = NikoSpace.s4, vertical = NikoSpace.s3),
         verticalAlignment = Alignment.CenterVertically,
@@ -328,12 +362,58 @@ private fun ConnectionCard(state: HomeState, now: Long, label: String, tone: and
     ) {
         ConnectButton(state.service, state.error != null, actions::toggle, NikoSize.connectSm)
         val detail = when {
-            state.service == BaseService.State.Connected -> speeds(state)
+            check is HomeCheck.Failed -> AnnotatedString(check.reason)
+            connected -> speeds(state)
             state.service.canStop -> null
             else -> state.error?.let(::AnnotatedString)
         }
-        Status(label, detail, tone, start = true, modifier = Modifier.weight(1f))
-        online(state, now)?.let { Text(it, NikoType.code, Niko.colors.ink2, maxLines = 1) }
+        val checkLabel = stringResource(R.string.home_check)
+        val menuLabel = stringResource(R.string.home_card_menu)
+        Row(
+            Modifier.weight(1f).then(
+                if (connected) {
+                    Modifier.combinedClickable(
+                        onClickLabel = checkLabel, role = Role.Button, onLongClickLabel = menuLabel,
+                        onLongClick = onMenu, onClick = actions::check,
+                    )
+                } else Modifier,
+            ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(NikoSpace.s4),
+        ) {
+            Status(label, detail, tone, start = true, modifier = Modifier.weight(1f))
+            when (check) {
+                null -> online(state, now)?.let { Text(it, NikoType.code, c.ink2, maxLines = 1) }
+                HomeCheck.Testing -> Text(stringResource(R.string.home_check_testing), NikoType.code, c.ink2, maxLines = 1)
+                is HomeCheck.Done -> Text(stringResource(R.string.home_check_done, check.millis), NikoType.code, c.ink, maxLines = 1)
+                is HomeCheck.Failed -> Text(stringResource(R.string.home_check_failed), NikoType.code, c.danger, maxLines = 1)
+            }
+        }
+    }
+}
+
+/** The status card's menu (P-Advanced, its long press): the connection check and the exit address. */
+@Composable
+private fun CardMenu(onCheck: () -> Unit, onExit: () -> Unit, onDismiss: () -> Unit) {
+    val c = Niko.colors
+    Box(
+        Modifier.fillMaxSize().background(c.scrim)
+            .clickable(remember { MutableInteractionSource() }, indication = null, onClick = onDismiss),
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        Sheet(Modifier.clickable(remember { MutableInteractionSource() }, indication = null) { }.navigationBarsPadding()) {
+            Text(
+                stringResource(R.string.home_card_menu), NikoType.headline, c.ink,
+                Modifier.padding(start = NikoSpace.s5, end = NikoSpace.s5, bottom = NikoSpace.s2),
+            )
+            Column(Modifier.padding(bottom = NikoSpace.s6)) {
+                ListRow(stringResource(R.string.home_check), side = NikoSpace.s5, lead = { Icon(R.drawable.ic_l_activity, c.ink2) }, onClick = onCheck)
+                ListRow(
+                    stringResource(R.string.exit_address), divider = true, side = NikoSpace.s5,
+                    lead = { Icon(R.drawable.ic_l_globe, c.ink2) }, onClick = onExit,
+                )
+            }
+        }
     }
 }
 

@@ -52,7 +52,16 @@ data class HomeState(
     /** how many profiles and subscriptions there are, for the sheet's tabs */
     val profiles: Int = 0,
     val subscriptions: Int = 0,
+    /** the connection check's answer on the status card (D-MAIN-18), null when none is shown */
+    val check: HomeCheck? = null,
 )
+
+/** The connection check (D-MAIN-18): under way, the time the handshake took, or why it failed. */
+sealed interface HomeCheck {
+    data object Testing : HomeCheck
+    data class Done(val millis: Int) : HomeCheck
+    data class Failed(val reason: String) : HomeCheck
+}
 
 /** What the main screen asks of the activity. */
 interface HomeActions {
@@ -69,6 +78,10 @@ interface HomeActions {
     fun nodes()
     fun log()
     fun help()
+    /** the status card tapped while connected: the connection check (D-MAIN-18) */
+    fun check()
+    /** the status card's menu: the exit address as a lookup service sees it (D-MAIN-03, D-MAIN-14) */
+    fun exitAddress()
 }
 
 /** Bytes per second as the status shows them: 312 KB/s, 4.2 MB/s. */
