@@ -18,7 +18,7 @@ import org.junit.runners.Parameterized
 
 /**
  * The Niko dialog's card as images, light and dark, over the scrim: the preview build's notice (P-Preview), the
- * missing plugin (P-NoPlugin), a question, an invite's PIN, the exit address's services.
+ * missing plugin (P-NoPlugin), a question, an invite's PIN, the exit address's services, an update's three buttons.
  */
 @RunWith(Parameterized::class)
 class NikoDialogSnapshotTest(private val mode: String) {
@@ -109,6 +109,17 @@ class NikoDialogSnapshotTest(private val mode: String) {
             title = "Удалить узел?",
             message = "Профили узла и его ключ на этом устройстве будут удалены.",
             buttons = listOf(NikoDialogButton("Отмена"), NikoDialogButton("Удалить", danger = true)),
+        ),
+    )
+
+    @Test
+    fun threeButtons() = shot(
+        NikoDialogSpec(
+            title = "Доступна новая версия",
+            message = "Текущая версия: 1.67.0\nДоступная версия: 1.68.0\nХотите загрузить её?",
+            buttons = listOf(
+                NikoDialogButton("Страница релиза"), NikoDialogButton("Нет"), NikoDialogButton("Скачать и установить", primary = true),
+            ),
         ),
     )
 }

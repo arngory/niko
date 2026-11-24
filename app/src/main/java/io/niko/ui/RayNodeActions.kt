@@ -3,7 +3,6 @@ package io.niko.ui
 import android.content.Intent
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.withResumed
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.niko.GroupType
 import io.niko.R
 import io.niko.SagerNet
@@ -17,6 +16,7 @@ import io.niko.raycontrol.RayNode
 import io.niko.raycontrol.RayNodes
 import io.niko.raycontrol.RaySubscription
 import io.niko.ui.admin.AdminActivity
+import io.niko.ui.compose.NikoDialog
 
 // A raycontrol node's actions as dialogs over any screen: the settings' node list and the node's card (ui/node) take
 // them alike. Moved as they were from SettingsPreferenceFragment.
@@ -42,10 +42,10 @@ fun Fragment.showRayNodeActions(node: RayNode, card: Boolean = false, onRemoved:
     val hasHints = RayChannel.network()?.let { RayChannel.hints(node.spa.nodeId, it) } != null
     if (DataStore.raycontrolReports || hasHints) actions += R.string.raycontrol_report_show to { showRayReport(node) }
     actions += R.string.raycontrol_node_remove to { confirmRayNodeRemove(node, onRemoved) }
-    MaterialAlertDialogBuilder(requireContext())
-        .setTitle(node.label)
-        .setItems(actions.map { getString(it.first) }.toTypedArray()) { _, i -> actions[i].second() }
-        .setNegativeButton(android.R.string.cancel, null)
+    NikoDialog(requireContext())
+        .title(node.label)
+        .items(actions.map { getString(it.first) }) { i -> actions[i].second() }
+        .ghost(android.R.string.cancel)
         .show()
 }
 
@@ -81,9 +81,10 @@ fun Fragment.updateRayNode(node: RayNode, groupId: Long, done: () -> Unit = {}) 
  * groups' list and the Subscriptions tab ask it alike).
  */
 fun Fragment.updateAllGroups() {
-    MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.confirm)
-        .setMessage(R.string.update_all_subscription)
-        .setPositiveButton(R.string.yes) { _, _ ->
+    NikoDialog(requireContext()).title(R.string.confirm)
+        .message(R.string.update_all_subscription)
+        .ghost(R.string.no)
+        .primary(R.string.yes) { _, _ ->
             runOnDefaultDispatcher {
                 val subscriptions = SagerDatabase.groupDao.allGroups().filter { it.type == GroupType.SUBSCRIPTION }
                 // raycontrol nodes too: their subscriptions come from the nodes
@@ -94,7 +95,6 @@ fun Fragment.updateAllGroups() {
                 }
             }
         }
-        .setNegativeButton(R.string.no, null)
         .show()
 }
 
@@ -109,39 +109,35 @@ fun Fragment.updateRaySubscription(node: RayNode) {
 
 /** A test run with an id the node's admin logs under too (RayTestRun), then what it found and its file to share. */
 fun Fragment.rayTestRun(node: RayNode) {
-    val input = android.widget.EditText(requireContext()).apply {
-        setText(io.niko.raycontrol.RayTestRun.defaultId())
-        setSingleLine()
-    }
-    MaterialAlertDialogBuilder(requireContext())
-        .setTitle(R.string.raycontrol_test_run)
-        .setMessage(R.string.raycontrol_test_run_help)
-        .setField(input)
-        .setPositiveButton(R.string.raycontrol_test_run_start) { _, _ ->
-            val id = input.text.toString().trim()
+    NikoDialog(requireContext())
+        .title(R.string.raycontrol_test_run)
+        .message(R.string.raycontrol_test_run_help)
+        .field(initial = io.niko.raycontrol.RayTestRun.defaultId())
+        .ghost(android.R.string.cancel)
+        .primary(R.string.raycontrol_test_run_start) { typed, _ ->
+            val id = typed.trim()
             if (!io.niko.raycontrol.RayTestRun.validId(id)) {
                 snackbar(R.string.raycontrol_test_run_bad_id).show()
-                return@setPositiveButton
+                return@primary
             }
             startRayTestRun(node, id)
         }
-        .setNegativeButton(android.R.string.cancel, null)
         .show()
 }
 
 private fun Fragment.startRayTestRun(node: RayNode, id: String) {
     val context = requireContext().applicationContext
     val lines = mutableListOf(getString(R.string.raycontrol_test_run_running, id))
-    val dialog = MaterialAlertDialogBuilder(requireContext())
-        .setTitle(getString(R.string.raycontrol_test_run_title, id))
-        .setMessage(lines.joinToString("\n"))
-        .setPositiveButton(android.R.string.ok, null)
-        .show()
+    val words = NikoDialog(requireContext())
+        .title(getString(R.string.raycontrol_test_run_title, id))
+        .message(lines.joinToString("\n"))
+        .primary(android.R.string.ok)
+    val dialog = words.show()
     // the lines change on the main thread only; the run may outlive this screen (minutes): the app's context
     // for strings and the share sheet, the dialog only while the screen is there
     fun show(line: String) = runOnMainDispatcher {
         lines += line
-        if (isAdded) dialog.setMessage(lines.takeLast(20).joinToString("\n"))
+        if (isAdded) words.message(lines.takeLast(20).joinToString("\n"))
     }
     runOnDefaultDispatcher {
         val outcome = try {
@@ -172,15 +168,12 @@ private fun Fragment.startRayTestRun(node: RayNode, id: String) {
 /** What a test run found, and its log to share (a button that leaves the findings open). */
 fun Fragment.showRayFindings(findings: io.niko.raycontrol.RayTestFindings.Result, file: java.io.File?) {
     val context = context ?: return
-    val dialog = MaterialAlertDialogBuilder(context)
-        .setTitle(R.string.raycontrol_findings_title)
-        .setMessage(io.niko.raycontrol.RayTestFindingsText.text(context, findings))
-        .setPositiveButton(android.R.string.ok, null)
-        .apply { if (file != null) setNeutralButton(R.string.raycontrol_test_run_share, null) }
+    NikoDialog(context)
+        .title(R.string.raycontrol_findings_title)
+        .message(io.niko.raycontrol.RayTestFindingsText.text(context, findings))
+        .apply { if (file != null) ghost(R.string.raycontrol_test_run_share, stays = true) { shareRayRunLog(file) } }
+        .primary(android.R.string.ok)
         .show()
-    if (file != null) {
-        dialog.getButton(android.content.DialogInterface.BUTTON_NEUTRAL)?.setOnClickListener { shareRayRunLog(file) }
-    }
 }
 
 private fun Fragment.shareRayRunLog(file: java.io.File) {
@@ -206,11 +199,11 @@ fun Fragment.checkRayChannel(node: RayNode) {
     }
     val context = requireContext().applicationContext
     val lines = mutableListOf(getString(R.string.raycontrol_channel_checking))
-    val dialog = MaterialAlertDialogBuilder(requireContext())
-        .setTitle(getString(R.string.raycontrol_channel_title, node.label))
-        .setMessage(lines.joinToString("\n"))
-        .setPositiveButton(android.R.string.ok, null)
-        .show()
+    val words = NikoDialog(requireContext())
+        .title(getString(R.string.raycontrol_channel_title, node.label))
+        .message(lines.joinToString("\n"))
+        .primary(android.R.string.ok)
+    val dialog = words.show()
     val job = runOnDefaultDispatcher {
         // the direct path first: which SPA carrier opens the node's port here, how large a UDP datagram passes
         RayChannel.directPath(node, network)?.let { path ->
@@ -231,14 +224,14 @@ fun Fragment.checkRayChannel(node: RayNode) {
                 else -> context.getString(R.string.raycontrol_direct_mtu, path.spaCarrier.uppercase(), path.udpMtu) +
                     if (path.udpMtu < 1200) context.getString(R.string.raycontrol_direct_mtu_low) else ""
             }
-            onMainDispatcher { dialog.setMessage(lines.joinToString("\n")) }
+            onMainDispatcher { words.message(lines.joinToString("\n")) }
         }
         // the DNS tunnels' resolvers on this network, anew (dnsprobe-v1), before their profiles are measured
         io.niko.raycontrol.RayDnsResolvers.detectForNode(node, network) { line ->
             lines += line
             // the text as of this line: the list grows on while the main thread gets to it
             val text = lines.joinToString("\n")
-            runOnMainDispatcher { dialog.setMessage(text) }
+            runOnMainDispatcher { words.message(text) }
         }
         for ((key, id) in node.profileIds.orEmpty()) {
             val profile = SagerDatabase.proxyDao.getById(id) ?: continue
@@ -249,7 +242,7 @@ fun Fragment.checkRayChannel(node: RayNode) {
                 RayChannel.record(node.spa.nodeId, network, key, score)
                 lines += RayChannel.describe(context, profile.displayName(), score)
             }
-            onMainDispatcher { dialog.setMessage(lines.joinToString("\n")) }
+            onMainDispatcher { words.message(lines.joinToString("\n")) }
             // a Yggdrasil profile: its public peers from here, each with a node of the app's own
             val via = profile.requireBean().yggVia.orEmpty().lines().map { it.trim() }.filter { it.isNotEmpty() }
             if (via.isNotEmpty()) {
@@ -266,13 +259,13 @@ fun Fragment.checkRayChannel(node: RayNode) {
                         else -> context.getString(R.string.raycontrol_ygg_peer_down, name, c.error ?: "—")
                     }
                 }
-                onMainDispatcher { dialog.setMessage(lines.joinToString("\n")) }
+                onMainDispatcher { words.message(lines.joinToString("\n")) }
             }
         }
         lines[0] = context.getString(R.string.raycontrol_channel_done)
         // with consent the day's summary of this network goes out now, the results just measured in it
         rayReportLine(context, io.niko.raycontrol.RayReport.send(RayNodes.get(node.spa.nodeId) ?: node))?.let { lines += it }
-        onMainDispatcher { dialog.setMessage(lines.joinToString("\n")) }
+        onMainDispatcher { words.message(lines.joinToString("\n")) }
     }
     // a probe already running ends within its window; no new one starts
     dialog.setOnDismissListener { job.cancel() }
@@ -317,23 +310,23 @@ fun Fragment.showRayReport(node: RayNode) {
             h.udpMtu?.let { append("\n").append(getString(R.string.raycontrol_hints_udp_mtu, it)) }
         }
     }
-    MaterialAlertDialogBuilder(requireContext())
-        .setTitle(R.string.raycontrol_report_show)
-        .setMessage(message)
-        .setPositiveButton(android.R.string.ok, null)
+    NikoDialog(requireContext())
+        .title(R.string.raycontrol_report_show)
+        .message(message)
+        .primary(android.R.string.ok)
         .show()
 }
 
 fun Fragment.confirmRayNodeRemove(node: RayNode, onRemoved: () -> Unit = {}) {
-    MaterialAlertDialogBuilder(requireContext())
-        .setMessage(getString(R.string.raycontrol_node_remove_confirm, node.label))
-        .setPositiveButton(R.string.yes) { _, _ ->
+    NikoDialog(requireContext())
+        .message(getString(R.string.raycontrol_node_remove_confirm, node.label))
+        .ghost(android.R.string.cancel)
+        .primary(R.string.yes, danger = true) { _, _ ->
             RayNodes.remove(node.spa.nodeId)
             RaySubscription.schedule()
             onRemoved()
             // the running core still holds the key and knocks: restart it now, not on "Apply"
             if (DataStore.serviceState.started) SagerNet.reloadService()
         }
-        .setNegativeButton(android.R.string.cancel, null)
-        .show().danger()
+        .show()
 }

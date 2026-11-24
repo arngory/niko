@@ -21,12 +21,9 @@ import com.android.resources.NightMode
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import io.niko.R
-import io.niko.ktx.danger
-import io.niko.ktx.setField
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -124,36 +121,6 @@ class NikoSnapshotTest(private val mode: String) {
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
         ))
     })
-
-    /** A dialog (m-dialog) as the app builds one, shown in its window's frame: [build] adds to the builder. */
-    private fun dialog(build: MaterialAlertDialogBuilder.() -> Unit, after: (androidx.appcompat.app.AlertDialog) -> Unit = {}): View {
-        val dialog = MaterialAlertDialogBuilder(paparazzi.context).apply(build).create()
-        dialog.create()
-        after(dialog)
-        return dialog.window!!.decorView
-    }
-
-    /** A confirmation that deletes: its action in danger (ktx's danger). */
-    @Test
-    fun dialogConfirm() = paparazzi.snapshot(dialog({
-        setTitle("Clear the group?")
-        setMessage("Its 12 profiles are removed from the phone.")
-        setPositiveButton("Clear", null)
-        setNegativeButton("Cancel", null)
-    }) { it.danger() })
-
-    /** A dialog with a field (ktx's setField): its title, a text field, two actions and a third at the start. */
-    @Test
-    fun dialogField() = paparazzi.snapshot(dialog({
-        setTitle("Route test")
-        setField(TextInputLayout(context).apply {
-            hint = "Domain or address"
-            addView(TextInputEditText(this.context).apply { setText("example.com") })
-        })
-        setPositiveButton("Test", null)
-        setNegativeButton("Cancel", null)
-        setNeutralButton("Clear", null)
-    }))
 
     /**
      * Settings' rows (D-SET, reskin step 2) as PreferenceFragmentCompat shows them: its theme overlay, the library's

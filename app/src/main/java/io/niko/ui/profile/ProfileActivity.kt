@@ -10,7 +10,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.os.BundleCompat
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.niko.GroupType
 import io.niko.Key
 import io.niko.QuickToggleShortcut
@@ -25,11 +24,11 @@ import io.niko.fmt.AbstractBean
 import io.niko.fmt.internal.ChainBean
 import io.niko.fmt.v2ray.VMessBean
 import io.niko.ktx.applyDefaultValues
-import io.niko.ktx.danger
 import io.niko.ktx.onMainDispatcher
 import io.niko.ktx.runOnDefaultDispatcher
 import io.niko.ui.ProfileSelectActivity
 import io.niko.ui.ThemedActivity
+import io.niko.ui.compose.NikoDialog
 import io.niko.ui.compose.NikoTheme
 
 /**
@@ -226,9 +225,9 @@ class ProfileActivity : ThemedActivity() {
             val allowed = linkAllowed(profile, chain)
             onMainDispatcher {
                 if (!allowed) {
-                    MaterialAlertDialogBuilder(this@ProfileActivity).setTitle(R.string.circular_reference)
-                        .setMessage(R.string.circular_reference_sum)
-                        .setPositiveButton(android.R.string.ok, null).show()
+                    NikoDialog(this@ProfileActivity).title(R.string.circular_reference)
+                        .message(R.string.circular_reference_sum)
+                        .primary(android.R.string.ok).show()
                     return@onMainDispatcher
                 }
                 val f = form.value ?: return@onMainDispatcher
@@ -291,10 +290,10 @@ class ProfileActivity : ThemedActivity() {
             val f = form.value
             val read = original
             if (f == null || read == null || f == read || leaving) return finish()
-            MaterialAlertDialogBuilder(this@ProfileActivity).setTitle(R.string.unsaved_changes_prompt)
-                .setPositiveButton(R.string.yes) { _, _ -> save() }
-                .setNegativeButton(R.string.no) { _, _ -> finish() }
-                .setNeutralButton(android.R.string.cancel, null)
+            NikoDialog(this@ProfileActivity).title(R.string.unsaved_changes_prompt)
+                .ghost(android.R.string.cancel)
+                .ghost(R.string.no) { finish() }
+                .primary(R.string.yes) { _, _ -> save() }
                 .show()
         }
 
@@ -302,8 +301,9 @@ class ProfileActivity : ThemedActivity() {
 
         override fun delete() {
             if (profileId == 0L) return finish()
-            MaterialAlertDialogBuilder(this@ProfileActivity).setTitle(R.string.delete_confirm_prompt)
-                .setPositiveButton(R.string.yes) { _, _ ->
+            NikoDialog(this@ProfileActivity).title(R.string.delete_confirm_prompt)
+                .ghost(R.string.no)
+                .primary(R.string.yes, danger = true) { _, _ ->
                     leaving = true
                     runOnDefaultDispatcher {
                         val group = SagerDatabase.proxyDao.getById(profileId)?.groupId ?: DataStore.editingGroup
@@ -311,8 +311,7 @@ class ProfileActivity : ThemedActivity() {
                         onMainDispatcher { finish() }
                     }
                 }
-                .setNegativeButton(R.string.no, null)
-                .show().danger()
+                .show()
         }
 
         /** The profile as stored goes to [groupId] (what is typed and not saved is left), and the editor closes. */

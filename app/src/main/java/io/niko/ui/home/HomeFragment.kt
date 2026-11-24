@@ -14,7 +14,6 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.niko.R
 import io.niko.SagerNet
 import io.niko.bg.BaseService
@@ -26,7 +25,6 @@ import io.niko.database.SagerDatabase
 import io.niko.fmt.toUniversalLink
 import io.niko.group.GroupUpdater
 import io.niko.ktx.Logs
-import io.niko.ktx.danger
 import io.niko.ktx.onMainDispatcher
 import io.niko.ktx.readableMessage
 import io.niko.ktx.runOnDefaultDispatcher
@@ -36,6 +34,7 @@ import io.niko.ktx.startFilesForResult
 import io.niko.raycontrol.RayNodes
 import io.niko.ui.GroupSettingsActivity
 import io.niko.ui.admin.AdminActivity
+import io.niko.ui.compose.NikoDialog
 import io.niko.ui.node.NodeFormat
 import io.niko.ui.node.NodeFragment
 import io.niko.ui.updateAllGroups
@@ -126,24 +125,24 @@ class HomeFragment : Fragment() {
      * admin of the node is sent to the panel that makes one.
      */
     private fun anotherDevice(row: SubRow) {
-        val dialog = MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.subs_another_device)
-            .setMessage(if (row.admin) R.string.subs_another_device_admin else R.string.subs_another_device_message)
+        val dialog = NikoDialog(requireContext()).title(R.string.subs_another_device)
+            .message(if (row.admin) R.string.subs_another_device_admin else R.string.subs_another_device_message)
         val node = row.nodeId
         if (row.admin && node != null) {
-            dialog.setPositiveButton(R.string.raycontrol_admin) { _, _ ->
+            dialog.ghost(android.R.string.cancel).primary(R.string.raycontrol_admin) { _, _ ->
                 startActivity(Intent(requireContext(), AdminActivity::class.java).putExtra(AdminActivity.EXTRA_NODE, node))
-            }.setNegativeButton(android.R.string.cancel, null)
+            }
         } else {
-            dialog.setPositiveButton(android.R.string.ok, null)
+            dialog.primary(android.R.string.ok)
         }
         dialog.show()
     }
 
     private fun ask(message: String, no: Int = android.R.string.cancel, then: () -> Unit) {
-        MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.confirm).setMessage(message)
-            .setPositiveButton(R.string.yes) { _, _ -> then() }
-            .setNegativeButton(no, null)
-            .show().danger()
+        NikoDialog(requireContext()).title(R.string.confirm).message(message)
+            .ghost(no)
+            .primary(R.string.yes, danger = true) { _, _ -> then() }
+            .show()
     }
 
     // the profiles deleted whose undo is still offered: gone from the sheet, not yet from the database
