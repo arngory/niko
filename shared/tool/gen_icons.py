@@ -34,7 +34,7 @@ WINDOW = {
     "chevronRight": "chevron-right",
 }
 # drawn by the window alone: no drawable for them (lint fails the APK on a resource nothing uses)
-WINDOW_ONLY = {"circle-alert", "trash", "copy", "share"}
+WINDOW_ONLY = {"circle-alert", "trash", "share"}
 # in the window's checkout (--desktop)
 DART = os.path.join("lib", "ui", "icons.g.dart")
 # icons outside a themed view (a launcher shortcut): a colour of their own in place of the theme's tint

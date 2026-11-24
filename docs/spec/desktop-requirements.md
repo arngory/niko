@@ -251,7 +251,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 |---|---|---|---|---|---|---|
 | D-LOG-01 | Журнал ядра, очистка | `SubscribeLog`, `ClearLogs` | есть | есть | есть | есть |
 | D-LOG-02 | Отчёты о падениях и нехватке памяти | `DesktopService` crash и OOM reports | есть | есть | есть: только падение приложения (`utils/CrashHandler.kt`) | есть |
-| D-LOG-03 | Инструменты рядом с журналом: поведение NAT (сопоставление и фильтрация по RFC 4787, внешний адрес, задержка) через основной исходящий; в описи функций — D-TOOLS-01 | `StartSTUNTest` | есть (`common/stun` ядра) | есть | есть: `ui/StunActivity.kt` | есть |
+| D-LOG-03 | Инструменты рядом с журналом: поведение NAT (сопоставление и фильтрация по RFC 4787, внешний адрес, задержка) через основной исходящий; в описи функций — D-TOOLS-01 | `StartSTUNTest` | есть (`common/stun` ядра) | есть | есть: `ui/tools/NatActivity.kt` | есть |
 | D-CONN-01 | Соединения: список, закрыть | `SubscribeConnections`, `CloseConnection`, `CloseAllConnections` | есть | есть | есть: в панели sing-box (D-TOOLS-02) | есть |
 | D-RULES-01 | Редактор правил | `NikoService` | Kotlin: `ui/route/RuleActivity.kt`, `ui/route/RoutingFragment.kt`, `fmt/ConfigBuilder.kt` | есть | есть | частично: «Правила» (вид «Расширенный») — список, вкл., порядок, удаление, общие поля; нет своего JSON, выбора профиля и сброса |
 | D-RULES-02 | Правило по программам (`process_name`, `process_path`) | конфиг | ядро умеет; на Android это список приложений | есть | есть: по пакетам приложений | есть: поле «Программы» в редакторе правила (D-RULES-01), сборка (`Rule.programs`), правило D-RULES-06 |
@@ -274,8 +274,8 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 
 | ID | Элемент | Вызов демона | Где логика сейчас | Макет | Android | Окно |
 |---|---|---|---|---|---|---|
-| D-TOOLS-01 | Тип NAT (STUN): тот же инструмент, что D-LOG-03 | `StartSTUNTest` | см. D-LOG-03 | есть | есть: `ui/StunActivity.kt` | есть |
-| D-TOOLS-02 | Панель sing-box (Clash API) | конфиг (`experimental.clash_api`) | есть: Clash API в ядре; панель на Android — `ui/WebviewFragment.kt` | есть | есть | нет |
+| D-TOOLS-01 | Тип NAT (STUN): тот же инструмент, что D-LOG-03 | `StartSTUNTest` | см. D-LOG-03 | есть | есть: `ui/tools/NatActivity.kt` | есть |
+| D-TOOLS-02 | Панель sing-box (Clash API) | конфиг (`experimental.clash_api`) | есть: Clash API в ядре; панель на Android — `ui/tools/PanelFragment.kt` | есть | есть | нет |
 
 ## Фон службы, без экрана (BG)
 

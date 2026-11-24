@@ -67,7 +67,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * О программе on Compose (P-About), in place of the old AboutFragment and its material-about list: the version, the
+ * О программе on Compose (P-About), in place of the old AboutFragment: the version, the
  * update (GitHub, the node's mirror when GitHub is not reached, the selected profile's own core when the network blocks
  * GitHub with the VPN off; the dialogs as before), the phone's limits on the background, the plugins and the project.
  * Opened from the settings, and by [checkingUpdate] from a node that requires a newer Niko.
