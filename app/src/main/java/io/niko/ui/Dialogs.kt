@@ -1,16 +1,11 @@
 package io.niko.ui
 
 import android.content.Context
-import android.text.InputFilter
-import android.text.InputType
-import android.widget.EditText
-import android.widget.TextView
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.niko.R
 import io.niko.ktx.Logs
-import io.niko.ktx.setField
 import io.niko.ktx.readableMessage
 import io.niko.ktx.runOnMainDispatcher
+import io.niko.ui.compose.NikoDialog
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
@@ -18,13 +13,11 @@ object Dialogs {
     fun logExceptionAndShow(context: Context, e: Exception, callback: Runnable) {
         Logs.e(e)
         runOnMainDispatcher {
-            MaterialAlertDialogBuilder(context)
-                .setTitle(R.string.error_title)
-                .setMessage(e.readableMessage)
-                .setCancelable(false)
-                .setPositiveButton(android.R.string.ok) { _, _ ->
-                    callback.run()
-                }
+            NikoDialog(context)
+                .title(R.string.error_title)
+                .message(e.readableMessage)
+                .cancelable(false)
+                .primary(R.string.dialog_ok) { _, _ -> callback.run() }
                 .show()
         }
     }
@@ -36,12 +29,6 @@ object Dialogs {
      */
     suspend fun askPin(context: Context, host: String, left: Int?, wrong: Boolean): String? =
         suspendCancellableCoroutine { continuation ->
-            val input = EditText(context).apply {
-                inputType = InputType.TYPE_CLASS_NUMBER
-                filters = arrayOf(InputFilter.LengthFilter(6))
-                hint = "000000"
-                isSingleLine = true
-            }
             var answered = false
             val answer = { pin: String? ->
                 if (!answered) {
@@ -53,26 +40,19 @@ object Dialogs {
                 append(context.getString(R.string.raycontrol_invite_pin_message))
                 if (wrong && left != null) append("\n\n").append(context.getString(R.string.raycontrol_invite_pin_wrong, left))
             }
-            MaterialAlertDialogBuilder(context)
-                .setTitle(context.getString(R.string.raycontrol_invite_pin_title, host))
-                .setMessage(message)
-                .setField(input)
-                .setPositiveButton(android.R.string.ok) { _, _ -> answer(input.text.toString()) }
-                .setNegativeButton(android.R.string.cancel) { _, _ -> answer(null) }
-                .setOnDismissListener { answer(null) }
+            NikoDialog(context)
+                .title(context.getString(R.string.raycontrol_invite_pin_title, host))
+                .message(message)
+                .field(hint = "000000", digits = 6)
+                .ghost(R.string.dialog_cancel) { answer(null) }
+                .primary(R.string.dialog_ok) { pin, _ -> answer(pin) }
+                .onDismiss { answer(null) }
                 .show()
         }
 
     fun message(context: Context, title: String, message: String) {
         runOnMainDispatcher {
-            val dialog = MaterialAlertDialogBuilder(context)
-                .setTitle(title)
-                .setMessage(message)
-                .setCancelable(true)
-                .show()
-            dialog.findViewById<TextView>(android.R.id.message)?.apply {
-                setTextIsSelectable(true)
-            }
+            NikoDialog(context).title(title).message(message, selectable = true).show()
         }
     }
 }

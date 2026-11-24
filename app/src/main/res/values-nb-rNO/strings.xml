@@ -2,10 +2,8 @@
 <resources>
     <string name="apps">Programmer</string>
     <string name="ooc_warning">Advarsel</string>
-    <string name="download">Last ned</string>
     <string name="install_from_fdroid">Installer fra F-Droid</string>
     <string name="install_from_play_store">Installer fra Play-butikken</string>
-    <string name="action_download">Last ned</string>
     <string name="action_learn_more">Lær mer</string>
     <string name="confirm">Bekreft</string>
     <string name="connection_test_timeout">Tidsavbrudd</string>
@@ -97,7 +95,6 @@
     <string name="update_subscription_warning">Proxy er ikke tilkoblet. Er du sikker på at du vil fortsette å oppdatere\?</string>
     <string name="ooc_subscription_token_invalid">Ugyldig OOCv1 -token</string>
     <string name="profile_requiring_plugin">Profil %s krever at %s plugin er installert, men det ble ikke funnet.</string>
-    <string name="missing_plugin">Plugin mangler</string>
     <string name="raw">Rå</string>
     <string name="subscription_type">Abonnementstype</string>
     <string name="subscription">Abonnement</string>

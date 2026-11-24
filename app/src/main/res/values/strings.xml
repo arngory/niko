@@ -274,14 +274,11 @@
     <string name="subscription_type">Subscription Type</string>
     <string name="raw">Raw</string>
     <string name="confirm">Confirm</string>
-    <string name="missing_plugin">Missing Plugin</string>
     <string name="profile_requiring_plugin">Profile %s requires the %s plugin to be installed, but
         it was not found.</string>
     <string name="action_learn_more">LEARN MORE</string>
-    <string name="action_download">DOWNLOAD</string>
     <string name="install_from_play_store">Install from Play Store</string>
     <string name="install_from_fdroid">Install from F-Droid</string>
-    <string name="download">Download</string>
     <string name="ooc_subscription_token" translatable="false">OOCv1 API Token</string>
     <string name="ooc_subscription_token_invalid">Invalid OOCv1 Token</string>
     <string name="update_subscription_warning">Proxy is not connected, are you sure you want to
@@ -1109,4 +1106,12 @@
     <string name="lan_by_fingerprint">By router and DNS</string>
     <string name="lan_by_ssid">By name</string>
     <string name="lan_this_wifi">this network</string>
+    <!-- Niko dialogs (m-dialog), M-STATE-PREVIEW, M-SET-04 -->
+    <string name="dialog_cancel">Cancel</string>
+    <string name="dialog_ok">OK</string>
+    <string name="preview_title">Preview version %1$s</string>
+    <string name="preview_report">Report a problem</string>
+    <string name="preview_ok">Got it</string>
+    <string name="plugin_needed">The %1$s plugin is needed</string>
+    <string name="plugin_download_link">Download by link</string>
 </resources>

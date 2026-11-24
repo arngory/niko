@@ -249,13 +249,10 @@
     <string name="subscription_type">نوع اشتراک</string>
     <string name="raw">خام</string>
     <string name="confirm">تأیید</string>
-    <string name="missing_plugin">افزونه مورد نیاز یافت‌ نشد</string>
     <string name="profile_requiring_plugin">پراکسی %s نیاز به نصب افزونه %s دارد، اما پیدا نشد.</string>
     <string name="action_learn_more">اطلاعات بیشتر</string>
-    <string name="action_download">دانلود</string>
     <string name="install_from_play_store">نصب از فروشگاه Play</string>
     <string name="install_from_fdroid">نصب از F-Droid</string>
-    <string name="download">دانلود</string>
     <string name="ooc_subscription_token">مشخصه OOCv1 API</string>
     <string name="ooc_subscription_token_invalid">مشخصه OOCv1 نادرست</string>
     <string name="update_subscription_warning">پروکسی متصل نیست، آیا مطمئن هستید که می خواهید به‌روزرسانی کنید؟</string>
