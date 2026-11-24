@@ -24,20 +24,15 @@ abstract class ThemedActivity : AppCompatActivity {
 
     var themeResId = 0
     var uiMode = 0
-    open val isDialog = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        if (!isDialog) {
-            Theme.apply(this)
-        } else {
-            Theme.applyDialog(this)
-        }
+        Theme.apply(this)
         Theme.applyNightTheme()
 
         super.onCreate(savedInstanceState)
 
         uiMode = resources.configuration.uiMode
-        if (!isDialog) nikoSystemBars()
+        nikoSystemBars()
 
         if (Build.VERSION.SDK_INT >= 35) {
             ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content)) { _, insets ->

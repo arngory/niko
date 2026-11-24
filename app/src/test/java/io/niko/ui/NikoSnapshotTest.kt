@@ -1,14 +1,10 @@
 package io.niko.ui
 
-import android.graphics.Typeface
-import android.util.TypedValue
 import android.view.View
 import android.view.ContextThemeWrapper
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.TextView
-import androidx.core.view.isVisible
 import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.Preference
@@ -26,14 +22,11 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.progressindicator.BaseProgressIndicator
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import io.niko.R
-import io.niko.bg.BaseService
 import io.niko.ktx.danger
 import io.niko.ktx.setField
-import io.niko.widget.ServiceButton
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -59,46 +52,6 @@ class NikoSnapshotTest(private val mode: String) {
         theme = "Theme.SagerNet.Niko",
         renderingMode = SessionParams.RenderingMode.SHRINK,
     )
-
-    private fun View.text(id: Int, text: String) {
-        findViewById<TextView>(id).text = text
-    }
-
-    /** [layout] at the screen's width, as a list shows it: shrunk to its content, a row's spacers take nothing. */
-    private fun card(layout: Int): View = paparazzi.inflate<View>(layout).apply {
-        layoutParams = ViewGroup.LayoutParams(resources.displayMetrics.widthPixels, ViewGroup.LayoutParams.WRAP_CONTENT)
-    }
-
-    // as ktx's getColorAttr, kept here so the snapshots do not load ktx's Utils (it reaches the app's DataStore and core)
-    private fun View.colorAttr(attr: Int): Int =
-        context.getColor(TypedValue().also { context.theme.resolveAttribute(attr, it, true) }.resourceId)
-
-    private fun profile(selected: Boolean): View = card(R.layout.layout_profile).apply {
-        text(R.id.profile_name, "Home node")
-        text(R.id.profile_address, "203.0.113.7:443")
-        text(R.id.traffic_text, "↑ 1.2 MB ↓ 34 MB")
-        text(R.id.profile_type, "Naïve")
-        text(R.id.profile_status, "128 ms")
-        // as ConfigurationFragment shows a profile with traffic and a ping: the address row, the status in ok's colour
-        (findViewById<View>(R.id.traffic_text).parent as View).isVisible = true
-        findViewById<TextView>(R.id.profile_status).setTextColor(colorAttr(R.attr.statusOkColor))
-        findViewById<View>(R.id.selected_view).isVisible = selected
-        if (selected) findViewById<TextView>(R.id.profile_name).setTypeface(null, Typeface.BOLD)
-    }
-
-    @Test
-    fun profileCard() = paparazzi.snapshot(profile(selected = false))
-
-    @Test
-    fun profileCardSelected() = paparazzi.snapshot(profile(selected = true))
-
-    @Test
-    fun groupCard() = paparazzi.snapshot(card(R.layout.layout_group_item).apply {
-        text(R.id.group_name, "Home node")
-        text(R.id.group_user, "3 profiles")
-        text(R.id.group_traffic, "↑ 1.2 MB ↓ 34 MB")
-        text(R.id.group_status, "Updated 5 min ago")
-    })
 
     /** A column of [content] on surface-0 at the screen's width, space-4 around it and space-2 between. */
     private fun column(content: LinearLayout.() -> Unit): View = LinearLayout(paparazzi.context).apply {
@@ -202,17 +155,6 @@ class NikoSnapshotTest(private val mode: String) {
         setNeutralButton("Clear", null)
     }))
 
-    /** The main screen with its connect button in [state] ([failed]: after a start that failed). */
-    private fun main(state: BaseService.State, failed: Boolean = false): View {
-        // the whole screen, not shrunk to its content
-        paparazzi.unsafeUpdateConfig(renderingMode = SessionParams.RenderingMode.NORMAL)
-        return paparazzi.inflate<View>(R.layout.layout_main).apply {
-            val fab = findViewById<ServiceButton>(R.id.fab)
-            fab.initProgress(findViewById<BaseProgressIndicator<*>>(R.id.fabProgress))
-            fab.changeState(state, BaseService.State.Stopped, animate = false, failed = failed)
-        }
-    }
-
     /**
      * Settings' rows (D-SET, reskin step 2) as PreferenceFragmentCompat shows them: its theme overlay, the library's
      * adapter and NikoPreferenceGroups' groups; a switch on and off, a choice, a text, a row that cannot change.
@@ -263,13 +205,4 @@ class NikoSnapshotTest(private val mode: String) {
 
     @Test
     fun settingsRows() = paparazzi.snapshot(settings())
-
-    @Test
-    fun mainStopped() = paparazzi.snapshot(main(BaseService.State.Stopped))
-
-    @Test
-    fun mainConnected() = paparazzi.snapshot(main(BaseService.State.Connected))
-
-    @Test
-    fun mainFailed() = paparazzi.snapshot(main(BaseService.State.Stopped, failed = true))
 }

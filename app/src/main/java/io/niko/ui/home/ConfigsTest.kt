@@ -57,7 +57,7 @@ object ConfigsTest {
         else -> TcpFailure.OTHER
     }
 
-    /** the group under test (one test at a time, the old list's included: DataStore.runningTest) */
+    /** the group under test (one test at a time: DataStore.runningTest) */
     val testing = MutableStateFlow<Set<Long>>(emptySet())
 
     /** the results of the test running or just stored, by profile, until the rows are read again (taken) */

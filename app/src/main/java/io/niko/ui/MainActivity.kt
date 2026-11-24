@@ -8,18 +8,14 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.RemoteException
-import android.view.KeyEvent
-import android.view.View
 import androidx.core.net.toUri
 import androidx.activity.addCallback
 import androidx.annotation.IdRes
 import androidx.compose.runtime.mutableStateOf
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.preference.PreferenceDataStore
-import androidx.appcompat.app.AlertDialog
 import io.niko.ui.compose.NikoDialog
 import com.google.android.material.snackbar.Snackbar
 import io.niko.RELEASE_REPO
@@ -40,7 +36,6 @@ import io.niko.database.DataStore
 import io.niko.database.GroupManager
 import io.niko.database.ProfileManager
 import io.niko.database.ProxyGroup
-import io.niko.database.SagerDatabase
 import io.niko.database.SubscriptionBean
 import io.niko.database.preference.OnPreferenceDataStoreChangeListener
 import io.niko.databinding.LayoutMainBinding
@@ -338,14 +333,7 @@ class MainActivity : ThemedActivity(),
         super.onCreate(savedInstanceState)
 
         binding = LayoutMainBinding.inflate(layoutInflater)
-        binding.fab.initProgress(binding.fabProgress)
 
-        // the bars follow the screen shown, the one the fragment manager restores after a recreation too
-        supportFragmentManager.registerFragmentLifecycleCallbacks(object : FragmentManager.FragmentLifecycleCallbacks() {
-            override fun onFragmentViewCreated(fm: FragmentManager, f: Fragment, v: View, savedInstanceState: Bundle?) {
-                if (f.id == R.id.fragment_holder) applyBars(f)
-            }
-        }, false)
         if (savedInstanceState == null) {
             displayFragmentWithId(R.id.nav_home)
         }
@@ -364,17 +352,6 @@ class MainActivity : ThemedActivity(),
                 is io.niko.ui.tools.PanelFragment -> shown.back()
                 else -> displayFragmentWithId(R.id.nav_home)
             }
-        }
-
-        binding.fab.setOnClickListener {
-            if (DataStore.serviceState.canStop) SagerNet.stopService() else connect.launch(
-                null
-            )
-        }
-        binding.stats.setOnClickListener { if (DataStore.serviceState.connected) binding.stats.testConnection() }
-        // a long press: the exit address, asked of a service the user picks (it learns the node's address)
-        binding.stats.setOnLongClickListener {
-            DataStore.serviceState.connected.also { if (it) showExitAddress() }
         }
 
         setContentView(binding.root)
@@ -652,37 +629,8 @@ class MainActivity : ThemedActivity(),
     }
 
 
-    private fun showStats() {
-        binding.stats.allowShow = true
-        binding.fab.show()
-        // the bar shows itself on connecting only if allowed then: connected on the main screen, it waits for this
-        if (DataStore.serviceState.connected) binding.stats.performShow()
-    }
-
-    /**
-     * The old bar at the bottom (state, speeds, the connect button): only on the old screens, and only with the
-     * setting on (off by default). The main screen has its own button and state; the screens drawn as the canvas has
-     * them (a node's card, the settings, the log, routing) have none. Applied to whatever screen is shown, the restored one
-     * too: an activity the system recreated would otherwise keep the layout's default, the bar shown on the main
-     * screen over its configs.
-     */
-    private fun applyBars(fragment: Fragment) {
-        val old = fragment !is HomeFragment && fragment !is io.niko.ui.node.NodeFragment && fragment !is SettingsFragment &&
-            fragment !is io.niko.ui.log.LogFragment && fragment !is io.niko.ui.route.RoutingFragment &&
-            fragment !is io.niko.ui.about.AboutFragment && fragment !is io.niko.ui.backup.BackupFragment &&
-            fragment !is io.niko.ui.tools.PanelFragment
-        if (old && DataStore.showBottomBar) {
-            showStats()
-        } else {
-            binding.stats.allowShow = false
-            binding.stats.performHide()
-            binding.fab.hide()
-        }
-    }
-
     @SuppressLint("CommitTransaction")
     fun displayFragment(fragment: Fragment) {
-        applyBars(fragment)
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_holder, fragment)
             .commitAllowingStateLoss()
@@ -691,11 +639,6 @@ class MainActivity : ThemedActivity(),
     fun displayFragmentWithId(@IdRes id: Int): Boolean {
         when (id) {
             R.id.nav_home -> displayFragment(HomeFragment())
-            R.id.nav_configuration -> {
-                displayFragment(ConfigurationFragment())
-            }
-
-            R.id.nav_group -> displayFragment(GroupFragment())
             R.id.nav_route -> displayFragment(io.niko.ui.route.RoutingFragment())
             R.id.nav_settings -> displayFragment(SettingsFragment())
             R.id.nav_traffic -> displayFragment(io.niko.ui.tools.PanelFragment())
@@ -712,15 +655,9 @@ class MainActivity : ThemedActivity(),
         return true
     }
 
-    private fun changeState(
-        state: BaseService.State,
-        msg: String? = null,
-        animate: Boolean = false,
-    ) {
+    private fun changeState(state: BaseService.State, msg: String? = null) {
         DataStore.serviceState = state
 
-        binding.fab.changeState(state, DataStore.serviceState, animate, failed = msg != null)
-        binding.stats.changeState(state)
         if (msg != null) snackbar(getString(R.string.vpn_error, msg)).show()
 
         // the main screen: why the last start failed stays until the next one; the time online from the service's
@@ -744,15 +681,11 @@ class MainActivity : ThemedActivity(),
     }
 
     override fun snackbarInternal(text: CharSequence): Snackbar {
-        return Snackbar.make(binding.coordinator, text, Snackbar.LENGTH_LONG).apply {
-            if (binding.fab.isShown) {
-                anchorView = binding.fab
-            }
-        }
+        return Snackbar.make(binding.coordinator, text, Snackbar.LENGTH_LONG)
     }
 
     override fun stateChanged(state: BaseService.State, profileName: String?, msg: String?) {
-        changeState(state, msg, true)
+        changeState(state, msg)
         if (state == BaseService.State.Connected) warnStrictPrivateDns()
     }
 
@@ -791,7 +724,6 @@ class MainActivity : ThemedActivity(),
     // may NOT called when app is in background
     // ONLY do UI update here, write DB in bg process
     override fun cbSpeedUpdate(stats: SpeedDisplayData) {
-        binding.stats.updateSpeed(stats.txRateProxy, stats.rxRateProxy)
         homeState.value = homeState.value.copy(upRate = stats.txRateProxy, downRate = stats.rxRateProxy)
     }
 
@@ -858,13 +790,6 @@ class MainActivity : ThemedActivity(),
         GroupManager.removeListener(groupsListener)
         DataStore.configurationStore.unregisterChangeListener(this)
         connection.disconnect(this)
-    }
-
-    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        if (super.onKeyDown(keyCode, event)) return true
-        val fragment =
-            supportFragmentManager.findFragmentById(R.id.fragment_holder) as? ToolbarFragment
-        return fragment != null && fragment.onKeyDown(keyCode, event)
     }
 
 }

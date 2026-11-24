@@ -458,6 +458,5 @@ private fun Log(values: SettingValues, actions: SettingsActions) = Page(R.string
         Switch(values, Key.SHOW_DIRECT_SPEED, R.string.set_direct_speed, divider = true)
         Switch(values, SettingKeys.SHOW_GROUP_IN_NOTIFICATION, R.string.set_group_in_notification, divider = true)
         Switch(values, Key.ALWAYS_SHOW_ADDRESS, R.string.set_show_address, divider = true)
-        Switch(values, Key.SHOW_BOTTOM_BAR, R.string.set_bottom_bar, divider = true)
     }
 }

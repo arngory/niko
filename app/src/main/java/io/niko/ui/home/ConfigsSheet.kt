@@ -60,7 +60,7 @@ interface ConfigsActions {
     fun stopTest()
     /** the profile's editor */
     fun edit(id: Long)
-    /** adding a profile: the list where that is done today, until the Add screen (P-Add) */
+    /** adding a profile: the Add screen (P-Add) */
     fun add()
 }
 

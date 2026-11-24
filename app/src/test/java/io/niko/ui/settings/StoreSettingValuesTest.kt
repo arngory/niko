@@ -88,7 +88,7 @@ class StoreSettingValuesTest {
     fun effects() {
         assertEquals(SettingEffect.RESTART, SettingKeys.effect(Key.LOG_LEVEL))
         assertEquals(SettingEffect.RELOAD, SettingKeys.effect(Key.REMOTE_DNS))
-        assertEquals(SettingEffect.NONE, SettingKeys.effect(Key.SHOW_BOTTOM_BAR))
+        assertEquals(SettingEffect.NONE, SettingKeys.effect(Key.ALWAYS_SHOW_ADDRESS))
         assertEquals("dns.google", dnsHost("https://dns.google/dns-query"))
         assertEquals("local", dnsHost("local"))
         assertEquals("1.1.1.1:53", dnsHost("udp://1.1.1.1:53"))

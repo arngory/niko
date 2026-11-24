@@ -1,108 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/coordinator"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:clipChildren="false">
+    android:layout_height="match_parent">
 
     <androidx.coordinatorlayout.widget.CoordinatorLayout
         android:id="@+id/fragment_holder"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
-
-    <!-- D-MAIN-02, D-MAIN-06: the state and the speeds -->
-    <io.niko.widget.StatsBar
-        android:id="@+id/stats"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:nextFocusUp="@+id/fab"
-        app:backgroundTint="?colorMaterial300"
-        app:contentInsetStart="0dp"
-        app:hideOnScroll="true"
-        app:layout_scrollFlags="enterAlways|scroll">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="?android:attr/selectableItemBackground"
-            android:orientation="vertical"
-            android:padding="16dp">
-
-            <TextView
-                android:id="@+id/tx"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_gravity="fill_horizontal"
-                android:ellipsize="marquee"
-                android:singleLine="true"
-                android:textAppearance="@style/TextAppearance.Niko.Code"
-                android:fontFamily="@font/geist_mono"
-                app:fontFamily="@font/geist_mono"
-                android:textColor="?whiteOrTextSecondary" />
-
-            <TextView
-                android:id="@+id/rx"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_gravity="fill_horizontal"
-                android:ellipsize="marquee"
-                android:singleLine="true"
-                android:textAppearance="@style/TextAppearance.Niko.Code"
-                android:fontFamily="@font/geist_mono"
-                app:fontFamily="@font/geist_mono"
-                android:textColor="?whiteOrTextSecondary" />
-
-            <TextView
-                android:id="@+id/status"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="fill_horizontal"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:textAppearance="@style/TextAppearance.Niko.Body"
-                android:textColor="?whiteOrTextPrimary"
-                tools:text="@string/connection_test_available" />
-
-        </LinearLayout>
-
-    </io.niko.widget.StatsBar>
-
-    <!-- the connect button and its ring after the bar, so that they are drawn over it where neither has a shadow
-         (the Niko theme); a screen reader still reads the button first -->
-    <!-- We double trackThickness as half of it will be invisible -->
-    <com.google.android.material.progressindicator.CircularProgressIndicator
-        android:id="@+id/fabProgress"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:max="1"
-        android:visibility="invisible"
-        app:indicatorColor="?fabRingColor"
-        app:layout_anchor="@+id/fab"
-        app:layout_anchorGravity="center"
-        app:layout_behavior="io.niko.widget.FabProgressBehavior"
-        app:trackCornerRadius="@dimen/mtrl_progress_track_thickness"
-        app:trackThickness="?fabRingThickness" />
-
-    <!-- D-MAIN-04 -->
-    <io.niko.widget.ServiceButton
-        android:id="@+id/fab"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:accessibilityTraversalBefore="@id/stats"
-        android:elevation="?fabElevation"
-        android:foreground="?fabHalo"
-        android:nextFocusDown="@id/stats"
-        app:backgroundTint="?fabColorBackground"
-        app:elevation="?fabElevation"
-        app:hoveredFocusedTranslationZ="?fabHoveredFocusedTranslationZ"
-        app:layout_anchor="@id/stats"
-        app:pressedTranslationZ="?fabElevation"
-        app:srcCompat="@drawable/ic_service_idle"
-        app:tint="?fabIconTint" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
