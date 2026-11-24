@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.EditText
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -14,16 +13,15 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.niko.R
 import io.niko.database.DataStore
 import io.niko.ktx.onMainDispatcher
 import io.niko.ktx.readableMessage
 import io.niko.ktx.runOnDefaultDispatcher
-import io.niko.ktx.setField
 import io.niko.ktx.snackbar
 import io.niko.raycontrol.RayTestRun
 import io.niko.ui.MainActivity
+import io.niko.ui.compose.NikoDialog
 import io.niko.ui.tools.NatActivity
 import io.niko.ui.compose.NikoTheme
 import io.niko.utils.SendLog
@@ -106,19 +104,16 @@ class LogFragment : Fragment() {
 
     /** "Statistics for the last hour" under a run id, the node's rayctl stats -id taking the same (Stats). */
     private fun askStatsHour() {
-        val input = EditText(requireContext()).apply {
-            setText(RayTestRun.defaultId())
-            setSingleLine()
-        }
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.stats_hour)
-            .setMessage(R.string.stats_hour_help)
-            .setField(input)
-            .setPositiveButton(R.string.stats_hour_share) { _, _ ->
-                val run = input.text.toString().trim()
+        NikoDialog(requireContext())
+            .title(R.string.stats_hour)
+            .message(R.string.stats_hour_help)
+            .field(initial = RayTestRun.defaultId())
+            .ghost(android.R.string.cancel)
+            .primary(R.string.stats_hour_share) { typed, _ ->
+                val run = typed.trim()
                 if (!RayTestRun.validId(run)) {
                     snackbar(R.string.raycontrol_test_run_bad_id).show()
-                    return@setPositiveButton
+                    return@primary
                 }
                 val context = requireContext().applicationContext
                 runOnDefaultDispatcher {
@@ -127,7 +122,6 @@ class LogFragment : Fragment() {
                     }
                 }
             }
-            .setNegativeButton(android.R.string.cancel, null)
             .show()
     }
 }

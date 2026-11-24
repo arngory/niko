@@ -21,7 +21,6 @@ import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.net.toUri
 import androidx.core.os.ConfigurationCompat
 import androidx.fragment.app.Fragment
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.niko.BuildConfig
 import io.niko.DONATE_URL
 import io.niko.R
@@ -51,6 +50,7 @@ import io.niko.raycontrol.RayNode
 import io.niko.raycontrol.RayNodes
 import io.niko.raycontrol.RaySubscription
 import io.niko.ui.MainActivity
+import io.niko.ui.compose.NikoDialog
 import io.niko.ui.compose.NikoTheme
 import io.niko.utils.BackgroundLimits
 import io.niko.utils.PackageCache
@@ -187,22 +187,22 @@ class AboutFragment : Fragment() {
         val context = context ?: return
         val signer = PluginTrust.signer(packageName) ?: return
         val trusted = PluginTrust.isTrusted(packageName)
-        MaterialAlertDialogBuilder(context)
-            .setTitle(R.string.plugin_trust_title)
-            .setMessage(getString(R.string.plugin_trust_message, pluginId, packageName, signer.replace(",", "\n")))
+        NikoDialog(context)
+            .title(R.string.plugin_trust_title)
+            .message(getString(R.string.plugin_trust_message, pluginId, packageName, signer.replace(",", "\n")))
+            .ghost(R.string.plugin_app_info) {
+                startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
+            }
+            .ghost(android.R.string.cancel)
             .apply {
-                if (trusted) setPositiveButton(R.string.plugin_revoke) { _, _ ->
+                if (trusted) primary(R.string.plugin_revoke) { _, _ ->
                     PluginTrust.revoke(packageName)
                     reloadPlugins()
-                } else setPositiveButton(R.string.plugin_trust) { _, _ ->
+                } else primary(R.string.plugin_trust) { _, _ ->
                     PluginTrust.trust(packageName)
                     reloadPlugins()
                 }
             }
-            .setNeutralButton(R.string.plugin_app_info) { _, _ ->
-                startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
-            }
-            .setNegativeButton(android.R.string.cancel, null)
             .show()
     }
 
@@ -395,9 +395,9 @@ class AboutFragment : Fragment() {
     ) {
         if (!isAdded) return
         val openPage = { context.startActivity(Intent(Intent.ACTION_VIEW, releaseUrl.toUri())) }
-        MaterialAlertDialogBuilder(context)
-            .setTitle(R.string.update_dialog_title)
-            .setMessage(
+        NikoDialog(context)
+            .title(R.string.update_dialog_title)
+            .message(
                 context.getString(R.string.update_dialog_message, SagerNet.appVersionNameForDisplay, releaseName) +
                     noticeText(context, notice),
             )
@@ -406,15 +406,16 @@ class AboutFragment : Fragment() {
                 if (Updates.canInstall && release != null) {
                     // the files from a node that holds this very release, GitHub behind it
                     val mirror = RayAppMirror.holding(RayNodes.list(), releaseTag)
-                    setPositiveButton(R.string.update_install) { _, _ ->
+                    ghost(R.string.update_release_page) { openPage() }
+                    withoutLater(notice)
+                    primary(R.string.update_install) { _, _ ->
                         if (mirror != null) installFromNode(mirror.spa.nodeId, releaseTag, release, way)
                         else installUpdate(release, way)
                     }
-                    setNeutralButton(R.string.update_release_page) { _, _ -> openPage() }
                 } else {
-                    setPositiveButton(R.string.yes) { _, _ -> openPage() }
+                    withoutLater(notice)
+                    primary(R.string.yes) { _, _ -> openPage() }
                 }
-                withoutLater(notice)
             }
             .show()
     }
@@ -444,9 +445,9 @@ class AboutFragment : Fragment() {
     }
 
     /** "No" where the update may wait; a required one has none and the dialog does not close by back or a tap outside. */
-    private fun MaterialAlertDialogBuilder.withoutLater(notice: UpdateNotice?) {
-        if (notice?.required(RayClient.version) == true) setCancelable(false)
-        else setNegativeButton(R.string.no, null)
+    private fun NikoDialog.withoutLater(notice: UpdateNotice?) {
+        if (notice?.required(RayClient.version) == true) cancelable(false)
+        else ghost(R.string.no)
     }
 
     /** Whether the release of [this] notice installs on this Android (its min_android); no notice: it does. */
@@ -456,28 +457,28 @@ class AboutFragment : Fragment() {
     private fun notForThisAndroid(release: String, notice: UpdateNotice?) {
         val context = context ?: return
         val needs = UpdateNotice.androidName(notice?.minAndroid ?: return)
-        MaterialAlertDialogBuilder(context)
-            .setTitle(R.string.update_dialog_title)
-            .setMessage(context.getString(R.string.update_needs_android, release, needs))
-            .setPositiveButton(android.R.string.ok, null)
+        NikoDialog(context)
+            .title(R.string.update_dialog_title)
+            .message(context.getString(R.string.update_needs_android, release, needs))
+            .primary(android.R.string.ok)
             .show()
     }
 
     /** The update [release] that [node] holds: from its mirror, the release page beside it. */
     private fun offerFromNode(node: RayNode, release: RayAppRelease, notice: UpdateNotice?) {
         val context = context ?: return
-        MaterialAlertDialogBuilder(context)
-            .setTitle(R.string.update_dialog_title)
-            .setMessage(
+        NikoDialog(context)
+            .title(R.string.update_dialog_title)
+            .message(
                 context.getString(R.string.update_dialog_message, SagerNet.appVersionNameForDisplay, release.tag) +
                     "\n\n" + context.getString(R.string.update_from_node, node.name ?: node.host) +
                     noticeText(context, notice),
             )
-            .setPositiveButton(R.string.update_install) { _, _ -> installFromNode(node.spa.nodeId, release.tag, null, null) }
-            .setNeutralButton(R.string.update_release_page) { _, _ ->
+            .ghost(R.string.update_release_page) {
                 context.startActivity(Intent(Intent.ACTION_VIEW, "https://github.com/$RELEASE_REPO/releases/tag/${release.tag}".toUri()))
             }
             .apply { withoutLater(notice) }
+            .primary(R.string.update_install) { _, _ -> installFromNode(node.spa.nodeId, release.tag, null, null) }
             .show()
     }
 
