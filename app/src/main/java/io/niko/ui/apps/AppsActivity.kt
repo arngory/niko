@@ -20,7 +20,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.snackbar.Snackbar
 import io.niko.BuildConfig
 import io.niko.R
 import io.niko.SagerNet
@@ -143,7 +142,7 @@ class AppsActivity : ThemedActivity() {
 
     private fun handBack() = setResult(RESULT_OK, Intent().putExtra(EXTRA_PACKAGES, ruleChoice))
 
-    private fun say(text: Int) = Snackbar.make(findViewById(android.R.id.content), text, Snackbar.LENGTH_LONG).show()
+    private fun say(text: Int) = snackbar(text).show()
 
     private val actions = object : AppsActions {
         override fun back() = finish()

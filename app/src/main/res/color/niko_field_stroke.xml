@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- a text field's line: ink in focus, none at rest (Widget.Niko.TextField) -->
-<selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:color="@color/niko_ink" android:state_focused="true" />
-    <item android:color="@android:color/transparent" />
-</selector>

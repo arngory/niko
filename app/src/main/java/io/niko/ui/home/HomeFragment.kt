@@ -28,7 +28,6 @@ import io.niko.ktx.Logs
 import io.niko.ktx.onMainDispatcher
 import io.niko.ktx.readableMessage
 import io.niko.ktx.runOnDefaultDispatcher
-import io.niko.ktx.showAllowingStateLoss
 import io.niko.ktx.snackbar
 import io.niko.ktx.startFilesForResult
 import io.niko.raycontrol.RayNodes
@@ -39,12 +38,12 @@ import io.niko.ui.node.NodeFormat
 import io.niko.ui.node.NodeFragment
 import io.niko.ui.updateAllGroups
 import io.niko.ui.updateRayNode
-import io.niko.widget.QRCodeDialog
 import io.niko.widget.UndoSnackbarManager
 import java.text.DateFormat
 import java.util.Date
 import io.niko.ui.MainActivity
 import io.niko.ui.compose.NikoTheme
+import io.niko.ui.compose.showQrDialog
 
 /**
  * The main screen (D-MAIN, D-NAV), the first the app opens: [HomeScreen] over the activity's state. The activity keeps
@@ -249,7 +248,7 @@ class HomeFragment : Fragment() {
                     onMainDispatcher {
                         if (!isAdded) return@onMainDispatcher
                         when (action) {
-                            ShareAction.QR, ShareAction.QR_SN -> QRCodeDialog(text, name).showAllowingStateLoss(parentFragmentManager)
+                            ShareAction.QR, ShareAction.QR_SN -> showQrDialog(requireActivity() as MainActivity, text, name)
                             ShareAction.LINK, ShareAction.LINK_SN -> export(text)
                             ShareAction.CONFIG_CLIPBOARD -> export(config!!.first)
                             ShareAction.CONFIG_FILE -> {
@@ -358,7 +357,7 @@ class HomeFragment : Fragment() {
                     val link = group.toUniversalLink()
                     onMainDispatcher {
                         if (!isAdded) return@onMainDispatcher
-                        if (action == SubAction.QR) QRCodeDialog(link, group.displayName()).showAllowingStateLoss(parentFragmentManager)
+                        if (action == SubAction.QR) showQrDialog(requireActivity() as MainActivity, link, group.displayName())
                         else snackbar(if (SagerNet.trySetPrimaryClip(link)) R.string.action_export_msg else R.string.action_export_err).show()
                     }
                 }

@@ -3,7 +3,6 @@
 package io.niko.ktx
 
 import io.niko.BuildConfig
-import io.niko.fmt.AbstractBean
 import io.niko.utils.NGUtil
 import okhttp3.HttpUrl
 import java.net.InetSocketAddress
@@ -48,10 +47,6 @@ fun String.wrapIPV6Host(): String {
     } else {
         return this
     }
-}
-
-fun AbstractBean.wrapUri(): String {
-    return "${finalAddress.wrapIPV6Host()}:$finalPort"
 }
 
 fun mkPort(): Int {

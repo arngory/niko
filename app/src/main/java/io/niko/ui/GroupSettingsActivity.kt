@@ -17,15 +17,14 @@ import io.niko.database.SagerDatabase
 import io.niko.fmt.toUniversalLink
 import io.niko.ktx.onMainDispatcher
 import io.niko.ktx.runOnDefaultDispatcher
-import io.niko.ktx.showAllowingStateLoss
 import io.niko.raycontrol.RayNodes
 import io.niko.ui.compose.NikoDialog
 import io.niko.ui.compose.NikoTheme
+import io.niko.ui.compose.showQrDialog
 import io.niko.ui.group.GroupActions
 import io.niko.ui.group.GroupForm
 import io.niko.ui.group.GroupInfo
 import io.niko.ui.group.GroupScreen
-import io.niko.widget.QRCodeDialog
 
 /**
  * A group's settings, a provider's subscription's with them (P-SubSettings), on Compose: [GroupScreen] over a
@@ -138,7 +137,7 @@ class GroupSettingsActivity : ThemedActivity() {
                 if (RayNodes.ownsGroup(group.id)) return@runOnDefaultDispatcher // not shared, as the screen shows
                 val link = group.toUniversalLink()
                 onMainDispatcher {
-                    if (!isFinishing) QRCodeDialog(link, group.displayName()).showAllowingStateLoss(supportFragmentManager)
+                    if (!isFinishing) showQrDialog(this@GroupSettingsActivity, link, group.displayName())
                 }
             }
         }

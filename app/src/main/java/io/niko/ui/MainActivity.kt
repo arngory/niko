@@ -8,6 +8,8 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.RemoteException
+import android.view.ViewGroup
+import android.widget.FrameLayout
 import androidx.core.net.toUri
 import androidx.activity.addCallback
 import androidx.annotation.IdRes
@@ -17,7 +19,6 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.preference.PreferenceDataStore
 import io.niko.ui.compose.NikoDialog
-import com.google.android.material.snackbar.Snackbar
 import io.niko.RELEASE_REPO
 import io.niko.BuildConfig
 import io.niko.GroupType
@@ -38,7 +39,6 @@ import io.niko.database.ProfileManager
 import io.niko.database.ProxyGroup
 import io.niko.database.SubscriptionBean
 import io.niko.database.preference.OnPreferenceDataStoreChangeListener
-import io.niko.databinding.LayoutMainBinding
 import io.niko.fmt.AbstractBean
 import io.niko.fmt.KryoConverters
 import io.niko.fmt.PluginEntry
@@ -82,8 +82,6 @@ private const val CHECK_SHOWN_MS = 8_000L
 class MainActivity : ThemedActivity(),
     SagerConnection.Callback,
     OnPreferenceDataStoreChangeListener {
-
-    lateinit var binding: LayoutMainBinding
 
     /**
      * The question a link asks (import a raycontrol node, a profile, a subscription, a scanned config) while it is open.
@@ -334,8 +332,6 @@ class MainActivity : ThemedActivity(),
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        binding = LayoutMainBinding.inflate(layoutInflater)
-
         if (savedInstanceState == null) {
             displayFragmentWithId(R.id.nav_home)
         }
@@ -356,7 +352,11 @@ class MainActivity : ThemedActivity(),
             }
         }
 
-        setContentView(binding.root)
+        // the screens' holder: a plain frame, which hands the window's insets on to the screen in it
+        setContentView(
+            FrameLayout(this).apply { id = R.id.fragment_holder },
+            ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
+        )
         changeState(BaseService.State.Idle)
         connection.connect(this, this)
         DataStore.configurationStore.registerChangeListener(this)
@@ -680,10 +680,6 @@ class MainActivity : ThemedActivity(),
             downRate = if (connected) home.downRate else 0,
             check = if (connected) home.check else null,
         )
-    }
-
-    override fun snackbarInternal(text: CharSequence): Snackbar {
-        return Snackbar.make(binding.coordinator, text, Snackbar.LENGTH_LONG)
     }
 
     override fun stateChanged(state: BaseService.State, profileName: String?, msg: String?) {

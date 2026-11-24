@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- a chip's words and check: on-ink on the chosen one, ink on the others -->
-<selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:alpha="0.4" android:color="@color/niko_on_ink" android:state_checked="true" android:state_enabled="false" />
-    <item android:alpha="0.4" android:color="@color/niko_ink" android:state_enabled="false" />
-    <item android:color="@color/niko_on_ink" android:state_checked="true" />
-    <item android:color="@color/niko_ink" />
-</selector>

@@ -8,4 +8,6 @@
     <item name="nav_traffic" type="id" />
     <item name="nav_faq" type="id" />
     <item name="nav_about" type="id" />
+    <!-- the frame MainActivity shows them in -->
+    <item name="fragment_holder" type="id" />
 </resources>

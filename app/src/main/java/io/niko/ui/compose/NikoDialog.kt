@@ -262,50 +262,61 @@ class NikoDialog(val context: Context) {
     fun onDismiss(action: () -> Unit) = apply { onDismiss = action }
 
     fun show(): Dialog {
-        val dialog = ComponentDialog(context, android.R.style.Theme_Translucent_NoTitleBar)
         val field = spec.field != null
-        dialog.setContentView(
-            ComposeView(context).apply {
-                setContent {
-                    NikoTheme {
-                        val c = Niko.colors
-                        Box(
-                            Modifier.fillMaxWidth().background(c.scrim)
-                                .clickable(remember { MutableInteractionSource() }, indication = null) { if (cancelable) dialog.cancel() }
-                                .padding(NikoSpace.s6),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Box(Modifier.clickable(remember { MutableInteractionSource() }, indication = null) { }) {
-                                NikoDialogCard(
-                                    spec,
-                                    // the answer first: the dismissal that follows must not read as a cancel
-                                    onButton = { i, text, chosen ->
-                                        actions[i](text, chosen)
-                                        if (!staying[i]) dialog.dismiss()
-                                    },
-                                    onItem = { i ->
-                                        onItem(i)
-                                        dialog.dismiss()
-                                    },
-                                )
-                            }
-                        }
-                    }
-                }
-            },
-            ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
-        )
-        dialog.setCancelable(cancelable)
+        val dialog = nikoDialogWindow(context, cancelable) { dialog ->
+            NikoDialogCard(
+                spec,
+                // the answer first: the dismissal that follows must not read as a cancel
+                onButton = { i, text, chosen ->
+                    actions[i](text, chosen)
+                    if (!staying[i]) dialog.dismiss()
+                },
+                onItem = { i ->
+                    onItem(i)
+                    dialog.dismiss()
+                },
+            )
+        }
         dialog.setOnCancelListener { onCancel() }
         dialog.setOnDismissListener { onDismiss() }
-        dialog.window?.apply {
-            setBackgroundDrawable(ColorDrawable(AndroidColor.TRANSPARENT))
-            setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-            if (field) {
-                setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
-            }
+        if (field) {
+            dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
         }
         dialog.show()
         return dialog
     }
+}
+
+/**
+ * The window a Niko dialog shows in, not shown yet: the scrim over the whole screen and [content], the dialog's card,
+ * in its middle. Outside the card and back cancel it while [cancelable].
+ */
+internal fun nikoDialogWindow(context: Context, cancelable: Boolean = true, content: @Composable (Dialog) -> Unit): Dialog {
+    val dialog = ComponentDialog(context, android.R.style.Theme_Translucent_NoTitleBar)
+    dialog.setContentView(
+        ComposeView(context).apply {
+            setContent {
+                NikoTheme {
+                    val c = Niko.colors
+                    Box(
+                        Modifier.fillMaxWidth().background(c.scrim)
+                            .clickable(remember { MutableInteractionSource() }, indication = null) { if (cancelable) dialog.cancel() }
+                            .padding(NikoSpace.s6),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Box(Modifier.clickable(remember { MutableInteractionSource() }, indication = null) { }) {
+                            content(dialog)
+                        }
+                    }
+                }
+            }
+        },
+        ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
+    )
+    dialog.setCancelable(cancelable)
+    dialog.window?.apply {
+        setBackgroundDrawable(ColorDrawable(AndroidColor.TRANSPARENT))
+        setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+    }
+    return dialog
 }
