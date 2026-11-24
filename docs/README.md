@@ -28,6 +28,7 @@ changed and when is in the release notes and in git.
 ## Visual design
 
 - [Every function against the design](ui/functions.md)
+- [The old screens, option by option, and where each goes](ui/old-screens.md) (in Russian)
 - [One design on every platform](ui/platforms.md)
 
 ## Maintaining
