@@ -16,6 +16,7 @@ import io.niko.raycontrol.RayChannel
 import io.niko.raycontrol.RayNode
 import io.niko.raycontrol.RayNodes
 import io.niko.raycontrol.RaySubscription
+import io.niko.ui.admin.AdminActivity
 
 // A raycontrol node's actions as dialogs over any screen: the settings' node list and the node's card (ui/node) take
 // them alike. Moved as they were from SettingsPreferenceFragment.
@@ -49,7 +50,7 @@ fun Fragment.showRayNodeActions(node: RayNode, card: Boolean = false, onRemoved:
 }
 
 fun Fragment.openRayAdmin(node: RayNode) {
-    startActivity(Intent(requireContext(), RayAdminActivity::class.java).putExtra(RayAdminActivity.EXTRA_NODE, node.spa.nodeId))
+    startActivity(Intent(requireContext(), AdminActivity::class.java).putExtra(AdminActivity.EXTRA_NODE, node.spa.nodeId))
 }
 
 /**

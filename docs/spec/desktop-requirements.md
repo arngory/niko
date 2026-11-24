@@ -173,7 +173,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 ## Админ-панель (D-ADMIN)
 
 Видна только админу узла. Вызовы — `NikoService.ApiCall`, логика в Go: `libcore/rayapi`. Интерфейс Android —
-`ui/RayAdminActivity.kt`.
+`ui/admin/` (`AdminActivity`, `AdminModel`, `AdminScreen`).
 
 | ID | Элемент | Вызов API узла | Макет | Android | Окно |
 |---|---|---|---|---|---|
