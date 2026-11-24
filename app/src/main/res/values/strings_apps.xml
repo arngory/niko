@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Apps (P-Apps): the apps through the VPN, and the picker of a rule's apps. -->
+<resources>
+    <string name="ap_title">Apps</string>
+    <string name="ap_title_rule">Apps of the rule</string>
+    <string name="ap_mode">Through Niko</string>
+    <string name="ap_mode_all">All apps</string>
+    <string name="ap_mode_only">Only the chosen</string>
+    <string name="ap_mode_except">All but the chosen</string>
+    <string name="ap_chosen">Chosen · %d</string>
+    <string name="ap_rest">Others</string>
+    <string name="ap_all">All apps</string>
+    <string name="ap_search">Name, package or uid</string>
+    <string name="ap_search_open">Search</string>
+    <string name="ap_search_close">Close the search</string>
+    <string name="ap_menu">More</string>
+    <string name="ap_system">System apps</string>
+    <string name="ap_invert">Invert the choice</string>
+    <string name="ap_clear">Clear the choice</string>
+    <string name="ap_auto">Choose automatically</string>
+    <string name="ap_export">Copy to the clipboard</string>
+    <string name="ap_import">Paste from the clipboard</string>
+    <string name="ap_copied">The choice is copied</string>
+    <string name="ap_copy_failed">Could not copy</string>
+    <string name="ap_pasted">The choice is pasted</string>
+    <string name="ap_paste_failed">No list of apps on the clipboard</string>
+    <string name="ap_loading">Reading the apps…</string>
+    <string name="ap_none_found">Nothing found</string>
+    <string name="ap_open_settings">Open the app\'s settings</string>
+    <string name="ap_scroll">Fast scroll</string>
+</resources>

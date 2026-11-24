@@ -52,7 +52,7 @@ interface RuleActions {
     fun back()
     fun save()
     fun delete()
-    /** the apps, in the app picker (AppListActivity) */
+    /** the apps, in the app picker (AppsActivity) */
     fun pickApps()
     /** a profile to send it through (ProfileSelectActivity) */
     fun pickProfile()

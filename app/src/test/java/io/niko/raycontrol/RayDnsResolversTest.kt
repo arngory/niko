@@ -126,6 +126,19 @@ class RayDnsResolversTest {
     }
 
     @Test
+    fun slipstreamProbesTheDnsttZoneElseItsOwn() {
+        val dnstt = "dnstt" to "t.example.org"
+        val slip = "slipstream" to "s.example.org"
+        // the dnstt zone first, wherever it is in the node's profiles
+        assertEquals("t.example.org", RayDnsResolvers.probeZoneOf(listOf(slip, dnstt)))
+        // a node with slipstream alone: its zone (its front answers probes since raycontrol v0.36.1)
+        assertEquals("s.example.org", RayDnsResolvers.probeZoneOf(listOf("masterdns" to "m.example.org", slip)))
+        // no zone to probe
+        assertEquals(null, RayDnsResolvers.probeZoneOf(listOf("masterdns" to "m.example.org", "dnstt" to null)))
+        assertEquals(null, RayDnsResolvers.probeZoneOf(emptyList()))
+    }
+
+    @Test
     fun slipstreamTakesYandexOnlyInPlaceOfSmallOnes() {
         // the candidates of a phone in ru: the network's, the country's (Yandex among them), DoT and DoH
         val candidates = listOf(

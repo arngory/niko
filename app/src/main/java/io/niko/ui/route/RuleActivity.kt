@@ -17,18 +17,18 @@ import io.niko.ktx.Logs
 import io.niko.ktx.danger
 import io.niko.ktx.onMainDispatcher
 import io.niko.ktx.runOnDefaultDispatcher
-import io.niko.ui.AppListActivity
 import io.niko.ui.ProfileSelectActivity
 import io.niko.ui.ThemedActivity
+import io.niko.ui.apps.AppsActivity
 import io.niko.ui.compose.NikoTheme
 import io.niko.ui.profile.ConfigEditActivity
 import io.niko.utils.PackageCache
 
 /**
  * A routing rule's editor (P-Rule) on Compose: [RuleScreen] over a [RuleForm], saved by «Сохранить» (back with
- * changes asks, as the old editor did). The apps are picked in AppListActivity, the profile in ProfileSelectActivity,
- * the rule's JSON in ConfigEditActivity, as before: they read and write the old editor's DataStore keys
- * (routePackages, serverConfig). [EXTRA_RULE_ID] the rule, none: a new one, on when saved.
+ * changes asks, as the old editor did). The apps are picked in AppsActivity, handed over and back in its intents; the
+ * profile in ProfileSelectActivity and the rule's JSON in ConfigEditActivity, as before, the JSON through the old
+ * editor's DataStore key (serverConfig). [EXTRA_RULE_ID] the rule, none: a new one, on when saved.
  */
 class RuleActivity : ThemedActivity() {
 
@@ -133,9 +133,12 @@ class RuleActivity : ThemedActivity() {
         }
     }
 
-    private val pickApps = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+    // the picker hands the choice back only when it changed (AppsActivity.EXTRA_PACKAGES)
+    private val pickApps = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
+        val picked = result.data?.getStringExtra(AppsActivity.EXTRA_PACKAGES) ?: return@registerForActivityResult
         val f = form.value ?: return@registerForActivityResult
-        form.value = f.copy(packages = RuleForm.packagesOf(DataStore.routePackages))
+        form.value = f.copy(packages = RuleForm.packagesOf(picked))
         reloadInfo()
     }
 
@@ -152,7 +155,9 @@ class RuleActivity : ThemedActivity() {
         }
     }
 
-    private val editJson = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+    // the JSON editor's text only when it saved (its store is in memory and comes back empty after the process died)
+    private val editJson = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
         val f = form.value ?: return@registerForActivityResult
         form.value = f.copy(config = DataStore.serverConfig)
     }
@@ -185,8 +190,10 @@ class RuleActivity : ThemedActivity() {
         }
 
         override fun pickApps() {
-            DataStore.routePackages = form.value?.packages.orEmpty().joinToString("\n")
-            pickApps.launch(Intent(this@RuleActivity, AppListActivity::class.java))
+            pickApps.launch(
+                Intent(this@RuleActivity, AppsActivity::class.java).putExtra(AppsActivity.EXTRA_FOR_RULE, true)
+                    .putExtra(AppsActivity.EXTRA_PACKAGES, form.value?.packages.orEmpty().joinToString("\n")),
+            )
         }
 
         override fun pickProfile() {

@@ -25,8 +25,6 @@
 <string name="ads">Реклама</string>
 <string name="allow_insecure">Разрешить небезопасное подключение</string>
 <string name="allow_insecure_sum">Отключить проверку сертификата. При включении эта функция настолько же безопасна как передача пароля в открытом виде</string>
-<string name="alpn">Согласование протокола уровня приложений</string>
-<string name="alter_id">Изменить ID</string>
 <string name="app_desc">Универсальный набор инструментов прокси для Android, написанный на Kotlin.</string>
 <string name="app_name">Niko</string>
 <string name="app_name_long">Niko для Android</string>
@@ -34,7 +32,6 @@
 <string name="app_version">Версия</string>
 <string name="apply">Применить</string>
 <string name="apps">Приложения</string>
-<string name="auto_select_proxy_apps">Автоматический выбор прокси-приложений</string>
 <string name="auto_select_proxy_apps_message">Автоматический выбор прокси-приложений приведет к очистке текущего выбора.</string>
 <string name="backup">Бэкап</string>
 <string name="backup_groups_and_configurations">Группы и конфигурации</string>
@@ -50,10 +47,7 @@
 <string name="bottomsheet_action_expand_halfway">Развернуть наполовину</string>
 <string name="bottomsheet_drag_handle_clicked">Двойное нажатие на маркер перемещения</string>
 <string name="bottomsheet_drag_handle_content_description">Маркер перемещения</string>
-<string name="bypass_apps">Обход</string>
-<string name="cag_ws">Настройки WebSocket</string>
 <string name="certificates">Сертификаты</string>
-<string name="chain_settings">Настройки цепочки</string>
 <string name="character_counter_content_description">Введено символов: %1$d из %2$d</string>
 <string name="character_counter_overflowed_content_description">Превышено ограничение на количество символов (%1$d из %2$d)</string>
 <string name="update_install">Скачать и установить</string>
@@ -76,7 +70,6 @@
 <string name="clear_logcat">Очистить журнал</string>
 <string name="clear_profiles">Очистить</string>
 <string name="clear_profiles_message">Вы уверены, что хотите очистить эту группу?</string>
-<string name="clear_selections">Очистить выбранное</string>
 <string name="clear_text_end_icon_content_description">Очистить текстовое поле</string>
 <string name="clear_traffic_statistics">Очистить статистику трафика</string>
 <string name="cleartext_http_warning">Передача HTTP-трафика в виде открытого текста небезопасна</string>
@@ -177,7 +170,6 @@
 <string name="enable">Включить</string>
 <string name="copy_clash_api_secret">Скопировать ключ API</string>
 <string name="wireguard_persistent_keepalive">Persistent keepalive, секунд (0 — выкл., 25 для мобильных сетей)</string>
-<string name="hop_interval_max">Макс. интервал смены порта, секунд (0 — фиксированный)</string>
 <string name="vless_encryption">Шифрование VLESS</string>
 <string name="vless_encryption_help">Постквантовый слой новых серверов Xray: клиентская строка из «xray vlessenc», mlkem768x25519plus.… Пусто — без него.</string>
 <string name="amneziawg_params">Параметры AmneziaWG</string>
@@ -188,7 +180,6 @@
 <string name="reality_key_share_auto">Авто: для Chrome гибридный, после неудачной проверки переключается</string>
 <string name="reality_key_share_hybrid">Только гибридный (X25519MLKEM768, Xray 26.9.8+)</string>
 <string name="reality_key_share_classical">Классический (меньше ClientHello, Xray до 26.9.8)</string>
-<string name="xhttp_mode">Режим</string>
 <string name="xhttp_extra">Extra (JSON)</string>
 <string name="xhttp_extra_help" tools:ignore="TypographyDashes">Объект «extra» из Xray, например {"xPaddingBytes": "100-1000", "xmux": {"maxConcurrency": "16-32"}}. Ключи, которые ядро не поддерживает (downloadSettings), пропускаются.</string>
 <string name="subscription_send_hwid">Отправлять ID устройства (HWID)</string>
@@ -254,7 +245,6 @@
 <string name="group_updated">%s: обновлено %d прокси</string>
 <string name="grpc_service_name">Имя службы gRPC</string>
 <string name="header_type">Тип заголовка</string>
-<string name="hop_interval">Интервал переключения портов(второй)</string>
 <string name="http_host">HTTP-хост</string>
 <string name="http_path">HTTP-путь</string>
 <string name="http_upgrade_host">HTTP-хост обновления</string>
@@ -263,10 +253,8 @@
 <string name="hysteria_auth_type">Тип аутентификации</string>
 <string name="hysteria_connection_receive_window">Окно получения соединения QUIC</string>
 <string name="hysteria_disable_mtu_discovery">Отключить обнаружение MTU пути</string>
-<string name="hysteria_download_mbps">Максимальная скорость загрузки (в Мбит / с)</string>
 <string name="hysteria_obfs">Обфускация пароля</string>
 <string name="hysteria_stream_receive_window">Окно приема потока QUIC</string>
-<string name="hysteria_upload_mbps">Максимальная скорость отдачи (в Мбит / с)</string>
 <string name="icon_content_description">Значок диалогового окна</string>
 <string name="route_test_target_hint">Хост или адрес и порт: example.com:443</string>
 <string name="route_test_app_hint">Из приложения (необязательно)</string>
@@ -289,7 +277,6 @@
 <string name="install_from_play_store">Установить из Play Store</string>
 <string name="invalid_backup_file">Недействительный файл резервной копии</string>
 <string name="invalid_server">Неверное имя сервера</string>
-<string name="invert_selections">Инвертировать выбранное</string>
 <string name="is_outbound_only">Сделать JSON исходящим</string>
 <string name="item_view_role_description">Вкладка</string>
 <string name="key_opt">Ключ (необязательно)</string>
@@ -354,18 +341,13 @@
 <string name="obfs">Obfs</string>
 <string name="obfs_param">Параметры Obfs</string>
 <string name="off">Выключенный</string>
-<string name="on">Включено</string>
 <string name="ooc_warning">Предупреждение</string>
 <string name="oss_licenses">Лицензии с открытым исходным кодом</string>
 <string name="packet_encoding">Кодирование пакетов</string>
 <string name="padding">Отступ</string>
-<string name="password">Пароль</string>
-<string name="password_opt">Пароль (необязательно)</string>
 <string name="password_toggle_content_description">Показать пароль</string>
 <string name="plugin">Плагин</string>
 <string name="plugin_auto_connect_unlock_only">Этот плагин может не работать с автоподключением</string>
-<string name="plugin_configure">Настроить…</string>
-<string name="plugin_disabled">Отключено</string>
 <string name="plugin_exists_but_on_shit_system">Профиль %s требует плагин %s, но поставщик вашего проприетарного оборудования (обычно это большие компании, занимающиеся слежкой и производители вредоносного ПО) изменил ваш Android, сделав плагин непригодным для использования.</string>
 <string name="plugin_unknown">Неизвестный плагин %s</string>
     <string name="plugin_untrusted">Плагин %1$s из %2$s ещё не подтверждён: в разделе «О программе» нажмите на плагин и проверьте подпись.</string>
@@ -381,7 +363,6 @@
 <string name="port_transproxy">Транспрокси-порт</string>
 <string name="preference_copied">Текст "%1$s" скопирован в буфер обмена</string>
 <string name="preview_version_hint">Это приложение является предварительной версией и может содержать множество проблем. Если вы не хотите тестировать его, скачайте релизную версию с GitHub!</string>
-<string name="profile_config">Конфигурация профиля</string>
 <string name="profile_empty">Пожалуйста, выберите профиль</string>
 <string name="profile_import">Импортировать профиль</string>
 <string name="profile_import_message">Подтвердите, что хотите импортировать профиль %s?</string>
@@ -393,8 +374,6 @@
 <string name="protocol_param">Параметры протокола</string>
 <string name="protocol_settings">Настройки протокола</string>
 <string name="protocol_version">Версия протокола</string>
-<string name="proxied_apps">Режим VPN для приложений</string>
-<string name="proxy_cat">Настройки сервера</string>
 <string name="proxy_chain">Прокси-цепочка</string>
 <string name="quick_toggle">Переключить</string>
 <string name="quick_enable">Включить</string>
@@ -425,16 +404,12 @@
 <string name="route_proxy">Прокси</string>
 <string name="route_rules_official">Официальный</string>
 <string name="scanning">Сканирование…</string>
-<string name="search_apps">Поиск…</string>
 <string name="search_menu_title">Поиск</string>
 <string name="searchview_clear_text_content_description">Очистить текстовое поле</string>
 <string name="searchview_navigation_content_description">Назад</string>
 <string name="security">Шифрование транспортного уровня</string>
-<string name="security_settings">Настройки безопасности</string>
-<string name="select_apps">Выберите приложения</string>
 <string name="select_profile">Выбрать профиль</string>
 <string name="server_address">Сервер</string>
-<string name="server_port">Удаленный порт</string>
 <string name="service_failed">Не удалось:</string>
 <string name="service_proxy">Прокси-сервис</string>
 <string name="service_subscription">Служба обновления подписки</string>
@@ -446,18 +421,14 @@
 <string name="share">Поделиться</string>
 <string name="share_qr_nfc">QR-код</string>
 <string name="share_subscription">Поделиться подпиской</string>
-<string name="show_system_apps">Показать системные приложения</string>
 <string name="side_sheet_accessibility_pane_title">Боковая панель</string>
-<string name="sni">SNI (индикация имени сервера)</string>
 <string name="sniff_override">Результат проверки для адрес назначения</string>
 <string name="speed">%s/с</string>
 <string name="speed_detail">Прокси ：%1$s↑ %2$s↓ 
 \nПрямой ：%3$s↑%4$s↓</string>
-<string name="ss_cat">Настройки Shadowsocks</string>
 <string name="ssh_auth_type_none">Без аутентификации</string>
 <string name="ssh_private_key">Закрытый ключ</string>
 <string name="ssh_private_key_passphrase">Парольная фраза закрытого ключа</string>
-<string name="ssh_public_key">Открытый ключ</string>
 <string name="standard">Стандарт</string>
 <string name="start">Старт</string>
 <string name="status_bar_notification_info_overflow">&gt;999</string>
@@ -481,7 +452,6 @@
 <string name="theme">Тема</string>
 <string name="tile_title">Переключатель</string>
 <string name="tls">Использовать TLS</string>
-<string name="tls_camouflage_settings">Настройки защиты TLS</string>
 <string name="trojan_provider">Провайдер Trojan</string>
 <string name="tuic_congestion_controller">Контроллер перегрузки</string>
 <string name="tuic_disable_sni">Отключить SNI</string>
@@ -497,10 +467,7 @@
 <string name="update_dialog_title">Доступна новая версия</string>
 <string name="update_subscription_warning">Прокси-сервер не подключен, вы уверены, что хотите продолжить обновление?</string>
 <string name="use_selector">Использовать селектор</string>
-<string name="username">Имя пользователя</string>
-<string name="username_opt">Имя пользователя (необязательно)</string>
 <string name="utls_fingerprint">Отпечаток uTLS</string>
-<string name="uuid">Логин пользователя</string>
 <string name="v7_preference_off">ВЫКЛ.</string>
 <string name="v7_preference_on">ВКЛ.</string>
 <string name="vpn_connected">Подключено, нажмите для проверки подключения</string>
@@ -516,7 +483,6 @@
 <string name="ws_host">Хост WebSocket</string>
 <string name="ws_max_early_data">Максимальный объём данных</string>
 <string name="ws_path">Путь к WebSocket</string>
-<string name="xtls_flow">Flow (подпротокол VLESS)</string>
 <string name="yes">Да</string>
     <string name="connection_tweaks">Настройки подключения</string>
     <string name="cert_pins">Пиннинг сертификата</string>
@@ -882,7 +848,6 @@
     <string name="raycontrol_node_remove_confirm">Удалить ноду %1$s и сохранённый ключ устройства? Активное подключение перезапустится без неё. Чтобы пользоваться нодой снова, импортируйте новую регистрацию.</string>
     <string name="yggdrasil_inbound_ports_help">Через запятую, например 22, 8080. Пусто — все порты, кроме портов Niko, в том числе локальные прокси других приложений.</string>
     <string name="yggdrasil_not_built">нет в этой сборке</string>
-    <string name="dns_tunnel">DNS-туннель (экспериментально)</string>
     <string name="dns_tunnel_resolver">Резолвер. dnstt: https://…/dns-query, tls://host или udp://host. MasterDnsVPN: IP, по одному в строке</string>
     <string name="dns_tunnel_domain">Домен туннеля (MasterDnsVPN: несколько через запятую)</string>
     <string name="dns_tunnel_key">Ключ. dnstt: публичный ключ сервера (64 hex). MasterDnsVPN: общий ключ</string>
@@ -891,8 +856,6 @@
     <string name="dns_tunnel_summary">Доступ к серверу через DNS-запросы, когда наружу проходит только DNS. Сервер dnstt или MasterDnsVPN в режиме TCP пересылает всё на один upstream — настройте этот профиль под него (SOCKS, SSH, Shadowsocks…). MasterDnsVPN в режиме SOCKS5 сам доходит до сервера этого профиля. Только TCP, медленно. Пустой домен выключает туннель.</string>
     <string name="cert_pins_summary">Base64 или hex, по одному в строке. Заменяет проверку по CA, поэтому самоподписанный сертификат работает без «небезопасного» режима. У профиля naive проверяются и пин, и CA, а для пина нужно имя сервера (SNI). Получить: openssl x509 -in cert.pem -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64</string>
     <string name="tls_fragment">Фрагментация TLS</string>
-    <string name="tls_fragment_record">Разбивать на TLS-записи</string>
-    <string name="tls_fragment_tcp">Разбивать на TCP-сегменты (медленнее)</string>
     <string name="tls_fragment_summary">Разбивает TLS ClientHello к этому серверу, чтобы простой DPI не распознал SNI. Сначала попробуйте TLS-записи. Работает только для TLS поверх TCP (VMess, VLESS, Trojan, HTTP, AnyTLS, ShadowTLS).</string>
     <string name="udp_desync">UDP (QUIC): обход DPI</string>
     <string name="udp_prelude">Фейковые пакеты перед первым (0–8)</string>
@@ -902,7 +865,6 @@
     <string name="udp_prelude_sni_invalid">Имя сервера, например allowed.example.ru</string>
     <string name="udp_desync_summary">Hysteria2, TUIC и naive поверх QUIC (и его датаграммы HTTP/3). DPI, который судит о потоке по первым пакетам, видит фейки или ClientHello без имени сервера: постквантовый ClientHello занимает два Initial-пакета, и второй уходит первым. Нода raycontrol фейки отбрасывает; для другого сервера задайте TTL, который кончится раньше него (меньше хопов, чем до сервера). При obfs у Hysteria2 перестановка ничего не даёт (Initial там не виден); у naive она стоит немного скорости (каждый пакет копируется лишний раз), а фейки делают его начало непохожим на браузер.</string>
     <string name="port_knocking">Port knocking</string>
-    <string name="port_knocking_sequence">Последовательность, например 7000, 8000/udp, 9000</string>
     <string name="port_knocking_interval">Пауза между стуками, мс</string>
     <string name="port_knocking_ttl">Стучать повторно через, секунд</string>
     <string name="port_knocking_summary">Перед подключением по очереди отправляет TCP SYN или UDP-пакеты на эти порты сервера. UDP-шаг может нести hex-данные: 1234/udp:68656c6c6f. SPA: 62201/spa:КЛЮЧ отправляет один подписанный пакет, который нельзя повторить (КЛЮЧ — 64 hex-символа, как на сервере); 62201/spa1m:КЛЮЧ скрывает и время отправки, если сервер понимает SPA v1m (в v1 время открыто, и DPI может его распознать). Стучит заново при смене сети и при неудачном подключении. Если UDP-сессия (WireGuard, Hysteria2, TUIC) после отправки данных не получает ответа дольше заданного времени, стучит ещё раз и пишет в лог, ожил ли сервер. Пустая последовательность — выключено.</string>
@@ -918,7 +880,6 @@
     <string name="copy_label">Копировать название</string>
     <string name="copy_package_name">Копировать имя пакета</string>
     <string name="open_app">Открыть приложение</string>
-    <string name="open_settings">Открыть настройки</string>
     <string name="open_market">Открыть в магазине</string>
     <string name="create_rule">Создать правило</string>
     <string name="copy_success">Скопировано</string>

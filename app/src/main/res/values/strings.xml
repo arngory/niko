@@ -50,13 +50,11 @@
     <string name="port_http">HTTP Proxy Port</string>
     <string name="port_transproxy">Transproxy Port</string>
     <string name="require_http">Enable HTTP inbound</string>
-    <string name="cag_ws">WebSocket Settings</string>
     <string name="ws_max_early_data" translatable="false">Max early data</string>
     <string name="ws_browser_forwarding">Browser Forwarding</string>
     <string name="ws_browser_forwarding_sum">Forward corresponding WebSockets through the browser.</string>
     <string name="show_stop">Show Stop Button</string>
     <string name="show_stop_sum">If you don’t want to use Quick Tile as the switch</string>
-    <string name="security_settings">TLS Security Settings</string>
     <string name="allow_insecure">Allow Insecure</string>
     <string name="allow_insecure_sum">Disable certificate checking. When enabled, this configuration
         is as secure as plaintext</string>
@@ -79,19 +77,12 @@
     <!-- proxy category -->
     <string name="profile_name">Profile Name</string>
     <string name="server_address">Server</string>
-    <string name="server_port">Remote Port</string>
-    <string name="username">Username</string>
-    <string name="username_opt">Username (Optional)</string>
-    <string name="password_opt">Password (Optional)</string>
     <string name="key_opt">Key (Optional)</string>
-    <string name="password">Password</string>
     <string name="enc_method">Encrypt Method</string>
     <string name="protocol">Protocol</string>
     <string name="protocol_param">Protocol Param</string>
     <string name="obfs">Obfs</string>
     <string name="obfs_param">Obfs Param</string>
-    <string name="uuid">User ID</string>
-    <string name="alter_id">Alter ID</string>
     <string name="security">Transport layer encryption</string>
     <string name="network">Network</string>
     <string name="header_type">Header Type</string>
@@ -101,8 +92,6 @@
     <string name="http_path">HTTP Path</string>
     <string name="grpc_service_name">gRPC ServiceName</string>
     <string name="tls">Use TLS</string>
-    <string name="sni">Server Name Indication</string>
-    <string name="alpn">Application-Layer Protocol Negotiation</string>
     <string name="certificates">Certificates</string>
     <string name="early_data_header_name">Early Data Header Name</string>
     <string name="encryption">Encryption</string>
@@ -138,15 +127,8 @@
         productive. If the server does not support it, you will not be able to access the Internet.</string>
     <string name="mux_concurrency">Mux Concurrent Connections</string>
     <string name="tcp_keep_alive_interval">TCP keep active packet delivery interval</string>
-    <string name="proxied_apps">Apps VPN mode</string>
-    <string name="on">On</string>
     <string name="off">Off</string>
-    <string name="search_apps">Search…</string>
     <string name="scanning">Scanning…</string>
-    <string name="invert_selections">Invert selections</string>
-    <string name="clear_selections">Clear selections</string>
-    <string name="bypass_apps">Bypass</string>
-    <string name="show_system_apps">Show system apps</string>
     <string name="direct_boot_aware">Allow Toggling in Lock Screen</string>
     <string name="direct_boot_aware_summary">Your selected profile information will be less
         protected</string>
@@ -193,7 +175,6 @@
     <string name="balancer_settings">Balancer Settings</string>
     <string name="balancer_type">Type</string>
     <string name="balancer_strategy">Strategy</string>
-    <string name="chain_settings">Chain Settings</string>
     <string name="config_settings">Config Settings</string>
     <string name="circular_reference">Circular reference</string>
     <string name="circular_reference_sum">The route cannot contain itself.</string>
@@ -214,7 +195,6 @@
         install one, such as Material Files.</string>
     <!-- share -->
     <!-- profile -->
-    <string name="profile_config">Profile config</string>
     <string name="delete">Remove</string>
     <string name="delete_confirm_prompt">Are you sure you want to remove this profile?</string>
     <string name="share_qr_nfc">QR code</string>
@@ -246,8 +226,6 @@
     <string name="deduplication">Deduplication</string>
     <!-- plugin -->
     <string name="plugin">Plugin</string>
-    <string name="plugin_configure">Configure…</string>
-    <string name="plugin_disabled">Disabled</string>
     <string name="plugin_unknown">Unknown plugin %s</string>
     <string name="plugin_untrusted">Plugin %1$s from %2$s is not trusted yet: in About, tap the plugin and check its signer.</string>
     <string name="plugin_trust_title">Trust this plugin?</string>
@@ -258,8 +236,6 @@
     <string name="plugin_revoke">Revoke</string>
     <string name="plugin_app_info">App info</string>
     <string name="plugin_auto_connect_unlock_only">This plugin might not work with Auto Connect</string>
-    <string name="proxy_cat">Server Settings</string>
-    <string name="ss_cat">Shadowsocks Settings</string>
     <string name="unsaved_changes_prompt">Changes not saved. Do you want to save?</string>
     <string name="yes">Yes</string>
     <string name="no">No</string>
@@ -331,12 +307,9 @@
     <string name="profile_import_keys">It sets these parts of the config: %s</string>
     <string name="clear_profiles_message">Are you sure you want to clear this group?</string>
     <string name="apps">Applications</string>
-    <string name="select_apps">Select Applications</string>
     <string name="hysteria_obfs">Obfuscation Password</string>
     <string name="hysteria_auth_type">Authentication Type</string>
     <string name="hysteria_auth_payload">Authentication Payload</string>
-    <string name="hysteria_upload_mbps">Max Upload Speed (in Mbps)</string>
-    <string name="hysteria_download_mbps">Max Download Speed (in Mbps)</string>
     <string name="experimental_settings">Experimental</string>
     <string name="hysteria_stream_receive_window">QUIC Stream Receive Window</string>
     <string name="hysteria_connection_receive_window">QUIC Connection Receive Window</string>
@@ -364,7 +337,6 @@
     <string name="copy_label">Copy Name</string>
     <string name="copy_package_name">Copy Package Name</string>
     <string name="open_app">Open App</string>
-    <string name="open_settings">Open Settings</string>
     <string name="open_market">Open Market</string>
     <string name="create_rule">Create Rule</string>
 
@@ -378,7 +350,6 @@
     <string name="no_statistics">No statistics yet</string>
     <string name="app_statistics_disabled">App Traffic statistics disabled</string>
     <string name="ssh_auth_type_none">None</string>
-    <string name="ssh_public_key">Public Key</string>
     <string name="ssh_private_key">Private Key</string>
     <string name="ssh_private_key_passphrase">Private Key Passphrase</string>
     <string name="translate_platform">Translate Platform</string>
@@ -446,7 +417,6 @@
     <string name="exe_prefer_provider">Plugin Preferred Provider</string>
     <string name="create_shortcut">Create Shortcut</string>
     <string name="root_store_naive_note">naive profiles check certificates inside Chromium, by its rules, and are held to the list chosen here besides. Under Chrome\'s list: a root must be both in Chromium\'s own list and in the app\'s list of Chrome\'s roots, which leaves out the certificate authorities marked China (nine roots Chromium has are not in it). Under Mozilla\'s list: both in Chromium\'s list and in Mozilla\'s. Under the system\'s store: Chromium\'s list and this phone\'s roots, those over HTTP/2 only unless the switch below is on. A profile with its own key pins or its own certificate follows those instead; an imported ca.pem does not reach naive.</string>
-    <string name="hop_interval">Port Hopping Interval(second)</string>
     <string name="utls_fingerprint">uTLS fingerprint</string>
     <string name="custom_outbound_json">Custom outbound JSON</string>
     <string name="custom_config_json">Custom config JSON</string>
@@ -455,7 +425,6 @@
     <string name="set_panel_url">Set panel URL</string>
     <string name="copy_clash_api_secret">Copy API secret</string>
     <string name="wireguard_persistent_keepalive">Persistent keepalive, seconds (0 = off, 25 for mobile networks)</string>
-    <string name="hop_interval_max">Max port hopping interval, seconds (0 = fixed interval)</string>
     <string name="vless_encryption">VLESS encryption</string>
     <string name="vless_encryption_help">Post-quantum layer of current Xray servers: the client string from \"xray vlessenc\", mlkem768x25519plus.… Empty for none.</string>
     <string name="amneziawg_params">AmneziaWG parameters</string>
@@ -466,7 +435,6 @@
     <string name="reality_key_share_auto">Auto: hybrid for Chrome, switches after a failed verification</string>
     <string name="reality_key_share_hybrid">Hybrid only (X25519MLKEM768, Xray 26.9.8+)</string>
     <string name="reality_key_share_classical">Classical (smaller ClientHello, Xray before 26.9.8)</string>
-    <string name="xhttp_mode">Mode</string>
     <string name="xhttp_extra">Extra (JSON)</string>
     <string name="xhttp_extra_help" tools:ignore="TypographyDashes">Xray "extra" object, e.g. {"xPaddingBytes": "100-1000", "xmux": {"maxConcurrency": "16-32"}}. Keys the core does not support (downloadSettings) are ignored.</string>
     <string name="subscription_send_hwid">Send device ID (HWID)</string>
@@ -481,7 +449,6 @@
     <string name="rule_set_update_3d">Every 3 days</string>
     <string name="rule_set_update_7d">Weekly</string>
     <string name="shortcut_pin_unsupported">The launcher can not pin shortcuts. Choose a default launcher and try again.</string>
-    <string name="xtls_flow">Flow (VLESS Sub-protocol)</string>
     <string name="ads">Ads</string>
     <string name="need_restart">Restart APP to apply changes</string>
     <string name="use_selector">Use selector</string>
@@ -491,12 +458,10 @@
     <string name="reset_connections">Reset Connections</string>
     <string name="remove_duplicate">Remove duplicates</string>
     <string name="mtu_help">Long press the preference to set custom MTU.</string>
-    <string name="tls_camouflage_settings">TLS Camouflage Settings</string>
     <string name="test_concurrency">Test concurrency</string>
     <string name="mux_type">Mux protocol</string>
     <string name="sniff_override">Sniff result for destination</string>
     <string name="resolve_server">Resolve the server address according to the IPv6 policy</string>
-    <string name="auto_select_proxy_apps">Auto select proxy apps</string>
     <string name="auto_select_proxy_apps_message">Auto select proxy apps, this will clear your
         current selection.</string>
     <string name="enable_ech">Enable ECH</string>
@@ -960,7 +925,6 @@
     <string name="raycontrol_node_remove_confirm">Remove node %1$s and its stored device key? A running connection restarts without it. To use the node again, import a new registration.</string>
     <string name="yggdrasil_inbound_ports_help">Comma-separated, for example 22, 8080. Empty: every port but Niko\'s own, including other apps\' local proxies.</string>
     <string name="yggdrasil_not_built">not in this build</string>
-    <string name="dns_tunnel">DNS tunnel (experimental)</string>
     <string name="dns_tunnel_resolver">Resolver. dnstt: https://…/dns-query, tls://host or udp://host. MasterDnsVPN: IPs, one per line</string>
     <string name="dns_tunnel_domain">Tunnel domain (MasterDnsVPN: several, comma separated)</string>
     <string name="dns_tunnel_key">Key. dnstt: server public key (64 hex). MasterDnsVPN: shared key</string>
@@ -969,8 +933,6 @@
     <string name="dns_tunnel_summary">Reaches the server through DNS queries when only DNS gets out. A dnstt server, or MasterDnsVPN in TCP mode, forwards to one upstream: set this profile up for it (SOCKS, SSH, Shadowsocks…). MasterDnsVPN in SOCKS5 mode reaches the server of this profile. TCP only, slow. Empty domain turns it off.</string>
     <string name="cert_pins_summary">Base64 or hex, one per line. Replaces the CA check, so a self-signed certificate works without "allow insecure". A naive profile checks the pin and the CA both, and needs a server name (SNI) for it. Get it with: openssl x509 -in cert.pem -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64</string>
     <string name="tls_fragment">TLS fragmentation</string>
-    <string name="tls_fragment_record">Split into TLS records</string>
-    <string name="tls_fragment_tcp">Split into TCP segments (slower)</string>
     <string name="tls_fragment_summary">Splits the TLS ClientHello of this server so simple DPI cannot match the SNI. Try TLS records first. Only applies to TCP-based TLS (VMess, VLESS, Trojan, HTTP, AnyTLS, ShadowTLS).</string>
     <string name="udp_desync">UDP (QUIC): DPI bypass</string>
     <string name="udp_prelude">Fake packets before the first one (0–8)</string>
@@ -980,7 +942,6 @@
     <string name="udp_prelude_sni_invalid">A server name, like allowed.example.ru</string>
     <string name="udp_desync_summary">Hysteria2, TUIC, and naive over QUIC (its HTTP/3 datagrams too). A box that judges the flow by its first packets sees the fakes, or a ClientHello without the server name: a post-quantum ClientHello takes two Initial packets, and the second one goes first. A raycontrol node drops the fakes; for another server give them a TTL that ends before it (fewer hops than the server). Reordering does nothing under Hysteria2 obfs (no visible Initial there); with naive it costs some speed (each packet takes one more copy), and the fakes make its start unlike a browser\'s.</string>
     <string name="port_knocking">Port knocking</string>
-    <string name="port_knocking_sequence">Knock sequence, e.g. 7000, 8000/udp, 9000</string>
     <string name="port_knocking_interval">Delay between knocks, ms</string>
     <string name="port_knocking_ttl">Knock again after, seconds</string>
     <string name="port_knocking_summary">Before connecting, sends TCP SYNs or UDP datagrams to these ports of the server, in order. UDP steps may carry a hex payload: 1234/udp:68656c6c6f. SPA: 62201/spa:KEY sends one signed datagram that cannot be replayed (KEY = 64 hex digits, as on the server); 62201/spa1m:KEY hides its time too, if the server reads SPA v1m (v1 sends the time in clear, which DPI can match). Knocks again after a network change and when a connection fails. If a UDP session (WireGuard, Hysteria2, TUIC) gets no reply for the silence timeout after sending, knocks once more and logs whether the server answers again. Leave the sequence empty to disable.</string>

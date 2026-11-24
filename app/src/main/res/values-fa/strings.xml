@@ -48,13 +48,11 @@
     <string name="port_http">پورت پراکسی HTTP</string>
     <string name="port_transproxy">پورت Transproxy</string>
     <string name="require_http">فعال‌کردن ورودی HTTP</string>
-    <string name="cag_ws">تنظیمات WebSocket</string>
     <string name="ws_max_early_data" translatable="false">Max early data</string>
     <string name="ws_browser_forwarding">اتصال مرورگر</string>
     <string name="ws_browser_forwarding_sum">ارسال WebSocketهای مربوطه از طریق مرورگر</string>
     <string name="show_stop">نمایش دکمه توقف</string>
     <string name="show_stop_sum">اگر دکمه تغییر وضعیت در نوار اعلان را نمی‌خواهید</string>
-    <string name="security_settings">تنظیمات امنیت TLS</string>
     <string name="allow_insecure">اتصال محافظت نشده</string>
     <string name="allow_insecure_sum">اگر بررسی گواهی‌ها غیرفعال باشد، اتصال بدون رمزنگاری خواهد بود.</string>
     <string name="traffic" translatable="false">%1$s↑ %2$s↓</string>
@@ -73,19 +71,12 @@
     <!-- proxy category -->
     <string name="profile_name">نام</string>
     <string name="server_address">آدرس سرور</string>
-    <string name="server_port">پورت سرور</string>
-    <string name="username">نام کاربری</string>
-    <string name="username_opt">نام کاربری (اختیاری)</string>
-    <string name="password_opt">رمز عبور (اختیاری)</string>
     <string name="key_opt">کلید (اختیاری)</string>
-    <string name="password">Pرمز عبور</string>
     <string name="enc_method">نوع رمزنگاری</string>
     <string name="protocol">دستورالعمل</string>
     <string name="protocol_param">مؤلفه دستورالعمل</string>
     <string name="obfs">دستورالعمل درهم‌سازی obfs</string>
     <string name="obfs_param">مؤلفه Obfs</string>
-    <string name="uuid">شناسه کاربری</string>
-    <string name="alter_id">شناسه دیگر</string>
     <string name="security">رمزنگاری لایه Transport</string>
     <string name="network">شبکه</string>
     <string name="header_type">نوع سرآیند</string>
@@ -95,8 +86,6 @@
     <string name="http_path">مسیر HTTP</string>
     <string name="grpc_service_name">نام سرویس gRPC</string>
     <string name="tls">استفاده از TLS</string>
-    <string name="sni">SNI</string>
-    <string name="alpn">ALPN</string>
     <string name="certificates">گواهی‌ها</string>
     <string name="early_data_header_name">نام سرآیند درخواست داده‌های اولیه</string>
     <string name="encryption">رمزنگاری</string>
@@ -125,15 +114,8 @@
     <string name="mux_sum">باید سرور هم امکان پشتیبانی از مالتی‌پلکسر را داشته باشد. مالتی‌پلکسر برای کاهش زمان تأخیر در اتصال TCP طراحی شده است و نه برای افزایش توان اتصال. استفاده از مالتی‌پلکسر برای تماشای فیلم، دانلود فایل یا آزمایش سرعت معمولاً نتیجه‌ای ندارد.</string>
     <string name="mux_concurrency">تعداد اتصال همزمان با مالتی‌پلکسر</string>
     <string name="tcp_keep_alive_interval">فعال نگه‌داشتن بازه دریافت بسته‌های TCP</string>
-    <string name="proxied_apps">تانل‌کردن اپلیکیشن‌ها</string>
-    <string name="on">روشن</string>
     <string name="off">خاموش</string>
-    <string name="search_apps">در حال جستجو...</string>
     <string name="scanning">در حال اسکن...</string>
-    <string name="invert_selections">برعکس‌کردن گزینه‌های انتخاب‌شده</string>
-    <string name="clear_selections">برداشتن انتخاب‌ها</string>
-    <string name="bypass_apps">پراکسی نشوند</string>
-    <string name="show_system_apps">نمایش برنامه‌های سیستمی</string>
     <string name="direct_boot_aware">امکان تغییر وضعیت پراکسی در صفحه قفل</string>
     <string name="direct_boot_aware_summary">اطلاعات پراکسی انتخابی شما، کمتر محافظت می‌شود.</string>
     <!-- notification category -->
@@ -176,7 +158,6 @@
     <string name="balancer_settings">تنظیمات برابرکننده</string>
     <string name="balancer_type">نوع</string>
     <string name="balancer_strategy">راهبرد</string>
-    <string name="chain_settings">تنظیمات زنجیره</string>
     <string name="config_settings">تنظیمات پیکربندی</string>
     <string name="circular_reference">ارجاع حلقه‌ای</string>
     <string name="circular_reference_sum">مسیر نمی‌تواند شامل خودش باشد.</string>
@@ -197,7 +178,6 @@
  یکی مانند Material Files را نصب کنید.</string>
     <!-- share -->
     <!-- profile -->
-    <string name="profile_config">پیکربندی پراکسی</string>
     <string name="delete">حذف</string>
     <string name="delete_confirm_prompt">آیا مطمئن هستید که می‌خواهید این پراکسی را حذف کنید؟</string>
     <string name="share_qr_nfc">کد QR</string>
@@ -229,12 +209,8 @@
     <string name="deduplication">حذف موارد تکراری</string>
     <!-- plugin -->
     <string name="plugin">افزونه</string>
-    <string name="plugin_configure">پیکربندی...</string>
-    <string name="plugin_disabled">غیرفعال</string>
     <string name="plugin_unknown">افزونه نامشخص %s</string>
     <string name="plugin_auto_connect_unlock_only">این افزونه ممکن است با اتصال خودکار، کار نکند</string>
-    <string name="proxy_cat">تنظیمات سرور</string>
-    <string name="ss_cat">تنظیمات سرور</string>
     <string name="unsaved_changes_prompt">تغییرات جدید هنوز ذخیره نشدند، آیا می‌خواهید ذخیره شوند؟</string>
     <string name="yes">بله</string>
     <string name="no">خیر</string>
@@ -299,12 +275,9 @@
     <string name="profile_import_message">تأیید می‌کنید که می‌خواهید پراکسی %s اضافه شود؟</string>
     <string name="clear_profiles_message">آیا می‌خواهید پراکسی‌های این گروه را پاک کنید؟</string>
     <string name="apps">برنامه‌ها</string>
-    <string name="select_apps">انتخاب برنامه‌های مورد نظر</string>
     <string name="hysteria_obfs">رمز دستورالعمل مبهم‌سازی</string>
     <string name="hysteria_auth_type">نوع احراز هویت</string>
     <string name="hysteria_auth_payload">بسته احرازهویت</string>
-    <string name="hysteria_upload_mbps">حدأکثر سرعت ارسال (به مگابیت‌برثانیه)</string>
-    <string name="hysteria_download_mbps">حدأکثر سرعت دریافتی (به مگابیت‌برثانیه)</string>
     <string name="experimental_settings">تنظیمات آزمایشی</string>
     <string name="hysteria_stream_receive_window">پنجره دریافت جریان QUIC</string>
     <string name="hysteria_connection_receive_window">پنجره دریافت اتصال QUIC</string>
@@ -330,7 +303,6 @@
     <string name="copy_label">کپی کردن نام</string>
     <string name="copy_package_name">کپی کردن نام بسته</string>
     <string name="open_app">باز کردن برنامه</string>
-    <string name="open_settings">باز کردن تنظیمات</string>
     <string name="open_market">باز کردن بازار</string>
     <string name="create_rule">افزودن دستورالعمل</string>
 
@@ -343,7 +315,6 @@
     <string name="no_statistics">هنوز بدون آمار</string>
     <string name="app_statistics_disabled">آمار ترافیک برنامه غیرفعال شد</string>
     <string name="ssh_auth_type_none">هیچ کدام</string>
-    <string name="ssh_public_key">کلید عمومی</string>
     <string name="ssh_private_key">کلید خصوصی</string>
     <string name="ssh_private_key_passphrase">عبارات عبور کلید خصوصی</string>
     <string name="translate_platform">سکوی ترجمه</string>
@@ -398,14 +369,12 @@
     <string name="move">حرکت</string>
     <string name="exe_prefer_provider">ارائه‌دهنده برگزیده افزونه‌ها</string>
     <string name="create_shortcut">ساخت میانبر</string>
-    <string name="hop_interval">مدت زمان Port hopping (به ثانیه)</string>
     <string name="utls_fingerprint">اثر انگشت uTLS</string>
     <string name="custom_outbound_json">خروجی سفارشی JSON</string>
     <string name="custom_config_json">پراکسی سفارشی JSON</string>
     <string name="is_outbound_only">مجموعه JSON برای خروجی است</string>
     <string name="save">ذخیره</string>
     <string name="set_panel_url">تعیین لینک صفحه</string>
-    <string name="xtls_flow">Flow (VLESS دستورالعمل فرعی)</string>
     <string name="ads">تبلیغات</string>
     <string name="need_restart">برای اجرای تغییرات، برنامه را دوباره راه‌اندازی کنید</string>
     <string name="use_selector">استفاده از انتخاب‌گر</string>
@@ -415,12 +384,10 @@
     <string name="reset_connections">بازنشانی اتصالات</string>
     <string name="remove_duplicate">حذف سرورهای تکراری</string>
     <string name="mtu_help">برای تنظیم MTU سفارشی، تنظیمات را مدتی فشار دهید.</string>
-    <string name="tls_camouflage_settings">تنظیمات استتار TLS</string>
     <string name="test_concurrency">آزمایش همزمان اتصال</string>
     <string name="mux_type">پروتکل مالتی‌پلکسر</string>
     <string name="sniff_override">ردیابی نتایج برای مقصد</string>
     <string name="resolve_server">نشانی سرور را مطابق خط مشی IPv6 بررسی کنید</string>
-    <string name="auto_select_proxy_apps">انتخاب خودکار برنامه‌های پراکسی</string>
     <string name="auto_select_proxy_apps_message">انتخاب خودکار برنامه‌های پراکسی، با این کار انتخاب‌های فعلی شما پاک می شود.</string>
     <string name="enable_ech">فعال کردن ECH</string>
     <string name="enable_ech_sum">فعال کردن ECH</string>

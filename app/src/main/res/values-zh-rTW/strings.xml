@@ -36,7 +36,6 @@
     <string name="port_http">HTTP 代理連接埠</string>
     <string name="port_local_dns">本地 DNS 連接埠</string>
     <string name="require_http">啟用 HTTP 傳入伺服器</string>
-    <string name="cag_ws">WebSocket 設定</string>
     <string name="ws_browser_forwarding">瀏覽器轉發</string>
     <string name="ws_browser_forwarding_sum">轉傳對應的 WebSocket 連線至瀏覽器。</string>
     <string name="traffic">%1$s↑ %2$s↓</string>
@@ -51,33 +50,19 @@
     <!-- proxy category -->
     <string name="profile_name">設定檔名稱</string>
     <string name="server_address">伺服器</string>
-    <string name="server_port">遠端連接埠</string>
-    <string name="username_opt">使用者名稱（可選）</string>
-    <string name="password_opt">密碼（可選）</string>
-    <string name="password">密碼</string>
     <string name="enc_method">加密方式</string>
     <string name="protocol">設定</string>
     <string name="protocol_param">通訊協定參數</string>
     <string name="obfs">混淆</string>
     <string name="obfs_param">混淆參數</string>
-    <string name="uuid">使用者 ID</string>
-    <string name="alter_id">替代 ID</string>
     <string name="network">網路</string>
     <string name="header_type">標頭類型</string>
     <string name="tls">使用 TLS</string>
-    <string name="sni">伺服器名稱指示</string>
     <string name="encryption">加密</string>
     <!-- feature category -->
     <string name="menu_route">路由</string>
-    <string name="proxied_apps">應用程式 VPN 模式</string>
-    <string name="on">啟用</string>
     <string name="off">停用</string>
-    <string name="search_apps">搜尋…</string>
     <string name="scanning">正在掃描…</string>
-    <string name="invert_selections">反向選取</string>
-    <string name="clear_selections">清除選取</string>
-    <string name="bypass_apps">略過</string>
-    <string name="show_system_apps">顯示系統應用程式</string>
     <string name="direct_boot_aware">允許螢幕鎖定時切換</string>
     <string name="direct_boot_aware_summary">您選取的設定檔資訊將受到較少保護</string>
     <!-- notification category -->
@@ -112,7 +97,6 @@
     <string name="action_import_err">匯入失敗。</string>
     <!-- share -->
     <!-- profile -->
-    <string name="profile_config">設定檔設定</string>
     <string name="delete">刪除</string>
     <string name="delete_confirm_prompt">您確定要刪除此設定檔嗎？</string>
     <string name="share_qr_nfc">QR 碼</string>
@@ -136,11 +120,8 @@
     <string name="no_proxies_found">此連結不包含任何代理</string>
     <!-- plugin -->
     <string name="plugin">外掛程式</string>
-    <string name="plugin_configure">設定…</string>
-    <string name="plugin_disabled">已停用</string>
     <string name="plugin_unknown">未知外掛程式 %s</string>
     <string name="plugin_auto_connect_unlock_only">此外掛程式可能不支援自動連線</string>
-    <string name="proxy_cat">伺服器設定</string>
     <string name="unsaved_changes_prompt">要儲存變更嗎？</string>
     <string name="yes">是</string>
     <string name="no">否</string>
@@ -149,7 +130,6 @@
     <string name="document">文件</string>
     <string name="early_data_header_name">前置資料標頭</string>
     <string name="certificates">憑證</string>
-    <string name="alpn">應用層通訊協定協商</string>
     <string name="grpc_service_name">gRPC 服務名稱</string>
     <string name="http_path">HTTP 路徑</string>
     <string name="http_host">HTTP 主機</string>
@@ -157,14 +137,12 @@
     <string name="ws_host">WebSocket 主機</string>
     <string name="security">傳輸層安全性協定</string>
     <string name="key_opt">金鑰（選用）</string>
-    <string name="username">使用者名稱</string>
     <string name="transproxy_mode">透明代理模式</string>
     <string name="require_transproxy">啟用透明代理傳入伺服器</string>
     <string name="dns_hosts">網域重寫</string>
     <string name="connection_test_available_http">成功：HTTP 握手花費 %d 毫秒</string>
     <string name="allow_insecure_sum">停用憑證檢查。當啟用時，此設定檔將和純文字同等安全</string>
     <string name="allow_insecure">允許不安全的連線</string>
-    <string name="security_settings">安全設定</string>
     <string name="show_stop_sum">如果您不想使用快速設定圖塊進行切換</string>
     <string name="show_stop">顯示停止按鈕</string>
     <string name="port_transproxy">透明代理連接埠</string>
@@ -201,7 +179,6 @@
     <string name="balancer_settings">負載平衡器設定</string>
     <string name="balancer_type">類型</string>
     <string name="balancer_strategy">策略</string>
-    <string name="chain_settings">鏈結設定</string>
     <string name="config_settings">設定檔設定</string>
     <string name="circular_reference">循環參考</string>
     <string name="circular_reference_sum">路由中不能包含自己。</string>
@@ -213,7 +190,6 @@
     <string name="no_proxies_found_in_file">未在此檔案中找到代理</string>
     <string name="no_proxies_found_in_clipboard">未在剪貼簿中找到代理</string>
     <string name="deduplication">重複資料刪除</string>
-    <string name="ss_cat">Shadowsocks 設定</string>
     <string name="need_reload">重新載入代理服務以套用修改</string>
     <string name="lines">%d 行</string>
     <string name="enable">啟用</string>
@@ -265,7 +241,6 @@
     <string name="profile_import_message">您確定要匯入設定檔 %s 嗎？</string>
     <string name="clear_profiles_message">您確定要清除此群組嗎？</string>
     <string name="apps">應用程式</string>
-    <string name="select_apps">選擇應用程式</string>
     <string name="file_manager_missing">您的裝置缺少 Android 標準檔案選擇器, 請安裝一個, 如 Material Files.</string>
     <string name="menu_traffic">流量</string>
     <string name="shadowsocks_plugin_v2ray">V2Ray (Shadowsocks Android 外掛程式)</string>
@@ -273,7 +248,6 @@
     <string name="plugin_exists_but_on_shit_system">設定檔 %s 需要外掛程式 %s，但是您的專有設備提供商（通常也是監視資本主義巨頭和惡意軟體製造商）篡改了你的 Android 系統，使此外掛程式不可用。</string>
     <string name="ssh_private_key_passphrase">私密金鑰複雜密碼</string>
     <string name="ssh_private_key">私密金鑰</string>
-    <string name="ssh_public_key">公開金鑰</string>
     <string name="ssh_auth_type_none">無</string>
     <string name="no_statistics">暫無統計資料</string>
     <string name="route_need_vpn">路由規則`%s` 需要 VPN 模式以生效，因此被忽略。</string>
@@ -282,7 +256,6 @@
     <string name="copy_success">成功複製！</string>
     <string name="create_rule">建立規則</string>
     <string name="open_market">開啟應用商店</string>
-    <string name="open_settings">開啟設定</string>
     <string name="open_app">開啟應用程式</string>
     <string name="copy_package_name">複製應用程式套件名稱</string>
     <string name="copy_label">複製名稱</string>
@@ -296,8 +269,6 @@
     <string name="hysteria_connection_receive_window">QUIC 連線接收視窗</string>
     <string name="hysteria_stream_receive_window">QUIC 串流接收視窗</string>
     <string name="experimental_settings">實驗性</string>
-    <string name="hysteria_download_mbps">最大下載速度（Mbps）</string>
-    <string name="hysteria_upload_mbps">最大上傳速度（Mbps）</string>
     <string name="hysteria_auth_payload">認證密碼</string>
     <string name="hysteria_auth_type">認證類型</string>
     <string name="hysteria_obfs">混淆密碼</string>

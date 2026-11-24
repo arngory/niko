@@ -22,7 +22,6 @@ import io.niko.ktx.long
 import io.niko.ktx.parsePort
 import io.niko.ktx.string
 import io.niko.ktx.stringToInt
-import io.niko.ktx.stringToIntIfExists
 import io.niko.TempDatabase
 import libcore.Libcore
 import java.security.SecureRandom
@@ -238,7 +237,6 @@ object DataStore : OnPreferenceDataStoreChangeListener {
         localProxyPassword // generate once, before the service and the UI race for it
     }
 
-
     private fun getLocalPort(key: String, default: Int): Int {
         return parsePort(configurationStore.getString(key), default + userIndex)
     }
@@ -322,50 +320,8 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var dirty by profileCacheStore.boolean(Key.PROFILE_DIRTY)
     var editingId by profileCacheStore.long(Key.PROFILE_ID)
     var editingGroup by profileCacheStore.long(Key.PROFILE_GROUP)
-    var profileName by profileCacheStore.string(Key.PROFILE_NAME)
-    var serverAddress by profileCacheStore.string(Key.SERVER_ADDRESS)
-    var serverPort by profileCacheStore.stringToInt(Key.SERVER_PORT)
-    var serverPorts by profileCacheStore.string("serverPorts")
-    var serverUsername by profileCacheStore.string(Key.SERVER_USERNAME)
-    var serverPassword by profileCacheStore.string(Key.SERVER_PASSWORD)
-    var serverPassword1 by profileCacheStore.string(Key.SERVER_PASSWORD1)
-    var serverMethod by profileCacheStore.string(Key.SERVER_METHOD)
 
     var sharedStorage by profileCacheStore.string("sharedStorage")
-
-    var serverProtocol by profileCacheStore.string(Key.SERVER_PROTOCOL)
-    var serverObfs by profileCacheStore.string(Key.SERVER_OBFS)
-
-    var serverNetwork by profileCacheStore.string(Key.SERVER_NETWORK)
-    var serverHost by profileCacheStore.string(Key.SERVER_HOST)
-    var serverPath by profileCacheStore.string(Key.SERVER_PATH)
-    var serverSNI by profileCacheStore.string(Key.SERVER_SNI)
-    var serverEncryption by profileCacheStore.string(Key.SERVER_ENCRYPTION)
-    var serverALPN by profileCacheStore.string(Key.SERVER_ALPN)
-    var serverCertificates by profileCacheStore.string(Key.SERVER_CERTIFICATES)
-    var serverMTU by profileCacheStore.stringToInt(Key.SERVER_MTU)
-    var serverHeaders by profileCacheStore.string(Key.SERVER_HEADERS)
-    var serverAllowInsecure by profileCacheStore.boolean(Key.SERVER_ALLOW_INSECURE)
-
-    var serverAuthType by profileCacheStore.stringToInt(Key.SERVER_AUTH_TYPE)
-    var serverUploadSpeed by profileCacheStore.stringToInt(Key.SERVER_UPLOAD_SPEED)
-    var serverDownloadSpeed by profileCacheStore.stringToInt(Key.SERVER_DOWNLOAD_SPEED)
-    var serverStreamReceiveWindow by profileCacheStore.stringToIntIfExists(Key.SERVER_STREAM_RECEIVE_WINDOW)
-    var serverConnectionReceiveWindow by profileCacheStore.stringToIntIfExists(Key.SERVER_CONNECTION_RECEIVE_WINDOW)
-    var serverDisableMtuDiscovery by profileCacheStore.boolean(Key.SERVER_DISABLE_MTU_DISCOVERY)
-    var serverHopInterval by profileCacheStore.stringToInt(Key.SERVER_HOP_INTERVAL) { 10 }
-    var serverHopIntervalMax by profileCacheStore.stringToInt(Key.SERVER_HOP_INTERVAL_MAX)
-
-    var protocolVersion by profileCacheStore.stringToInt(Key.PROTOCOL_VERSION) { 2 } // default is SOCKS5
-
-    var serverProtocolInt by profileCacheStore.stringToInt(Key.SERVER_PROTOCOL)
-    var serverPrivateKey by profileCacheStore.string(Key.SERVER_PRIVATE_KEY)
-    var serverInsecureConcurrency by profileCacheStore.stringToInt(Key.SERVER_INSECURE_CONCURRENCY)
-
-    var serverUDPRelayMode by profileCacheStore.string(Key.SERVER_UDP_RELAY_MODE)
-    var serverCongestionController by profileCacheStore.string(Key.SERVER_CONGESTION_CONTROLLER)
-    var serverDisableSNI by profileCacheStore.boolean(Key.SERVER_DISABLE_SNI)
-    var serverReduceRTT by profileCacheStore.boolean(Key.SERVER_REDUCE_RTT)
 
     var routeName by profileCacheStore.string(Key.ROUTE_NAME)
     var routeDomain by profileCacheStore.string(Key.ROUTE_DOMAIN)
@@ -388,22 +344,6 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var serverConfig by profileCacheStore.string(Key.SERVER_CONFIG)
     var serverCustom by profileCacheStore.string(Key.SERVER_CUSTOM)
     var serverCustomOutbound by profileCacheStore.string(Key.SERVER_CUSTOM_OUTBOUND)
-    var serverKnockSequence by profileCacheStore.string(Key.SERVER_KNOCK_SEQUENCE)
-    var serverKnockInterval by profileCacheStore.stringToInt(Key.SERVER_KNOCK_INTERVAL) { 200 }
-    var serverKnockTtl by profileCacheStore.stringToInt(Key.SERVER_KNOCK_TTL) { 10 }
-    var serverKnockSilence by profileCacheStore.stringToInt(Key.SERVER_KNOCK_SILENCE) { 15 }
-    var serverTlsFragment by profileCacheStore.stringToInt(Key.SERVER_TLS_FRAGMENT)
-    var serverCertPins by profileCacheStore.string(Key.SERVER_CERT_PINS)
-    var serverDnsTunnel by profileCacheStore.string(Key.SERVER_DNS_TUNNEL)
-    var serverDnsTunnelResolver by profileCacheStore.string(Key.SERVER_DNS_TUNNEL_RESOLVER)
-    var serverDnsTunnelDomain by profileCacheStore.string(Key.SERVER_DNS_TUNNEL_DOMAIN)
-    var serverDnsTunnelKey by profileCacheStore.string(Key.SERVER_DNS_TUNNEL_KEY)
-    var serverDnsTunnelMethod by profileCacheStore.stringToInt(Key.SERVER_DNS_TUNNEL_METHOD) { 2 }
-    var serverUdpPrelude by profileCacheStore.stringToInt(Key.SERVER_UDP_PRELUDE) { 0 }
-    var serverUdpPreludeSni by profileCacheStore.string(Key.SERVER_UDP_PRELUDE_SNI)
-    var serverUdpPreludeTtl by profileCacheStore.stringToInt(Key.SERVER_UDP_PRELUDE_TTL) { 0 }
-    var serverUdpReorderInitial by profileCacheStore.boolean(Key.SERVER_UDP_REORDER_INITIAL)
-    var serverDnsTunnelFixedUpstream by profileCacheStore.boolean(Key.SERVER_DNS_TUNNEL_FIXED_UPSTREAM)
 
     var groupName by profileCacheStore.string(Key.GROUP_NAME)
     var groupType by profileCacheStore.stringToInt(Key.GROUP_TYPE)

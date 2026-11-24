@@ -142,7 +142,7 @@ class MainActivity : ThemedActivity(),
             displayFragmentWithId(R.id.nav_route)
         }
 
-        override fun apps() = startActivity(Intent(this@MainActivity, AppManagerActivity::class.java))
+        override fun apps() = startActivity(Intent(this@MainActivity, io.niko.ui.apps.AppsActivity::class.java))
 
         override fun settings() {
             displayFragmentWithId(R.id.nav_settings)
@@ -269,8 +269,7 @@ class MainActivity : ThemedActivity(),
         override fun edit(id: Long) {
             runOnDefaultDispatcher {
                 val profile = ProfileManager.getProfile(id) ?: return@runOnDefaultDispatcher
-                val subscription = SagerDatabase.groupDao.getById(profile.groupId)?.type == GroupType.SUBSCRIPTION
-                onMainDispatcher { startActivity(profile.settingIntent(this@MainActivity, subscription)) }
+                onMainDispatcher { startActivity(profile.settingIntent(this@MainActivity)) }
             }
         }
 

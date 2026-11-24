@@ -6,12 +6,7 @@
     <string name="protocol_param">Param Protokol</string>
     <string name="protocol">Protokol</string>
     <string name="enc_method">Metode Enkrip</string>
-    <string name="password">Kata sandi</string>
     <string name="key_opt">Kunci (Opsional)</string>
-    <string name="password_opt">Kata sandi (Opsional)</string>
-    <string name="username_opt">Nama pengguna (Opsional)</string>
-    <string name="username">Nama pengguna</string>
-    <string name="server_port">Remot Port</string>
     <string name="server_address">Server</string>
     <string name="profile_name">Nama Profil</string>
     <string name="transproxy_mode">Mode Transproksi</string>
@@ -30,12 +25,10 @@
     <string name="traffic">%1$s↑ %2$s↓</string>
     <string name="allow_insecure_sum">Nonaktifkan pengecekan sertifikat. Saat diaktifkan, konfigurasi ini seaman teks biasa</string>
     <string name="allow_insecure">Izinkan Koneksi Tidak Aman</string>
-    <string name="security_settings">Pengaturan Keamanan</string>
     <string name="show_stop_sum">Jika Anda tidak ingin menggunakan Tombol Ubin sebagai pengalih</string>
     <string name="show_stop">Tampilkan Tombol Henti</string>
     <string name="ws_browser_forwarding_sum">Teruskan WebSocket yang sesuai melalui browser.</string>
     <string name="ws_browser_forwarding">Penerusan Peramban</string>
-    <string name="cag_ws">Pengaturan WebSocket</string>
     <string name="require_http">Aktifkan HTTP inbound</string>
     <string name="port_transproxy">Port Transproxy</string>
     <string name="group_duplicate">Duplikasi:
@@ -77,7 +70,6 @@
     <string name="ssh_auth_type_none">Kosong</string>
     <string name="no_statistics">Belum ada statistik</string>
     <string name="ssh_private_key">Kunci Privat</string>
-    <string name="ssh_public_key">Kunci Publik</string>
     <string name="profile_empty">Silakan pilih profil</string>
     <string name="encryption">Enkripsi</string>
     <string name="select_profile">Pilih Profil</string>
@@ -95,10 +87,8 @@
     <string name="service_proxy">Layanan Proksi</string>
     <string name="service_vpn">Layanan VPN</string>
     <string name="scanning">Memindai…</string>
-    <string name="search_apps">Cari…</string>
     <string name="enable_mux">Aktifkan Multiplexer</string>
     <string name="off">Mati</string>
-    <string name="on">Nyala</string>
     <string name="route_opt_block_ads">Blokir ADs</string>
     <string name="route_asset_updated">Diperbarui</string>
     <string name="route_asset_no_update">Tidak ada pembaruan</string>
@@ -110,13 +100,11 @@
     <string name="certificates">Sertifikat</string>
     <string name="tls">Pakai TLS</string>
     <string name="network">Jaringan</string>
-    <string name="uuid">ID Pengguna</string>
     <string name="obfs_param">Obfs Param</string>
     <string name="obfs">Obfs</string>
     <string name="menu_traffic">Trafik</string>
     <string name="circular_reference">Referensi melingkar</string>
     <string name="config_settings">Pengaturan Konfigurasi</string>
-    <string name="chain_settings">Pengaturan Rantai</string>
     <string name="balancer_strategy">Strategi</string>
     <string name="balancer_type">Jenis</string>
     <string name="balancer_settings">Pengaturan Penyeimbang</string>
@@ -128,11 +116,6 @@
     <string name="vpn_permission_denied">Izin ditolak untuk membuat layanan VPN</string>
     <string name="direct_boot_aware_summary">Informasi profil yang Anda pilih akan kurang terlindungi</string>
     <string name="direct_boot_aware">Izinkan Beralih di Layar Kunci</string>
-    <string name="show_system_apps">Tampilkan aplikasi sistem</string>
-    <string name="bypass_apps">Jalan pintas</string>
-    <string name="clear_selections">Hapus pilihan</string>
-    <string name="invert_selections">Balikkan pilihan</string>
-    <string name="proxied_apps">Modus aplikasi VPN</string>
     <string name="tcp_keep_alive_interval">TCP menjaga interval pengiriman paket aktif</string>
     <string name="mux_concurrency">Koneksi Mux Concurrent</string>
     <string name="domain_strategy">Strategi Resolusi Domain</string>
@@ -144,8 +127,6 @@
     <string name="config_type">Jenis Konfigurasi</string>
     <string name="extra_headers">Header Ekstra</string>
     <string name="early_data_header_name">Nama Header Data Awal</string>
-    <string name="alpn">Negosiasi Protokol Lapisan Aplikasi</string>
-    <string name="sni">Indikasi Nama Server</string>
     <string name="grpc_service_name">Nama Layanan gRPC</string>
     <string name="http_path">Jalur HTTP</string>
     <string name="http_host">HTTP Host</string>
@@ -153,5 +134,4 @@
     <string name="ws_host">Host Soket Web</string>
     <string name="header_type">Jenis Tajuk</string>
     <string name="security">Enkripsi lapisan transportasi</string>
-    <string name="alter_id">Ubah ID</string>
 </resources>

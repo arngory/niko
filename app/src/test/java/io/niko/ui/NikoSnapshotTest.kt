@@ -1,16 +1,13 @@
 package io.niko.ui
 
 import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
 import android.view.View
 import android.view.ContextThemeWrapper
 import android.view.ViewGroup
 import android.widget.EditText
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.appcompat.widget.SwitchCompat
 import androidx.core.view.isVisible
 import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
@@ -101,18 +98,6 @@ class NikoSnapshotTest(private val mode: String) {
         text(R.id.group_user, "3 profiles")
         text(R.id.group_traffic, "↑ 1.2 MB ↓ 34 MB")
         text(R.id.group_status, "Updated 5 min ago")
-    })
-
-    @Test
-    fun appRow() = paparazzi.snapshot(card(R.layout.layout_apps_item).apply {
-        // an app's icon: a plain tile (the framework's default icon is adaptive, which layoutlib does not draw)
-        findViewById<ImageView>(R.id.itemicon).setImageDrawable(GradientDrawable().apply {
-            cornerRadius = resources.getDimension(R.dimen.niko_radius_sm)
-            setColor(context.getColor(R.color.niko_surface_3))
-        })
-        text(R.id.title, "Browser")
-        text(R.id.desc, "org.example.browser (10123)")
-        findViewById<SwitchCompat>(R.id.itemcheck).isChecked = true
     })
 
     /** A column of [content] on surface-0 at the screen's width, space-4 around it and space-2 between. */
