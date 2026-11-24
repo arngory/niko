@@ -887,7 +887,6 @@
     <string name="licenses_part_other">Прочее</string>
     <string name="licenses_part_go">Модули Go ядра</string>
     <string name="licenses_site">Сайт</string>
-    <string name="insert_tab">Вставить табуляцию</string>
     <string name="redo">Повторить</string>
     <string name="format_config">Форматировать</string>
     <string name="more_options">Ещё</string>
@@ -1016,4 +1015,7 @@
     <string name="add_camera_denied">Нет доступа к камере</string>
     <string name="add_camera_denied_sub">Разрешите камеру, чтобы сканировать QR. Остальные способы работают и без неё.</string>
     <string name="add_camera_allow">Разрешить</string>
+    <!-- Редактор JSON on Compose (D-PROFILE-02) -->
+    <string name="json_error_line">Строка %1$d: %2$s</string>
+    <string name="json_discard">Не сохранять</string>
 </resources>

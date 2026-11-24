@@ -35,7 +35,7 @@ import io.niko.ui.compose.NikoTheme
 /**
  * A profile's editor (P-Profile) on Compose, every type's: [ProfileScreen] over the type's [ProfileSpec] and a
  * [ProfileForm], saved by «Сохранить» (back with changes asks, as the old editors did). The JSON is edited in
- * ConfigEditActivity and a chain's links picked in ProfileSelectActivity, as before: through the old editors'
+ * ConfigEditActivity (P-Json) and a chain's links picked in ProfileSelectActivity, as before: through the old editors'
  * DataStore keys (serverCustomOutbound, serverCustom, serverConfig). [EXTRA_PROFILE_ID] the profile; none: a new one
  * of [EXTRA_TYPE] (a ProxyEntity type, [EXTRA_VLESS] for VLESS), made in the group new profiles go to when saved.
  */

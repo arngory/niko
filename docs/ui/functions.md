@@ -34,7 +34,7 @@ ID — те же, что в [матрице компьютера](../spec/deskto
 | Проверка импорта: что заменит весь конфиг, с ключами | диалог (`ui/ImportReview.kt`) | **D-ADD-10** | П | оба |
 | Ссылки-схемы: подписки (sn, clash, sing-box, hiddify, v2rayng), профили (ss, vmess, vless, trojan, naive+, hy2, tuic, anytls…), приглашения rcinv | intent-фильтры | **D-ADD-11** (на компьютере — обработчик ссылок) | П | оба |
 | Ручной профиль: SOCKS, HTTP, Shadowsocks, VMess, VLESS, Trojan, Trojan-Go, Mieru, naive, Hysteria, TUIC, ShadowTLS, AnyTLS, SSH, WireGuard, свой конфиг | «+» › вручную, `ui/profile/ProfileActivity.kt` (P-Profile, поля типов — `ui/profile/ProfileSpecs.kt`) | D-PROFILE-01 | Р | оба |
-| JSON профиля и конфига | строки «JSON исходящего» и «JSON конфига» в редакторе профиля (P-Profile), у своего конфига — «Пользовательская конфигурация»; сам редактор пока на Views (`ui/profile/ConfigEditActivity.kt`) | D-PROFILE-02 | Р | оба |
+| JSON профиля и конфига | строки «JSON исходящего» и «JSON конфига» в редакторе профиля (P-Profile), у своего конфига — «Пользовательская конфигурация»; сам редактор — `ui/profile/JsonScreen.kt` (P-Json) | D-PROFILE-02 | Р | оба |
 | Тонкая настройка подключения: фрагментация TLS, пиннинг сертификата, DNS-туннель, обход DPI для QUIC, стук портов | страница «Тонкая настройка» редактора профиля (`ui/profile/ProfileScreen.kt`, P-Profile) | **D-PROFILE-03** | Р | оба |
 | Цепочка прокси: добавить, порядок, проверка кольца | звенья в редакторе цепочки (`ui/profile/ProfileScreen.kt`, P-Profile) | **D-PROFILE-04** | Р | оба |
 | Список профилей: поиск, порядок (исходный, по имени, по задержке), карточка с трафиком и задержкой | главная | **D-PROFILE-05** | Р | оба |
