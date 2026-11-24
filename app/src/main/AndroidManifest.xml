@@ -190,7 +190,7 @@
                 android:resource="@xml/shortcuts" />
         </activity>
         <activity
-            android:name="io.niko.ui.RayAdminActivity"
+            android:name="io.niko.ui.admin.AdminActivity"
             android:exported="false" />
         <activity
             android:name="io.niko.ui.VpnRequestActivity"
