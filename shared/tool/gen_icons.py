@@ -26,7 +26,7 @@ SOURCE = os.path.join(ROOT, "shared", "icons", "lucide")
 TARGET = os.path.join(ROOT, "app", "src", "main", "res", "drawable")
 SVG = "{http://www.w3.org/2000/svg}"
 # drawn towards the reading direction: mirrored where the text runs right to left
-MIRRORED = {"arrow-left", "arrow-right-to-line", "send", "undo-2", "redo-2", "log-in", "log-out", "align-left"}
+MIRRORED = {"arrow-left", "send", "undo-2", "redo-2", "log-in", "log-out", "align-left"}
 # the icons the window draws: its name for each → the SVG's (lib/ui/icons.g.dart of the window's checkout)
 WINDOW = {
     "power": "power", "alert": "circle-alert", "close": "x", "search": "search", "trash": "trash",

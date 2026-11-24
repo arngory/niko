@@ -72,7 +72,7 @@ Android libraries (the app's runtime classpath)
   others they bring), Material Components for Android, Kotlin, kotlinx.coroutines, kotlinx.serialization, JetBrains
   annotations, JSpecify, Gson, Guava (with failureaccess, listenablefuture, error_prone_annotations,
   j2objc-annotations), AutoValue annotations, OkHttp and Okio, SnakeYAML, process-phoenix, ini4j, ZXingLite and ZXing,
-  EditorKit, recyclerview-fastscroll, Objenesis.
+  recyclerview-fastscroll, Objenesis.
   BSD-3-Clause: Kryo, ReflectASM, MinLog (Esoteric Software); ASM, which ReflectASM carries repackaged
   (com.esotericsoftware.asm), Copyright (c) 2000-2011 INRIA, France Telecom.
   MIT: Roomigrant, Copyright (c) 2018 Rostyslav Lesovyi.

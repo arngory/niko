@@ -107,7 +107,7 @@
     </style>
 
     <!-- an AutoCompleteTextView built in code (the route tester's app): the plain field, its suggestions the menu's
-         list. Not the theme's autoCompleteTextViewStyle: the config editor (editorkit) is one too, and lays out its own
+         list. Not the theme's autoCompleteTextViewStyle: the old config editor was one too, and laid out its own
          gutter -->
     <style name="Widget.Niko.AutoComplete" parent="Widget.AppCompat.AutoCompleteTextView">
         <item name="android:background">@drawable/niko_field</item>
