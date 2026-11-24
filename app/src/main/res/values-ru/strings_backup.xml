@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Резервная копия (D-SET-19, D-SET-32): что сохранять, сохранить, поделиться, восстановить, сбросить настройки. -->
+<resources>
+    <string name="bk_title">Резервная копия</string>
+    <string name="bk_parts">Что сохранять</string>
+    <string name="bk_save">Сохранить в файл</string>
+    <string name="bk_restore">Восстановить из файла</string>
+    <string name="bk_restore_title">Восстановить</string>
+    <string name="bk_restore_go">Восстановить и перезапустить</string>
+    <string name="bk_reset">Сбросить настройки</string>
+    <string name="bk_reset_sub">Профили и узлы останутся</string>
+</resources>

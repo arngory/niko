@@ -30,7 +30,6 @@
     <string name="plugin">插件</string>
     <string name="action_download">下載</string>
     <string name="install_from_fdroid">從 F-Droid 安裝</string>
-    <string name="backup">備份</string>
     <string name="delete">移除</string>
     <string name="enable">啟用</string>
     <string name="add_profile_methods_scan_qr_code">掃描二維碼</string>

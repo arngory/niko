@@ -336,7 +336,6 @@
     <string name="nat_stun_server_hint">STUN-сервер</string>
     <string name="nat_result_hint">Результат перевірки NAT</string>
     <string name="mtu" translatable="false">MTU</string>
-    <string name="backup">Резервне копіювання</string>
     <string name="backup_groups_and_configurations">Групи та конфігурації</string>
     <string name="backup_rules">Правила маршрутизації</string>
     <string name="backup_settings">Налаштування</string>

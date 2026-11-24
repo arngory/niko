@@ -355,7 +355,7 @@ class MainActivity : ThemedActivity(),
                 // the route check and the rule sets go back to the rules
                 is io.niko.ui.route.RoutingFragment -> shown.back()
                 // the screens the settings open go back to them, the sing-box panel to the log it is opened from
-                is io.niko.ui.about.AboutFragment, is BackupFragment -> displayFragmentWithId(R.id.nav_settings)
+                is io.niko.ui.about.AboutFragment, is io.niko.ui.backup.BackupFragment -> displayFragmentWithId(R.id.nav_settings)
                 is WebviewFragment -> displayFragmentWithId(R.id.nav_logcat)
                 else -> displayFragmentWithId(R.id.nav_home)
             }
@@ -685,7 +685,7 @@ class MainActivity : ThemedActivity(),
     private fun applyBars(fragment: Fragment) {
         val old = fragment !is HomeFragment && fragment !is io.niko.ui.node.NodeFragment && fragment !is SettingsFragment &&
             fragment !is io.niko.ui.log.LogFragment && fragment !is io.niko.ui.route.RoutingFragment &&
-            fragment !is io.niko.ui.about.AboutFragment
+            fragment !is io.niko.ui.about.AboutFragment && fragment !is io.niko.ui.backup.BackupFragment
         if (old && DataStore.showBottomBar) {
             showStats()
         } else {
