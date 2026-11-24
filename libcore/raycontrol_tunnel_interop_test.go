@@ -387,20 +387,26 @@ func appPayload(t *testing.T, appJSON string) payloadAnnounced {
 		t.Fatal(err)
 	}
 	p := app.Payload
-	// dnsprobe-v1's key comes to a user with a dnstt profile, and only to one (the client probes dnstt's zones alone)
-	dnstt := slices.ContainsFunc(p.Profiles, func(profile struct {
-		Link string `json:"link"`
-	}) bool {
-		u, err := url.Parse(profile.Link)
-		return err == nil && strings.HasPrefix(u.Query().Get("niko-dns"), "dnstt;")
-	})
+	// dnsprobe-v1's key comes to a user with a dnstt profile; since raycontrol v0.36.1 to a user with a slipstream
+	// profile too (the client measures resolvers at that zone), which an older node leaves without one; to no other
+	tunnel := func(engine string) bool {
+		return slices.ContainsFunc(p.Profiles, func(profile struct {
+			Link string `json:"link"`
+		}) bool {
+			u, err := url.Parse(profile.Link)
+			return err == nil && strings.HasPrefix(u.Query().Get("niko-dns"), engine+";")
+		})
+	}
+	dnstt, slipstream := tunnel("dnstt"), tunnel("slipstream")
 	switch {
 	case p.Probe == nil || p.Probe.V != 1 || !slices.Contains(p.Probe.Report, "dns") || !slices.Contains(p.Probe.Report, "path"):
 		t.Fatalf("the app's payload: probe %+v", p.Probe)
 	case dnstt && (p.DNSProbe == nil || p.DNSProbe.V != 1 || p.DNSProbe.Key == ""):
 		t.Fatalf("the app's payload: no dns_probe")
-	case !dnstt && p.DNSProbe != nil:
-		t.Fatalf("the app's payload: dns_probe for a user without dnstt")
+	case !dnstt && !slipstream && p.DNSProbe != nil:
+		t.Fatalf("the app's payload: dns_probe for a user without dnstt or slipstream")
+	case p.DNSProbe != nil && (p.DNSProbe.V != 1 || p.DNSProbe.Key == ""):
+		t.Fatalf("the app's payload: a dns_probe without its version or key")
 	}
 	if os.Getenv("RAYCONTROL_RELAY") != "" && (len(p.Relays) == 0 || len(p.Relays[0].Probe) == 0) {
 		// the relay's feed may come up after the first fetch: its probe is checked through the relay below
@@ -472,7 +478,9 @@ func dnsProbeInterop(t *testing.T, payload raysub.Payload, node, key string) {
 		}
 	}
 	if zone == "" {
-		t.Fatal("dns_probe in the subscription, no dnstt profile")
+		// a slipstream user's key (raycontrol v0.36.1): the app measures at that zone, this check asks dnstt's only
+		t.Log("dns_probe in the subscription, no dnstt profile: not asked here")
+		return
 	}
 	ask := func(key string, large bool) dnsprobe.Result {
 		request, _ := json.Marshal(map[string]any{"resolver": "udp://" + net.JoinHostPort(node, "53"), "zone": zone,
