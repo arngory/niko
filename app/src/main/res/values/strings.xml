@@ -997,11 +997,12 @@
     <string name="home_rate_down">received</string>
     <string name="home_rate_up">sent</string>
     <string name="home_search">Search</string>
-    <string name="home_search_hint">Name or kind</string>
+    <string name="home_search_hint">Name, kind or address</string>
     <string name="home_search_none">Nothing found</string>
     <string name="home_ungrouped">Without a group</string>
     <string name="home_test_group">Test the group %s</string>
     <string name="home_stop_test">Stop the test of %s</string>
+    <string name="home_test_progress">%1$d of %2$d</string>
     <string name="menu_home">Home</string>
     <string name="node_back">Back</string>
     <string name="node_update">Update the node</string>

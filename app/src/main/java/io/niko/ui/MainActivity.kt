@@ -66,6 +66,7 @@ import io.niko.ui.home.HomeActions
 import io.niko.ui.home.HomeCheck
 import io.niko.ui.home.HomeFragment
 import io.niko.ui.home.HomeLoader
+import io.niko.ui.home.HomeSheet
 import io.niko.ui.home.HomeState
 import io.niko.ui.home.HomeView
 import io.niko.ktx.Logs
@@ -106,7 +107,16 @@ class MainActivity : ThemedActivity(),
     val homeState = mutableStateOf(HomeState())
     val homeView = mutableStateOf(HomeView.of(DataStore.homeView))
 
-    /** What the main screen asks for: the connect button's toggle, the old screens behind its rows and tiles. */
+    /** The configs' sheet asked for from here (a link imported, «Узлы»), until the main screen has opened it. */
+    val homeSheet = mutableStateOf<HomeSheet?>(null)
+
+    /** The main screen with its configs' sheet on [sheet]'s tab. Main thread. */
+    private fun showSheet(sheet: HomeSheet) {
+        homeSheet.value = sheet
+        if (supportFragmentManager.findFragmentById(R.id.fragment_holder) !is HomeFragment) displayFragmentWithId(R.id.nav_home)
+    }
+
+    /** What the main screen asks for: the connect button's toggle, the screens behind its rows and tiles. */
     val homeActions = object : HomeActions {
         override fun toggle() = if (DataStore.serviceState.canStop) SagerNet.stopService() else connect.launch(null)
 
@@ -121,9 +131,7 @@ class MainActivity : ThemedActivity(),
             DataStore.serviceMode = if (vpn) Key.MODE_VPN else Key.MODE_PROXY
         }
 
-        override fun profiles() {
-            displayFragmentWithId(R.id.nav_configuration)
-        }
+        override fun add() = startActivity(Intent(this@MainActivity, io.niko.ui.add.AddActivity::class.java))
 
         override fun configs(open: Boolean) {
             configsOpen = open
@@ -132,10 +140,6 @@ class MainActivity : ThemedActivity(),
                 subsState.value = null
                 ConfigsTest.forget()
             }
-        }
-
-        override fun subscriptions() {
-            displayFragmentWithId(R.id.nav_group)
         }
 
         override fun route() {
@@ -148,13 +152,13 @@ class MainActivity : ThemedActivity(),
             displayFragmentWithId(R.id.nav_settings)
         }
 
-        // one node: its card at once; more or none: the groups, where each node's group opens its card
+        // one node: its card at once; more or none: the sheet's Subscriptions tab, where each node's group opens its card
         override fun nodes() {
             runOnDefaultDispatcher {
                 val nodes = RayNodes.list()
                 onMainDispatcher {
                     if (nodes.size == 1) displayFragment(io.niko.ui.node.NodeFragment.of(nodes[0].spa.nodeId, R.id.nav_home))
-                    else displayFragmentWithId(R.id.nav_group)
+                    else showSheet(HomeSheet.SUBS)
                 }
             }
         }
@@ -247,11 +251,15 @@ class MainActivity : ThemedActivity(),
 
     /** What the configs' sheet asks for: the profile to use, a group's test, the editor; adding on its own screen. */
     val configsActions = object : ConfigsActions {
-        // as the old list's row does: the chosen profile at once, a running service reloaded with it
+        // as the old list's row did: the chosen profile at once, a running service reloaded with it; on a TV the
+        // profile already chosen starts or stops the service (M-SYS-05: no other button within the remote's reach)
         override fun select(id: Long) {
             runOnDefaultDispatcher {
                 val last = DataStore.selectedProxy
-                if (last == id) return@runOnDefaultDispatcher
+                if (last == id) {
+                    if (SagerNet.isTv) onMainDispatcher { homeActions.toggle() }
+                    return@runOnDefaultDispatcher
+                }
                 DataStore.selectedProxy = id
                 ProfileManager.postUpdate(last)
                 ProfileManager.postUpdate(id)
@@ -273,9 +281,7 @@ class MainActivity : ThemedActivity(),
             }
         }
 
-        override fun add() {
-            startActivity(Intent(this@MainActivity, io.niko.ui.add.AddActivity::class.java))
-        }
+        override fun add() = homeActions.add()
     }
 
     /** The groups the sheet's Subscriptions tab lists (P-Subs), read with its configs while it is open. */
@@ -552,8 +558,6 @@ class MainActivity : ThemedActivity(),
         onMainDispatcher {
             // an activity relaunched meanwhile asks in its successor (linkReading), not on its own dead window
             if (!isFinishing && !isDestroyed) {
-                displayFragmentWithId(R.id.nav_group)
-
                 NikoDialog(this@MainActivity).title(R.string.subscription_import)
                     .message(getString(R.string.subscription_import_message, name))
                     .ghost(R.string.dialog_cancel)
@@ -571,6 +575,8 @@ class MainActivity : ThemedActivity(),
     private suspend fun finishImportSubscription(subscription: ProxyGroup) {
         GroupManager.createGroup(subscription)
         GroupUpdater.startUpdate(subscription, true)
+        // where the new group is, being fetched
+        onMainDispatcher { showSheet(HomeSheet.SUBS) }
     }
 
     suspend fun importProfile(uri: Uri) {
@@ -610,7 +616,8 @@ class MainActivity : ThemedActivity(),
         ProfileManager.createProfile(targetId, profile)
 
         onMainDispatcher {
-            displayFragmentWithId(R.id.nav_configuration)
+            // where the new profile is, to choose it
+            showSheet(HomeSheet.CONFIGS)
 
             snackbar(resources.getQuantityString(R.plurals.added, 1, 1)).show()
         }

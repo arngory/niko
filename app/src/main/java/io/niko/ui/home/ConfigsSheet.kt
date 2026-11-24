@@ -70,7 +70,8 @@ interface ConfigsActions {
  * the profile's sheet (edit, share, move, delete), a group's ⋮ its menu, a failed test's words its error; without
  * [menus] (a snapshot of the list alone) a long press opens the editor. The Configs tab tapped again scrolls to the
  * chosen profile, or to the top when it is in view. [groups] null: not read yet. Its second tab, P-Subs: the groups
- * themselves ([SubsList]), open first when [onSubs].
+ * themselves ([SubsList]), open first when [onSubs]. [testTotal] the profiles the running test takes: its group's
+ * head counts those tested of them.
  */
 @Composable
 internal fun ConfigsSheet(
@@ -86,11 +87,13 @@ internal fun ConfigsSheet(
     now: Long = System.currentTimeMillis() / 1000,
     onSubs: Boolean = false,
     menus: ConfigsMenuActions? = null,
+    testTotal: Int = 0,
     onClose: () -> Unit,
 ) {
     val c = Niko.colors
-    // without the tab's actions (a snapshot of the configs alone) the tab stays on the configs
-    var subsTab by rememberSaveable { mutableStateOf(onSubs && subsActions != null) }
+    // without the tab's actions (a snapshot of the configs alone) the tab stays on the configs; asked for another tab
+    // while open (a link imported), the sheet turns to it
+    var subsTab by rememberSaveable(onSubs) { mutableStateOf(onSubs && subsActions != null) }
     // the group whose menu is up, over the sheet
     var menuOf by rememberSaveable { mutableStateOf<Long?>(null) }
     // over the configs: a group's menu, a profile's sheet, its ways to share, its failed test's error
@@ -165,13 +168,14 @@ internal fun ConfigsSheet(
                     for (group in shown) {
                         item(key = "g${group.id}") {
                             val running = group.id in testing
-                            GroupHead(group, running, onMenu = menus?.let { { groupMenu = group.id } }) {
+                            val progress = if (running) ConfigsLoader.testProgress(results, testTotal) else null
+                            GroupHead(group, running, progress, onMenu = menus?.let { { groupMenu = group.id } }) {
                                 if (running) actions.stopTest() else actions.test(group.id)
                             }
                         }
                         items(group.profiles, key = { it.id }) { row ->
                             ConfigRowView(
-                                row, divider = row !== group.profiles.first(), actions, onClose,
+                                row, divider = row !== group.profiles.first(), actions, onClose, format?.bytes,
                                 onMenu = menus?.let { { profileMenu = row.id } }, onError = { errorOf = row.id },
                             )
                         }
@@ -236,11 +240,11 @@ internal fun ConfigsSheet(
 }
 
 /**
- * m-section__head: the group's name in capitals, its test button (while the group's test runs, its stop) and, with
- * [onMenu], its menu.
+ * m-section__head: the group's name in capitals, its test button (while the group's test runs, its stop and
+ * [progress]: the profiles tested of all) and, with [onMenu], its menu.
  */
 @Composable
-private fun GroupHead(group: ConfigGroup, testing: Boolean, onMenu: (() -> Unit)?, onTest: () -> Unit) {
+private fun GroupHead(group: ConfigGroup, testing: Boolean, progress: Pair<Int, Int>?, onMenu: (() -> Unit)?, onTest: () -> Unit) {
     val c = Niko.colors
     val name = group.name ?: stringResource(R.string.home_ungrouped)
     Row(
@@ -248,6 +252,9 @@ private fun GroupHead(group: ConfigGroup, testing: Boolean, onMenu: (() -> Unit)
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(name.uppercase(), NikoType.label, c.ink2, Modifier.weight(1f), maxLines = 1)
+        if (progress != null) {
+            Text(stringResource(R.string.home_test_progress, progress.first, progress.second), NikoType.code, c.ink2, maxLines = 1)
+        }
         if (testing) PlainIconButton(R.drawable.ic_l_x, stringResource(R.string.home_stop_test, name), onClick = onTest)
         else PlainIconButton(R.drawable.ic_l_zap, stringResource(R.string.home_test_group, name), onClick = onTest)
         if (onMenu != null) PlainIconButton(R.drawable.ic_l_ellipsis_vertical, stringResource(R.string.subs_menu, name), onClick = onMenu)
@@ -256,7 +263,8 @@ private fun GroupHead(group: ConfigGroup, testing: Boolean, onMenu: (() -> Unit)
 
 /**
  * m-row with a radio: the profile chosen in bold; the ping, or "no answer", on the right in mono: a failed test that
- * said why shows it on a tap ([onError]). A long press: [onMenu], the editor without it.
+ * said why shows it on a tap ([onError]). After the tags, in mono: the address («Показывать адрес») and the traffic
+ * counted, sizes by [bytes]. A long press: [onMenu], the editor without it.
  */
 @Composable
 private fun ConfigRowView(
@@ -264,9 +272,11 @@ private fun ConfigRowView(
     divider: Boolean,
     actions: ConfigsActions,
     onClose: () -> Unit,
+    bytes: ((Long) -> String)?,
     onMenu: (() -> Unit)?,
     onError: () -> Unit,
 ) {
+    val detail = bytes?.let { ConfigsLoader.detail(row, it) }
     val unreachable = stringResource(R.string.home_unreachable)
     val ping = when {
         row.unreachable -> unreachable
@@ -280,7 +290,10 @@ private fun ConfigRowView(
         divider = divider,
         side = NikoSpace.s5,
         lead = { Radio(row.selected) },
-        sub = { row.tags.forEach { Tag(it) } },
+        sub = {
+            row.tags.forEach { Tag(it) }
+            if (detail != null) Text(detail, NikoType.code, Niko.colors.ink2, Modifier.weight(1f, fill = false), maxLines = 1)
+        },
         trail = {
             val why = stringResource(R.string.cfg_error_show)
             Text(
@@ -301,7 +314,7 @@ private fun ConfigRowView(
     )
 }
 
-/** m-field: the search over the names and tags, on surface-2. */
+/** m-field: the search over the names, tags and addresses, on surface-2. */
 @Composable
 private fun SearchField(query: String, onQuery: (String) -> Unit) {
     val c = Niko.colors

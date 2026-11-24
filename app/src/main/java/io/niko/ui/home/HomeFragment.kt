@@ -62,6 +62,7 @@ class HomeFragment : Fragment() {
                 val testing by ConfigsTest.testing.collectAsState()
                 val results by ConfigsTest.results.collectAsState()
                 val stored by ConfigsTest.stored.collectAsState()
+                val testTotal by ConfigsTest.total.collectAsState()
                 // a test stored (also while this screen was away): its results into the rows, then read again
                 LaunchedEffect(stored) { if (stored > 0) main.testStored() }
                 NikoTheme {
@@ -72,7 +73,8 @@ class HomeFragment : Fragment() {
                         testing = testing, results = results,
                         configsActions = main.configsActions,
                         subs = main.subsState.value, subsActions = subsActions, format = format(),
-                        configsMenus = configsMenus,
+                        configsMenus = configsMenus, testTotal = testTotal,
+                        ask = main.homeSheet.value, onAsked = { main.homeSheet.value = null },
                     )
                 }
             }

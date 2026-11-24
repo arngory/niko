@@ -148,7 +148,8 @@ load() {
     loads+=($!)
   done
 }
-# tap_on TEXT: taps the node whose text or content-desc is TEXT, or whose resource-id ends in it, waiting for it
+# tap_on TEXT: taps the node whose text or content-desc is TEXT (starts with it, when TEXT ends in *), or whose
+# resource-id ends in it, waiting for it
 tap_on() {
   local i xy
   for i in $(seq 10); do
@@ -857,21 +858,23 @@ id=$public
 echo "== memory: a URL test of the group on the screen (a core for each profile in the service's process, five at once)"
 timeout 60 adb shell am start -n "$pkg/$pkg.ui.MainActivity" > /dev/null 2>&1
 sleep 5
-# on the main screen (ui/home), its Connection tile opens the profiles and their group's menu
+# on the main screen (ui/home), its Connection tile opens the configs' sheet (ui/home/ConfigsSheet)
 timeout 30 adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1
 timeout 30 adb pull /sdcard/ui.xml "$out/ui.xml" > /dev/null 2>&1
 xy=$(python3 -I "$here/e2e-memory.py" tap "$out/ui.xml" "Connection")
 # shellcheck disable=SC2086 # x and y
 [ -n "$xy" ] && timeout 20 adb shell input tap $xy && sleep 3
 memory ui-before-test go
-# the group's actions are in the bar's own overflow, the system's "More options" (its ⋮ of their own is gone)
-if tap_on "More options" && sleep 2 && tap_on "URL Test"; then
+# a group's head has its URL test's button, named "Test the group NAME" to a screen reader: the first group's (the
+# links' profiles, without a group)
+if tap_on "Test the group *"; then
   sleep 45
   memory ui-after-test go
-  timeout 10 adb shell input keyevent KEYCODE_BACK
 else
-  echo "::warning::memory: no URL test started (its menu was not on the screen)"
+  echo "::warning::memory: no URL test started (no group's test button on the screen)"
 fi
+# the sheet closed
+timeout 10 adb shell input keyevent KEYCODE_BACK
 # Chromium's own complaint about a file without roots: the library says nothing of it on Android
 if timeout 60 adb logcat -d 2> /dev/null | grep -q "No CA certificates were found"; then
   fail "Chromium complains of the empty file of roots (No CA certificates were found)"
