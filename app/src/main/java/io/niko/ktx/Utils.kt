@@ -21,9 +21,7 @@ import androidx.annotation.ColorRes
 import androidx.core.content.ContextCompat
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
-import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentManager
 import androidx.preference.Preference
 import com.jakewharton.processphoenix.ProcessPhoenix
 import io.niko.BuildConfig
@@ -138,11 +136,6 @@ fun Preference.remove() = parent!!.removePreference(this)
 /** A numeric IPv4 or IPv6 address, parsed without a DNS lookup; null for anything else. */
 fun String?.parseNumericAddress(): InetAddress? =
     Os.inet_pton(OsConstants.AF_INET, this) ?: Os.inet_pton(OsConstants.AF_INET6, this)
-
-@JvmOverloads
-fun DialogFragment.showAllowingStateLoss(fragmentManager: FragmentManager, tag: String? = null) {
-    if (!fragmentManager.isStateSaved) show(fragmentManager, tag)
-}
 
 fun String.pathSafe(): String {
     // " " encoded as +
