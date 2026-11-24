@@ -37,7 +37,7 @@
         android:shortcutShortLabel="@string/shortcut_scan">
         <intent
             android:action="android.intent.action.MAIN"
-            android:targetClass="io.niko.ui.ScannerActivity"
+            android:targetClass="io.niko.ui.add.AddActivity"
             android:targetPackage="@APPLICATION_ID@" />
     </shortcut>
 </shortcuts>

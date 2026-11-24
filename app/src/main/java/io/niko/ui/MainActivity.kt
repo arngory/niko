@@ -245,7 +245,7 @@ class MainActivity : ThemedActivity(),
         refreshHome()
     }
 
-    /** What the configs' sheet asks for: the profile to use, a group's test, the editor; adding in the old list. */
+    /** What the configs' sheet asks for: the profile to use, a group's test, the editor; adding on its own screen. */
     val configsActions = object : ConfigsActions {
         // as the old list's row does: the chosen profile at once, a running service reloaded with it
         override fun select(id: Long) {
@@ -274,7 +274,7 @@ class MainActivity : ThemedActivity(),
         }
 
         override fun add() {
-            displayFragmentWithId(R.id.nav_configuration)
+            startActivity(Intent(this@MainActivity, io.niko.ui.add.AddActivity::class.java))
         }
     }
 

@@ -103,7 +103,6 @@
     <string name="delete">إزالة</string>
     <string name="file_manager_missing">جهازك يفتقر إلى محدد ملفات أندرويد القياسي، يرجى تثبيت واحد، مثل Material Files.</string>
     <string name="action_import_err">فشل الاستيراد.</string>
-    <string name="action_import_msg">تم الاستيراد بنجاح!</string>
     <string name="action_export_err">فشل التصدير.</string>
     <string name="action_export_msg">تم التصدير بنجاح!</string>
     <string name="action_import_file">استيراد من ملف</string>
