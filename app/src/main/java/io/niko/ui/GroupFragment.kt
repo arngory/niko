@@ -532,7 +532,7 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
                             groupStatus.setPadding(0)
                             if (update) groupTraffic.setOnClickListener {
                                 (activity as? MainActivity)?.apply {
-                                    displayFragment(AboutFragment.checkingUpdate())
+                                    displayFragment(io.niko.ui.about.AboutFragment.checkingUpdate())
                                 }
                             }
                         }

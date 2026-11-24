@@ -3,15 +3,11 @@
     <string name="app_name" translatable="false">Niko</string>
     <string name="app_name_long" translatable="false">Niko for Android</string>
     <string name="app_desc">Універсальний набір інструментів проксі для Android, написаний на Kotlin.</string>
-    <string name="project">Проєкт</string>
-    <string name="github">Вихідний код</string>
     <string name="oss_licenses">Ліцензії з відкритим кодом</string>
     <string name="app_version">Версія</string>
-    <string name="version_x">Версія (%s)</string>
     <string name="logcat">Експорт інформації про налагодження</string>
     <string name="menu_configuration">Конфігурація</string>
     <string name="menu_group">Група</string>
-    <string name="menu_about">Про додаток</string>
     <string name="theme">Тема</string>
     <string name="document">Документація</string>
     <string name="group_default">Без групи</string>
@@ -235,8 +231,6 @@
     <string name="no_proxies_found_in_file">У файлі не знайдено проксі</string>
     <string name="no_proxies_found_in_clipboard">У буфері обміну не знайдено проксі</string>
     <string name="deduplication">Дедуплікація</string>
-    <string name="ignore_battery_optimizations">Ігнорувати оптимізацію батареї</string>
-    <string name="ignore_battery_optimizations_sum">Зняти деякі обмеження</string>
     <!-- plugin -->
     <string name="plugin">Плагін</string>
     <string name="plugin_configure">Налаштувати…</string>

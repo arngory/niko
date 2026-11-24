@@ -163,6 +163,8 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     val yggdrasilPrivateKey: String
         get() = persistentToken(Key.YGGDRASIL_PRIVATE_KEY) { Libcore.yggdrasilGenerateKey() }
     var showBottomBar by configurationStore.boolean(Key.SHOW_BOTTOM_BAR)
+    // О программе: the update check asks for pre-releases (the old screen's second button); a preview build does
+    var updatePreview by configurationStore.boolean(Key.UPDATE_PREVIEW) { io.niko.ktx.isPreview }
     var homeView by configurationStore.string(Key.HOME_VIEW) { "simple" }
 
     /** Written by the service's process as the core comes up and goes down, read by the main screen. */

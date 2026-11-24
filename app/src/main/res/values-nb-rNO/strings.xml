@@ -20,7 +20,6 @@
     <string name="yes">Ja</string>
     <string name="proxy_cat">Tjenerinnstillinger</string>
     <string name="plugin_configure">Sett opp …</string>
-    <string name="ignore_battery_optimizations_sum">Fjern noen begrensninger</string>
     <string name="not_connected">Ikke tilkoblet</string>
     <plurals name="removed">
         <item quantity="one">Fjernet</item>
@@ -64,14 +63,10 @@
     <string name="group_default">Ugruppert</string>
     <string name="document">Dokument</string>
     <string name="theme">Drakt</string>
-    <string name="menu_about">Om</string>
     <string name="menu_group">Gruppe</string>
     <string name="logcat">Eksporter avlusingsinfo</string>
-    <string name="version_x">Versjon (%s)</string>
     <string name="app_version">Versjon</string>
     <string name="oss_licenses">Friproglisenser</string>
-    <string name="github">Kildekode</string>
-    <string name="project">Prosjekt</string>
     <string name="connecting">Kobler til …</string>
     <string name="undo">Angre</string>
     <string name="action_import_file">Importer fra fil</string>
@@ -138,7 +133,6 @@
     <string name="plugin_unknown">Ukjent plugin %s</string>
     <string name="plugin_disabled">Funksjonshemmet</string>
     <string name="plugin">Plugg inn</string>
-    <string name="ignore_battery_optimizations">Ignorer batterioptimaliseringer</string>
     <string name="deduplication">Deduplisering</string>
     <string name="no_proxies_found_in_clipboard">Ingen fullmakter ble funnet i utklippstavlen</string>
     <string name="no_proxies_found_in_file">Ingen fullmakter ble funnet i filen</string>

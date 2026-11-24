@@ -316,10 +316,10 @@
             android:launchMode="singleTask"
             android:parentActivityName="io.niko.ui.MainActivity" />
         <activity
-            android:name="io.niko.ui.LicensesActivity"
+            android:name="io.niko.ui.about.LicensesActivity"
             android:configChanges="uiMode" />
         <activity
-            android:name="io.niko.ui.LicenseTextActivity"
+            android:name="io.niko.ui.about.LicenseTextActivity"
             android:configChanges="uiMode" />
         <activity
             android:name="io.niko.ui.StunActivity"

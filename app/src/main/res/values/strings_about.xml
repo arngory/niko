@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- About (P-About): the version, the update, the limits on the background, the plugins, the project. -->
+<resources>
+    <string name="ab_title">About</string>
+    <string name="ab_update">Update</string>
+    <string name="ab_update_check">Check</string>
+    <string name="ab_update_install">Install</string>
+    <string name="ab_update_checking">Checking…</string>
+    <string name="ab_update_none">No newer version</string>
+    <string name="ab_preview">Pre-release builds</string>
+    <string name="ab_background">Background</string>
+    <string name="ab_battery">Battery optimization</string>
+    <string name="ab_battery_on">on</string>
+    <string name="ab_battery_off">off</string>
+    <string name="ab_restricted">Background restrictions</string>
+    <string name="ab_restricted_yes">on</string>
+    <string name="ab_restricted_no">none</string>
+    <string name="ab_vendor">Background manager</string>
+    <string name="ab_plugins">Plugins</string>
+    <string name="ab_source">Source code</string>
+    <string name="ab_license">Niko\'s license (GPL-3.0)</string>
+    <string name="ab_upstream">Original project: NekoBox for Android</string>
+</resources>

@@ -77,7 +77,7 @@ object Updates {
     }
 
     // the owner's releases, whatever the repository's name: after a rename the API answers with the new one (as the
-    // release page's check in AboutFragment); the trust is the signature's, not the address's
+    // release page's check in ui/about/AboutFragment); the trust is the signature's, not the address's
     private val assetUrl = Regex(
         "^https://github\\.com/${Regex.escape(RELEASE_REPO.substringBefore('/'))}/[A-Za-z0-9._-]+/releases/download/[^/?#]+/[^/?#]+$"
     )

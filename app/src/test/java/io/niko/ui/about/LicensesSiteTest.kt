@@ -1,4 +1,4 @@
-package io.niko.ui
+package io.niko.ui.about
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
