@@ -27,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -96,9 +97,12 @@ fun HomeScreen(
         onSubs = subsActions != null
         configsSheet = true
     }
-    // the activity's ask (a link imported, «Узлы»): the sheet on that tab, an open one turned to it
+    // the activity's ask (a link imported, «Узлы»): the sheet on that tab, an open one turned to it, also from the
+    // tab the user went to by hand (each ask counted: the same tab asked twice is still an ask)
+    var asks by rememberSaveable { mutableIntStateOf(0) }
     LaunchedEffect(ask) {
         if (ask != null) {
+            asks++
             onSubs = ask == HomeSheet.SUBS && subsActions != null
             configsSheet = true
             onAsked()
@@ -136,7 +140,7 @@ fun HomeScreen(
             ConfigsSheet(
                 configs, state.profiles, state.subscriptions, testing, results, configsActions,
                 subs = subs, subsActions = subsActions, format = format, now = now / 1000, onSubs = onSubs,
-                menus = configsMenus, testTotal = testTotal,
+                menus = configsMenus, testTotal = testTotal, asks = asks,
             ) { configsSheet = false }
         }
     }

@@ -91,6 +91,11 @@ class HomeFragment : Fragment() {
         )
     }
 
+    private companion object {
+        const val EXPORT_GROUP = "exportGroup"
+        const val EXPORT_CONFIG = "exportedConfig"
+    }
+
     // the group whose configs go to the file the user picks
     private var exportGroup = 0L
 
@@ -283,6 +288,22 @@ class HomeFragment : Fragment() {
                 main.refreshConfigs()
             }
         }
+    }
+
+    // the system's file picker may outlive this screen (a rotation under it): what waits for its answer is kept
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        savedInstanceState?.let {
+            exportGroup = it.getLong(EXPORT_GROUP)
+            exportedConfig = it.getString(EXPORT_CONFIG)
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putLong(EXPORT_GROUP, exportGroup)
+        // a config is a few kilobytes; one too large for the saved state is given up rather than crash the save
+        exportedConfig?.takeIf { it.length < 200_000 }?.let { outState.putString(EXPORT_CONFIG, it) }
     }
 
     // done now: after the screen there is no undo to offer

@@ -70,7 +70,8 @@ interface ConfigsActions {
  * the profile's sheet (edit, share, move, delete), a group's ⋮ its menu, a failed test's words its error; without
  * [menus] (a snapshot of the list alone) a long press opens the editor. The Configs tab tapped again scrolls to the
  * chosen profile, or to the top when it is in view. [groups] null: not read yet. Its second tab, P-Subs: the groups
- * themselves ([SubsList]), open first when [onSubs]. [testTotal] the profiles the running test takes: its group's
+ * themselves ([SubsList]), open first when [onSubs] ([asks] counts the times a tab was asked for: each turns an
+ * open sheet to it). [testTotal] the profiles the running test takes: its group's
  * head counts those tested of them.
  */
 @Composable
@@ -86,6 +87,7 @@ internal fun ConfigsSheet(
     format: NodeFormat? = null,
     now: Long = System.currentTimeMillis() / 1000,
     onSubs: Boolean = false,
+    asks: Int = 0,
     menus: ConfigsMenuActions? = null,
     testTotal: Int = 0,
     onClose: () -> Unit,
@@ -93,7 +95,7 @@ internal fun ConfigsSheet(
     val c = Niko.colors
     // without the tab's actions (a snapshot of the configs alone) the tab stays on the configs; asked for another tab
     // while open (a link imported), the sheet turns to it
-    var subsTab by rememberSaveable(onSubs) { mutableStateOf(onSubs && subsActions != null) }
+    var subsTab by rememberSaveable(onSubs, asks) { mutableStateOf(onSubs && subsActions != null) }
     // the group whose menu is up, over the sheet
     var menuOf by rememberSaveable { mutableStateOf<Long?>(null) }
     // over the configs: a group's menu, a profile's sheet, its ways to share, its failed test's error

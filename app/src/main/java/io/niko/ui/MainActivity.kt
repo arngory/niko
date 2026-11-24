@@ -108,6 +108,8 @@ class MainActivity : ThemedActivity(),
     /** The main screen with its configs' sheet on [sheet]'s tab. Main thread. */
     private fun showSheet(sheet: HomeSheet) {
         homeSheet.value = sheet
+        // what was just imported is in the counts and in a sheet already open
+        refreshHome()
         if (supportFragmentManager.findFragmentById(R.id.fragment_holder) !is HomeFragment) displayFragmentWithId(R.id.nav_home)
     }
 
@@ -727,9 +729,18 @@ class MainActivity : ThemedActivity(),
         homeState.value = homeState.value.copy(upRate = stats.txRateProxy, downRate = stats.rxRateProxy)
     }
 
+    // when the open sheet last read the rows' traffic again
+    private var trafficShown = 0L
+
     override fun cbTrafficUpdate(data: TrafficData) {
         runOnDefaultDispatcher {
             ProfileManager.postUpdate(data)
+        }
+        // the sheet's rows show the traffic stored: read again while it is open, a few seconds apart
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - trafficShown >= 3000) {
+            trafficShown = now
+            refreshConfigs()
         }
     }
 
