@@ -95,7 +95,6 @@
     <string name="extra_headers">Ekstra Başlıklar</string>
     <string name="encryption">Şifreleme</string>
     <string name="early_data_header_name">Erken Veri Başlığı Adı</string>
-    <string name="bypass_apps">Atlat</string>
     <string name="route_need_vpn">%s yönlendirme kuralı VPN\'in etkin olmasına bağlıdır ve bu nedenle görmezden gelindi.</string>
     <string name="shadowsocks_plugin_v2ray">V2Ray (Shadowsocks Android Eklentisi)</string>
     <string name="shadowsocks_plugin_simple_obfs">Basit Şaşırtmaca (Shadowsocks Android Eklentisi)</string>
@@ -115,7 +114,6 @@
     <string name="copy_success">Kopyalama başarılı!</string>
     <string name="create_rule">Kural Oluştur</string>
     <string name="open_market">Mağazayı Aç</string>
-    <string name="open_settings">Ayarları Aç</string>
     <string name="open_app">Uygulamayı Aç</string>
     <string name="copy_package_name">Paket Adını Kopyala</string>
     <string name="copy_label">İsmi Kopyala</string>
@@ -128,7 +126,6 @@
     <string name="group_order">Sıralama</string>
     <string name="experimental_settings">Deneysel</string>
     <string name="hysteria_auth_type">Doğrulama Türü</string>
-    <string name="select_apps">Uygulama Seç</string>
     <string name="apps">Uygulamalar</string>
     <string name="clear_profiles_message">Bu grubu temizlemek istediğinize emin misiniz\?</string>
     <string name="profile_import_message">%s profilini gerçekten içe aktarmak istiyor musunuz\?</string>
@@ -250,14 +247,8 @@
     <string name="service_vpn">VPN Servisi</string>
     <string name="direct_boot_aware_summary">Seçili profil bilginiz daha az korunacak</string>
     <string name="direct_boot_aware">Kilit Ekranında Açıp Kapatmaya İzin Ver</string>
-    <string name="show_system_apps">Sistem uygulamalarını göster</string>
-    <string name="clear_selections">Seçimleri temizle</string>
-    <string name="invert_selections">Seçimleri ters çevir</string>
     <string name="scanning">Taranıyor…</string>
-    <string name="search_apps">Ara…</string>
     <string name="off">Kapalı</string>
-    <string name="on">Açık</string>
-    <string name="proxied_apps">Uygulama VPN modu</string>
     <string name="mux_concurrency">Çoklayıcı Eşzamanlı Bağlantı Sayısı</string>
     <string name="enable_mux">Çoklayıcıyı Etkinleştir</string>
     <string name="domain_strategy">Alan Adı Çözümleme Stratejisi</string>

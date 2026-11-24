@@ -112,15 +112,8 @@
     <string name="enable_mux">Activar multiplexor</string>
     <string name="mux_concurrency">Conexiones simultáneas Mux</string>
     <string name="tcp_keep_alive_interval">TCP mantiene activo el intervalo de entrega de paquetes</string>
-    <string name="proxied_apps">Modo VPN de aplicaciones</string>  
-    <string name="on">Encendido</string> 
     <string name="off">Apagado</string> 
-    <string name="search_apps">Buscar…</string> 
     <string name="scanning">Escaneando…</string> 
-    <string name="invert_selections">Invertir selecciones</string> 
-    <string name="clear_selections">Borrar selecciones</string> 
-    <string name="bypass_apps">Omitir</string> 
-    <string name="show_system_apps">Mostrar aplicaciones del sistema</string>   
     <string name="direct_boot_aware">Permitir alternar en la pantalla de bloqueo</string> 
     <string name="direct_boot_aware_summary">La información de su perfil seleccionado estará menos protegida</string> 
     <!-- notification category --> 
@@ -267,7 +260,6 @@
     <string name="profile_import_message">¿Confirma que desea importar el perfil %s?</string> 
     <string name="clear_profiles_message">¿Estás seguro de que quieres borrar este grupo?</string> 
     <string name="apps">Aplicaciones</string> 
-    <string name="select_apps">Seleccionar aplicaciones</string> 
     <string name="hysteria_obfs">Contraseña de ofuscación</string> 
     <string name="hysteria_auth_type">Tipo de autenticación</string> 
     <string name="hysteria_auth_payload">Payload de autenticación</string> 
@@ -295,7 +287,6 @@
     <string name="copy_label">Copiar nombre</string>
     <string name="copy_package_name">Copiar nombre del paquete</string> 
     <string name="open_app">Abrir la app</string> 
-    <string name="open_settings">Abrir los ajustes</string> 
     <string name="open_market">Abrir la tienda</string> 
     <string name="create_rule">Crear regla</string> 
  

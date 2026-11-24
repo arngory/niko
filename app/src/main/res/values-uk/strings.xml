@@ -118,15 +118,8 @@
     <string name="mux_sum">Mux призначений для зменшення затримки рукостискання TCP, а не для збільшення пропускної здатності з\'єднання. Використання Mux для перегляду відео, завантаження або тестування швидкості зазвичай є контрпродуктивним. Якщо сервер його не підтримує, ви не зможете отримати доступ до Інтернету.</string>
     <string name="mux_concurrency">Паралельні з\'єднання Mux</string>
     <string name="tcp_keep_alive_interval">Інтервал доставки пакетів TCP keep-alive</string>
-    <string name="proxied_apps">Програми в режимі VPN</string>
-    <string name="on">Увімк</string>
     <string name="off">Вимк</string>
-    <string name="search_apps">Пошук…</string>
     <string name="scanning">Сканування…</string>
-    <string name="invert_selections">Інвертувати вибір</string>
-    <string name="clear_selections">Очистити вибір</string>
-    <string name="bypass_apps">В обхід</string>
-    <string name="show_system_apps">Показувати системні програми</string>
     <string name="direct_boot_aware">Дозволити перемикання на екрані блокування</string>
     <string name="direct_boot_aware_summary">Інформація про ваш вибраний профіль буде менш захищеною</string>
     <!-- notification category -->
@@ -292,7 +285,6 @@
     <string name="profile_import_message">Підтвердьте, що ви хочете імпортувати профіль %s?</string>
     <string name="clear_profiles_message">Ви впевнені, що хочете очистити цю групу?</string>
     <string name="apps">Програми</string>
-    <string name="select_apps">Вибрати програми</string>
     <string name="hysteria_obfs">Пароль обфускації</string>
     <string name="hysteria_auth_type">Тип автентифікації</string>
     <string name="hysteria_auth_payload">Дані автентифікації</string>
@@ -316,7 +308,6 @@
     <string name="copy_label">Копіювати назву</string>
     <string name="copy_package_name">Копіювати назву пакета</string>
     <string name="open_app">Відкрити програму</string>
-    <string name="open_settings">Відкрити налаштування</string>
     <string name="open_market">Відкрити в маркеті</string>
     <string name="create_rule">Створити правило</string>
     <string name="copy_success">Скопійовано успішно!</string>
@@ -393,7 +384,6 @@
     <string name="mux_type">Протокол Mux</string>
     <string name="sniff_override">Результат аналізу для призначення</string>
     <string name="resolve_server">Визначати адресу сервера відповідно до політики IPv6</string>
-    <string name="auto_select_proxy_apps">Автоматичний вибір програм для проксі</string>
     <string name="auto_select_proxy_apps_message">Автоматично вибрати програми для проксі, це очистить ваш поточний вибір.</string>
     <string name="enable_ech">Увімкнути ECH</string>
     <string name="enable_ech_sum">Увімкнути Encrypted Client Hello</string>

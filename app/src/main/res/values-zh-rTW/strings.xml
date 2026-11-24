@@ -64,15 +64,8 @@
     <string name="encryption">加密</string>
     <!-- feature category -->
     <string name="menu_route">路由</string>
-    <string name="proxied_apps">應用程式 VPN 模式</string>
-    <string name="on">啟用</string>
     <string name="off">停用</string>
-    <string name="search_apps">搜尋…</string>
     <string name="scanning">正在掃描…</string>
-    <string name="invert_selections">反向選取</string>
-    <string name="clear_selections">清除選取</string>
-    <string name="bypass_apps">略過</string>
-    <string name="show_system_apps">顯示系統應用程式</string>
     <string name="direct_boot_aware">允許螢幕鎖定時切換</string>
     <string name="direct_boot_aware_summary">您選取的設定檔資訊將受到較少保護</string>
     <!-- notification category -->
@@ -254,7 +247,6 @@
     <string name="profile_import_message">您確定要匯入設定檔 %s 嗎？</string>
     <string name="clear_profiles_message">您確定要清除此群組嗎？</string>
     <string name="apps">應用程式</string>
-    <string name="select_apps">選擇應用程式</string>
     <string name="file_manager_missing">您的裝置缺少 Android 標準檔案選擇器, 請安裝一個, 如 Material Files.</string>
     <string name="menu_traffic">流量</string>
     <string name="shadowsocks_plugin_v2ray">V2Ray (Shadowsocks Android 外掛程式)</string>
@@ -270,7 +262,6 @@
     <string name="copy_success">成功複製！</string>
     <string name="create_rule">建立規則</string>
     <string name="open_market">開啟應用商店</string>
-    <string name="open_settings">開啟設定</string>
     <string name="open_app">開啟應用程式</string>
     <string name="copy_package_name">複製應用程式套件名稱</string>
     <string name="copy_label">複製名稱</string>

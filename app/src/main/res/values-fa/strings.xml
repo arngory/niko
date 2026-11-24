@@ -118,15 +118,8 @@
     <string name="mux_sum">باید سرور هم امکان پشتیبانی از مالتی‌پلکسر را داشته باشد. مالتی‌پلکسر برای کاهش زمان تأخیر در اتصال TCP طراحی شده است و نه برای افزایش توان اتصال. استفاده از مالتی‌پلکسر برای تماشای فیلم، دانلود فایل یا آزمایش سرعت معمولاً نتیجه‌ای ندارد.</string>
     <string name="mux_concurrency">تعداد اتصال همزمان با مالتی‌پلکسر</string>
     <string name="tcp_keep_alive_interval">فعال نگه‌داشتن بازه دریافت بسته‌های TCP</string>
-    <string name="proxied_apps">تانل‌کردن اپلیکیشن‌ها</string>
-    <string name="on">روشن</string>
     <string name="off">خاموش</string>
-    <string name="search_apps">در حال جستجو...</string>
     <string name="scanning">در حال اسکن...</string>
-    <string name="invert_selections">برعکس‌کردن گزینه‌های انتخاب‌شده</string>
-    <string name="clear_selections">برداشتن انتخاب‌ها</string>
-    <string name="bypass_apps">پراکسی نشوند</string>
-    <string name="show_system_apps">نمایش برنامه‌های سیستمی</string>
     <string name="direct_boot_aware">امکان تغییر وضعیت پراکسی در صفحه قفل</string>
     <string name="direct_boot_aware_summary">اطلاعات پراکسی انتخابی شما، کمتر محافظت می‌شود.</string>
     <!-- notification category -->
@@ -288,7 +281,6 @@
     <string name="profile_import_message">تأیید می‌کنید که می‌خواهید پراکسی %s اضافه شود؟</string>
     <string name="clear_profiles_message">آیا می‌خواهید پراکسی‌های این گروه را پاک کنید؟</string>
     <string name="apps">برنامه‌ها</string>
-    <string name="select_apps">انتخاب برنامه‌های مورد نظر</string>
     <string name="hysteria_obfs">رمز دستورالعمل مبهم‌سازی</string>
     <string name="hysteria_auth_type">نوع احراز هویت</string>
     <string name="hysteria_auth_payload">بسته احرازهویت</string>
@@ -317,7 +309,6 @@
     <string name="copy_label">کپی کردن نام</string>
     <string name="copy_package_name">کپی کردن نام بسته</string>
     <string name="open_app">باز کردن برنامه</string>
-    <string name="open_settings">باز کردن تنظیمات</string>
     <string name="open_market">باز کردن بازار</string>
     <string name="create_rule">افزودن دستورالعمل</string>
 
@@ -403,7 +394,6 @@
     <string name="mux_type">پروتکل مالتی‌پلکسر</string>
     <string name="sniff_override">ردیابی نتایج برای مقصد</string>
     <string name="resolve_server">نشانی سرور را مطابق خط مشی IPv6 بررسی کنید</string>
-    <string name="auto_select_proxy_apps">انتخاب خودکار برنامه‌های پراکسی</string>
     <string name="auto_select_proxy_apps_message">انتخاب خودکار برنامه‌های پراکسی، با این کار انتخاب‌های فعلی شما پاک می شود.</string>
     <string name="enable_ech">فعال کردن ECH</string>
     <string name="enable_ech_sum">فعال کردن ECH</string>

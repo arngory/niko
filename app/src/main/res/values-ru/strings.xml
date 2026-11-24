@@ -32,7 +32,6 @@
 <string name="app_version">Версия</string>
 <string name="apply">Применить</string>
 <string name="apps">Приложения</string>
-<string name="auto_select_proxy_apps">Автоматический выбор прокси-приложений</string>
 <string name="auto_select_proxy_apps_message">Автоматический выбор прокси-приложений приведет к очистке текущего выбора.</string>
 <string name="backup">Бэкап</string>
 <string name="backup_groups_and_configurations">Группы и конфигурации</string>
@@ -48,7 +47,6 @@
 <string name="bottomsheet_action_expand_halfway">Развернуть наполовину</string>
 <string name="bottomsheet_drag_handle_clicked">Двойное нажатие на маркер перемещения</string>
 <string name="bottomsheet_drag_handle_content_description">Маркер перемещения</string>
-<string name="bypass_apps">Обход</string>
 <string name="certificates">Сертификаты</string>
 <string name="character_counter_content_description">Введено символов: %1$d из %2$d</string>
 <string name="character_counter_overflowed_content_description">Превышено ограничение на количество символов (%1$d из %2$d)</string>
@@ -75,7 +73,6 @@
 <string name="clear_logcat">Очистить журнал</string>
 <string name="clear_profiles">Очистить</string>
 <string name="clear_profiles_message">Вы уверены, что хотите очистить эту группу?</string>
-<string name="clear_selections">Очистить выбранное</string>
 <string name="clear_text_end_icon_content_description">Очистить текстовое поле</string>
 <string name="clear_traffic_statistics">Очистить статистику трафика</string>
 <string name="cleartext_http_warning">Передача HTTP-трафика в виде открытого текста небезопасна</string>
@@ -291,7 +288,6 @@
 <string name="install_from_play_store">Установить из Play Store</string>
 <string name="invalid_backup_file">Недействительный файл резервной копии</string>
 <string name="invalid_server">Неверное имя сервера</string>
-<string name="invert_selections">Инвертировать выбранное</string>
 <string name="is_outbound_only">Сделать JSON исходящим</string>
 <string name="item_view_role_description">Вкладка</string>
 <string name="key_opt">Ключ (необязательно)</string>
@@ -357,7 +353,6 @@
 <string name="obfs">Obfs</string>
 <string name="obfs_param">Параметры Obfs</string>
 <string name="off">Выключенный</string>
-<string name="on">Включено</string>
 <string name="ooc_warning">Предупреждение</string>
 <string name="oss_licenses">Лицензии с открытым исходным кодом</string>
 <string name="packet_encoding">Кодирование пакетов</string>
@@ -392,7 +387,6 @@
 <string name="protocol_param">Параметры протокола</string>
 <string name="protocol_settings">Настройки протокола</string>
 <string name="protocol_version">Версия протокола</string>
-<string name="proxied_apps">Режим VPN для приложений</string>
 <string name="proxy_chain">Прокси-цепочка</string>
 <string name="quick_toggle">Переключить</string>
 <string name="quick_enable">Включить</string>
@@ -423,12 +417,10 @@
 <string name="route_proxy">Прокси</string>
 <string name="route_rules_official">Официальный</string>
 <string name="scanning">Сканирование…</string>
-<string name="search_apps">Поиск…</string>
 <string name="search_menu_title">Поиск</string>
 <string name="searchview_clear_text_content_description">Очистить текстовое поле</string>
 <string name="searchview_navigation_content_description">Назад</string>
 <string name="security">Шифрование транспортного уровня</string>
-<string name="select_apps">Выберите приложения</string>
 <string name="select_profile">Выбрать профиль</string>
 <string name="server_address">Сервер</string>
 <string name="service_failed">Не удалось:</string>
@@ -442,7 +434,6 @@
 <string name="share">Поделиться</string>
 <string name="share_qr_nfc">QR-код</string>
 <string name="share_subscription">Поделиться подпиской</string>
-<string name="show_system_apps">Показать системные приложения</string>
 <string name="side_sheet_accessibility_pane_title">Боковая панель</string>
 <string name="sniff_override">Результат проверки для адрес назначения</string>
 <string name="speed">%s/с</string>
@@ -903,7 +894,6 @@
     <string name="copy_label">Копировать название</string>
     <string name="copy_package_name">Копировать имя пакета</string>
     <string name="open_app">Открыть приложение</string>
-    <string name="open_settings">Открыть настройки</string>
     <string name="open_market">Открыть в магазине</string>
     <string name="create_rule">Создать правило</string>
     <string name="copy_success">Скопировано</string>

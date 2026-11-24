@@ -91,10 +91,8 @@
     <string name="service_proxy">Layanan Proksi</string>
     <string name="service_vpn">Layanan VPN</string>
     <string name="scanning">Memindai…</string>
-    <string name="search_apps">Cari…</string>
     <string name="enable_mux">Aktifkan Multiplexer</string>
     <string name="off">Mati</string>
-    <string name="on">Nyala</string>
     <string name="route_opt_block_ads">Blokir ADs</string>
     <string name="route_asset_updated">Diperbarui</string>
     <string name="route_asset_no_update">Tidak ada pembaruan</string>
@@ -122,11 +120,6 @@
     <string name="vpn_permission_denied">Izin ditolak untuk membuat layanan VPN</string>
     <string name="direct_boot_aware_summary">Informasi profil yang Anda pilih akan kurang terlindungi</string>
     <string name="direct_boot_aware">Izinkan Beralih di Layar Kunci</string>
-    <string name="show_system_apps">Tampilkan aplikasi sistem</string>
-    <string name="bypass_apps">Jalan pintas</string>
-    <string name="clear_selections">Hapus pilihan</string>
-    <string name="invert_selections">Balikkan pilihan</string>
-    <string name="proxied_apps">Modus aplikasi VPN</string>
     <string name="tcp_keep_alive_interval">TCP menjaga interval pengiriman paket aktif</string>
     <string name="mux_concurrency">Koneksi Mux Concurrent</string>
     <string name="domain_strategy">Strategi Resolusi Domain</string>

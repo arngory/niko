@@ -142,7 +142,7 @@ class MainActivity : ThemedActivity(),
             displayFragmentWithId(R.id.nav_route)
         }
 
-        override fun apps() = startActivity(Intent(this@MainActivity, AppManagerActivity::class.java))
+        override fun apps() = startActivity(Intent(this@MainActivity, io.niko.ui.apps.AppsActivity::class.java))
 
         override fun settings() {
             displayFragmentWithId(R.id.nav_settings)
