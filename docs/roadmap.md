@@ -25,8 +25,6 @@ Android — экран по макету за выпуск; компьютер �
   каждое действие старых экранов — в [описи](ui/old-screens.md) с местом на макете; старый экран удаляется, когда у
   каждой его строки есть место на новом или решение её снять. Пробелы описи (35 пунктов без места на холсте) владелец
   решил оставить все (2026-11-24): им даны ID и места. Осталось на старых экранах:
-  - редакторы профилей: общий `ProfileSettingsActivity` и экраны каждого типа (Shadowsocks, SOCKS, V2Ray, Trojan-Go,
-    Hysteria, TUIC, naive, mieru, SSH, WireGuard, AnyTLS, ShadowTLS, цепочки, свой конфиг);
   - маршрутизация: правила (`RouteFragment`, `RouteSettingsActivity`), проверка маршрута, наборы правил
     (`AssetsActivity`);
   - приложения через VPN (`AppManagerActivity`, `AppListActivity`), выбор профиля, сканер QR;
