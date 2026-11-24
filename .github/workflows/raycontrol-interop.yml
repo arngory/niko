@@ -66,6 +66,9 @@ permissions:
 
 # a manual run's commit and release, through the environment (never into a script as they are); a push has none
 env:
+  # Go modules: the proxy first, and the module's own repository when the proxy fails (its downloads were cut mid-stream
+  # three times on 2026-11-24). What is fetched either way is held by go.sum and the checksum database
+  GOPROXY: "https://proxy.golang.org|direct"
   RAYCONTROL_COMMIT_OVERRIDE: ${{ inputs.raycontrol }}
   NIKO_SERVER_TAG_OVERRIDE: ${{ inputs.niko_server_tag }}
   NIKO_SERVER_SHA256_OVERRIDE: ${{ inputs.niko_server_sha256 }}
