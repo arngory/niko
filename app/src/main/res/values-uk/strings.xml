@@ -173,7 +173,6 @@
     <string name="action_import_file">Імпортувати з файлу</string>
     <string name="action_export_msg">Експортовано успішно!</string>
     <string name="action_export_err">Не вдалося експортувати.</string>
-    <string name="action_import_msg">Імпортовано успішно!</string>
     <string name="action_import_err">Не вдалося імпортувати.</string>
     <string name="file_manager_missing">На вашому пристрої відсутній стандартний файловий менеджер Android, будь ласка, встановіть його, наприклад, Material Files.</string>
     <!-- share -->

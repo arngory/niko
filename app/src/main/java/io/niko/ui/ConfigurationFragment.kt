@@ -417,7 +417,7 @@ class ConfigurationFragment @JvmOverloads constructor(
     override fun onMenuItemClick(item: MenuItem): Boolean {
         when (item.itemId) {
             R.id.action_scan_qr_code -> {
-                startActivity(Intent(context, ScannerActivity::class.java))
+                startActivity(Intent(context, io.niko.ui.add.AddActivity::class.java))
             }
 
             R.id.action_import_clipboard -> {

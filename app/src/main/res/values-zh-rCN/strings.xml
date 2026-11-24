@@ -96,7 +96,6 @@
     <string name="action_import_file">从文件中导入</string>
     <string name="action_export_msg">导出成功!</string>
     <string name="action_export_err">导出失败.</string>
-    <string name="action_import_msg">导入成功!</string>
     <string name="action_import_err">导入失败.</string>
     <!-- share -->
     <!-- profile -->

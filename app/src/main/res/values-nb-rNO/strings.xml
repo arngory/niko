@@ -141,7 +141,6 @@
     <string name="delete_confirm_prompt">Er du sikker på at du vil fjerne denne profilen\?</string>
     <string name="file_manager_missing">Enheten din mangler en standard filvelger for Android. Installer en, for eksempel materialfiler.</string>
     <string name="action_import_err">Kunne ikke importere.</string>
-    <string name="action_import_msg">Importer vellykket!</string>
     <string name="action_export_err">Kunne ikke eksportere.</string>
     <string name="action_export_msg">Eksporter vellykket!</string>
     <string name="action_scan_china_apps">Skann apper i Kina</string>

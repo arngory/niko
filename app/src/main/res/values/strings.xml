@@ -189,7 +189,6 @@
     <string name="action_import_file">Import from file</string>
     <string name="action_export_msg">Successfully export!</string>
     <string name="action_export_err">Failed to export.</string>
-    <string name="action_import_msg">Successfully import!</string>
     <string name="action_import_err">Failed to import.</string>
     <string name="file_manager_missing">Your device lacks an Android standard file selector, please
         install one, such as Material Files.</string>
@@ -1067,4 +1066,16 @@
     <string name="panel_url">Panel address</string>
     <string name="panel_url_label">Address</string>
     <string name="panel_secret_sub">A panel opened in a browser needs it</string>
+    <!-- Добавить on Compose: the scanner and the other ways in (M-ADD-01, M-ADD-02) -->
+    <string name="add_title">Add</string>
+    <string name="add_clipboard">From the clipboard</string>
+    <string name="add_qr_file">QR from a picture</string>
+    <string name="add_file">Import a file</string>
+    <string name="add_manual_title">Profile by hand</string>
+    <string name="add_torch">Torch</string>
+    <string name="add_torch_on">on</string>
+    <string name="add_torch_off">off</string>
+    <string name="add_camera_denied">No access to the camera</string>
+    <string name="add_camera_denied_sub">Allow the camera to scan a QR code. The other ways work without it.</string>
+    <string name="add_camera_allow">Allow</string>
 </resources>
