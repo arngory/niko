@@ -110,8 +110,9 @@ class ProfileActivity : ThemedActivity() {
             val kind = entity?.type ?: type
             val kindVless = bean is VMessBean && bean.isVLESS
             var read = typeSpec.load(bean)
-            // a link whose profile is gone is dropped, as the old chain editor dropped it
-            val links = linksOf(read.chain)
+            // a link whose profile is gone is dropped, as the old chain editor dropped it; the names of the links of
+            // the form as it was before the activity was made again too
+            val links = linksOf((read.chain + restored?.chain.orEmpty()).distinct())
             if (bean is ChainBean) read = read.copy(chain = read.chain.filter { it in links })
             val loaded = infoOf(entity, links)
             onMainDispatcher {
