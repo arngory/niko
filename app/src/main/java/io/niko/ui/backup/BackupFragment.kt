@@ -15,7 +15,6 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.niko.BuildConfig
 import io.niko.R
 import io.niko.SagerNet
@@ -23,7 +22,6 @@ import io.niko.database.DataStore
 import io.niko.ktx.Logs
 import io.niko.ktx.alert
 import io.niko.ktx.app
-import io.niko.ktx.danger
 import io.niko.ktx.onMainDispatcher
 import io.niko.ktx.readableMessage
 import io.niko.ktx.runOnDefaultDispatcher
@@ -31,6 +29,7 @@ import io.niko.ktx.snackbar
 import io.niko.ktx.startFilesForResult
 import io.niko.ktx.triggerFullRestart
 import io.niko.ui.MainActivity
+import io.niko.ui.compose.NikoDialog
 import io.niko.ui.compose.NikoTheme
 import org.json.JSONObject
 import java.io.File
@@ -191,15 +190,15 @@ class BackupFragment : Fragment() {
         }
 
         override fun reset() {
-            MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.confirm)
-                .setMessage(R.string.reset_settings_message)
-                .setNegativeButton(R.string.no, null)
-                .setPositiveButton(R.string.yes) { _, _ ->
+            NikoDialog(requireContext()).title(R.string.confirm)
+                .message(R.string.reset_settings_message)
+                .ghost(R.string.no)
+                .primary(R.string.yes, danger = true) { _, _ ->
                     // the dialog promises the nodes stay: their registrations and keys live in this store too
                     DataStore.replaceSettings()
                     triggerFullRestart(requireContext())
                 }
-                .show().danger()
+                .show()
         }
     }
 }

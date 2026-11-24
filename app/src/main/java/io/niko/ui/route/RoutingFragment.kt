@@ -15,7 +15,6 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.os.ConfigurationCompat
 import androidx.fragment.app.Fragment
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.niko.R
 import io.niko.RELEASE_REPO
 import io.niko.RoutePresets
@@ -30,7 +29,6 @@ import io.niko.fmt.localProxyRequired
 import io.niko.ktx.Logs
 import io.niko.ktx.alert
 import io.niko.ktx.app
-import io.niko.ktx.danger
 import io.niko.ktx.filterIsInstance
 import io.niko.ktx.getStr
 import io.niko.ktx.launchCustomTab
@@ -42,6 +40,7 @@ import io.niko.ktx.snackbar
 import io.niko.ktx.startFilesForResult
 import io.niko.ktx.tryToShow
 import io.niko.ui.MainActivity
+import io.niko.ui.compose.NikoDialog
 import io.niko.ui.compose.NikoTheme
 import io.niko.utils.PackageCache
 import io.niko.utils.Util
@@ -249,22 +248,22 @@ class RoutingFragment : Fragment(), ProfileManager.RuleListener {
             when (preset) {
                 RulePreset.RUSSIA -> {
                     val hours = DataStore.ruleSetUpdateHours.coerceIn(1, 24 * 30)
-                    MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.route_preset_ru_title)
-                        .setMessage(getString(R.string.route_preset_ru_message, hours))
-                        .setPositiveButton(R.string.route_preset_ru_add) { _, _ -> addRussiaPreset() }
-                        .setNegativeButton(android.R.string.cancel, null)
+                    NikoDialog(requireContext()).title(R.string.route_preset_ru_title)
+                        .message(getString(R.string.route_preset_ru_message, hours))
+                        .ghost(android.R.string.cancel)
+                        .primary(R.string.route_preset_ru_add) { _, _ -> addRussiaPreset() }
                         .show()
                 }
                 RulePreset.NONE -> if (rules.preset != RulePreset.NONE) {
-                    MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.rt_preset_remove_title)
-                        .setMessage(R.string.rt_preset_remove_message)
-                        .setPositiveButton(R.string.rt_preset_remove) { _, _ ->
+                    NikoDialog(requireContext()).title(R.string.rt_preset_remove_title)
+                        .message(R.string.rt_preset_remove_message)
+                        .ghost(android.R.string.cancel)
+                        .primary(R.string.rt_preset_remove, danger = true) { _, _ ->
                             runOnDefaultDispatcher {
                                 SagerDatabase.rulesDao.allRules().filter(RoutePresets::isRussiaAsMade).forEach { ProfileManager.deleteRule(it.id) }
                             }
                         }
-                        .setNegativeButton(android.R.string.cancel, null)
-                        .show().danger()
+                        .show()
                 }
             }
         }
@@ -280,17 +279,17 @@ class RoutingFragment : Fragment(), ProfileManager.RuleListener {
         }
 
         override fun reset() {
-            MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.rt_reset_title)
-                .setMessage(R.string.rt_reset_message)
-                .setPositiveButton(R.string.yes) { _, _ ->
+            NikoDialog(requireContext()).title(R.string.rt_reset_title)
+                .message(R.string.rt_reset_message)
+                .ghost(R.string.no)
+                .primary(R.string.yes, danger = true) { _, _ ->
                     runOnDefaultDispatcher {
                         SagerDatabase.rulesDao.reset()
                         DataStore.rulesFirstCreate = false
                         reloadRules()
                     }
                 }
-                .setNegativeButton(R.string.no, null)
-                .show().danger()
+                .show()
         }
     }
 
@@ -449,11 +448,11 @@ class RoutingFragment : Fragment(), ProfileManager.RuleListener {
         when {
             fileName.endsWith(".pem") -> {
                 // a root CA is trusted by every TLS connection without a pin: ask first
-                MaterialAlertDialogBuilder(context)
-                    .setTitle(R.string.route_import_ca)
-                    .setMessage(getString(R.string.route_import_ca_message, fileName))
-                    .setPositiveButton(R.string.yes) { _, _ -> importAsset(file, dir, CA_FILE, false) }
-                    .setNegativeButton(R.string.no, null)
+                NikoDialog(context)
+                    .title(R.string.route_import_ca)
+                    .message(getString(R.string.route_import_ca_message, fileName))
+                    .ghost(R.string.no)
+                    .primary(R.string.yes) { _, _ -> importAsset(file, dir, CA_FILE, false) }
                     .show()
             }
 

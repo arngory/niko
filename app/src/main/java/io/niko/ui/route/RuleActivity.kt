@@ -7,19 +7,18 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.os.BundleCompat
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.niko.R
 import io.niko.database.DataStore
 import io.niko.database.ProfileManager
 import io.niko.database.RuleEntity
 import io.niko.database.SagerDatabase
 import io.niko.ktx.Logs
-import io.niko.ktx.danger
 import io.niko.ktx.onMainDispatcher
 import io.niko.ktx.runOnDefaultDispatcher
 import io.niko.ui.ProfileSelectActivity
 import io.niko.ui.ThemedActivity
 import io.niko.ui.apps.AppsActivity
+import io.niko.ui.compose.NikoDialog
 import io.niko.ui.compose.NikoTheme
 import io.niko.ui.profile.ConfigEditActivity
 import io.niko.utils.PackageCache
@@ -112,9 +111,9 @@ class RuleActivity : ThemedActivity() {
         if (leaving) return
         when (ruleSave(f, read, ruleId != 0L)) {
             RuleSave.UNCHANGED -> finish()
-            RuleSave.EMPTY -> MaterialAlertDialogBuilder(this).setTitle(R.string.empty_route)
-                .setMessage(R.string.empty_route_notice)
-                .setPositiveButton(android.R.string.ok, null)
+            RuleSave.EMPTY -> NikoDialog(this).title(R.string.empty_route)
+                .message(R.string.empty_route_notice)
+                .primary(android.R.string.ok)
                 .show()
             RuleSave.WRITE -> {
                 leaving = true
@@ -167,26 +166,26 @@ class RuleActivity : ThemedActivity() {
             val f = form.value
             val read = original
             if (f == null || read == null || f == read || leaving) return finish()
-            MaterialAlertDialogBuilder(this@RuleActivity).setTitle(R.string.unsaved_changes_prompt)
-                .setPositiveButton(R.string.yes) { _, _ -> save() }
-                .setNegativeButton(R.string.no) { _, _ -> finish() }
-                .setNeutralButton(android.R.string.cancel, null)
+            NikoDialog(this@RuleActivity).title(R.string.unsaved_changes_prompt)
+                .ghost(android.R.string.cancel)
+                .ghost(R.string.no) { finish() }
+                .primary(R.string.yes) { _, _ -> save() }
                 .show()
         }
 
         override fun save() = this@RuleActivity.save()
 
         override fun delete() {
-            MaterialAlertDialogBuilder(this@RuleActivity).setTitle(R.string.delete_route_prompt)
-                .setPositiveButton(R.string.yes) { _, _ ->
+            NikoDialog(this@RuleActivity).title(R.string.delete_route_prompt)
+                .ghost(R.string.no)
+                .primary(R.string.yes, danger = true) { _, _ ->
                     leaving = true
                     runOnDefaultDispatcher {
                         ProfileManager.deleteRule(ruleId)
                         onMainDispatcher { finish() }
                     }
                 }
-                .setNegativeButton(R.string.no, null)
-                .show().danger()
+                .show()
         }
 
         override fun pickApps() {

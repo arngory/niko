@@ -20,7 +20,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import io.niko.BuildConfig
 import io.niko.R
@@ -28,6 +27,7 @@ import io.niko.SagerNet
 import io.niko.database.DataStore
 import io.niko.ktx.Logs
 import io.niko.ui.ThemedActivity
+import io.niko.ui.compose.NikoDialog
 import io.niko.ui.compose.NikoTheme
 import io.niko.ui.route.LetterTile
 import io.niko.utils.PackageCache
@@ -179,9 +179,10 @@ class AppsActivity : ThemedActivity() {
 
         override fun auto() {
             val apps = state.value.apps ?: return
-            MaterialAlertDialogBuilder(this@AppsActivity).setTitle(R.string.confirm)
-                .setMessage(R.string.auto_select_proxy_apps_message)
-                .setPositiveButton(R.string.yes) { _, _ ->
+            NikoDialog(this@AppsActivity).title(R.string.confirm)
+                .message(R.string.auto_select_proxy_apps_message)
+                .ghost(R.string.no)
+                .primary(R.string.yes) { _, _ ->
                     lifecycleScope.launch {
                         val listed = withContext(Dispatchers.IO) {
                             runCatching {
@@ -193,7 +194,6 @@ class AppsActivity : ThemedActivity() {
                         write(now.choosing(AppsState.auto(apps, listed, now.mode)))
                     }
                 }
-                .setNegativeButton(R.string.no, null)
                 .show()
         }
 

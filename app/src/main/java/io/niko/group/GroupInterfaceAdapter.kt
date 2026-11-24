@@ -1,12 +1,12 @@
 package io.niko.group
 
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.niko.R
 import io.niko.database.GroupManager
 import io.niko.database.ProxyGroup
 import io.niko.ktx.onMainDispatcher
 import io.niko.ktx.runOnMainDispatcher
 import io.niko.ui.ThemedActivity
+import io.niko.ui.compose.NikoDialog
 import kotlinx.coroutines.delay
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -16,11 +16,11 @@ class GroupInterfaceAdapter(val context: ThemedActivity) : GroupManager.Interfac
     override suspend fun confirm(message: String): Boolean {
         return suspendCoroutine {
             runOnMainDispatcher {
-                MaterialAlertDialogBuilder(context).setTitle(R.string.confirm)
-                    .setMessage(message)
-                    .setPositiveButton(R.string.yes) { _, _ -> it.resume(true) }
-                    .setNegativeButton(R.string.no) { _, _ -> it.resume(false) }
-                    .setOnCancelListener { _ -> it.resume(false) }
+                NikoDialog(context).title(R.string.confirm)
+                    .message(message)
+                    .ghost(R.string.no) { it.resume(false) }
+                    .primary(R.string.yes) { _, _ -> it.resume(true) }
+                    .onCancel { it.resume(false) }
                     .show()
             }
         }
@@ -70,11 +70,11 @@ class GroupInterfaceAdapter(val context: ThemedActivity) : GroupManager.Interfac
             onMainDispatcher {
                 delay(1000L)
 
-                MaterialAlertDialogBuilder(context).setTitle(
+                NikoDialog(context).title(
                         context.getString(
                                 R.string.group_diff, group.displayName()
                         )
-                ).setMessage(status.trim()).setPositiveButton(android.R.string.ok, null).show()
+                ).message(status.trim()).primary(android.R.string.ok).show()
             }
 
         }
@@ -90,10 +90,10 @@ class GroupInterfaceAdapter(val context: ThemedActivity) : GroupManager.Interfac
     override suspend fun alert(message: String) {
         return suspendCoroutine {
             runOnMainDispatcher {
-                MaterialAlertDialogBuilder(context).setTitle(R.string.ooc_warning)
-                    .setMessage(message)
-                    .setPositiveButton(android.R.string.ok) { _, _ -> it.resume(Unit) }
-                    .setOnCancelListener { _ -> it.resume(Unit) }
+                NikoDialog(context).title(R.string.ooc_warning)
+                    .message(message)
+                    .primary(android.R.string.ok) { _, _ -> it.resume(Unit) }
+                    .onCancel { it.resume(Unit) }
                     .show()
             }
         }
