@@ -318,8 +318,11 @@ jobs:
           for sock in /run/niko/inner/vless.sock /run/niko/site/tls.sock /run/niko/reality-in/reality.sock \
               /run/niko/hy2o/stats.sock /run/niko/hy2m/stats.sock /run/niko/ygg-in/fd.sock \
               /run/niko/dns-in/packet.sock /run/niko/mdns-in/packet.sock; do
-            for i in $(seq 150); do x test -S "$sock" && break; sleep 0.2; done
-            x test -S "$sock" || { echo "no $sock"; x tail -n 80 /var/log/rayd.log; exit 1; }
+            # one look decides: a second one may fall into a unit's restart after a change of its config, when the
+            # socket is gone for some milliseconds
+            up=""
+            for i in $(seq 150); do x test -S "$sock" && { up=1; break; }; sleep 0.2; done
+            [ -n "$up" ] || { echo "no $sock"; x tail -n 80 /var/log/rayd.log; exit 1; }
           done
           x grep 'supervise: started' /var/log/rayd.log | sed 's/^.*unit=/  /'
 
@@ -1030,8 +1033,11 @@ jobs:
           x /opt/rc/rayctl service cert site -chain /opt/cert/chain.pem -key /opt/cert/key.pem
           x /opt/rc/rayctl user add alice -services reality,hy2o > /dev/null
           for sock in /run/niko/reality-in/reality.sock /run/niko/hy2o/stats.sock; do
-            for i in $(seq 150); do x test -S "$sock" && break; sleep 0.2; done
-            x test -S "$sock" || { echo "no $sock"; x tail -n 80 /var/log/rayd.log; exit 1; }
+            # one look decides: a second one may fall into a unit's restart after a change of its config, when the
+            # socket is gone for some milliseconds
+            up=""
+            for i in $(seq 150); do x test -S "$sock" && { up=1; break; }; sleep 0.2; done
+            [ -n "$up" ] || { echo "no $sock"; x tail -n 80 /var/log/rayd.log; exit 1; }
           done
           docker exec -d rc-node sh -c '/opt/rc/rayspa run -debug > /var/log/rayspa.log 2>&1'
           for i in $(seq 150); do x grep -q 'snapshot applied' /var/log/rayspa.log 2>/dev/null && break; sleep 0.2; done
