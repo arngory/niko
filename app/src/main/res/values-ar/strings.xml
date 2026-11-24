@@ -161,15 +161,8 @@
     <string name="service_vpn">خدمة VPN</string>
     <string name="direct_boot_aware_summary">ستكون معلومات ملف التعريف المحدد أقل حماية</string>
     <string name="direct_boot_aware">السماح بالتبديل في شاشة القفل</string>
-    <string name="show_system_apps">عرض تطبيقات النظام</string>
-    <string name="bypass_apps">ضع جانبا</string>
-    <string name="clear_selections">تحديدات واضحة</string>
-    <string name="invert_selections">عكس التحديدات</string>
     <string name="scanning">يتم المسح…</string>
-    <string name="search_apps">بحث…</string>
     <string name="off">عن</string>
-    <string name="on">على</string>
-    <string name="proxied_apps">وضع تطبيقات VPN</string>
     <string name="tcp_keep_alive_interval">يحتفظ TCP بالفاصل الزمني النشط لتسليم الحزم</string>
     <string name="mux_sum">تم تصميم Mux لتقليل زمن انتقال مصافحة TCP، وليس لزيادة إنتاجية الاتصال. عادةً ما يؤدي استخدام Mux لمشاهدة مقاطع الفيديو أو التنزيل أو اختبار السرعة إلى نتائج عكسية</string>
     <string name="mux_concurrency">اتصالات مسك المتزامنة</string>
@@ -182,7 +175,6 @@
     <string name="hysteria_auth_payload">حمولة المصادقة</string>
     <string name="hysteria_auth_type">نوع المصادقة</string>
     <string name="hysteria_obfs">كلمة مرور التشويش</string>
-    <string name="select_apps">حدد التطبيقات</string>
     <string name="apps">التطبيقات</string>
     <string name="clear_profiles_message">هل أنت متأكد أنك تريد مسح هذه المجموعة؟</string>
     <string name="profile_import_message">هل تريد تأكيد رغبتك في استيراد ملف التعريف %s؟</string>
@@ -285,7 +277,6 @@
     <string name="copy_success">تم النسخ بنجاح!</string>
     <string name="create_rule">إنشاء قاعدة</string>
     <string name="open_market">السوق المفتوح</string>
-    <string name="open_settings">أفتح الإعدادات</string>
     <string name="open_app">افتح التطبيق</string>
     <string name="copy_package_name">نسخ اسم الحزمة</string>
     <string name="copy_label">نسخ الاسم</string>

@@ -49,7 +49,7 @@ data class RuleForm(
             rule.protocol, rule.outbound, rule.packages.sorted(), rule.dpiBypass,
         )
 
-        /** the apps as AppListActivity keeps them (DataStore.routePackages), a package a line */
+        /** the apps as AppsActivity keeps them (DataStore.routePackages), a package a line */
         fun packagesOf(lines: String) = lines.split("\n").filter { it.isNotBlank() }.distinct().sorted()
     }
 }

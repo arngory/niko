@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="select_apps">Velg programmer</string>
     <string name="apps">Programmer</string>
     <string name="ooc_warning">Advarsel</string>
     <string name="download">Last ned</string>
@@ -31,11 +30,8 @@
     <string name="delete">Fjern</string>
     <string name="action_export_clipboard">Eksporter til utklippstavle</string>
     <string name="action_export_file">Eksporter til fil</string>
-    <string name="show_system_apps">Vis systemprogrammer</string>
     <string name="scanning">Skanner …</string>
-    <string name="search_apps">Søk …</string>
     <string name="off">Av</string>
-    <string name="on">På</string>
     <string name="route_profile">Velg profil …</string>
     <string name="route_proxy">Mellomtjener</string>
     <string name="edit_config">Rediger oppsett</string>
@@ -179,10 +175,6 @@
     <string name="forward_success">Mellomtjener startet.</string>
     <string name="direct_boot_aware_summary">Den valgte profilinformasjonen din blir mindre beskyttet</string>
     <string name="direct_boot_aware">Tillat veksling i låseskjerm</string>
-    <string name="bypass_apps">Omgå</string>
-    <string name="clear_selections">Fjern markeringene</string>
-    <string name="invert_selections">Inverter valg</string>
-    <string name="proxied_apps">Apper VPN -modus</string>
     <string name="tcp_keep_alive_interval">TCP beholder det aktive pakkeleveringsintervallet</string>
     <string name="mux_concurrency">Mux samtidige tilkoblinger</string>
     <string name="enable_mux">Aktiver Multiplexer</string>
@@ -297,7 +289,6 @@
     <string name="copy_success">Kopiert.</string>
     <string name="create_rule">Opprett regel</string>
     <string name="open_market">Åpne markedet</string>
-    <string name="open_settings">Åpne innstillinger</string>
     <string name="open_app">Åpne program</string>
     <string name="copy_package_name">Kopier pakkenavn</string>
     <string name="copy_label">Kopier navn</string>

@@ -253,9 +253,6 @@
         <activity
             android:name="io.niko.ui.route.RuleActivity"
             android:configChanges="uiMode" />
-        <activity
-            android:name="io.niko.ui.AppListActivity"
-            android:configChanges="uiMode" />
         <!-- shortcuts are started with our own identity, so the targets need not be exported -->
         <activity
             android:name=".QuickToggleShortcut"
@@ -296,12 +293,9 @@
             android:taskAffinity=""
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
         <activity
-            android:name="io.niko.ui.AppManagerActivity"
+            android:name="io.niko.ui.apps.AppsActivity"
             android:configChanges="uiMode"
-            android:excludeFromRecents="true"
-            android:label="@string/proxied_apps"
-            android:launchMode="singleTask"
-            android:parentActivityName=".ui.MainActivity" />
+            android:label="@string/ap_title" />
         <activity
             android:name="io.niko.ui.ScannerActivity"
             android:configChanges="uiMode"

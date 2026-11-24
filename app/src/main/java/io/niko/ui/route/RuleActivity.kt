@@ -17,16 +17,16 @@ import io.niko.ktx.Logs
 import io.niko.ktx.danger
 import io.niko.ktx.onMainDispatcher
 import io.niko.ktx.runOnDefaultDispatcher
-import io.niko.ui.AppListActivity
 import io.niko.ui.ProfileSelectActivity
 import io.niko.ui.ThemedActivity
+import io.niko.ui.apps.AppsActivity
 import io.niko.ui.compose.NikoTheme
 import io.niko.ui.profile.ConfigEditActivity
 import io.niko.utils.PackageCache
 
 /**
  * A routing rule's editor (P-Rule) on Compose: [RuleScreen] over a [RuleForm], saved by «Сохранить» (back with
- * changes asks, as the old editor did). The apps are picked in AppListActivity, the profile in ProfileSelectActivity,
+ * changes asks, as the old editor did). The apps are picked in AppsActivity, the profile in ProfileSelectActivity,
  * the rule's JSON in ConfigEditActivity, as before: they read and write the old editor's DataStore keys
  * (routePackages, serverConfig). [EXTRA_RULE_ID] the rule, none: a new one, on when saved.
  */
@@ -186,7 +186,7 @@ class RuleActivity : ThemedActivity() {
 
         override fun pickApps() {
             DataStore.routePackages = form.value?.packages.orEmpty().joinToString("\n")
-            pickApps.launch(Intent(this@RuleActivity, AppListActivity::class.java))
+            pickApps.launch(Intent(this@RuleActivity, AppsActivity::class.java).putExtra(AppsActivity.EXTRA_FOR_RULE, true))
         }
 
         override fun pickProfile() {

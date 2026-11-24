@@ -26,7 +26,6 @@
     <string name="action_download">TÉLÉCHARGER</string>
     <string name="action_learn_more">EN SAVOIR PLUS</string>
     <string name="download">Télécharger</string>
-    <string name="select_apps">Sélectionnez les applications</string>
     <string name="apps">Applications</string>
     <string name="clear_profiles_message">Êtes-vous sûr(e) de vouloir supprimer ce groupe \?</string>
     <string name="profile_import_message">Confirmez-vous que vous voulez importer le profil %s \?</string>
@@ -106,7 +105,6 @@
     <string name="plugin_disabled">Désactivé</string>
     <string name="connection_test_testing">Essai…</string>
     <string name="action_export_clipboard">Exporter dans le presse-papiers</string>
-    <string name="on">Actif</string>
     <string name="menu_traffic">Trafic</string>
     <string name="connection_test_error">Échec : %s</string>
     <string name="menu_route">Route</string>
@@ -150,8 +148,6 @@
     <string name="edit_config">Modifier la configuration</string>
     <string name="route_proxy">Proxy</string>
     <string name="empty_route">Route vide</string>
-    <string name="search_apps">Rechercher…</string>
-    <string name="show_system_apps">Afficher les applications système</string>
     <string name="service_failed">Échec :</string>
     <string name="vpn_error">%s</string>
     <string name="clipboard_empty">Le presse-papiers est vide</string>
@@ -199,7 +195,6 @@
     <string name="custom_config">Configuration personnalisée</string>
     <string name="connection_test_refused">Connexion refusée</string>
     <string name="open_app">Ouvrir l\'appli</string>
-    <string name="open_settings">Ouvrir les préférences</string>
     <string name="header_type">Type d\'entête</string>
     <string name="protocol_settings">Préférences du protocole</string>
     <string name="route_bypass_domain">Règle de domaine pour %s</string>
@@ -225,8 +220,6 @@
     <string name="api_port">Port de l\'API</string>
     <string name="hysteria_auth_type">Type d\'authentification</string>
     <string name="ws_host">Hôte WebSocket</string>
-    <string name="invert_selections">Inverser la sélection</string>
-    <string name="clear_selections">Effacer la sélection</string>
     <string name="service_vpn">Service VPN</string>
     <string name="stopping">En train de s\'éteindre…</string>
     <string name="add_profile">Ajouter un profile</string>

@@ -142,15 +142,8 @@
         productive. If the server does not support it, you will not be able to access the Internet.</string>
     <string name="mux_concurrency">Mux Concurrent Connections</string>
     <string name="tcp_keep_alive_interval">TCP keep active packet delivery interval</string>
-    <string name="proxied_apps">Apps VPN mode</string>
-    <string name="on">On</string>
     <string name="off">Off</string>
-    <string name="search_apps">Search…</string>
     <string name="scanning">Scanning…</string>
-    <string name="invert_selections">Invert selections</string>
-    <string name="clear_selections">Clear selections</string>
-    <string name="bypass_apps">Bypass</string>
-    <string name="show_system_apps">Show system apps</string>
     <string name="direct_boot_aware">Allow Toggling in Lock Screen</string>
     <string name="direct_boot_aware_summary">Your selected profile information will be less
         protected</string>
@@ -341,7 +334,6 @@
     <string name="profile_import_keys">It sets these parts of the config: %s</string>
     <string name="clear_profiles_message">Are you sure you want to clear this group?</string>
     <string name="apps">Applications</string>
-    <string name="select_apps">Select Applications</string>
     <string name="hysteria_obfs">Obfuscation Password</string>
     <string name="hysteria_auth_type">Authentication Type</string>
     <string name="hysteria_auth_payload">Authentication Payload</string>
@@ -374,7 +366,6 @@
     <string name="copy_label">Copy Name</string>
     <string name="copy_package_name">Copy Package Name</string>
     <string name="open_app">Open App</string>
-    <string name="open_settings">Open Settings</string>
     <string name="open_market">Open Market</string>
     <string name="create_rule">Create Rule</string>
 
@@ -507,7 +498,6 @@
     <string name="mux_type">Mux protocol</string>
     <string name="sniff_override">Sniff result for destination</string>
     <string name="resolve_server">Resolve the server address according to the IPv6 policy</string>
-    <string name="auto_select_proxy_apps">Auto select proxy apps</string>
     <string name="auto_select_proxy_apps_message">Auto select proxy apps, this will clear your
         current selection.</string>
     <string name="enable_ech">Enable ECH</string>

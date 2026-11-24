@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Приложения (P-Apps): приложения через VPN и выбор приложений правила. -->
+<resources>
+    <string name="ap_title">Приложения</string>
+    <string name="ap_title_rule">Приложения правила</string>
+    <string name="ap_mode">Через Niko</string>
+    <string name="ap_mode_all">Все</string>
+    <string name="ap_mode_only">Только выбранные</string>
+    <string name="ap_mode_except">Кроме выбранных</string>
+    <string name="ap_chosen">Выбрано · %d</string>
+    <string name="ap_rest">Остальные</string>
+    <string name="ap_all">Все приложения</string>
+    <string name="ap_search">Имя, пакет или uid</string>
+    <string name="ap_search_open">Поиск</string>
+    <string name="ap_search_close">Закрыть поиск</string>
+    <string name="ap_menu">Ещё</string>
+    <string name="ap_system">Системные приложения</string>
+    <string name="ap_invert">Инвертировать выбор</string>
+    <string name="ap_clear">Снять выбор</string>
+    <string name="ap_auto">Выбрать автоматически</string>
+    <string name="ap_export">Скопировать в буфер</string>
+    <string name="ap_import">Вставить из буфера</string>
+    <string name="ap_copied">Выбор скопирован</string>
+    <string name="ap_copy_failed">Не удалось скопировать</string>
+    <string name="ap_pasted">Выбор вставлен</string>
+    <string name="ap_paste_failed">В буфере нет списка приложений</string>
+    <string name="ap_loading">Читаю список приложений…</string>
+    <string name="ap_none_found">Ничего не найдено</string>
+    <string name="ap_open_settings">Открыть настройки приложения</string>
+    <string name="ap_scroll">Быстрая прокрутка</string>
+</resources>
