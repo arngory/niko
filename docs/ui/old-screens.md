@@ -919,4 +919,4 @@ TrojanSettingsActivity.kt:5), VLESS — флагом `vless` (VMessSettingsActiv
 С arngory/niko#168 экранов NekoBox в приложении не осталось: разделы 1–3 сняты последними. От интерфейса NekoBox
 не осталось ничего: на Views и Material не нарисовано ни одного экрана, диалога или сообщения. Последними ушли
 диалог QR-кода (теперь `ui/compose/NikoQrDialog.kt`) и snackbar Material (теперь `ui/compose/NikoSnackbar.kt`), а с
-ними разметка `layout_main.xml`: экраны держит рамка, созданная в коде (этот PR).
+ними разметка `layout_main.xml`: экраны держит рамка, созданная в коде (arngory/niko#173).
