@@ -273,7 +273,7 @@
 <string name="hysteria_download_mbps">Максимальная скорость загрузки (в Мбит / с)</string>
 <string name="hysteria_obfs">Обфускация пароля</string>
 <string name="hysteria_stream_receive_window">Окно приема потока QUIC</string>
-<string name="hysteria_upload_mbps">Максимальная скорость загрузки (в Мбит / с)</string>
+<string name="hysteria_upload_mbps">Максимальная скорость отдачи (в Мбит / с)</string>
 <string name="icon_content_description">Значок диалогового окна</string>
 <string name="ignore_battery_optimizations">Игнорировать оптимизации батареи</string>
 <string name="route_test">Какое правило сработает</string>
