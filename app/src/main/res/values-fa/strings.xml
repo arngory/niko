@@ -172,7 +172,6 @@
     <string name="action_import_file">وارد کردن از یک فایل</string>
     <string name="action_export_msg">صدور موفق</string>
     <string name="action_export_err">صدور انجام نشد.</string>
-    <string name="action_import_msg">با موفقیت اضافه شد!</string>
     <string name="action_import_err">وارد نشد.</string>
     <string name="file_manager_missing">لطفاً دستگاه شما فاقد انتخابگر فایل استاندارد Android است
  یکی مانند Material Files را نصب کنید.</string>

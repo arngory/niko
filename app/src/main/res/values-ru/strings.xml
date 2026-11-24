@@ -16,7 +16,6 @@
 <string name="action_import">Импорт из буфера</string>
 <string name="action_import_err">Не удалось импортировать.</string>
 <string name="action_import_file">Импорт из файла</string>
-<string name="action_import_msg">Успешно импортировано!</string>
 <string name="action_learn_more">УЗНАТЬ БОЛЬШЕ</string>
 <string name="action_switch">Переключить</string>
 <string name="add_profile">Добавить профиль</string>
@@ -1016,4 +1015,16 @@
     <string name="panel_url_label">Адрес</string>
     <string name="panel_secret_sub">Нужен панели, открытой в браузере</string>
     <string name="save">Сохранить</string>
+    <!-- Добавить on Compose: the scanner and the other ways in (M-ADD-01, M-ADD-02) -->
+    <string name="add_title">Добавить</string>
+    <string name="add_clipboard">Из буфера</string>
+    <string name="add_qr_file">QR из файла</string>
+    <string name="add_file">Импорт файла</string>
+    <string name="add_manual_title">Профиль вручную</string>
+    <string name="add_torch">Фонарик</string>
+    <string name="add_torch_on">включён</string>
+    <string name="add_torch_off">выключен</string>
+    <string name="add_camera_denied">Нет доступа к камере</string>
+    <string name="add_camera_denied_sub">Разрешите камеру, чтобы сканировать QR. Остальные способы работают и без неё.</string>
+    <string name="add_camera_allow">Разрешить</string>
 </resources>

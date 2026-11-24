@@ -252,10 +252,10 @@
             android:configChanges="uiMode"
             android:label="@string/ap_title" />
         <activity
-            android:name="io.niko.ui.ScannerActivity"
+            android:name="io.niko.ui.add.AddActivity"
             android:configChanges="uiMode"
             android:excludeFromRecents="true"
-            android:label="@string/add_profile_methods_scan_qr_code"
+            android:label="@string/add_title"
             android:launchMode="singleTask"
             android:parentActivityName="io.niko.ui.MainActivity" />
         <activity

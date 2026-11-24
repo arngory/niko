@@ -153,7 +153,6 @@
     <string name="action_import_file">Importar desde archivo</string> 
     <string name="action_export_msg">¡Exportación exitosa!</string> 
     <string name="action_export_err">Error al exportar.</string> 
-    <string name="action_import_msg">¡Importación exitosa!</string> 
     <string name="action_import_err">No se pudo importar.</string> 
     <string name="file_manager_missing">Su dispositivo carece de un selector de archivos estándar de Android, instale uno, como Material Files.</string> 
     <!-- share --> 

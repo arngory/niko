@@ -206,7 +206,6 @@
     <string name="delete_confirm_prompt">Bu profili kaldırmak istediğinize emin misiniz\?</string>
     <string name="delete">Kaldır</string>
     <string name="action_import_err">İçe aktarma başarısız oldu.</string>
-    <string name="action_import_msg">Başarıyla içe aktarıldı!</string>
     <string name="action_export_err">Dışa aktarma başarısız oldu.</string>
     <string name="action_export_msg">Başarıyla dışa aktarıldı!</string>
     <string name="action_import_file">Dosyadan aktar</string>

@@ -203,7 +203,6 @@
     <string name="circular_reference">Référence circulaire</string>
     <string name="action_create_group">Groupe vide</string>
     <string name="action_export_msg">Export avec succès !</string>
-    <string name="action_import_msg">Importation avec succès !</string>
     <string name="vpn_connected">Connecté, tapez pour vérifier la connexion</string>
     <string name="cleartext_http_warning">Le trafic HTTP en clair n\'est pas sûr</string>
     <string name="no_proxies_found">Aucun proxy trouvé dans le lien</string>
