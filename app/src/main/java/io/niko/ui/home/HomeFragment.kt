@@ -35,7 +35,7 @@ import io.niko.ktx.snackbar
 import io.niko.ktx.startFilesForResult
 import io.niko.raycontrol.RayNodes
 import io.niko.ui.GroupSettingsActivity
-import io.niko.ui.RayAdminActivity
+import io.niko.ui.admin.AdminActivity
 import io.niko.ui.node.NodeFormat
 import io.niko.ui.node.NodeFragment
 import io.niko.ui.updateAllGroups
@@ -131,7 +131,7 @@ class HomeFragment : Fragment() {
         val node = row.nodeId
         if (row.admin && node != null) {
             dialog.setPositiveButton(R.string.raycontrol_admin) { _, _ ->
-                startActivity(Intent(requireContext(), RayAdminActivity::class.java).putExtra(RayAdminActivity.EXTRA_NODE, node))
+                startActivity(Intent(requireContext(), AdminActivity::class.java).putExtra(AdminActivity.EXTRA_NODE, node))
             }.setNegativeButton(android.R.string.cancel, null)
         } else {
             dialog.setPositiveButton(android.R.string.ok, null)
@@ -351,7 +351,7 @@ class HomeFragment : Fragment() {
                 SubAction.MOVE_UP, SubAction.MOVE_DOWN -> Unit
                 SubAction.SETTINGS -> groupSettings(row.id)
                 SubAction.ADMIN -> row.nodeId?.let {
-                    startActivity(Intent(requireContext(), RayAdminActivity::class.java).putExtra(RayAdminActivity.EXTRA_NODE, it))
+                    startActivity(Intent(requireContext(), AdminActivity::class.java).putExtra(AdminActivity.EXTRA_NODE, it))
                 }
                 SubAction.LAN -> row.nodeId?.let { startActivity(io.niko.ui.node.LanActivity.intent(requireContext(), it)) }
                 SubAction.QR, SubAction.COPY_LINK -> runOnDefaultDispatcher {
