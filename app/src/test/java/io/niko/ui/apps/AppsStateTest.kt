@@ -35,9 +35,13 @@ class AppsStateTest {
         val (pinned, rest) = s.shown
         assertEquals(listOf("ru.sberbankmobile"), pinned.map { it.packageName })
         assertEquals(4, rest.size)
-        // an uninstalled package is left out of what is written, as before
-        assertEquals("ru.sberbankmobile", s.packages)
+        // a package not installed here is kept and written after the installed ones, but not counted
+        assertEquals(listOf("not.installed"), s.missing)
+        assertEquals("ru.sberbankmobile\nnot.installed", s.packages)
         assertEquals(1, s.count)
+        // a tick keeps it; «Снять выбор» drops it
+        assertEquals("org.telegram.messenger\nru.sberbankmobile\nnot.installed", s.toggle(10_100).packages)
+        assertEquals("", s.cleared().packages)
     }
 
     @Test
@@ -113,9 +117,10 @@ class AppsStateTest {
 
     @Test
     fun importChoosesThePastedPackages() {
-        val (_, packages) = AppsClip.read("true\norg.telegram.messenger\ncom.android.chrome")!!
-        val s = read("ru.sberbankmobile").choosing(packages)
+        val (_, packages) = AppsClip.read("true\norg.telegram.messenger\ncom.android.chrome\nfrom.another.phone")!!
+        val s = read("ru.sberbankmobile", "old.missing").choosing(packages)
         assertEquals(setOf(10_100, 10_102), s.chosen)
-        assertEquals("com.android.chrome\norg.telegram.messenger", s.packages)
+        // what this phone lacks is kept, what was missing before is replaced with the rest of the choice
+        assertEquals("com.android.chrome\norg.telegram.messenger\nfrom.another.phone", s.packages)
     }
 }

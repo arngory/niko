@@ -37,14 +37,20 @@ import kotlinx.coroutines.withContext
 
 /**
  * Приложения (P-Apps) on Compose, in place of AppManagerActivity and AppListActivity: the apps through the VPN
- * (DataStore.proxyApps, bypass, individual) or, with [EXTRA_FOR_RULE], a rule's apps (DataStore.routePackages, which
- * RuleActivity hands over and reads back, as with the old picker). A change is written at once, as before; the main
- * screen offers to apply it to a running service (D-STATE-RELOAD).
+ * (DataStore.proxyApps, bypass, individual) or, with [EXTRA_FOR_RULE], a rule's apps: [EXTRA_PACKAGES] in, the choice
+ * back in the result's [EXTRA_PACKAGES] (RESULT_OK only when it changed), kept in the saved state, so that a process the
+ * system killed meanwhile does not hand the rule an empty list (the old picker passed it through DataStore.routePackages,
+ * which lives in memory). A change of the VPN's choice is written at once, as before; the main screen offers to apply it
+ * to a running service (D-STATE-RELOAD).
  */
 class AppsActivity : ThemedActivity() {
 
     companion object {
         const val EXTRA_FOR_RULE = "for_rule"
+        /** a rule's packages, one a line: in, and back in the result */
+        const val EXTRA_PACKAGES = "packages"
+        private const val CHOSEN = "chosen"
+        private const val CHANGED = "changed"
         private const val QUERY = "query"
         private const val SYSTEM = "system"
 
@@ -54,6 +60,9 @@ class AppsActivity : ThemedActivity() {
     }
 
     private var forRule = false
+    // a rule's choice as it is now, and whether it changed (the result to hand back)
+    private var ruleChoice = ""
+    private var ruleChanged = false
     private val state = mutableStateOf(AppsState(forRule = false))
     private val menu = mutableStateOf(false)
     // the icons read, by package: a few megabytes at most (a phone has hundreds of apps), the least recent dropped
@@ -64,6 +73,12 @@ class AppsActivity : ThemedActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         forRule = intent.getBooleanExtra(EXTRA_FOR_RULE, false)
+        if (forRule) {
+            ruleChoice = savedInstanceState?.getString(CHOSEN) ?: intent.getStringExtra(EXTRA_PACKAGES).orEmpty()
+            ruleChanged = savedInstanceState?.getBoolean(CHANGED) == true
+            // the result is the activity's, not its saved state's: set again in an activity made anew
+            if (ruleChanged) handBack()
+        }
         val mode = if (forRule) AppsMode.ALL else AppsMode.of(DataStore.proxyApps, DataStore.bypass)
         state.value = AppsState(
             forRule, mode,
@@ -82,6 +97,10 @@ class AppsActivity : ThemedActivity() {
         super.onSaveInstanceState(outState)
         outState.putString(QUERY, state.value.query)
         outState.putBoolean(SYSTEM, state.value.system)
+        if (forRule) {
+            outState.putString(CHOSEN, ruleChoice)
+            outState.putBoolean(CHANGED, ruleChanged)
+        }
     }
 
     /** The installed apps with the internet (PackageCache's list, Niko itself left out), and the choice written. */
@@ -99,7 +118,7 @@ class AppsActivity : ThemedActivity() {
                 }
             }.onFailure { Logs.w(it) }.getOrDefault(emptyList())
         }
-        val chosen = (if (forRule) DataStore.routePackages else DataStore.individual).lineSequence().toList()
+        val chosen = chosenWritten().lineSequence().toList()
         val now = state.value
         state.value = AppsState.read(forRule, now.mode, rows, chosen, now.system).copy(query = now.query)
     }
@@ -108,8 +127,21 @@ class AppsActivity : ThemedActivity() {
     private fun write(next: AppsState) {
         state.value = next
         if (next.apps.isNullOrEmpty()) return
-        if (forRule) DataStore.routePackages = next.packages else DataStore.individual = next.packages
+        store(next.packages)
     }
+
+    /** [packages] as the choice: the VPN's in DataStore, a rule's handed back. */
+    private fun store(packages: String) {
+        if (!forRule) {
+            DataStore.individual = packages
+            return
+        }
+        ruleChoice = packages
+        ruleChanged = true
+        handBack()
+    }
+
+    private fun handBack() = setResult(RESULT_OK, Intent().putExtra(EXTRA_PACKAGES, ruleChoice))
 
     private fun say(text: Int) = Snackbar.make(findViewById(android.R.id.content), text, Snackbar.LENGTH_LONG).show()
 
@@ -174,12 +206,12 @@ class AppsActivity : ThemedActivity() {
 
         override fun import() {
             val read = AppsClip.read(runCatching { SagerNet.clipboard.primaryClip?.getItemAt(0)?.text?.toString() }.getOrNull())
-            val now = state.value
-            if (read == null || now.apps.isNullOrEmpty()) return say(R.string.ap_paste_failed)
+            if (read == null) return say(R.string.ap_paste_failed)
             val (bypass, packages) = read
             // the VPN's choice brings its mode, as the old screen's did; a rule's has none
             if (!forRule) mode(if (bypass) AppsMode.EXCEPT else AppsMode.ONLY)
-            write(state.value.choosing(packages))
+            // the list not read (or not given): the pasted packages are written as they are, as the old screen did
+            if (state.value.apps.isNullOrEmpty()) store(packages.joinToString("\n")) else write(state.value.choosing(packages))
             say(R.string.ap_pasted)
         }
 
@@ -188,7 +220,7 @@ class AppsActivity : ThemedActivity() {
         }
     }
 
-    private fun chosenWritten() = if (forRule) DataStore.routePackages else DataStore.individual
+    private fun chosenWritten() = if (forRule) ruleChoice else DataStore.individual
 
     /** An app's icon, read off the main thread once; its letter until then (and when it has none). */
     @Composable

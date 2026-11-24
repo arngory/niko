@@ -1,6 +1,7 @@
 package io.niko.ui.apps
 
 import androidx.annotation.DrawableRes
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -113,6 +114,20 @@ fun AppsScreen(
     var sheet by remember { mutableStateOf(modeOpen) }
     LaunchedEffect(menuOpen) { menu = menuOpen }
     val list = rememberLazyListState()
+    // Back closes what is open over the list first, as the old overflow menu and the app's other sheets do
+    BackHandler(enabled = menu || sheet || search) {
+        when {
+            menu -> {
+                menu = false
+                onMenu(false)
+            }
+            sheet -> sheet = false
+            else -> {
+                search = false
+                actions.query("")
+            }
+        }
+    }
     Box(Modifier.fillMaxSize().background(c.surface0)) {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             Row(

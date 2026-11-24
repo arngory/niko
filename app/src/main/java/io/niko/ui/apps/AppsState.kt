@@ -27,7 +27,9 @@ enum class AppsMode {
  * P-Apps: [forRule] the picker of a rule's apps (M-RULES-02, no mode) or the apps through the VPN; [apps] null while
  * read, empty when the system gives none (no access to the list); [chosen] the uids ticked; [pinned] the uids that head
  * the list (the ones chosen when it was read or last changed as a whole: a tick does not move its row away under the
- * finger); [system] the system's apps shown; [query] the search, over the name, the package and the uid.
+ * finger); [missing] the packages of the choice that are not installed here (a list pasted from another phone, an app
+ * removed): kept and written with the rest, so that they count once installed, and dropped only by «Снять выбор» or a
+ * choice made anew; [system] the system's apps shown; [query] the search, over the name, the package and the uid.
  */
 data class AppsState(
     val forRule: Boolean,
@@ -35,6 +37,7 @@ data class AppsState(
     val apps: List<AppRow>? = null,
     val chosen: Set<Int> = emptySet(),
     val pinned: Set<Int> = emptySet(),
+    val missing: List<String> = emptyList(),
     val system: Boolean = !forRule,
     val query: String = "",
 ) {
@@ -52,8 +55,12 @@ data class AppsState(
     /** How many packages are chosen: what is written, and what the main screen counts. */
     val count: Int get() = apps.orEmpty().count { it.uid in chosen }
 
-    /** The chosen packages as DataStore keeps them (individual, routePackages): one a line, in the list's order. */
-    val packages: String get() = apps.orEmpty().filter { it.uid in chosen }.joinToString("\n") { it.packageName }
+    /**
+     * The chosen packages as DataStore keeps them (individual) and a rule takes them: one a line, the installed ones in
+     * the list's order, then the [missing] ones.
+     */
+    val packages: String
+        get() = (apps.orEmpty().filter { it.uid in chosen }.map { it.packageName } + missing).joinToString("\n")
 
     fun toggle(uid: Int) = copy(chosen = if (uid in chosen) chosen - uid else chosen + uid)
 
@@ -64,13 +71,14 @@ data class AppsState(
         return copy(chosen = next, pinned = next)
     }
 
-    fun cleared() = copy(chosen = emptySet(), pinned = emptySet())
+    fun cleared() = copy(chosen = emptySet(), pinned = emptySet(), missing = emptyList())
 
-    /** [packages] chosen in place of the choice (uninstalled ones are left out, as before); they head the list. */
+    /** [packages] chosen in place of the choice, the ones not installed here kept as [missing]; they head the list. */
     fun choosing(packages: Collection<String>): AppsState {
-        val wanted = packages.mapTo(HashSet()) { it.trim() }
-        val next = apps.orEmpty().filter { it.packageName in wanted }.mapTo(HashSet()) { it.uid }
-        return copy(chosen = next, pinned = next)
+        val wanted = packages.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+        val installed = apps.orEmpty().associateBy { it.packageName }
+        val next = wanted.mapNotNullTo(HashSet()) { installed[it]?.uid }
+        return copy(chosen = next, pinned = next, missing = wanted.filter { it !in installed })
     }
 
     companion object {
