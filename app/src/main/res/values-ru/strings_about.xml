@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- О программе (P-About): версия, обновление, ограничения фона, плагины, проект. -->
+<resources>
+    <string name="ab_title">О программе</string>
+    <string name="ab_update">Обновление</string>
+    <string name="ab_update_check">Проверить</string>
+    <string name="ab_update_install">Установить</string>
+    <string name="ab_update_checking">Проверяю…</string>
+    <string name="ab_update_none">Новее версии нет</string>
+    <string name="ab_preview">Предварительные сборки</string>
+    <string name="ab_background">Фон</string>
+    <string name="ab_battery">Оптимизация батареи</string>
+    <string name="ab_battery_on">включена</string>
+    <string name="ab_battery_off">выключена</string>
+    <string name="ab_restricted">Фоновые ограничения</string>
+    <string name="ab_restricted_yes">есть</string>
+    <string name="ab_restricted_no">нет</string>
+    <string name="ab_vendor">Менеджер фона</string>
+    <string name="ab_plugins">Плагины</string>
+    <string name="ab_source">Исходный код</string>
+    <string name="ab_license">Лицензия Niko (GPL-3.0)</string>
+    <string name="ab_upstream">Оригинальный проект: NekoBox for Android</string>
+</resources>

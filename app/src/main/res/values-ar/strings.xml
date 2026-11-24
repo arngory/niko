@@ -3,12 +3,9 @@
     <string name="menu_group">مجموعة</string>
     <string name="menu_configuration">ترتيب</string>
     <string name="logcat">تصدير معلومات التصحيح</string>
-    <string name="version_x">الإصدار (%s)</string>
     <string name="app_version">إصدار</string>
     <string name="oss_licenses">تراخيص مفتوحة المصدر</string>
-    <string name="github">مصدر الرمز</string>
     <string name="app_desc">سلسلة أدوات البروکسی العالمية لنظام Android ، مكتوبة بلغة Kotlin.</string>
-    <string name="project">مشروع</string>
     <string name="group_status_proxies">%d البروکسیز</string>
     <string name="group_status_empty_subscription">لم يتم تحديثه بعد</string>
     <string name="group_status_empty">مجموعة فارغة</string>
@@ -27,7 +24,6 @@
     <string name="group_default">غير مجمعة</string>
     <string name="document">وثيقة</string>
     <string name="theme">موضوع</string>
-    <string name="menu_about">حول</string>
     <string name="group_status_proxies_subscription">%d البروکسیز | تم التحديث في %s</string>
     <string name="group_updated">%s: تم تحديث %d البروکسیز</string>
     <string name="port_http">منفذ بروکسی HTTP</string>
@@ -219,8 +215,6 @@
     <string name="plugin_auto_connect_unlock_only">قد لا يعمل هذا المكون الإضافي مع الاتصال التلقائي</string>
     <string name="plugin_unknown">مكون إضافي غير معروف %s</string>
     <string name="plugin">الإضافات</string>
-    <string name="ignore_battery_optimizations_sum">قم بإزالة بعض القيود</string>
-    <string name="ignore_battery_optimizations">تجاهل تحسينات البطارية</string>
     <string name="deduplication">احذف البيانات المكررة</string>
     <string name="no_proxies_found_in_clipboard">لم يتم العثور على بروکسیز في الحافظة</string>
     <string name="no_proxies_found_in_file">لم يتم العثور على بروکسیز في الملف</string>

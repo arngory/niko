@@ -61,15 +61,11 @@
     <string name="group_default">Tidak bergrup</string>
     <string name="document">Dokumen</string>
     <string name="theme">Tema</string>
-    <string name="menu_about">Tentang</string>
     <string name="menu_group">Grup</string>
     <string name="menu_configuration">Konfigurasi</string>
     <string name="logcat">Ekspor informasi debug</string>
-    <string name="version_x">Versi (%s)</string>
     <string name="app_version">Versi</string>
     <string name="oss_licenses">Lisensi sumber terbuka</string>
-    <string name="github">Kode sumber</string>
-    <string name="project">Proyek</string>
     <string name="app_desc">Peranti proxy universal untuk Android, ditulis dalam Kotlin.</string>
     <string name="ssh_auth_type_none">Kosong</string>
     <string name="no_statistics">Belum ada statistik</string>
