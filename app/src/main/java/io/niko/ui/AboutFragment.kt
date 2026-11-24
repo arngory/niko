@@ -25,6 +25,7 @@ import com.danielstone.materialaboutlibrary.model.MaterialAboutCard
 import com.danielstone.materialaboutlibrary.model.MaterialAboutList
 import io.niko.BuildConfig
 import io.niko.R
+import io.niko.DONATE_URL
 import io.niko.RELEASE_REPO
 import io.niko.databinding.LayoutAboutBinding
 import io.niko.ktx.*
@@ -252,6 +253,13 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                                 .setOnClickAction {
                                     requireContext().launchCustomTab("https://github.com/$RELEASE_REPO")
                                 }
+                                .build())
+                        .addItem(
+                            MaterialAboutActionItem.Builder()
+                                .icon(R.drawable.ic_l_coffee)
+                                .text(R.string.donate)
+                                .subText(R.string.donate_sum)
+                                .setOnClickAction { requireContext().launchCustomTab(DONATE_URL) }
                                 .build())
                         .addItem(
                             MaterialAboutActionItem.Builder()

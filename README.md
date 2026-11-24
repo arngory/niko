@@ -39,6 +39,10 @@ GitHub Actions builds the Go library and the APKs ([build.yml](.github/workflows
 - [docs/](docs/README.md): guides, how it works, specs, research
 - [CONTRIBUTING.md](CONTRIBUTING.md): how to make a change
 
+## Support the project
+
+Niko is given as is, free. If it helps you, you can support its development: [donotpromise.space/donate](https://donotpromise.space/donate).
+
 ## License
 
 GPL-3.0, see [LICENSE](LICENSE). Niko is a modified version of the projects below; their copyrights stay with their
