@@ -366,7 +366,7 @@ class ProfileActivity : ThemedActivity() {
 
         override fun pickLink(replace: Int) {
             replacing = replace
-            val intent = Intent(this@ProfileActivity, ProfileSelectActivity::class.java)
+            val intent = ProfileSelectActivity.intent(this@ProfileActivity, getString(R.string.pick_for_chain))
             val current = form.value?.chain?.getOrNull(replace)
             if (current == null) return pickLink.launch(intent)
             runOnDefaultDispatcher {

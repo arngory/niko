@@ -109,7 +109,7 @@ class GroupSettingsActivity : ThemedActivity() {
         }
     }
 
-    // the config chosen in the old list, for the front or the landing proxy
+    // the config chosen in the picker, for the front or the landing proxy
     private var pickingFront = true
     private val pickProxy = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
@@ -169,7 +169,9 @@ class GroupSettingsActivity : ThemedActivity() {
 
         override fun pickProxy(front: Boolean) {
             pickingFront = front
-            pickProxy.launch(Intent(this@GroupSettingsActivity, ProfileSelectActivity::class.java))
+            pickProxy.launch(
+                ProfileSelectActivity.intent(this@GroupSettingsActivity, getString(if (front) R.string.pick_for_front else R.string.pick_for_landing)),
+            )
         }
     }
 }

@@ -1081,4 +1081,11 @@
     <string name="json_error_line">Line %1$d: %2$s</string>
     <string name="json_text" translatable="false">JSON</string>
     <string name="json_discard">Leave without saving</string>
+    <!-- Выбор профиля on Compose (D-PICK-01) -->
+    <string name="pick_title">Choose a profile</string>
+    <string name="pick_none">No profiles yet</string>
+    <string name="pick_for_rule">The rule\'s outbound</string>
+    <string name="pick_for_chain">A link of the chain</string>
+    <string name="pick_for_front">The group\'s front proxy</string>
+    <string name="pick_for_landing">The group\'s landing proxy</string>
 </resources>
