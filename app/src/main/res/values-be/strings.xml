@@ -2,37 +2,17 @@
 <resources>
     <string name="logcat">Экспартаваць інфармацыю пра адладку</string>
     <string name="app_version">Версія</string>
-    <string name="oss_licenses">Ліцэнзіі з адкрытым зыходным кодам</string>
-    <string name="app_desc">Універсальны набор інструментаў проксі для Android, напісаны на Kotlin.</string>
     <string name="ws_path">Шлях WebSocket</string>
     <string name="ws_host">Хост WebSocket</string>
-    <string name="header_type">Тып загалоўка</string>
     <string name="network">Сетка</string>
     <string name="security">Шыфраванне транспартнага ўзроўню</string>
-    <string name="obfs_param">Obfs Парам</string>
-    <string name="obfs">Obfs</string>
-    <string name="protocol_param">Пратакол Param</string>
     <string name="protocol">Пратакол</string>
     <string name="enc_method">Метад шыфравання</string>
-    <string name="key_opt">Ключ (неабавязкова)</string>
-    <string name="transproxy_mode">Рэжым Transproxy</string>
-    <string name="require_transproxy">Уключыць Transproxy Уваходныя</string>
-    <string name="port_local_dns">Лакальны порт DNS</string>
-    <string name="dns_hosts">Перапісаць дамен</string>
-    <string name="connection_test_error_status_code">Код памылкі: #%d</string>
-    <string name="connection_test_fail">Інтэрнэт недаступны</string>
     <string name="speed">%s/s</string>
     <string name="speed_detail">Проксі : %1$s↑ %2$s↓
 \nПрамая : %3$s↑ %4$s↓</string>
     <string name="allow_insecure_sum">Адключыць праверку сертыфікатаў. Калі ўключана, гэтая канфігурацыя такая ж бяспечная, як і адкрыты тэкст</string>
     <string name="allow_insecure">Дазволіць небяспечна</string>
-    <string name="show_stop_sum">Калі вы не хочаце выкарыстоўваць кнопку панэлі апавяшчэнняў у якасці пераключальніка злучэння</string>
-    <string name="show_stop">Паказаць кнопку прыпынку</string>
-    <string name="ws_browser_forwarding_sum">Перадайце адпаведныя WebSockets праз браўзэр.</string>
-    <string name="ws_browser_forwarding">Пераадрасацыя браўзэра</string>
-    <string name="require_http">Уключыць увод HTTP</string>
-    <string name="port_transproxy">Transproxy порт</string>
-    <string name="port_http">Проксі -порт HTTP</string>
     <string name="group_duplicate">Дублікат:
 \n%s</string>
     <string name="group_deleted">Выдалена:
@@ -41,25 +21,14 @@
 \n%s</string>
     <string name="group_added">Дададзена:
 \n%s</string>
-    <string name="group_delete_confirm_prompt">Вы ўпэўненыя, што хочаце выдаліць гэтую групу\?</string>
     <string name="group_diff">Розніца (%s)</string>
-    <string name="group_show_diff">Розніца</string>
     <string name="group_updated">%s: Абноўлены %d проксі</string>
     <string name="group_no_difference">%s: няма розніцы</string>
     <string name="group_status_empty_subscription">Пакуль не абноўлена</string>
-    <string name="group_edit_subscription">Рэдагаваць падпіску</string>
-    <string name="group_edit">Рэдагаваць групу</string>
-    <string name="group_create_subscription">Стварыць падпіску</string>
-    <string name="group_name_required">Патрабуецца назва групы</string>
-    <string name="group_subscription_link">Спасылка на падпіску</string>
     <string name="group_update">Абнаўленне</string>
-    <string name="menu_traffic">Трафік</string>
     <string name="tile_title">Перамыкач</string>
     <string name="quick_toggle">Пераключыць</string>
     <string name="quick_enable">Уключыць</string>
     <string name="quick_disable">Выключыць</string>
     <string name="group_default">Разгрупаваны</string>
-    <string name="document">Дакумент</string>
-    <string name="theme">Тэма</string>
-    <string name="menu_group">Група</string>
 </resources>

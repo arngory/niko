@@ -1,28 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="port_http">Proksi Port HTTP</string>
-    <string name="protocol_param">Param Protokol</string>
     <string name="protocol">Protokol</string>
     <string name="enc_method">Metode Enkrip</string>
-    <string name="key_opt">Kunci (Opsional)</string>
-    <string name="transproxy_mode">Mode Transproksi</string>
-    <string name="require_transproxy">Aktifkan Inbound Transproksi</string>
-    <string name="port_local_dns">Port DNS lokal</string>
-    <string name="dns_hosts">Tulis ulang DNS</string>
-    <string name="connection_test_error_status_code">Kode galat: #%d</string>
-    <string name="connection_test_fail">Internet tidak tersedia</string>
     <string name="speed">%s/s</string>
     <string name="speed_detail">Proksi： %1$s↑ %2$s↓
 \nDirek： %3$s↑ %4$s↓</string>
     <string name="traffic">%1$s↑ %2$s↓</string>
     <string name="allow_insecure_sum">Nonaktifkan pengecekan sertifikat. Saat diaktifkan, konfigurasi ini seaman teks biasa</string>
     <string name="allow_insecure">Izinkan Koneksi Tidak Aman</string>
-    <string name="show_stop_sum">Jika Anda tidak ingin menggunakan Tombol Ubin sebagai pengalih</string>
-    <string name="show_stop">Tampilkan Tombol Henti</string>
-    <string name="ws_browser_forwarding_sum">Teruskan WebSocket yang sesuai melalui browser.</string>
-    <string name="ws_browser_forwarding">Penerusan Peramban</string>
-    <string name="require_http">Aktifkan HTTP inbound</string>
-    <string name="port_transproxy">Port Transproxy</string>
     <string name="group_duplicate">Duplikasi:
 \n%s</string>
     <string name="group_deleted">Dihapus:
@@ -31,32 +16,18 @@
 \n%s</string>
     <string name="group_added">Ditambahkan:
 \n%s</string>
-    <string name="group_delete_confirm_prompt">Anda yakin ingin menghapus grup ini\?</string>
     <string name="group_diff">Diff (%s)</string>
-    <string name="group_show_diff">Diff</string>
     <string name="group_updated">%s: Diperbarui %d proxy</string>
     <string name="group_no_difference">%s: Tidak ada perbedaan</string>
     <string name="group_status_empty_subscription">Belum diperbarui</string>
-    <string name="group_edit_subscription">Ubah langganan</string>
-    <string name="group_edit">Ubah grup</string>
-    <string name="group_create_subscription">Buat langganan</string>
-    <string name="group_name_required">Nama grup diperlukan</string>
-    <string name="group_subscription_link">Tautan Langganan</string>
     <string name="group_update">Perbarui</string>
     <string name="tile_title">Pengalih</string>
     <string name="quick_toggle">Beralih</string>
     <string name="quick_enable">Aktifkan</string>
     <string name="quick_disable">Nonaktifkan</string>
     <string name="group_default">Tidak bergrup</string>
-    <string name="document">Dokumen</string>
-    <string name="theme">Tema</string>
-    <string name="menu_group">Grup</string>
     <string name="logcat">Ekspor informasi debug</string>
     <string name="app_version">Versi</string>
-    <string name="oss_licenses">Lisensi sumber terbuka</string>
-    <string name="app_desc">Peranti proxy universal untuk Android, ditulis dalam Kotlin.</string>
-    <string name="ssh_auth_type_none">Kosong</string>
-    <string name="no_statistics">Belum ada statistik</string>
     <string name="ssh_private_key">Kunci Privat</string>
     <string name="profile_empty">Silakan pilih profil</string>
     <string name="encryption">Enkripsi</string>
@@ -72,44 +43,25 @@
     <string name="forward_success">Proksi menyala.</string>
     <string name="service_proxy">Layanan Proksi</string>
     <string name="service_vpn">Layanan VPN</string>
-    <string name="scanning">Memindai…</string>
     <string name="enable_mux">Aktifkan Multiplexer</string>
-    <string name="off">Mati</string>
     <string name="route_opt_block_ads">Blokir ADs</string>
     <string name="route_asset_updated">Diperbarui</string>
     <string name="route_asset_no_update">Tidak ada pembaruan</string>
     <string name="route_rules_official">Resmi</string>
     <string name="empty_route">Rute Kosong</string>
-    <string name="route_profile">Pilih Profil…</string>
-    <string name="route_proxy">Proksi</string>
-    <string name="edit_config">Sunting Konfigurasi</string>
     <string name="certificates">Sertifikat</string>
-    <string name="tls">Pakai TLS</string>
     <string name="network">Jaringan</string>
-    <string name="obfs_param">Obfs Param</string>
-    <string name="obfs">Obfs</string>
-    <string name="menu_traffic">Trafik</string>
     <string name="circular_reference">Referensi melingkar</string>
     <string name="config_settings">Pengaturan Konfigurasi</string>
-    <string name="balancer_strategy">Strategi</string>
-    <string name="balancer_type">Jenis</string>
-    <string name="balancer_settings">Pengaturan Penyeimbang</string>
-    <string name="balancer">Pengimbang</string>
     <string name="custom_config">Konfigurasi Kustom</string>
     <string name="proxy_chain">Rantai Proksi</string>
     <string name="reboot_required">Gagal memulai layanan VPN. Anda mungkin perlu me-reboot perangkat Anda.</string>
     <string name="vpn_permission_denied">Izin ditolak untuk membuat layanan VPN</string>
-    <string name="direct_boot_aware_summary">Informasi profil yang Anda pilih akan kurang terlindungi</string>
-    <string name="direct_boot_aware">Izinkan Beralih di Layar Kunci</string>
-    <string name="tcp_keep_alive_interval">TCP menjaga interval pengiriman paket aktif</string>
     <string name="mux_concurrency">Koneksi Mux Concurrent</string>
-    <string name="domain_strategy">Strategi Resolusi Domain</string>
     <string name="route_not_asset">Bukan file aset: kecuali .db, tapi %s</string>
     <string name="route_bypass_domain">Aturan domain untuk %s</string>
     <string name="empty_route_notice">Tetapkan beberapa aturan sebelum menyimpan</string>
     <string name="delete_route_prompt">Apakah anda yakin ingin menghapus rute ini\?</string>
-    <string name="menu_route">Rute</string>
-    <string name="config_type">Jenis Konfigurasi</string>
     <string name="extra_headers">Header Ekstra</string>
     <string name="early_data_header_name">Nama Header Data Awal</string>
     <string name="grpc_service_name">Nama Layanan gRPC</string>
@@ -117,6 +69,5 @@
     <string name="http_host">HTTP Host</string>
     <string name="ws_path">Jalur Soket Web</string>
     <string name="ws_host">Host Soket Web</string>
-    <string name="header_type">Jenis Tajuk</string>
     <string name="security">Enkripsi lapisan transportasi</string>
 </resources>

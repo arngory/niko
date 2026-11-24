@@ -1,14 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name" translatable="false">Niko</string>
-    <string name="app_name_long" translatable="false">Niko for Android</string>
-    <string name="app_desc">The universal proxy toolchain for Android, written in Kotlin.</string>
-    <string name="oss_licenses">Open source licenses</string>
     <string name="app_version">Version</string>
     <string name="logcat">Export debug information</string>
-    <string name="menu_group">Group</string>
-    <string name="theme">Theme</string>
-    <string name="document">Document</string>
     <string name="group_default">Ungrouped</string>
     <string name="quick_toggle">Toggle</string>
     <string name="quick_enable">Enable</string>
@@ -16,83 +10,50 @@
     <!-- a shortcut's short label: each language's own words for the scanner unless it says it shorter -->
     <string name="shortcut_scan" translatable="false">@string/add_profile_methods_scan_qr_code</string>
     <string name="tile_title">Switcher</string>
-    <string name="menu_traffic">Traffic</string>
     <string name="menu_dashboard">sing-box Dashboard</string>
     <!-- externel -->
     <string name="action_copy">Copy</string>
-    <string name="action_open">Open</string>
     <!-- group -->
     <string name="group_update">Update</string>
-    <string name="group_subscription_link">Subscription Link</string>
-    <string name="group_name_required">Group name required</string>
-    <string name="group_create_subscription">Create subscription</string>
     <string name="update_all_subscription">Update all subscriptions</string>
-    <string name="group_edit">Edit group</string>
-    <string name="group_edit_subscription">Edit subscription</string>
     <string name="group_status_empty_subscription">Not updated yet</string>
     <string name="group_no_difference">%s: No difference</string>
     <string name="group_updated">%s: Updated %d proxies</string>
-    <string name="group_show_diff">Diff</string>
     <string name="group_diff">Diff (%s)</string>
-    <string name="group_delete_confirm_prompt">Are you sure you want to remove this group?</string>
     <string name="group_added">Added: \n%s</string>
     <string name="group_changed">Updated: \n%s</string>
     <string name="group_deleted">Deleted: \n%s</string>
     <string name="group_duplicate">Duplicate: \n%s</string>
     <!-- misc -->
     <string name="service_mode_vpn" translatable="false">VPN</string>
-    <string name="port_http">HTTP Proxy Port</string>
-    <string name="port_transproxy">Transproxy Port</string>
-    <string name="require_http">Enable HTTP inbound</string>
     <string name="ws_max_early_data" translatable="false">Max early data</string>
-    <string name="ws_browser_forwarding">Browser Forwarding</string>
-    <string name="ws_browser_forwarding_sum">Forward corresponding WebSockets through the browser.</string>
-    <string name="show_stop">Show Stop Button</string>
-    <string name="show_stop_sum">If you don’t want to use Quick Tile as the switch</string>
     <string name="allow_insecure">Allow Insecure</string>
     <string name="allow_insecure_sum">Disable certificate checking. When enabled, this configuration
         is as secure as plaintext</string>
     <string name="traffic" translatable="false">%1$s↑ %2$s↓</string>
     <string name="speed_detail">Proxy： %1$s↑ %2$s↓\nDirect： %3$s↑ %4$s↓</string>
     <string name="speed">%s/s</string>
-    <string name="connection_test_fail">Internet Unavailable</string>
-    <string name="connection_test_error_status_code">Error code: #%d</string>
     <string name="remote_dns_help">One per line: https://…/dns-query, tls://…, 1.1.1.1. When a server fails or keeps silent, the next one is asked</string>
     <string name="direct_dns_help">local: the network\'s own resolver, as other apps use it (Private DNS included). Or a server: https://…/dns-query, tls://…, 1.1.1.1</string>
     <string name="private_dns_strict">Private DNS is set to %s: apps send their DNS over TLS to it, past Niko\'s DNS. Domain rules then rest on sniffing, and that resolver sees every name. Settings → Network → Private DNS: Automatic or Off.</string>
-    <string name="dns_hosts">Domain rewrite</string>
-    <string name="port_local_dns">Local DNS Port</string>
-    <string name="require_transproxy">Enable Transproxy Inbound</string>
-    <string name="transproxy_mode">Transproxy Mode</string>
     <!-- proxy category -->
-    <string name="key_opt">Key (Optional)</string>
     <string name="enc_method">Encrypt Method</string>
     <string name="protocol">Protocol</string>
-    <string name="protocol_param">Protocol Param</string>
-    <string name="obfs">Obfs</string>
-    <string name="obfs_param">Obfs Param</string>
     <string name="security">Transport layer encryption</string>
     <string name="network">Network</string>
-    <string name="header_type">Header Type</string>
     <string name="ws_host">WebSocket Host</string>
     <string name="ws_path">WebSocket Path</string>
     <string name="http_host">HTTP Host</string>
     <string name="http_path">HTTP Path</string>
     <string name="grpc_service_name">gRPC ServiceName</string>
-    <string name="tls">Use TLS</string>
     <string name="certificates">Certificates</string>
     <string name="early_data_header_name">Early Data Header Name</string>
     <string name="encryption">Encryption</string>
     <string name="extra_headers">Extra Headers</string>
-    <string name="config_type">Config Type</string>
-    <string name="edit_config">Edit Config</string>
     <!-- feature category -->
-    <string name="menu_route">Route</string>
     <string name="delete_route_prompt">Are you sure you want to remove this route?</string>
-    <string name="route_proxy">Proxy</string>
     <string name="route_dpi_bypass">DPI bypass</string>
     <string name="route_dpi_bypass_summary">How: Settings › Experiments › DPI bypass for direct connections</string>
-    <string name="route_profile">Select Profile…</string>
     <string name="empty_route">Empty Route</string>
     <string name="empty_route_notice">Set some rules before saving</string>
     <string name="route_bypass_domain">Domain rule for %s</string>
@@ -106,20 +67,12 @@
     <string name="route_import_ca_message">The certificates in %s will be trusted for every TLS connection of the app that has no pin: proxies (naive profiles aside: they take a root only from the profile itself), remote DNS, subscription and rule downloads. Whoever holds the key of such a certificate can read and change that traffic. Add it only if you know where it came from.</string>
     <string name="route_import_ca_done">Certificate added. A running profile trusts it after its restart.</string>
     <string name="route_opt_block_ads">Block ADs</string>
-    <string name="route_opt_block_analysis">Block analysis</string>
     <string name="route_opt_block_quic">Block QUIC</string>
-    <string name="domain_strategy">Domain Resolution Strategy</string>
     <string name="enable_mux">Enable Multiplexer</string>
     <string name="mux_sum">Mux is designed to reduce TCP handshake latency, not to increase
         connection throughput. Using Mux to watch videos, download or speed test is usually counter
         productive. If the server does not support it, you will not be able to access the Internet.</string>
     <string name="mux_concurrency">Mux Concurrent Connections</string>
-    <string name="tcp_keep_alive_interval">TCP keep active packet delivery interval</string>
-    <string name="off">Off</string>
-    <string name="scanning">Scanning…</string>
-    <string name="direct_boot_aware">Allow Toggling in Lock Screen</string>
-    <string name="direct_boot_aware_summary">Your selected profile information will be less
-        protected</string>
     <!-- notification category -->
     <string name="service_vpn">VPN Service</string>
     <string name="service_proxy">Proxy Service</string>
@@ -143,7 +96,6 @@
     <string name="action_socks" translatable="false">SOCKS</string>
     <string name="action_http" translatable="false">HTTP</string>
     <string name="action_shadowsocks" translatable="false">Shadowsocks</string>
-    <string name="action_shadowsocksr" translatable="false">ShadowsocksR</string>
     <string name="action_vmess" translatable="false">VMess</string>
     <string name="action_trojan" translatable="false">Trojan</string>
     <string name="action_trojan_go" translatable="false">Trojan Go</string>
@@ -156,16 +108,9 @@
     <string name="action_tuic" translatable="false">TUIC</string>
     <string name="proxy_chain">Proxy Chain</string>
     <string name="custom_config">Custom Config</string>
-    <string name="balancer">Balancer</string>
-    <string name="balancer_settings">Balancer Settings</string>
-    <string name="balancer_type">Type</string>
-    <string name="balancer_strategy">Strategy</string>
     <string name="config_settings">Config Settings</string>
     <string name="circular_reference">Circular reference</string>
     <string name="circular_reference_sum">The route cannot contain itself.</string>
-    <string name="action_create_group">Empty group</string>
-    <string name="action_from_link">From subscription</string>
-    <string name="action_scan_china_apps">Scan China apps</string>
     <string name="action_export_file">Export to file</string>
     <string name="action_export_clipboard">Export to clipboard</string>
     <string name="action_import_file">Import from file</string>
@@ -190,18 +135,14 @@
         <item quantity="other">%d proxies added</item>
     </plurals>
     <string name="undo">Undo</string>
-    <string name="insecure">Insecure</string>
-    <string name="deprecated">Deprecated</string>
     <!-- tasker -->
     <!-- status -->
     <!-- subscriptions -->
-    <string name="cleartext_http_warning">Cleartext HTTP traffic is insecure</string>
     <string name="error_title">Error</string>
     <string name="no_proxies_found">No proxies found in the link</string>
     <string name="no_proxies_found_in_subscription">No proxies found in the subscription</string>
     <string name="no_proxies_found_in_file">No proxies found in the file</string>
     <string name="no_proxies_found_in_clipboard">No proxies found in the clipboard</string>
-    <string name="deduplication">Deduplication</string>
     <!-- plugin -->
     <string name="plugin">Plugin</string>
     <string name="plugin_unknown">Unknown plugin %s</string>
@@ -213,57 +154,31 @@
     <string name="plugin_trust">Trust</string>
     <string name="plugin_revoke">Revoke</string>
     <string name="plugin_app_info">App info</string>
-    <string name="plugin_auto_connect_unlock_only">This plugin might not work with Auto Connect</string>
     <string name="unsaved_changes_prompt">Changes not saved. Do you want to save?</string>
     <string name="yes">Yes</string>
     <string name="no">No</string>
     <string name="apply">Apply</string>
     <string name="need_reload">Reload proxy service to apply changes</string>
-    <string name="license">License</string>
     <string name="lines">%d Lines</string>
     <string name="enable">Enable</string>
-    <string name="disable">Disable</string>
-    <string name="enable_log">Enable Log</string>
-    <string name="enable_log_sum">For debugging purposes</string>
-    <string name="list">List</string>
-    <string name="random">Random</string>
-    <string name="leastPing" translatable="false">Ping</string>
-    <string name="api_port">API Port</string>
-    <string name="probe_interval">Balancer observation interval</string>
-    <string name="v2rayn" translatable="false">V2RayN</string>
     <string name="connection_test_clear_results">Clear test results</string>
     <string name="connection_test_tcp_ping" translatable="false">TCPing</string>
-    <string name="connection_test_tcp_ping_unavailable">TCPing unavailable</string>
-    <string name="connection_test_icmp_ping" translatable="false">ICMPing</string>
-    <string name="connection_test_icmp_ping_unavailable">ICMPing unavailable</string>
     <string name="connection_test_url_test" translatable="false">URL Test</string>
     <string name="connection_test_domain_not_found">Domain not found</string>
     <string name="connection_test_refused">Connection refused</string>
     <string name="connection_test_unreachable">Unreachable</string>
     <string name="connection_test_timeout">Timeout</string>
-    <string name="protocol_settings">Protocol Settings</string>
-    <string name="trojan_provider">Trojan Provider</string>
-    <string name="group_basic">Basic</string>
-    <string name="subscription">Subscription</string>
-    <string name="subscription_type">Subscription Type</string>
-    <string name="raw">Raw</string>
     <string name="confirm">Confirm</string>
     <string name="profile_requiring_plugin">Profile %s requires the %s plugin to be installed, but
         it was not found.</string>
-    <string name="action_learn_more">LEARN MORE</string>
     <string name="install_from_play_store">Install from Play Store</string>
     <string name="install_from_fdroid">Install from F-Droid</string>
-    <string name="ooc_subscription_token" translatable="false">OOCv1 API Token</string>
-    <string name="ooc_subscription_token_invalid">Invalid OOCv1 Token</string>
     <string name="update_subscription_warning">Proxy is not connected, are you sure you want to
         continue updating?</string>
     <string name="ooc_warning">Warning</string>
-    <string name="ooc_missing_protocol">The subscription requires support for protocol %s, but it
-        cannot be found. Unsupported profiles will be ignored.</string>
     <string name="service_subscription">Subscription Update Service</string>
     <string name="subscription_update">Subscription Update</string>
     <string name="subscription_update_message">Updating %s …</string>
-    <string name="group_filter">Filter</string>
     <string name="subscription_used">%s Used</string>
     <string name="subscription_traffic">%s Used / %s Remaining</string>
     <string name="subscription_expire">Expire: %s</string>
@@ -279,64 +194,22 @@
     <string name="hysteria_obfs">Obfuscation Password</string>
     <string name="hysteria_auth_type">Authentication Type</string>
     <string name="hysteria_auth_payload">Authentication Payload</string>
-    <string name="experimental_settings">Experimental</string>
     <string name="hysteria_stream_receive_window">QUIC Stream Receive Window</string>
     <string name="hysteria_connection_receive_window">QUIC Connection Receive Window</string>
     <string name="hysteria_disable_mtu_discovery">Disable Path MTU Discovery</string>
-    <string name="group_order_origin">Origin</string>
-    <string name="group_order_by_name">By Name</string>
-    <string name="group_order_by_delay">By Delay</string>
-    <string name="plugin_exists_but_on_shit_system">Profile %s requires the %s plugin, but your
-        proprietary equipment vendor (usually surveillance capital giants and malware maker)
-        tampered with your Android, making the plugin unusable.</string>
-
-    <string name="shadowsocks_plugin_simple_obfs">Simple Obfs (Shadowsocks Android Plugin)</string>
-    <string name="shadowsocks_plugin_v2ray">V2Ray (Shadowsocks Android Plugin)</string>
-
-    <string name="traffic_uplink" translatable="false">%s | %s/s ↑</string>
-    <string name="traffic_downlink" translatable="false">%s | %s/s ↓</string>
-
-    <string name="traffic_uplink_total" translatable="false">%s ↑</string>
-    <string name="traffic_downlink_total" translatable="false">%s ↓</string>
-
-    <string name="tcp_connections">%d TCP connections</string>
-    <string name="udp_connections">%d UDP connections</string>
-
-    <string name="copy_label">Copy Name</string>
-    <string name="copy_package_name">Copy Package Name</string>
-    <string name="open_app">Open App</string>
-    <string name="open_market">Open Market</string>
-    <string name="create_rule">Create Rule</string>
 
     <string name="copy_success">Copy success!</string>
-    <string name="copy_failed">Copy failed.</string>
-    <string name="app_no_launcher">The app has no interface.</string>
 
     <string name="route_need_vpn">Routing rule %s relies on the VPN to be in effect, so it is
         ignored.</string>
 
-    <string name="no_statistics">No statistics yet</string>
-    <string name="app_statistics_disabled">App Traffic statistics disabled</string>
-    <string name="ssh_auth_type_none">None</string>
     <string name="ssh_private_key">Private Key</string>
     <string name="ssh_private_key_passphrase">Private Key Passphrase</string>
-    <string name="translate_platform">Translate Platform</string>
-    <string name="menu_log">Logs</string>
     <string name="clear_logcat">Clear Logcat</string>
     <string name="wireguard_local_address">Local Address</string>
     <string name="wireguard_public_key">Peer Public Key</string>
     <string name="wireguard_psk">Peer Pre-Shared Key</string>
 
-    <string name="cloudflare_wrap" translatable="false">Cloudflare Warp</string>
-    <string name="warp_license">CloudFlare Warp is a free WireGuard VPN provider. By using it, you
-        agree to the TOS.</string>
-    <string name="warp_generate">Generate Configuration</string>
-    <string name="generating">Generating…</string>
-    <string name="destination_override">Override Destination</string>
-    <string name="destination_override_summary">Use the sniffed domain to overwrite the destination
-        address, not just for routing</string>
-    <string name="pcap" translatable="false">Pcap</string>
-    <string name="pcap_notice">Pcap files will be saved to %s</string>
     <string name="naive_insecure_concurrency">Insecure Concurrency</string>
     <string name="naive_uot">UDP: QUIC, over TCP where it does not pass</string>
     <string name="naive_uot_summary">UDP (WireGuard and WARP, games, QUIC). Where the node\'s link says udp=1 (raycontrol from v0.30.0): as HTTP/3 datagrams over QUIC once a check on the network has passed; before that, and where QUIC does not pass, in a TCP stream of the tunnel (sing-box\'s UDP-over-TCP v2). The stream only for a server that takes it: sing-box\'s naive inbound, a raycontrol node from v0.20.0 (its links turn it on with uot=2); elsewhere every UDP flow ends in EOF. Off, naive carries TCP only.</string>
@@ -356,12 +229,10 @@
         then custom outbounds will be lost.</string>
     <string name="backup_not_file">Not an backup file: excepted .json, but %s</string>
     <string name="invalid_backup_file">Invalid backup file</string>
-    <string name="backup_import">Import</string>
     <string name="backup_import_summary">Importing will overwrite the existing data.</string>
     <string name="backup_importing">Importing…</string>
 
     <string name="packet_encoding">Packet Encoding</string>
-    <string name="release_wake_lock">Release WakeLock</string>
     <string name="action_switch">Switch</string>
 
     <string name="tuic_udp_relay_mode">UDP Relay Mode</string>
@@ -369,18 +240,9 @@
     <string name="tuic_disable_sni">Disable SNI</string>
     <string name="tuic_reduce_rtt">Enable 0-RTT QUIC handshake</string>
 
-    <string name="please_update">Your APP is too old (%s). And will stop working at %s. Please
-        update!</string>
-    <string name="please_update_force">Your APP is too old (%s). And has been stopped working at %s.
-        Please update!</string>
     <string name="connection_test_delete_unavailable">Clear unavailable</string>
-    <string name="move">Move</string>
-    <string name="exe_prefer_provider">Plugin Preferred Provider</string>
-    <string name="create_shortcut">Create Shortcut</string>
     <string name="root_store_naive_note">naive profiles check certificates inside Chromium, by its rules, and are held to the list chosen here besides. Under Chrome\'s list: a root must be both in Chromium\'s own list and in the app\'s list of Chrome\'s roots, which leaves out the certificate authorities marked China (nine roots Chromium has are not in it). Under Mozilla\'s list: both in Chromium\'s list and in Mozilla\'s. Under the system\'s store: Chromium\'s list and this phone\'s roots, those over HTTP/2 only unless the switch below is on. A profile with its own key pins or its own certificate follows those instead; an imported ca.pem does not reach naive.</string>
     <string name="utls_fingerprint">uTLS fingerprint</string>
-    <string name="custom_outbound_json">Custom outbound JSON</string>
-    <string name="custom_config_json">Custom config JSON</string>
     <string name="is_outbound_only">The JSON set is outbound</string>
     <string name="save">Save</string>
     <string name="copy_clash_api_secret">Copy API secret</string>
@@ -409,23 +271,15 @@
     <string name="rule_set_update_3d">Every 3 days</string>
     <string name="rule_set_update_7d">Weekly</string>
     <string name="shortcut_pin_unsupported">The launcher can not pin shortcuts. Choose a default launcher and try again.</string>
-    <string name="ads">Ads</string>
     <string name="need_restart">Restart APP to apply changes</string>
     <string name="use_selector">Use selector</string>
     <string name="action_shadowtls" translatable="false">ShadowTLS</string>
     <string name="protocol_version">Protocol Version</string>
     <string name="reset_connections">Reset Connections</string>
     <string name="remove_duplicate">Remove duplicates</string>
-    <string name="mtu_help">Long press the preference to set custom MTU.</string>
-    <string name="test_concurrency">Test concurrency</string>
     <string name="mux_type">Mux protocol</string>
-    <string name="sniff_override">Sniff result for destination</string>
-    <string name="resolve_server">Resolve the server address according to the IPv6 policy</string>
     <string name="auto_select_proxy_apps_message">Auto select proxy apps, this will clear your
         current selection.</string>
-    <string name="enable_ech">Enable ECH</string>
-    <string name="enable_ech_sum">Enable Encrypted Client Hello</string>
-    <string name="ech_settings">ECH Settings</string>
     <string name="ech_config">ECH Config</string>
     <string name="http_upgrade_host">HTTPUpgrade Host</string>
     <string name="http_upgrade_path">HTTPUpgrade Path</string>
@@ -451,8 +305,6 @@
     <string name="update_needs_android">%1$s needs Android %2$s or newer. This phone stays on the version it has, which keeps working.</string>
     <string name="reset_settings_message">Restore default settings, but data such as nodes and groups will be retained. To completely clear data, clear application data directly in the system settings.</string>
     <string name="app_list_permission_denied">Unable to read installed apps.\nThis is usually because the system has restricted app read permissions.\nPlease grant permissions in the system settings.</string>
-    <string name="open_app_settings">Open System Settings</string>
-    <string name="connection_tweaks">Connection tweaks</string>
     <string name="cert_pins">Certificate pinning</string>
     <string name="cert_pins_hint">SHA-256 of the server public key</string>
     <string name="yggdrasil_peers_help">One per line: tls://host:port, tcp://, quic://, ws://, wss://. A raycontrol node: tls://address:443?sni=its-yggdrasil-name. Public peers: github.com/yggdrasil-network/public-peers</string>
@@ -626,8 +478,6 @@
     <string name="raycontrol_admin_service_name">Name</string>
     <string name="raycontrol_admin_service_apply">A service that needs its own process or a port in the host firewall starts after rayctl apply on the node.</string>
     <string name="raycontrol_admin_network">Network</string>
-    <string name="raycontrol_admin_node_name">Node name</string>
-    <string name="raycontrol_admin_mark">%s · admin</string>
     <string name="raycontrol_admin_node_name_none">none (clients show its address)</string>
     <string name="raycontrol_admin_node_name_help">Clients show it in place of the node\'s address after their next subscription update. At most 48 characters; empty removes it.</string>
     <string name="raycontrol_admin_node_name_set">Node name: %s</string>
@@ -887,7 +737,6 @@
     <string name="redo">Redo</string>
     <string name="format_config">Format</string>
     <string name="more_options">More options</string>
-    <string name="flashlight">Flashlight</string>
     <string name="stats_hour">Statistics for the last hour</string>
     <string name="stats_hour_help">What the app did in the last hour, as a JSON file: starts and failures, networks, the watchdog\'s steps, URL tests, traffic, memory. Without addresses, keys, domains or names. Give it the run id of the node\'s rayctl stats -id to read both together.</string>
     <string name="stats_hour_share">Share</string>
@@ -943,7 +792,6 @@
     <string name="home_test_group">Test the group %s</string>
     <string name="home_stop_test">Stop the test of %s</string>
     <string name="home_test_progress">%1$d of %2$d</string>
-    <string name="menu_home">Home</string>
     <string name="node_back">Back</string>
     <string name="node_update">Update the node</string>
     <string name="node_more">More</string>
