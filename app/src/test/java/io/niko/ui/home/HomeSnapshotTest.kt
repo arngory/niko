@@ -76,6 +76,14 @@ class HomeSnapshotTest(private val mode: String) {
         override fun updateAll() {}
         override fun add() {}
         override fun action(row: SubRow, action: SubAction) {}
+        override fun move(row: SubRow, other: SubRow) {}
+    }
+
+    private val noMenus = object : ConfigsMenuActions {
+        override fun group(groupId: Long, action: GroupAction) {}
+        override fun share(id: Long, action: ShareAction) {}
+        override fun delete(id: Long) {}
+        override fun move(id: Long, other: Long) {}
     }
 
     private fun utc(pattern: String) = java.text.SimpleDateFormat(pattern, java.util.Locale.ENGLISH).apply {
@@ -127,7 +135,7 @@ class HomeSnapshotTest(private val mode: String) {
             HomeScreen(
                 state, view, none, clock = { NOW }, ticking = false, sheet = sheet,
                 configs = groups, testing = setOf(2L), configsActions = noConfigs, configsOpen = configs,
-                subs = subs, subsActions = noSubs, format = format, subsOpen = onSubs,
+                subs = subs, subsActions = noSubs, format = format, subsOpen = onSubs, configsMenus = noMenus,
                 // the test's results over the rows read: Helsinki answered meanwhile
                 results = mapOf(22L to ConfigsTest.Result(pingMs = 88, unreachable = false)),
             )

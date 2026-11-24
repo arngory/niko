@@ -88,4 +88,21 @@ class SubsLoaderTest {
         assertTrue(SubAction.QR in own && SubAction.EXPORT_FILE in own)
         assertFalse(SubAction.ANOTHER_DEVICE in own)
     }
+
+    @Test
+    fun aGroupChangesPlacesWithTheOneNextToIt() {
+        val a = SubRow(1, "a", SubKind.SUBSCRIPTION, profiles = 1)
+        val b = SubRow(2, "b", SubKind.OWN, profiles = 1)
+        val loose = SubRow(3, "Ungrouped", SubKind.UNGROUPED, profiles = 1)
+        val rows = listOf(a, b, loose)
+        assertEquals(null to b, SubsLoader.neighbours(rows, a))
+        assertEquals(a to loose, SubsLoader.neighbours(rows, b))
+        // as the old list's drag: the ungrouped and a group being fetched stay where they are
+        assertEquals(null to null, SubsLoader.neighbours(rows, loose))
+        assertEquals(null to null, SubsLoader.neighbours(rows, b.copy(updating = true)))
+        val menu = SubsLoader.menu(b, up = true, down = false)
+        assertTrue(SubAction.MOVE_UP in menu)
+        assertFalse(SubAction.MOVE_DOWN in menu)
+        assertFalse(SubAction.MOVE_UP in SubsLoader.menu(b))
+    }
 }

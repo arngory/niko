@@ -13,7 +13,9 @@ import io.niko.raycontrol.RayNodes
 enum class SubKind { SUBSCRIPTION, NODE, OWN, UNGROUPED }
 
 /** What a group's menu offers (P-Subs ⋮), in its order. */
-enum class SubAction { SETTINGS, ADMIN, LAN, QR, COPY_LINK, ANOTHER_DEVICE, EXPORT_CLIPBOARD, EXPORT_FILE, CLEAR, DELETE }
+enum class SubAction {
+    SETTINGS, ADMIN, LAN, QR, COPY_LINK, ANOTHER_DEVICE, EXPORT_CLIPBOARD, EXPORT_FILE, MOVE_UP, MOVE_DOWN, CLEAR, DELETE
+}
 
 /**
  * A group as the Subscriptions tab lists it (P-Subs, D-SUB-01…07): its name, when it ends and was fetched, its
@@ -96,9 +98,9 @@ object SubsLoader {
     /**
      * A group's menu: the ungrouped can only be exported or cleared; a node's adds its panel and its network, and in
      * place of the link and the export says how another device is added: its rows are this device's, the other takes
-     * an invite of its own (salamander-device-v1 §6).
+     * an invite of its own (salamander-device-v1 §6). [up] and [down]: it has a group to change places with (D-SUB-10).
      */
-    fun menu(row: SubRow): List<SubAction> = buildList {
+    fun menu(row: SubRow, up: Boolean = false, down: Boolean = false): List<SubAction> = buildList {
         val node = row.kind == SubKind.NODE
         if (row.kind != SubKind.UNGROUPED) add(SubAction.SETTINGS)
         if (row.admin) add(SubAction.ADMIN)
@@ -114,8 +116,20 @@ object SubsLoader {
                 add(SubAction.EXPORT_CLIPBOARD)
                 add(SubAction.EXPORT_FILE)
             }
-            add(SubAction.CLEAR)
         }
+        if (up) add(SubAction.MOVE_UP)
+        if (down) add(SubAction.MOVE_DOWN)
+        if (row.profiles > 0) add(SubAction.CLEAR)
         if (row.kind != SubKind.UNGROUPED) add(SubAction.DELETE)
+    }
+
+    /**
+     * The groups next to [row] in the list, above and below, to change places with (D-SUB-10). As the old list's drag:
+     * the ungrouped and a group being fetched stay where they are.
+     */
+    fun neighbours(rows: List<SubRow>, row: SubRow): Pair<SubRow?, SubRow?> {
+        val at = rows.indexOfFirst { it.id == row.id }
+        if (at < 0 || row.kind == SubKind.UNGROUPED || row.updating) return null to null
+        return rows.getOrNull(at - 1) to rows.getOrNull(at + 1)
     }
 }

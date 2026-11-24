@@ -51,6 +51,8 @@ interface SubsActions {
     /** a new group: its settings, empty */
     fun add()
     fun action(row: SubRow, action: SubAction)
+    /** the group changes places with [other], next to it in the list (D-SUB-10) */
+    fun move(row: SubRow, other: SubRow)
 }
 
 /** The header's buttons on the Subscriptions tab: update all, add (P-Subs). */
@@ -168,9 +170,12 @@ private fun SubQuota(row: SubRow, format: NodeFormat, modifier: Modifier = Modif
     }
 }
 
-/** m-sheet of a group's menu: its name, then a row for each action; clear and delete in danger. */
+/**
+ * m-sheet of a group's menu: its name, then a row for each action; clear and delete in danger. [up] and [down]: it can
+ * change places with the group above or below.
+ */
 @Composable
-internal fun SubMenu(row: SubRow, onPick: (SubAction) -> Unit, onDismiss: () -> Unit) {
+internal fun SubMenu(row: SubRow, up: Boolean = false, down: Boolean = false, onPick: (SubAction) -> Unit, onDismiss: () -> Unit) {
     val c = Niko.colors
     BackHandler(onBack = onDismiss)
     Box(
@@ -181,7 +186,7 @@ internal fun SubMenu(row: SubRow, onPick: (SubAction) -> Unit, onDismiss: () -> 
         Sheet(Modifier.clickable(remember { MutableInteractionSource() }, indication = null) { }.navigationBarsPadding()) {
             Text(row.name, NikoType.headline, c.ink, Modifier.padding(start = NikoSpace.s5, end = NikoSpace.s5, bottom = NikoSpace.s2), maxLines = 1)
             Column(Modifier.verticalScroll(rememberScrollState()).padding(bottom = NikoSpace.s6)) {
-                SubsLoader.menu(row).forEachIndexed { i, action ->
+                SubsLoader.menu(row, up, down).forEachIndexed { i, action ->
                     val (icon, title) = menuItem(action)
                     val danger = action == SubAction.CLEAR || action == SubAction.DELETE
                     ListRow(
@@ -207,6 +212,8 @@ private fun menuItem(action: SubAction): Pair<Int, String> = when (action) {
     SubAction.ANOTHER_DEVICE -> R.drawable.ic_l_monitor_smartphone to stringResource(R.string.subs_another_device)
     SubAction.EXPORT_CLIPBOARD -> R.drawable.ic_l_upload to stringResource(R.string.action_export_clipboard)
     SubAction.EXPORT_FILE -> R.drawable.ic_l_file_up to stringResource(R.string.action_export_file)
+    SubAction.MOVE_UP -> R.drawable.ic_l_arrow_up to stringResource(R.string.pe_move_up)
+    SubAction.MOVE_DOWN -> R.drawable.ic_l_arrow_down to stringResource(R.string.pe_move_down)
     SubAction.CLEAR -> R.drawable.ic_l_x to stringResource(R.string.subs_clear)
     SubAction.DELETE -> R.drawable.ic_l_trash_2 to stringResource(R.string.subs_delete)
 }

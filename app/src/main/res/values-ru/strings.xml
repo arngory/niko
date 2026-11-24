@@ -1040,4 +1040,14 @@
     <string name="preview_ok">Понятно</string>
     <string name="plugin_needed">Нужен плагин %1$s</string>
     <string name="plugin_download_link">Скачать по ссылке</string>
+    <!-- Меню листа конфигов on Compose (D-PROFILE-05…08) -->
+    <string name="cfg_edit">Изменить</string>
+    <string name="cfg_clear_traffic">Обнулить статистику</string>
+    <string name="cfg_share_qr_sn">QR-код SN-ссылки</string>
+    <string name="cfg_share_link">Ссылка в буфер</string>
+    <string name="cfg_share_link_sn">SN-ссылка в буфер</string>
+    <string name="cfg_share_config">Конфигурация в буфер</string>
+    <string name="cfg_share_config_file">Конфигурация в файл</string>
+    <string name="cfg_error">Проверка не прошла</string>
+    <string name="cfg_error_show">Показать ошибку</string>
 </resources>
