@@ -4,7 +4,6 @@
     <string name="oss_licenses">Licencias de código abierto</string> 
     <string name="app_version">Versión</string> 
     <string name="logcat">Exportar información de depuración</string>
-    <string name="menu_configuration">Configuración</string>
     <string name="menu_group">Grupo</string> 
     <string name="theme">Tema</string> 
     <string name="document">Documento</string> 
@@ -18,18 +17,13 @@
     <string name="action_copy">Copiar</string> 
     <string name="action_open">Abrir</string> 
     <!-- group --> 
-    <string name="group_name">Nombre del grupo</string> 
     <string name="group_update">Actualizar</string> 
     <string name="group_subscription_link">Enlace de suscripción</string> 
     <string name="group_name_required">Nombre de grupo requerido</string> 
-    <string name="group_create">Crear grupo</string> 
     <string name="group_create_subscription">Crear suscripción</string> 
     <string name="group_edit">Editar grupo</string> 
     <string name="group_edit_subscription">Editar suscripción</string> 
-    <string name="group_status_empty">Grupo vacío</string> 
     <string name="group_status_empty_subscription">Aún no actualizado</string> 
-    <string name="group_status_proxies">%d proxys</string> 
-    <string name="group_status_proxies_subscription">%d proxys | Actualizado el %s</string> 
     <string name="group_no_difference">%s: Sin diferencia</string> 
     <string name="group_updated">%s: %d proxys actualizados</string> 
     <string name="group_show_diff">Diferencia</string> 
@@ -54,10 +48,6 @@
     <string name="traffic" translatable="false">%1$s↑ %2$s↓</string> 
     <string name="speed_detail">Proxy： %1$s↑ %2$s↓\nDirecto： %3$s↑ %4$s↓</string> 
     <string name="speed">%s/s</string> 
-    <string name="connection_test_testing">Probando…</string> 
-    <string name="connection_test_available">Éxito: el protocolo de enlace HTTPS tomó %dms</string> 
-    <string name="connection_test_available_http">Éxito: el protocolo de enlace HTTP tomó %dms</string> 
-    <string name="connection_test_error">Error: %s</string> 
     <string name="connection_test_fail">Internet no disponible</string> 
     <string name="connection_test_error_status_code">Código de error: #%d</string>       
     <string name="dns_hosts">Reescritura de dominio</string> 
@@ -65,8 +55,6 @@
     <string name="require_transproxy">Activar transproxy entrante</string> 
     <string name="transproxy_mode">Modo transproxy</string>  
     <!-- proxy category --> 
-    <string name="profile_name">Nombre de perfil</string> 
-    <string name="server_address">Servidor</string> 
     <string name="key_opt">Clave (Opcional)</string> 
     <string name="enc_method">Método de cifrado</string> 
     <string name="protocol">Protocolo</string> 
@@ -119,17 +107,14 @@
     <string name="invalid_server">Nombre de servidor no válido</string> 
     <string name="service_failed">Fallido:</string> 
     <string name="stop">Detener</string> 
-    <string name="stopping">Apagando…</string> 
     <string name="vpn_error">%s</string> 
     <string name="vpn_permission_denied">Permiso denegado para crear un servicio VPN</string> 
     <string name="reboot_required">No se pudo iniciar el servicio VPN. Es posible que deba reiniciar su dispositivo.</string> 
     <!-- alert category --> 
     <string name="profile_empty">Por favor seleccione un perfil</string> 
-    <string name="connect">Conectar</string> 
     <string name="clipboard_empty">El portapapeles está vacío</string> 
     <!-- menu category --> 
     <string name="settings">Ajustes</string> 
-    <string name="edit">Editar</string> 
     <string name="share">Compartir</string> 
     <string name="add_profile">Añadir perfil</string> 
     <string name="select_profile">Seleccionar perfil</string>
@@ -142,14 +127,11 @@
     <string name="config_settings">Ajustes de configuración</string> 
     <string name="circular_reference">Referencia circular</string> 
     <string name="circular_reference_sum">La ruta no puede contenerse a sí misma.</string> 
-    <string name="clear_profiles">Borrar</string> 
     <string name="action_create_group">Grupo vacío</string> 
     <string name="action_from_link">Desde suscripción</string> 
     <string name="action_scan_china_apps">Escanear aplicaciones de China</string> 
     <string name="action_export_file">Exportar a archivo</string> 
     <string name="action_export_clipboard">Exportar al portapapeles</string> 
-    <string name="action_export">Exportar</string> 
-    <string name="action_import">Importar desde portapapeles</string> 
     <string name="action_import_file">Importar desde archivo</string> 
     <string name="action_export_msg">¡Exportación exitosa!</string> 
     <string name="action_export_err">Error al exportar.</string> 
@@ -175,9 +157,6 @@
     <string name="deprecated">Obsoleto</string> 
     <!-- tasker --> 
     <!-- status --> 
-    <string name="connecting">Conectando…</string> 
-    <string name="vpn_connected">Conectado, toque para verificar la conexión</string> 
-    <string name="not_connected">No conectado</string> 
     <!-- subscriptions --> 
     <string name="cleartext_http_warning">El tráfico HTTP de texto claro no es seguro</string> 
     <string name="error_title">Error</string> 
@@ -206,12 +185,7 @@
     <string name="leastPing" translatable="false">Ping</string> 
     <string name="api_port">Puerto API</string> 
     <string name="probe_interval">Intervalo de observación del equilibrador</string> 
-    <string name="standard">Estándar</string> 
     <string name="v2rayn" translatable="false">V2RayN</string> 
-    <string name="available" translatable="false">%dms</string> 
-    <string name="unavailable">No disponible</string>   
-    <string name="clear_traffic_statistics">Borrar estadísticas de tráfico</string> 
-    <string name="connection_test">Prueba de conexión</string> 
     <string name="connection_test_clear_results">Borrar resultados de la prueba</string> 
     <string name="connection_test_tcp_ping" translatable="false">TCPing</string> 
     <string name="connection_test_tcp_ping_unavailable">TCPing no disponible</string> 
@@ -248,7 +222,6 @@
     <string name="subscription_import_message">¿Confirma que desea importar la suscripción %s? Si proviene de una fuente que no es de confianza, hacer esto puede provocar que se filtre su IP y su comportamiento.</string> 
     <string name="profile_import">Importar perfil</string> 
     <string name="profile_import_message">¿Confirma que desea importar el perfil %s?</string> 
-    <string name="clear_profiles_message">¿Estás seguro de que quieres borrar este grupo?</string> 
     <string name="apps">Aplicaciones</string> 
     <string name="hysteria_obfs">Contraseña de ofuscación</string> 
     <string name="hysteria_auth_type">Tipo de autenticación</string> 
@@ -256,7 +229,6 @@
     <string name="experimental_settings">Experimental</string>
     <string name="hysteria_stream_receive_window">Ventana de recepción de transmisión QUIC</string>
     <string name="hysteria_connection_receive_window">Ventana de recepción de conexión QUIC</string> 
-    <string name="group_order">Orden</string> 
     <string name="group_order_origin">Origen</string> 
     <string name="group_order_by_name">Por nombre</string> 
     <string name="group_order_by_delay">Por retraso</string> 

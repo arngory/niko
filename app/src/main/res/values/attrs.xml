@@ -2,16 +2,8 @@
 
 <resources>
     <attr name="colorMaterial100" format="color" />
-    <attr name="colorMaterial300" format="color" />
     <attr name="accentOrTextSecondary" format="color" />
-    <attr name="accentOrTextPrimary" format="color" />
-    <attr name="primaryOrTextSecondary" format="color" />
     <attr name="primaryOrTextPrimary" format="color" />
-    <attr name="fabColorBackground" format="color" />
-    <!-- the connect button's icon on fabColorBackground, and the ring of its progress around it -->
-    <attr name="fabIconTint" format="color" />
-    <attr name="fabRingColor" format="color" />
-    <attr name="selectedColorPrimary" format="color" />
     <attr name="whiteOrTextPrimary" format="color" />
     <!-- the shadow under the bars (the app bar, the group and tool tabs); Niko has none: its surfaces part the layers -->
     <attr name="barElevation" format="dimension" />
@@ -19,22 +11,6 @@
          colorPrimary the accent, ink, which Material's fields, buttons and indicators take, and fills its bars with
          surface-0 -->
     <attr name="barBackground" format="color" />
-    <!-- the statistics bar's speeds (tx, rx) on colorMaterial300: white in the colour themes, ink-2 in Niko -->
-    <attr name="whiteOrTextSecondary" format="color" />
-    <!-- a profile's state on its card and in the test's dialog: reachable (its ping), failed -->
-    <attr name="statusOkColor" format="color" />
-    <attr name="statusErrorColor" format="color" />
-    <!-- the connect button's shadow: at rest and pressed, and hovered or focused; Niko has none -->
-    <attr name="fabElevation" format="dimension" />
-    <attr name="fabHoveredFocusedTranslationZ" format="dimension" />
-    <!-- the ring of the connect button's progress, twice as thick as it shows: its inner half is under the button -->
-    <attr name="fabRingThickness" format="dimension" />
-    <!-- drawn over the connect button: Niko's halo, a hairline at its edge; @null in the colour themes -->
-    <attr name="fabHalo" format="reference" />
-    <!-- the connect button after a start that failed, until the next state (ServiceButton) -->
-    <attr name="state_failed" format="boolean" />
-    <!-- the drawer's fill, and the icons of its rows not chosen -->
-    <attr name="drawerIconColor" format="color" />
     <!-- the settings' rows in groups: surface-1 containers of radius-md with hairlines between rows (the Niko theme,
          NikoPreferenceGroups); off in the colour themes -->
     <attr name="nikoGroupedPreferences" format="boolean" />
@@ -42,6 +18,4 @@
     <attr name="nikoTonalButtonStyle" format="reference" />
     <!-- a chip that is on or off (show the system's apps) -->
     <attr name="nikoFilterChipStyle" format="reference" />
-    <!-- a tool's Start (STUN): Niko's tonal button, the colour themes' borderless one -->
-    <attr name="nikoToolButtonStyle" format="reference" />
 </resources>

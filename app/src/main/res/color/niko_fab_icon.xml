@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- the Niko theme's connect button, its icon on niko_fab_fill: danger, on-ink, ink -->
-<selector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
-    <item android:color="@color/niko_danger" app:state_failed="true" />
-    <item android:color="@color/niko_on_ink" android:state_checked="true" />
-    <item android:color="@color/niko_ink" />
-</selector>

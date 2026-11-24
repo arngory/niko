@@ -120,7 +120,6 @@
     <string name="set_direct_speed">Direct connections\' speed</string>
     <string name="set_group_in_notification">Group in the notification</string>
     <string name="set_show_address">Server address in the list</string>
-    <string name="set_bottom_bar">Bar at the bottom</string>
     <string name="set_allow_tethering">Hotspot through the VPN</string>
     <string name="set_allow_tethering_sum">Lets the devices on this phone\'s hotspot through the VPN (VPN tethering) when only some apps go through Niko. Off, their TCP is refused: such a device cannot be told from an app left out of the VPN</string>
 </resources>

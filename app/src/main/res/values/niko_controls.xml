@@ -3,7 +3,7 @@
      its words body 600: the primary ink with on-ink (m-btn), the tonal surface-2 with ink, a tool's action
      (m-btn, tonal), the ghost no fill with ink (m-btn, ghost); a press fills a shade deeper. A chip is a tag or a
      segment: surface-2 with ink, ink with on-ink when chosen. The theme hands them out (Theme.SagerNet.Niko):
-     materialButtonStyle, nikoTonalButtonStyle, nikoToolButtonStyle, borderlessButtonStyle, chipStyle,
+     materialButtonStyle, nikoTonalButtonStyle, borderlessButtonStyle, chipStyle,
      nikoFilterChipStyle. -->
 <resources>
 
@@ -83,9 +83,6 @@
     </style>
     <style name="Widget.SagerNet.Button.Borderless" parent="Widget.MaterialComponents.Button.TextButton">
         <item name="android:textColor">?accentOrTextSecondary</item>
-    </style>
-    <style name="Widget.SagerNet.Button.Tool" parent="Widget.AppCompat.Button.Borderless">
-        <item name="android:textColor">?primaryOrTextPrimary</item>
     </style>
 
 </resources>

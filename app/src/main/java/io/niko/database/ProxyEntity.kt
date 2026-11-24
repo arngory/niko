@@ -229,13 +229,6 @@ data class ProxyEntity(
         } ?: error("Null ${displayType()} profile")
     }
 
-    fun haveLink(): Boolean {
-        return when (type) {
-            TYPE_CHAIN -> false
-            else -> true
-        }
-    }
-
     fun haveStandardLink(): Boolean {
         return when (requireBean()) {
             is SSHBean -> false

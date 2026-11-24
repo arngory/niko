@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- the Niko theme's connect button: a hairline at its edge, drawn over it (fabHalo); its colour by the button's state -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="oval">
-    <stroke
-        android:width="@dimen/niko_stroke_hairline"
-        android:color="@color/niko_fab_halo" />
-</shape>

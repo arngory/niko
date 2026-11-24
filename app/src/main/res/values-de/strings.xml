@@ -2,7 +2,6 @@
 <resources>
     <string name="group_subscription_link">Abonnement-Link</string>
     <string name="group_update">Aktualisieren</string>
-    <string name="group_name">Gruppen name</string>
     <string name="tile_title">Umschalter</string>
     <string name="quick_toggle">Umschalten</string>
     <string name="quick_enable">Aktivieren</string>
@@ -11,12 +10,10 @@
     <string name="document">Dokument</string>
     <string name="theme">Style</string>
     <string name="menu_group">Gruppe</string>
-    <string name="menu_configuration">Konfiguration</string>
     <string name="app_version">Version</string>
     <string name="logcat">Debug-Informationen exportieren</string>
     <string name="oss_licenses">Quelloffene Lizenzen</string>
     <string name="app_desc">Die universelle Proxy-Toolchain für Android, geschrieben in Kotlin.</string>
-    <string name="group_create">Erstellen Gruppe</string>
     <string name="group_name_required">Gruppen Name benötigt</string>
     <string name="group_delete_confirm_prompt">Bist du dir sicher das du diese Gruppe entfernen möchtest\?</string>
     <string name="license">Lizenz</string>

@@ -2,8 +2,6 @@
 
 package io.niko.ktx
 
-import androidx.fragment.app.Fragment
-import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.*
 
 fun block(block: suspend CoroutineScope.() -> Unit): suspend CoroutineScope.() -> Unit {
@@ -12,9 +10,6 @@ fun block(block: suspend CoroutineScope.() -> Unit): suspend CoroutineScope.() -
 
 fun runOnDefaultDispatcher(block: suspend CoroutineScope.() -> Unit) =
     GlobalScope.launch(Dispatchers.Default, block = block)
-
-fun Fragment.runOnLifecycleDispatcher(block: suspend CoroutineScope.() -> Unit) =
-    lifecycleScope.launch(Dispatchers.Default, block = block)
 
 suspend fun <T> onDefaultDispatcher(block: suspend CoroutineScope.() -> T) =
     withContext(Dispatchers.Default, block = block)

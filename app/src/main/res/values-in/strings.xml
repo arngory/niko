@@ -1,24 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="port_http">Proksi Port HTTP</string>
-    <string name="group_status_proxies_subscription">%d Proksi | Diperbarui pada %s</string>
-    <string name="group_status_proxies">%d Proksi</string>
     <string name="protocol_param">Param Protokol</string>
     <string name="protocol">Protokol</string>
     <string name="enc_method">Metode Enkrip</string>
     <string name="key_opt">Kunci (Opsional)</string>
-    <string name="server_address">Server</string>
-    <string name="profile_name">Nama Profil</string>
     <string name="transproxy_mode">Mode Transproksi</string>
     <string name="require_transproxy">Aktifkan Inbound Transproksi</string>
     <string name="port_local_dns">Port DNS lokal</string>
     <string name="dns_hosts">Tulis ulang DNS</string>
     <string name="connection_test_error_status_code">Kode galat: #%d</string>
     <string name="connection_test_fail">Internet tidak tersedia</string>
-    <string name="connection_test_error">Gagal: %s</string>
-    <string name="connection_test_available_http">Sukses: handshake HTTP butuh %dms</string>
-    <string name="connection_test_available">Sukses: handshake HTTPS butuh %dms</string>
-    <string name="connection_test_testing">Mengetes…</string>
     <string name="speed">%s/s</string>
     <string name="speed_detail">Proksi： %1$s↑ %2$s↓
 \nDirek： %3$s↑ %4$s↓</string>
@@ -44,16 +36,13 @@
     <string name="group_show_diff">Diff</string>
     <string name="group_updated">%s: Diperbarui %d proxy</string>
     <string name="group_no_difference">%s: Tidak ada perbedaan</string>
-    <string name="group_status_empty">Grup kosong</string>
     <string name="group_status_empty_subscription">Belum diperbarui</string>
     <string name="group_edit_subscription">Ubah langganan</string>
     <string name="group_edit">Ubah grup</string>
     <string name="group_create_subscription">Buat langganan</string>
-    <string name="group_create">Buat grup</string>
     <string name="group_name_required">Nama grup diperlukan</string>
     <string name="group_subscription_link">Tautan Langganan</string>
     <string name="group_update">Perbarui</string>
-    <string name="group_name">Nama grup</string>
     <string name="tile_title">Pengalih</string>
     <string name="quick_toggle">Beralih</string>
     <string name="quick_enable">Aktifkan</string>
@@ -62,7 +51,6 @@
     <string name="document">Dokumen</string>
     <string name="theme">Tema</string>
     <string name="menu_group">Grup</string>
-    <string name="menu_configuration">Konfigurasi</string>
     <string name="logcat">Ekspor informasi debug</string>
     <string name="app_version">Versi</string>
     <string name="oss_licenses">Lisensi sumber terbuka</string>
@@ -77,9 +65,7 @@
     <string name="share">Bagikan</string>
     <string name="settings">Pengaturan</string>
     <string name="clipboard_empty">Papan klip kosong</string>
-    <string name="connect">Sambungkan</string>
     <string name="vpn_error">%s</string>
-    <string name="stopping">Mematikan…</string>
     <string name="stop">Berhenti</string>
     <string name="service_failed">Gagal:</string>
     <string name="invalid_server">Nama server tidak valid</string>
@@ -111,7 +97,6 @@
     <string name="balancer">Pengimbang</string>
     <string name="custom_config">Konfigurasi Kustom</string>
     <string name="proxy_chain">Rantai Proksi</string>
-    <string name="edit">Sunting</string>
     <string name="reboot_required">Gagal memulai layanan VPN. Anda mungkin perlu me-reboot perangkat Anda.</string>
     <string name="vpn_permission_denied">Izin ditolak untuk membuat layanan VPN</string>
     <string name="direct_boot_aware_summary">Informasi profil yang Anda pilih akan kurang terlindungi</string>
