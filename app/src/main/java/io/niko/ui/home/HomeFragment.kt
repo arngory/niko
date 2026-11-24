@@ -33,7 +33,6 @@ import io.niko.ui.GroupSettingsActivity
 import io.niko.ui.RayAdminActivity
 import io.niko.ui.node.NodeFormat
 import io.niko.ui.node.NodeFragment
-import io.niko.ui.showRayLanDialog
 import io.niko.ui.updateAllGroups
 import io.niko.ui.updateRayNode
 import io.niko.widget.QRCodeDialog
@@ -162,7 +161,7 @@ class HomeFragment : Fragment() {
                 SubAction.ADMIN -> row.nodeId?.let {
                     startActivity(Intent(requireContext(), RayAdminActivity::class.java).putExtra(RayAdminActivity.EXTRA_NODE, it))
                 }
-                SubAction.LAN -> row.nodeId?.let { showRayLanDialog(it) }
+                SubAction.LAN -> row.nodeId?.let { startActivity(io.niko.ui.node.LanActivity.intent(requireContext(), it)) }
                 SubAction.QR, SubAction.COPY_LINK -> runOnDefaultDispatcher {
                     val group = SagerDatabase.groupDao.getById(row.id) ?: return@runOnDefaultDispatcher
                     val link = group.toUniversalLink()

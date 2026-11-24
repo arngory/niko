@@ -252,6 +252,9 @@
             android:configChanges="uiMode"
             android:label="@string/ap_title" />
         <activity
+            android:name="io.niko.ui.node.LanActivity"
+            android:configChanges="uiMode" />
+        <activity
             android:name="io.niko.ui.add.AddActivity"
             android:configChanges="uiMode"
             android:excludeFromRecents="true"

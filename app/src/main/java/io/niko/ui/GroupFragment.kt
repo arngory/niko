@@ -332,7 +332,7 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
                         .putExtra(RayAdminActivity.EXTRA_NODE, node.spa.nodeId))
                 }
 
-                R.id.action_ray_lan -> rayNode?.let { node -> showRayLanDialog(node.spa.nodeId) }
+                R.id.action_ray_lan -> rayNode?.let { node -> startActivity(io.niko.ui.node.LanActivity.intent(requireContext(), node.spa.nodeId)) }
 
                 R.id.action_universal_qr -> {
                     QRCodeDialog(
