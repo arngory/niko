@@ -282,7 +282,6 @@
 <string name="license">Лицензия</string>
 <string name="lines">%d строк</string>
 <string name="logcat">Экспорт отладочной информации</string>
-<string name="mal_close">Закрыть</string>
 <string name="material_clock_toggle_content_description">Выберите AM (до полудня) или PM (после полудня)</string>
 <string name="material_timepicker_am">AM</string>
 <string name="material_timepicker_pm">PM</string>
@@ -324,8 +323,6 @@
 <string name="naive_insecure_concurrency_summary">Использовать N параллельных соединений для повышения отказоустойчивости в условиях ненадёжной сети. Большее число соединений увеличивает риск обнаружения туннелей и снижает безопасность. Этот проект стремится к максимальной защите от анализа трафика, следовательно, использование его небезопасным образом противоречит данной цели. 
  
 Если придётся использовать данную функцию, попробуйте N=2, чтобы проверить, решит ли это проблему. Настоятельно не рекомендуется использовать более 4 соединений.</string>
-<string name="nat_result_hint">Провести проверку NAT</string>
-<string name="nat_stun_server_hint">STUN сервер</string>
 <string name="need_reload">Перезагрузите прокси-сервис, чтобы применить изменения</string>
 <string name="need_restart">Перезапустите приложение для применения изменений</string>
 <string name="network">Сеть</string>
@@ -412,7 +409,6 @@
 <string name="service_proxy">Прокси-сервис</string>
 <string name="service_subscription">Служба обновления подписки</string>
 <string name="service_vpn">VPN-сервис</string>
-<string name="set_panel_url">Установить URL панель</string>
 <string name="settings">Настройки</string>
 <string name="shadowsocks_plugin_simple_obfs">Simple Obfs (плагин Shadowsocks для Android)</string>
 <string name="shadowsocks_plugin_v2ray">V2Ray (плагин Shadowsocks для Android)</string>
@@ -428,13 +424,10 @@
 <string name="ssh_private_key">Закрытый ключ</string>
 <string name="ssh_private_key_passphrase">Парольная фраза закрытого ключа</string>
 <string name="standard">Стандарт</string>
-<string name="start">Старт</string>
 <string name="status_bar_notification_info_overflow">&gt;999</string>
 <string name="stop">Остановить</string>
 <string name="stopping">Выключение…</string>
-<string name="stun_attest_loading">Пожалуйста, подождите…</string>
-<string name="stun_test">Обнаружение поведения NAT</string>
-<string name="stun_test_summary">Определить поведение сопоставления адресов NAT и поведение фильтрации NAT в соответствии с RFC 5780 при помощи STUN.</string>
+<string name="stun_test">Тип NAT</string>
 <string name="subscription">Подписка</string>
 <string name="subscription_expire">Истекает: %s</string>
 <string name="subscription_import">Импортировать подписку</string>
@@ -1006,4 +999,21 @@
     <string name="ad_relays">Ретрансляторы</string>
     <string name="ad_cancel">Отмена</string>
     <string name="ad_ok">ОК</string>
+    <!-- Тип NAT and the sing-box panel on Compose (D-TOOLS-01, D-TOOLS-02) -->
+    <string name="nat_server">STUN-сервер</string>
+    <string name="nat_check">Проверить</string>
+    <string name="nat_running">Проверяю…</string>
+    <string name="nat_result">Результат</string>
+    <string name="nat_type">Тип</string>
+    <string name="nat_mapping">Сопоставление</string>
+    <string name="nat_filtering">Фильтрация</string>
+    <string name="nat_external">Внешний адрес</string>
+    <string name="nat_endpoint">не зависит от адреса</string>
+    <string name="nat_address">по адресу</string>
+    <string name="nat_address_port">по адресу и порту</string>
+    <string name="nat_note">Запрос идёт мимо туннеля, напрямую с этой сети. Если сопоставление зависит от адреса, прямые соединения между устройствами (Yggdrasil, локальная сеть узла) пойдут через ретранслятор.</string>
+    <string name="panel_url">Адрес панели</string>
+    <string name="panel_url_label">Адрес</string>
+    <string name="panel_secret_sub">Нужен панели, открытой в браузере</string>
+    <string name="save">Сохранить</string>
 </resources>

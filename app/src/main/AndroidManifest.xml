@@ -271,7 +271,7 @@
             android:name="io.niko.ui.about.LicenseTextActivity"
             android:configChanges="uiMode" />
         <activity
-            android:name="io.niko.ui.StunActivity"
+            android:name="io.niko.ui.tools.NatActivity"
             android:configChanges="uiMode"
             android:launchMode="singleTask"
             android:parentActivityName="io.niko.ui.MainActivity" />
