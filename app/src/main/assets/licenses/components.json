@@ -24,7 +24,6 @@
     {"name": "ZXingLite", "part": "library", "url": "https://github.com/jenly1314/ZXingLite", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"], "gradle": ["com.github.jenly1314:zxing-lite"]},
     {"name": "ZXing", "part": "library", "url": "https://github.com/zxing/zxing", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"], "gradle": ["com.google.zxing:*"]},
     {"name": "EditorKit", "part": "library", "url": "https://github.com/massivemadness/EditorKit", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"], "gradle": ["com.blacksquircle.ui:*"]},
-    {"name": "material-about-library", "part": "library", "url": "https://github.com/daniel-stoneuk/material-about-library", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"], "gradle": ["com.github.daniel-stoneuk:material-about-library"]},
     {"name": "RecyclerView-FastScroll", "part": "library", "url": "https://github.com/timusus/RecyclerView-FastScroll", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt"], "gradle": ["com.simplecityapps:recyclerview-fastscroll"]},
     {"name": "Objenesis", "part": "library", "url": "https://objenesis.org", "licenses": ["Apache-2.0"], "texts": ["Apache-2.0.txt", "Objenesis-NOTICE.txt"], "gradle": ["org.objenesis:objenesis"], "notice_from": ["org.objenesis:objenesis"]},
     {"name": "Kryo", "part": "library", "url": "https://github.com/EsotericSoftware/kryo", "licenses": ["BSD-3-Clause"], "texts": ["Kryo-BSD-3-Clause.txt"], "gradle": ["com.esotericsoftware:kryo"]},

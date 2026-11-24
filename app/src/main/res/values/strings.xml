@@ -378,13 +378,7 @@
         Using it in an insecure way defeats its purpose. \n\nIf you must use this, try N=2 first to
         see if it solves your issues. Strongly recommend against using more than 4 connections here.</string>
 
-    <string name="stun_test">NAT behaviour discovery</string>
-    <string name="stun_test_summary">Determine the client\'s NAT mapping behaviour and the NAT
-        filtering behaviour defined in RFC 3478 using STUN.</string>
-    <string name="start">Start</string>
-    <string name="stun_attest_loading">This may take a few minutes…</string>
-    <string name="nat_stun_server_hint">Stun server</string>
-    <string name="nat_result_hint">NAT check result</string>
+    <string name="stun_test">NAT type</string>
     <string name="mtu" translatable="false">MTU</string>
 
     <string name="backup_groups_and_configurations">Groups and configurations</string>
@@ -421,7 +415,6 @@
     <string name="custom_config_json">Custom config JSON</string>
     <string name="is_outbound_only">The JSON set is outbound</string>
     <string name="save">Save</string>
-    <string name="set_panel_url">Set panel URL</string>
     <string name="copy_clash_api_secret">Copy API secret</string>
     <string name="wireguard_persistent_keepalive">Persistent keepalive, seconds (0 = off, 25 for mobile networks)</string>
     <string name="vless_encryption">VLESS encryption</string>
@@ -1058,4 +1051,20 @@
     <string name="inbound_network">Network</string>
     <string name="inbound_metered">Treat the network as metered</string>
     <string name="inbound_wake_lock">WakeLock</string>
+    <!-- Тип NAT and the sing-box panel on Compose (D-TOOLS-01, D-TOOLS-02) -->
+    <string name="nat_server">STUN server</string>
+    <string name="nat_check">Check</string>
+    <string name="nat_running">Checking…</string>
+    <string name="nat_result">Result</string>
+    <string name="nat_type">Type</string>
+    <string name="nat_mapping">Mapping</string>
+    <string name="nat_filtering">Filtering</string>
+    <string name="nat_external">External address</string>
+    <string name="nat_endpoint">independent of the address</string>
+    <string name="nat_address">by address</string>
+    <string name="nat_address_port">by address and port</string>
+    <string name="nat_note">The request goes past the tunnel, straight from this network. If the mapping depends on the address, direct connections between devices (Yggdrasil, a node\'s local network) go through a relay.</string>
+    <string name="panel_url">Panel address</string>
+    <string name="panel_url_label">Address</string>
+    <string name="panel_secret_sub">A panel opened in a browser needs it</string>
 </resources>

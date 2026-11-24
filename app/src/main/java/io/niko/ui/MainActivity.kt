@@ -356,7 +356,7 @@ class MainActivity : ThemedActivity(),
                 is io.niko.ui.route.RoutingFragment -> shown.back()
                 // the screens the settings open go back to them, the sing-box panel to the log it is opened from
                 is io.niko.ui.about.AboutFragment, is io.niko.ui.backup.BackupFragment -> displayFragmentWithId(R.id.nav_settings)
-                is WebviewFragment -> displayFragmentWithId(R.id.nav_logcat)
+                is io.niko.ui.tools.PanelFragment -> shown.back()
                 else -> displayFragmentWithId(R.id.nav_home)
             }
         }
@@ -685,7 +685,8 @@ class MainActivity : ThemedActivity(),
     private fun applyBars(fragment: Fragment) {
         val old = fragment !is HomeFragment && fragment !is io.niko.ui.node.NodeFragment && fragment !is SettingsFragment &&
             fragment !is io.niko.ui.log.LogFragment && fragment !is io.niko.ui.route.RoutingFragment &&
-            fragment !is io.niko.ui.about.AboutFragment && fragment !is io.niko.ui.backup.BackupFragment
+            fragment !is io.niko.ui.about.AboutFragment && fragment !is io.niko.ui.backup.BackupFragment &&
+            fragment !is io.niko.ui.tools.PanelFragment
         if (old && DataStore.showBottomBar) {
             showStats()
         } else {
@@ -713,7 +714,7 @@ class MainActivity : ThemedActivity(),
             R.id.nav_group -> displayFragment(GroupFragment())
             R.id.nav_route -> displayFragment(io.niko.ui.route.RoutingFragment())
             R.id.nav_settings -> displayFragment(SettingsFragment())
-            R.id.nav_traffic -> displayFragment(WebviewFragment())
+            R.id.nav_traffic -> displayFragment(io.niko.ui.tools.PanelFragment())
             R.id.nav_logcat -> displayFragment(io.niko.ui.log.LogFragment())
             R.id.nav_faq -> {
                 launchCustomTab("https://github.com/$RELEASE_REPO#readme")

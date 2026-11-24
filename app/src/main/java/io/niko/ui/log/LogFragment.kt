@@ -24,7 +24,7 @@ import io.niko.ktx.setField
 import io.niko.ktx.snackbar
 import io.niko.raycontrol.RayTestRun
 import io.niko.ui.MainActivity
-import io.niko.ui.StunActivity
+import io.niko.ui.tools.NatActivity
 import io.niko.ui.compose.NikoTheme
 import io.niko.utils.SendLog
 import libcore.Libcore
@@ -65,7 +65,7 @@ class LogFragment : Fragment() {
 
         override fun statsHour() = askStatsHour()
 
-        override fun nat() = startActivity(Intent(requireContext(), StunActivity::class.java))
+        override fun nat() = startActivity(Intent(requireContext(), NatActivity::class.java))
 
         override fun dashboard() {
             (requireActivity() as MainActivity).displayFragmentWithId(R.id.nav_traffic)
