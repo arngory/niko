@@ -155,7 +155,9 @@ class RuleActivity : ThemedActivity() {
         }
     }
 
-    private val editJson = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+    // the JSON editor's text only when it saved (its store is in memory and comes back empty after the process died)
+    private val editJson = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
         val f = form.value ?: return@registerForActivityResult
         form.value = f.copy(config = DataStore.serverConfig)
     }

@@ -200,52 +200,7 @@
             android:name="io.niko.ui.profile.ConfigEditActivity"
             android:configChanges="uiMode" />
         <activity
-            android:name="io.niko.ui.profile.SocksSettingsActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name="io.niko.ui.profile.HttpSettingsActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name="io.niko.ui.profile.ShadowsocksSettingsActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name="io.niko.ui.profile.VMessSettingsActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name="io.niko.ui.profile.TrojanSettingsActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name="io.niko.ui.profile.TrojanGoSettingsActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name="io.niko.ui.profile.MieruSettingsActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name="io.niko.ui.profile.NaiveSettingsActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name="io.niko.ui.profile.HysteriaSettingsActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name="io.niko.ui.profile.SSHSettingsActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name="io.niko.ui.profile.WireGuardSettingsActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name="io.niko.ui.profile.TuicSettingsActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name="io.niko.ui.profile.ChainSettingsActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name="io.niko.proxy.shadowtls.ShadowTLSSettingsActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name="io.niko.proxy.anytls.AnyTLSSettingsActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name="io.niko.proxy.config.ConfigSettingActivity"
+            android:name="io.niko.ui.profile.ProfileActivity"
             android:configChanges="uiMode" />
         <activity
             android:name="io.niko.ui.GroupSettingsActivity"

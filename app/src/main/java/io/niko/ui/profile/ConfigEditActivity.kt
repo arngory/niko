@@ -206,6 +206,8 @@ class ConfigEditActivity : ThemedActivity() {
             } else {
                 DataStore.profileCacheStore.putString(key, it)
             }
+            // saved: the caller takes the text (back without saving leaves its own as it was)
+            setResult(RESULT_OK)
             finish()
         }
     }
