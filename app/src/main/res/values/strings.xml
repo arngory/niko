@@ -274,14 +274,11 @@
     <string name="subscription_type">Subscription Type</string>
     <string name="raw">Raw</string>
     <string name="confirm">Confirm</string>
-    <string name="missing_plugin">Missing Plugin</string>
     <string name="profile_requiring_plugin">Profile %s requires the %s plugin to be installed, but
         it was not found.</string>
     <string name="action_learn_more">LEARN MORE</string>
-    <string name="action_download">DOWNLOAD</string>
     <string name="install_from_play_store">Install from Play Store</string>
     <string name="install_from_fdroid">Install from F-Droid</string>
-    <string name="download">Download</string>
     <string name="ooc_subscription_token" translatable="false">OOCv1 API Token</string>
     <string name="ooc_subscription_token_invalid">Invalid OOCv1 Token</string>
     <string name="update_subscription_warning">Proxy is not connected, are you sure you want to
@@ -628,25 +625,16 @@
     <string name="raycontrol_invite_failed">Registration failed: %s</string>
     <string name="raycontrol_link_confirm">Import the raycontrol node %s from this link? Only accept links from your administrator.</string>
     <string name="raycontrol_admin">Node administration</string>
-    <string name="raycontrol_admin_status">Status</string>
-    <string name="raycontrol_admin_users">Users</string>
-    <string name="raycontrol_admin_services">Services</string>
-    <string name="raycontrol_admin_audit">Audit</string>
-    <string name="raycontrol_admin_add">Add</string>
-    <string name="raycontrol_admin_next">Next</string>
     <string name="raycontrol_admin_empty">Nothing here yet</string>
     <string name="raycontrol_admin_denied">The node does not allow this to this device: it needs an admin device registered through an invite.</string>
     <string name="raycontrol_admin_unauthenticated">The node no longer knows this device: it was revoked, or its user was disabled or expired.</string>
     <string name="raycontrol_admin_lost">The node got the request but its answer was lost: it may have taken effect. Refresh before trying again.</string>
     <string name="raycontrol_admin_this_device">This device</string>
-    <string name="raycontrol_admin_node">Node</string>
     <string name="raycontrol_admin_warnings">Node warnings</string>
-    <string name="raycontrol_admin_counts">Users: %1$d · services: %2$d · active devices: %3$d</string>
     <string name="raycontrol_admin_spa_ports">SPA ports open now</string>
     <string name="raycontrol_admin_metrics">Metrics</string>
     <string name="raycontrol_admin_metrics_summary">Aggregate counters of the node, without names</string>
     <string name="raycontrol_admin_access">Emergency SSH access</string>
-    <string name="raycontrol_admin_access_none">none: SSH only after SPA</string>
     <string name="raycontrol_admin_access_hint">203.0.113.0/24, one per line</string>
     <string name="raycontrol_admin_access_help">Addresses (CIDR) that reach SSH without SPA. Keep this list short.</string>
     <string name="raycontrol_admin_disabled">disabled</string>
@@ -658,17 +646,11 @@
     <string name="raycontrol_admin_expires">until %s</string>
     <string name="raycontrol_admin_no_limit">no traffic limit</string>
     <string name="raycontrol_admin_limit">limit %s</string>
-    <string name="raycontrol_admin_devices">Devices</string>
-    <string name="raycontrol_admin_devices_of">Devices of %s</string>
     <string name="raycontrol_admin_invite">Invite a device</string>
-    <string name="raycontrol_admin_invite_for">Invite a device for %s</string>
-    <string name="raycontrol_admin_invite_role">Role of the device</string>
     <string name="raycontrol_admin_invite_ttl">The invite is valid for</string>
     <string name="raycontrol_admin_invite_pending">invite, valid until %s</string>
     <string name="raycontrol_admin_invite_created">One-time invite for %1$s/%2$s, valid until %3$s. Scan it in Niko on the new device, or send it over a trusted channel: whoever uses it first gets the device.</string>
-    <string name="raycontrol_admin_device_name">Device name</string>
     <string name="raycontrol_admin_revoke">Revoke %1$s/%2$s? It loses access at once, and %1$s gets new credentials: %1$s\'s other devices lose their connection until they fetch their subscription, which Niko does at its next connection check, within about 10 minutes. A node older than v0.27.0 changes no credentials.</string>
-    <string name="raycontrol_admin_user_services">Services</string>
     <string name="raycontrol_admin_user_new">New user</string>
     <string name="raycontrol_admin_user_name">Name</string>
     <string name="raycontrol_admin_user_days">Valid for, days (0: no expiry)</string>
@@ -685,11 +667,9 @@
     <string name="raycontrol_admin_service_apply">A service that needs its own process or a port in the host firewall starts after rayctl apply on the node.</string>
     <string name="raycontrol_admin_network">Network</string>
     <string name="raycontrol_admin_mark">%s · admin</string>
-    <string name="raycontrol_admin_node_name">Node name</string>
     <string name="raycontrol_admin_node_name_none">none (clients show its address)</string>
     <string name="raycontrol_admin_node_name_help">Clients show it in place of the node\'s address after their next subscription update. At most 48 characters; empty removes it.</string>
     <string name="raycontrol_admin_node_name_set">Node name: %s</string>
-    <string name="raycontrol_admin_node_note">Note for users</string>
     <string name="raycontrol_admin_node_note_none">none</string>
     <string name="raycontrol_admin_node_note_help">Clients show it with the node as plain text after their next subscription update: limits, rules. One line of at most 200 characters (an emoji may take several); empty removes it.</string>
     <string name="raycontrol_admin_node_note_set">Note: %s</string>
@@ -707,7 +687,6 @@
     <string name="raycontrol_admin_summary_on">%1$d networks, %2$d reports from smaller ones, for %3$d days</string>
     <string name="raycontrol_admin_summary_networks">Networks</string>
     <string name="raycontrol_admin_options">Settings</string>
-    <string name="raycontrol_admin_options_of">Settings of %s</string>
     <string name="raycontrol_admin_option_set">%1$s = %2$s</string>
     <string name="raycontrol_admin_option_auth">Query authentication (dnsauth)</string>
     <string name="raycontrol_admin_option_auth_hint">Key hint (dnsauth-v2)</string>
@@ -755,7 +734,6 @@
     <string name="raycontrol_admin_invite_create">Create the invite</string>
     <string name="raycontrol_admin_role_user">User: connects through the node</string>
     <string name="raycontrol_admin_role_admin">Admin: also manages the node from that device</string>
-    <string name="raycontrol_admin_invite_pin">Ask for a PIN as well (6 digits, told by another channel)</string>
     <string name="raycontrol_admin_invite_pin_is">PIN: %s. Tell it by another channel than the invite (a call, in person); it is not shown again.</string>
     <string name="raycontrol_admin_links">Links for other apps</string>
     <string name="raycontrol_admin_links_help">These links hold %s\'s keys: give them to that person only. Apps other than Niko do not knock (SPA), so they reach only the services open to everyone; Niko devices get the subscription through an invite.</string>
@@ -784,10 +762,8 @@
     <string name="raycontrol_admin_update_confirm">Update the node to %s? rayd, its API and the tunnels restart: connections through the node drop for a minute or two. An update that fails rolls back to the version running now.</string>
     <string name="raycontrol_admin_update_waiting">The update is asked for; waiting for the node…</string>
     <string name="raycontrol_admin_update_unreachable">The node is restarting and out of reach for now (a minute or two is usual); asking again…</string>
-    <string name="raycontrol_admin_update_close">Close (the update goes on)</string>
     <string name="raycontrol_admin_update_no_outcome">No outcome yet. The node may still be updating: look at the status tab later, it shows the update\'s state.</string>
     <string name="raycontrol_admin_update_idle">The node is not updating itself</string>
-    <string name="raycontrol_admin_relays">Relays</string>
     <string name="raycontrol_admin_relays_count">Relays: %s</string>
     <string name="raycontrol_admin_relays_help">The node names its own version to its relays, and each relay whose root allows it (rayctl update remote on there) updates by itself, one at a time. A relay cannot be updated or held from the phone: root on the relay holds it with rayctl update remote off.</string>
     <string name="raycontrol_admin_relay_waiting">waiting for its turn</string>
@@ -1046,6 +1022,38 @@
     <string name="inbound_network">Network</string>
     <string name="inbound_metered">Treat the network as metered</string>
     <string name="inbound_wake_lock">WakeLock</string>
+    <string name="ad_admin">Admin</string>
+    <string name="ad_refresh">Refresh</string>
+    <string name="ad_loading">Loading…</string>
+    <string name="ad_save">Save</string>
+    <string name="ad_node_name">Node name</string>
+    <string name="ad_note">Note</string>
+    <string name="ad_members">Members</string>
+    <string name="ad_devices">Devices</string>
+    <string name="ad_version">Version</string>
+    <string name="ad_update">Update</string>
+    <string name="ad_services">Services</string>
+    <string name="ad_audit">Audit</string>
+    <string name="ad_releases">App releases</string>
+    <string name="ad_ports_metrics">Ports and metrics</string>
+    <string name="ad_ssh">Emergency SSH</string>
+    <string name="ad_on">on</string>
+    <string name="ad_off">off</string>
+    <string name="ad_node">Node</string>
+    <string name="ad_access_on">Access enabled</string>
+    <string name="ad_invite">Invite</string>
+    <string name="ad_device">Device</string>
+    <string name="ad_role">Role</string>
+    <string name="ad_role_user">User</string>
+    <string name="ad_ttl">Valid for</string>
+    <string name="ad_pin">PIN</string>
+    <string name="ad_pin_sub">6 digits, told separately</string>
+    <string name="ad_revoke">Revoke</string>
+    <string name="ad_service_on">Enabled</string>
+    <string name="ad_keys">Keys</string>
+    <string name="ad_relays">Relays</string>
+    <string name="ad_cancel">Cancel</string>
+    <string name="ad_ok">OK</string>
     <!-- Тип NAT and the sing-box panel on Compose (D-TOOLS-01, D-TOOLS-02) -->
     <string name="nat_server">STUN server</string>
     <string name="nat_check">Check</string>
@@ -1108,4 +1116,12 @@
     <string name="cfg_share_config_file">Configuration to a file</string>
     <string name="cfg_error">The test failed</string>
     <string name="cfg_error_show">Show the error</string>
+    <!-- Niko dialogs (m-dialog), M-STATE-PREVIEW, M-SET-04 -->
+    <string name="dialog_cancel">Cancel</string>
+    <string name="dialog_ok">OK</string>
+    <string name="preview_title">Preview version %1$s</string>
+    <string name="preview_report">Report a problem</string>
+    <string name="preview_ok">Got it</string>
+    <string name="plugin_needed">The %1$s plugin is needed</string>
+    <string name="plugin_download_link">Download by link</string>
 </resources>

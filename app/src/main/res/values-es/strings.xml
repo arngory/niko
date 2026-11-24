@@ -229,13 +229,10 @@
     <string name="subscription_type">Tipo de suscripción</string> 
     <string name="raw">Raw</string> 
     <string name="confirm">Confirmar</string> 
-    <string name="missing_plugin">Complemento faltante</string> 
     <string name="profile_requiring_plugin">El perfil %s requiere que se instale el complemento %s, pero no se encontró.</string> 
     <string name="action_learn_more">APRENDER MÁS</string> 
-    <string name="action_download">DESCARGAR</string> 
     <string name="install_from_play_store">Instalar desde Play Store</string> 
     <string name="install_from_fdroid">Instalar desde F-Droid</string> 
-    <string name="download">Descargar</string> 
     <string name="ooc_subscription_token" translatable="false">OOCv1 API Token</string> 
     <string name="ooc_subscription_token_invalid">Token OOCv1 no válido</string> 
     <string name="update_subscription_warning">El proxy no está conectado, ¿estás seguro de que deseas continuar con la actualización?</string> 

@@ -19,11 +19,8 @@
     <string name="enable_log">Activer la journalisation</string>
     <string name="subscription">Abonnement</string>
     <string name="profile_requiring_plugin">%s nécessite l\'installation du greffon %s, mais il n\'a pas été trouvé.</string>
-    <string name="missing_plugin">Greffon manquant</string>
     <string name="confirm">Confirmer</string>
-    <string name="action_download">TÉLÉCHARGER</string>
     <string name="action_learn_more">EN SAVOIR PLUS</string>
-    <string name="download">Télécharger</string>
     <string name="apps">Applications</string>
     <string name="clear_profiles_message">Êtes-vous sûr(e) de vouloir supprimer ce groupe \?</string>
     <string name="profile_import_message">Confirmez-vous que vous voulez importer le profil %s \?</string>

@@ -138,13 +138,10 @@
     <string name="ooc_warning">Uyarı</string>
     <string name="update_subscription_warning">Vekil sunucu bağlanmadı, güncellemeye devam etmek istediğinize emin misiniz\?</string>
     <string name="ooc_subscription_token_invalid">OOCv1 Anahtarı Geçersiz</string>
-    <string name="download">İndir</string>
     <string name="install_from_fdroid">F-Droid\'den Kur</string>
     <string name="install_from_play_store">Play Store\'dan Kur</string>
-    <string name="action_download">İNDİR</string>
     <string name="action_learn_more">DAHA FAZLASINI ÖĞREN</string>
     <string name="profile_requiring_plugin">Profil %s %s eklentisinin kurulmasını gerektirir ama kurulu değil.</string>
-    <string name="missing_plugin">Eksik Eklenti</string>
     <string name="confirm">Doğrula</string>
     <string name="raw">Ham</string>
     <string name="subscription_type">Abonelik Türü</string>
