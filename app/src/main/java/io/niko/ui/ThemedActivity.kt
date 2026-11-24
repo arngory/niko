@@ -3,7 +3,6 @@ package io.niko.ui
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
-import android.widget.TextView
 import androidx.activity.addCallback
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
@@ -14,8 +13,9 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import com.google.android.material.appbar.AppBarLayout
-import com.google.android.material.snackbar.Snackbar
 import io.niko.R
+import io.niko.ui.compose.NikoSnackbar
+import io.niko.ui.compose.NikoSnackbarHost
 import io.niko.utils.Theme
 
 abstract class ThemedActivity : AppCompatActivity {
@@ -83,15 +83,11 @@ abstract class ThemedActivity : AppCompatActivity {
         }
     }
 
-    fun snackbar(@StringRes resId: Int): Snackbar = snackbar("").setText(resId)
-    fun snackbar(text: CharSequence): Snackbar = snackbarInternal(text).apply {
-        view.findViewById<TextView>(com.google.android.material.R.id.snackbar_text).apply {
-            maxLines = 10
-        }
-    }
+    private val snackbars by lazy { NikoSnackbarHost(this) }
 
-    internal open fun snackbarInternal(text: CharSequence): Snackbar = throw NotImplementedError()
-
+    /** A message at the window's bottom, to show(): over the screen and its sheets, gone after its time. */
+    fun snackbar(@StringRes resId: Int): NikoSnackbar = snackbar(getString(resId))
+    fun snackbar(text: CharSequence): NikoSnackbar = snackbars.make(text)
 
     /**
      * Back asks [confirm] first while [hasUnsavedChanges]. A callback instead of onBackPressed(),

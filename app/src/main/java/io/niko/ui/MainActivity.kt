@@ -17,7 +17,6 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.preference.PreferenceDataStore
 import io.niko.ui.compose.NikoDialog
-import com.google.android.material.snackbar.Snackbar
 import io.niko.RELEASE_REPO
 import io.niko.BuildConfig
 import io.niko.GroupType
@@ -680,10 +679,6 @@ class MainActivity : ThemedActivity(),
             downRate = if (connected) home.downRate else 0,
             check = if (connected) home.check else null,
         )
-    }
-
-    override fun snackbarInternal(text: CharSequence): Snackbar {
-        return Snackbar.make(binding.coordinator, text, Snackbar.LENGTH_LONG)
     }
 
     override fun stateChanged(state: BaseService.State, profileName: String?, msg: String?) {
