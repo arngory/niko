@@ -64,6 +64,57 @@ class ConfigsLoaderTest {
     }
 
     @Test
+    fun theSearchAlsoMatchesTheServersAddress() {
+        val withAddresses = listOf(
+            ConfigGroup(
+                1, "own", subscription = false,
+                listOf(
+                    ConfigRow(11, "Home", listOf("VLESS"), null, unreachable = false, selected = false, address = "vpn.example.org:443"),
+                    ConfigRow(12, "Work", listOf("SSH"), null, unreachable = false, selected = false, address = "192.0.2.10:22"),
+                    ConfigRow(13, "Chain", listOf("CHAIN"), null, unreachable = false, selected = false),
+                ),
+            ),
+        )
+        assertEquals(listOf(11L), ConfigsLoader.filter(withAddresses, "EXAMPLE.org").single().profiles.map { it.id })
+        assertEquals(listOf(12L), ConfigsLoader.filter(withAddresses, "192.0.2").single().profiles.map { it.id })
+        assertEquals(emptyList<ConfigGroup>(), ConfigsLoader.filter(withAddresses, "198.51.100"))
+    }
+
+    @Test
+    fun aRowKnowsItsServerAndAChainHasNone() {
+        val ssh = entity(SSHBean().apply { name = "Work"; serverAddress = "192.0.2.10"; serverPort = 22 })
+        val row = ConfigsLoader.row(ssh, 0, addresses = true)
+        assertEquals("192.0.2.10:22", row.address)
+        assertTrue(row.showAddress)
+        // the setting off: searched by, not shown
+        assertFalse(ConfigsLoader.row(ssh, 0).showAddress)
+        // no name: the address is the name already
+        val unnamed = entity(SSHBean().apply { serverAddress = "192.0.2.10"; serverPort = 22 })
+        assertFalse(ConfigsLoader.row(unnamed, 0, addresses = true).showAddress)
+        assertNull(ConfigsLoader.address(entity(ChainBean().apply { name = "chain" })))
+    }
+
+    @Test
+    fun aRowsSecondLineSaysTheAddressAndTheTrafficWhenThereIsAny() {
+        val bytes = { n: Long -> "$n B" }
+        val row = ConfigRow(11, "Home", listOf("VLESS"), null, unreachable = false, selected = false, address = "192.0.2.10:443")
+        assertNull(ConfigsLoader.detail(row, bytes))
+        assertEquals("192.0.2.10:443", ConfigsLoader.detail(row.copy(showAddress = true), bytes))
+        assertEquals("↑ 12 B ↓ 0 B", ConfigsLoader.detail(row.copy(tx = 12), bytes))
+        assertEquals("192.0.2.10:443 · ↑ 12 B ↓ 300 B", ConfigsLoader.detail(row.copy(showAddress = true, tx = 12, rx = 300), bytes))
+    }
+
+    @Test
+    fun aRunningTestCountsTheProfilesTestedOfAll() {
+        val one = mapOf(11L to ConfigsTest.Result(38, unreachable = false))
+        assertNull(ConfigsLoader.testProgress(one, 0))
+        assertEquals(0 to 5, ConfigsLoader.testProgress(emptyMap(), 5))
+        assertEquals(1 to 5, ConfigsLoader.testProgress(one, 5))
+        // never more than all (results of a test before, not taken yet)
+        assertEquals(1 to 1, ConfigsLoader.testProgress(one + (12L to ConfigsTest.Result(null, unreachable = true)), 1))
+    }
+
+    @Test
     fun aTestsResultsShowOverTheRowsRead() {
         val shown = ConfigsLoader.withResults(
             groups,

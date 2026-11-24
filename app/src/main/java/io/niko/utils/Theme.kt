@@ -15,13 +15,7 @@ object Theme {
         context.setTheme(getTheme())
     }
 
-    fun applyDialog(context: Context) {
-        context.setTheme(getDialogTheme())
-    }
-
     fun getTheme(): Int = R.style.Theme_SagerNet_Niko
-
-    fun getDialogTheme(): Int = R.style.Theme_SagerNet_Dialog_Niko
 
     var currentNightMode = -1
     fun getNightMode(): Int {

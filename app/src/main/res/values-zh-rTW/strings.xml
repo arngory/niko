@@ -4,24 +4,18 @@
     <string name="oss_licenses">開放原始碼授權條款</string>
     <string name="app_version">版本</string>
     <string name="logcat">匯出 debug 所需資訊</string>
-    <string name="menu_configuration">設定檔</string>
     <string name="menu_group">群組</string>
     <string name="quick_toggle">切換</string>
     <string name="quick_enable">啟用</string>
     <string name="quick_disable">停用</string>
     <!-- group -->
-    <string name="group_name">群組名稱</string>
     <string name="group_update">更新</string>
     <string name="group_subscription_link">訂閱連結</string>
     <string name="group_name_required">需要群組名稱</string>
-    <string name="group_create">建立新組</string>
     <string name="group_create_subscription">建立新訂閱</string>
     <string name="group_edit">編輯</string>
     <string name="group_edit_subscription">編輯訂閱</string>
-    <string name="group_status_empty">空白群組</string>
     <string name="group_status_empty_subscription">尚未更新</string>
-    <string name="group_status_proxies">%d 個代理</string>
-    <string name="group_status_proxies_subscription">%d 個代理 | 更新於 %s</string>
     <string name="group_no_difference">%s: 沒有變化</string>
     <string name="group_updated">%s: 更新了 %d 個代理</string>
     <string name="group_show_diff">變化</string>
@@ -42,14 +36,9 @@
     <string name="speed_detail">代理： %1$s↑ %2$s↓
 \n直連： %3$s↑ %4$s↓</string>
     <string name="speed">%s/s</string>
-    <string name="connection_test_testing">正在測試…</string>
-    <string name="connection_test_available">成功：HTTPS 握手花費 %dms</string>
-    <string name="connection_test_error">失敗：%s</string>
     <string name="connection_test_fail">網路不可用</string>
     <string name="connection_test_error_status_code">錯誤碼：#%d</string>
     <!-- proxy category -->
-    <string name="profile_name">設定檔名稱</string>
-    <string name="server_address">伺服器</string>
     <string name="enc_method">加密方式</string>
     <string name="protocol">設定</string>
     <string name="protocol_param">通訊協定參數</string>
@@ -71,17 +60,14 @@
     <string name="forward_success">SagerNet 已啟動。</string>
     <string name="invalid_server">伺服器名稱無效</string>
     <string name="stop">停止</string>
-    <string name="stopping">正在關閉…</string>
     <string name="vpn_error">%s</string>
     <string name="vpn_permission_denied">建立 VPN 服務的權限被拒</string>
     <string name="reboot_required">無法啟動 VPN 服務，您可能需要重新啟動您的裝置。</string>
     <!-- alert category -->
     <string name="profile_empty">請選取一個設定檔</string>
-    <string name="connect">連線</string>
     <string name="clipboard_empty">剪貼簿為空白</string>
     <!-- menu category -->
     <string name="settings">設定</string>
-    <string name="edit">編輯</string>
     <string name="share">分享</string>
     <string name="add_profile">新增設定檔</string>
     <string name="action_create_group">空白群組</string>
@@ -89,7 +75,6 @@
     <string name="action_scan_china_apps">掃描中國應用程式</string>
     <string name="action_export_file">匯出至檔案</string>
     <string name="action_export_clipboard">匯出至剪貼簿</string>
-    <string name="action_import">自剪貼簿匯入</string>
     <string name="action_import_file">自檔案匯入</string>
     <string name="action_export_msg">匯出成功！</string>
     <string name="action_export_err">匯出失敗。</string>
@@ -110,9 +95,6 @@
     <string name="undo">復原</string>
     <!-- tasker -->
     <!-- status -->
-    <string name="connecting">正在連線…</string>
-    <string name="vpn_connected">已連線，輕觸以檢查連線能力</string>
-    <string name="not_connected">未連線</string>
     <!-- subscriptions -->
     <string name="cleartext_http_warning">純文字 HTTP 流量並不安全</string>
     <string name="error_title">錯誤</string>
@@ -139,7 +121,6 @@
     <string name="transproxy_mode">透明代理模式</string>
     <string name="require_transproxy">啟用透明代理傳入伺服器</string>
     <string name="dns_hosts">網域重寫</string>
-    <string name="connection_test_available_http">成功：HTTP 握手花費 %d 毫秒</string>
     <string name="allow_insecure_sum">停用憑證檢查。當啟用時，此設定檔將和純文字同等安全</string>
     <string name="allow_insecure">允許不安全的連線</string>
     <string name="show_stop_sum">如果您不想使用快速設定圖塊進行切換</string>
@@ -181,8 +162,6 @@
     <string name="config_settings">設定檔設定</string>
     <string name="circular_reference">循環參考</string>
     <string name="circular_reference_sum">路由中不能包含自己。</string>
-    <string name="clear_profiles">清除</string>
-    <string name="action_export">匯出</string>
     <string name="insecure">不安全</string>
     <string name="deprecated">已被取代</string>
     <string name="no_proxies_found_in_subscription">未在此訂閱中找到代理</string>
@@ -199,10 +178,6 @@
     <string name="random">隨機</string>
     <string name="api_port">API 連接埠</string>
     <string name="probe_interval">負載平衡器觀測間隔</string>
-    <string name="standard">標準</string>
-    <string name="unavailable">無法使用</string>
-    <string name="clear_traffic_statistics">清除流量統計資料</string>
-    <string name="connection_test">連線測試</string>
     <string name="connection_test_tcp_ping_unavailable">TCPing 無法使用</string>
     <string name="connection_test_clear_results">清除測試結果</string>
     <string name="connection_test_icmp_ping_unavailable">ICMPing 無法使用</string>
@@ -235,7 +210,6 @@
     <string name="subscription_import_message">您確定要匯入訂閱 %s 嗎？如果訂閱的來源不可信，您的 IP 和行為將被洩漏。</string>
     <string name="profile_import">匯入設定檔</string>
     <string name="profile_import_message">您確定要匯入設定檔 %s 嗎？</string>
-    <string name="clear_profiles_message">您確定要清除此群組嗎？</string>
     <string name="apps">應用程式</string>
     <string name="file_manager_missing">您的裝置缺少 Android 標準檔案選擇器, 請安裝一個, 如 Material Files.</string>
     <string name="menu_traffic">流量</string>
@@ -260,7 +234,6 @@
     <string name="group_order_by_delay">以延遲</string>
     <string name="group_order_by_name">以名稱</string>
     <string name="group_order_origin">原始</string>
-    <string name="group_order">順序</string>
     <string name="hysteria_disable_mtu_discovery">停用路徑 MTU 探索</string>
     <string name="hysteria_connection_receive_window">QUIC 連線接收視窗</string>
     <string name="hysteria_stream_receive_window">QUIC 串流接收視窗</string>

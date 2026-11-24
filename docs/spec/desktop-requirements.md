@@ -78,7 +78,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-MAIN-14 | Подтверждение «Узнать IP»: какой сервис спросят | `NikoService.ExitAddress` | Go: `libcore/exitaddress.go` (Cloudflare, ipinfo.io, ipwho.is, ipapi.co) | есть | есть | нет |
 | D-MAIN-16 | Причина ошибки подключения (на главной) | `SubscribeServiceStatus` (FATAL, текст ошибки) | есть | расходится: текст баннера обрезан кнопкой «Почему не работает» | есть | есть |
 | D-MAIN-17 | «Почему не работает» с главной: открывает D-WHY | `NikoService.TestRun` | Kotlin: `raycontrol/RayTestRun.kt` | есть | нет: прогон — в меню узла и в журнале | нет |
-| D-MAIN-18 | Проверка соединения: задержка, код HTTP, ошибка | `NikoService.TestConnection` | Kotlin + Go: `widget/StatsBar.kt`, `Libcore.urlTest` | есть | есть | нет |
+| D-MAIN-18 | Проверка соединения: задержка, код HTTP, ошибка | `NikoService.TestConnection` | Kotlin + Go: `ui/MainActivity.kt` (`check`), `Libcore.urlTest` | есть | есть | нет |
 
 ## Добавление (D-ADD)
 
@@ -91,7 +91,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-ADD-06 | PIN приглашения, 6 цифр | `NikoService.Register` | Go: `libcore/nikoray`, `libcore/rayapi`, `nikoservice` (`Import`) | есть | есть | есть: поле PIN на экране добавления, когда приглашение его требует, и снова после неверного с остатком попыток; регистрация — `Import` (`ImportRequest.pin`, `TaskProgress.pin`) |
 | D-ADD-07 | Что будет добавлено | `NikoService.Import` (dry run) | Kotlin: `ui/ImportReview.kt` | расходится: подсказка внизу обрезана кнопкой | есть | нет |
 | D-ADD-08 | Добавить | `NikoService.Register` / `Import` | Kotlin + Go | есть | есть | нет |
-| D-ADD-09 | Импорт из файла: текст, JSON, WireGuard .zip, пакет устройства `rayctl` | `NikoService.Import` | Kotlin: `ui/ConfigurationFragment.kt`, `group/RawUpdater.kt`, `raycontrol/RayImport.kt` | есть | есть | нет |
+| D-ADD-09 | Импорт из файла: текст, JSON, WireGuard .zip, пакет устройства `rayctl` | `NikoService.Import` | Kotlin: `ui/add/AddActivity.kt`, `group/RawUpdater.kt`, `raycontrol/RayImport.kt` | есть | есть | нет |
 | D-ADD-10 | Проверка импорта: что заменит весь конфиг, с ключами | `NikoService.Import` (dry run) | Kotlin: `ui/ImportReview.kt` | есть | есть | нет |
 | D-ADD-11 | Ссылки-схемы подписок (sn, clash, sing-box, hiddify, v2rayng), профилей (ss, vmess, vless, trojan, naive+, hy2, tuic, anytls…) и приглашений rcinv; на компьютере — обработчик ссылок в системе | `NikoService.Import` | Kotlin: `ui/MainActivity.kt` (intent-фильтры), разбор — см. D-ADD-03; обработчика ссылок на компьютере нет | есть | есть | нет |
 
@@ -126,9 +126,9 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-SUB-04 | Удалить подписку: в меню «⋯», с подтверждением | `NikoService` | Kotlin (хранилище) | есть | есть | нет |
 | D-SUB-05 | Меню подписки «⋯» | — | UI | есть | есть: меню группы | нет |
 | D-SUB-06 | Скопировать ссылку подписки | `NikoService` | UI; ссылка — в хранилище (BG-02) | есть | нет: только ссылка `sn://subscription` (D-SUB-09) | нет |
-| D-SUB-07 | Обновить все подписки | `NikoService.Refresh` | Kotlin: `ui/GroupFragment.kt`, `group/GroupUpdater.kt` | есть | есть | нет |
+| D-SUB-07 | Обновить все подписки | `NikoService.Refresh` | Kotlin: `ui/RayNodeActions.kt`, `group/GroupUpdater.kt` | есть | есть | нет |
 | D-SUB-08 | Настройки подписки: ссылка, автообновление и интервал, только при подключении, User-Agent, HWID, дедупликация, принудительное разрешение | `NikoService` | Kotlin: `ui/GroupSettingsActivity.kt`, `group/RawUpdater.kt`, `bg/SubscriptionUpdater.kt` | есть | есть | нет |
-| D-SUB-09 | Поделиться подпиской (QR, буфер), экспорт группы | `NikoService` | Kotlin: `ui/GroupFragment.kt`, `fmt/UniversalFmt.kt` | есть | есть | нет |
+| D-SUB-09 | Поделиться подпиской (QR, буфер), экспорт группы | `NikoService` | Kotlin: `ui/home/HomeFragment.kt`, `fmt/UniversalFmt.kt` | есть | есть | нет |
 
 ## Своя группа (D-GROUP)
 
@@ -235,7 +235,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-SET-21 | Brutal по измеренной скорости; резолверы DNS-туннелей dnstt и MasterDnsVPN | конфиг | Kotlin: `raycontrol/RayBrutal.kt`, `fmt/NikoParams.kt` | есть | есть | нет |
 | D-SET-22 | Стратегии доменов, DNS-маршрутизация, оптимистичный кэш | конфиг | Kotlin: `fmt/ConfigBuilder.kt` | есть | есть | нет |
 | D-SET-23 | Реализация TUN, MTU | конфиг | Kotlin: `fmt/ConfigBuilder.kt`, `bg/VpnService.kt` | есть | есть | нет |
-| D-SET-24 | Интервал скорости, статистика трафика профилей, показывать адрес | `SubscribeStatus` (интервал) + `NikoService` | Kotlin: `bg/proto/TrafficLooper.kt`, `ui/ConfigurationFragment.kt` | есть | есть | нет |
+| D-SET-24 | Интервал скорости, статистика трафика профилей, показывать адрес | `SubscribeStatus` (интервал) + `NikoService` | Kotlin: `bg/proto/TrafficLooper.kt`, `ui/home/ConfigsState.kt` | есть | есть | нет |
 | D-SET-25 | Уровень журнала и размер буфера | конфиг + `NikoService` | Kotlin: `fmt/ConfigBuilder.kt`; буфер — `SagerNet.kt` (`Libcore.initCore`) | есть | есть | нет |
 | D-SET-26 | Общий свой конфиг (JSON) | конфиг | Kotlin: `fmt/ConfigBuilder.kt` | есть | есть | нет |
 | D-SET-27 | Вход: порт, пользователь, пароль, доступ из локальной сети; «без пароля в VPN» и «HTTP-прокси в VPN» — только телефон | конфиг | Kotlin: `fmt/ConfigBuilder.kt` | есть | есть | нет |
@@ -265,10 +265,10 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-PROFILE-02 | JSON профиля и конфига | `ApplicationService.CheckConfig`, `FormatConfig` | есть | есть | есть | нет |
 | D-PROFILE-03 | Тонкая настройка подключения: фрагментация TLS, пиннинг сертификата, DNS-туннель, обход DPI для QUIC, стук портов | `NikoService` | Kotlin: `ui/profile/ProfileForm.kt`, `ui/profile/ProfileScreen.kt`, `fmt/PortKnocking.kt`, `fmt/CertificatePinning.kt`, `fmt/DnsTunnel.kt` | есть | есть | нет |
 | D-PROFILE-04 | Цепочка прокси: добавить, порядок, проверка кольца | `NikoService` | Kotlin: `ui/profile/ProfileActivity.kt`, `fmt/ConfigBuilder.kt` | есть | есть | нет |
-| D-PROFILE-05 | Список профилей: поиск, порядок (исходный, по имени, по задержке), карточка с трафиком и задержкой | `NikoService` | Kotlin: `ui/ConfigurationFragment.kt` | есть | есть | нет |
-| D-PROFILE-06 | Проверить группу (TCPing, URL-тест), очистить результаты и недоступные, удалить дубликаты, обнулить статистику | `NikoService.TestProfiles` + `NikoService` | Kotlin + Go: `ui/ConfigurationFragment.kt`, см. D-MAIN-08 | есть | есть | нет |
-| D-PROFILE-07 | Поделиться профилем: QR, ссылка; конфиг в буфер или файл; не у профилей узла (`FAILED_PRECONDITION`, salamander-device-v1 §6) | `NikoService.Export` | Kotlin: `ui/ConfigurationFragment.kt`, ссылки — `fmt/*`, `fmt/UniversalFmt.kt` | есть | есть | нет |
-| D-PROFILE-08 | Перенести профиль в группу, удалить с отменой, перетащить | `NikoService` | Kotlin: `ui/ConfigurationFragment.kt`, `database/ProfileManager.kt` | есть | есть | нет |
+| D-PROFILE-05 | Список профилей: поиск, порядок (исходный, по имени, по задержке), карточка с трафиком и задержкой | `NikoService` | Kotlin: `ui/home/ConfigsState.kt`, `ui/home/ConfigsSheet.kt` | есть | есть | нет |
+| D-PROFILE-06 | Проверить группу (TCPing, URL-тест), очистить результаты и недоступные, удалить дубликаты, обнулить статистику | `NikoService.TestProfiles` + `NikoService` | Kotlin + Go: `ui/home/ConfigsTest.kt`, `ui/home/ConfigsOps.kt`, см. D-MAIN-08 | есть | есть | нет |
+| D-PROFILE-07 | Поделиться профилем: QR, ссылка; конфиг в буфер или файл; не у профилей узла (`FAILED_PRECONDITION`, salamander-device-v1 §6) | `NikoService.Export` | Kotlin: `ui/home/HomeFragment.kt`, ссылки — `fmt/*`, `fmt/UniversalFmt.kt` | есть | есть | нет |
+| D-PROFILE-08 | Перенести профиль в группу, удалить с отменой, перетащить | `NikoService` | Kotlin: `ui/home/ConfigsOps.kt`, `database/ProfileManager.kt` | есть | есть | нет |
 
 ## Инструменты (D-TOOLS)
 

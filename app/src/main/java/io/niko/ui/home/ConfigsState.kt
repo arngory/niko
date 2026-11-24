@@ -32,6 +32,13 @@ data class ConfigRow(
     val standardLink: Boolean = false,
     /** the running service uses it: not deleted meanwhile */
     val inUse: Boolean = false,
+    /** its server, host:port: searched by; null when the profile has none of its own (a chain) */
+    val address: String? = null,
+    /** the address on the row too: «Показывать адрес» (D-SET-24) is on and the name does not say it already */
+    val showAddress: Boolean = false,
+    /** the traffic counted through it, bytes up and down */
+    val tx: Long = 0,
+    val rx: Long = 0,
 )
 
 /** What a group's menu offers (P-Configs ⋮, D-PROFILE-06), in its order. */
@@ -60,12 +67,13 @@ object ConfigsLoader {
     fun load(): List<ConfigGroup> {
         val selected = DataStore.selectedProxy
         val running = if (DataStore.serviceState.started) DataStore.currentProfile else 0L
+        val addresses = DataStore.alwaysShowAddress
         // a node's rows are this device's: not shared, another device takes an invite (salamander-device-v1 §6)
         val nodeGroups = RayNodes.list().map { it.groupId }.filter { it != 0L }.toSet()
         return SagerDatabase.groupDao.allGroups().mapNotNull { group ->
             // a profile whose bean does not read (an older build's, a broken import) is left out, not the whole list
             val rows = ordered(SagerDatabase.proxyDao.getByGroup(group.id), group.order).mapNotNull { proxy ->
-                runCatching { row(proxy, selected, running, nodeRow = group.id in nodeGroups) }.onFailure { Logs.w(it) }.getOrNull()
+                runCatching { row(proxy, selected, running, nodeRow = group.id in nodeGroups, addresses = addresses) }.onFailure { Logs.w(it) }.getOrNull()
             }
             if (rows.isEmpty()) return@mapNotNull null
             ConfigGroup(
@@ -95,8 +103,11 @@ object ConfigsLoader {
         }
     }
 
-    /** [running] the profile the service runs (0: none), [nodeRow] one of a raycontrol node's group. */
-    fun row(proxy: ProxyEntity, selected: Long, running: Long = 0, nodeRow: Boolean = false) = ConfigRow(
+    /**
+     * [running] the profile the service runs (0: none), [nodeRow] one of a raycontrol node's group, [addresses] the
+     * setting «Показывать адрес».
+     */
+    fun row(proxy: ProxyEntity, selected: Long, running: Long = 0, nodeRow: Boolean = false, addresses: Boolean = false) = ConfigRow(
         id = proxy.id,
         name = proxy.displayName(),
         tags = tags(proxy),
@@ -107,7 +118,29 @@ object ConfigsLoader {
         share = shared(proxy, nodeRow),
         standardLink = proxy.haveStandardLink(),
         inUse = proxy.id == selected && proxy.id == running,
+        address = address(proxy),
+        // as the old list: a profile without a name is named by its address already
+        showAddress = addresses && !proxy.requireBean().name.isNullOrBlank(),
+        tx = proxy.tx,
+        rx = proxy.rx,
     )
+
+    /** The profile's server as host:port; none for a chain (it has no server of its own). */
+    fun address(proxy: ProxyEntity): String? =
+        if (proxy.type == ProxyEntity.TYPE_CHAIN) null else proxy.displayAddress().takeIf { it.isNotBlank() }
+
+    /**
+     * What the row says after its tags (the old list's second line): the address when it is to be shown, the traffic
+     * up and down when any was counted, sizes by [bytes]; null: nothing.
+     */
+    fun detail(row: ConfigRow, bytes: (Long) -> String): String? = listOfNotNull(
+        row.address?.takeIf { row.showAddress },
+        "↑ ${bytes(row.tx)} ↓ ${bytes(row.rx)}".takeIf { row.tx + row.rx > 0 },
+    ).joinToString(" · ").takeIf { it.isNotEmpty() }
+
+    /** How far a group's test is, as its head says it: the profiles tested of [total]; null when it does not run. */
+    fun testProgress(results: Map<Long, ConfigsTest.Result>, total: Int): Pair<Int, Int>? =
+        if (total > 0) results.size.coerceAtMost(total) to total else null
 
     /** What a failed test said (status 2: in a few words, 3: the core's error), null when it passed or said nothing. */
     fun error(status: Int, error: String?): String? = error?.trim()?.takeIf { status > 1 && it.isNotEmpty() }
@@ -193,14 +226,15 @@ object ConfigsLoader {
     private fun plain(text: String) =
         Normalizer.normalize(text, Normalizer.Form.NFD).replace(Regex("\\p{M}"), "").lowercase(Locale.ROOT).trim()
 
-    /** The rows that match [query] in their name or tags, case aside; the groups left empty go. */
+    /** The rows that match [query] in their name, tags or server address, case aside; the groups left empty go. */
     fun filter(groups: List<ConfigGroup>, query: String): List<ConfigGroup> {
         val q = query.trim()
         if (q.isEmpty()) return groups
         return groups.mapNotNull { group ->
             val byGroup = group.name?.contains(q, ignoreCase = true) == true
             val rows = if (byGroup) group.profiles else group.profiles.filter { row ->
-                row.name.contains(q, ignoreCase = true) || row.tags.any { it.contains(q, ignoreCase = true) }
+                row.name.contains(q, ignoreCase = true) || row.tags.any { it.contains(q, ignoreCase = true) } ||
+                    row.address?.contains(q, ignoreCase = true) == true
             }
             rows.takeIf { it.isNotEmpty() }?.let { group.copy(profiles = it) }
         }

@@ -27,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,6 +72,9 @@ fun HomeScreen(
     format: io.niko.ui.node.NodeFormat? = null,
     subsOpen: Boolean = false,
     configsMenus: ConfigsMenuActions? = null,
+    testTotal: Int = 0,
+    ask: HomeSheet? = null,
+    onAsked: () -> Unit = {},
 ) {
     val c = Niko.colors
     var modeSheet by rememberSaveable { mutableStateOf(sheet) }
@@ -83,19 +87,26 @@ fun HomeScreen(
         actions.configs(configsSheet)
         onDispose { if (configsSheet) actions.configs(false) }
     }
-    // the configs' sheet from the node row and the Configs tab; without its actions (a snapshot of the screen alone) the
-    // old list as before
+    // the configs' sheet from the node row, the Connection tile and the tabs; drawn only with its actions (not in a
+    // snapshot of the screen alone)
     val openConfigs = {
-        if (configsActions != null) {
-            onSubs = false
-            configsSheet = true
-        } else actions.profiles()
+        onSubs = false
+        configsSheet = true
     }
     val openSubs = {
-        if (configsActions != null && subsActions != null) {
-            onSubs = true
+        onSubs = subsActions != null
+        configsSheet = true
+    }
+    // the activity's ask (a link imported, «Узлы»): the sheet on that tab, an open one turned to it, also from the
+    // tab the user went to by hand (each ask counted: the same tab asked twice is still an ask)
+    var asks by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(ask) {
+        if (ask != null) {
+            asks++
+            onSubs = ask == HomeSheet.SUBS && subsActions != null
             configsSheet = true
-        } else actions.subscriptions()
+            onAsked()
+        }
     }
     var now by remember { mutableLongStateOf(clock()) }
     LaunchedEffect(state.service, ticking) {
@@ -129,7 +140,7 @@ fun HomeScreen(
             ConfigsSheet(
                 configs, state.profiles, state.subscriptions, testing, results, configsActions,
                 subs = subs, subsActions = subsActions, format = format, now = now / 1000, onSubs = onSubs,
-                menus = configsMenus,
+                menus = configsMenus, testTotal = testTotal, asks = asks,
             ) { configsSheet = false }
         }
     }
@@ -225,7 +236,7 @@ private fun Simple(state: HomeState, now: Long, actions: HomeActions, onConfigs:
         ) {
             Tile(
                 R.drawable.ic_l_plug, stringResource(R.string.home_connection),
-                state.profile?.method() ?: stringResource(R.string.home_choose_profile), actions::profiles,
+                state.profile?.method() ?: stringResource(R.string.home_choose_profile), onConfigs,
                 Modifier.fillMaxWidth(),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(NikoSpace.s2)) {
@@ -256,7 +267,7 @@ private fun NodeRow(profile: HomeProfile?, profiles: Int, actions: HomeActions, 
             stringResource(R.string.home_no_profile), titleBold = true, bottom = bottom, divider = advanced,
             sub = { Sub(stringResource(R.string.home_no_profile_hint)) },
             trail = { Icon(R.drawable.ic_l_plus, Niko.colors.ink2) },
-            onClick = actions::profiles,
+            onClick = actions::add,
         )
         return
     }
@@ -332,7 +343,7 @@ private fun Advanced(
                     Tab(stringResource(R.string.home_profiles), state.profiles, active = true, onClick = onConfigs)
                     Tab(stringResource(R.string.home_subscriptions), state.subscriptions, active = false, onClick = onSubs)
                 }
-                TonalIconButton(R.drawable.ic_l_plus, stringResource(R.string.home_add), actions::profiles)
+                TonalIconButton(R.drawable.ic_l_plus, stringResource(R.string.home_add), actions::add)
             }
         }
     }

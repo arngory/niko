@@ -51,18 +51,14 @@ else
   echo "the app died during the rotations"; fail=1
 fi
 
-echo "== screenshots (light and dark): the main screen's two views, connected, the mode's sheet, the drawer, the settings"
+echo "== screenshots (light and dark): the main screen's two views, connected, the mode's sheet, the settings, the configs' sheet"
 # for the eye, not a check: smoke-screens/ in the artifact. The night mode is the system's, as most users have it.
-# The main screen (ui/home) shows the chosen profile (a link's) and once connected the time and speeds; the drawer is
-# the old screens' (the profiles' toolbar), until they are drawn from the canvas too
+# The main screen (ui/home) shows the chosen profile (a link's) and once connected the time and speeds; its Connection
+# tile opens the configs' sheet, the Advanced view's Connection row the settings
 shots=smoke-screens
 mkdir -p "$shots"
 here=$(cd "$(dirname "$0")" && pwd)
 adb shell settings put system user_rotation 0
-# the toolbar's navigation button by its place (it has no description): 28dp from the left, under a 24dp status bar
-density=$(timeout 10 adb shell wm density | tr -d '\r' | sed -n 's/.*: *\([0-9]*\)$/\1/p' | tail -1)
-density=${density:-160}
-menu_x=$((28 * density / 160)); menu_y=$((52 * density / 160))
 # tap_text TEXT: the node with this text, by uiautomator's dump
 tap_text() {
   timeout 30 adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1
@@ -74,10 +70,12 @@ tap_text() {
   # shellcheck disable=SC2086 # x and y
   timeout 20 adb shell input tap $xy
 }
-# profiles: the main screen's Connection tile opens the profiles, whose toolbar has the drawer's button
-profiles() {
+# configs NAME: the main screen's Connection tile opens the configs' sheet; its screenshot, then closed
+configs() {
   tap_text "Connection" || { echo "no Connection tile on the main screen"; return 1; }
   sleep 3
+  timeout 30 adb exec-out screencap -p > "$shots/configs-$1.png" 2> /dev/null
+  adb shell input keyevent KEYCODE_BACK; sleep 1
 }
 # tap_button TEXT: the positive button of the dialog that shows this text
 tap_button() {
@@ -98,13 +96,14 @@ restart() {
   adb shell am force-stop "$pkg"; sleep 1
   timeout 60 adb shell am start -W -n "$pkg/$pkg.ui.MainActivity" > /dev/null; sleep 4
 }
-# a profile from a link, never reached (a documentation address): its card on the main screen, chosen
+# a profile from a link, never reached (a documentation address): after the question the configs' sheet opens with its
+# row, chosen by a tap
 link='vless://00000000-0000-4000-8000-000000000001@192.0.2.10:443?encryption=none&security=tls&sni=smoke.example&type=tcp#Smoke'
 timeout 60 adb shell "am start -W -n $pkg/$pkg.ui.MainActivity -a android.intent.action.VIEW -d '$link'" > /dev/null
 sleep 3
 if tap_button "Import profile"; then
   sleep 3
-  tap_text "Smoke" || echo "no card of the imported profile to choose"
+  tap_text "Smoke" || echo "no row of the imported profile to choose"
 else
   echo "no question to import the link"
 fi
@@ -114,8 +113,8 @@ for mode in no yes; do
   timeout 30 adb shell cmd uimode night "$mode" > /dev/null 2>&1
   restart
   timeout 30 adb exec-out screencap -p > "$shots/main-$mode.png" 2> /dev/null
-  # connected: the connect button's look and the statistics bar. Stopped by force: the bar's speeds change every
-  # second, and uiautomator's dump waits for a screen that holds still
+  # connected: the connect button's look, the time and the speeds. Stopped by force: they change every second, and
+  # uiautomator's dump waits for a screen that holds still
   if tap_text "Connect"; then
     sleep 8
     timeout 30 adb exec-out screencap -p > "$shots/connected-$mode.png" 2> /dev/null
@@ -127,6 +126,14 @@ for mode in no yes; do
   if tap_text "Advanced"; then
     sleep 2
     timeout 30 adb exec-out screencap -p > "$shots/advanced-$mode.png" 2> /dev/null
+    # the settings, for the rows' icons: the Advanced view's Connection row
+    if tap_text "Connection"; then
+      sleep 3
+      timeout 30 adb exec-out screencap -p > "$shots/settings-$mode.png" 2> /dev/null
+      adb shell input keyevent KEYCODE_BACK; sleep 1
+    else
+      echo "no Connection row in the Advanced view to tap ($mode)"
+    fi
     tap_text "Simple" || echo "no Simple in the view switch ($mode)"
     sleep 2
   else
@@ -139,40 +146,24 @@ for mode in no yes; do
   else
     echo "no Mode tile to tap ($mode)"
   fi
-  profiles
-  timeout 20 adb shell input tap "$menu_x" "$menu_y"; sleep 2
-  timeout 30 adb exec-out screencap -p > "$shots/drawer-$mode.png" 2> /dev/null
-  # the settings, for the rows' icons
-  if tap_text "Settings"; then
-    sleep 3
-    timeout 30 adb exec-out screencap -p > "$shots/settings-$mode.png" 2> /dev/null
-  else
-    echo "no Settings in the drawer to tap ($mode)"
-    adb shell input keyevent KEYCODE_BACK; sleep 1
-  fi
+  configs "$mode"
 done
 timeout 30 adb shell cmd uimode night no > /dev/null 2>&1
 
-echo "== screenshots with a larger font (1.3) and right to left: the main screen and the drawer, light"
-# the profile's card and the bars must not cut their text at 1.3; right to left, the navigation button is at the right
+echo "== screenshots with a larger font (1.3) and right to left: the main screen and the configs' sheet, light"
+# the profile's row and the tiles must not cut their text at 1.3
 timeout 30 adb shell settings put system font_scale 1.3
 restart
 timeout 30 adb exec-out screencap -p > "$shots/main-font-1.3.png" 2> /dev/null
-profiles
-timeout 20 adb shell input tap "$menu_x" "$menu_y"; sleep 2
-timeout 30 adb exec-out screencap -p > "$shots/drawer-font-1.3.png" 2> /dev/null
+configs font-1.3
 timeout 30 adb shell settings put system font_scale 1.0
 # right to left: the app in Arabic (its own locale, Android 13+), as the developer options' "Force RTL" does not take
 # without the system's configuration changing
 timeout 30 adb shell cmd locale set-app-locales "$pkg" --locales ar || echo "no app locale: $?"
 restart
 timeout 30 adb exec-out screencap -p > "$shots/main-rtl.png" 2> /dev/null
-profiles
-width=$(timeout 10 adb shell wm size | tr -d '\r' | sed -n 's/.*: *\([0-9]*\)x[0-9]*$/\1/p' | tail -1)
-if [ -n "$width" ]; then
-  timeout 20 adb shell input tap "$((width - menu_x))" "$menu_y"; sleep 2
-  timeout 30 adb exec-out screencap -p > "$shots/drawer-rtl.png" 2> /dev/null
-fi
+# the tile by its English name: the app's Arabic has no other for it
+configs rtl
 timeout 30 adb shell cmd locale set-app-locales "$pkg" --locales en-US > /dev/null 2>&1
 ls -la "$shots"
 

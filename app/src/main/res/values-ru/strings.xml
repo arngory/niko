@@ -7,12 +7,10 @@
 <string name="abc_searchview_description_voice">Голосовой поиск</string>
 <string name="abc_shareactionprovider_share_with">Поделиться с помощью</string>
 <string name="abc_toolbar_collapse_description">Свернуть</string>
-<string name="action_export">Экспортировать</string>
 <string name="action_export_clipboard">Экспорт в буфер</string>
 <string name="action_export_err">Не удалось экспортировать.</string>
 <string name="action_export_file">Экспорт в файл</string>
 <string name="action_export_msg">Успешно экспортировано!</string>
-<string name="action_import">Импорт из буфера</string>
 <string name="action_import_err">Не удалось импортировать.</string>
 <string name="action_import_file">Импорт из файла</string>
 <string name="action_learn_more">УЗНАТЬ БОЛЬШЕ</string>
@@ -65,33 +63,23 @@
 <string name="circular_reference">Циклическая ссылка</string>
 <string name="circular_reference_sum">Маршрут не может содержать сам себя.</string>
 <string name="clear_logcat">Очистить журнал</string>
-<string name="clear_profiles">Очистить</string>
-<string name="clear_profiles_message">Вы уверены, что хотите очистить эту группу?</string>
 <string name="clear_text_end_icon_content_description">Очистить текстовое поле</string>
-<string name="clear_traffic_statistics">Очистить статистику трафика</string>
 <string name="cleartext_http_warning">Передача HTTP-трафика в виде открытого текста небезопасна</string>
 <string name="clipboard_empty">Буфер обмена пуст</string>
 <string name="config_settings">Настройки конфигурации</string>
 <string name="config_type">Тип конфигурации</string>
 <string name="confirm">Подтвердить</string>
-<string name="connect">Подключиться</string>
-<string name="connecting">Подключение…</string>
-<string name="connection_test_available">HTTPS-соединение установлено за %d мс</string>
-<string name="connection_test_available_http">HTTP-соединение установлено за %d мс</string>
 <string name="connection_test_clear_results">Очистить результаты</string>
 <string name="connection_test_delete_unavailable">Удалить недоступные</string>
 <string name="connection_test_domain_not_found">Домен не найден</string>
-<string name="connection_test_error">Ошибка: %s</string>
 <string name="connection_test_icmp_ping_unavailable">ICMPing недоступен</string>
 <string name="connection_test_refused">В соединении отказано</string>
 <string name="connection_test_tcp_ping">TCP-пинг</string>
 <string name="connection_test_tcp_ping_unavailable">TCPing недоступен</string>
-<string name="connection_test_testing">Тестирование…</string>
 <string name="connection_test_timeout">Тайм-аут</string>
 <string name="connection_test_unreachable">Недоступен</string>
 <string name="connection_test_url_test">URL-тест</string>
 <string name="copy">Копировать</string>
-<string name="copy_toast_msg">Ссылка скопирована в буфер обмена.</string>
 <string name="create_shortcut">Создать ярлык</string>
 <string name="custom_config">Пользовательская конфигурация</string>
 <string name="custom_config_json">Пользовательская конфигурация JSON</string>
@@ -159,7 +147,6 @@
 <string name="domain_strategy">Правило разрешения доменов</string>
 <string name="early_data_header_name">Имя заголовка ранних данных</string>
 <string name="ech_config">Конфигурация ECH</string>
-<string name="edit">Редактировать</string>
 <string name="edit_config">Изменить конфигурацию</string>
 <string name="empty_route">Пустой маршрут</string>
 <string name="empty_route_notice">Установите какие-либо правила перед сохранением</string>
@@ -211,7 +198,6 @@
 <string name="group_basic">Базовый</string>
 <string name="group_changed">Обновлено: 
 %s</string>
-<string name="group_create">Создать группу</string>
 <string name="group_create_subscription">Создать подписку</string>
 <string name="group_default">Разгруппировано</string>
 <string name="group_delete_confirm_prompt">Вы уверены, что хотите удалить эту группу?</string>
@@ -223,19 +209,13 @@
 <string name="group_edit">Редактировать группу</string>
 <string name="group_edit_subscription">Редактировать подписку</string>
 <string name="group_filter">Фильтр</string>
-<string name="group_name">Имя группы</string>
 <string name="group_name_required">Требуется название группы</string>
 <string name="group_no_difference">%s: Не отличаются</string>
-<string name="group_not_subscription">Тип группы не является подпиской</string>
-<string name="group_order">Сортировка</string>
 <string name="group_order_by_delay">По задержке</string>
 <string name="group_order_by_name">По имени</string>
 <string name="group_order_origin">По источнику</string>
 <string name="group_show_diff">Сравнить группы</string>
-<string name="group_status_empty">Пустая группа</string>
 <string name="group_status_empty_subscription">Еще не обновлено</string>
-<string name="group_status_proxies">%d прокси</string>
-<string name="group_status_proxies_subscription">%d прокси | Обновлено %s</string>
 <string name="group_subscription_link">Ссылка для подписки</string>
 <string name="group_update">Обновить</string>
 <string name="group_updated">%s: обновлено %d прокси</string>
@@ -282,13 +262,11 @@
 <string name="material_clock_toggle_content_description">Выберите AM (до полудня) или PM (после полудня)</string>
 <string name="material_timepicker_am">AM</string>
 <string name="material_timepicker_pm">PM</string>
-<string name="menu_configuration">Конфигурация</string>
 <string name="menu_dashboard">Панель sing-box</string>
 <string name="menu_group">Группы</string>
 <string name="menu_log">Журналы</string>
 <string name="menu_route">Маршруты</string>
 <string name="menu_traffic">Трафик</string>
-<string name="minimize">Свернуть</string>
 <string name="move">Переместить</string>
 <string name="mtrl_badge_numberless_content_description">Новое уведомление</string>
 <string name="mtrl_checkbox_state_description_checked">Флажок установлен.</string>
@@ -328,7 +306,6 @@
 <string name="no_proxies_found_in_file">В файле не найдено прокси-серверов</string>
 <string name="no_proxies_found_in_subscription">В подписке не найдено прокси-серверов</string>
 <string name="no_statistics">Статистики пока нет</string>
-<string name="not_connected">Не подключен</string>
 <string name="not_set">Не указано</string>
 <string name="obfs">Obfs</string>
 <string name="obfs_param">Параметры Obfs</string>
@@ -360,7 +337,6 @@
 <string name="profile_import_message">Подтвердите, что хотите импортировать профиль %s?</string>
 <string name="profile_import_full_config_warning">Внимание: этот профиль заменяет или переписывает весь конфиг sing-box (локальный прокси, DNS, маршрутизацию). Импортируйте его, только если доверяете источнику.</string>
 <string name="profile_import_keys">Он задаёт эти части конфига: %s</string>
-<string name="profile_name">Имя профиля</string>
 <string name="profile_requiring_plugin">Профиль %s требует установки подключаемого модуля %s, но он не найден.</string>
 <string name="protocol">Протокол</string>
 <string name="protocol_param">Параметры протокола</string>
@@ -400,7 +376,6 @@
 <string name="searchview_navigation_content_description">Назад</string>
 <string name="security">Шифрование транспортного уровня</string>
 <string name="select_profile">Выбрать профиль</string>
-<string name="server_address">Сервер</string>
 <string name="service_failed">Не удалось:</string>
 <string name="service_proxy">Прокси-сервис</string>
 <string name="service_subscription">Служба обновления подписки</string>
@@ -410,7 +385,6 @@
 <string name="shadowsocks_plugin_v2ray">V2Ray (плагин Shadowsocks для Android)</string>
 <string name="share">Поделиться</string>
 <string name="share_qr_nfc">QR-код</string>
-<string name="share_subscription">Поделиться подпиской</string>
 <string name="side_sheet_accessibility_pane_title">Боковая панель</string>
 <string name="sniff_override">Результат проверки для адрес назначения</string>
 <string name="speed">%s/с</string>
@@ -419,10 +393,8 @@
 <string name="ssh_auth_type_none">Без аутентификации</string>
 <string name="ssh_private_key">Закрытый ключ</string>
 <string name="ssh_private_key_passphrase">Парольная фраза закрытого ключа</string>
-<string name="standard">Стандарт</string>
 <string name="status_bar_notification_info_overflow">&gt;999</string>
 <string name="stop">Остановить</string>
-<string name="stopping">Выключение…</string>
 <string name="stun_test">Тип NAT</string>
 <string name="subscription">Подписка</string>
 <string name="subscription_expire">Истекает: %s</string>
@@ -445,11 +417,9 @@
 <string name="tuic_reduce_rtt">Включить 0-RTT QUIC-соединение</string>
 <string name="tuic_udp_relay_mode">Режим UDP-ретранслятора</string>
 <string name="udp_connections">%d UDP-соединений</string>
-<string name="unavailable">Недоступен</string>
 <string name="undo">Отменить</string>
 <string name="unsaved_changes_prompt">Есть несохраненные изменения. Сохранить?</string>
 <string name="update_all_subscription">Обновить все подписки</string>
-<string name="update_current_subscription">Обновить подписку</string>
 <string name="update_dialog_message">Текущая версия: %1$s\nДоступная версия: %2$s\nХотите загрузить её?</string>
 <string name="update_dialog_title">Доступна новая версия</string>
 <string name="update_subscription_warning">Прокси-сервер не подключен, вы уверены, что хотите продолжить обновление?</string>
@@ -457,7 +427,6 @@
 <string name="utls_fingerprint">Отпечаток uTLS</string>
 <string name="v7_preference_off">ВЫКЛ.</string>
 <string name="v7_preference_on">ВКЛ.</string>
-<string name="vpn_connected">Подключено, нажмите для проверки подключения</string>
 <string name="vpn_permission_denied">Отказано в разрешении на создание службы VPN</string>
 <string name="always_on_needs_vpn_mode">Android запустил Niko как постоянный VPN, но Niko настроен на режим «Только прокси», поэтому ничего не работает. Чтобы пользоваться постоянным VPN, выберите VPN в Настройках → Сервисный режим или выключите постоянный VPN для Niko в системных настройках VPN.</string>
 <string name="warp_generate">Создать конфигурацию</string>
@@ -521,11 +490,6 @@
     <string name="raycontrol_sub_skipped">Не удалось прочитать ссылок: %d.</string>
     <string name="raycontrol_sub_client_min">%1$s требует Niko %2$s или новее: профили ноды остались прежними; обновите приложение в разделе «О приложении».</string>
     <string name="raycontrol_sub_failed">Подписка не обновлена: %s</string>
-    <string name="raycontrol_card_status">Профилей: %1$d · обновлена %2$s</string>
-    <string name="raycontrol_card_status_never">Профилей: %1$d · ещё не обновлялась</string>
-    <string name="raycontrol_card_traffic">%1$s из %2$s</string>
-    <string name="raycontrol_card_traffic_reset">%1$s из %2$s, сброс %3$s</string>
-    <string name="raycontrol_card_traffic_near">почти исчерпан: %1$s</string>
     <string name="raycontrol_lan">Локальная сеть</string>
     <string name="raycontrol_lan_help">Ваши устройства на этой ноде видят друг друга по имени через ноду, со сквозным шифрованием (Yggdrasil). Другие пользователи ноды их не видят, а устройство, которое себя не показывает, не видит и соседей.</string>
     <string name="raycontrol_lan_not_offered">Нода не даёт вам локальной сети: её включает администратор для вашего пользователя (raycontrol 0.23 и новее, с сервисом Yggdrasil).</string>
@@ -558,14 +522,11 @@
     <string name="raycontrol_card_client_min_from">с %2$s нода потребует Niko %1$s или новее: нажмите, чтобы обновить</string>
     <string name="raycontrol_card_refused">нода отклонила это устройство, импортируйте его заново</string>
     <string name="raycontrol_card_failing">обновление не проходит (%d раз подряд)</string>
-    <string name="raycontrol_card_expires">действует до %s</string>
     <string name="raycontrol_card_expired">истекла %s</string>
     <string name="raycontrol_card_path_direct">напрямую</string>
     <string name="raycontrol_card_path_relay">через relay</string>
-    <string name="raycontrol_card_dnstt">dnstt: %s</string>
     <string name="raycontrol_card_dns_net">резолвер сети</string>
     <string name="raycontrol_card_dns_none">ни один резолвер не ответил</string>
-    <string name="raycontrol_card_clock">часы расходятся на %d с</string>
     <string name="route_preset_ru_title">Заблокированное через прокси, российское напрямую</string>
     <string name="route_preset_ru_message">Добавит два правила:\n• заблокированное в России (списки runetfreedom) идёт через прокси;\n• российские сервисы, домены .ru, .su и .рф и российские IP идут напрямую.\nОстальное идёт как прежде; правила выше пресета в списке действуют раньше него. Списки (около 0,8 МБ) скачиваются сейчас и затем раз в %d ч, при работающем прокси — через него; правило «напрямую» ждёт списков заблокированного. Повторное добавление заменит правила пресета.</string>
     <string name="route_preset_ru_add">Добавить</string>
@@ -637,6 +598,7 @@
     <string name="raycontrol_admin_service_name">Имя</string>
     <string name="raycontrol_admin_service_apply">Сервис, которому нужен свой процесс или порт в файрволе хоста, заработает после rayctl apply на ноде.</string>
     <string name="raycontrol_admin_network">Сеть</string>
+    <string name="raycontrol_admin_node_name">Имя ноды</string>
     <string name="raycontrol_admin_mark">%s · админ</string>
     <string name="raycontrol_admin_node_name_none">нет (клиенты показывают адрес)</string>
     <string name="raycontrol_admin_node_name_help">Клиенты показывают его вместо адреса ноды после следующего обновления подписки. Не больше 48 символов; пустое убирает имя.</string>
@@ -839,7 +801,6 @@
     <string name="balancer">Балансировщик</string>
     <string name="balancer_type">Тип</string>
     <string name="balancer_strategy">Стратегия</string>
-    <string name="connection_test">Проверка соединения</string>
     <string name="copy_label">Копировать название</string>
     <string name="copy_package_name">Копировать имя пакета</string>
     <string name="open_app">Открыть приложение</string>
@@ -913,11 +874,12 @@
     <string name="home_rate_down">приём</string>
     <string name="home_rate_up">отдача</string>
     <string name="home_search">Поиск</string>
-    <string name="home_search_hint">Имя или способ</string>
+    <string name="home_search_hint">Имя, способ или адрес</string>
     <string name="home_search_none">Ничего не нашлось</string>
     <string name="home_ungrouped">Без группы</string>
     <string name="home_test_group">Проверить группу %s</string>
     <string name="home_stop_test">Остановить проверку группы %s</string>
+    <string name="home_test_progress">%1$d из %2$d</string>
     <string name="menu_home">Главная</string>
     <string name="node_back">Назад</string>
     <string name="node_update">Обновить узел</string>
@@ -1043,6 +1005,14 @@
     <string name="lan_by_fingerprint">По роутеру и DNS</string>
     <string name="lan_by_ssid">По имени</string>
     <string name="lan_this_wifi">эта сеть</string>
+    <!-- Niko dialogs (m-dialog), M-STATE-PREVIEW, M-SET-04 -->
+    <string name="dialog_cancel">Отмена</string>
+    <string name="dialog_ok">ОК</string>
+    <string name="preview_title">Предварительная версия %1$s</string>
+    <string name="preview_report">Сообщить об ошибке</string>
+    <string name="preview_ok">Понятно</string>
+    <string name="plugin_needed">Нужен плагин %1$s</string>
+    <string name="plugin_download_link">Скачать по ссылке</string>
     <!-- Меню листа конфигов on Compose (D-PROFILE-05…08) -->
     <string name="cfg_edit">Изменить</string>
     <string name="cfg_clear_traffic">Обнулить статистику</string>
@@ -1054,11 +1024,4 @@
     <string name="cfg_error">Проверка не прошла</string>
     <string name="cfg_error_show">Показать ошибку</string>
     <!-- Niko dialogs (m-dialog), M-STATE-PREVIEW, M-SET-04 -->
-    <string name="dialog_cancel">Отмена</string>
-    <string name="dialog_ok">ОК</string>
-    <string name="preview_title">Предварительная версия %1$s</string>
-    <string name="preview_report">Сообщить об ошибке</string>
-    <string name="preview_ok">Понятно</string>
-    <string name="plugin_needed">Нужен плагин %1$s</string>
-    <string name="plugin_download_link">Скачать по ссылке</string>
 </resources>

@@ -1,11 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="group_name">Nome do grupo</string>
     <string name="group_default">Desagrupado</string>
     <string name="document">Documento</string>
     <string name="theme">Tema</string>
     <string name="menu_group">Grupo</string>
-    <string name="menu_configuration">Configuração</string>
     <string name="logcat">Exportar informações de depuração</string>
     <string name="app_version">Versão</string>
     <string name="oss_licenses">Licenças de código aberto</string>

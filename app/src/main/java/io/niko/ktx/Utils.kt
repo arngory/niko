@@ -25,8 +25,6 @@ import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.preference.Preference
-import androidx.recyclerview.widget.LinearSmoothScroller
-import androidx.recyclerview.widget.RecyclerView
 import com.jakewharton.processphoenix.ProcessPhoenix
 import io.niko.BuildConfig
 import io.niko.R
@@ -157,26 +155,6 @@ fun String.urlSafe(): String {
 
 fun String.unUrlSafe(): String {
     return NGUtil.urlDecode(this)
-}
-
-fun RecyclerView.scrollTo(index: Int, force: Boolean = false) {
-    if (force) post {
-        scrollToPosition(index)
-    }
-    postDelayed({
-        try {
-            layoutManager?.startSmoothScroll(object : LinearSmoothScroller(context) {
-                init {
-                    targetPosition = index
-                }
-
-                override fun getVerticalSnapPreference(): Int {
-                    return SNAP_TO_START
-                }
-            })
-        } catch (ignored: IllegalArgumentException) {
-        }
-    }, 300L)
 }
 
 val app get() = SagerNet.application

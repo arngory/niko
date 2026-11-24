@@ -27,17 +27,10 @@
         <item name="colorAccent">@color/material_pink_accent_200</item>
 
         <item name="colorMaterial100">@color/material_pink_100</item>
-        <item name="colorMaterial300">@color/material_pink_300</item>
 
         <item name="accentOrTextSecondary">?colorAccent</item>
-        <item name="accentOrTextPrimary">?colorAccent</item>
-        <item name="primaryOrTextSecondary">?colorPrimary</item>
         <item name="primaryOrTextPrimary">?colorPrimary</item>
 
-        <item name="fabColorBackground">?colorPrimary</item>
-        <item name="selectedColorPrimary">?colorPrimary</item>
-        <item name="fabIconTint">@color/white</item>
-        <item name="fabRingColor">?colorMaterial100</item>
         <item name="actionBarTheme">@style/ThemeOverlay.Niko.ActionBar</item>
         <item name="tabTextColor">#99FFFFFF</item>
         <item name="tabSelectedTextColor">@color/white</item>
@@ -46,17 +39,6 @@
         <item name="whiteOrTextPrimary">@color/white</item>
         <item name="barElevation">4dp</item>
         <item name="barBackground">?colorPrimary</item>
-        <item name="whiteOrTextSecondary">@color/white</item>
-        <item name="statusOkColor">@color/material_green_500</item>
-        <item name="statusErrorColor">@color/material_red_500</item>
-        <item name="fabElevation">6dp</item>
-        <item name="fabHoveredFocusedTranslationZ">6dp</item>
-        <item name="fabRingThickness">8dp</item>
-        <item name="fabHalo">@null</item>
-        <item name="drawerIconColor">?android:textColorPrimary</item>
-        <item name="materialCardViewStyle">@style/Widget.SagerNet.Card</item>
-        <!-- the drawer's chosen row has no fill of its own -->
-        <item name="itemShapeFillColor">@android:color/transparent</item>
 
         <item name="windowActionModeOverlay">true</item>
 
@@ -67,7 +49,6 @@
         <item name="chipStyle">@style/Widget.MaterialComponents.Chip.Choice.SagerNet</item>
         <item name="nikoFilterChipStyle">@style/Widget.MaterialComponents.Chip.Filter</item>
         <item name="nikoTonalButtonStyle">@style/Widget.SagerNet.Button.Colored</item>
-        <item name="nikoToolButtonStyle">@style/Widget.SagerNet.Button.Tool</item>
         <item name="borderlessButtonStyle">@style/Widget.SagerNet.Button.Borderless</item>
 
         <item name="itemShapeAppearance">
@@ -84,91 +65,6 @@
 
     </style>
 
-    <style name="Theme.SagerNet.Dialog" parent="Theme.MaterialComponents.DayNight.Dialog.Alert">
-
-        <!-- Geist, the design system's font, for every theme: the theme's own text and the text appearances that name a
-             font of their own (Material's buttons and headlines, the toolbar's title). A TextView takes the theme's
-             fontFamily over its text appearance's, so a view in Geist Mono (Code, Label) names the font itself too -->
-        <item name="android:fontFamily">@font/geist</item>
-        <item name="fontFamily">@font/geist</item>
-        <item name="textAppearanceHeadline4">@style/TextAppearance.Niko.Slot.Headline4</item>
-        <item name="textAppearanceHeadline5">@style/TextAppearance.Niko.Slot.Headline5</item>
-        <item name="textAppearanceHeadline6">@style/TextAppearance.Niko.Slot.Headline6</item>
-        <item name="textAppearanceSubtitle1">@style/TextAppearance.Niko.Slot.Subtitle1</item>
-        <item name="textAppearanceSubtitle2">@style/TextAppearance.Niko.Slot.Subtitle2</item>
-        <item name="textAppearanceBody1">@style/TextAppearance.Niko.Slot.Body1</item>
-        <item name="textAppearanceBody2">@style/TextAppearance.Niko.Slot.Body2</item>
-        <item name="textAppearanceButton">@style/TextAppearance.Niko.Slot.Button</item>
-        <item name="textAppearanceCaption">@style/TextAppearance.Niko.Slot.Caption</item>
-        <item name="textAppearanceOverline">@style/TextAppearance.Niko.Slot.Overline</item>
-        <item name="toolbarStyle">@style/Widget.Niko.Toolbar</item>
-        <item name="actionBarStyle">@style/Widget.MaterialComponents.ActionBar.Solid</item>
-        <item name="actionModeCloseDrawable">@drawable/ic_l_x</item>
-        <item name="colorButtonNormal">?colorAccent</item>
-        <item name="android:navigationBarColor">?colorPrimaryDark</item>
-        <item name="colorPrimary">@color/material_pink_500</item>
-        <item name="colorPrimaryDark">@color/material_pink_700</item>
-        <item name="colorAccent">@color/material_pink_accent_200</item>
-
-        <item name="colorMaterial100">@color/material_pink_100</item>
-        <item name="colorMaterial300">@color/material_pink_300</item>
-
-        <item name="accentOrTextSecondary">?colorAccent</item>
-        <item name="accentOrTextPrimary">?colorAccent</item>
-        <item name="primaryOrTextSecondary">?colorPrimary</item>
-        <item name="primaryOrTextPrimary">?colorPrimary</item>
-
-        <item name="fabColorBackground">?colorPrimary</item>
-        <item name="selectedColorPrimary">?colorPrimary</item>
-        <item name="fabIconTint">@color/white</item>
-        <item name="fabRingColor">?colorMaterial100</item>
-        <item name="actionBarTheme">@style/ThemeOverlay.Niko.ActionBar</item>
-        <item name="tabTextColor">#99FFFFFF</item>
-        <item name="tabSelectedTextColor">@color/white</item>
-        <item name="tabIndicatorColor">@color/white</item>
-        <item name="tabRippleColor">@color/white</item>
-        <item name="whiteOrTextPrimary">@color/white</item>
-        <item name="barElevation">4dp</item>
-        <item name="barBackground">?colorPrimary</item>
-        <item name="whiteOrTextSecondary">@color/white</item>
-        <item name="statusOkColor">@color/material_green_500</item>
-        <item name="statusErrorColor">@color/material_red_500</item>
-        <item name="fabElevation">6dp</item>
-        <item name="fabHoveredFocusedTranslationZ">6dp</item>
-        <item name="fabRingThickness">8dp</item>
-        <item name="fabHalo">@null</item>
-        <item name="drawerIconColor">?android:textColorPrimary</item>
-        <item name="materialCardViewStyle">@style/Widget.SagerNet.Card</item>
-        <!-- the drawer's chosen row has no fill of its own -->
-        <item name="itemShapeFillColor">@android:color/transparent</item>
-
-        <item name="windowActionModeOverlay">true</item>
-
-        <!-- Remove ActionBar but keep styles and themes -->
-        <item name="windowActionBar">false</item>
-        <item name="windowNoTitle">true</item>
-
-        <item name="chipStyle">@style/Widget.MaterialComponents.Chip.Choice.SagerNet</item>
-        <item name="nikoFilterChipStyle">@style/Widget.MaterialComponents.Chip.Filter</item>
-        <item name="nikoTonalButtonStyle">@style/Widget.SagerNet.Button.Colored</item>
-        <item name="nikoToolButtonStyle">@style/Widget.SagerNet.Button.Tool</item>
-        <item name="borderlessButtonStyle">@style/Widget.SagerNet.Button.Borderless</item>
-
-        <item name="itemShapeAppearance">
-            @style/ShapeAppearance.MaterialComponents.MediumComponent
-        </item>
-
-        <item name="alertDialogTheme">
-            @style/ThemeOverlay.MaterialComponents.MaterialAlertDialog.SagerNet
-        </item>
-
-        <item name="materialAlertDialogTheme">
-            @style/ThemeOverlay.MaterialComponents.MaterialAlertDialog.SagerNet
-        </item>
-
-        <item name="windowFixedHeightMajor" type="dimen">95%</item>
-
-    </style>
 
     <style name="AppearanceFoundation.Title" parent="TextAppearance.AppCompat.Title">
         <item name="android:textColor">?attr/colorOnSurface</item>
@@ -210,17 +106,14 @@
         <item name="rippleColor">@color/chip_ripple_color</item>
     </style>
 
-    <!-- the bars' overlay: AppCompat's dark one, with the search field's icons and the overflow's ⋮ from the shared set
-         (Lucide) in place of Material's; the overlay sets these styles itself, so the app theme's alone would not reach
-         them -->
+    <!-- the bars' overlay: AppCompat's dark one, with the overflow's ⋮ from the shared set (Lucide) in place of
+         Material's; the overlay sets this style itself, so the app theme's alone would not reach it -->
     <style name="ThemeOverlay.Niko.ActionBar" parent="ThemeOverlay.AppCompat.Dark.ActionBar">
-        <item name="searchViewStyle">@style/Widget.Niko.SearchView</item>
         <item name="actionOverflowButtonStyle">@style/Widget.Niko.ActionButton.Overflow</item>
     </style>
 
     <!-- the Niko theme's bars: surface-0 with ink, in the light theme as in the dark -->
     <style name="ThemeOverlay.Niko.ActionBar.Neutral" parent="ThemeOverlay.AppCompat.DayNight.ActionBar">
-        <item name="searchViewStyle">@style/Widget.Niko.SearchView</item>
         <item name="actionOverflowButtonStyle">@style/Widget.Niko.ActionButton.Overflow</item>
         <item name="colorControlNormal">@color/niko_ink</item>
         <item name="android:textColorPrimary">@color/niko_ink</item>
@@ -250,36 +143,8 @@
         <item name="android:textAppearance">@style/TextAppearance.Niko.Slot.Button</item>
     </style>
 
-    <!-- a card, a group of rows: surface-1, radius-md, no shadow: its surface parts it from the ground -->
-    <style name="Widget.Niko.Card" parent="Widget.MaterialComponents.CardView">
-        <item name="cardBackgroundColor">@color/niko_surface_1</item>
-        <item name="cardCornerRadius">@dimen/niko_radius_md</item>
-        <item name="cardElevation">0dp</item>
-    </style>
-    <!-- the colour themes' cards: Material's, with the shadow NekoBox's layouts gave each of them -->
-    <style name="Widget.SagerNet.Card" parent="Widget.MaterialComponents.CardView">
-        <item name="cardElevation">2dp</item>
-    </style>
-
-    <!-- the statistics bar at the bottom (StatsBar, D-MAIN-02, D-MAIN-06): no shadow, a hairline of line along its top -->
-    <style name="Widget.Niko.StatsBar" parent="Widget.MaterialComponents.BottomAppBar">
-        <item name="elevation">0dp</item>
-        <item name="android:foreground">@drawable/niko_hairline_top</item>
-        <!-- the cradle no wider than the connect button, which is drawn over it: no gap around the button for the
-             hairline to cross -->
-        <item name="fabCradleMargin">0dp</item>
-        <item name="fabCradleRoundedCornerRadius">0dp</item>
-        <item name="fabCradleVerticalOffset">0dp</item>
-    </style>
-
     <style name="Widget.Niko.ActionButton.Overflow" parent="Widget.AppCompat.ActionButton.Overflow">
         <item name="srcCompat">@drawable/ic_l_ellipsis_vertical</item>
-    </style>
-
-    <style name="Widget.Niko.SearchView" parent="Widget.AppCompat.SearchView.ActionBar">
-        <item name="searchIcon">@drawable/ic_l_search</item>
-        <item name="searchHintIcon">@drawable/ic_l_search</item>
-        <item name="closeIcon">@drawable/ic_l_x</item>
     </style>
 
     <!-- Niko (the app's one theme since 1.62.0): neutral, from the design system's tokens; the accent is the inversion, ink -->
@@ -310,26 +175,8 @@
         <item name="colorSecondaryVariant">@color/niko_ink_pressed</item>
         <item name="colorOnSecondary">@color/niko_on_ink</item>
         <item name="colorMaterial100">@color/niko_surface_2</item>
-        <!-- the statistics bar at the bottom: a container -->
-        <item name="colorMaterial300">@color/niko_surface_1</item>
-
-        <item name="selectedColorPrimary">@color/niko_ink</item>
-        <!-- the connect button as the window's (ConnectButton, D-MAIN-04): surface-2 with an ink icon at rest, ink with
-             on-ink while connected, danger-soft with danger after a failed start; a hairline halo at its edge, the ring
-             while connecting an ink arc of stroke-bold; no shadow -->
-        <item name="fabColorBackground">@color/niko_fab_fill</item>
-        <item name="fabIconTint">@color/niko_fab_icon</item>
-        <item name="fabRingColor">@color/niko_ink</item>
-        <item name="fabHalo">@drawable/niko_fab_halo</item>
-        <item name="fabElevation">0dp</item>
-        <item name="fabHoveredFocusedTranslationZ">0dp</item>
-        <!-- twice stroke-bold -->
-        <item name="fabRingThickness">4dp</item>
 
         <item name="accentOrTextSecondary">?android:textColorSecondary</item>
-        <item name="accentOrTextPrimary">?android:textColorPrimary</item>
-        <!-- the drawer's chosen row: ink, as the design system's active section (n-nav__item.is-active), not quieter than the rest -->
-        <item name="primaryOrTextSecondary">?android:textColorPrimary</item>
         <item name="primaryOrTextPrimary">?android:textColorPrimary</item>
 
         <!-- the bars are light in the light theme: their text and icons are ink, no white of the coloured themes;
@@ -338,16 +185,7 @@
         <item name="whiteOrTextPrimary">@color/niko_ink</item>
         <item name="barElevation">0dp</item>
         <item name="barBackground">@color/niko_surface_0</item>
-        <!-- the statistics bar: surface-1 (colorMaterial300), no shadow, a hairline along its top; the speeds ink-2 -->
-        <item name="bottomAppBarStyle">@style/Widget.Niko.StatsBar</item>
-        <item name="whiteOrTextSecondary">@color/niko_ink_2</item>
-        <!-- a profile's state is said in words, its colour only adds to them: no green; ink-2, danger for a failure -->
-        <item name="statusOkColor">@color/niko_ink_2</item>
-        <item name="statusErrorColor">@color/niko_danger</item>
-        <item name="materialCardViewStyle">@style/Widget.Niko.Card</item>
-        <!-- the drawer: surface-1, its rows ink (the chosen one 600), their icons ink-2 -->
-        <item name="drawerIconColor">@color/niko_ink_2</item>
-        <!-- the group tabs as the window's header sections: the chosen one ink and 600, the others ink-2, no strip
+        <!-- the tabs as the window's header sections: the chosen one ink and 600, the others ink-2, no strip
              (ink and ink-2 differ less than 3:1, so the weight marks it too) -->
         <item name="tabStyle">@style/Widget.Niko.TabLayout</item>
         <item name="tabTextColor">@color/niko_ink_2</item>
@@ -360,7 +198,6 @@
         <!-- buttons and chips as capsules (reskin step 2, niko_controls.xml) -->
         <item name="materialButtonStyle">@style/Widget.Niko.Button</item>
         <item name="nikoTonalButtonStyle">@style/Widget.Niko.Button.Tonal</item>
-        <item name="nikoToolButtonStyle">@style/Widget.Niko.Button.Tonal</item>
         <item name="borderlessButtonStyle">@style/Widget.Niko.Button.Ghost</item>
         <item name="chipStyle">@style/Widget.Niko.Chip</item>
         <item name="nikoFilterChipStyle">@style/Widget.Niko.Chip.Filter</item>
@@ -382,101 +219,6 @@
         <item name="textAppearanceSmallPopupMenu">@style/TextAppearance.Niko.Body</item>
     </style>
 
-    <style name="Theme.SagerNet.Dialog.Niko">
-        <!-- the roles of the theme, from the design system's tokens (reskin step 1, D-MAIN): surface-0 behind
-             everything, the bars included, surface-1 for containers; ink for text and the accent, ink-2 for the
-             secondary; a pressed row fills with surface-2 -->
-        <!-- a dialog's window keeps its frame (windowBackground is the theme's inset shape): only its fill is ours,
-             surface-1, as the tokens have the dialogs -->
-        <item name="android:colorBackground">@color/niko_surface_1</item>
-        <item name="colorBackgroundFloating">@color/niko_surface_1</item>
-        <item name="colorSurface">@color/niko_surface_1</item>
-        <item name="colorOnSurface">@color/niko_ink</item>
-        <item name="colorOnBackground">@color/niko_ink</item>
-        <item name="android:textColorPrimary">@color/niko_ink</item>
-        <item name="android:textColorSecondary">@color/niko_ink_2</item>
-        <item name="colorControlNormal">@color/niko_ink_2</item>
-        <item name="colorControlActivated">@color/niko_ink</item>
-        <item name="colorControlHighlight">@color/niko_surface_2</item>
-        <item name="colorError">@color/niko_danger</item>
-        <!-- colorPrimary stays the accent, ink: Material's fields (focused outline, hint), filled buttons, progress
-             indicators and the fast scroller's thumb and letter popup (on-ink letters) take it. The bars fill with
-             barBackground; the status bar with colorPrimaryDark and colorPrimaryVariant -->
-        <item name="colorPrimary">@color/niko_ink</item>
-        <item name="colorPrimaryDark">@color/niko_surface_0</item>
-        <item name="colorPrimaryVariant">@color/niko_surface_0</item>
-        <item name="colorOnPrimary">@color/niko_on_ink</item>
-        <item name="colorAccent">@color/niko_ink</item>
-        <item name="colorSecondary">@color/niko_ink</item>
-        <item name="colorSecondaryVariant">@color/niko_ink_pressed</item>
-        <item name="colorOnSecondary">@color/niko_on_ink</item>
-        <item name="colorMaterial100">@color/niko_surface_2</item>
-        <!-- the statistics bar at the bottom: a container -->
-        <item name="colorMaterial300">@color/niko_surface_1</item>
-
-        <item name="selectedColorPrimary">@color/niko_ink</item>
-        <!-- the connect button as the window's (ConnectButton, D-MAIN-04): surface-2 with an ink icon at rest, ink with
-             on-ink while connected, danger-soft with danger after a failed start; a hairline halo at its edge, the ring
-             while connecting an ink arc of stroke-bold; no shadow -->
-        <item name="fabColorBackground">@color/niko_fab_fill</item>
-        <item name="fabIconTint">@color/niko_fab_icon</item>
-        <item name="fabRingColor">@color/niko_ink</item>
-        <item name="fabHalo">@drawable/niko_fab_halo</item>
-        <item name="fabElevation">0dp</item>
-        <item name="fabHoveredFocusedTranslationZ">0dp</item>
-        <!-- twice stroke-bold -->
-        <item name="fabRingThickness">4dp</item>
-
-        <item name="accentOrTextSecondary">?android:textColorSecondary</item>
-        <item name="accentOrTextPrimary">?android:textColorPrimary</item>
-        <!-- the drawer's chosen row: ink, as the design system's active section (n-nav__item.is-active), not quieter than the rest -->
-        <item name="primaryOrTextSecondary">?android:textColorPrimary</item>
-        <item name="primaryOrTextPrimary">?android:textColorPrimary</item>
-
-        <!-- the bars are light in the light theme: their text and icons are ink, no white of the coloured themes;
-             no shadow under them -->
-        <item name="actionBarTheme">@style/ThemeOverlay.Niko.ActionBar.Neutral</item>
-        <item name="whiteOrTextPrimary">@color/niko_ink</item>
-        <item name="barElevation">0dp</item>
-        <item name="barBackground">@color/niko_surface_0</item>
-        <!-- the statistics bar: surface-1 (colorMaterial300), no shadow, a hairline along its top; the speeds ink-2 -->
-        <item name="bottomAppBarStyle">@style/Widget.Niko.StatsBar</item>
-        <item name="whiteOrTextSecondary">@color/niko_ink_2</item>
-        <!-- a profile's state is said in words, its colour only adds to them: no green; ink-2, danger for a failure -->
-        <item name="statusOkColor">@color/niko_ink_2</item>
-        <item name="statusErrorColor">@color/niko_danger</item>
-        <item name="materialCardViewStyle">@style/Widget.Niko.Card</item>
-        <!-- the drawer: surface-1, its rows ink (the chosen one 600), their icons ink-2 -->
-        <item name="drawerIconColor">@color/niko_ink_2</item>
-        <!-- the group tabs as the window's header sections: the chosen one ink and 600, the others ink-2, no strip
-             (ink and ink-2 differ less than 3:1, so the weight marks it too) -->
-        <item name="tabStyle">@style/Widget.Niko.TabLayout</item>
-        <item name="tabTextColor">@color/niko_ink_2</item>
-        <item name="tabSelectedTextColor">@color/niko_ink</item>
-        <item name="tabIndicatorColor">@android:color/transparent</item>
-        <item name="tabRippleColor">@color/niko_surface_2</item>
-        <item name="snackbarStyle">@style/Widget.Niko.Snackbar</item>
-        <item name="snackbarTextViewStyle">@style/Widget.Niko.Snackbar.TextView</item>
-        <item name="snackbarButtonStyle">@style/Widget.Niko.Snackbar.Button</item>
-        <!-- buttons and chips as capsules (reskin step 2, niko_controls.xml) -->
-        <item name="materialButtonStyle">@style/Widget.Niko.Button</item>
-        <item name="nikoTonalButtonStyle">@style/Widget.Niko.Button.Tonal</item>
-        <item name="nikoToolButtonStyle">@style/Widget.Niko.Button.Tonal</item>
-        <item name="borderlessButtonStyle">@style/Widget.Niko.Button.Ghost</item>
-        <item name="chipStyle">@style/Widget.Niko.Chip</item>
-        <item name="nikoFilterChipStyle">@style/Widget.Niko.Chip.Filter</item>
-        <!-- reskin step 3 (niko_dialogs.xml): dialogs, text fields and menus -->
-        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Niko.MaterialAlertDialog</item>
-        <item name="alertDialogTheme">@style/ThemeOverlay.Niko.MaterialAlertDialog</item>
-        <item name="textInputStyle">@style/Widget.Niko.TextField</item>
-        <item name="editTextStyle">@style/Widget.Niko.EditText</item>
-        <item name="android:editTextStyle">@style/Widget.Niko.EditText</item>
-        <item name="popupMenuStyle">@style/Widget.Niko.PopupMenu</item>
-        <item name="android:popupMenuStyle">@style/Widget.Niko.PopupMenu</item>
-        <item name="actionOverflowMenuStyle">@style/Widget.Niko.PopupMenu.Overflow</item>
-        <item name="textAppearanceLargePopupMenu">@style/TextAppearance.Niko.Body</item>
-        <item name="textAppearanceSmallPopupMenu">@style/TextAppearance.Niko.Body</item>
-    </style>
 
     <style name="TextAppearance.Niko.ToolbarTitle" parent="TextAppearance.Widget.AppCompat.Toolbar.Title">
         <item name="fontFamily">@font/geist</item>

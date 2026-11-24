@@ -62,6 +62,7 @@ class HomeFragment : Fragment() {
                 val testing by ConfigsTest.testing.collectAsState()
                 val results by ConfigsTest.results.collectAsState()
                 val stored by ConfigsTest.stored.collectAsState()
+                val testTotal by ConfigsTest.total.collectAsState()
                 // a test stored (also while this screen was away): its results into the rows, then read again
                 LaunchedEffect(stored) { if (stored > 0) main.testStored() }
                 NikoTheme {
@@ -72,7 +73,8 @@ class HomeFragment : Fragment() {
                         testing = testing, results = results,
                         configsActions = main.configsActions,
                         subs = main.subsState.value, subsActions = subsActions, format = format(),
-                        configsMenus = configsMenus,
+                        configsMenus = configsMenus, testTotal = testTotal,
+                        ask = main.homeSheet.value, onAsked = { main.homeSheet.value = null },
                     )
                 }
             }
@@ -87,6 +89,11 @@ class HomeFragment : Fragment() {
             time = { time.format(Date(it * 1000)) },
             bytes = { Formatter.formatShortFileSize(context, it) },
         )
+    }
+
+    private companion object {
+        const val EXPORT_GROUP = "exportGroup"
+        const val EXPORT_CONFIG = "exportedConfig"
     }
 
     // the group whose configs go to the file the user picks
@@ -281,6 +288,22 @@ class HomeFragment : Fragment() {
                 main.refreshConfigs()
             }
         }
+    }
+
+    // the system's file picker may outlive this screen (a rotation under it): what waits for its answer is kept
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        savedInstanceState?.let {
+            exportGroup = it.getLong(EXPORT_GROUP)
+            exportedConfig = it.getString(EXPORT_CONFIG)
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putLong(EXPORT_GROUP, exportGroup)
+        // a config is a few kilobytes; one too large for the saved state is given up rather than crash the save
+        exportedConfig?.takeIf { it.length < 200_000 }?.let { outState.putString(EXPORT_CONFIG, it) }
     }
 
     // done now: after the screen there is no undo to offer

@@ -4,8 +4,8 @@
                                 GOMEM the last go-mem line of the log for PROC (libcore MemoryStats), "-" for none
   header                        the TSV's header
   table SUMMARY                 the rows as a Markdown table, the columns that tell most
-  tap UI_XML TEXT               "x y": the center of the node whose text or content-desc is TEXT, or whose
-                                resource-id ends in TEXT; nothing when there is none
+  tap UI_XML TEXT               "x y": the center of the node whose text or content-desc is TEXT (or starts with it,
+                                when TEXT ends in *), or whose resource-id ends in TEXT; nothing when there is none
 
 What each column is:
   pss, rss, swap_pss         dumpsys meminfo's TOTAL PSS, TOTAL RSS, TOTAL SWAP PSS
@@ -168,9 +168,14 @@ def main():
         except (ET.ParseError, OSError):
             return
         want = sys.argv[3]
+        prefix = want[:-1] if want.endswith("*") and len(want) > 1 else None
         for n in nodes:
-            if want in ((n.get("text") or ""), (n.get("content-desc") or "")) or \
-                    (n.get("resource-id") or "").endswith(want):
+            said = ((n.get("text") or ""), (n.get("content-desc") or ""))
+            if prefix is not None:
+                found = any(s.startswith(prefix) for s in said)
+            else:
+                found = want in said or (n.get("resource-id") or "").endswith(want)
+            if found:
                 x1, y1, x2, y2 = map(int, re.findall(r"-?\d+", n.get("bounds", ""))[:4])
                 print((x1 + x2) // 2, (y1 + y2) // 2)
                 return

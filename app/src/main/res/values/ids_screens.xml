@@ -2,8 +2,6 @@
 <!-- The screens MainActivity shows (displayFragmentWithId), named as the side menu named them before it went in 1.67 -->
 <resources>
     <item name="nav_home" type="id" />
-    <item name="nav_configuration" type="id" />
-    <item name="nav_group" type="id" />
     <item name="nav_route" type="id" />
     <item name="nav_settings" type="id" />
     <item name="nav_logcat" type="id" />

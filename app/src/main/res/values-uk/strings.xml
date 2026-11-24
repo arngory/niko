@@ -6,7 +6,6 @@
     <string name="oss_licenses">Ліцензії з відкритим кодом</string>
     <string name="app_version">Версія</string>
     <string name="logcat">Експорт інформації про налагодження</string>
-    <string name="menu_configuration">Конфігурація</string>
     <string name="menu_group">Група</string>
     <string name="theme">Тема</string>
     <string name="document">Документація</string>
@@ -21,19 +20,14 @@
     <string name="action_copy">Копіювати</string>
     <string name="action_open">Відкрити</string>
     <!-- group -->
-    <string name="group_name">Назва групи</string>
     <string name="group_update">Оновити</string>
     <string name="group_subscription_link">Посилання на підписку</string>
     <string name="group_name_required">Потрібна назва групи</string>
-    <string name="group_create">Створити групу</string>
     <string name="group_create_subscription">Створити підписку</string>
     <string name="update_all_subscription">Оновити всі підписки</string>
     <string name="group_edit">Редагувати групу</string>
     <string name="group_edit_subscription">Редагувати підписку</string>
-    <string name="group_status_empty">Порожня група</string>
     <string name="group_status_empty_subscription">Ще не оновлено</string>
-    <string name="group_status_proxies">%d проксі</string>
-    <string name="group_status_proxies_subscription">%d проксі | Оновлено %s</string>
     <string name="group_no_difference">%s: Немає різниці</string>
     <string name="group_updated">%s: Оновлено %d проксі</string>
     <string name="group_show_diff">Різниця</string>
@@ -58,10 +52,6 @@
     <string name="traffic" translatable="false">%1$s↑ %2$s↓</string>
     <string name="speed_detail">Проксі: %1$s↑ %2$s↓\nПрямий: %3$s↑ %4$s↓</string>
     <string name="speed">%s/с</string>
-    <string name="connection_test_testing">Тестування…</string>
-    <string name="connection_test_available">Успіх: рукостискання HTTPS зайняло %dмс</string>
-    <string name="connection_test_available_http">Успіх: рукостискання HTTP зайняло %dмс</string>
-    <string name="connection_test_error">Не вдалося: %s</string>
     <string name="connection_test_fail">Інтернет недоступний</string>
     <string name="connection_test_error_status_code">Код помилки: #%d</string>
     <string name="dns_hosts">Переписування домену</string>
@@ -69,8 +59,6 @@
     <string name="require_transproxy">Увімкнути вхідний сигнал Transproxy</string>
     <string name="transproxy_mode">Режим Transproxy</string>
     <!-- proxy category -->
-    <string name="profile_name">Ім\'я профілю</string>
-    <string name="server_address">Сервер</string>
     <string name="key_opt">Ключ (необов’язково)</string>
     <string name="enc_method">Метод шифрування</string>
     <string name="protocol">Протокол</string>
@@ -125,17 +113,14 @@
     <string name="invalid_server">Неправильне ім\'я сервера</string>
     <string name="service_failed">Не вдалося: </string>
     <string name="stop">Зупинити</string>
-    <string name="stopping">Зупинка…</string>
     <string name="vpn_error">%s</string>
     <string name="vpn_permission_denied">Дозвіл на створення служби VPN відхилено</string>
     <string name="reboot_required">Не вдалося запустити службу VPN. Можливо, вам доведеться перезавантажити пристрій.</string>
     <!-- alert category -->
     <string name="profile_empty">Будь ласка, виберіть профіль</string>
-    <string name="connect">Підключити</string>
     <string name="clipboard_empty">Буфер обміну порожній</string>
     <!-- menu category -->
     <string name="settings">Налаштування</string>
-    <string name="edit">Редагувати</string>
     <string name="share">Поділитися</string>
     <string name="add_profile">Додати профіль</string>
     <string name="select_profile">Вибрати профіль</string>
@@ -162,14 +147,11 @@
     <string name="config_settings">Налаштування конфігурації</string>
     <string name="circular_reference">Циклічне посилання</string>
     <string name="circular_reference_sum">Маршрут не може містити самого себе.</string>
-    <string name="clear_profiles">Очистити</string>
     <string name="action_create_group">Порожня група</string>
     <string name="action_from_link">З підписки</string>
     <string name="action_scan_china_apps">Сканувати китайські програми</string>
     <string name="action_export_file">Експортувати у файл</string>
     <string name="action_export_clipboard">Експортувати в буфер обміну</string>
-    <string name="action_export">Експорт</string>
-    <string name="action_import">Імпортувати з буфера обміну</string>
     <string name="action_import_file">Імпортувати з файлу</string>
     <string name="action_export_msg">Експортовано успішно!</string>
     <string name="action_export_err">Не вдалося експортувати.</string>
@@ -199,9 +181,6 @@
     <string name="deprecated">Застарілий</string>
     <!-- tasker -->
     <!-- status -->
-    <string name="connecting">Підключення…</string>
-    <string name="vpn_connected">Підключено, торкніться, щоб перевірити з\'єднання</string>
-    <string name="not_connected">Не підключено</string>
     <!-- subscriptions -->
     <string name="cleartext_http_warning">HTTP-трафік у відкритому вигляді є незахищеним</string>
     <string name="error_title">Помилка</string>
@@ -230,12 +209,7 @@
     <string name="leastPing" translatable="false">Ping</string>
     <string name="api_port">Порт API</string>
     <string name="probe_interval">Інтервал спостереження балансувальника</string>
-    <string name="standard">Стандартний</string>
     <string name="v2rayn" translatable="false">V2RayN</string>
-    <string name="available" translatable="false">%dмс</string>
-    <string name="unavailable">Недоступний</string>
-    <string name="clear_traffic_statistics">Очистити статистику трафіку</string>
-    <string name="connection_test">Тест з\'єднання</string>
     <string name="connection_test_clear_results">Очистити результати тесту</string>
     <string name="connection_test_tcp_ping" translatable="false">TCPing</string>
     <string name="connection_test_tcp_ping_unavailable">TCPing недоступний</string>
@@ -273,7 +247,6 @@
     <string name="subscription_import_message">Підтвердьте, що ви хочете імпортувати підписку %s? Якщо ви робите це з ненадійного джерела, це може призвести до витоку вашої IP-адреси та даних про цю дію.</string>
     <string name="profile_import">Імпортувати профіль</string>
     <string name="profile_import_message">Підтвердьте, що ви хочете імпортувати профіль %s?</string>
-    <string name="clear_profiles_message">Ви впевнені, що хочете очистити цю групу?</string>
     <string name="apps">Програми</string>
     <string name="hysteria_obfs">Пароль обфускації</string>
     <string name="hysteria_auth_type">Тип автентифікації</string>
@@ -282,7 +255,6 @@
     <string name="hysteria_stream_receive_window">Вікно прийому потоку QUIC</string>
     <string name="hysteria_connection_receive_window">Вікно прийому з\'єднання QUIC</string>
     <string name="hysteria_disable_mtu_discovery">Вимкнути виявлення Path MTU</string>
-    <string name="group_order">Порядок</string>
     <string name="group_order_origin">За замовчуванням</string>
     <string name="group_order_by_name">За назвою</string>
     <string name="group_order_by_delay">За затримкою</string>
@@ -359,7 +331,6 @@
     <string name="use_selector">Використовувати селектор</string>
     <string name="action_shadowtls" translatable="false">ShadowTLS</string>
     <string name="protocol_version">Версія протоколу</string>
-    <string name="share_subscription">Поділитися підпискою</string>
     <string name="reset_connections">Скинути з\'єднання</string>
     <string name="remove_duplicate">Видалити дублікати серверів</string>
     <string name="mtu_help">Довге натискання на налаштування, щоб встановити власний MTU.</string>
@@ -374,8 +345,6 @@
     <string name="ech_config">Конфігурація ECH</string>
     <string name="http_upgrade_host">Хост HTTPUpgrade</string>
     <string name="http_upgrade_path">Шлях HTTPUpgrade</string>
-    <string name="update_current_subscription">Оновити підписку поточної групи</string>
-    <string name="group_not_subscription">Тип групи не є підпискою</string>
     <string name="mux_preference">Мультиплексування</string>
     <string name="padding">Заповнення (Padding)</string>
 </resources>

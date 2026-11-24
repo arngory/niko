@@ -283,8 +283,8 @@
             android:name="io.niko.ui.SwitchActivity"
             android:configChanges="uiMode"
             android:excludeFromRecents="true"
-            android:launchMode="singleInstance"
-            android:theme="@style/Theme.SagerNet.Dialog" />
+            android:label="@string/action_switch"
+            android:launchMode="singleInstance" />
 
         <!-- systemExempted needs the VPN consent; without it proxy-only mode runs as specialUse -->
         <service

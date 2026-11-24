@@ -8,13 +8,10 @@
     <color name="niko_shortcut_background">#EEEEEE</color>
 
 
-    <color name="material_green_500">#4CAF50</color>
     <color name="material_pink_100">#F8BBD0</color>
-    <color name="material_pink_300">#F06292</color>
     <color name="material_pink_500">#E91E63</color>
     <color name="material_pink_700">#C2185B</color>
     <color name="material_pink_accent_200">#FF4081</color>
-    <color name="material_red_500">#F44336</color>
 
     <color name="white">#FFFFFFFF</color>
 

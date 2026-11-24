@@ -57,11 +57,14 @@ object ConfigsTest {
         else -> TcpFailure.OTHER
     }
 
-    /** the group under test (one test at a time, the old list's included: DataStore.runningTest) */
+    /** the group under test (one test at a time: DataStore.runningTest) */
     val testing = MutableStateFlow<Set<Long>>(emptySet())
 
     /** the results of the test running or just stored, by profile, until the rows are read again (taken) */
     val results = MutableStateFlow<Map<Long, Result>>(emptyMap())
+
+    /** how many profiles the running test takes (0: none runs); those tested so far are in [results] */
+    val total = MutableStateFlow(0)
 
     /** counts the tests stored: the main screen takes their results and reads its rows again */
     val stored = MutableStateFlow(0)
@@ -106,6 +109,7 @@ object ConfigsTest {
             val profiles = ConcurrentLinkedQueue(
                 SagerDatabase.proxyDao.getByGroup(groupId).filter { mode == Mode.URL || it.requireBean().canTCPing() },
             )
+            total.value = profiles.size
             val workers = DataStore.connectionTestConcurrent.let {
                 if (service != null) minOf(it, UrlTest.inServiceAtOnce) else it
             }
@@ -161,6 +165,7 @@ object ConfigsTest {
                 }
                 DataStore.runningTest = false
                 testing.value = emptySet()
+                total.value = 0
                 stored.update { it + 1 }
             }
         }

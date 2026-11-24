@@ -34,9 +34,8 @@ class HomeSnapshotTest(private val mode: String) {
         override fun toggle() {}
         override fun view(view: HomeView) {}
         override fun mode(vpn: Boolean) {}
-        override fun profiles() {}
+        override fun add() {}
         override fun configs(open: Boolean) {}
-        override fun subscriptions() {}
         override fun route() {}
         override fun apps() {}
         override fun settings() {}
@@ -116,8 +115,12 @@ class HomeSnapshotTest(private val mode: String) {
         ConfigGroup(
             1, "arngory", subscription = true,
             listOf(
-                ConfigRow(11, "naive", listOf("HTTPS"), 38, unreachable = false, selected = false),
-                ConfigRow(12, "Hysteria2", listOf("QUIC"), 41, unreachable = false, selected = true),
+                // «Показывать адрес» on: the address, and the traffic counted, after the tags
+                ConfigRow(
+                    11, "naive", listOf("HTTPS"), 38, unreachable = false, selected = false,
+                    address = "192.0.2.10:443", showAddress = true, tx = 1_000_000_000, rx = 30_000_000_000,
+                ),
+                ConfigRow(12, "Hysteria2", listOf("QUIC"), 41, unreachable = false, selected = true, tx = 2_000_000_000, rx = 4_000_000_000),
                 ConfigRow(13, "dnstt", listOf("VLESS", "DNS"), null, unreachable = false, selected = false),
             ),
         ),
@@ -137,7 +140,7 @@ class HomeSnapshotTest(private val mode: String) {
                 configs = groups, testing = setOf(2L), configsActions = noConfigs, configsOpen = configs,
                 subs = subs, subsActions = noSubs, format = format, subsOpen = onSubs, configsMenus = noMenus,
                 // the test's results over the rows read: Helsinki answered meanwhile
-                results = mapOf(22L to ConfigsTest.Result(pingMs = 88, unreachable = false)),
+                results = mapOf(22L to ConfigsTest.Result(pingMs = 88, unreachable = false)), testTotal = 2,
             )
         }
     }

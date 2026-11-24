@@ -6,7 +6,6 @@
     <string name="oss_licenses">Open source licenses</string>
     <string name="app_version">Version</string>
     <string name="logcat">Export debug information</string>
-    <string name="menu_configuration">Configuration</string>
     <string name="menu_group">Group</string>
     <string name="theme">Theme</string>
     <string name="document">Document</string>
@@ -23,19 +22,14 @@
     <string name="action_copy">Copy</string>
     <string name="action_open">Open</string>
     <!-- group -->
-    <string name="group_name">Group name</string>
     <string name="group_update">Update</string>
     <string name="group_subscription_link">Subscription Link</string>
     <string name="group_name_required">Group name required</string>
-    <string name="group_create">Create group</string>
     <string name="group_create_subscription">Create subscription</string>
     <string name="update_all_subscription">Update all subscriptions</string>
     <string name="group_edit">Edit group</string>
     <string name="group_edit_subscription">Edit subscription</string>
-    <string name="group_status_empty">Empty group</string>
     <string name="group_status_empty_subscription">Not updated yet</string>
-    <string name="group_status_proxies">%d Proxies</string>
-    <string name="group_status_proxies_subscription">%d Proxies | Updated on %s</string>
     <string name="group_no_difference">%s: No difference</string>
     <string name="group_updated">%s: Updated %d proxies</string>
     <string name="group_show_diff">Diff</string>
@@ -61,10 +55,6 @@
     <string name="traffic" translatable="false">%1$s↑ %2$s↓</string>
     <string name="speed_detail">Proxy： %1$s↑ %2$s↓\nDirect： %3$s↑ %4$s↓</string>
     <string name="speed">%s/s</string>
-    <string name="connection_test_testing">Testing…</string>
-    <string name="connection_test_available">Success: HTTPS handshake took %dms</string>
-    <string name="connection_test_available_http">Success: HTTP handshake took %dms</string>
-    <string name="connection_test_error">Failed: %s</string>
     <string name="connection_test_fail">Internet Unavailable</string>
     <string name="connection_test_error_status_code">Error code: #%d</string>
     <string name="remote_dns_help">One per line: https://…/dns-query, tls://…, 1.1.1.1. When a server fails or keeps silent, the next one is asked</string>
@@ -75,8 +65,6 @@
     <string name="require_transproxy">Enable Transproxy Inbound</string>
     <string name="transproxy_mode">Transproxy Mode</string>
     <!-- proxy category -->
-    <string name="profile_name">Profile Name</string>
-    <string name="server_address">Server</string>
     <string name="key_opt">Key (Optional)</string>
     <string name="enc_method">Encrypt Method</string>
     <string name="protocol">Protocol</string>
@@ -139,7 +127,6 @@
     <string name="invalid_server">Invalid server name</string>
     <string name="service_failed">Failed: </string>
     <string name="stop">Stop</string>
-    <string name="stopping">Shutting down…</string>
     <string name="vpn_error">%s</string>
     <string name="vpn_permission_denied">Permission denied to create a VPN service</string>
     <string name="always_on_needs_vpn_mode">Android started Niko as the always-on VPN, but Niko is set to “Proxy only”, so nothing runs. To use always-on VPN, choose VPN in Settings → Service Mode, or turn always-on VPN off for Niko in the system\'s VPN settings.</string>
@@ -147,11 +134,9 @@
         device.</string>
     <!-- alert category -->
     <string name="profile_empty">Please select a profile</string>
-    <string name="connect">Connect</string>
     <string name="clipboard_empty">Clipboard is empty</string>
     <!-- menu category -->
     <string name="settings">Settings</string>
-    <string name="edit">Edit</string>
     <string name="share">Share</string>
     <string name="add_profile">Add Profile</string>
     <string name="select_profile">Select Profile</string>
@@ -178,14 +163,11 @@
     <string name="config_settings">Config Settings</string>
     <string name="circular_reference">Circular reference</string>
     <string name="circular_reference_sum">The route cannot contain itself.</string>
-    <string name="clear_profiles">Clear</string>
     <string name="action_create_group">Empty group</string>
     <string name="action_from_link">From subscription</string>
     <string name="action_scan_china_apps">Scan China apps</string>
     <string name="action_export_file">Export to file</string>
     <string name="action_export_clipboard">Export to clipboard</string>
-    <string name="action_export">Export</string>
-    <string name="action_import">Import from clipboard</string>
     <string name="action_import_file">Import from file</string>
     <string name="action_export_msg">Successfully export!</string>
     <string name="action_export_err">Failed to export.</string>
@@ -212,9 +194,6 @@
     <string name="deprecated">Deprecated</string>
     <!-- tasker -->
     <!-- status -->
-    <string name="connecting">Connecting…</string>
-    <string name="vpn_connected">Connected, tap to check connection</string>
-    <string name="not_connected">Not connected</string>
     <!-- subscriptions -->
     <string name="cleartext_http_warning">Cleartext HTTP traffic is insecure</string>
     <string name="error_title">Error</string>
@@ -251,12 +230,7 @@
     <string name="leastPing" translatable="false">Ping</string>
     <string name="api_port">API Port</string>
     <string name="probe_interval">Balancer observation interval</string>
-    <string name="standard">Standard</string>
     <string name="v2rayn" translatable="false">V2RayN</string>
-    <string name="available" translatable="false">%dms</string>
-    <string name="unavailable">Unavailable</string>
-    <string name="clear_traffic_statistics">Clear traffic statistics</string>
-    <string name="connection_test">Connection test</string>
     <string name="connection_test_clear_results">Clear test results</string>
     <string name="connection_test_tcp_ping" translatable="false">TCPing</string>
     <string name="connection_test_tcp_ping_unavailable">TCPing unavailable</string>
@@ -301,7 +275,6 @@
     <string name="profile_import_message">Confirm you want to import profile %s?</string>
     <string name="profile_import_full_config_warning">Warning: this profile replaces or rewrites the whole sing-box config (local proxy, DNS, routing). Import it only if you trust the source.</string>
     <string name="profile_import_keys">It sets these parts of the config: %s</string>
-    <string name="clear_profiles_message">Are you sure you want to clear this group?</string>
     <string name="apps">Applications</string>
     <string name="hysteria_obfs">Obfuscation Password</string>
     <string name="hysteria_auth_type">Authentication Type</string>
@@ -310,7 +283,6 @@
     <string name="hysteria_stream_receive_window">QUIC Stream Receive Window</string>
     <string name="hysteria_connection_receive_window">QUIC Connection Receive Window</string>
     <string name="hysteria_disable_mtu_discovery">Disable Path MTU Discovery</string>
-    <string name="group_order">Order</string>
     <string name="group_order_origin">Origin</string>
     <string name="group_order_by_name">By Name</string>
     <string name="group_order_by_delay">By Delay</string>
@@ -442,7 +414,6 @@
     <string name="use_selector">Use selector</string>
     <string name="action_shadowtls" translatable="false">ShadowTLS</string>
     <string name="protocol_version">Protocol Version</string>
-    <string name="share_subscription">Share Subscription</string>
     <string name="reset_connections">Reset Connections</string>
     <string name="remove_duplicate">Remove duplicates</string>
     <string name="mtu_help">Long press the preference to set custom MTU.</string>
@@ -458,8 +429,6 @@
     <string name="ech_config">ECH Config</string>
     <string name="http_upgrade_host">HTTPUpgrade Host</string>
     <string name="http_upgrade_path">HTTPUpgrade Path</string>
-    <string name="update_current_subscription">Update subscription</string>
-    <string name="group_not_subscription">Group type is not subscription</string>
     <string name="mux_preference">Mulitplex</string>
     <string name="padding">Padding</string>
     <string name="preview_version_hint">This application is a preview version and may contain many problems. If you do not want to test it, please go to GitHub to download the Release version!</string>
@@ -481,7 +450,6 @@
     <string name="update_bad_notice">the release\'s UPDATE.json is not the signed one</string>
     <string name="update_needs_android">%1$s needs Android %2$s or newer. This phone stays on the version it has, which keeps working.</string>
     <string name="reset_settings_message">Restore default settings, but data such as nodes and groups will be retained. To completely clear data, clear application data directly in the system settings.</string>
-    <string name="minimize">Minimize</string>
     <string name="app_list_permission_denied">Unable to read installed apps.\nThis is usually because the system has restricted app read permissions.\nPlease grant permissions in the system settings.</string>
     <string name="open_app_settings">Open System Settings</string>
     <string name="connection_tweaks">Connection tweaks</string>
@@ -534,11 +502,6 @@
     <string name="raycontrol_sub_skipped">%d links could not be read.</string>
     <string name="raycontrol_sub_client_min">%1$s requires Niko %2$s or newer: its profiles stay as they were; update the app in About.</string>
     <string name="raycontrol_sub_failed">Subscription not updated: %s</string>
-    <string name="raycontrol_card_status">%1$d profiles · updated %2$s</string>
-    <string name="raycontrol_card_status_never">%1$d profiles · not updated yet</string>
-    <string name="raycontrol_card_traffic">%1$s of %2$s</string>
-    <string name="raycontrol_card_traffic_reset">%1$s of %2$s, resets %3$s</string>
-    <string name="raycontrol_card_traffic_near">almost used up: %1$s</string>
     <string name="raycontrol_lan">Local network</string>
     <string name="raycontrol_lan_help">Your devices on this node reach each other by name through the node, encrypted end to end (Yggdrasil). Other users of the node see none of them, and a device that is not shown sees none either.</string>
     <string name="raycontrol_lan_not_offered">The node offers you no local network: its administrator turns it on for your user (raycontrol 0.23 or later, with a Yggdrasil service).</string>
@@ -571,14 +534,11 @@
     <string name="raycontrol_card_client_min_from">from %2$s the node will require Niko %1$s or newer: tap to update</string>
     <string name="raycontrol_card_refused">the node refused this device, import it again</string>
     <string name="raycontrol_card_failing">updates fail (%d in a row)</string>
-    <string name="raycontrol_card_expires">valid till %s</string>
     <string name="raycontrol_card_expired">expired %s</string>
     <string name="raycontrol_card_path_direct">direct</string>
     <string name="raycontrol_card_path_relay">through its relay</string>
-    <string name="raycontrol_card_dnstt">dnstt: %s</string>
     <string name="raycontrol_card_dns_net">the network\'s resolver</string>
     <string name="raycontrol_card_dns_none">no resolver answered</string>
-    <string name="raycontrol_card_clock">clock off by %d s</string>
     <string name="route_test_target_hint">Host or address, and a port: example.com:443</string>
     <string name="route_test_app_hint">From an app (optional)</string>
     <string name="route_test_udp">UDP</string>
@@ -666,6 +626,7 @@
     <string name="raycontrol_admin_service_name">Name</string>
     <string name="raycontrol_admin_service_apply">A service that needs its own process or a port in the host firewall starts after rayctl apply on the node.</string>
     <string name="raycontrol_admin_network">Network</string>
+    <string name="raycontrol_admin_node_name">Node name</string>
     <string name="raycontrol_admin_mark">%s · admin</string>
     <string name="raycontrol_admin_node_name_none">none (clients show its address)</string>
     <string name="raycontrol_admin_node_name_help">Clients show it in place of the node\'s address after their next subscription update. At most 48 characters; empty removes it.</string>
@@ -976,11 +937,12 @@
     <string name="home_rate_down">received</string>
     <string name="home_rate_up">sent</string>
     <string name="home_search">Search</string>
-    <string name="home_search_hint">Name or kind</string>
+    <string name="home_search_hint">Name, kind or address</string>
     <string name="home_search_none">Nothing found</string>
     <string name="home_ungrouped">Without a group</string>
     <string name="home_test_group">Test the group %s</string>
     <string name="home_stop_test">Stop the test of %s</string>
+    <string name="home_test_progress">%1$d of %2$d</string>
     <string name="menu_home">Home</string>
     <string name="node_back">Back</string>
     <string name="node_update">Update the node</string>
@@ -1106,6 +1068,14 @@
     <string name="lan_by_fingerprint">By router and DNS</string>
     <string name="lan_by_ssid">By name</string>
     <string name="lan_this_wifi">this network</string>
+    <!-- Niko dialogs (m-dialog), M-STATE-PREVIEW, M-SET-04 -->
+    <string name="dialog_cancel">Cancel</string>
+    <string name="dialog_ok">OK</string>
+    <string name="preview_title">Preview version %1$s</string>
+    <string name="preview_report">Report a problem</string>
+    <string name="preview_ok">Got it</string>
+    <string name="plugin_needed">The %1$s plugin is needed</string>
+    <string name="plugin_download_link">Download by link</string>
     <!-- Меню листа конфигов on Compose (D-PROFILE-05…08) -->
     <string name="cfg_edit">Edit</string>
     <string name="cfg_clear_traffic">Reset the statistics</string>
@@ -1117,11 +1087,4 @@
     <string name="cfg_error">The test failed</string>
     <string name="cfg_error_show">Show the error</string>
     <!-- Niko dialogs (m-dialog), M-STATE-PREVIEW, M-SET-04 -->
-    <string name="dialog_cancel">Cancel</string>
-    <string name="dialog_ok">OK</string>
-    <string name="preview_title">Preview version %1$s</string>
-    <string name="preview_report">Report a problem</string>
-    <string name="preview_ok">Got it</string>
-    <string name="plugin_needed">The %1$s plugin is needed</string>
-    <string name="plugin_download_link">Download by link</string>
 </resources>

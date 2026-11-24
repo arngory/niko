@@ -24,7 +24,7 @@ import kotlinx.coroutines.withContext
  * returns [EXTRA_PROFILE_ID]. [EXTRA_SELECTED] the profile the choice replaces, the list opened on it;
  * [EXTRA_PURPOSE] what it is picked for, under the title.
  */
-class ProfileSelectActivity : ThemedActivity() {
+open class ProfileSelectActivity : ThemedActivity() {
 
     companion object {
         const val EXTRA_SELECTED = "selected"
@@ -39,13 +39,24 @@ class ProfileSelectActivity : ThemedActivity() {
 
     private var state by mutableStateOf(PickState())
 
+    /** The profile the list opens on, in bold: the one the choice replaces. */
+    @Suppress("DEPRECATION")
+    protected open fun current(): Long? = intent.getParcelableExtra<ProxyEntity>(EXTRA_SELECTED)?.id
+
+    /** What the profile is picked for, under the title. */
+    protected open fun purpose(): String? = intent.getStringExtra(EXTRA_PURPOSE)
+
+    /** A profile tapped: back to the screen that asked, with it. */
+    protected open fun picked(id: Long) {
+        setResult(RESULT_OK, Intent().putExtra(EXTRA_PROFILE_ID, id))
+        finish()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        @Suppress("DEPRECATION")
-        val selected = intent.getParcelableExtra<ProxyEntity>(EXTRA_SELECTED)
         state = PickState(
-            current = selected?.id,
-            purpose = intent.getStringExtra(EXTRA_PURPOSE),
+            current = current(),
+            purpose = purpose(),
             searching = savedInstanceState?.getBoolean(SEARCHING) ?: false,
             query = savedInstanceState?.getString(QUERY).orEmpty(),
         )
@@ -55,10 +66,8 @@ class ProfileSelectActivity : ThemedActivity() {
                     state, ::finish,
                     onSearch = { on -> state = state.copy(searching = on, query = if (on) state.query else "") },
                     onQuery = { state = state.copy(query = it) },
-                ) { id ->
-                    setResult(RESULT_OK, Intent().putExtra(EXTRA_PROFILE_ID, id))
-                    finish()
-                }
+                    onPick = ::picked,
+                )
             }
         }
         lifecycleScope.launch(Dispatchers.IO) {

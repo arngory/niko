@@ -6,7 +6,6 @@
     <string name="oss_licenses">مجوزهای متن‌باز</string>
     <string name="app_version">نسخه برنامه</string>
     <string name="logcat">صدور اطلاعات عیب‌یابی</string>
-    <string name="menu_configuration">پیکربندی</string>
     <string name="menu_group">گروه‌ها</string>
     <string name="theme">ظاهر</string>
     <string name="document">مستندات</string>
@@ -21,19 +20,14 @@
     <string name="action_copy">کپی</string>
     <string name="action_open">باز کردن</string>
     <!-- group -->
-    <string name="group_name">نام گروه</string>
     <string name="group_update">به‌روزرسانی گروه</string>
     <string name="group_subscription_link">لینک اشتراک</string>
     <string name="group_name_required">نام گروه را وارد کنید</string>
-    <string name="group_create">ایجاد گروه</string>
     <string name="group_create_subscription">ایجاد اشتراک</string>
     <string name="update_all_subscription">به‌روزرسانی همه اشتراک‌ها</string>
     <string name="group_edit">ویرایش گروه</string>
     <string name="group_edit_subscription">ویرایش اشتراک</string>
-    <string name="group_status_empty">خالی</string>
     <string name="group_status_empty_subscription">هنوز به‌روزرسانی نشده است</string>
-    <string name="group_status_proxies">%d پراکسی‌ها</string>
-    <string name="group_status_proxies_subscription">%d پراکسی‌ها | به‌روزرسانی شدند در %s</string>
     <string name="group_no_difference">%s: بدون تفاوت</string>
     <string name="group_updated">%s: Updated %d proxies</string>
     <string name="group_show_diff">تفاوت‌ها</string>
@@ -58,10 +52,6 @@
     <string name="traffic" translatable="false">%1$s↑ %2$s↓</string>
     <string name="speed_detail">سرعت： %1$s↑ %2$s↓\nمستقیم： %3$s↑ %4$s↓</string>
     <string name="speed">%s/s</string>
-    <string name="connection_test_testing">در حال آزمایش</string>
-    <string name="connection_test_available">اتصال موفق! سرعت برقراری ارتباط HTTPS: %dms</string>
-    <string name="connection_test_available_http">اتصال موفق! سرعت برقراری ارتباط HTTP: %dms</string>
-    <string name="connection_test_error">ناموفق بود: %s</string>
     <string name="connection_test_fail">اینترنت متصل نیست</string>
     <string name="connection_test_error_status_code">کد ارور: #%d</string>
     <string name="dns_hosts">بازنویسی دامنه</string>
@@ -69,8 +59,6 @@
     <string name="require_transproxy">فعال کردن Transproxy ورودی</string>
     <string name="transproxy_mode">حالت Transproxy</string>
     <!-- proxy category -->
-    <string name="profile_name">نام</string>
-    <string name="server_address">آدرس سرور</string>
     <string name="key_opt">کلید (اختیاری)</string>
     <string name="enc_method">نوع رمزنگاری</string>
     <string name="protocol">دستورالعمل</string>
@@ -125,17 +113,14 @@
     <string name="invalid_server">نام سرور نادرست است</string>
     <string name="service_failed">ناموفق: </string>
     <string name="stop">توقف</string>
-    <string name="stopping">خاموش کردن...</string>
     <string name="vpn_error">%s</string>
     <string name="vpn_permission_denied">اجازه ایجاد سرویس VPN داده نشد.</string>
     <string name="reboot_required">راه‌اندازی VPN ناموفق بود، بهتر است یک‌بار دستگاهتان را خاموش و راه‌اندازی مجدد کنید.</string>
     <!-- alert category -->
     <string name="profile_empty">لطفاً یک پراکسی را انتخاب کنید.</string>
-    <string name="connect">اتصال</string>
     <string name="clipboard_empty">بریده‌دان خالی است.</string>
     <!-- menu category -->
     <string name="settings">تنظیمات</string>
-    <string name="edit">ویرایش</string>
     <string name="share">اشتراک‌گذاری</string>
     <string name="add_profile">اضافه‌کردن پراکسی جدید</string>
     <string name="select_profile">انتخاب پراکسی</string>
@@ -161,14 +146,11 @@
     <string name="config_settings">تنظیمات پیکربندی</string>
     <string name="circular_reference">ارجاع حلقه‌ای</string>
     <string name="circular_reference_sum">مسیر نمی‌تواند شامل خودش باشد.</string>
-    <string name="clear_profiles">پاک‌کردن</string>
     <string name="action_create_group">گروه خالی</string>
     <string name="action_from_link">از اشتراک</string>
     <string name="action_scan_china_apps">اسکن برنامه‌های چینی</string>
     <string name="action_export_file">صدور به صورت فایل</string>
     <string name="action_export_clipboard">صدور در بریده‌دان</string>
-    <string name="action_export">صدور</string>
-    <string name="action_import">وارد کردن از بریده‌دان</string>
     <string name="action_import_file">وارد کردن از یک فایل</string>
     <string name="action_export_msg">صدور موفق</string>
     <string name="action_export_err">صدور انجام نشد.</string>
@@ -195,9 +177,6 @@
     <string name="deprecated">منسوخ</string>
     <!-- tasker -->
     <!-- status -->
-    <string name="connecting">در حال اتصال...</string>
-    <string name="vpn_connected">متصل شد! برای بررسی اتصال، اینجا کلیک کنید.</string>
-    <string name="not_connected">وصل نیست</string>
     <!-- subscriptions -->
     <string name="cleartext_http_warning">ترافیک HTTP شفاف ناامن است</string>
     <string name="error_title">خطا</string>
@@ -226,12 +205,7 @@
     <string name="leastPing" translatable="false">Ping</string>
     <string name="api_port">پورت API</string>
     <string name="probe_interval">مدت زمان Balancer observation</string>
-    <string name="standard">استاندارد</string>
     <string name="v2rayn" translatable="false">V2RayN</string>
-    <string name="available" translatable="false">%dms</string>
-    <string name="unavailable">در دسترس نیست</string>
-    <string name="clear_traffic_statistics">پاک کردن اطلاعات ترافیک</string>
-    <string name="connection_test">آزمایش اتصال</string>
     <string name="connection_test_clear_results">پاک کردن نتایج آزمایش</string>
     <string name="connection_test_tcp_ping" translatable="false">TCPing</string>
     <string name="connection_test_tcp_ping_unavailable">TCPing در دسترس نیست</string>
@@ -269,7 +243,6 @@
     <string name="subscription_import_message">تأیید می‌کنید که می‌خواهید اشتراک %s را وارد کنید؟ اگر از یک منبع نامعتبر وارد کنید، ممکن است منجر به لو رفتن IP شما شود.</string>
     <string name="profile_import">اضافه کردن پراکسی</string>
     <string name="profile_import_message">تأیید می‌کنید که می‌خواهید پراکسی %s اضافه شود؟</string>
-    <string name="clear_profiles_message">آیا می‌خواهید پراکسی‌های این گروه را پاک کنید؟</string>
     <string name="apps">برنامه‌ها</string>
     <string name="hysteria_obfs">رمز دستورالعمل مبهم‌سازی</string>
     <string name="hysteria_auth_type">نوع احراز هویت</string>
@@ -278,7 +251,6 @@
     <string name="hysteria_stream_receive_window">پنجره دریافت جریان QUIC</string>
     <string name="hysteria_connection_receive_window">پنجره دریافت اتصال QUIC</string>
     <string name="hysteria_disable_mtu_discovery">غیرفعال کردن Path MTU Discovery</string>
-    <string name="group_order">ترتیب</string>
     <string name="group_order_origin">مبدأ</string>
     <string name="group_order_by_name">به ترتیب نام</string>
     <string name="group_order_by_delay">به میزان تأخیر</string>
@@ -369,7 +341,6 @@
     <string name="use_selector">استفاده از انتخاب‌گر</string>
     <string name="action_shadowtls" translatable="false">ShadowTLS</string>
     <string name="protocol_version">نسخه پروتکل</string>
-    <string name="share_subscription">اشتراک‌گذاری گروه اشتراکی</string>
     <string name="reset_connections">بازنشانی اتصالات</string>
     <string name="remove_duplicate">حذف سرورهای تکراری</string>
     <string name="mtu_help">برای تنظیم MTU سفارشی، تنظیمات را مدتی فشار دهید.</string>
@@ -384,6 +355,4 @@
     <string name="ech_config">پیکربندی ECH</string>
     <string name="http_upgrade_host">میزبان HTTPUpgrade</string>
     <string name="http_upgrade_path">مسیر HTTPUpgrade</string>
-    <string name="update_current_subscription">به‌روزرسانی اشتراک این گروه</string>
-    <string name="group_not_subscription">نوع این گروه اشتراکی نیست</string>
 </resources>

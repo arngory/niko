@@ -1,11 +1,8 @@
 package io.niko
 
-import android.content.Context
 import io.niko.R
-import io.niko.database.ProxyEntity.Companion.TYPE_NEKO
 import io.niko.fmt.AbstractBean
 import io.niko.ktx.app
-import io.niko.ktx.getColorAttr
 import io.niko.proxy.config.ConfigBean
 
 // Settings for all protocols, built-in or plugin
@@ -37,15 +34,6 @@ object Protocols {
             return hash() == other.hash()
         }
 
-    }
-
-    // Display
-
-    fun Context.getProtocolColor(type: Int): Int {
-        return when (type) {
-            TYPE_NEKO -> getColorAttr(android.R.attr.textColorPrimary)
-            else -> getColorAttr(R.attr.accentOrTextSecondary)
-        }
     }
 
     // Test

@@ -1,22 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="menu_group">مجموعة</string>
-    <string name="menu_configuration">ترتيب</string>
     <string name="logcat">تصدير معلومات التصحيح</string>
     <string name="app_version">إصدار</string>
     <string name="oss_licenses">تراخيص مفتوحة المصدر</string>
     <string name="app_desc">سلسلة أدوات البروکسی العالمية لنظام Android ، مكتوبة بلغة Kotlin.</string>
-    <string name="group_status_proxies">%d البروکسیز</string>
     <string name="group_status_empty_subscription">لم يتم تحديثه بعد</string>
-    <string name="group_status_empty">مجموعة فارغة</string>
     <string name="group_edit_subscription">تحرير الاشتراك‬</string>
     <string name="group_edit">تحرير المجموعة</string>
     <string name="group_create_subscription">إنشاء اشتراك</string>
-    <string name="group_create">إنشاء مجموعة</string>
     <string name="group_name_required">اسم المجموعة مطلوب</string>
     <string name="group_subscription_link">رابط الاشتراك</string>
     <string name="group_update">تحديث</string>
-    <string name="group_name">أسم المجموعة</string>
     <string name="tile_title">الجلاد</string>
     <string name="quick_toggle">تبديل</string>
     <string name="quick_enable">تمكين</string>
@@ -24,7 +19,6 @@
     <string name="group_default">غير مجمعة</string>
     <string name="document">وثيقة</string>
     <string name="theme">موضوع</string>
-    <string name="group_status_proxies_subscription">%d البروکسیز | تم التحديث في %s</string>
     <string name="group_updated">%s: تم تحديث %d البروکسیز</string>
     <string name="port_http">منفذ بروکسی HTTP</string>
     <string name="port_transproxy">منفذ ترانسبروكسى</string>
@@ -54,18 +48,12 @@
     <string name="protocol">البروتوكول</string>
     <string name="enc_method">طريقة التشفير</string>
     <string name="key_opt">مفتاح (اختياري)</string>
-    <string name="server_address">الخادم</string>
-    <string name="profile_name">اسم ملف التعريف</string>
     <string name="transproxy_mode">وضع ترانسبروكسى</string>
     <string name="require_transproxy">تفعيل ترانسبروكسی الوارد</string>
     <string name="port_local_dns">منفذ DNS المحلي</string>
     <string name="dns_hosts">إعادة كتابة المجال</string>
     <string name="connection_test_error_status_code">رمز الخطأ: #%d</string>
     <string name="connection_test_fail">الإنترنت غير متوفر</string>
-    <string name="connection_test_error">فشل: %s</string>
-    <string name="connection_test_available_http">نجاح: استغرقت مصافحة HTTP %dms</string>
-    <string name="connection_test_available">نجاح: استغرقت مصافحة HTTPS %dms</string>
-    <string name="connection_test_testing">اختبارات…</string>
     <string name="speed">%s/s</string>
     <string name="speed_detail">بروکسی:
 \n\t%1$s↑ %2$s↓
@@ -106,14 +94,11 @@
     <string name="action_export_err">فشل التصدير.</string>
     <string name="action_export_msg">تم التصدير بنجاح!</string>
     <string name="action_import_file">استيراد من ملف</string>
-    <string name="action_import">الاستيراد من الحافظة</string>
-    <string name="action_export">يصدر</string>
     <string name="action_export_clipboard">تصدير إلى الحافظة</string>
     <string name="action_export_file">تصدير إلى ملف</string>
     <string name="action_scan_china_apps">فحص تطبيقات الصين</string>
     <string name="action_from_link">من الاشتراك</string>
     <string name="action_create_group">مجموعة فارغة</string>
-    <string name="clear_profiles">صافي</string>
     <string name="circular_reference_sum">لا يمكن أن يحتوي المسار على نفسه.</string>
     <string name="circular_reference">مرجع دائري</string>
     <string name="config_settings">إعدادات التكوين</string>
@@ -126,15 +111,12 @@
     <string name="select_profile">حدد ملف التعريف</string>
     <string name="add_profile">إضافة ملف تعريف</string>
     <string name="share">مشاركة</string>
-    <string name="edit">تعديل</string>
     <string name="settings">إعدادات</string>
     <string name="clipboard_empty">الحافظة فارغة</string>
-    <string name="connect">الاتصال</string>
     <string name="profile_empty">الرجاء تحديد ملف تعريف</string>
     <string name="reboot_required">فشل بدء تشغيل خدمة VPN. قد تحتاج إلى إعادة تشغيل جهازك.</string>
     <string name="vpn_permission_denied">تم رفض الإذن لإنشاء خدمة VPN</string>
     <string name="vpn_error">%s</string>
-    <string name="stopping">جارٍ إيقاف التشغيل…</string>
     <string name="stop">قف</string>
     <string name="service_failed">باءت بالفشل:</string>
     <string name="invalid_server">اسم الخادم غير صالح</string>
@@ -156,7 +138,6 @@
     <string name="hysteria_auth_type">نوع المصادقة</string>
     <string name="hysteria_obfs">كلمة مرور التشويش</string>
     <string name="apps">التطبيقات</string>
-    <string name="clear_profiles_message">هل أنت متأكد أنك تريد مسح هذه المجموعة؟</string>
     <string name="profile_import_message">هل تريد تأكيد رغبتك في استيراد ملف التعريف %s؟</string>
     <string name="profile_import">استيراد ملف التعريف</string>
     <string name="subscription_import_message">هل تريد تأكيد رغبتك في استيراد اشتراك %s؟ إذا كنت قادمًا من مصدر غير موثوق به، فقد يؤدي القيام بذلك إلى تسريب عنوان IP الخاص بك وهذا السلوك.</string>
@@ -189,10 +170,6 @@
     <string name="connection_test_icmp_ping_unavailable">ICMPing غير متوفر</string>
     <string name="connection_test_tcp_ping_unavailable">TCPing غير متوفر</string>
     <string name="connection_test_clear_results">المقاصة نتائج الاختبار</string>
-    <string name="connection_test">اختبار الاتصال</string>
-    <string name="clear_traffic_statistics">مسح إحصائيات حركة المرور</string>
-    <string name="unavailable">غير متوفره</string>
-    <string name="standard">معيار</string>
     <string name="probe_interval">الفاصل الزمني لرصد الموازن</string>
     <string name="api_port">منفذ API</string>
     <string name="random">عشوائي</string>
@@ -218,9 +195,6 @@
     <string name="no_proxies_found">لم يتم العثور على بروکسیز في الارتباط</string>
     <string name="error_title">خطأ</string>
     <string name="cleartext_http_warning">حركة مرور نص واضح HTTP غير آمنة</string>
-    <string name="not_connected">غير متصل</string>
-    <string name="vpn_connected">متصل، انقر للتحقق من الاتصال</string>
-    <string name="connecting">يتصل…</string>
     <string name="deprecated">مهجور</string>
     <string name="insecure">غير آمن</string>
     <string name="undo">تراجع</string>
@@ -259,7 +233,6 @@
     <string name="group_order_by_delay">عن طريق التأخير</string>
     <string name="group_order_by_name">بالاسم</string>
     <string name="group_order_origin">أصل</string>
-    <string name="group_order">ترتيب</string>
     <string name="hysteria_disable_mtu_discovery">تعطيل اكتشاف MTU للمسار</string>
     <string name="hysteria_connection_receive_window">نافذة تلقي اتصال QUIC</string>
     <string name="hysteria_stream_receive_window">نافذة تلقي دفق QUIC</string>

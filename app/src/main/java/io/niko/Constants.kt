@@ -83,7 +83,6 @@ object Key {
     const val GLOBAL_ALLOW_INSECURE = "globalAllowInsecure"
 
     const val ACQUIRE_WAKE_LOCK = "acquireWakeLock"
-    const val SHOW_BOTTOM_BAR = "showBottomBar"
     const val UPDATE_PREVIEW = "updatePreview"
 
     // the main screen's view, Простой or Расширенный (D-NAV-01; ui/home/HomeState.kt)

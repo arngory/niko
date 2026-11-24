@@ -243,13 +243,11 @@ class SagerNet : Application(),
                         "service-subscription",
                         application.getText(R.string.service_subscription),
                         NotificationManager.IMPORTANCE_DEFAULT
-                    ), NotificationChannel(
-                        "connection-test",
-                        application.getText(R.string.connection_test),
-                        NotificationManager.IMPORTANCE_DEFAULT
                     )
                 )
             )
+            // the old list's test minimised into a notification: gone with the list
+            notification.deleteNotificationChannel("connection-test")
         }
 
         fun startService() = ContextCompat.startForegroundService(

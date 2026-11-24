@@ -8,18 +8,14 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.RemoteException
-import android.view.KeyEvent
-import android.view.View
 import androidx.core.net.toUri
 import androidx.activity.addCallback
 import androidx.annotation.IdRes
 import androidx.compose.runtime.mutableStateOf
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.preference.PreferenceDataStore
-import androidx.appcompat.app.AlertDialog
 import io.niko.ui.compose.NikoDialog
 import com.google.android.material.snackbar.Snackbar
 import io.niko.RELEASE_REPO
@@ -40,7 +36,6 @@ import io.niko.database.DataStore
 import io.niko.database.GroupManager
 import io.niko.database.ProfileManager
 import io.niko.database.ProxyGroup
-import io.niko.database.SagerDatabase
 import io.niko.database.SubscriptionBean
 import io.niko.database.preference.OnPreferenceDataStoreChangeListener
 import io.niko.databinding.LayoutMainBinding
@@ -66,6 +61,7 @@ import io.niko.ui.home.HomeActions
 import io.niko.ui.home.HomeCheck
 import io.niko.ui.home.HomeFragment
 import io.niko.ui.home.HomeLoader
+import io.niko.ui.home.HomeSheet
 import io.niko.ui.home.HomeState
 import io.niko.ui.home.HomeView
 import io.niko.ktx.Logs
@@ -106,7 +102,18 @@ class MainActivity : ThemedActivity(),
     val homeState = mutableStateOf(HomeState())
     val homeView = mutableStateOf(HomeView.of(DataStore.homeView))
 
-    /** What the main screen asks for: the connect button's toggle, the old screens behind its rows and tiles. */
+    /** The configs' sheet asked for from here (a link imported, «Узлы»), until the main screen has opened it. */
+    val homeSheet = mutableStateOf<HomeSheet?>(null)
+
+    /** The main screen with its configs' sheet on [sheet]'s tab. Main thread. */
+    private fun showSheet(sheet: HomeSheet) {
+        homeSheet.value = sheet
+        // what was just imported is in the counts and in a sheet already open
+        refreshHome()
+        if (supportFragmentManager.findFragmentById(R.id.fragment_holder) !is HomeFragment) displayFragmentWithId(R.id.nav_home)
+    }
+
+    /** What the main screen asks for: the connect button's toggle, the screens behind its rows and tiles. */
     val homeActions = object : HomeActions {
         override fun toggle() = if (DataStore.serviceState.canStop) SagerNet.stopService() else connect.launch(null)
 
@@ -121,9 +128,7 @@ class MainActivity : ThemedActivity(),
             DataStore.serviceMode = if (vpn) Key.MODE_VPN else Key.MODE_PROXY
         }
 
-        override fun profiles() {
-            displayFragmentWithId(R.id.nav_configuration)
-        }
+        override fun add() = startActivity(Intent(this@MainActivity, io.niko.ui.add.AddActivity::class.java))
 
         override fun configs(open: Boolean) {
             configsOpen = open
@@ -132,10 +137,6 @@ class MainActivity : ThemedActivity(),
                 subsState.value = null
                 ConfigsTest.forget()
             }
-        }
-
-        override fun subscriptions() {
-            displayFragmentWithId(R.id.nav_group)
         }
 
         override fun route() {
@@ -148,13 +149,13 @@ class MainActivity : ThemedActivity(),
             displayFragmentWithId(R.id.nav_settings)
         }
 
-        // one node: its card at once; more or none: the groups, where each node's group opens its card
+        // one node: its card at once; more or none: the sheet's Subscriptions tab, where each node's group opens its card
         override fun nodes() {
             runOnDefaultDispatcher {
                 val nodes = RayNodes.list()
                 onMainDispatcher {
                     if (nodes.size == 1) displayFragment(io.niko.ui.node.NodeFragment.of(nodes[0].spa.nodeId, R.id.nav_home))
-                    else displayFragmentWithId(R.id.nav_group)
+                    else showSheet(HomeSheet.SUBS)
                 }
             }
         }
@@ -247,11 +248,15 @@ class MainActivity : ThemedActivity(),
 
     /** What the configs' sheet asks for: the profile to use, a group's test, the editor; adding on its own screen. */
     val configsActions = object : ConfigsActions {
-        // as the old list's row does: the chosen profile at once, a running service reloaded with it
+        // as the old list's row did: the chosen profile at once, a running service reloaded with it; on a TV the
+        // profile already chosen starts or stops the service (M-SYS-05: no other button within the remote's reach)
         override fun select(id: Long) {
             runOnDefaultDispatcher {
                 val last = DataStore.selectedProxy
-                if (last == id) return@runOnDefaultDispatcher
+                if (last == id) {
+                    if (SagerNet.isTv) onMainDispatcher { homeActions.toggle() }
+                    return@runOnDefaultDispatcher
+                }
                 DataStore.selectedProxy = id
                 ProfileManager.postUpdate(last)
                 ProfileManager.postUpdate(id)
@@ -273,9 +278,7 @@ class MainActivity : ThemedActivity(),
             }
         }
 
-        override fun add() {
-            startActivity(Intent(this@MainActivity, io.niko.ui.add.AddActivity::class.java))
-        }
+        override fun add() = homeActions.add()
     }
 
     /** The groups the sheet's Subscriptions tab lists (P-Subs), read with its configs while it is open. */
@@ -332,14 +335,7 @@ class MainActivity : ThemedActivity(),
         super.onCreate(savedInstanceState)
 
         binding = LayoutMainBinding.inflate(layoutInflater)
-        binding.fab.initProgress(binding.fabProgress)
 
-        // the bars follow the screen shown, the one the fragment manager restores after a recreation too
-        supportFragmentManager.registerFragmentLifecycleCallbacks(object : FragmentManager.FragmentLifecycleCallbacks() {
-            override fun onFragmentViewCreated(fm: FragmentManager, f: Fragment, v: View, savedInstanceState: Bundle?) {
-                if (f.id == R.id.fragment_holder) applyBars(f)
-            }
-        }, false)
         if (savedInstanceState == null) {
             displayFragmentWithId(R.id.nav_home)
         }
@@ -358,17 +354,6 @@ class MainActivity : ThemedActivity(),
                 is io.niko.ui.tools.PanelFragment -> shown.back()
                 else -> displayFragmentWithId(R.id.nav_home)
             }
-        }
-
-        binding.fab.setOnClickListener {
-            if (DataStore.serviceState.canStop) SagerNet.stopService() else connect.launch(
-                null
-            )
-        }
-        binding.stats.setOnClickListener { if (DataStore.serviceState.connected) binding.stats.testConnection() }
-        // a long press: the exit address, asked of a service the user picks (it learns the node's address)
-        binding.stats.setOnLongClickListener {
-            DataStore.serviceState.connected.also { if (it) showExitAddress() }
         }
 
         setContentView(binding.root)
@@ -552,8 +537,6 @@ class MainActivity : ThemedActivity(),
         onMainDispatcher {
             // an activity relaunched meanwhile asks in its successor (linkReading), not on its own dead window
             if (!isFinishing && !isDestroyed) {
-                displayFragmentWithId(R.id.nav_group)
-
                 NikoDialog(this@MainActivity).title(R.string.subscription_import)
                     .message(getString(R.string.subscription_import_message, name))
                     .ghost(R.string.dialog_cancel)
@@ -571,6 +554,8 @@ class MainActivity : ThemedActivity(),
     private suspend fun finishImportSubscription(subscription: ProxyGroup) {
         GroupManager.createGroup(subscription)
         GroupUpdater.startUpdate(subscription, true)
+        // where the new group is, being fetched
+        onMainDispatcher { showSheet(HomeSheet.SUBS) }
     }
 
     suspend fun importProfile(uri: Uri) {
@@ -610,7 +595,8 @@ class MainActivity : ThemedActivity(),
         ProfileManager.createProfile(targetId, profile)
 
         onMainDispatcher {
-            displayFragmentWithId(R.id.nav_configuration)
+            // where the new profile is, to choose it
+            showSheet(HomeSheet.CONFIGS)
 
             snackbar(resources.getQuantityString(R.plurals.added, 1, 1)).show()
         }
@@ -645,37 +631,8 @@ class MainActivity : ThemedActivity(),
     }
 
 
-    private fun showStats() {
-        binding.stats.allowShow = true
-        binding.fab.show()
-        // the bar shows itself on connecting only if allowed then: connected on the main screen, it waits for this
-        if (DataStore.serviceState.connected) binding.stats.performShow()
-    }
-
-    /**
-     * The old bar at the bottom (state, speeds, the connect button): only on the old screens, and only with the
-     * setting on (off by default). The main screen has its own button and state; the screens drawn as the canvas has
-     * them (a node's card, the settings, the log, routing) have none. Applied to whatever screen is shown, the restored one
-     * too: an activity the system recreated would otherwise keep the layout's default, the bar shown on the main
-     * screen over its configs.
-     */
-    private fun applyBars(fragment: Fragment) {
-        val old = fragment !is HomeFragment && fragment !is io.niko.ui.node.NodeFragment && fragment !is SettingsFragment &&
-            fragment !is io.niko.ui.log.LogFragment && fragment !is io.niko.ui.route.RoutingFragment &&
-            fragment !is io.niko.ui.about.AboutFragment && fragment !is io.niko.ui.backup.BackupFragment &&
-            fragment !is io.niko.ui.tools.PanelFragment
-        if (old && DataStore.showBottomBar) {
-            showStats()
-        } else {
-            binding.stats.allowShow = false
-            binding.stats.performHide()
-            binding.fab.hide()
-        }
-    }
-
     @SuppressLint("CommitTransaction")
     fun displayFragment(fragment: Fragment) {
-        applyBars(fragment)
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_holder, fragment)
             .commitAllowingStateLoss()
@@ -684,11 +641,6 @@ class MainActivity : ThemedActivity(),
     fun displayFragmentWithId(@IdRes id: Int): Boolean {
         when (id) {
             R.id.nav_home -> displayFragment(HomeFragment())
-            R.id.nav_configuration -> {
-                displayFragment(ConfigurationFragment())
-            }
-
-            R.id.nav_group -> displayFragment(GroupFragment())
             R.id.nav_route -> displayFragment(io.niko.ui.route.RoutingFragment())
             R.id.nav_settings -> displayFragment(SettingsFragment())
             R.id.nav_traffic -> displayFragment(io.niko.ui.tools.PanelFragment())
@@ -705,15 +657,9 @@ class MainActivity : ThemedActivity(),
         return true
     }
 
-    private fun changeState(
-        state: BaseService.State,
-        msg: String? = null,
-        animate: Boolean = false,
-    ) {
+    private fun changeState(state: BaseService.State, msg: String? = null) {
         DataStore.serviceState = state
 
-        binding.fab.changeState(state, DataStore.serviceState, animate, failed = msg != null)
-        binding.stats.changeState(state)
         if (msg != null) snackbar(getString(R.string.vpn_error, msg)).show()
 
         // the main screen: why the last start failed stays until the next one; the time online from the service's
@@ -737,15 +683,11 @@ class MainActivity : ThemedActivity(),
     }
 
     override fun snackbarInternal(text: CharSequence): Snackbar {
-        return Snackbar.make(binding.coordinator, text, Snackbar.LENGTH_LONG).apply {
-            if (binding.fab.isShown) {
-                anchorView = binding.fab
-            }
-        }
+        return Snackbar.make(binding.coordinator, text, Snackbar.LENGTH_LONG)
     }
 
     override fun stateChanged(state: BaseService.State, profileName: String?, msg: String?) {
-        changeState(state, msg, true)
+        changeState(state, msg)
         if (state == BaseService.State.Connected) warnStrictPrivateDns()
     }
 
@@ -784,13 +726,21 @@ class MainActivity : ThemedActivity(),
     // may NOT called when app is in background
     // ONLY do UI update here, write DB in bg process
     override fun cbSpeedUpdate(stats: SpeedDisplayData) {
-        binding.stats.updateSpeed(stats.txRateProxy, stats.rxRateProxy)
         homeState.value = homeState.value.copy(upRate = stats.txRateProxy, downRate = stats.rxRateProxy)
     }
+
+    // when the open sheet last read the rows' traffic again
+    private var trafficShown = 0L
 
     override fun cbTrafficUpdate(data: TrafficData) {
         runOnDefaultDispatcher {
             ProfileManager.postUpdate(data)
+        }
+        // the sheet's rows show the traffic stored: read again while it is open, a few seconds apart
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - trafficShown >= 3000) {
+            trafficShown = now
+            refreshConfigs()
         }
     }
 
@@ -851,13 +801,6 @@ class MainActivity : ThemedActivity(),
         GroupManager.removeListener(groupsListener)
         DataStore.configurationStore.unregisterChangeListener(this)
         connection.disconnect(this)
-    }
-
-    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        if (super.onKeyDown(keyCode, event)) return true
-        val fragment =
-            supportFragmentManager.findFragmentById(R.id.fragment_holder) as? ToolbarFragment
-        return fragment != null && fragment.onKeyDown(keyCode, event)
     }
 
 }

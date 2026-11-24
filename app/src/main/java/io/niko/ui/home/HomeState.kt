@@ -63,15 +63,18 @@ sealed interface HomeCheck {
     data class Failed(val reason: String) : HomeCheck
 }
 
+/** The configs' sheet as the activity asks for it (a link imported, «Узлы»): on its Configs or Subscriptions tab. */
+enum class HomeSheet { CONFIGS, SUBS }
+
 /** What the main screen asks of the activity. */
 interface HomeActions {
     fun toggle()
     fun view(view: HomeView)
     fun mode(vpn: Boolean)
-    fun profiles()
+    /** the Add screen (P-Add): a scan, the clipboard, a file, a profile by hand */
+    fun add()
     /** the configs' sheet opened: read its groups (ConfigsLoader), again after each change while it is open */
     fun configs(open: Boolean)
-    fun subscriptions()
     fun route()
     fun apps()
     fun settings()
