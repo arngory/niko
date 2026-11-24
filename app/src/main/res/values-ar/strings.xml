@@ -171,13 +171,10 @@
     <string name="ooc_warning">تحذير</string>
     <string name="update_subscription_warning">البروکسی غير متصل، هل أنت متأكد أنك تريد متابعة التحديث؟</string>
     <string name="ooc_subscription_token_invalid">رمز OOCv1 غير صالح</string>
-    <string name="download">تحميل</string>
     <string name="install_from_fdroid">التثبيت من F-Droid</string>
     <string name="install_from_play_store">التثبيت من متجر Play</string>
-    <string name="action_download">تحميل</string>
     <string name="action_learn_more">يتعلم أكثر</string>
     <string name="profile_requiring_plugin">يتطلب ملف التعريف %s تثبيت المكون الإضافي %s، لكن لم يتم العثور عليه.</string>
-    <string name="missing_plugin">في عداد المفقودين المكونات في</string>
     <string name="confirm">أكد</string>
     <string name="raw">الخام</string>
     <string name="subscription_type">نوع الاشتراك</string>

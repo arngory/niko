@@ -23,7 +23,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import androidx.core.net.toUri
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.google.zxing.RGBLuminanceSource
 import com.google.zxing.Result
@@ -53,6 +52,7 @@ import io.niko.ui.Dialogs
 import io.niko.ui.ImportReview
 import io.niko.ui.MainActivity
 import io.niko.ui.ThemedActivity
+import io.niko.ui.compose.NikoDialog
 import io.niko.ui.compose.NikoTheme
 import io.niko.ui.profile.ProfileActivity
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -331,12 +331,12 @@ class AddActivity : ThemedActivity(), CameraScan.OnScanResultCallback {
                 continuation.resume(yes)
             }
         }
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.add_title)
-            .setMessage(message)
-            .setPositiveButton(R.string.yes) { _, _ -> answer(true) }
-            .setNegativeButton(android.R.string.cancel) { _, _ -> answer(false) }
-            .setOnDismissListener { answer(false) }
+        NikoDialog(this)
+            .title(R.string.add_title)
+            .message(message)
+            .ghost(R.string.dialog_cancel) { answer(false) }
+            .primary(R.string.yes) { _, _ -> answer(true) }
+            .onDismiss { answer(false) }
             .show()
     }
 

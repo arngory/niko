@@ -20,7 +20,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.preference.PreferenceDataStore
 import androidx.appcompat.app.AlertDialog
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import io.niko.ui.compose.NikoDialog
 import com.google.android.material.snackbar.Snackbar
 import io.niko.RELEASE_REPO
 import io.niko.BuildConfig
@@ -94,7 +94,7 @@ class MainActivity : ThemedActivity(),
      * The system may relaunch the activity under it (the theme, an overlay changed while the device settles after its
      * boot), which closes it with the window: the relaunched activity asks again (onSaveInstanceState, onCreate).
      */
-    private var linkQuestion: AlertDialog? = null
+    private var linkQuestion: android.app.Dialog? = null
 
     /** A link being read before its question (a profile's, a subscription's): a relaunch now is to ask too. */
     private var linkReading = false
@@ -319,13 +319,12 @@ class MainActivity : ThemedActivity(),
         refreshConfigs()
     }
 
-    private fun MaterialAlertDialogBuilder.showLinkQuestion(): AlertDialog {
+    private fun NikoDialog.showLinkQuestion(): android.app.Dialog {
         // one question at a time: a newer link or scan replaces one not answered yet, which counts as cancelled (a
         // scanned batch is given up, not imported with the next one)
         linkQuestion?.takeIf { it.isShowing }?.cancel()
-        return show().also { dialog ->
+        return onDismiss { linkQuestion = null }.show().also { dialog ->
             linkQuestion = dialog
-            dialog.setOnDismissListener { if (linkQuestion === dialog) linkQuestion = null }
         }
     }
 
@@ -401,10 +400,13 @@ class MainActivity : ThemedActivity(),
         }
 
         if (isPreview) {
-            MaterialAlertDialogBuilder(this)
-                .setTitle(BuildConfig.PRE_VERSION_NAME)
-                .setMessage(R.string.preview_version_hint)
-                .setPositiveButton(android.R.string.ok, null)
+            // M-STATE-PREVIEW: what a preview build is, and where what it breaks is reported
+            NikoDialog(this)
+                .icon(R.drawable.ic_l_triangle_alert)
+                .title(getString(R.string.preview_title, BuildConfig.PRE_VERSION_NAME))
+                .message(R.string.preview_version_hint)
+                .ghost(R.string.preview_report) { launchCustomTab("https://github.com/$RELEASE_REPO/issues") }
+                .primary(R.string.preview_ok)
                 .show()
         }
     }
@@ -425,14 +427,14 @@ class MainActivity : ThemedActivity(),
                 ImportReview.drop(batch)
                 return
             }
-            MaterialAlertDialogBuilder(this).setTitle(R.string.profile_import)
-                .setMessage(question)
-                .setPositiveButton(R.string.yes) { _, _ ->
+            NikoDialog(this).title(R.string.profile_import)
+                .message(question)
+                .ghost(R.string.dialog_cancel) { ImportReview.drop(batch) }
+                .primary(R.string.yes) { _, _ ->
                     // imported once: only while the batch still waits
                     if (ImportReview.drop(batch)) runOnDefaultDispatcher { proxies.forEach { finishImportProfile(it) } }
                 }
-                .setNegativeButton(android.R.string.cancel) { _, _ -> ImportReview.drop(batch) }
-                .setOnCancelListener { ImportReview.drop(batch) }
+                .onCancel { ImportReview.drop(batch) }
                 .showLinkQuestion()
             return
         }
@@ -452,17 +454,17 @@ class MainActivity : ThemedActivity(),
                 alert(e.readableMessage).show()
                 return
             }
-            MaterialAlertDialogBuilder(this)
-                .setTitle(R.string.raycontrol_nodes)
-                .setMessage(question)
-                .setPositiveButton(R.string.yes) { _, _ ->
+            NikoDialog(this)
+                .title(R.string.raycontrol_nodes)
+                .message(question)
+                .ghost(R.string.dialog_cancel)
+                .primary(R.string.yes) { _, _ ->
                     runOnDefaultDispatcher {
                         RayImport.import(app, text, { host, left, wrong ->
                             onMainDispatcher { if (isFinishing) null else Dialogs.askPin(this@MainActivity, host, left, wrong) }
                         }) { message -> onMainDispatcher { snackbar(message).show() } }
                     }
                 }
-                .setNegativeButton(android.R.string.cancel, null)
                 .showLinkQuestion()
             return
         }
@@ -552,14 +554,14 @@ class MainActivity : ThemedActivity(),
             if (!isFinishing && !isDestroyed) {
                 displayFragmentWithId(R.id.nav_group)
 
-                MaterialAlertDialogBuilder(this@MainActivity).setTitle(R.string.subscription_import)
-                    .setMessage(getString(R.string.subscription_import_message, name))
-                    .setPositiveButton(R.string.yes) { _, _ ->
+                NikoDialog(this@MainActivity).title(R.string.subscription_import)
+                    .message(getString(R.string.subscription_import_message, name))
+                    .ghost(R.string.dialog_cancel)
+                    .primary(R.string.yes) { _, _ ->
                         runOnDefaultDispatcher {
                             finishImportSubscription(group)
                         }
                     }
-                    .setNegativeButton(android.R.string.cancel, null)
                     .showLinkQuestion()
             }
         }
@@ -584,18 +586,18 @@ class MainActivity : ThemedActivity(),
         onMainDispatcher {
             // an activity relaunched meanwhile asks in its successor (linkReading), not on its own dead window
             if (!isFinishing && !isDestroyed) {
-                MaterialAlertDialogBuilder(this@MainActivity).setTitle(R.string.profile_import)
+                NikoDialog(this@MainActivity).title(R.string.profile_import)
                     // a web page can open this link: say so, with its keys, when it rewrites the whole config
-                    .setMessage(
+                    .message(
                         ImportReview.warning(this@MainActivity, listOf(profile))
                             ?: getString(R.string.profile_import_message, profile.displayName())
                     )
-                    .setPositiveButton(R.string.yes) { _, _ ->
+                    .ghost(R.string.dialog_cancel)
+                    .primary(R.string.yes) { _, _ ->
                         runOnDefaultDispatcher {
                             finishImportProfile(profile)
                         }
                     }
-                    .setNegativeButton(android.R.string.cancel, null)
                     .showLinkQuestion()
             }
         }
@@ -623,47 +625,22 @@ class MainActivity : ThemedActivity(),
             return
         }
 
-        // official exe
-
-        MaterialAlertDialogBuilder(this).setTitle(R.string.missing_plugin)
-            .setMessage(
-                getString(
-                    R.string.profile_requiring_plugin, profileName, pluginEntity.displayName
-                )
-            )
-            .setPositiveButton(R.string.action_download) { _, _ ->
-                showDownloadDialog(pluginEntity)
+        // M-SET-04: where the plugin is got, at once
+        val sources = buildList<Pair<String, String>> {
+            if (pluginEntity.downloadSource.playStore) {
+                add(getString(R.string.install_from_play_store) to "https://play.google.com/store/apps/details?id=${pluginEntity.packageName}")
             }
-            .setNeutralButton(android.R.string.cancel, null)
-            .show()
-    }
-
-    private fun showDownloadDialog(pluginEntry: PluginEntry) {
-        var index = 0
-        var playIndex = -1
-        var fdroidIndex = -1
-
-        val items = mutableListOf<String>()
-        if (pluginEntry.downloadSource.playStore) {
-            items.add(getString(R.string.install_from_play_store))
-            playIndex = index++
-        }
-        if (pluginEntry.downloadSource.fdroid) {
-            items.add(getString(R.string.install_from_fdroid))
-            fdroidIndex = index++
-        }
-
-        items.add(getString(R.string.download))
-        val downloadIndex = index
-
-        MaterialAlertDialogBuilder(this).setTitle(pluginEntry.name)
-            .setItems(items.toTypedArray()) { _, which ->
-                when (which) {
-                    playIndex -> launchCustomTab("https://play.google.com/store/apps/details?id=${pluginEntry.packageName}")
-                    fdroidIndex -> launchCustomTab("https://f-droid.org/packages/${pluginEntry.packageName}/")
-                    downloadIndex -> launchCustomTab(pluginEntry.downloadSource.downloadLink)
-                }
+            if (pluginEntity.downloadSource.fdroid) {
+                add(getString(R.string.install_from_fdroid) to "https://f-droid.org/packages/${pluginEntity.packageName}/")
             }
+            add(getString(R.string.plugin_download_link) to pluginEntity.downloadSource.downloadLink)
+        }
+        NikoDialog(this)
+            .icon(R.drawable.ic_l_plug)
+            .title(getString(R.string.plugin_needed, pluginEntity.displayName))
+            .message(getString(R.string.profile_requiring_plugin, profileName, pluginEntity.displayName))
+            .items(sources.map { it.first }) { launchCustomTab(sources[it].second) }
+            .ghost(R.string.dialog_cancel)
             .show()
     }
 

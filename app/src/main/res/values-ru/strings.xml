@@ -7,7 +7,6 @@
 <string name="abc_searchview_description_voice">Голосовой поиск</string>
 <string name="abc_shareactionprovider_share_with">Поделиться с помощью</string>
 <string name="abc_toolbar_collapse_description">Свернуть</string>
-<string name="action_download">СКАЧАТЬ</string>
 <string name="action_export">Экспортировать</string>
 <string name="action_export_clipboard">Экспорт в буфер</string>
 <string name="action_export_err">Не удалось экспортировать.</string>
@@ -158,7 +157,6 @@
 <string name="dns_hosts">Перезапись домена</string>
 <string name="document">Документы</string>
 <string name="domain_strategy">Правило разрешения доменов</string>
-<string name="download">Скачать</string>
 <string name="early_data_header_name">Имя заголовка ранних данных</string>
 <string name="ech_config">Конфигурация ECH</string>
 <string name="edit">Редактировать</string>
@@ -291,7 +289,6 @@
 <string name="menu_route">Маршруты</string>
 <string name="menu_traffic">Трафик</string>
 <string name="minimize">Свернуть</string>
-<string name="missing_plugin">Отсутствующий плагин</string>
 <string name="move">Переместить</string>
 <string name="mtrl_badge_numberless_content_description">Новое уведомление</string>
 <string name="mtrl_checkbox_state_description_checked">Флажок установлен.</string>
@@ -1035,4 +1032,12 @@
     <string name="lan_by_fingerprint">По роутеру и DNS</string>
     <string name="lan_by_ssid">По имени</string>
     <string name="lan_this_wifi">эта сеть</string>
+    <!-- Niko dialogs (m-dialog), M-STATE-PREVIEW, M-SET-04 -->
+    <string name="dialog_cancel">Отмена</string>
+    <string name="dialog_ok">ОК</string>
+    <string name="preview_title">Предварительная версия %1$s</string>
+    <string name="preview_report">Сообщить об ошибке</string>
+    <string name="preview_ok">Понятно</string>
+    <string name="plugin_needed">Нужен плагин %1$s</string>
+    <string name="plugin_download_link">Скачать по ссылке</string>
 </resources>
