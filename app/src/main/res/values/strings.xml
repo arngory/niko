@@ -1074,6 +1074,11 @@
     <string name="home_nodes">raycontrol nodes</string>
     <string name="home_log">Log and view</string>
     <string name="home_help">Help</string>
+    <string name="home_check">Check the connection</string>
+    <string name="home_check_testing">Checking…</string>
+    <string name="home_check_done">%d ms</string>
+    <string name="home_check_failed">no answer</string>
+    <string name="home_card_menu">Connection</string>
     <string name="home_profiles">Configs</string>
     <string name="home_subscriptions">Subscriptions</string>
     <string name="home_add">Add</string>

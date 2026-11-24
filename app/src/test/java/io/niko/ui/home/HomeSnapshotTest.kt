@@ -43,6 +43,8 @@ class HomeSnapshotTest(private val mode: String) {
         override fun nodes() {}
         override fun log() {}
         override fun help() {}
+        override fun check() {}
+        override fun exitAddress() {}
     }
 
     private val connected = HomeState(
@@ -137,6 +139,14 @@ class HomeSnapshotTest(private val mode: String) {
 
     @Test
     fun advancedConnected() = shot(connected, HomeView.Advanced)
+
+    /** D-MAIN-18: the status card tapped, the check's answer in place of the speeds. */
+    @Test
+    fun advancedChecked() = shot(connected.copy(check = HomeCheck.Done(42)), HomeView.Advanced)
+
+    /** D-MAIN-18: the check failed, its reason under the state. */
+    @Test
+    fun advancedCheckFailed() = shot(connected.copy(check = HomeCheck.Failed("context deadline exceeded")), HomeView.Advanced)
 
     @Test
     fun modeSheet() = shot(connected, HomeView.Simple, sheet = true)

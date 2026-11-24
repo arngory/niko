@@ -63,6 +63,7 @@ import io.niko.ui.home.ConfigsActions
 import io.niko.ui.home.ConfigsLoader
 import io.niko.ui.home.ConfigsTest
 import io.niko.ui.home.HomeActions
+import io.niko.ui.home.HomeCheck
 import io.niko.ui.home.HomeFragment
 import io.niko.ui.home.HomeLoader
 import io.niko.ui.home.HomeState
@@ -70,9 +71,17 @@ import io.niko.ui.home.HomeView
 import io.niko.ktx.Logs
 import io.niko.utils.PrivateDns
 import io.niko.utils.Util
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // onSaveInstanceState: a link's question was open when the activity went
 private const val LINK_QUESTION = "link_question"
+
+/** How long the connection check's answer stays on the main screen's status card. */
+private const val CHECK_SHOWN_MS = 8_000L
 
 class MainActivity : ThemedActivity(),
     SagerConnection.Callback,
@@ -156,6 +165,31 @@ class MainActivity : ThemedActivity(),
 
         override fun help() {
             displayFragmentWithId(R.id.nav_faq)
+        }
+
+        // the connection check through the running core (as the old status bar's tap), its answer on the card for a
+        // while; one at a time
+        override fun check() {
+            if (!DataStore.serviceState.connected || homeState.value.check == HomeCheck.Testing) return
+            homeState.value = homeState.value.copy(check = HomeCheck.Testing)
+            lifecycleScope.launch {
+                val result = withContext(Dispatchers.Default) {
+                    try {
+                        HomeCheck.Done(urlTest())
+                    } catch (e: Exception) {
+                        Logs.w(e.toString())
+                        HomeCheck.Failed(e.readableMessage)
+                    }
+                }
+                if (homeState.value.check != HomeCheck.Testing) return@launch // disconnected meanwhile
+                homeState.value = homeState.value.copy(check = result)
+                delay(CHECK_SHOWN_MS)
+                if (homeState.value.check === result) homeState.value = homeState.value.copy(check = null)
+            }
+        }
+
+        override fun exitAddress() {
+            if (DataStore.serviceState.connected) showExitAddress()
         }
     }
 
@@ -718,6 +752,7 @@ class MainActivity : ThemedActivity(),
             } else 0,
             upRate = if (connected) home.upRate else 0,
             downRate = if (connected) home.downRate else 0,
+            check = if (connected) home.check else null,
         )
     }
 
