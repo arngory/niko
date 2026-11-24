@@ -929,7 +929,6 @@
     <string name="licenses_part_other">Other</string>
     <string name="licenses_part_go">The core\'s Go modules</string>
     <string name="licenses_site">Website</string>
-    <string name="insert_tab">Insert a tab</string>
     <string name="redo">Redo</string>
     <string name="format_config">Format</string>
     <string name="more_options">More options</string>
@@ -1089,4 +1088,8 @@
     <string name="add_camera_denied">No access to the camera</string>
     <string name="add_camera_denied_sub">Allow the camera to scan a QR code. The other ways work without it.</string>
     <string name="add_camera_allow">Allow</string>
+    <!-- Редактор JSON on Compose (D-PROFILE-02) -->
+    <string name="json_error_line">Line %1$d: %2$s</string>
+    <string name="json_text" translatable="false">JSON</string>
+    <string name="json_discard">Leave without saving</string>
 </resources>
