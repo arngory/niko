@@ -3,15 +3,11 @@
     <string name="app_name" translatable="false">Niko</string>
     <string name="app_name_long" translatable="false">Niko for Android</string>
     <string name="app_desc">The universal proxy toolchain for Android, written in Kotlin.</string>
-    <string name="project">Project</string>
-    <string name="github">Source code</string>
     <string name="oss_licenses">Open source licenses</string>
     <string name="app_version">Version</string>
-    <string name="version_x">Version (%s)</string>
     <string name="logcat">Export debug information</string>
     <string name="menu_configuration">Configuration</string>
     <string name="menu_group">Group</string>
-    <string name="menu_about">About</string>
     <string name="theme">Theme</string>
     <string name="document">Document</string>
     <string name="group_default">Ungrouped</string>
@@ -228,12 +224,6 @@
     <string name="no_proxies_found_in_file">No proxies found in the file</string>
     <string name="no_proxies_found_in_clipboard">No proxies found in the clipboard</string>
     <string name="deduplication">Deduplication</string>
-    <string name="ignore_battery_optimizations">Ignore battery optimizations</string>
-    <string name="ignore_battery_optimizations_sum">Remove some restrictions</string>
-    <string name="background_restricted">Background use is restricted</string>
-    <string name="background_restricted_sum">Android stops Niko in the background: the VPN, the node\'s watchdog and the subscription updates. Tap, then Battery → Unrestricted</string>
-    <string name="background_vendor">The phone\'s own background manager</string>
-    <string name="background_vendor_sum">This phone\'s maker stops apps in the background on top of Android. Tap to allow Niko autostart and running in the background</string>
     <!-- plugin -->
     <string name="plugin">Plugin</string>
     <string name="plugin_unknown">Unknown plugin %s</string>
@@ -458,7 +448,6 @@
     <string name="rule_set_update_1d">Daily</string>
     <string name="rule_set_update_3d">Every 3 days</string>
     <string name="rule_set_update_7d">Weekly</string>
-    <string name="upstream_project">Upstream: NekoBox for Android</string>
     <string name="shortcut_pin_unsupported">The launcher can not pin shortcuts. Choose a default launcher and try again.</string>
     <string name="ads">Ads</string>
     <string name="need_restart">Restart APP to apply changes</string>
@@ -486,11 +475,8 @@
     <string name="mux_preference">Mulitplex</string>
     <string name="padding">Padding</string>
     <string name="preview_version_hint">This application is a preview version and may contain many problems. If you do not want to test it, please go to GitHub to download the Release version!</string>
-    <string name="check_update_preview">Check for preview version updates</string>
-    <string name="check_update_release">Check for release version updates</string>
     <string name="update_dialog_title">New version available</string>
     <string name="update_dialog_message">Current version: %1$s\nAvailable version: %2$s\nDo you want to download it?</string>
-    <string name="check_update_no">Check successful, but no updates.</string>
     <string name="update_install">Download and install</string>
     <string name="update_release_page">Release page</string>
     <string name="update_downloading">Downloading the update…</string>
@@ -964,8 +950,6 @@
     <!-- About → Licenses (LicensesActivity) -->
     <string name="licenses">Licenses</string>
     <string name="donate">Support the project</string>
-    <string name="donate_sum" translatable="false">donotpromise.space/donate</string>
-    <string name="licenses_sum">What Niko is built from, and under which licenses</string>
     <string name="licenses_notice_sum">All of it in one text</string>
     <string name="licenses_part_app">Niko and what it is based on</string>
     <string name="licenses_part_library">Android libraries</string>

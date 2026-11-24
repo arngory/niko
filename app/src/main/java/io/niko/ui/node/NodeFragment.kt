@@ -21,7 +21,7 @@ import io.niko.ktx.Logs
 import io.niko.ktx.onMainDispatcher
 import io.niko.ktx.runOnDefaultDispatcher
 import io.niko.raycontrol.RayNodes
-import io.niko.ui.AboutFragment
+import io.niko.ui.about.AboutFragment
 import io.niko.ui.MainActivity
 import io.niko.ui.checkRayChannel
 import io.niko.ui.compose.NikoTheme

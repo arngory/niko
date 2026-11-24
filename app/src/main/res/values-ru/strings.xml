@@ -50,7 +50,6 @@
 <string name="certificates">Сертификаты</string>
 <string name="character_counter_content_description">Введено символов: %1$d из %2$d</string>
 <string name="character_counter_overflowed_content_description">Превышено ограничение на количество символов (%1$d из %2$d)</string>
-<string name="check_update_no">Обновления не найдены.</string>
 <string name="update_install">Скачать и установить</string>
 <string name="update_release_page">Страница релиза</string>
 <string name="update_downloading">Скачиваю обновление…</string>
@@ -66,8 +65,6 @@
     <string name="update_required">Это обновление обязательно.</string>
     <string name="update_bad_notice">UPDATE.json выпуска не совпадает с подписанным</string>
     <string name="update_needs_android">%1$s работает на Android %2$s и новее. На этом телефоне остаётся текущая версия, она работает как прежде.</string>
-<string name="check_update_preview">Проверить наличие обновлений предварительной версии</string>
-<string name="check_update_release">Проверить наличие обновлений релизнойной версии</string>
 <string name="circular_reference">Циклическая ссылка</string>
 <string name="circular_reference_sum">Маршрут не может содержать сам себя.</string>
 <string name="clear_logcat">Очистить журнал</string>
@@ -196,7 +193,6 @@
 <string name="rule_set_update_1d">Раз в день</string>
 <string name="rule_set_update_3d">Раз в 3 дня</string>
 <string name="rule_set_update_7d">Раз в неделю</string>
-<string name="upstream_project">Оригинальный проект: NekoBox for Android</string>
 <string name="shortcut_pin_unsupported">Лаунчер не умеет закреплять ярлыки. Выберите лаунчер по умолчанию и попробуйте снова.</string>
 <string name="enable_ech">Включить ECH</string>
 <string name="enable_ech_sum">Включить зашифрованный клиент Hello</string>
@@ -214,7 +210,6 @@
 <string name="file_manager_missing">На вашем устройстве отсутствует стандартный селектор файлов Android, установите его, например Material Files.</string>
 <string name="forward_success">Прокси запустился.</string>
 <string name="generating">Создание…</string>
-<string name="github">Исходный код</string>
 <string name="group_added">Добавлено:
 %s</string>
 <string name="group_basic">Базовый</string>
@@ -261,7 +256,6 @@
 <string name="hysteria_obfs">Обфускация пароля</string>
 <string name="hysteria_stream_receive_window">Окно приема потока QUIC</string>
 <string name="icon_content_description">Значок диалогового окна</string>
-<string name="ignore_battery_optimizations">Игнорировать оптимизации батареи</string>
 <string name="route_test_target_hint">Хост или адрес и порт: example.com:443</string>
 <string name="route_test_app_hint">Из приложения (необязательно)</string>
 <string name="route_test_udp">UDP</string>
@@ -278,11 +272,6 @@
 <string name="exit_address_ask">Спросить</string>
 <string name="exit_address_answered">Ответил</string>
 <string name="exit_address_failed">%1$s не ответил: %2$s</string>
-<string name="ignore_battery_optimizations_sum">Снять некоторые ограничения</string>
-<string name="background_restricted">Работа в фоне ограничена</string>
-<string name="background_restricted_sum">Android останавливает Niko в фоне: VPN, сторож ноды и обновление подписок. Нажмите, затем Батарея → Без ограничений</string>
-<string name="background_vendor">Собственный менеджер фона телефона</string>
-<string name="background_vendor_sum">Производитель этого телефона останавливает приложения в фоне поверх Android. Нажмите, чтобы разрешить Niko автозапуск и работу в фоне</string>
 <string name="insecure">Ненадежный</string>
 <string name="install_from_fdroid">Установить с F-Droid</string>
 <string name="install_from_play_store">Установить из Play Store</string>
@@ -298,7 +287,6 @@
 <string name="material_clock_toggle_content_description">Выберите AM (до полудня) или PM (после полудня)</string>
 <string name="material_timepicker_am">AM</string>
 <string name="material_timepicker_pm">PM</string>
-<string name="menu_about">О приложении</string>
 <string name="menu_configuration">Конфигурация</string>
 <string name="menu_dashboard">Панель sing-box</string>
 <string name="menu_group">Группы</string>
@@ -382,7 +370,6 @@
 <string name="profile_import_keys">Он задаёт эти части конфига: %s</string>
 <string name="profile_name">Имя профиля</string>
 <string name="profile_requiring_plugin">Профиль %s требует установки подключаемого модуля %s, но он не найден.</string>
-<string name="project">Проект</string>
 <string name="protocol">Протокол</string>
 <string name="protocol_param">Параметры протокола</string>
 <string name="protocol_settings">Настройки протокола</string>
@@ -483,7 +470,6 @@
 <string name="utls_fingerprint">Отпечаток uTLS</string>
 <string name="v7_preference_off">ВЫКЛ.</string>
 <string name="v7_preference_on">ВКЛ.</string>
-<string name="version_x">Версия (%s)</string>
 <string name="vpn_connected">Подключено, нажмите для проверки подключения</string>
 <string name="vpn_permission_denied">Отказано в разрешении на создание службы VPN</string>
 <string name="always_on_needs_vpn_mode">Android запустил Niko как постоянный VPN, но Niko настроен на режим «Только прокси», поэтому ничего не работает. Чтобы пользоваться постоянным VPN, выберите VPN в Настройках → Сервисный режим или выключите постоянный VPN для Niko в системных настройках VPN.</string>
@@ -901,7 +887,6 @@
     <string name="open_app_settings">Открыть настройки системы</string>
     <string name="licenses">Лицензии</string>
     <string name="donate">Поддержать проект</string>
-    <string name="licenses_sum">Из чего собран Niko и на каких условиях</string>
     <string name="licenses_notice_sum">Всё одним текстом</string>
     <string name="licenses_part_app">Niko и то, на чём он основан</string>
     <string name="licenses_part_library">Библиотеки Android</string>
