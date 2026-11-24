@@ -9,6 +9,9 @@ const val DEFAULT_REMOTE_DNS = "https://cloudflare-dns.com/dns-query\nhttps://dn
 // where the app looks for its own updates; GitHub redirects the API after a repository rename
 const val RELEASE_REPO = "arngory/niko"
 
+/** The owner's page with the ways to support the project (decided 2026-11-24): a link, no addresses in the app. */
+const val DONATE_URL = "https://donotpromise.space/donate"
+
 object Key {
 
     const val DB_PUBLIC = "configuration.db"
