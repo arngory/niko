@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A profile's editor (P-Profile): every type's fields, «Тонкая настройка», a chain's links. -->
+<resources>
+    <string name="pe_more">More</string>
+    <string name="pe_save">Save</string>
+    <string name="pe_move">Move to group</string>
+    <string name="pe_delete">Delete profile</string>
+    <string name="pe_name">Name</string>
+    <string name="pe_server">Server</string>
+    <string name="pe_port">Port</string>
+    <string name="pe_ports">Ports</string>
+    <string name="pe_user">User</string>
+    <string name="pe_password">Password</string>
+    <string name="pe_uuid" translatable="false">UUID</string>
+    <string name="pe_show">Show %s</string>
+    <string name="pe_hide">Hide %s</string>
+    <string name="pe_none">None</string>
+    <string name="pe_none_lower">none</string>
+    <string name="pe_default">Default</string>
+    <string name="pe_on">on</string>
+    <string name="pe_off">off</string>
+    <string name="pe_transport">Transport</string>
+    <string name="pe_xhttp_mode">XHTTP mode</string>
+    <string name="pe_sni">Server name (SNI)</string>
+    <string name="pe_public_key">Public key</string>
+    <string name="pe_plugin_options">Plugin options</string>
+    <string name="pe_advanced">More</string>
+    <string name="pe_auth">Authentication</string>
+    <string name="pe_ssh_key">Key</string>
+    <string name="pe_ssh_host_key">Server public key</string>
+    <string name="pe_speed">Speed</string>
+    <string name="pe_upload">Upload, Mbit/s</string>
+    <string name="pe_download">Download, Mbit/s</string>
+    <string name="pe_hopping">Port hopping</string>
+    <string name="pe_hop_interval">Interval, seconds</string>
+    <string name="pe_hop_interval_max">Longest interval, seconds (0: fixed)</string>
+    <string name="pe_connection">Connection</string>
+    <string name="pe_json_outbound">Outbound JSON</string>
+    <string name="pe_json_config">Config JSON</string>
+    <string name="pe_tweaks">Fine-tuning</string>
+    <string name="pe_tweaks_sub">TLS, pinning, port knocking</string>
+    <string name="pe_shortcut">Home screen shortcut</string>
+    <string name="pe_shortcut_add">Add a shortcut</string>
+    <string name="pe_fragment_records">Records</string>
+    <string name="pe_pins_short">pins</string>
+    <plurals name="pe_pins">
+        <item quantity="one">%d key</item>
+        <item quantity="other">%d keys</item>
+    </plurals>
+    <string name="pe_dns_tunnel">DNS tunnel</string>
+    <string name="pe_tunnel_off">off</string>
+    <string name="pe_tunnel_engine">Engine</string>
+    <string name="pe_tunnel_resolver">Resolver</string>
+    <string name="pe_tunnel_key">Key</string>
+    <string name="pe_tunnel_method">MasterDnsVPN encryption (0–5)</string>
+    <string name="pe_tunnel_slipstream">This slipstream tunnel came with its link and is changed only by it: shown here as it is.</string>
+    <string name="pe_knock_short">knocking</string>
+    <string name="pe_knock_sequence">Sequence</string>
+    <string name="pe_knock_placeholder">7000, 8000/udp, 62201/spa:KEY</string>
+    <string name="pe_config">Custom config</string>
+    <string name="pe_chain">Chain</string>
+    <string name="pe_chain_links">Links</string>
+    <string name="pe_chain_exit">exit</string>
+    <string name="pe_chain_remove">Remove %s from the chain</string>
+    <string name="pe_drag">Drag %s</string>
+    <string name="pe_move_up">Move up</string>
+    <string name="pe_move_down">Move down</string>
+</resources>

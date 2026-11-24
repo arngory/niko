@@ -63,8 +63,6 @@
     <string name="github">Code source</string>
     <string name="project">Projet</string>
     <string name="app_desc">La chaîne d\'outils proxy universelle pour Android, écrite en Kotlin.</string>
-    <string name="hysteria_upload_mbps">Vitesse maximale de téléversement (en Mb/s)</string>
-    <string name="hysteria_download_mbps">Vitesse de téléchargement maximale (en Mb/s)</string>
     <string name="group_deleted">Supprimé :
 \n%s</string>
     <string name="group_changed">Mis à jour :
@@ -78,8 +76,6 @@
     <string name="action_export_err">Échec de l\'export.</string>
     <string name="ssh_private_key">Clé privée</string>
     <string name="port_transproxy">Port du Transproxy</string>
-    <string name="cag_ws">Paramètres WebSocket</string>
-    <string name="security_settings">Paramètres de sécurité</string>
     <string name="allow_insecure">Autoriser non sécurisé</string>
     <string name="menu_log">Journaux</string>
     <string name="experimental_settings">Expérimental</string>
@@ -103,7 +99,6 @@
     <string name="balancer_strategy">Stratégie</string>
     <string name="off">Inactif</string>
     <string name="action_export">Exporter</string>
-    <string name="plugin_disabled">Désactivé</string>
     <string name="connection_test_testing">Essai…</string>
     <string name="action_export_clipboard">Exporter dans le presse-papiers</string>
     <string name="on">Actif</string>
@@ -116,8 +111,6 @@
     <string name="action_export_file">Exporter dans un fichier</string>
     <string name="connection_test_available">Succès : la négociation HTTPS a pris %dms</string>
     <string name="require_transproxy">Activer Transproxy entrant</string>
-    <string name="server_port">Port distant</string>
-    <string name="username_opt">Nom d\'utilisateur (facultatif)</string>
     <string name="encryption">Cryptage</string>
     <string name="stop">Arrêter</string>
     <string name="speed_detail">Proxy： %1$s↑ %2$s↓
@@ -128,7 +121,6 @@
     <string name="require_http">Activer HTTP Entrant</string>
     <string name="connection_test_available_http">Succès : la négociation HTTP a pris %dms</string>
     <string name="dns_hosts">Réécriture de Domaine</string>
-    <string name="password">Mot de passe</string>
     <string name="connection_test_domain_not_found">Domaine non trouvé</string>
     <string name="show_stop">Afficher le bouton d\'arrêt</string>
     <string name="show_stop_sum">Si vous ne souhaitez pas utiliser Quick Tile comme commutateur</string>
@@ -172,22 +164,16 @@
     <string name="udp_connections">%d connexions UDP</string>
     <string name="copy_package_name">Copier le nom du paquet</string>
     <string name="no_statistics">Aucune statistique pour l\'instant</string>
-    <string name="ssh_public_key">Clé publique</string>
     <string name="generating">Génération…</string>
     <string name="ssh_auth_type_none">Aucun</string>
-    <string name="username">Nom d\'utilisateur</string>
     <string name="network">Réseau</string>
     <string name="disable">Désactiver</string>
     <string name="route_asset_no_update">Aucune mise à jour</string>
-    <string name="password_opt">Mot de passe (facultatif)</string>
     <string name="route_rules_official">Officiel</string>
     <string name="connecting">Connexion…</string>
-    <string name="plugin_configure">Configurer…</string>
-    <string name="ss_cat">Préférences Shadowsocks</string>
     <string name="shadowsocks_plugin_v2ray">V2Ray (greffon Android pour Shadowsocks)</string>
     <string name="group_order_by_name">Par nom</string>
     <string name="wireguard_local_address">Adresse locale</string>
-    <string name="proxy_cat">Préférences du serveur</string>
     <string name="need_reload">Recharger le service de proxy pour appliquer les modifications</string>
     <string name="subscription_type">Type de souscription</string>
     <string name="install_from_play_store">Installer depuis le Play Store</string>
@@ -206,9 +192,7 @@
     <string name="no_proxies_found_in_subscription">Aucun proxy trouvé dans cette souscription</string>
     <string name="profile_empty">Veuillez sélectionner un profil</string>
     <string name="no_proxies_found_in_file">Aucun proxy trouvé dans ce fichier</string>
-    <string name="profile_config">Configuration du profil</string>
     <string name="translate_platform">Plateforme de traduction</string>
-    <string name="uuid">ID de l\'utilisateur</string>
     <string name="ws_path">Chemin du WebSocket</string>
     <string name="select_profile">Sélectionner un profil</string>
     <string name="copy_label">Copier le nom</string>

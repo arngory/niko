@@ -12,19 +12,12 @@
     <string name="header_type">Тып загалоўка</string>
     <string name="network">Сетка</string>
     <string name="security">Шыфраванне транспартнага ўзроўню</string>
-    <string name="alter_id">Змяніць ID</string>
-    <string name="uuid">Ідентифікатор карыстальніка</string>
     <string name="obfs_param">Obfs Парам</string>
     <string name="obfs">Obfs</string>
     <string name="protocol_param">Пратакол Param</string>
     <string name="protocol">Пратакол</string>
     <string name="enc_method">Метад шыфравання</string>
-    <string name="password">Пароль</string>
     <string name="key_opt">Ключ (неабавязкова)</string>
-    <string name="password_opt">Пароль (неабавязкова)</string>
-    <string name="username_opt">Імя карыстальніка (неабавязкова)</string>
-    <string name="username">Імя карыстальніка</string>
-    <string name="server_port">Аддалены порт</string>
     <string name="server_address">Сервер</string>
     <string name="profile_name">Імя профілю</string>
     <string name="transproxy_mode">Рэжым Transproxy</string>
@@ -42,12 +35,10 @@
 \nПрамая : %3$s↑ %4$s↓</string>
     <string name="allow_insecure_sum">Адключыць праверку сертыфікатаў. Калі ўключана, гэтая канфігурацыя такая ж бяспечная, як і адкрыты тэкст</string>
     <string name="allow_insecure">Дазволіць небяспечна</string>
-    <string name="security_settings">Налады бяспекі</string>
     <string name="show_stop_sum">Калі вы не хочаце выкарыстоўваць кнопку панэлі апавяшчэнняў у якасці пераключальніка злучэння</string>
     <string name="show_stop">Паказаць кнопку прыпынку</string>
     <string name="ws_browser_forwarding_sum">Перадайце адпаведныя WebSockets праз браўзэр.</string>
     <string name="ws_browser_forwarding">Пераадрасацыя браўзэра</string>
-    <string name="cag_ws">Налады WebSocket</string>
     <string name="require_http">Уключыць увод HTTP</string>
     <string name="port_transproxy">Transproxy порт</string>
     <string name="port_http">Проксі -порт HTTP</string>

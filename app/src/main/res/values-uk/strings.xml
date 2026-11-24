@@ -52,13 +52,11 @@
     <string name="port_http">Проксі-порт HTTP</string>
     <string name="port_transproxy">Транспроксі-порт</string>
     <string name="require_http">Увімкнути вхідний протокол HTTP</string>
-    <string name="cag_ws">Налаштування WebSocket</string>
     <string name="ws_max_early_data" translatable="false">Max early data</string>
     <string name="ws_browser_forwarding">Переадресація браузера</string>
     <string name="ws_browser_forwarding_sum">Пересилайте відповідні WebSockets через браузер.</string>
     <string name="show_stop">Показати кнопку зупинки</string>
     <string name="show_stop_sum">Якщо ви не хочете використовувати Quick Tile як перемикач</string>
-    <string name="security_settings">Налаштування безпеки TLS</string>
     <string name="allow_insecure">Дозволити незахищене</string>
     <string name="allow_insecure_sum">Вимкнути перевірку сертифікатів. Якщо ввімкнено, ця конфігурація є такою ж безпечною, як і відкритий текст</string>
     <string name="traffic" translatable="false">%1$s↑ %2$s↓</string>
@@ -77,19 +75,12 @@
     <!-- proxy category -->
     <string name="profile_name">Ім\'я профілю</string>
     <string name="server_address">Сервер</string>
-    <string name="server_port">Віддалений порт</string>
-    <string name="username">Ім\'я користувача</string>
-    <string name="username_opt">Ім\'я користувача (необов’язково)</string>
-    <string name="password_opt">Пароль (необов’язково)</string>
     <string name="key_opt">Ключ (необов’язково)</string>
-    <string name="password">Пароль</string>
     <string name="enc_method">Метод шифрування</string>
     <string name="protocol">Протокол</string>
     <string name="protocol_param">Параметр протоколу</string>
     <string name="obfs">Obfs</string>
     <string name="obfs_param">Параметр Obfs</string>
-    <string name="uuid">ідентифікатор користувача</string>
-    <string name="alter_id">Змінити ідентифікатор</string>
     <string name="security">Шифрування транспортного рівня</string>
     <string name="network">Мережа</string>
     <string name="header_type">Тип заголовка</string>
@@ -99,8 +90,6 @@
     <string name="http_path">Шлях HTTP</string>
     <string name="grpc_service_name">ім\'я служби gRPC</string>
     <string name="tls">Використовувати TLS</string>
-    <string name="sni">Індикація імені сервера</string>
-    <string name="alpn">Переговори про протокол шару додатків</string>
     <string name="certificates">Сертифікати</string>
     <string name="early_data_header_name">Назва раннього заголовка даних</string>
     <string name="encryption">Шифрування</string>
@@ -181,7 +170,6 @@
     <string name="balancer_settings">Налаштування балансувальника</string>
     <string name="balancer_type">Тип</string>
     <string name="balancer_strategy">Стратегія</string>
-    <string name="chain_settings">Налаштування ланцюжка</string>
     <string name="config_settings">Налаштування конфігурації</string>
     <string name="circular_reference">Циклічне посилання</string>
     <string name="circular_reference_sum">Маршрут не може містити самого себе.</string>
@@ -201,7 +189,6 @@
     <string name="file_manager_missing">На вашому пристрої відсутній стандартний файловий менеджер Android, будь ласка, встановіть його, наприклад, Material Files.</string>
     <!-- share -->
     <!-- profile -->
-    <string name="profile_config">Конфігурація профілю</string>
     <string name="delete">Видалити</string>
     <string name="delete_confirm_prompt">Ви впевнені, що хочете видалити цей профіль?</string>
     <string name="share_qr_nfc">QR-код</string>
@@ -239,12 +226,8 @@
     <string name="ignore_battery_optimizations_sum">Зняти деякі обмеження</string>
     <!-- plugin -->
     <string name="plugin">Плагін</string>
-    <string name="plugin_configure">Налаштувати…</string>
-    <string name="plugin_disabled">Вимкнено</string>
     <string name="plugin_unknown">Невідомий плагін %s</string>
     <string name="plugin_auto_connect_unlock_only">Цей плагін може не працювати з автоматичним підключенням</string>
-    <string name="proxy_cat">Налаштування сервера</string>
-    <string name="ss_cat">Налаштування Shadowsocks</string>
     <string name="unsaved_changes_prompt">Зміни не збережено. Ви хочете зберегти?</string>
     <string name="yes">Так</string>
     <string name="no">Ні</string>
@@ -313,8 +296,6 @@
     <string name="hysteria_obfs">Пароль обфускації</string>
     <string name="hysteria_auth_type">Тип автентифікації</string>
     <string name="hysteria_auth_payload">Дані автентифікації</string>
-    <string name="hysteria_upload_mbps">Макс. швидкість вивантаження (у Мбіт/с)</string>
-    <string name="hysteria_download_mbps">Макс. швидкість завантаження (у Мбіт/с)</string>
     <string name="experimental_settings">Експериментальні</string>
     <string name="hysteria_stream_receive_window">Вікно прийому потоку QUIC</string>
     <string name="hysteria_connection_receive_window">Вікно прийому з\'єднання QUIC</string>
@@ -345,7 +326,6 @@
     <string name="no_statistics">Статистики ще немає</string>
     <string name="app_statistics_disabled">Статистика трафіку програм вимкнена</string>
     <string name="ssh_auth_type_none">Немає</string>
-    <string name="ssh_public_key">Публічний ключ</string>
     <string name="ssh_private_key">Приватний ключ</string>
     <string name="ssh_private_key_passphrase">Парольна фраза приватного ключа</string>
     <string name="translate_platform">Платформа для перекладу</string>
@@ -394,14 +374,12 @@
     <string name="move">Перемістити</string>
     <string name="exe_prefer_provider">Пріоритетний постачальник плагіна</string>
     <string name="create_shortcut">Створити ярлик</string>
-    <string name="hop_interval">Інтервал зміни портів (секунди)</string>
     <string name="utls_fingerprint">Відбиток uTLS</string>
     <string name="custom_outbound_json">Власний JSON вихідного з\'єднання</string>
     <string name="custom_config_json">Власний JSON конфігурації</string>
     <string name="is_outbound_only">Встановлений JSON є лише вихідним з\'єднанням</string>
     <string name="save">Зберегти</string>
     <string name="set_panel_url">Встановити URL панелі</string>
-    <string name="xtls_flow">Flow (підпротокол VLESS)</string>
     <string name="ads">Реклама</string>
     <string name="need_restart">Перезапустіть програму, щоб застосувати зміни</string>
     <string name="use_selector">Використовувати селектор</string>
@@ -411,7 +389,6 @@
     <string name="reset_connections">Скинути з\'єднання</string>
     <string name="remove_duplicate">Видалити дублікати серверів</string>
     <string name="mtu_help">Довге натискання на налаштування, щоб встановити власний MTU.</string>
-    <string name="tls_camouflage_settings">Налаштування маскування TLS</string>
     <string name="test_concurrency">Паралелізм тесту</string>
     <string name="mux_type">Протокол Mux</string>
     <string name="sniff_override">Результат аналізу для призначення</string>

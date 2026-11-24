@@ -40,7 +40,6 @@
     <string name="port_http">HTTP 代理端口</string>
     <string name="port_local_dns">本地 DNS 端口</string>
     <string name="require_http">启用 HTTP 入站</string>
-    <string name="cag_ws">WebSocket 设置</string>
     <string name="ws_browser_forwarding">浏览器转发</string>
     <string name="ws_browser_forwarding_sum">转发相应的 WebSockets 到浏览器.</string>
     <string name="traffic">%1$s↑ %2$s↓</string>
@@ -55,22 +54,15 @@
     <!-- proxy category -->
     <string name="profile_name">配置名称</string>
     <string name="server_address">服务器</string>
-    <string name="server_port">服务器端口</string>
-    <string name="username_opt">用户名 (可选)</string>
-    <string name="password_opt">密码 (可选)</string>
-    <string name="password">密码</string>
     <string name="enc_method">加密方式</string>
     <string name="protocol">协议</string>
     <string name="protocol_param">协议参数</string>
     <string name="obfs">混淆</string>
     <string name="obfs_param">混淆参数</string>
-    <string name="uuid">用户ID</string>
-    <string name="alter_id">替代 ID</string>
     <string name="security">传输层加密</string>
     <string name="network">传输协议</string>
     <string name="header_type">伪装类型</string>
     <string name="tls">使用 TLS</string>
-    <string name="sni">服务器名称指示</string>
     <string name="encryption">加密</string>
     <!-- feature category -->
     <string name="menu_route">路由</string>
@@ -118,7 +110,6 @@
     <string name="action_import_err">导入失败.</string>
     <!-- share -->
     <!-- profile -->
-    <string name="profile_config">服务器配置</string>
     <string name="delete">删除</string>
     <string name="delete_confirm_prompt">您确定要删除这个服务器配置吗\?</string>
     <string name="share_qr_nfc">二维码</string>
@@ -142,11 +133,8 @@
     <string name="no_proxies_found">未在此链接内找到服务器配置</string>
     <!-- plugin -->
     <string name="plugin">插件</string>
-    <string name="plugin_configure">设置…</string>
-    <string name="plugin_disabled">已停用</string>
     <string name="plugin_unknown">未知插件: %s</string>
     <string name="plugin_auto_connect_unlock_only">此插件可能不支持自动连接</string>
-    <string name="proxy_cat">服务器设置</string>
     <string name="unsaved_changes_prompt">是否要保存修改？</string>
     <string name="yes">是</string>
     <string name="no">否</string>
@@ -165,19 +153,16 @@
     <string name="http_path">HTTP 路径</string>
     <string name="utls_fingerprint">uTLS 指纹</string>
     <string name="grpc_service_name">gRPC 服务名称</string>
-    <string name="alpn">应用层协议协商</string>
     <string name="group_duplicate">重复:
         \n%s</string>
     <string name="deduplication">去重</string>
     <string name="version_x">版本 (%s)</string>
     <string name="show_stop">显示停止按钮</string>
     <string name="show_stop_sum">如果您不想使用快捷图块</string>
-    <string name="ss_cat">Shadowsocks 设置</string>
     <string name="insecure">不安全</string>
     <string name="deprecated">已废弃</string>
     <string name="select_profile">选择配置</string>
     <string name="proxy_chain">链式代理</string>
-    <string name="chain_settings">链设置</string>
     <string name="circular_reference">循环引用</string>
     <string name="circular_reference_sum">路由中不能包含自己.</string>
     <string name="mux_sum">多路复用是为了减少 TCP 的握手延迟而设计, 而非提高连接的吞吐量. 用于看视频、下载或者测速通常都有反效果。如果服务器不支持，则无法上网。</string>
@@ -195,7 +180,6 @@
     <string name="need_reload">重载代理服务以应用修改</string>
     <string name="theme">主题颜色</string>
     <string name="extra_headers">附加标头</string>
-    <string name="username">用户名</string>
     <string name="key_opt">密码 (可选)</string>
     <string name="group_diff">变化 (%s)</string>
     <string name="require_transproxy">启用透明代理入站</string>
@@ -210,7 +194,6 @@
     <string name="config_settings">配置设置</string>
     <string name="custom_config">自定义配置</string>
     <string name="enable">启用</string>
-    <string name="security_settings">TLS 安全设置</string>
     <string name="allow_insecure">允许不安全的连接</string>
     <string name="allow_insecure_sum">禁用证书检查. 启用后该配置安全性相当于明文</string>
     <string name="config_type">配置类型</string>
@@ -279,8 +262,6 @@
     <string name="hysteria_obfs">混淆密码</string>
     <string name="hysteria_auth_type">认证类型</string>
     <string name="hysteria_auth_payload">认证密码</string>
-    <string name="hysteria_upload_mbps">最大上行 (Mbps)</string>
-    <string name="hysteria_download_mbps">最大下行 (Mbps)</string>
     <string name="experimental_settings">实验性</string>
     <string name="hysteria_stream_receive_window">QUIC 流接收窗口</string>
     <string name="hysteria_connection_receive_window">QUIC 连接接收窗口</string>
@@ -309,7 +290,6 @@
     <string name="no_statistics">暂无数据</string>
     <string name="ssh_private_key_passphrase">私钥密码句</string>
     <string name="ssh_private_key">私钥</string>
-    <string name="ssh_public_key">公钥</string>
     <string name="ssh_auth_type_none">无</string>
     <string name="clear_logcat">清空日志</string>
     <string name="menu_log">日志</string>
@@ -359,7 +339,6 @@
     <string name="update_all_subscription">更新所有订阅</string>
     <string name="exe_prefer_provider">首选插件提供者</string>
     <string name="create_shortcut">创建快捷方式</string>
-    <string name="hop_interval">端口跳跃间隔(秒)</string>
     <string name="tuic_disable_sni">禁用 SNI</string>
     <string name="tuic_reduce_rtt">启用 0-RTT QUIC 握手</string>
     <string name="tuic_congestion_controller">拥塞控制</string>
@@ -370,7 +349,6 @@
     <string name="is_outbound_only">设置的 JSON 是出站</string>
     <string name="save">保存</string>
     <string name="set_panel_url">设置面板 URL</string>
-    <string name="xtls_flow">Flow（VLESS 子协议）</string>
     <string name="ads">推广</string>
     <string name="need_restart">重新启动应用程序以应用更改</string>
     <string name="use_selector">启用 selector （免重载切换节点）</string>
@@ -378,7 +356,6 @@
     <string name="share_subscription">分享订阅</string>
     <string name="reset_connections">重置连接</string>
     <string name="remove_duplicate">删除重复的服务器</string>
-    <string name="tls_camouflage_settings">TLS 伪装设置</string>
     <string name="mtu_help">长按设置项以设置自定义 MTU。</string>
     <string name="test_concurrency">测试并发</string>
     <string name="mux_type">Mux 协议</string>
