@@ -271,7 +271,7 @@
 <string name="hysteria_download_mbps">Максимальная скорость загрузки (в Мбит / с)</string>
 <string name="hysteria_obfs">Обфускация пароля</string>
 <string name="hysteria_stream_receive_window">Окно приема потока QUIC</string>
-<string name="hysteria_upload_mbps">Максимальная скорость загрузки (в Мбит / с)</string>
+<string name="hysteria_upload_mbps">Максимальная скорость отдачи (в Мбит / с)</string>
 <string name="icon_content_description">Значок диалогового окна</string>
 <string name="ignore_battery_optimizations">Игнорировать оптимизации батареи</string>
 <string name="route_test_target_hint">Хост или адрес и порт: example.com:443</string>
@@ -990,6 +990,11 @@
     <string name="home_nodes">Узлы raycontrol</string>
     <string name="home_log">Журнал и вид</string>
     <string name="home_help">Справка</string>
+    <string name="home_check">Проверить соединение</string>
+    <string name="home_check_testing">Проверка…</string>
+    <string name="home_check_done">%d мс</string>
+    <string name="home_check_failed">нет ответа</string>
+    <string name="home_card_menu">Подключение</string>
     <string name="home_profiles">Конфиги</string>
     <string name="home_subscriptions">Подписки</string>
     <string name="home_add">Добавить</string>
