@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Маршрутизация: правила (P-Rules), правило (P-Rule), проверка маршрута (P-Check), наборы правил (P-Lists). -->
+<resources>
+    <string name="rt_title">Маршрутизация</string>
+    <string name="rt_guide">Руководство по маршрутизации</string>
+    <string name="rt_add">Добавить правило</string>
+    <string name="rt_warn">Свои правила могут оставить без интернета: прочтите руководство по маршрутизации, прежде чем их добавлять.</string>
+    <string name="rt_preset">Пресет</string>
+    <string name="rt_preset_none">Нет</string>
+    <string name="rt_preset_russia">Россия</string>
+    <string name="rt_preset_remove_title">Убрать пресет «Россия»?</string>
+    <string name="rt_preset_remove_message">Два его правила будут удалены, ваши правила останутся.</string>
+    <string name="rt_preset_remove">Убрать</string>
+    <string name="rt_rules">Правила</string>
+    <string name="rt_rest">Остальное</string>
+    <string name="rt_out_proxy">Через узел</string>
+    <string name="rt_out_direct">Напрямую</string>
+    <string name="rt_out_block">Блок</string>
+    <string name="rt_drag">Переместить «%s»</string>
+    <string name="rt_move_up">Выше</string>
+    <string name="rt_move_down">Ниже</string>
+    <string name="rt_delete">Удалить</string>
+    <string name="rt_lists">Наборы правил</string>
+    <string name="rt_check">Проверка маршрута</string>
+    <string name="rt_reset">Сбросить правила</string>
+    <string name="rt_reset_title">Сбросить правила?</string>
+    <string name="rt_reset_message">Ваши правила заменятся стандартными.</string>
+    <plurals name="rt_apps">
+        <item quantity="one">%d приложение</item>
+        <item quantity="few">%d приложения</item>
+        <item quantity="many">%d приложений</item>
+        <item quantity="other">%d приложения</item>
+    </plurals>
+
+    <string name="rt_rule">Правило</string>
+    <string name="rt_new_rule">Новое правило</string>
+    <string name="rt_delete_rule">Удалить правило</string>
+    <string name="rt_name">Название</string>
+    <string name="rt_pick_apps">Выбрать приложения</string>
+    <string name="rt_remove_app">Убрать «%s»</string>
+    <string name="rt_any_app">Любое приложение</string>
+    <string name="rt_conditions">И ещё условия</string>
+    <string name="rt_domains">Домены</string>
+    <string name="rt_addresses">Адреса</string>
+    <string name="rt_ports">Порты и протокол</string>
+    <string name="rt_json">Свой JSON</string>
+    <string name="rt_dst_ip">IP назначения</string>
+    <string name="rt_src_ip">IP источника</string>
+    <string name="rt_dst_port">Порт назначения</string>
+    <string name="rt_src_port">Порт источника</string>
+    <string name="rt_network">Сеть</string>
+    <string name="rt_tcp_udp">TCP и UDP</string>
+    <string name="rt_protocol">Протокол</string>
+    <string name="rt_action">Действие</string>
+    <string name="rt_profile">Через профиль</string>
+    <string name="rt_save">Сохранить</string>
+
+    <string name="rt_address">Адрес</string>
+    <string name="rt_more">Ещё</string>
+    <string name="rt_checking">Проверяю…</string>
+    <string name="rt_rule_n">Правило %d</string>
+    <string name="rt_exit">Выход</string>
+    <string name="rt_steps">Шаги</string>
+    <string name="rt_notes">Заметки ядра</string>
+
+    <string name="rt_update_all">Проверить обновление</string>
+    <string name="rt_update_one">Обновить %s</string>
+    <string name="rt_updating">Обновляю…</string>
+    <string name="rt_geo">Геобазы</string>
+    <string name="rt_own">Свои файлы</string>
+    <string name="rt_own_none">Пока нет: импортируйте из файла .db или корневой сертификат .pem</string>
+    <string name="rt_ca">Корневой сертификат</string>
+    <string name="rt_lists_source">Источник геобаз и интервал обновления — в Настройках › DNS и маршрут.</string>
+</resources>

@@ -319,6 +319,8 @@ class MainActivity : ThemedActivity(),
                 is io.niko.ui.node.NodeFragment -> shown.back()
                 // a page of the settings goes back to their list, a choice open closes
                 is SettingsFragment -> shown.back()
+                // the route check and the rule sets go back to the rules
+                is io.niko.ui.route.RoutingFragment -> shown.back()
                 // the screens the settings open go back to them, the sing-box panel to the log it is opened from
                 is AboutFragment, is BackupFragment -> displayFragmentWithId(R.id.nav_settings)
                 is WebviewFragment -> displayFragmentWithId(R.id.nav_logcat)
@@ -643,13 +645,13 @@ class MainActivity : ThemedActivity(),
     /**
      * The old bar at the bottom (state, speeds, the connect button): only on the old screens, and only with the
      * setting on (off by default). The main screen has its own button and state; the screens drawn as the canvas has
-     * them (a node's card, the settings, the log) have none. Applied to whatever screen is shown, the restored one
+     * them (a node's card, the settings, the log, routing) have none. Applied to whatever screen is shown, the restored one
      * too: an activity the system recreated would otherwise keep the layout's default, the bar shown on the main
      * screen over its configs.
      */
     private fun applyBars(fragment: Fragment) {
         val old = fragment !is HomeFragment && fragment !is io.niko.ui.node.NodeFragment && fragment !is SettingsFragment &&
-            fragment !is io.niko.ui.log.LogFragment
+            fragment !is io.niko.ui.log.LogFragment && fragment !is io.niko.ui.route.RoutingFragment
         if (old && DataStore.showBottomBar) {
             showStats()
         } else {
@@ -675,7 +677,7 @@ class MainActivity : ThemedActivity(),
             }
 
             R.id.nav_group -> displayFragment(GroupFragment())
-            R.id.nav_route -> displayFragment(RouteFragment())
+            R.id.nav_route -> displayFragment(io.niko.ui.route.RoutingFragment())
             R.id.nav_settings -> displayFragment(SettingsFragment())
             R.id.nav_traffic -> displayFragment(WebviewFragment())
             R.id.nav_logcat -> displayFragment(io.niko.ui.log.LogFragment())

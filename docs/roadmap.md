@@ -25,8 +25,6 @@ Android — экран по макету за выпуск; компьютер �
   экранах:
   - редакторы профилей: общий `ProfileSettingsActivity` и экраны каждого типа (Shadowsocks, SOCKS, V2Ray, Trojan-Go,
     Hysteria, TUIC, naive, mieru, SSH, WireGuard, AnyTLS, ShadowTLS, цепочки, свой конфиг);
-  - маршрутизация: правила (`RouteFragment`, `RouteSettingsActivity`), проверка маршрута, наборы правил
-    (`AssetsActivity`);
   - приложения через VPN (`AppManagerActivity`, `AppListActivity`), выбор профиля, сканер QR;
   - «О программе», лицензии, резервная копия, панель администратора узла, тип NAT, панель sing-box;
   - старые группы и список конфигов (`GroupFragment`, `ConfigurationFragment`) и нижняя панель со своей настройкой.

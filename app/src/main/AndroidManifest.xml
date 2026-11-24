@@ -251,10 +251,7 @@
             android:name="io.niko.ui.GroupSettingsActivity"
             android:configChanges="uiMode" />
         <activity
-            android:name="io.niko.ui.RouteSettingsActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name="io.niko.ui.AssetsActivity"
+            android:name="io.niko.ui.route.RuleActivity"
             android:configChanges="uiMode" />
         <activity
             android:name="io.niko.ui.AppListActivity"

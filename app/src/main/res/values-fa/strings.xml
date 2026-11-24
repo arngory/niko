@@ -51,7 +51,6 @@
     <string name="service_mode_vpn" translatable="false">VPN</string>
     <string name="port_http">پورت پراکسی HTTP</string>
     <string name="port_transproxy">پورت Transproxy</string>
-    <string name="cag_route">تنظیمات مسیردهی</string>
     <string name="require_http">فعال‌کردن ورودی HTTP</string>
     <string name="cag_ws">تنظیمات WebSocket</string>
     <string name="ws_max_early_data" translatable="false">Max early data</string>
@@ -110,23 +109,15 @@
     <string name="edit_config">ویرایش پیکربندی</string>
     <!-- feature category -->
     <string name="menu_route">مسیریابی</string>
-    <string name="route_add">ایجاد مسیر اختصاصی جدید</string>
     <string name="delete_route_prompt">آیا مطمئن هستید که این مسیر را می‌خواهید حذف کنید؟</string>
-    <string name="route_name">نام مسیر</string>
     <string name="route_proxy">اتصال با پراکسی</string>
-    <string name="route_bypass">اتصال مستقیم بدون پراکسی</string>
-    <string name="route_block">مسدودکردن اتصال</string>
     <string name="route_profile">انتخاب پراکسی...</string>
     <string name="empty_route">مسیر خالی</string>
     <string name="empty_route_notice">قبل از ثبت، دستورالعملی اضافه کنید.</string>
     <string name="route_bypass_domain">دستورالعمل برای دامنه‌های %s</string>
     <string name="route_play_store">دستورالعمل برای فروشگاه Play %s</string>
     <string name="route_bypass_ip">دستورالعمل برای IPهای %s</string>
-    <string name="route_reset">بازنشانی</string>
-    <string name="route_manage_assets">مدیریت جزئیات مسیریابی</string>
-    <string name="route_assets">جزئیات</string>
     <string name="route_rules_official">رسمی</string>
-    <string name="route_asset_status">نسخه محلی: %s</string>
     <string name="route_asset_no_update">به‌روزرسانی یافت نشد</string>
     <string name="route_asset_updated">به‌روزرسانی شد</string>
     <string name="route_not_asset">مشکل: ot an asset file: excepted .db, but %s</string>
@@ -233,7 +224,6 @@
     <string name="vpn_connected">متصل شد! برای بررسی اتصال، اینجا کلیک کنید.</string>
     <string name="not_connected">وصل نیست</string>
     <!-- subscriptions -->
-    <string name="subscriptions">اشتراک‌ها</string>
     <string name="cleartext_http_warning">ترافیک HTTP شفاف ناامن است</string>
     <string name="error_title">خطا</string>
     <string name="no_proxies_found">هیچ پراکسی در لینک مورد نظر یافت نشد.</string>
@@ -257,8 +247,6 @@
     <string name="apply">اعمال تغییرات</string>
     <string name="need_reload">برای اعمال تغییرات، سرویس پراکسی را دوباره راه‌اندازی کنید</string>
     <string name="license">مجوز</string>
-    <string name="route_warn">اطمینان حاصل کنید که مستندات فنی را قبل از افزودن قوانین سفارشی مطالعه کرده‌اید،
- در غیر این صورت ممکن است نتوانید به اینترنت وصل شوید.</string>
     <string name="lines">%d خط</string>
     <string name="enable">فعال</string>
     <string name="disable">غیرفعال</string>
@@ -318,7 +306,6 @@
     <string name="clear_profiles_message">آیا می‌خواهید پراکسی‌های این گروه را پاک کنید؟</string>
     <string name="apps">برنامه‌ها</string>
     <string name="select_apps">انتخاب برنامه‌های مورد نظر</string>
-    <string name="apps_message">%d برنامه</string>
     <string name="hysteria_obfs">رمز دستورالعمل مبهم‌سازی</string>
     <string name="hysteria_auth_type">نوع احراز هویت</string>
     <string name="hysteria_auth_payload">بسته احرازهویت</string>
@@ -356,7 +343,6 @@
     <string name="copy_success">کپی موفق!</string>
     <string name="copy_failed">کپی ناموفق.</string>
     <string name="app_no_launcher">این برنامه، رابط کاربری ندارد.</string>
-    <string name="route_for">دستورالعمل برای %s</string>
 
     <string name="route_need_vpn">دستورالعمل مسیریابی %s متکی به اجرای VPN است، بنابراین نادیده گرفته می‌شود.</string>
 

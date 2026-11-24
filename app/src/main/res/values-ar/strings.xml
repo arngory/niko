@@ -92,25 +92,16 @@
     <string name="ws_browser_forwarding">إعادة توجيه المتصفح</string>
     <string name="cag_ws">إعدادات WebSocket</string>
     <string name="require_http">تفعيل HTTP الوارد</string>
-    <string name="cag_route">إعدادات الطريق</string>
     <string name="route_asset_updated">محدث</string>
     <string name="route_asset_no_update">لا تحديث</string>
-    <string name="route_asset_status">الإصدار المحلي: %s</string>
     <string name="route_rules_official">الرسمية</string>
-    <string name="route_assets">الأصول</string>
-    <string name="route_manage_assets">إدارة أصول الطريق</string>
-    <string name="route_reset">إعادة تعيين</string>
     <string name="route_bypass_ip">قاعدة IP ل %s</string>
     <string name="route_bypass_domain">قاعدة المجال ل %s</string>
     <string name="empty_route_notice">ضع بعض القواعد قبل الحفظ</string>
     <string name="empty_route">طريق فارغ</string>
     <string name="route_profile">حدد ملف التعريف…</string>
-    <string name="route_block">منع</string>
-    <string name="route_bypass">ضع جانبا</string>
     <string name="route_proxy">بروکسی</string>
-    <string name="route_name">اسم الطريق</string>
     <string name="delete_route_prompt">هل أنت متأكد أنك تريد إزالة هذا المسار؟</string>
-    <string name="route_add">إنشاء الطريق</string>
     <string name="menu_route">طريق</string>
     <string name="edit_config">تحرير التكوين</string>
     <string name="config_type">نوع التكوين</string>
@@ -191,7 +182,6 @@
     <string name="hysteria_auth_payload">حمولة المصادقة</string>
     <string name="hysteria_auth_type">نوع المصادقة</string>
     <string name="hysteria_obfs">كلمة مرور التشويش</string>
-    <string name="apps_message">%d تطبيقات</string>
     <string name="select_apps">حدد التطبيقات</string>
     <string name="apps">التطبيقات</string>
     <string name="clear_profiles_message">هل أنت متأكد أنك تريد مسح هذه المجموعة؟</string>
@@ -243,7 +233,6 @@
     <string name="disable">إلغاء</string>
     <string name="enable">مكن</string>
     <string name="lines">%d سطور</string>
-    <string name="route_warn">تأكد من قراءة الوثائق قبل إضافة القواعد المخصصة، وإلا فقد لا تتمكن من الاتصال بالإنترنت.</string>
     <string name="license">الرخصة</string>
     <string name="need_reload">أعد تحميل خدمة البروکسی لتطبيق التغييرات</string>
     <string name="apply">تطبيق</string>
@@ -266,7 +255,6 @@
     <string name="no_proxies_found">لم يتم العثور على بروکسیز في الارتباط</string>
     <string name="error_title">خطأ</string>
     <string name="cleartext_http_warning">حركة مرور نص واضح HTTP غير آمنة</string>
-    <string name="subscriptions">الاشتراكات</string>
     <string name="not_connected">غير متصل</string>
     <string name="vpn_connected">متصل، انقر للتحقق من الاتصال</string>
     <string name="connecting">يتصل…</string>
@@ -292,7 +280,6 @@
     <string name="add_profile_methods_manual_settings">الإعدادات اليدوية</string>
     <string name="experimental_settings">تجريبي</string>
     <string name="route_need_vpn">تعتمد قاعدة التوجيه %s على أن تكون VPN سارية المفعول، لذلك يتم تجاهلها.</string>
-    <string name="route_for">حكم ل %s</string>
     <string name="app_no_launcher">التطبيق ليس له واجهة.</string>
     <string name="copy_failed">فشل النسخ.</string>
     <string name="copy_success">تم النسخ بنجاح!</string>

@@ -47,7 +47,6 @@
     <string name="service_mode_vpn" translatable="false">VPN</string>  
     <string name="port_http">Puerto proxy HTTP</string> 
     <string name="port_transproxy">Puerto transproxy</string> 
-    <string name="cag_route">Ajustes de ruta</string>     
     <string name="require_http">Activar HTTP entrante</string> 
     <string name="cag_ws">Ajustes de WebSocket</string> 
     <string name="ws_max_early_data" translatable="false">Max early data</string> 
@@ -106,23 +105,15 @@
     <string name="edit_config">Editar configuración</string> 
     <!-- feature category -->      
     <string name="menu_route">Ruta</string> 
-    <string name="route_add">Crear ruta</string> 
     <string name="delete_route_prompt">¿Está seguro de que desea eliminar esta ruta?</string> 
-    <string name="route_name">Nombre de ruta</string> 
     <string name="route_proxy">Proxy</string> 
-    <string name="route_bypass">Omitir</string> 
-    <string name="route_block">Bloquear</string> 
     <string name="route_profile">Seleccionar perfil…</string> 
     <string name="empty_route">Ruta vacía</string> 
     <string name="empty_route_notice">Establezca algunas reglas antes de guardar</string> 
     <string name="route_bypass_domain">Regla de dominio para %s</string> 
     <string name="route_play_store">Regla de la Play Store para %s</string> 
     <string name="route_bypass_ip">Regla de IP para %s</string> 
-    <string name="route_reset">Reiniciar</string>
-    <string name="route_manage_assets">Administrar activos de ruta</string>
-    <string name="route_assets">Activos</string>  
     <string name="route_rules_official">Oficial</string> 
-    <string name="route_asset_status">Versión local: %s</string> 
     <string name="route_asset_no_update">Sin actualización</string> 
     <string name="route_asset_updated">Actualizado</string> 
     <string name="route_not_asset">No es un archivo de activos: excepto .db, pero %s</string>  
@@ -213,7 +204,6 @@
     <string name="vpn_connected">Conectado, toque para verificar la conexión</string> 
     <string name="not_connected">No conectado</string> 
     <!-- subscriptions --> 
-    <string name="subscriptions">Suscripciones</string> 
     <string name="cleartext_http_warning">El tráfico HTTP de texto claro no es seguro</string> 
     <string name="error_title">Error</string> 
     <string name="no_proxies_found">No se encontraron proxys en el enlace</string> 
@@ -237,7 +227,6 @@
     <string name="apply">Aplicar</string> 
     <string name="need_reload">Vuelva a cargar el servicio de proxy para aplicar los cambios</string>
     <string name="license">Licencia</string> 
-    <string name="route_warn">Asegúrese de haber leído la documentación antes de agregar reglas personalizadas; de lo contrario, es posible que no pueda conectarse a Internet.</string> 
     <string name="lines">%d líneas</string>   
     <string name="enable">Permitir</string> 
     <string name="disable">Desactivar</string>  
@@ -296,7 +285,6 @@
     <string name="clear_profiles_message">¿Estás seguro de que quieres borrar este grupo?</string> 
     <string name="apps">Aplicaciones</string> 
     <string name="select_apps">Seleccionar aplicaciones</string> 
-    <string name="apps_message">%d aplicaciones</string> 
     <string name="hysteria_obfs">Contraseña de ofuscación</string> 
     <string name="hysteria_auth_type">Tipo de autenticación</string> 
     <string name="hysteria_auth_payload">Payload de autenticación</string> 
@@ -333,7 +321,6 @@
     <string name="copy_success">¡Copiado exitoso!</string> 
     <string name="copy_failed">Error al copiar.</string> 
     <string name="app_no_launcher">La aplicación no tiene interfaz.</string> 
-    <string name="route_for">Regla para %s</string> 
  
     <string name="route_need_vpn">La regla de enrutamiento %s depende de que la VPN esté en vigor, por lo que se ignora.</string>
 
