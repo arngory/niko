@@ -1,18 +1,13 @@
 package io.niko.ui
 
 import android.content.res.Configuration
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.addCallback
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updatePadding
-import com.google.android.material.appbar.AppBarLayout
 import io.niko.R
 import io.niko.ui.compose.NikoSnackbar
 import io.niko.ui.compose.NikoSnackbarHost
@@ -33,20 +28,6 @@ abstract class ThemedActivity : AppCompatActivity {
 
         uiMode = resources.configuration.uiMode
         nikoSystemBars()
-
-        if (Build.VERSION.SDK_INT >= 35) {
-            ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content)) { _, insets ->
-                val top = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top
-                findViewById<AppBarLayout>(R.id.appbar)?.apply {
-                    updatePadding(top = top)
-//                Logs.w("appbar $top")
-                }
-//            findViewById<NavigationView>(R.id.nav_view)?.apply {
-//                updatePadding(top = top)
-//            }
-                insets
-            }
-        }
     }
 
     /**

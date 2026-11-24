@@ -37,7 +37,6 @@
         <item name="tabIndicatorColor">@color/white</item>
         <item name="tabRippleColor">@color/white</item>
         <item name="whiteOrTextPrimary">@color/white</item>
-        <item name="barElevation">4dp</item>
         <item name="barBackground">?colorPrimary</item>
 
         <item name="windowActionModeOverlay">true</item>
@@ -178,7 +177,6 @@
              no shadow under them -->
         <item name="actionBarTheme">@style/ThemeOverlay.Niko.ActionBar.Neutral</item>
         <item name="whiteOrTextPrimary">@color/niko_ink</item>
-        <item name="barElevation">0dp</item>
         <item name="barBackground">@color/niko_surface_0</item>
         <!-- the tabs as the window's header sections: the chosen one ink and 600, the others ink-2, no strip
              (ink and ink-2 differ less than 3:1, so the weight marks it too) -->
@@ -196,11 +194,6 @@
         <item name="borderlessButtonStyle">@style/Widget.Niko.Button.Ghost</item>
         <item name="chipStyle">@style/Widget.Niko.Chip</item>
         <item name="nikoFilterChipStyle">@style/Widget.Niko.Chip.Filter</item>
-        <!-- the settings and the switches (reskin step 2, niko_preference.xml) -->
-        <item name="preferenceTheme">@style/PreferenceThemeOverlay.Niko</item>
-        <item name="nikoGroupedPreferences">true</item>
-        <item name="android:switchStyle">@style/Widget.Niko.Switch</item>
-        <item name="switchStyle">@style/Widget.Niko.SwitchCompat</item>
         <!-- reskin step 3 (niko_dialogs.xml): dialogs, text fields and menus -->
         <item name="materialAlertDialogTheme">@style/ThemeOverlay.Niko.MaterialAlertDialog</item>
         <item name="alertDialogTheme">@style/ThemeOverlay.Niko.MaterialAlertDialog</item>

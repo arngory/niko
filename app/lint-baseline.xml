@@ -277,17 +277,6 @@
     </issue>
 
     <issue
-        id="Overdraw"
-        message="Possible overdraw: Root element paints background `?attr/barBackground` with a theme that also paints a background (inferred theme is `@style/Theme.Start`)"
-        errorLine1="    android:background=&quot;?attr/barBackground&quot;"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/layout/layout_appbar.xml"
-            line="7"
-            column="5"/>
-    </issue>
-
-    <issue
         id="TypographyEllipsis"
         message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
         errorLine1="    &lt;string name=&quot;route_profile&quot;>انتخاب پراکسی...&lt;/string>"
