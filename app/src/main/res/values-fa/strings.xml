@@ -349,7 +349,6 @@
     <string name="nat_result_hint">بررسی نتیجه NAT</string>
     <string name="mtu" translatable="false">MTU</string>
 
-    <string name="backup">پشتیبان‌گیری</string>
     <string name="backup_groups_and_configurations">گروه‌ها و پیکربندی‌ها</string>
     <string name="backup_rules">دستورالعمل‌های مسیریابی</string>
     <string name="backup_settings">تنظیمات</string>

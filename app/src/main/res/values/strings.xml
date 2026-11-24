@@ -397,7 +397,6 @@
     <string name="nat_result_hint">NAT check result</string>
     <string name="mtu" translatable="false">MTU</string>
 
-    <string name="backup">Backup</string>
     <string name="backup_groups_and_configurations">Groups and configurations</string>
     <string name="backup_rules">Routing rules</string>
     <string name="backup_settings">Settings</string>
@@ -506,7 +505,6 @@
     <string name="update_required">This update is required.</string>
     <string name="update_bad_notice">the release\'s UPDATE.json is not the signed one</string>
     <string name="update_needs_android">%1$s needs Android %2$s or newer. This phone stays on the version it has, which keeps working.</string>
-    <string name="reset_settings">Restore default settings</string>
     <string name="reset_settings_message">Restore default settings, but data such as nodes and groups will be retained. To completely clear data, clear application data directly in the system settings.</string>
     <string name="minimize">Minimize</string>
     <string name="app_list_permission_denied">Unable to read installed apps.\nThis is usually because the system has restricted app read permissions.\nPlease grant permissions in the system settings.</string>

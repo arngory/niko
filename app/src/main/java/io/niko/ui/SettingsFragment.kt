@@ -163,7 +163,7 @@ class SettingsFragment : Fragment() {
         }
 
         override fun backup() {
-            main.displayFragment(BackupFragment())
+            main.displayFragment(io.niko.ui.backup.BackupFragment())
         }
 
         override fun about() {

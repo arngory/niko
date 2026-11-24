@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Backup (D-SET-19, D-SET-32): what to keep, save, share, restore, reset the settings. -->
+<resources>
+    <string name="bk_title">Backup</string>
+    <string name="bk_parts">What to keep</string>
+    <string name="bk_save">Save to a file</string>
+    <string name="bk_restore">Restore from a file</string>
+    <string name="bk_restore_title">Restore</string>
+    <string name="bk_restore_go">Restore and restart</string>
+    <string name="bk_reset">Reset the settings</string>
+    <string name="bk_reset_sub">Profiles and nodes stay</string>
+</resources>

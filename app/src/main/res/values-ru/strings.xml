@@ -33,7 +33,6 @@
 <string name="apply">Применить</string>
 <string name="apps">Приложения</string>
 <string name="auto_select_proxy_apps_message">Автоматический выбор прокси-приложений приведет к очистке текущего выбора.</string>
-<string name="backup">Бэкап</string>
 <string name="backup_groups_and_configurations">Группы и конфигурации</string>
 <string name="backup_import">Импортировать</string>
 <string name="backup_import_summary">При импорте существующие данные будут перезаписаны.</string>
@@ -396,7 +395,6 @@
 <string name="release_wake_lock">Отключить WakeLock</string>
 <string name="remove_duplicate">Удалить дубликаты</string>
 <string name="reset_connections">Сбросить соединения</string>
-<string name="reset_settings">Восстановить настройки по умолчанию</string>
 <string name="reset_settings_message">Восстановить настройки по умолчанию, такие данные, как узлы и группы, будут сохранены. Для полной очистки данных, очистите данные приложения непосредственно в системных настройках.</string>
 <string name="route_asset_no_update">Обновлений нет</string>
 <string name="route_asset_updated">Обновлено</string>

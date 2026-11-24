@@ -327,7 +327,6 @@
     <string name="nat_result_hint">Resultado de la comprobación de NAT</string> 
     <string name="mtu" translatable="false">MTU</string> 
  
-    <string name="backup">Respaldo</string> 
     <string name="backup_groups_and_configurations">Grupos y configuraciones</string> 
     <string name="backup_rules">Reglas de enrutamiento</string> 
     <string name="backup_settings">Ajustes</string> 

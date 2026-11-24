@@ -197,7 +197,6 @@
     <string name="app_no_launcher">L\'appli n\'a pas d\'interface.</string>
     <string name="destination_override">Écraser la destination</string>
     <string name="add_profile_methods_manual_settings">Préférences manuels</string>
-    <string name="backup">Sauvegarde</string>
     <string name="backup_settings">Préférences</string>
     <string name="backup_import">Importer</string>
     <string name="packet_encoding">Codage du paquet</string>
