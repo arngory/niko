@@ -28,7 +28,6 @@ import io.niko.ui.compose.NikoTheme
 import io.niko.ui.home.ConfigsTest
 import io.niko.ui.openRayAdmin
 import io.niko.ui.rayTestRun
-import io.niko.ui.showRayLanDialog
 import io.niko.ui.showRayNodeActions
 import io.niko.ui.updateRayNode
 import java.text.DateFormat
@@ -184,7 +183,7 @@ class NodeFragment : Fragment(), GroupManager.Listener {
         override fun channel() = withNode { checkRayChannel(it) }
 
         override fun lan() {
-            showRayLanDialog(nodeId)
+            startActivity(LanActivity.intent(requireContext(), nodeId))
         }
 
         override fun why() = withNode { rayTestRun(it) }

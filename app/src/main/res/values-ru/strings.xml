@@ -530,7 +530,6 @@
     <string name="raycontrol_card_traffic_reset">%1$s из %2$s, сброс %3$s</string>
     <string name="raycontrol_card_traffic_near">почти исчерпан: %1$s</string>
     <string name="raycontrol_lan">Локальная сеть</string>
-    <string name="raycontrol_lan_show">Показывать это устройство моим другим устройствам</string>
     <string name="raycontrol_lan_help">Ваши устройства на этой ноде видят друг друга по имени через ноду, со сквозным шифрованием (Yggdrasil). Другие пользователи ноды их не видят, а устройство, которое себя не показывает, не видит и соседей.</string>
     <string name="raycontrol_lan_not_offered">Нода не даёт вам локальной сети: её включает администратор для вашего пользователя (raycontrol 0.23 и новее, с сервисом Yggdrasil).</string>
     <string name="raycontrol_lan_no_profile">В подписке ноды нет профиля Yggdrasil для сети: обратитесь к её администратору.</string>
@@ -538,14 +537,12 @@
     <string name="raycontrol_lan_relay">Через ноду: до %1$d Мбит/с на все ваши устройства вместе.</string>
     <string name="raycontrol_lan_relay_off">Нода не передаёт данные между вашими устройствами: только напрямую в доверенной Wi-Fi.</string>
     <string name="raycontrol_lan_none">Других ваших устройств пока не видно.</string>
-    <string name="raycontrol_lan_device">%1$s: %2$s</string>
     <string name="raycontrol_lan_ports">Порты, открытые моим устройствам</string>
     <string name="raycontrol_lan_ports_help" tools:ignore="TypographyDashes">Например 22, 8000-8100; пусто — ни одного. Другие ваши устройства попадают на эти порты по адресу 127.0.0.1 этого устройства, но никогда на порты самого Niko.</string>
     <string name="raycontrol_lan_ports_bad">Это не список портов: %1$s</string>
     <string name="raycontrol_lan_shown">Это устройство видно вашим другим устройствам</string>
     <string name="raycontrol_lan_hidden">Это устройство скрыто от ваших других устройств</string>
     <string name="raycontrol_lan_direct">Напрямую в доверенной Wi-Fi</string>
-    <string name="raycontrol_lan_direct_help">В Wi-Fi, которой вы доверяете, устройства связываются друг с другом напрямую, а не через ноду.</string>
     <string name="raycontrol_lan_direct_by_fingerprint">Узнавать Wi-Fi по роутеру и DNS</string>
     <string name="raycontrol_lan_direct_by_ssid">Узнавать Wi-Fi по имени</string>
     <string name="raycontrol_lan_trust">Доверять этой Wi-Fi</string>
@@ -1036,4 +1033,17 @@
     <string name="pick_for_chain">Звено цепочки</string>
     <string name="pick_for_front">Front proxy группы</string>
     <string name="pick_for_landing">Landing proxy группы</string>
+    <!-- Локальная сеть узла on Compose (D-NODE-13, D-NODE-14) -->
+    <string name="lan_show">Показывать это устройство</string>
+    <string name="lan_show_sub">Только моим устройствам на этом узле</string>
+    <string name="lan_ports">Открытые порты</string>
+    <string name="lan_ports_sub">Что видят мои устройства</string>
+    <string name="lan_ports_none">нет</string>
+    <string name="lan_devices">Мои устройства · %1$d</string>
+    <string name="lan_wifi">Доверенные Wi-Fi</string>
+    <string name="lan_direct_sub">Устройства в одной сети находят друг друга без узла</string>
+    <string name="lan_by">Узнавать сеть</string>
+    <string name="lan_by_fingerprint">По роутеру и DNS</string>
+    <string name="lan_by_ssid">По имени</string>
+    <string name="lan_this_wifi">эта сеть</string>
 </resources>

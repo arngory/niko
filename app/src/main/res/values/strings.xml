@@ -543,7 +543,6 @@
     <string name="raycontrol_card_traffic_reset">%1$s of %2$s, resets %3$s</string>
     <string name="raycontrol_card_traffic_near">almost used up: %1$s</string>
     <string name="raycontrol_lan">Local network</string>
-    <string name="raycontrol_lan_show">Show this device to my other devices</string>
     <string name="raycontrol_lan_help">Your devices on this node reach each other by name through the node, encrypted end to end (Yggdrasil). Other users of the node see none of them, and a device that is not shown sees none either.</string>
     <string name="raycontrol_lan_not_offered">The node offers you no local network: its administrator turns it on for your user (raycontrol 0.23 or later, with a Yggdrasil service).</string>
     <string name="raycontrol_lan_no_profile">The node\'s subscription has no Yggdrasil profile for the network: ask its administrator.</string>
@@ -551,14 +550,12 @@
     <string name="raycontrol_lan_relay">Through the node: up to %1$d Mbit/s for all your devices together.</string>
     <string name="raycontrol_lan_relay_off">The node carries nothing between your devices: only directly in a trusted Wi-Fi.</string>
     <string name="raycontrol_lan_none">No other device of yours is shown yet.</string>
-    <string name="raycontrol_lan_device">%1$s: %2$s</string>
     <string name="raycontrol_lan_ports">Ports open to my devices</string>
     <string name="raycontrol_lan_ports_help" tools:ignore="TypographyDashes">For example 22, 8000-8100; empty: none. Your other devices reach these ports on this device\'s 127.0.0.1, never Niko\'s own.</string>
     <string name="raycontrol_lan_ports_bad">Not a list of ports: %1$s</string>
     <string name="raycontrol_lan_shown">This device is shown to your other devices</string>
     <string name="raycontrol_lan_hidden">This device is hidden from your other devices</string>
     <string name="raycontrol_lan_direct">Directly in a trusted Wi-Fi</string>
-    <string name="raycontrol_lan_direct_help">In a Wi-Fi you trust, your devices link to each other directly, not through the node.</string>
     <string name="raycontrol_lan_direct_by_fingerprint">Know a Wi-Fi by its router and DNS</string>
     <string name="raycontrol_lan_direct_by_ssid">Know a Wi-Fi by its name</string>
     <string name="raycontrol_lan_trust">Trust this Wi-Fi</string>
@@ -1099,4 +1096,17 @@
     <string name="pick_for_chain">A link of the chain</string>
     <string name="pick_for_front">The group\'s front proxy</string>
     <string name="pick_for_landing">The group\'s landing proxy</string>
+    <!-- Локальная сеть узла on Compose (D-NODE-13, D-NODE-14) -->
+    <string name="lan_show">Show this device</string>
+    <string name="lan_show_sub">Only to my devices on this node</string>
+    <string name="lan_ports">Open ports</string>
+    <string name="lan_ports_sub">What my devices reach here</string>
+    <string name="lan_ports_none">none</string>
+    <string name="lan_devices">My devices · %1$d</string>
+    <string name="lan_wifi">Trusted Wi-Fi</string>
+    <string name="lan_direct_sub">Devices in one network find each other without the node</string>
+    <string name="lan_by">Knowing a network</string>
+    <string name="lan_by_fingerprint">By router and DNS</string>
+    <string name="lan_by_ssid">By name</string>
+    <string name="lan_this_wifi">this network</string>
 </resources>
