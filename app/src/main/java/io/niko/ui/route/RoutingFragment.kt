@@ -157,7 +157,7 @@ class RoutingFragment : Fragment(), ProfileManager.RuleListener {
     private fun publishRules() {
         rules = RulesState(
             entities.map { RuleRow.of(it, profileNames[it.outbound]) },
-            if (entities.any(RoutePresets::isRussia)) RulePreset.RUSSIA else RulePreset.NONE,
+            if (entities.any(RoutePresets::isRussiaAsMade)) RulePreset.RUSSIA else RulePreset.NONE,
             listsDate,
         )
     }
@@ -260,7 +260,7 @@ class RoutingFragment : Fragment(), ProfileManager.RuleListener {
                         .setMessage(R.string.rt_preset_remove_message)
                         .setPositiveButton(R.string.rt_preset_remove) { _, _ ->
                             runOnDefaultDispatcher {
-                                SagerDatabase.rulesDao.allRules().filter(RoutePresets::isRussia).forEach { ProfileManager.deleteRule(it.id) }
+                                SagerDatabase.rulesDao.allRules().filter(RoutePresets::isRussiaAsMade).forEach { ProfileManager.deleteRule(it.id) }
                             }
                         }
                         .setNegativeButton(android.R.string.cancel, null)

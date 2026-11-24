@@ -46,11 +46,11 @@ data class RuleForm(
     companion object {
         fun of(rule: RuleEntity) = RuleForm(
             rule.name, rule.config, rule.domains, rule.ip, rule.port, rule.sourcePort, rule.network, rule.source,
-            rule.protocol, rule.outbound, rule.packages.toList(), rule.dpiBypass,
+            rule.protocol, rule.outbound, rule.packages.sorted(), rule.dpiBypass,
         )
 
         /** the apps as AppListActivity keeps them (DataStore.routePackages), a package a line */
-        fun packagesOf(lines: String) = lines.split("\n").filter { it.isNotBlank() }
+        fun packagesOf(lines: String) = lines.split("\n").filter { it.isNotBlank() }.distinct().sorted()
     }
 }
 

@@ -209,3 +209,34 @@ class RuleSetFilesTest {
         }
     }
 }
+
+/** «Нет» on the preset removes its rules as it made them, and no rule the user changed or made. */
+class RussiaPresetRemovalTest {
+
+    private val made = RoutePresets.russia("Заблокированное", "Российские сервисы")
+
+    @Test
+    fun theRulesAsMadeAreThePresetsEvenRenamed() {
+        for (rule in made) {
+            assertTrue(RoutePresets.isRussiaAsMade(rule))
+            assertTrue(RoutePresets.isRussiaAsMade(rule.copy(name = "мои банки", enabled = false, userOrder = 9)))
+        }
+    }
+
+    @Test
+    fun aChangedPresetRuleIsTheUsersAndStays() {
+        val (blocked, direct) = made
+        for (changed in listOf(
+            blocked.copy(domains = blocked.domains + "\ndomain:example.com"),
+            blocked.copy(outbound = 7),
+            direct.copy(outbound = 0),
+            direct.copy(packages = setOf("ru.sberbankmobile")),
+            direct.copy(port = "443"),
+            direct.copy(protocol = "tls"),
+            direct.copy(config = "{}"),
+            direct.copy(dpiBypass = true),
+        )) {
+            assertEquals(false, RoutePresets.isRussiaAsMade(changed))
+        }
+    }
+}

@@ -49,6 +49,16 @@ object RoutePresets {
     fun isRussia(rule: RuleEntity) = isRussiaBlocked(rule) || hasRussiaDirectLists(rule)
 
     /**
+     * whether a rule is the preset's as it made it: one of its rules' lists and way, nothing added (its name aside).
+     * Removing the preset removes these alone: a preset rule the user changed is the user's rule now and stays.
+     */
+    fun isRussiaAsMade(rule: RuleEntity) = russia("", "").any { made ->
+        rule.domains == made.domains && rule.ip == made.ip && rule.outbound == made.outbound &&
+            rule.port.isBlank() && rule.sourcePort.isBlank() && rule.network.isBlank() && rule.source.isBlank() &&
+            rule.protocol.isBlank() && rule.packages.isEmpty() && rule.config.isBlank() && !rule.dpiBypass
+    }
+
+    /**
      * Whether the preset's direct rule waits: its blocked rule is on, but not all of that rule's lists are here. Alone,
      * the direct rule would send what is blocked under .ru, or served from a Russian address, around the proxy.
      */

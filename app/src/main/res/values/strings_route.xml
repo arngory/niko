@@ -9,7 +9,7 @@
     <string name="rt_preset_none">None</string>
     <string name="rt_preset_russia">Russia</string>
     <string name="rt_preset_remove_title">Remove the Russia preset?</string>
-    <string name="rt_preset_remove_message">Its two rules are deleted; your own rules stay.</string>
+    <string name="rt_preset_remove_message">Its rules are deleted. Your own rules stay, and so does a preset rule you changed.</string>
     <string name="rt_preset_remove">Remove</string>
     <string name="rt_rules">Rules</string>
     <string name="rt_rest">Everything else</string>

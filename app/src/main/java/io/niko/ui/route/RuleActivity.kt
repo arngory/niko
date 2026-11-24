@@ -53,6 +53,9 @@ class RuleActivity : ThemedActivity() {
         val restored = savedInstanceState?.let { BundleCompat.getParcelable(it, FORM, RuleForm::class.java) }
         original = savedInstanceState?.let { BundleCompat.getParcelable(it, ORIGINAL, RuleForm::class.java) }
         savedInstanceState?.getString(PAGE)?.let { saved -> RulePage.entries.firstOrNull { it.name == saved } }?.let { page.value = it }
+        // the form as it was, at once: a picker's result after the activity was made again comes before the rule is
+        // read, and would find no form to go into
+        if (restored != null) form.value = restored
         runOnDefaultDispatcher {
             val rule = if (ruleId == 0L) RuleEntity() else SagerDatabase.rulesDao.getById(ruleId)
             if (rule == null) {
@@ -63,8 +66,9 @@ class RuleActivity : ThemedActivity() {
             val loaded = infoOf(read)
             onMainDispatcher {
                 if (original == null) original = RuleForm.of(rule)
-                info.value = loaded
-                form.value = read
+                if (form.value == null) form.value = read
+                // a picker's result changed the form meanwhile: its labels and profile, not the ones read here
+                if (form.value == read) info.value = loaded else reloadInfo()
             }
         }
         setContent {

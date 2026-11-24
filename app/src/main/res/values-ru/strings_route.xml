@@ -9,7 +9,7 @@
     <string name="rt_preset_none">Нет</string>
     <string name="rt_preset_russia">Россия</string>
     <string name="rt_preset_remove_title">Убрать пресет «Россия»?</string>
-    <string name="rt_preset_remove_message">Два его правила будут удалены, ваши правила останутся.</string>
+    <string name="rt_preset_remove_message">Его правила будут удалены. Ваши правила останутся, и правило пресета, которое вы меняли, — тоже.</string>
     <string name="rt_preset_remove">Убрать</string>
     <string name="rt_rules">Правила</string>
     <string name="rt_rest">Остальное</string>
