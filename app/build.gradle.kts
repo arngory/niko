@@ -65,7 +65,6 @@ android {
     }
     buildFeatures {
         buildConfig = true
-        viewBinding = true
         aidl = true
         compose = true
     }
@@ -89,6 +88,8 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("androidx.core:core-ktx:1.15.0")
+    // no code of the app's uses recyclerview, constraintlayout, navigation-fragment and guava below: they hold what the
+    // other libraries bring at the versions gradle/verification-metadata.xml knows
     implementation("androidx.recyclerview:recyclerview:1.4.0")
     implementation("androidx.activity:activity-ktx:1.10.1")
     // the screens drawn from the canvas (ui/compose, docs/research/ui-probe.md): foundation and ui only, no Material:
@@ -101,7 +102,6 @@ dependencies {
     implementation("androidx.browser:browser:1.8.0")
     implementation("androidx.constraintlayout:constraintlayout:2.2.1")
     implementation("androidx.navigation:navigation-fragment-ktx:2.8.9")
-    implementation("androidx.navigation:navigation-ui-ktx:2.8.9")
     implementation("androidx.preference:preference-ktx:1.2.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.work:work-runtime-ktx:2.10.0")

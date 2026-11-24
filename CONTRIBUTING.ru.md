@@ -89,7 +89,7 @@
 | Что | Где |
 |---|---|
 | приложение Android | `app/` |
-| снимки частей темы Niko (Paparazzi) | эталоны в `app/src/test/snapshots/`, CI сверяет их с `app/src/test/java/io/niko/ui/NikoSnapshotTest.kt`. Новые эталоны: удалите эту папку в PR, CI запишет их в артефакт `paparazzi-goldens`, закоммитьте его содержимое |
+| снимки экранов и компонентов Niko (Paparazzi) | эталоны в `app/src/test/snapshots/`, CI сверяет их с `*SnapshotTest.kt` в `app/src/test/java/io/niko/ui/`. Новые эталоны: удалите эту папку в PR, CI запишет их в артефакт `paparazzi-goldens`, закоммитьте его содержимое |
 | библиотека приложения на Go | `libcore/`; тесты — как в `.github/workflows/build.yml` (шаг тестов libcore: `-ldflags=-checklinkname=0` и теги `TAGS`) |
 | окно для ПК (Flutter) | репозиторий [arngory/niko-desktop](https://github.com/arngory/niko-desktop), пинит этот по коммиту; здесь — демон `nikod` и его Go, своя проверка `desktop.yml` |
 | общие протоколы окна и демона | `shared/proto/` (Go: `shared/tool/gen_proto_go.sh`, Dart: `tool/gen_proto.sh` в arngory/niko-desktop); токены и значки окна пишут `shared/tool/gen_tokens.py` и `gen_icons.py` с `--desktop <checkout окна>` |

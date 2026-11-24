@@ -2,29 +2,19 @@
 
 package io.niko.ktx
 
-import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.res.Resources
 import android.system.Os
 import android.system.OsConstants
 import android.util.TypedValue
-import android.view.View
 import androidx.activity.result.ActivityResultLauncher
 import androidx.annotation.AttrRes
-import androidx.annotation.ColorRes
 import androidx.core.content.ContextCompat
-import androidx.core.view.isGone
-import androidx.core.view.isVisible
-import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentManager
-import androidx.preference.Preference
 import com.jakewharton.processphoenix.ProcessPhoenix
 import io.niko.BuildConfig
 import io.niko.R
@@ -35,24 +25,17 @@ import io.niko.bg.SagerConnection
 import io.niko.database.DataStore
 import io.niko.ui.MainActivity
 import io.niko.ui.ThemedActivity
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import io.niko.utils.NGUtil
 import java.io.FileDescriptor
-import java.net.HttpURLConnection
 import java.net.InetAddress
-import java.net.Socket
 import java.net.URLEncoder
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.Continuation
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 import kotlin.reflect.KMutableProperty0
 import kotlin.reflect.KProperty
 import kotlin.reflect.KProperty0
@@ -74,31 +57,8 @@ inline fun <T> Iterable<T>.forEachTry(action: (T) -> Unit) {
 val Throwable.readableMessage
     get() = localizedMessage.takeIf { !it.isNullOrBlank() } ?: javaClass.simpleName
 
-/**
- * https://android.googlesource.com/platform/prebuilts/runtime/+/94fec32/appcompat/hiddenapi-light-greylist.txt#9466
- */
-
-// looked up on first use: the class loads off Android too (the JVM tests, the snapshots)
-private val socketGetFileDescriptor by lazy { Socket::class.java.getDeclaredMethod("getFileDescriptor\$") }
-val Socket.fileDescriptor get() = socketGetFileDescriptor.invoke(this) as FileDescriptor
-
 private val getInt by lazy { FileDescriptor::class.java.getDeclaredMethod("getInt$") }
 val FileDescriptor.int get() = getInt.invoke(this) as Int
-
-suspend fun <T> HttpURLConnection.useCancellable(block: suspend HttpURLConnection.() -> T): T {
-    return suspendCancellableCoroutine { cont ->
-        cont.invokeOnCancellation {
-            disconnect()
-        }
-        GlobalScope.launch(Dispatchers.IO) {
-            try {
-                cont.resume(block())
-            } catch (e: Throwable) {
-                cont.resumeWithException(e)
-            }
-        }
-    }
-}
 
 fun parsePort(str: String?, default: Int, min: Int = 1025): Int {
     val value = str?.toIntOrNull() ?: default
@@ -124,30 +84,9 @@ fun Context.listenForPackageChanges(onetime: Boolean = true, callback: () -> Uni
         })
     }
 
-/**
- * Based on: https://stackoverflow.com/a/26348729/2245107
- */
-fun Resources.Theme.resolveResourceId(@AttrRes resId: Int): Int {
-    val typedValue = TypedValue()
-    if (!resolveAttribute(resId, typedValue, true)) throw Resources.NotFoundException()
-    return typedValue.resourceId
-}
-
-fun Preference.remove() = parent!!.removePreference(this)
-
 /** A numeric IPv4 or IPv6 address, parsed without a DNS lookup; null for anything else. */
 fun String?.parseNumericAddress(): InetAddress? =
     Os.inet_pton(OsConstants.AF_INET, this) ?: Os.inet_pton(OsConstants.AF_INET6, this)
-
-@JvmOverloads
-fun DialogFragment.showAllowingStateLoss(fragmentManager: FragmentManager, tag: String? = null) {
-    if (!fragmentManager.isStateSaved) show(fragmentManager, tag)
-}
-
-fun String.pathSafe(): String {
-    // " " encoded as +
-    return URLEncoder.encode(this, "UTF-8")
-}
 
 fun String.urlSafe(): String {
     return URLEncoder.encode(this, "UTF-8").replace("+", "%20")
@@ -158,25 +97,6 @@ fun String.unUrlSafe(): String {
 }
 
 val app get() = SagerNet.application
-
-val shortAnimTime by lazy {
-    app.resources.getInteger(android.R.integer.config_shortAnimTime).toLong()
-}
-
-fun View.crossFadeFrom(other: View) {
-    clearAnimation()
-    other.clearAnimation()
-    if (isVisible && other.isGone) return
-    alpha = 0F
-    visibility = View.VISIBLE
-    animate().alpha(1F).duration = shortAnimTime
-    other.animate().alpha(0F).setListener(object : AnimatorListenerAdapter() {
-        override fun onAnimationEnd(animation: Animator) {
-            other.visibility = View.GONE
-        }
-    }).duration = shortAnimTime
-}
-
 
 fun Fragment.snackbar(textId: Int) = (requireActivity() as MainActivity).snackbar(textId)
 fun Fragment.snackbar(text: CharSequence) = (requireActivity() as MainActivity).snackbar(text)
@@ -242,10 +162,6 @@ private class RestartCallback(val callback: () -> Unit) : SagerConnection.Callba
     }
 }
 
-fun Context.getColour(@ColorRes colorRes: Int): Int {
-    return ContextCompat.getColor(this, colorRes)
-}
-
 fun Context.getColorAttr(@AttrRes resId: Int): Int {
     return ContextCompat.getColor(this, TypedValue().also {
         theme.resolveAttribute(resId, it, true)
@@ -254,7 +170,6 @@ fun Context.getColorAttr(@AttrRes resId: Int): Int {
 
 val isExpert: Boolean by lazy { BuildConfig.DEBUG || DataStore.isExpert }
 const val isOss = BuildConfig.FLAVOR == "oss"
-const val isPlay = BuildConfig.FLAVOR == "play"
 const val isPreview = BuildConfig.FLAVOR == "preview"
 
 fun <T> Continuation<T>.tryResume(value: T) {

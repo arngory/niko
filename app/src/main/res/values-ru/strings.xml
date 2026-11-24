@@ -1,12 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-<string name="abc_search_hint">Введите запрос</string>
-<string name="abc_searchview_description_clear">Удалить запрос</string>
-<string name="abc_searchview_description_search">Поиск</string>
-<string name="abc_searchview_description_submit">Отправить запрос</string>
-<string name="abc_searchview_description_voice">Голосовой поиск</string>
-<string name="abc_shareactionprovider_share_with">Поделиться с помощью</string>
-<string name="abc_toolbar_collapse_description">Свернуть</string>
 <string name="action_export_clipboard">Экспорт в буфер</string>
 <string name="action_export_err">Не удалось экспортировать.</string>
 <string name="action_export_file">Экспорт в файл</string>
@@ -32,14 +25,7 @@
 <string name="backup_rules">Правила маршрутизации</string>
 <string name="backup_settings">Настройки</string>
 <string name="backup_summary">Если правила маршрутизации резервируются без конфигураций, то пользовательские исходящие соединения будут потеряны.</string>
-<string name="bottomsheet_action_collapse">Свернуть нижний экран</string>
-<string name="bottomsheet_action_expand">Развернуть нижний экран</string>
-<string name="bottomsheet_action_expand_halfway">Развернуть наполовину</string>
-<string name="bottomsheet_drag_handle_clicked">Двойное нажатие на маркер перемещения</string>
-<string name="bottomsheet_drag_handle_content_description">Маркер перемещения</string>
 <string name="certificates">Сертификаты</string>
-<string name="character_counter_content_description">Введено символов: %1$d из %2$d</string>
-<string name="character_counter_overflowed_content_description">Превышено ограничение на количество символов (%1$d из %2$d)</string>
 <string name="update_install">Скачать и установить</string>
 <string name="update_release_page">Страница релиза</string>
 <string name="update_downloading">Скачиваю обновление…</string>
@@ -58,7 +44,6 @@
 <string name="circular_reference">Циклическая ссылка</string>
 <string name="circular_reference_sum">Маршрут не может содержать сам себя.</string>
 <string name="clear_logcat">Очистить журнал</string>
-<string name="clear_text_end_icon_content_description">Очистить текстовое поле</string>
 <string name="clipboard_empty">Буфер обмена пуст</string>
 <string name="config_settings">Настройки конфигурации</string>
 <string name="confirm">Подтвердить</string>
@@ -70,7 +55,6 @@
 <string name="connection_test_timeout">Тайм-аут</string>
 <string name="connection_test_unreachable">Недоступен</string>
 <string name="connection_test_url_test">URL-тест</string>
-<string name="copy">Копировать</string>
 <string name="custom_config">Пользовательская конфигурация</string>
 <string name="delete">Удалить</string>
 <string name="delete_confirm_prompt">Вы уверены, что хотите удалить этот профиль?</string>
@@ -160,11 +144,7 @@
 <string name="enable_mux">Включить мультиплексор</string>
 <string name="enc_method">Метод шифрования</string>
 <string name="encryption">Шифрование</string>
-<string name="error_a11y_label">Ошибка: недопустимое значение</string>
-<string name="error_icon_content_description">Ошибка</string>
 <string name="error_title">Ошибка</string>
-<string name="expand_button_title">Дополнительно</string>
-<string name="exposed_dropdown_menu_content_description">Показать раскрывающееся меню</string>
 <string name="extra_headers">Дополнительные заголовки</string>
 <string name="file_manager_missing">На вашем устройстве отсутствует стандартный селектор файлов Android, установите его, например Material Files.</string>
 <string name="forward_success">Прокси запустился.</string>
@@ -193,7 +173,6 @@
 <string name="hysteria_disable_mtu_discovery">Отключить обнаружение MTU пути</string>
 <string name="hysteria_obfs">Обфускация пароля</string>
 <string name="hysteria_stream_receive_window">Окно приема потока QUIC</string>
-<string name="icon_content_description">Значок диалогового окна</string>
 <string name="route_test_target_hint">Хост или адрес и порт: example.com:443</string>
 <string name="route_test_app_hint">Из приложения (необязательно)</string>
 <string name="route_test_udp">UDP</string>
@@ -215,31 +194,9 @@
 <string name="invalid_backup_file">Недействительный файл резервной копии</string>
 <string name="invalid_server">Неверное имя сервера</string>
 <string name="is_outbound_only">Сделать JSON исходящим</string>
-<string name="item_view_role_description">Вкладка</string>
 <string name="lines">%d строк</string>
 <string name="logcat">Экспорт отладочной информации</string>
-<string name="material_clock_toggle_content_description">Выберите AM (до полудня) или PM (после полудня)</string>
-<string name="material_timepicker_am">AM</string>
-<string name="material_timepicker_pm">PM</string>
 <string name="menu_dashboard">Панель sing-box</string>
-<string name="mtrl_badge_numberless_content_description">Новое уведомление</string>
-<string name="mtrl_checkbox_state_description_checked">Флажок установлен.</string>
-<string name="mtrl_checkbox_state_description_indeterminate">Флажки установлены частично.</string>
-<string name="mtrl_checkbox_state_description_unchecked">Флажок не установлен.</string>
-<string name="mtrl_chip_close_icon_content_description">Удалить "%1$s"</string>
-<string name="mtrl_exceed_max_badge_number_content_description">Новых уведомлений больше %1$d</string>
-<string name="mtrl_picker_a11y_next_month">Перейти к следующему месяцу</string>
-<string name="mtrl_picker_a11y_prev_month">Перейти к предыдущему месяцу</string>
-<string name="mtrl_picker_cancel">Отмена</string>
-<string name="mtrl_picker_confirm">ОК</string>
-<string name="mtrl_picker_day_of_week_column_header">Столбец со днями недели: %1$s</string>
-<string name="mtrl_picker_navigate_to_current_year_description">Перейти к текущему году: %1$d</string>
-<string name="mtrl_picker_navigate_to_year_description">Перейти к %1$s году</string>
-<string name="mtrl_picker_save">Сохранить</string>
-<string name="mtrl_picker_toggle_to_calendar_input_mode">Перейти в режим выбора дней</string>
-<string name="mtrl_picker_toggle_to_day_selection">Нажмите, чтобы перейти к выбору дня</string>
-<string name="mtrl_picker_toggle_to_text_input_mode">Перейти в режим ввода текста</string>
-<string name="mtrl_picker_toggle_to_year_selection">Нажмите, чтобы перейти к выбору года</string>
 <string name="mux_concurrency">Число одновременных подключений Mux</string>
 <string name="mux_preference">Мультиплекс</string>
 <string name="mux_sum">Протокол мультиплексирования предназначен для уменьшения задержки соединения TCP, а не для увеличения пропускной способности. Использование мультиплексирования для просмотра видео, загрузки или проверки скорости обычно неэффективно. Если сервер не поддерживает мультиплексирование, вы не сможете получить доступ к Интернету.</string>
@@ -258,11 +215,9 @@
 <string name="no_proxies_found_in_clipboard">В буфере обмена не найдено ни одного прокси</string>
 <string name="no_proxies_found_in_file">В файле не найдено прокси-серверов</string>
 <string name="no_proxies_found_in_subscription">В подписке не найдено прокси-серверов</string>
-<string name="not_set">Не указано</string>
 <string name="ooc_warning">Предупреждение</string>
 <string name="packet_encoding">Кодирование пакетов</string>
 <string name="padding">Отступ</string>
-<string name="password_toggle_content_description">Показать пароль</string>
 <string name="plugin">Плагин</string>
 <string name="plugin_unknown">Неизвестный плагин %s</string>
     <string name="plugin_untrusted">Плагин %1$s из %2$s ещё не подтверждён: в разделе «О программе» нажмите на плагин и проверьте подпись.</string>
@@ -273,7 +228,6 @@
     <string name="plugin_trust">Доверять</string>
     <string name="plugin_revoke">Отозвать</string>
     <string name="plugin_app_info">О приложении</string>
-<string name="preference_copied">Текст "%1$s" скопирован в буфер обмена</string>
 <string name="preview_version_hint">Это приложение является предварительной версией и может содержать множество проблем. Если вы не хотите тестировать его, скачайте релизную версию с GitHub!</string>
 <string name="profile_empty">Пожалуйста, выберите профиль</string>
 <string name="profile_import">Импортировать профиль</string>
@@ -307,9 +261,6 @@
 <string name="route_opt_block_quic">Блокировать QUIC</string>
 <string name="route_play_store">Правило Play Store для %s</string>
 <string name="route_rules_official">Официальный</string>
-<string name="search_menu_title">Поиск</string>
-<string name="searchview_clear_text_content_description">Очистить текстовое поле</string>
-<string name="searchview_navigation_content_description">Назад</string>
 <string name="security">Шифрование транспортного уровня</string>
 <string name="select_profile">Выбрать профиль</string>
 <string name="service_failed">Не удалось:</string>
@@ -319,7 +270,6 @@
 <string name="settings">Настройки</string>
 <string name="share">Поделиться</string>
 <string name="share_qr_nfc">QR-код</string>
-<string name="side_sheet_accessibility_pane_title">Боковая панель</string>
 <string name="speed">%s/с</string>
 <string name="speed_detail">Прокси ：%1$s↑ %2$s↓ 
 \nПрямой ：%3$s↑%4$s↓</string>
@@ -348,8 +298,6 @@
 <string name="update_subscription_warning">Прокси-сервер не подключен, вы уверены, что хотите продолжить обновление?</string>
 <string name="use_selector">Использовать селектор</string>
 <string name="utls_fingerprint">Отпечаток uTLS</string>
-<string name="v7_preference_off">ВЫКЛ.</string>
-<string name="v7_preference_on">ВКЛ.</string>
 <string name="vpn_permission_denied">Отказано в разрешении на создание службы VPN</string>
 <string name="always_on_needs_vpn_mode">Android запустил Niko как постоянный VPN, но Niko настроен на режим «Только прокси», поэтому ничего не работает. Чтобы пользоваться постоянным VPN, выберите VPN в Настройках → Сервисный режим или выключите постоянный VPN для Niko в системных настройках VPN.</string>
 <string name="wireguard_local_address">Частный адрес</string>

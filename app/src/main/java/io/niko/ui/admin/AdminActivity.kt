@@ -7,7 +7,6 @@ import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.SideEffect
 import androidx.lifecycle.ViewModelProvider
-import com.google.android.material.snackbar.Snackbar
 import io.niko.R
 import io.niko.SagerNet
 import io.niko.raycontrol.RayNodes
@@ -67,7 +66,7 @@ class AdminActivity : ThemedActivity(), AdminModel.Host {
 
     override fun ttls(): List<String> = resources.getStringArray(R.array.raycontrol_admin_ttls).toList()
 
-    override fun say(text: String) = Snackbar.make(findViewById(android.R.id.content), text, Snackbar.LENGTH_LONG).show()
+    override fun say(text: String) = snackbar(text).show()
 
     override fun share(text: String) = startActivity(
         Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text), getString(R.string.share)),

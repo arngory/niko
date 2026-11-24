@@ -1,8 +1,8 @@
 package io.niko.widget
 
-import com.google.android.material.snackbar.Snackbar
 import io.niko.R
 import io.niko.ui.ThemedActivity
+import io.niko.ui.compose.NikoSnackbar
 
 /**
  * @param activity ThemedActivity.
@@ -22,24 +22,25 @@ class UndoSnackbarManager<in T>(
     }
 
     private val recycleBin = ArrayList<Pair<Int, T>>()
-    private val removedCallback = object : Snackbar.Callback() {
-        override fun onDismissed(transientBottomBar: Snackbar?, event: Int) {
-            if (last === transientBottomBar && event != DISMISS_EVENT_ACTION) {
-                callback.commit(recycleBin)
-                recycleBin.clear()
-                last = null
-            }
+
+    // the latest bar gone by anything but its action commits; an earlier one a newer removal replaced leaves its
+    // items in the bin, for the newer bar to undo or commit with its own
+    private fun removed(bar: NikoSnackbar, byAction: Boolean) {
+        if (last === bar && !byAction) {
+            callback.commit(recycleBin)
+            recycleBin.clear()
+            last = null
         }
     }
 
-    private var last: Snackbar? = null
+    private var last: NikoSnackbar? = null
 
     fun remove(items: Collection<Pair<Int, T>>) {
         recycleBin.addAll(items)
         val count = recycleBin.size
         activity.snackbar(activity.resources.getQuantityString(R.plurals.removed, count, count))
             .apply {
-                addCallback(removedCallback)
+                onDismissed { byAction -> removed(this, byAction) }
                 setAction(R.string.undo) {
                     callback.undo(recycleBin.reversed())
                     recycleBin.clear()

@@ -23,7 +23,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import androidx.core.net.toUri
-import com.google.android.material.snackbar.Snackbar
 import com.google.zxing.RGBLuminanceSource
 import com.google.zxing.Result
 import com.king.zxing.CameraScan
@@ -78,9 +77,6 @@ class AddActivity : ThemedActivity(), CameraScan.OnScanResultCallback {
 
     // the camera asked for once by itself; after a refusal only «Разрешить» asks
     private var asked = false
-
-    override fun snackbarInternal(text: CharSequence): Snackbar =
-        Snackbar.make(findViewById(android.R.id.content), text, Snackbar.LENGTH_LONG)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

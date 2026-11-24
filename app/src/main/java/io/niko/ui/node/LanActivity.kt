@@ -10,7 +10,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.snackbar.Snackbar
 import io.niko.R
 import io.niko.SagerNet
 import io.niko.database.DataStore
@@ -41,9 +40,6 @@ class LanActivity : ThemedActivity() {
 
     private var state by mutableStateOf(LanState())
     private val nodeId get() = intent.getStringExtra(EXTRA_NODE).orEmpty()
-
-    override fun snackbarInternal(text: CharSequence): Snackbar =
-        Snackbar.make(findViewById(android.R.id.content), text, Snackbar.LENGTH_LONG)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

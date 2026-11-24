@@ -2,17 +2,8 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
     <!-- The Niko theme takes the design system's colours from niko_tokens.xml (generated from
-         shared/tokens.json, light there, dark in values-night). What is no token stands here: the base theme's
-         defaults (Theme.SagerNet, under Niko), the launcher's ground -->
+         shared/tokens.json, light there, dark in values-night). What is no token stands here: the launcher's ground -->
     <!-- the launcher's shortcuts: the light app icon's ground, in both modes (launchers do not follow the app's) -->
     <color name="niko_shortcut_background">#EEEEEE</color>
-
-
-    <color name="material_pink_100">#F8BBD0</color>
-    <color name="material_pink_500">#E91E63</color>
-    <color name="material_pink_700">#C2185B</color>
-    <color name="material_pink_accent_200">#FF4081</color>
-
-    <color name="white">#FFFFFFFF</color>
 
 </resources>
