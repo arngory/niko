@@ -213,12 +213,14 @@ private fun DialogButton(button: NikoDialogButton, modifier: Modifier = Modifier
 /**
  * A dialog in Niko's design (m-dialog), for the questions screens ask from code: built like an alert dialog's builder,
  * drawn by Compose in a window of its own. A button or an item closes it after its action; outside it and back cancel
- * it ([cancelable]), which runs [onCancel].
+ * it ([cancelable]), which runs [onCancel]. Its words may change while it shows: [message] again, on the main thread.
  */
-class NikoDialog(private val context: Context) {
+class NikoDialog(val context: Context) {
 
-    private var spec = NikoDialogSpec()
+    // a state: what is set after show() is drawn too
+    private var spec by mutableStateOf(NikoDialogSpec())
     private val actions = ArrayList<(String, Int) -> Unit>()
+    private val staying = ArrayList<Boolean>()
     private var onItem: (Int) -> Unit = {}
     private var cancelable = true
     private var onCancel: () -> Unit = {}
@@ -240,17 +242,19 @@ class NikoDialog(private val context: Context) {
     fun primary(text: String, danger: Boolean = false, action: (String, Int) -> Unit = { _, _ -> }) = apply {
         spec = spec.copy(buttons = spec.buttons + NikoDialogButton(text, primary = !danger, danger = danger))
         actions += action
+        staying += false
     }
 
     fun primary(text: Int, danger: Boolean = false, action: (String, Int) -> Unit = { _, _ -> }) = primary(context.getString(text), danger, action)
 
-    /** A ghost button before the ink one. */
-    fun ghost(text: String, action: () -> Unit = {}) = apply {
+    /** A ghost button before the ink one; [stays]: the dialog is left open after its action. */
+    fun ghost(text: String, stays: Boolean = false, action: () -> Unit = {}) = apply {
         spec = spec.copy(buttons = spec.buttons + NikoDialogButton(text))
         actions += { _, _ -> action() }
+        staying += stays
     }
 
-    fun ghost(text: Int, action: () -> Unit = {}) = ghost(context.getString(text), action)
+    fun ghost(text: Int, stays: Boolean = false, action: () -> Unit = {}) = ghost(context.getString(text), stays, action)
     fun cancelable(on: Boolean) = apply { cancelable = on }
     fun onCancel(action: () -> Unit) = apply { onCancel = action }
 
@@ -259,7 +263,7 @@ class NikoDialog(private val context: Context) {
 
     fun show(): Dialog {
         val dialog = ComponentDialog(context, android.R.style.Theme_Translucent_NoTitleBar)
-        val shown = spec
+        val field = spec.field != null
         dialog.setContentView(
             ComposeView(context).apply {
                 setContent {
@@ -273,11 +277,11 @@ class NikoDialog(private val context: Context) {
                         ) {
                             Box(Modifier.clickable(remember { MutableInteractionSource() }, indication = null) { }) {
                                 NikoDialogCard(
-                                    shown,
+                                    spec,
                                     // the answer first: the dismissal that follows must not read as a cancel
                                     onButton = { i, text, chosen ->
                                         actions[i](text, chosen)
-                                        dialog.dismiss()
+                                        if (!staying[i]) dialog.dismiss()
                                     },
                                     onItem = { i ->
                                         onItem(i)
@@ -297,7 +301,7 @@ class NikoDialog(private val context: Context) {
         dialog.window?.apply {
             setBackgroundDrawable(ColorDrawable(AndroidColor.TRANSPARENT))
             setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-            if (shown.field != null) {
+            if (field) {
                 setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
             }
         }
