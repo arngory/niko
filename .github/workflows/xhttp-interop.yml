@@ -36,6 +36,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
   cancel-in-progress: true
 
+# Go modules: the proxy first, and the module's own repository when the proxy fails (its downloads were cut mid-stream
+# three times on 2026-11-24). What is fetched either way is held by go.sum and the checksum database
+env:
+  GOPROXY: "https://proxy.golang.org|direct"
+
 jobs:
   interop:
     runs-on: ubuntu-latest

@@ -20,6 +20,11 @@ concurrency:
 permissions:
   contents: read
 
+# Go modules: the proxy first, and the module's own repository when the proxy fails (its downloads were cut mid-stream
+# three times on 2026-11-24). What is fetched either way is held by go.sum and the checksum database
+env:
+  GOPROXY: "https://proxy.golang.org|direct"
+
 jobs:
   # what the change touches: a pull request of documents alone builds nothing here, and "CI result" takes the
   # skipped jobs as passed
