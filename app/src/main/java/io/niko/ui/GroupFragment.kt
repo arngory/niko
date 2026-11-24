@@ -27,6 +27,7 @@ import io.niko.ktx.*
 import io.niko.raycontrol.RayNode
 import io.niko.raycontrol.RayNodeCard
 import io.niko.raycontrol.RayNodes
+import io.niko.ui.admin.AdminActivity
 import io.niko.ui.node.NodeFragment
 import io.niko.widget.ListListener
 import io.niko.widget.QRCodeDialog
@@ -328,8 +329,8 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
 
             when (item.itemId) {
                 R.id.action_ray_admin -> rayNode?.let { node ->
-                    startActivity(Intent(requireContext(), RayAdminActivity::class.java)
-                        .putExtra(RayAdminActivity.EXTRA_NODE, node.spa.nodeId))
+                    startActivity(Intent(requireContext(), AdminActivity::class.java)
+                        .putExtra(AdminActivity.EXTRA_NODE, node.spa.nodeId))
                 }
 
                 R.id.action_ray_lan -> rayNode?.let { node -> startActivity(io.niko.ui.node.LanActivity.intent(requireContext(), node.spa.nodeId)) }
