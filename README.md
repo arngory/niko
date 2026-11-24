@@ -7,6 +7,12 @@ ordinary links and subscriptions, and works best with a [raycontrol](https://git
 invite registers the device, and the node keeps its profiles, names and keys up to date. A fork of
 [NekoBox for Android](https://github.com/MatsuriDayo/NekoBoxForAndroid).
 
+<p>
+<img src="app/src/test/snapshots/images/io.niko.ui.home_HomeSnapshotTest_simpleConnected%5Blight%5D.png" width="200" alt="Simple"> <img src="app/src/test/snapshots/images/io.niko.ui.home_HomeSnapshotTest_advancedConnected%5Bdark%5D.png" width="200" alt="Advanced"> <img src="app/src/test/snapshots/images/io.niko.ui.node_NodeSnapshotTest_node%5Blight%5D.png" width="200" alt="A raycontrol node"> <img src="app/src/test/snapshots/images/io.niko.ui.log_LogSnapshotTest_log%5Bdark%5D.png" width="200" alt="Log">
+</p>
+
+The pictures are the app's own snapshot tests (Paparazzi), so they show the screens as they are now.
+
 ## Download
 
 The latest version is on the [Releases](../../releases/latest) page: APKs for arm64-v8a, armeabi-v7a, x86 and

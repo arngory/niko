@@ -7,6 +7,12 @@ Niko — прокси- и VPN-клиент для Android на ядре [sing-bo
 регистрирует устройство, а узел сам держит его профили, имена и ключи в актуальном виде. Форк
 [NekoBox for Android](https://github.com/MatsuriDayo/NekoBoxForAndroid).
 
+<p>
+<img src="app/src/test/snapshots/images/io.niko.ui.home_HomeSnapshotTest_simpleConnected%5Blight%5D.png" width="200" alt="Простой вид"> <img src="app/src/test/snapshots/images/io.niko.ui.home_HomeSnapshotTest_advancedConnected%5Bdark%5D.png" width="200" alt="Расширенный вид"> <img src="app/src/test/snapshots/images/io.niko.ui.node_NodeSnapshotTest_node%5Blight%5D.png" width="200" alt="Узел raycontrol"> <img src="app/src/test/snapshots/images/io.niko.ui.log_LogSnapshotTest_log%5Bdark%5D.png" width="200" alt="Журнал">
+</p>
+
+Картинки — снимки из тестов приложения (Paparazzi): экраны такие, какие они сейчас.
+
 ## Скачать
 
 Последняя версия — на странице [Releases](../../releases/latest): APK для arm64-v8a, armeabi-v7a, x86 и x86_64,
