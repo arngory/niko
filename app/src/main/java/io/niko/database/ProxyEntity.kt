@@ -33,12 +33,9 @@ import io.niko.ktx.app
 import io.niko.ui.profile.*
 import io.niko.SingBoxOptions.MultiplexOptions
 import io.niko.proxy.anytls.AnyTLSBean
-import io.niko.proxy.anytls.AnyTLSSettingsActivity
 import io.niko.proxy.anytls.toUri
 import io.niko.proxy.config.ConfigBean
-import io.niko.proxy.config.ConfigSettingActivity
 import io.niko.proxy.neko.*
-import io.niko.proxy.shadowtls.ShadowTLSSettingsActivity
 
 @Entity(
     tableName = "proxy_entities", indices = [Index("groupId", name = "groupId")]
@@ -459,31 +456,10 @@ data class ProxyEntity(
         return this
     }
 
-    fun settingIntent(ctx: Context, isSubscription: Boolean): Intent {
-        return Intent(
-            ctx, when (type) {
-                TYPE_SOCKS -> SocksSettingsActivity::class.java
-                TYPE_HTTP -> HttpSettingsActivity::class.java
-                TYPE_SS -> ShadowsocksSettingsActivity::class.java
-                TYPE_VMESS -> VMessSettingsActivity::class.java
-                TYPE_TROJAN -> TrojanSettingsActivity::class.java
-                TYPE_TROJAN_GO -> TrojanGoSettingsActivity::class.java
-                TYPE_MIERU -> MieruSettingsActivity::class.java
-                TYPE_NAIVE -> NaiveSettingsActivity::class.java
-                TYPE_HYSTERIA -> HysteriaSettingsActivity::class.java
-                TYPE_SSH -> SSHSettingsActivity::class.java
-                TYPE_WG -> WireGuardSettingsActivity::class.java
-                TYPE_TUIC -> TuicSettingsActivity::class.java
-                TYPE_SHADOWTLS -> ShadowTLSSettingsActivity::class.java
-                TYPE_ANYTLS -> AnyTLSSettingsActivity::class.java
-                TYPE_CHAIN -> ChainSettingsActivity::class.java
-                TYPE_CONFIG -> ConfigSettingActivity::class.java
-                else -> throw IllegalArgumentException()
-            }
-        ).apply {
-            putExtra(ProfileSettingsActivity.EXTRA_PROFILE_ID, id)
-            putExtra(ProfileSettingsActivity.EXTRA_IS_SUBSCRIPTION, isSubscription)
-        }
+    /** The profile's editor (P-Profile); a NekoBox plugin's profile has none. */
+    fun settingIntent(ctx: Context): Intent {
+        require(type != TYPE_NEKO)
+        return ProfileActivity.edit(ctx, id)
     }
 
     @androidx.room.Dao

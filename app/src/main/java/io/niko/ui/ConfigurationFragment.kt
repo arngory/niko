@@ -84,19 +84,7 @@ import io.niko.ktx.snackbar
 import io.niko.ktx.startFilesForResult
 import io.niko.ktx.tryToShow
 import io.niko.plugin.PluginManager
-import io.niko.ui.profile.ChainSettingsActivity
-import io.niko.ui.profile.HttpSettingsActivity
-import io.niko.ui.profile.HysteriaSettingsActivity
-import io.niko.ui.profile.MieruSettingsActivity
-import io.niko.ui.profile.NaiveSettingsActivity
-import io.niko.ui.profile.SSHSettingsActivity
-import io.niko.ui.profile.ShadowsocksSettingsActivity
-import io.niko.ui.profile.SocksSettingsActivity
-import io.niko.ui.profile.TrojanGoSettingsActivity
-import io.niko.ui.profile.TrojanSettingsActivity
-import io.niko.ui.profile.TuicSettingsActivity
-import io.niko.ui.profile.VMessSettingsActivity
-import io.niko.ui.profile.WireGuardSettingsActivity
+import io.niko.ui.profile.ProfileActivity
 import io.niko.widget.QRCodeDialog
 import io.niko.widget.UndoSnackbarManager
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -109,9 +97,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import io.niko.Protocols
 import io.niko.Protocols.getProtocolColor
-import io.niko.proxy.anytls.AnyTLSSettingsActivity
-import io.niko.proxy.config.ConfigSettingActivity
-import io.niko.proxy.shadowtls.ShadowTLSSettingsActivity
 import io.niko.ui.ConnectionTestNotification
 import okhttp3.internal.closeQuietly
 import java.net.InetSocketAddress
@@ -468,73 +453,71 @@ class ConfigurationFragment @JvmOverloads constructor(
             }
 
             R.id.action_new_socks -> {
-                startActivity(Intent(requireActivity(), SocksSettingsActivity::class.java))
+                startActivity(ProfileActivity.create(requireActivity(), ProxyEntity.TYPE_SOCKS))
             }
 
             R.id.action_new_http -> {
-                startActivity(Intent(requireActivity(), HttpSettingsActivity::class.java))
+                startActivity(ProfileActivity.create(requireActivity(), ProxyEntity.TYPE_HTTP))
             }
 
             R.id.action_new_ss -> {
-                startActivity(Intent(requireActivity(), ShadowsocksSettingsActivity::class.java))
+                startActivity(ProfileActivity.create(requireActivity(), ProxyEntity.TYPE_SS))
             }
 
             R.id.action_new_vmess -> {
-                startActivity(Intent(requireActivity(), VMessSettingsActivity::class.java))
+                startActivity(ProfileActivity.create(requireActivity(), ProxyEntity.TYPE_VMESS))
             }
 
             R.id.action_new_vless -> {
-                startActivity(Intent(requireActivity(), VMessSettingsActivity::class.java).apply {
-                    putExtra("vless", true)
-                })
+                startActivity(ProfileActivity.create(requireActivity(), ProxyEntity.TYPE_VMESS, vless = true))
             }
 
             R.id.action_new_trojan -> {
-                startActivity(Intent(requireActivity(), TrojanSettingsActivity::class.java))
+                startActivity(ProfileActivity.create(requireActivity(), ProxyEntity.TYPE_TROJAN))
             }
 
             R.id.action_new_trojan_go -> {
-                startActivity(Intent(requireActivity(), TrojanGoSettingsActivity::class.java))
+                startActivity(ProfileActivity.create(requireActivity(), ProxyEntity.TYPE_TROJAN_GO))
             }
 
             R.id.action_new_mieru -> {
-                startActivity(Intent(requireActivity(), MieruSettingsActivity::class.java))
+                startActivity(ProfileActivity.create(requireActivity(), ProxyEntity.TYPE_MIERU))
             }
 
             R.id.action_new_naive -> {
-                startActivity(Intent(requireActivity(), NaiveSettingsActivity::class.java))
+                startActivity(ProfileActivity.create(requireActivity(), ProxyEntity.TYPE_NAIVE))
             }
 
             R.id.action_new_hysteria -> {
-                startActivity(Intent(requireActivity(), HysteriaSettingsActivity::class.java))
+                startActivity(ProfileActivity.create(requireActivity(), ProxyEntity.TYPE_HYSTERIA))
             }
 
             R.id.action_new_tuic -> {
-                startActivity(Intent(requireActivity(), TuicSettingsActivity::class.java))
+                startActivity(ProfileActivity.create(requireActivity(), ProxyEntity.TYPE_TUIC))
             }
 
             R.id.action_new_ssh -> {
-                startActivity(Intent(requireActivity(), SSHSettingsActivity::class.java))
+                startActivity(ProfileActivity.create(requireActivity(), ProxyEntity.TYPE_SSH))
             }
 
             R.id.action_new_wg -> {
-                startActivity(Intent(requireActivity(), WireGuardSettingsActivity::class.java))
+                startActivity(ProfileActivity.create(requireActivity(), ProxyEntity.TYPE_WG))
             }
 
             R.id.action_new_shadowtls -> {
-                startActivity(Intent(requireActivity(), ShadowTLSSettingsActivity::class.java))
+                startActivity(ProfileActivity.create(requireActivity(), ProxyEntity.TYPE_SHADOWTLS))
             }
 
             R.id.action_new_anytls -> {
-                startActivity(Intent(requireActivity(), AnyTLSSettingsActivity::class.java))
+                startActivity(ProfileActivity.create(requireActivity(), ProxyEntity.TYPE_ANYTLS))
             }
 
             R.id.action_new_config -> {
-                startActivity(Intent(requireActivity(), ConfigSettingActivity::class.java))
+                startActivity(ProfileActivity.create(requireActivity(), ProxyEntity.TYPE_CONFIG))
             }
 
             R.id.action_new_chain -> {
-                startActivity(Intent(requireActivity(), ChainSettingsActivity::class.java))
+                startActivity(ProfileActivity.create(requireActivity(), ProxyEntity.TYPE_CHAIN))
             }
 
             R.id.action_update_subscription -> {
@@ -1703,11 +1686,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                 }
 
                 editButton.setOnClickListener {
-                    it.context.startActivity(
-                        proxyEntity.settingIntent(
-                            it.context, proxyGroup.type == GroupType.SUBSCRIPTION
-                        )
-                    )
+                    it.context.startActivity(proxyEntity.settingIntent(it.context))
                 }
 
                 removeButton.setOnClickListener {
