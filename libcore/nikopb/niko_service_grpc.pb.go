@@ -54,6 +54,9 @@ const (
 	NikoService_UpdateRuleSets_FullMethodName  = "/niko.v1.NikoService/UpdateRuleSets"
 	NikoService_ExportUserStore_FullMethodName = "/niko.v1.NikoService/ExportUserStore"
 	NikoService_ImportUserStore_FullMethodName = "/niko.v1.NikoService/ImportUserStore"
+	NikoService_TestConnection_FullMethodName  = "/niko.v1.NikoService/TestConnection"
+	NikoService_ExitAddress_FullMethodName     = "/niko.v1.NikoService/ExitAddress"
+	NikoService_TestProfiles_FullMethodName    = "/niko.v1.NikoService/TestProfiles"
 )
 
 // NikoServiceClient is the client API for NikoService service.
@@ -178,6 +181,15 @@ type NikoServiceClient interface {
 	// Imports a decrypted user-mode store snapshot into the caller's service store, re-sealing all
 	// secrets under the service's context. Available to any verified caller on its own store (PolicyCaller).
 	ImportUserStore(ctx context.Context, in *UserStoreSnapshot, opts ...grpc.CallOption) (*ImportUserStoreResult, error)
+	// Measures HTTP round-trip latency through the running core's default outbound (D-MAIN-18).
+	// Owner-only, outside the lifecycle lock. FAILED_PRECONDITION when no core runs.
+	TestConnection(ctx context.Context, in *TestConnectionRequest, opts ...grpc.CallOption) (*TestConnectionResult, error)
+	// Queries an HTTPS lookup provider (cloudflare, ipinfo, ipwho, ipapi-co) through the running core's
+	// default outbound to discover exit IP and country (D-MAIN-03/14). Owner-only, outside the lifecycle lock.
+	ExitAddress(ctx context.Context, in *ExitAddressRequest, opts ...grpc.CallOption) (*ExitAddressResult, error)
+	// Measures HTTP latency for a batch of stored profiles (or all profiles of a group) using isolated
+	// in-memory test cores, streaming each result as it finishes (D-MAIN-08/12).
+	TestProfiles(ctx context.Context, in *TestProfilesRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ProfileTestResult], error)
 }
 
 type nikoServiceClient struct {
@@ -534,6 +546,45 @@ func (c *nikoServiceClient) ImportUserStore(ctx context.Context, in *UserStoreSn
 	return out, nil
 }
 
+func (c *nikoServiceClient) TestConnection(ctx context.Context, in *TestConnectionRequest, opts ...grpc.CallOption) (*TestConnectionResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TestConnectionResult)
+	err := c.cc.Invoke(ctx, NikoService_TestConnection_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) ExitAddress(ctx context.Context, in *ExitAddressRequest, opts ...grpc.CallOption) (*ExitAddressResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ExitAddressResult)
+	err := c.cc.Invoke(ctx, NikoService_ExitAddress_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) TestProfiles(ctx context.Context, in *TestProfilesRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ProfileTestResult], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &NikoService_ServiceDesc.Streams[4], NikoService_TestProfiles_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[TestProfilesRequest, ProfileTestResult]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type NikoService_TestProfilesClient = grpc.ServerStreamingClient[ProfileTestResult]
+
 // NikoServiceServer is the server API for NikoService service.
 // All implementations must embed UnimplementedNikoServiceServer
 // for forward compatibility.
@@ -656,6 +707,15 @@ type NikoServiceServer interface {
 	// Imports a decrypted user-mode store snapshot into the caller's service store, re-sealing all
 	// secrets under the service's context. Available to any verified caller on its own store (PolicyCaller).
 	ImportUserStore(context.Context, *UserStoreSnapshot) (*ImportUserStoreResult, error)
+	// Measures HTTP round-trip latency through the running core's default outbound (D-MAIN-18).
+	// Owner-only, outside the lifecycle lock. FAILED_PRECONDITION when no core runs.
+	TestConnection(context.Context, *TestConnectionRequest) (*TestConnectionResult, error)
+	// Queries an HTTPS lookup provider (cloudflare, ipinfo, ipwho, ipapi-co) through the running core's
+	// default outbound to discover exit IP and country (D-MAIN-03/14). Owner-only, outside the lifecycle lock.
+	ExitAddress(context.Context, *ExitAddressRequest) (*ExitAddressResult, error)
+	// Measures HTTP latency for a batch of stored profiles (or all profiles of a group) using isolated
+	// in-memory test cores, streaming each result as it finishes (D-MAIN-08/12).
+	TestProfiles(*TestProfilesRequest, grpc.ServerStreamingServer[ProfileTestResult]) error
 	mustEmbedUnimplementedNikoServiceServer()
 }
 
@@ -758,6 +818,15 @@ func (UnimplementedNikoServiceServer) ExportUserStore(context.Context, *Empty) (
 }
 func (UnimplementedNikoServiceServer) ImportUserStore(context.Context, *UserStoreSnapshot) (*ImportUserStoreResult, error) {
 	return nil, status.Error(codes.Unimplemented, "method ImportUserStore not implemented")
+}
+func (UnimplementedNikoServiceServer) TestConnection(context.Context, *TestConnectionRequest) (*TestConnectionResult, error) {
+	return nil, status.Error(codes.Unimplemented, "method TestConnection not implemented")
+}
+func (UnimplementedNikoServiceServer) ExitAddress(context.Context, *ExitAddressRequest) (*ExitAddressResult, error) {
+	return nil, status.Error(codes.Unimplemented, "method ExitAddress not implemented")
+}
+func (UnimplementedNikoServiceServer) TestProfiles(*TestProfilesRequest, grpc.ServerStreamingServer[ProfileTestResult]) error {
+	return status.Error(codes.Unimplemented, "method TestProfiles not implemented")
 }
 func (UnimplementedNikoServiceServer) mustEmbedUnimplementedNikoServiceServer() {}
 func (UnimplementedNikoServiceServer) testEmbeddedByValue()                     {}
@@ -1310,6 +1379,53 @@ func _NikoService_ImportUserStore_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NikoService_TestConnection_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TestConnectionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).TestConnection(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_TestConnection_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).TestConnection(ctx, req.(*TestConnectionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_ExitAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExitAddressRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).ExitAddress(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_ExitAddress_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).ExitAddress(ctx, req.(*ExitAddressRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_TestProfiles_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(TestProfilesRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(NikoServiceServer).TestProfiles(m, &grpc.GenericServerStream[TestProfilesRequest, ProfileTestResult]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type NikoService_TestProfilesServer = grpc.ServerStreamingServer[ProfileTestResult]
+
 // NikoService_ServiceDesc is the grpc.ServiceDesc for NikoService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1425,6 +1541,14 @@ var NikoService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "ImportUserStore",
 			Handler:    _NikoService_ImportUserStore_Handler,
 		},
+		{
+			MethodName: "TestConnection",
+			Handler:    _NikoService_TestConnection_Handler,
+		},
+		{
+			MethodName: "ExitAddress",
+			Handler:    _NikoService_ExitAddress_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
@@ -1445,6 +1569,11 @@ var NikoService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "UpdateRuleSets",
 			Handler:       _NikoService_UpdateRuleSets_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "TestProfiles",
+			Handler:       _NikoService_TestProfiles_Handler,
 			ServerStreams: true,
 		},
 	},

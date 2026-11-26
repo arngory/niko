@@ -11,6 +11,7 @@ package nikoservice
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
 	"sync"
 	"syscall"
@@ -22,6 +23,7 @@ import (
 	"libcore/raysub"
 	"libcore/routetest"
 
+	box "github.com/sagernet/sing-box"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/boxdd"
 
@@ -40,7 +42,7 @@ var Version = "dev"
 // ListNodes, DeleteNode, Refresh of a node, their profiles in Connect); 12: per-user store served to any verified
 // caller via Host.Caller and Host.UserDirectory (not development mode only); 13: user-mode capabilities (Info.privileged,
 // Info.tun) and store migration (ExportUserStore, ImportUserStore).
-const API = 13
+const API = 14
 
 // Service is NikoService as the daemon serves it: GetInfo for any caller the daemon verified, RouteTest for its
 // owner only (it reads the owner's core, as the daemon's own calls on the running core do). RouteTest is checked as
@@ -80,6 +82,16 @@ func Service() boxdd.Service {
 						return nil, nil
 					}
 					return instance.Context(), release
+				}, coreBox: func() (context.Context, *box.Box, func()) {
+					instance := host.StartedService().RunningInstance()
+					if instance == nil {
+						return nil, nil, nil
+					}
+					release, held := instance.Hold()
+					if !held {
+						return nil, nil, nil
+					}
+					return instance.Context(), instance.Box(), release
 				}}
 			users.onNodesChanged = s.syncLogRedactions
 			// the subscriptions' timed updates, without the window, and the rule-sets' while the core runs
@@ -88,7 +100,10 @@ func Service() boxdd.Service {
 		},
 		Policy: boxdd.PolicyCaller,
 		Methods: map[string]boxdd.MethodPolicy{
-			"RouteTest": boxdd.PolicyOwnerUnlocked,
+			"RouteTest":      boxdd.PolicyOwnerUnlocked,
+			"TestConnection": boxdd.PolicyOwnerUnlocked,
+			"ExitAddress":    boxdd.PolicyOwnerUnlocked,
+			"TestProfiles":   boxdd.PolicyOwnerUnlocked,
 		},
 	}
 }
@@ -99,6 +114,15 @@ type server struct {
 	userMode bool
 	// core holds the running core: its context and the release of the hold; nil when none runs
 	core func() (context.Context, func())
+	// coreBox holds the running core's Box for TestConnection and ExitAddress; nil when none runs
+	coreBox func() (context.Context, *box.Box, func())
+	// coreDial overrides dialing through the running core in unit tests.
+	coreDial func(ctx context.Context, network, address string) (net.Conn, error)
+	// testProfile overrides per-profile URL testing in unit tests.
+	testProfile func(ctx context.Context, u *user, id int64, testURL string, timeout time.Duration) (int32, error)
+	// testSlots bounds the total number of concurrent ephemeral test boxes across all TestProfiles streams.
+	testSlotsOnce sync.Once
+	testSlots     chan struct{}
 	// users are the users' stores
 	users *users
 	// start starts the core with a config for the caller, as DesktopService.StartService, and the system proxy the

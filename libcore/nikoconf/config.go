@@ -229,8 +229,12 @@ func (b *builder) build() ([]byte, error) {
 		return nil, fmt.Errorf("%w: %d", errNoProfile, in.Profile)
 	}
 
-	// a custom config (ConfigBean of type 0) is the config, as it is
+	// a custom config (ConfigBean of type 0) is the config, as it is; refuse in ephemeral test cores
+	// so TestProfiles cannot execute arbitrary raw sing-box configs inside a privileged daemon.
 	if c, ok := b.proxy.Bean.(*nikofmt.ConfigBean); ok && c.Type != nil && *c.Type == 0 {
+		if b.forTest {
+			return nil, errors.New("custom config profiles cannot be tested in ephemeral mode")
+		}
 		return []byte(str(c.Config)), nil
 	}
 
@@ -638,12 +642,12 @@ func (b *builder) build() ([]byte, error) {
 		if err := mergeJSON(config, s.GlobalCustomConfig); err != nil {
 			return nil, err
 		}
-	}
-	if err := asMap(config); err != nil {
-		return nil, err
-	}
-	if err := mergeJSON(config, str(nikofmt.Base(b.proxy.Bean).CustomConfigJson)); err != nil {
-		return nil, err
+		if err := asMap(config); err != nil {
+			return nil, err
+		}
+		if err := mergeJSON(config, str(nikofmt.Base(b.proxy.Bean).CustomConfigJson)); err != nil {
+			return nil, err
+		}
 	}
 	if err := asMap(config); err != nil {
 		return nil, err

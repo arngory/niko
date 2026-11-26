@@ -1,10 +1,13 @@
 package nikoservice
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"io"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -401,7 +404,7 @@ const (
 // errOverImport: an input of more profiles than one import adds, refused by Recognize as by Import
 var errOverImport = status.Error(codes.InvalidArgument, "over "+strconv.Itoa(maxImport)+" profiles in one import")
 
-// inputText is the text of an input: its text, else its file's content.
+// inputText is the text of an input: its text, else its file's content (expanding bounded .zip archives).
 func inputText(input *nikopb.ImportInput) (string, error) {
 	if input == nil {
 		return "", nil
@@ -412,7 +415,56 @@ func inputText(input *nikopb.ImportInput) (string, error) {
 	if input.Text != "" {
 		return input.Text, nil
 	}
+	if len(input.File) >= 4 && bytes.Equal(input.File[:4], []byte{'P', 'K', 3, 4}) ||
+		strings.HasSuffix(strings.ToLower(strings.TrimSpace(input.FileName)), ".zip") {
+		return extractZipText(input.File)
+	}
 	return nikofmt.DecodeUTF8(input.File), nil
+}
+
+const maxZipEntries = 32
+
+func extractZipText(raw []byte) (string, error) {
+	zr, err := zip.NewReader(bytes.NewReader(raw), int64(len(raw)))
+	if err != nil {
+		return "", status.Error(codes.InvalidArgument, "invalid zip archive: "+err.Error())
+	}
+	if len(zr.File) > maxZipEntries {
+		return "", status.Error(codes.InvalidArgument, "zip archive has too many files")
+	}
+	var parts []string
+	var total int64
+	for _, f := range zr.File {
+		if f.FileInfo().IsDir() {
+			continue
+		}
+		lower := strings.ToLower(filepath.Base(f.Name))
+		if strings.HasPrefix(lower, ".") || strings.Contains(f.Name, "__MACOSX") {
+			continue
+		}
+		rc, err := f.Open()
+		if err != nil {
+			return "", status.Error(codes.InvalidArgument, "read zip entry "+f.Name+": "+err.Error())
+		}
+		remaining := int64(maxInput) - total
+		if remaining <= 0 {
+			rc.Close()
+			return "", status.Error(codes.InvalidArgument, "uncompressed zip content exceeds 4 MiB")
+		}
+		data, err := io.ReadAll(io.LimitReader(rc, remaining+1))
+		rc.Close()
+		if err != nil {
+			return "", status.Error(codes.InvalidArgument, "read zip entry "+f.Name+": "+err.Error())
+		}
+		total += int64(len(data))
+		if total > maxInput {
+			return "", status.Error(codes.InvalidArgument, "uncompressed zip content exceeds 4 MiB")
+		}
+		if text := strings.TrimSpace(nikofmt.DecodeUTF8(data)); text != "" {
+			parts = append(parts, text)
+		}
+	}
+	return strings.Join(parts, "\n"), nil
 }
 
 func (s *server) Recognize(ctx context.Context, input *nikopb.ImportInput) (*nikopb.ImportPreview, error) {

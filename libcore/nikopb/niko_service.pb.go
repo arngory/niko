@@ -92,7 +92,7 @@ func (x Change_Kind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Change_Kind.Descriptor instead.
 func (Change_Kind) EnumDescriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{9, 0}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{15, 0}
 }
 
 type Group_Type int32
@@ -138,7 +138,7 @@ func (x Group_Type) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Group_Type.Descriptor instead.
 func (Group_Type) EnumDescriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{12, 0}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{18, 0}
 }
 
 // How the computer's traffic reaches the core (D-NAV-02).
@@ -187,7 +187,7 @@ func (x ConnectRequest_Mode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ConnectRequest_Mode.Descriptor instead.
 func (ConnectRequest_Mode) EnumDescriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{22, 0}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{28, 0}
 }
 
 type ImportPreview_Kind int32
@@ -239,7 +239,7 @@ func (x ImportPreview_Kind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ImportPreview_Kind.Descriptor instead.
 func (ImportPreview_Kind) EnumDescriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{28, 0}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{34, 0}
 }
 
 type PresetRequest_Preset int32
@@ -286,7 +286,7 @@ func (x PresetRequest_Preset) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PresetRequest_Preset.Descriptor instead.
 func (PresetRequest_Preset) EnumDescriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{39, 0}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{45, 0}
 }
 
 type Empty struct {
@@ -374,7 +374,8 @@ type Info struct {
 	// with them; 8: the programs through Niko; 9: subscriptions (Group.subscription, Refresh, their import); 10: the
 	// route rules, the Russian preset and the rule-sets (ListRules…UpdateRuleSets), their settings; 11: raycontrol
 	// nodes (their import by invite with its PIN, ListNodes, DeleteNode, Refresh of a node, their profiles in Connect);
-	// 13: user-mode capabilities (privileged, tun) and store migration (ExportUserStore, ImportUserStore)
+	// 13: user-mode capabilities (privileged, tun) and store migration (ExportUserStore, ImportUserStore);
+	// 14: TestConnection, ExitAddress, TestProfiles, and zip file import
 	Api int32 `protobuf:"varint,4,opt,name=api,proto3" json:"api,omitempty"`
 	// True when running as the privileged system service; false in unprivileged --user-mode.
 	Privileged bool `protobuf:"varint,5,opt,name=privileged,proto3" json:"privileged,omitempty"`
@@ -568,6 +569,373 @@ func (x *ImportUserStoreResult) GetNodes() int32 {
 	return 0
 }
 
+type TestConnectionRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional HTTP(S) URL; empty uses the default connection test URL.
+	Url string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	// Timeout in milliseconds; 0 uses 5000 ms (capped at 30000 ms).
+	TimeoutMs     int32 `protobuf:"varint,2,opt,name=timeout_ms,json=timeoutMs,proto3" json:"timeout_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TestConnectionRequest) Reset() {
+	*x = TestConnectionRequest{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TestConnectionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TestConnectionRequest) ProtoMessage() {}
+
+func (x *TestConnectionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TestConnectionRequest.ProtoReflect.Descriptor instead.
+func (*TestConnectionRequest) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *TestConnectionRequest) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *TestConnectionRequest) GetTimeoutMs() int32 {
+	if x != nil {
+		return x.TimeoutMs
+	}
+	return 0
+}
+
+type TestConnectionResult struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	LatencyMs     int32                  `protobuf:"varint,1,opt,name=latency_ms,json=latencyMs,proto3" json:"latency_ms,omitempty"`
+	Error         string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TestConnectionResult) Reset() {
+	*x = TestConnectionResult{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TestConnectionResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TestConnectionResult) ProtoMessage() {}
+
+func (x *TestConnectionResult) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TestConnectionResult.ProtoReflect.Descriptor instead.
+func (*TestConnectionResult) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *TestConnectionResult) GetLatencyMs() int32 {
+	if x != nil {
+		return x.LatencyMs
+	}
+	return 0
+}
+
+func (x *TestConnectionResult) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+type ExitAddressRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// One of: cloudflare (default), ipinfo, ipwho, ipapi-co.
+	Provider string `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
+	// Timeout in milliseconds; 0 uses 10000 ms (capped at 30000 ms).
+	TimeoutMs     int32 `protobuf:"varint,2,opt,name=timeout_ms,json=timeoutMs,proto3" json:"timeout_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExitAddressRequest) Reset() {
+	*x = ExitAddressRequest{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExitAddressRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExitAddressRequest) ProtoMessage() {}
+
+func (x *ExitAddressRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExitAddressRequest.ProtoReflect.Descriptor instead.
+func (*ExitAddressRequest) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ExitAddressRequest) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *ExitAddressRequest) GetTimeoutMs() int32 {
+	if x != nil {
+		return x.TimeoutMs
+	}
+	return 0
+}
+
+type ExitAddressResult struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Provider      string                 `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
+	Ip            string                 `protobuf:"bytes,2,opt,name=ip,proto3" json:"ip,omitempty"`
+	CountryCode   string                 `protobuf:"bytes,3,opt,name=country_code,json=countryCode,proto3" json:"country_code,omitempty"`
+	Country       string                 `protobuf:"bytes,4,opt,name=country,proto3" json:"country,omitempty"`
+	City          string                 `protobuf:"bytes,5,opt,name=city,proto3" json:"city,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExitAddressResult) Reset() {
+	*x = ExitAddressResult{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExitAddressResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExitAddressResult) ProtoMessage() {}
+
+func (x *ExitAddressResult) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExitAddressResult.ProtoReflect.Descriptor instead.
+func (*ExitAddressResult) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ExitAddressResult) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *ExitAddressResult) GetIp() string {
+	if x != nil {
+		return x.Ip
+	}
+	return ""
+}
+
+func (x *ExitAddressResult) GetCountryCode() string {
+	if x != nil {
+		return x.CountryCode
+	}
+	return ""
+}
+
+func (x *ExitAddressResult) GetCountry() string {
+	if x != nil {
+		return x.Country
+	}
+	return ""
+}
+
+func (x *ExitAddressResult) GetCity() string {
+	if x != nil {
+		return x.City
+	}
+	return ""
+}
+
+type TestProfilesRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Specific profile IDs to test; if empty, all profiles in group_id are tested.
+	ProfileIds []int64 `protobuf:"varint,1,rep,packed,name=profile_ids,json=profileIds,proto3" json:"profile_ids,omitempty"`
+	GroupId    int64   `protobuf:"varint,2,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	// Optional HTTP(S) URL; empty uses the default connection test URL.
+	Url string `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`
+	// Per-profile timeout in milliseconds; 0 uses 5000 ms (capped at 30000 ms).
+	TimeoutMs     int32 `protobuf:"varint,4,opt,name=timeout_ms,json=timeoutMs,proto3" json:"timeout_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TestProfilesRequest) Reset() {
+	*x = TestProfilesRequest{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TestProfilesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TestProfilesRequest) ProtoMessage() {}
+
+func (x *TestProfilesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TestProfilesRequest.ProtoReflect.Descriptor instead.
+func (*TestProfilesRequest) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *TestProfilesRequest) GetProfileIds() []int64 {
+	if x != nil {
+		return x.ProfileIds
+	}
+	return nil
+}
+
+func (x *TestProfilesRequest) GetGroupId() int64 {
+	if x != nil {
+		return x.GroupId
+	}
+	return 0
+}
+
+func (x *TestProfilesRequest) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *TestProfilesRequest) GetTimeoutMs() int32 {
+	if x != nil {
+		return x.TimeoutMs
+	}
+	return 0
+}
+
+type ProfileTestResult struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProfileId     int64                  `protobuf:"varint,1,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	LatencyMs     int32                  `protobuf:"varint,2,opt,name=latency_ms,json=latencyMs,proto3" json:"latency_ms,omitempty"`
+	Error         string                 `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProfileTestResult) Reset() {
+	*x = ProfileTestResult{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProfileTestResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProfileTestResult) ProtoMessage() {}
+
+func (x *ProfileTestResult) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProfileTestResult.ProtoReflect.Descriptor instead.
+func (*ProfileTestResult) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ProfileTestResult) GetProfileId() int64 {
+	if x != nil {
+		return x.ProfileId
+	}
+	return 0
+}
+
+func (x *ProfileTestResult) GetLatencyMs() int32 {
+	if x != nil {
+		return x.LatencyMs
+	}
+	return 0
+}
+
+func (x *ProfileTestResult) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
 type RouteTestRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// tcp (the default) or udp
@@ -586,7 +954,7 @@ type RouteTestRequest struct {
 
 func (x *RouteTestRequest) Reset() {
 	*x = RouteTestRequest{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[5]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -598,7 +966,7 @@ func (x *RouteTestRequest) String() string {
 func (*RouteTestRequest) ProtoMessage() {}
 
 func (x *RouteTestRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[5]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -611,7 +979,7 @@ func (x *RouteTestRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RouteTestRequest.ProtoReflect.Descriptor instead.
 func (*RouteTestRequest) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{5}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *RouteTestRequest) GetNetwork() string {
@@ -665,7 +1033,7 @@ type RouteTestStep struct {
 
 func (x *RouteTestStep) Reset() {
 	*x = RouteTestStep{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[6]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -677,7 +1045,7 @@ func (x *RouteTestStep) String() string {
 func (*RouteTestStep) ProtoMessage() {}
 
 func (x *RouteTestStep) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[6]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -690,7 +1058,7 @@ func (x *RouteTestStep) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RouteTestStep.ProtoReflect.Descriptor instead.
 func (*RouteTestStep) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{6}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *RouteTestStep) GetIndex() int32 {
@@ -751,7 +1119,7 @@ type RouteTestResult struct {
 
 func (x *RouteTestResult) Reset() {
 	*x = RouteTestResult{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[7]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -763,7 +1131,7 @@ func (x *RouteTestResult) String() string {
 func (*RouteTestResult) ProtoMessage() {}
 
 func (x *RouteTestResult) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[7]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -776,7 +1144,7 @@ func (x *RouteTestResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RouteTestResult.ProtoReflect.Descriptor instead.
 func (*RouteTestResult) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{7}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *RouteTestResult) GetIndex() int32 {
@@ -857,7 +1225,7 @@ type WatchRequest struct {
 
 func (x *WatchRequest) Reset() {
 	*x = WatchRequest{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[8]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -869,7 +1237,7 @@ func (x *WatchRequest) String() string {
 func (*WatchRequest) ProtoMessage() {}
 
 func (x *WatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[8]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -882,7 +1250,7 @@ func (x *WatchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchRequest.ProtoReflect.Descriptor instead.
 func (*WatchRequest) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{8}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{14}
 }
 
 // What one write changed, or a task's result.
@@ -903,7 +1271,7 @@ type Change struct {
 
 func (x *Change) Reset() {
 	*x = Change{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[9]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -915,7 +1283,7 @@ func (x *Change) String() string {
 func (*Change) ProtoMessage() {}
 
 func (x *Change) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[9]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -928,7 +1296,7 @@ func (x *Change) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Change.ProtoReflect.Descriptor instead.
 func (*Change) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{9}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Change) GetRevision() uint64 {
@@ -992,7 +1360,7 @@ type TaskProgress struct {
 
 func (x *TaskProgress) Reset() {
 	*x = TaskProgress{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[10]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1004,7 +1372,7 @@ func (x *TaskProgress) String() string {
 func (*TaskProgress) ProtoMessage() {}
 
 func (x *TaskProgress) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[10]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1017,7 +1385,7 @@ func (x *TaskProgress) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaskProgress.ProtoReflect.Descriptor instead.
 func (*TaskProgress) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{10}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *TaskProgress) GetTaskId() string {
@@ -1098,7 +1466,7 @@ type PinNeeded struct {
 
 func (x *PinNeeded) Reset() {
 	*x = PinNeeded{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[11]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1110,7 +1478,7 @@ func (x *PinNeeded) String() string {
 func (*PinNeeded) ProtoMessage() {}
 
 func (x *PinNeeded) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[11]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1123,7 +1491,7 @@ func (x *PinNeeded) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PinNeeded.ProtoReflect.Descriptor instead.
 func (*PinNeeded) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{11}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *PinNeeded) GetHost() string {
@@ -1167,7 +1535,7 @@ type Group struct {
 
 func (x *Group) Reset() {
 	*x = Group{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[12]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1179,7 +1547,7 @@ func (x *Group) String() string {
 func (*Group) ProtoMessage() {}
 
 func (x *Group) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[12]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1192,7 +1560,7 @@ func (x *Group) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Group.ProtoReflect.Descriptor instead.
 func (*Group) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{12}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *Group) GetId() int64 {
@@ -1284,7 +1652,7 @@ type Subscription struct {
 
 func (x *Subscription) Reset() {
 	*x = Subscription{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[13]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1296,7 +1664,7 @@ func (x *Subscription) String() string {
 func (*Subscription) ProtoMessage() {}
 
 func (x *Subscription) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[13]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1309,7 +1677,7 @@ func (x *Subscription) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Subscription.ProtoReflect.Descriptor instead.
 func (*Subscription) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{13}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *Subscription) GetLink() string {
@@ -1415,7 +1783,7 @@ type RefreshRequest struct {
 
 func (x *RefreshRequest) Reset() {
 	*x = RefreshRequest{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[14]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1427,7 +1795,7 @@ func (x *RefreshRequest) String() string {
 func (*RefreshRequest) ProtoMessage() {}
 
 func (x *RefreshRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[14]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1440,7 +1808,7 @@ func (x *RefreshRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefreshRequest.ProtoReflect.Descriptor instead.
 func (*RefreshRequest) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{14}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *RefreshRequest) GetGroupId() int64 {
@@ -1466,7 +1834,7 @@ type GroupId struct {
 
 func (x *GroupId) Reset() {
 	*x = GroupId{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[15]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1478,7 +1846,7 @@ func (x *GroupId) String() string {
 func (*GroupId) ProtoMessage() {}
 
 func (x *GroupId) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[15]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1491,7 +1859,7 @@ func (x *GroupId) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GroupId.ProtoReflect.Descriptor instead.
 func (*GroupId) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{15}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *GroupId) GetId() int64 {
@@ -1510,7 +1878,7 @@ type GroupList struct {
 
 func (x *GroupList) Reset() {
 	*x = GroupList{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[16]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1522,7 +1890,7 @@ func (x *GroupList) String() string {
 func (*GroupList) ProtoMessage() {}
 
 func (x *GroupList) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[16]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1535,7 +1903,7 @@ func (x *GroupList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GroupList.ProtoReflect.Descriptor instead.
 func (*GroupList) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{16}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *GroupList) GetGroups() []*Group {
@@ -1555,7 +1923,7 @@ type ListProfilesRequest struct {
 
 func (x *ListProfilesRequest) Reset() {
 	*x = ListProfilesRequest{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[17]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1567,7 +1935,7 @@ func (x *ListProfilesRequest) String() string {
 func (*ListProfilesRequest) ProtoMessage() {}
 
 func (x *ListProfilesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[17]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1580,7 +1948,7 @@ func (x *ListProfilesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListProfilesRequest.ProtoReflect.Descriptor instead.
 func (*ListProfilesRequest) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{17}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ListProfilesRequest) GetGroupId() int64 {
@@ -1610,7 +1978,7 @@ type Profile struct {
 
 func (x *Profile) Reset() {
 	*x = Profile{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[18]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1622,7 +1990,7 @@ func (x *Profile) String() string {
 func (*Profile) ProtoMessage() {}
 
 func (x *Profile) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[18]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1635,7 +2003,7 @@ func (x *Profile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Profile.ProtoReflect.Descriptor instead.
 func (*Profile) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{18}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *Profile) GetId() int64 {
@@ -1703,7 +2071,7 @@ type ProfileList struct {
 
 func (x *ProfileList) Reset() {
 	*x = ProfileList{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[19]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1715,7 +2083,7 @@ func (x *ProfileList) String() string {
 func (*ProfileList) ProtoMessage() {}
 
 func (x *ProfileList) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[19]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1728,7 +2096,7 @@ func (x *ProfileList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileList.ProtoReflect.Descriptor instead.
 func (*ProfileList) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{19}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ProfileList) GetProfiles() []*Profile {
@@ -1747,7 +2115,7 @@ type ProfileId struct {
 
 func (x *ProfileId) Reset() {
 	*x = ProfileId{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[20]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1759,7 +2127,7 @@ func (x *ProfileId) String() string {
 func (*ProfileId) ProtoMessage() {}
 
 func (x *ProfileId) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[20]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1772,7 +2140,7 @@ func (x *ProfileId) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileId.ProtoReflect.Descriptor instead.
 func (*ProfileId) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{20}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ProfileId) GetId() int64 {
@@ -1791,7 +2159,7 @@ type ShareLink struct {
 
 func (x *ShareLink) Reset() {
 	*x = ShareLink{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[21]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1803,7 +2171,7 @@ func (x *ShareLink) String() string {
 func (*ShareLink) ProtoMessage() {}
 
 func (x *ShareLink) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[21]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1816,7 +2184,7 @@ func (x *ShareLink) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShareLink.ProtoReflect.Descriptor instead.
 func (*ShareLink) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{21}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ShareLink) GetLink() string {
@@ -1838,7 +2206,7 @@ type ConnectRequest struct {
 
 func (x *ConnectRequest) Reset() {
 	*x = ConnectRequest{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[22]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1850,7 +2218,7 @@ func (x *ConnectRequest) String() string {
 func (*ConnectRequest) ProtoMessage() {}
 
 func (x *ConnectRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[22]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1863,7 +2231,7 @@ func (x *ConnectRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConnectRequest.ProtoReflect.Descriptor instead.
 func (*ConnectRequest) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{22}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ConnectRequest) GetProfileId() int64 {
@@ -1950,7 +2318,7 @@ type Settings struct {
 
 func (x *Settings) Reset() {
 	*x = Settings{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[23]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1962,7 +2330,7 @@ func (x *Settings) String() string {
 func (*Settings) ProtoMessage() {}
 
 func (x *Settings) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[23]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1975,7 +2343,7 @@ func (x *Settings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Settings.ProtoReflect.Descriptor instead.
 func (*Settings) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{23}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *Settings) GetServiceMode() string {
@@ -2199,7 +2567,7 @@ type SettingsUpdate struct {
 
 func (x *SettingsUpdate) Reset() {
 	*x = SettingsUpdate{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[24]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2211,7 +2579,7 @@ func (x *SettingsUpdate) String() string {
 func (*SettingsUpdate) ProtoMessage() {}
 
 func (x *SettingsUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[24]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2224,7 +2592,7 @@ func (x *SettingsUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SettingsUpdate.ProtoReflect.Descriptor instead.
 func (*SettingsUpdate) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{24}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *SettingsUpdate) GetSettings() *Settings {
@@ -2250,7 +2618,7 @@ type ProfileIds struct {
 
 func (x *ProfileIds) Reset() {
 	*x = ProfileIds{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[25]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2262,7 +2630,7 @@ func (x *ProfileIds) String() string {
 func (*ProfileIds) ProtoMessage() {}
 
 func (x *ProfileIds) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[25]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2275,7 +2643,7 @@ func (x *ProfileIds) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileIds.ProtoReflect.Descriptor instead.
 func (*ProfileIds) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{25}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *ProfileIds) GetIds() []int64 {
@@ -2298,7 +2666,7 @@ type MoveRequest struct {
 
 func (x *MoveRequest) Reset() {
 	*x = MoveRequest{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[26]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2310,7 +2678,7 @@ func (x *MoveRequest) String() string {
 func (*MoveRequest) ProtoMessage() {}
 
 func (x *MoveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[26]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2323,7 +2691,7 @@ func (x *MoveRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MoveRequest.ProtoReflect.Descriptor instead.
 func (*MoveRequest) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{26}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *MoveRequest) GetIds() []int64 {
@@ -2360,7 +2728,7 @@ type ImportInput struct {
 
 func (x *ImportInput) Reset() {
 	*x = ImportInput{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[27]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2372,7 +2740,7 @@ func (x *ImportInput) String() string {
 func (*ImportInput) ProtoMessage() {}
 
 func (x *ImportInput) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[27]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2385,7 +2753,7 @@ func (x *ImportInput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportInput.ProtoReflect.Descriptor instead.
 func (*ImportInput) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{27}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *ImportInput) GetText() string {
@@ -2425,7 +2793,7 @@ type ImportPreview struct {
 
 func (x *ImportPreview) Reset() {
 	*x = ImportPreview{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[28]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2437,7 +2805,7 @@ func (x *ImportPreview) String() string {
 func (*ImportPreview) ProtoMessage() {}
 
 func (x *ImportPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[28]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2450,7 +2818,7 @@ func (x *ImportPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportPreview.ProtoReflect.Descriptor instead.
 func (*ImportPreview) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{28}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *ImportPreview) GetKind() ImportPreview_Kind {
@@ -2503,7 +2871,7 @@ type NodePreview struct {
 
 func (x *NodePreview) Reset() {
 	*x = NodePreview{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[29]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2515,7 +2883,7 @@ func (x *NodePreview) String() string {
 func (*NodePreview) ProtoMessage() {}
 
 func (x *NodePreview) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[29]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2528,7 +2896,7 @@ func (x *NodePreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NodePreview.ProtoReflect.Descriptor instead.
 func (*NodePreview) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{29}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *NodePreview) GetInvite() bool {
@@ -2589,7 +2957,7 @@ type NodeId struct {
 
 func (x *NodeId) Reset() {
 	*x = NodeId{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[30]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2601,7 +2969,7 @@ func (x *NodeId) String() string {
 func (*NodeId) ProtoMessage() {}
 
 func (x *NodeId) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[30]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2614,7 +2982,7 @@ func (x *NodeId) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NodeId.ProtoReflect.Descriptor instead.
 func (*NodeId) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{30}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *NodeId) GetId() string {
@@ -2633,7 +3001,7 @@ type NodeList struct {
 
 func (x *NodeList) Reset() {
 	*x = NodeList{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[31]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2645,7 +3013,7 @@ func (x *NodeList) String() string {
 func (*NodeList) ProtoMessage() {}
 
 func (x *NodeList) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[31]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2658,7 +3026,7 @@ func (x *NodeList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NodeList.ProtoReflect.Descriptor instead.
 func (*NodeList) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{31}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *NodeList) GetNodes() []*Node {
@@ -2714,7 +3082,7 @@ type Node struct {
 
 func (x *Node) Reset() {
 	*x = Node{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[32]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2726,7 +3094,7 @@ func (x *Node) String() string {
 func (*Node) ProtoMessage() {}
 
 func (x *Node) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[32]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2739,7 +3107,7 @@ func (x *Node) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Node.ProtoReflect.Descriptor instead.
 func (*Node) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{32}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *Node) GetId() string {
@@ -2905,7 +3273,7 @@ type NodeTraffic struct {
 
 func (x *NodeTraffic) Reset() {
 	*x = NodeTraffic{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[33]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2917,7 +3285,7 @@ func (x *NodeTraffic) String() string {
 func (*NodeTraffic) ProtoMessage() {}
 
 func (x *NodeTraffic) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[33]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2930,7 +3298,7 @@ func (x *NodeTraffic) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NodeTraffic.ProtoReflect.Descriptor instead.
 func (*NodeTraffic) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{33}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *NodeTraffic) GetUsed() int64 {
@@ -2988,7 +3356,7 @@ type ImportRequest struct {
 
 func (x *ImportRequest) Reset() {
 	*x = ImportRequest{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[34]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3000,7 +3368,7 @@ func (x *ImportRequest) String() string {
 func (*ImportRequest) ProtoMessage() {}
 
 func (x *ImportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[34]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3013,7 +3381,7 @@ func (x *ImportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportRequest.ProtoReflect.Descriptor instead.
 func (*ImportRequest) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{34}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *ImportRequest) GetInput() *ImportInput {
@@ -3075,7 +3443,7 @@ type Rule struct {
 
 func (x *Rule) Reset() {
 	*x = Rule{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[35]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3087,7 +3455,7 @@ func (x *Rule) String() string {
 func (*Rule) ProtoMessage() {}
 
 func (x *Rule) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[35]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3100,7 +3468,7 @@ func (x *Rule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Rule.ProtoReflect.Descriptor instead.
 func (*Rule) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{35}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *Rule) GetId() int64 {
@@ -3224,7 +3592,7 @@ type RuleList struct {
 
 func (x *RuleList) Reset() {
 	*x = RuleList{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[36]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3236,7 +3604,7 @@ func (x *RuleList) String() string {
 func (*RuleList) ProtoMessage() {}
 
 func (x *RuleList) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[36]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3249,7 +3617,7 @@ func (x *RuleList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuleList.ProtoReflect.Descriptor instead.
 func (*RuleList) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{36}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *RuleList) GetRules() []*Rule {
@@ -3268,7 +3636,7 @@ type RuleIds struct {
 
 func (x *RuleIds) Reset() {
 	*x = RuleIds{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[37]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3280,7 +3648,7 @@ func (x *RuleIds) String() string {
 func (*RuleIds) ProtoMessage() {}
 
 func (x *RuleIds) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[37]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3293,7 +3661,7 @@ func (x *RuleIds) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuleIds.ProtoReflect.Descriptor instead.
 func (*RuleIds) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{37}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *RuleIds) GetIds() []int64 {
@@ -3314,7 +3682,7 @@ type MoveRulesRequest struct {
 
 func (x *MoveRulesRequest) Reset() {
 	*x = MoveRulesRequest{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[38]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3326,7 +3694,7 @@ func (x *MoveRulesRequest) String() string {
 func (*MoveRulesRequest) ProtoMessage() {}
 
 func (x *MoveRulesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[38]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3339,7 +3707,7 @@ func (x *MoveRulesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MoveRulesRequest.ProtoReflect.Descriptor instead.
 func (*MoveRulesRequest) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{38}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *MoveRulesRequest) GetIds() []int64 {
@@ -3368,7 +3736,7 @@ type PresetRequest struct {
 
 func (x *PresetRequest) Reset() {
 	*x = PresetRequest{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[39]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3380,7 +3748,7 @@ func (x *PresetRequest) String() string {
 func (*PresetRequest) ProtoMessage() {}
 
 func (x *PresetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[39]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3393,7 +3761,7 @@ func (x *PresetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresetRequest.ProtoReflect.Descriptor instead.
 func (*PresetRequest) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{39}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *PresetRequest) GetPreset() PresetRequest_Preset {
@@ -3429,7 +3797,7 @@ type PresetResult struct {
 
 func (x *PresetResult) Reset() {
 	*x = PresetResult{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[40]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3441,7 +3809,7 @@ func (x *PresetResult) String() string {
 func (*PresetResult) ProtoMessage() {}
 
 func (x *PresetResult) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[40]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3454,7 +3822,7 @@ func (x *PresetResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresetResult.ProtoReflect.Descriptor instead.
 func (*PresetResult) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{40}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *PresetResult) GetRules() []*Rule {
@@ -3499,7 +3867,7 @@ type RuleSet struct {
 
 func (x *RuleSet) Reset() {
 	*x = RuleSet{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[41]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3511,7 +3879,7 @@ func (x *RuleSet) String() string {
 func (*RuleSet) ProtoMessage() {}
 
 func (x *RuleSet) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[41]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3524,7 +3892,7 @@ func (x *RuleSet) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuleSet.ProtoReflect.Descriptor instead.
 func (*RuleSet) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{41}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *RuleSet) GetItem() string {
@@ -3608,7 +3976,7 @@ type RuleSetList struct {
 
 func (x *RuleSetList) Reset() {
 	*x = RuleSetList{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[42]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3620,7 +3988,7 @@ func (x *RuleSetList) String() string {
 func (*RuleSetList) ProtoMessage() {}
 
 func (x *RuleSetList) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[42]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3633,7 +4001,7 @@ func (x *RuleSetList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuleSetList.ProtoReflect.Descriptor instead.
 func (*RuleSetList) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{42}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *RuleSetList) GetRuleSets() []*RuleSet {
@@ -3662,7 +4030,7 @@ type RuleSetRequest struct {
 
 func (x *RuleSetRequest) Reset() {
 	*x = RuleSetRequest{}
-	mi := &file_niko_v1_niko_service_proto_msgTypes[43]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3674,7 +4042,7 @@ func (x *RuleSetRequest) String() string {
 func (*RuleSetRequest) ProtoMessage() {}
 
 func (x *RuleSetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_niko_v1_niko_service_proto_msgTypes[43]
+	mi := &file_niko_v1_niko_service_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3687,7 +4055,7 @@ func (x *RuleSetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuleSetRequest.ProtoReflect.Descriptor instead.
 func (*RuleSetRequest) Descriptor() ([]byte, []int) {
-	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{43}
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *RuleSetRequest) GetItems() []string {
@@ -3726,7 +4094,38 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\x06groups\x18\x01 \x01(\x05R\x06groups\x12\x1a\n" +
 	"\bprofiles\x18\x02 \x01(\x05R\bprofiles\x12\x14\n" +
 	"\x05rules\x18\x03 \x01(\x05R\x05rules\x12\x14\n" +
-	"\x05nodes\x18\x04 \x01(\x05R\x05nodes\"\x88\x01\n" +
+	"\x05nodes\x18\x04 \x01(\x05R\x05nodes\"H\n" +
+	"\x15TestConnectionRequest\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12\x1d\n" +
+	"\n" +
+	"timeout_ms\x18\x02 \x01(\x05R\ttimeoutMs\"K\n" +
+	"\x14TestConnectionResult\x12\x1d\n" +
+	"\n" +
+	"latency_ms\x18\x01 \x01(\x05R\tlatencyMs\x12\x14\n" +
+	"\x05error\x18\x02 \x01(\tR\x05error\"O\n" +
+	"\x12ExitAddressRequest\x12\x1a\n" +
+	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x1d\n" +
+	"\n" +
+	"timeout_ms\x18\x02 \x01(\x05R\ttimeoutMs\"\x90\x01\n" +
+	"\x11ExitAddressResult\x12\x1a\n" +
+	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x0e\n" +
+	"\x02ip\x18\x02 \x01(\tR\x02ip\x12!\n" +
+	"\fcountry_code\x18\x03 \x01(\tR\vcountryCode\x12\x18\n" +
+	"\acountry\x18\x04 \x01(\tR\acountry\x12\x12\n" +
+	"\x04city\x18\x05 \x01(\tR\x04city\"\x82\x01\n" +
+	"\x13TestProfilesRequest\x12\x1f\n" +
+	"\vprofile_ids\x18\x01 \x03(\x03R\n" +
+	"profileIds\x12\x19\n" +
+	"\bgroup_id\x18\x02 \x01(\x03R\agroupId\x12\x10\n" +
+	"\x03url\x18\x03 \x01(\tR\x03url\x12\x1d\n" +
+	"\n" +
+	"timeout_ms\x18\x04 \x01(\x05R\ttimeoutMs\"g\n" +
+	"\x11ProfileTestResult\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x01 \x01(\x03R\tprofileId\x12\x1d\n" +
+	"\n" +
+	"latency_ms\x18\x02 \x01(\x05R\tlatencyMs\x12\x14\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\"\x88\x01\n" +
 	"\x10RouteTestRequest\x12\x18\n" +
 	"\anetwork\x18\x01 \x01(\tR\anetwork\x12\x12\n" +
 	"\x04host\x18\x02 \x01(\tR\x04host\x12\x12\n" +
@@ -4015,7 +4414,7 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\fupdate_hours\x18\x02 \x01(\x05R\vupdateHours\"<\n" +
 	"\x0eRuleSetRequest\x12\x14\n" +
 	"\x05items\x18\x01 \x03(\tR\x05items\x12\x14\n" +
-	"\x05force\x18\x02 \x01(\bR\x05force2\xb5\r\n" +
+	"\x05force\x18\x02 \x01(\bR\x05force2\x9a\x0f\n" +
 	"\vNikoService\x121\n" +
 	"\aGetInfo\x12\x17.niko.v1.GetInfoRequest\x1a\r.niko.v1.Info\x12@\n" +
 	"\tRouteTest\x12\x19.niko.v1.RouteTestRequest\x1a\x18.niko.v1.RouteTestResult\x121\n" +
@@ -4050,7 +4449,10 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\fListRuleSets\x12\x0e.niko.v1.Empty\x1a\x14.niko.v1.RuleSetList\x12B\n" +
 	"\x0eUpdateRuleSets\x12\x17.niko.v1.RuleSetRequest\x1a\x15.niko.v1.TaskProgress0\x01\x12=\n" +
 	"\x0fExportUserStore\x12\x0e.niko.v1.Empty\x1a\x1a.niko.v1.UserStoreSnapshot\x12M\n" +
-	"\x0fImportUserStore\x12\x1a.niko.v1.UserStoreSnapshot\x1a\x1e.niko.v1.ImportUserStoreResultB\x17Z\x15libcore/nikopb;nikopbb\x06proto3"
+	"\x0fImportUserStore\x12\x1a.niko.v1.UserStoreSnapshot\x1a\x1e.niko.v1.ImportUserStoreResult\x12O\n" +
+	"\x0eTestConnection\x12\x1e.niko.v1.TestConnectionRequest\x1a\x1d.niko.v1.TestConnectionResult\x12F\n" +
+	"\vExitAddress\x12\x1b.niko.v1.ExitAddressRequest\x1a\x1a.niko.v1.ExitAddressResult\x12J\n" +
+	"\fTestProfiles\x12\x1c.niko.v1.TestProfilesRequest\x1a\x1a.niko.v1.ProfileTestResult0\x01B\x17Z\x15libcore/nikopb;nikopbb\x06proto3"
 
 var (
 	file_niko_v1_niko_service_proto_rawDescOnce sync.Once
@@ -4065,7 +4467,7 @@ func file_niko_v1_niko_service_proto_rawDescGZIP() []byte {
 }
 
 var file_niko_v1_niko_service_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_niko_v1_niko_service_proto_msgTypes = make([]protoimpl.MessageInfo, 44)
+var file_niko_v1_niko_service_proto_msgTypes = make([]protoimpl.MessageInfo, 50)
 var file_niko_v1_niko_service_proto_goTypes = []any{
 	(Change_Kind)(0),              // 0: niko.v1.Change.Kind
 	(Group_Type)(0),               // 1: niko.v1.Group.Type
@@ -4077,131 +4479,143 @@ var file_niko_v1_niko_service_proto_goTypes = []any{
 	(*Info)(nil),                  // 7: niko.v1.Info
 	(*UserStoreSnapshot)(nil),     // 8: niko.v1.UserStoreSnapshot
 	(*ImportUserStoreResult)(nil), // 9: niko.v1.ImportUserStoreResult
-	(*RouteTestRequest)(nil),      // 10: niko.v1.RouteTestRequest
-	(*RouteTestStep)(nil),         // 11: niko.v1.RouteTestStep
-	(*RouteTestResult)(nil),       // 12: niko.v1.RouteTestResult
-	(*WatchRequest)(nil),          // 13: niko.v1.WatchRequest
-	(*Change)(nil),                // 14: niko.v1.Change
-	(*TaskProgress)(nil),          // 15: niko.v1.TaskProgress
-	(*PinNeeded)(nil),             // 16: niko.v1.PinNeeded
-	(*Group)(nil),                 // 17: niko.v1.Group
-	(*Subscription)(nil),          // 18: niko.v1.Subscription
-	(*RefreshRequest)(nil),        // 19: niko.v1.RefreshRequest
-	(*GroupId)(nil),               // 20: niko.v1.GroupId
-	(*GroupList)(nil),             // 21: niko.v1.GroupList
-	(*ListProfilesRequest)(nil),   // 22: niko.v1.ListProfilesRequest
-	(*Profile)(nil),               // 23: niko.v1.Profile
-	(*ProfileList)(nil),           // 24: niko.v1.ProfileList
-	(*ProfileId)(nil),             // 25: niko.v1.ProfileId
-	(*ShareLink)(nil),             // 26: niko.v1.ShareLink
-	(*ConnectRequest)(nil),        // 27: niko.v1.ConnectRequest
-	(*Settings)(nil),              // 28: niko.v1.Settings
-	(*SettingsUpdate)(nil),        // 29: niko.v1.SettingsUpdate
-	(*ProfileIds)(nil),            // 30: niko.v1.ProfileIds
-	(*MoveRequest)(nil),           // 31: niko.v1.MoveRequest
-	(*ImportInput)(nil),           // 32: niko.v1.ImportInput
-	(*ImportPreview)(nil),         // 33: niko.v1.ImportPreview
-	(*NodePreview)(nil),           // 34: niko.v1.NodePreview
-	(*NodeId)(nil),                // 35: niko.v1.NodeId
-	(*NodeList)(nil),              // 36: niko.v1.NodeList
-	(*Node)(nil),                  // 37: niko.v1.Node
-	(*NodeTraffic)(nil),           // 38: niko.v1.NodeTraffic
-	(*ImportRequest)(nil),         // 39: niko.v1.ImportRequest
-	(*Rule)(nil),                  // 40: niko.v1.Rule
-	(*RuleList)(nil),              // 41: niko.v1.RuleList
-	(*RuleIds)(nil),               // 42: niko.v1.RuleIds
-	(*MoveRulesRequest)(nil),      // 43: niko.v1.MoveRulesRequest
-	(*PresetRequest)(nil),         // 44: niko.v1.PresetRequest
-	(*PresetResult)(nil),          // 45: niko.v1.PresetResult
-	(*RuleSet)(nil),               // 46: niko.v1.RuleSet
-	(*RuleSetList)(nil),           // 47: niko.v1.RuleSetList
-	(*RuleSetRequest)(nil),        // 48: niko.v1.RuleSetRequest
+	(*TestConnectionRequest)(nil), // 10: niko.v1.TestConnectionRequest
+	(*TestConnectionResult)(nil),  // 11: niko.v1.TestConnectionResult
+	(*ExitAddressRequest)(nil),    // 12: niko.v1.ExitAddressRequest
+	(*ExitAddressResult)(nil),     // 13: niko.v1.ExitAddressResult
+	(*TestProfilesRequest)(nil),   // 14: niko.v1.TestProfilesRequest
+	(*ProfileTestResult)(nil),     // 15: niko.v1.ProfileTestResult
+	(*RouteTestRequest)(nil),      // 16: niko.v1.RouteTestRequest
+	(*RouteTestStep)(nil),         // 17: niko.v1.RouteTestStep
+	(*RouteTestResult)(nil),       // 18: niko.v1.RouteTestResult
+	(*WatchRequest)(nil),          // 19: niko.v1.WatchRequest
+	(*Change)(nil),                // 20: niko.v1.Change
+	(*TaskProgress)(nil),          // 21: niko.v1.TaskProgress
+	(*PinNeeded)(nil),             // 22: niko.v1.PinNeeded
+	(*Group)(nil),                 // 23: niko.v1.Group
+	(*Subscription)(nil),          // 24: niko.v1.Subscription
+	(*RefreshRequest)(nil),        // 25: niko.v1.RefreshRequest
+	(*GroupId)(nil),               // 26: niko.v1.GroupId
+	(*GroupList)(nil),             // 27: niko.v1.GroupList
+	(*ListProfilesRequest)(nil),   // 28: niko.v1.ListProfilesRequest
+	(*Profile)(nil),               // 29: niko.v1.Profile
+	(*ProfileList)(nil),           // 30: niko.v1.ProfileList
+	(*ProfileId)(nil),             // 31: niko.v1.ProfileId
+	(*ShareLink)(nil),             // 32: niko.v1.ShareLink
+	(*ConnectRequest)(nil),        // 33: niko.v1.ConnectRequest
+	(*Settings)(nil),              // 34: niko.v1.Settings
+	(*SettingsUpdate)(nil),        // 35: niko.v1.SettingsUpdate
+	(*ProfileIds)(nil),            // 36: niko.v1.ProfileIds
+	(*MoveRequest)(nil),           // 37: niko.v1.MoveRequest
+	(*ImportInput)(nil),           // 38: niko.v1.ImportInput
+	(*ImportPreview)(nil),         // 39: niko.v1.ImportPreview
+	(*NodePreview)(nil),           // 40: niko.v1.NodePreview
+	(*NodeId)(nil),                // 41: niko.v1.NodeId
+	(*NodeList)(nil),              // 42: niko.v1.NodeList
+	(*Node)(nil),                  // 43: niko.v1.Node
+	(*NodeTraffic)(nil),           // 44: niko.v1.NodeTraffic
+	(*ImportRequest)(nil),         // 45: niko.v1.ImportRequest
+	(*Rule)(nil),                  // 46: niko.v1.Rule
+	(*RuleList)(nil),              // 47: niko.v1.RuleList
+	(*RuleIds)(nil),               // 48: niko.v1.RuleIds
+	(*MoveRulesRequest)(nil),      // 49: niko.v1.MoveRulesRequest
+	(*PresetRequest)(nil),         // 50: niko.v1.PresetRequest
+	(*PresetResult)(nil),          // 51: niko.v1.PresetResult
+	(*RuleSet)(nil),               // 52: niko.v1.RuleSet
+	(*RuleSetList)(nil),           // 53: niko.v1.RuleSetList
+	(*RuleSetRequest)(nil),        // 54: niko.v1.RuleSetRequest
 }
 var file_niko_v1_niko_service_proto_depIdxs = []int32{
-	11, // 0: niko.v1.RouteTestResult.steps:type_name -> niko.v1.RouteTestStep
+	17, // 0: niko.v1.RouteTestResult.steps:type_name -> niko.v1.RouteTestStep
 	0,  // 1: niko.v1.Change.kind:type_name -> niko.v1.Change.Kind
-	15, // 2: niko.v1.Change.task:type_name -> niko.v1.TaskProgress
-	16, // 3: niko.v1.TaskProgress.pin:type_name -> niko.v1.PinNeeded
+	21, // 2: niko.v1.Change.task:type_name -> niko.v1.TaskProgress
+	22, // 3: niko.v1.TaskProgress.pin:type_name -> niko.v1.PinNeeded
 	1,  // 4: niko.v1.Group.type:type_name -> niko.v1.Group.Type
-	18, // 5: niko.v1.Group.subscription:type_name -> niko.v1.Subscription
-	17, // 6: niko.v1.GroupList.groups:type_name -> niko.v1.Group
-	23, // 7: niko.v1.ProfileList.profiles:type_name -> niko.v1.Profile
+	24, // 5: niko.v1.Group.subscription:type_name -> niko.v1.Subscription
+	23, // 6: niko.v1.GroupList.groups:type_name -> niko.v1.Group
+	29, // 7: niko.v1.ProfileList.profiles:type_name -> niko.v1.Profile
 	2,  // 8: niko.v1.ConnectRequest.mode:type_name -> niko.v1.ConnectRequest.Mode
-	28, // 9: niko.v1.SettingsUpdate.settings:type_name -> niko.v1.Settings
+	34, // 9: niko.v1.SettingsUpdate.settings:type_name -> niko.v1.Settings
 	3,  // 10: niko.v1.ImportPreview.kind:type_name -> niko.v1.ImportPreview.Kind
-	23, // 11: niko.v1.ImportPreview.profiles:type_name -> niko.v1.Profile
-	34, // 12: niko.v1.ImportPreview.node:type_name -> niko.v1.NodePreview
-	37, // 13: niko.v1.NodeList.nodes:type_name -> niko.v1.Node
-	38, // 14: niko.v1.Node.traffic:type_name -> niko.v1.NodeTraffic
-	32, // 15: niko.v1.ImportRequest.input:type_name -> niko.v1.ImportInput
-	40, // 16: niko.v1.RuleList.rules:type_name -> niko.v1.Rule
+	29, // 11: niko.v1.ImportPreview.profiles:type_name -> niko.v1.Profile
+	40, // 12: niko.v1.ImportPreview.node:type_name -> niko.v1.NodePreview
+	43, // 13: niko.v1.NodeList.nodes:type_name -> niko.v1.Node
+	44, // 14: niko.v1.Node.traffic:type_name -> niko.v1.NodeTraffic
+	38, // 15: niko.v1.ImportRequest.input:type_name -> niko.v1.ImportInput
+	46, // 16: niko.v1.RuleList.rules:type_name -> niko.v1.Rule
 	4,  // 17: niko.v1.PresetRequest.preset:type_name -> niko.v1.PresetRequest.Preset
-	40, // 18: niko.v1.PresetResult.rules:type_name -> niko.v1.Rule
-	46, // 19: niko.v1.RuleSetList.rule_sets:type_name -> niko.v1.RuleSet
+	46, // 18: niko.v1.PresetResult.rules:type_name -> niko.v1.Rule
+	52, // 19: niko.v1.RuleSetList.rule_sets:type_name -> niko.v1.RuleSet
 	6,  // 20: niko.v1.NikoService.GetInfo:input_type -> niko.v1.GetInfoRequest
-	10, // 21: niko.v1.NikoService.RouteTest:input_type -> niko.v1.RouteTestRequest
-	13, // 22: niko.v1.NikoService.Watch:input_type -> niko.v1.WatchRequest
+	16, // 21: niko.v1.NikoService.RouteTest:input_type -> niko.v1.RouteTestRequest
+	19, // 22: niko.v1.NikoService.Watch:input_type -> niko.v1.WatchRequest
 	5,  // 23: niko.v1.NikoService.ListGroups:input_type -> niko.v1.Empty
-	22, // 24: niko.v1.NikoService.ListProfiles:input_type -> niko.v1.ListProfilesRequest
-	25, // 25: niko.v1.NikoService.GetProfile:input_type -> niko.v1.ProfileId
-	23, // 26: niko.v1.NikoService.SaveProfile:input_type -> niko.v1.Profile
-	30, // 27: niko.v1.NikoService.DeleteProfiles:input_type -> niko.v1.ProfileIds
-	31, // 28: niko.v1.NikoService.MoveProfiles:input_type -> niko.v1.MoveRequest
-	17, // 29: niko.v1.NikoService.SaveGroup:input_type -> niko.v1.Group
-	20, // 30: niko.v1.NikoService.DeleteGroup:input_type -> niko.v1.GroupId
-	25, // 31: niko.v1.NikoService.Select:input_type -> niko.v1.ProfileId
+	28, // 24: niko.v1.NikoService.ListProfiles:input_type -> niko.v1.ListProfilesRequest
+	31, // 25: niko.v1.NikoService.GetProfile:input_type -> niko.v1.ProfileId
+	29, // 26: niko.v1.NikoService.SaveProfile:input_type -> niko.v1.Profile
+	36, // 27: niko.v1.NikoService.DeleteProfiles:input_type -> niko.v1.ProfileIds
+	37, // 28: niko.v1.NikoService.MoveProfiles:input_type -> niko.v1.MoveRequest
+	23, // 29: niko.v1.NikoService.SaveGroup:input_type -> niko.v1.Group
+	26, // 30: niko.v1.NikoService.DeleteGroup:input_type -> niko.v1.GroupId
+	31, // 31: niko.v1.NikoService.Select:input_type -> niko.v1.ProfileId
 	5,  // 32: niko.v1.NikoService.GetSelected:input_type -> niko.v1.Empty
-	25, // 33: niko.v1.NikoService.ShareProfile:input_type -> niko.v1.ProfileId
-	27, // 34: niko.v1.NikoService.Connect:input_type -> niko.v1.ConnectRequest
+	31, // 33: niko.v1.NikoService.ShareProfile:input_type -> niko.v1.ProfileId
+	33, // 34: niko.v1.NikoService.Connect:input_type -> niko.v1.ConnectRequest
 	5,  // 35: niko.v1.NikoService.GetSettings:input_type -> niko.v1.Empty
-	29, // 36: niko.v1.NikoService.UpdateSettings:input_type -> niko.v1.SettingsUpdate
-	32, // 37: niko.v1.NikoService.Recognize:input_type -> niko.v1.ImportInput
-	39, // 38: niko.v1.NikoService.Import:input_type -> niko.v1.ImportRequest
-	19, // 39: niko.v1.NikoService.Refresh:input_type -> niko.v1.RefreshRequest
+	35, // 36: niko.v1.NikoService.UpdateSettings:input_type -> niko.v1.SettingsUpdate
+	38, // 37: niko.v1.NikoService.Recognize:input_type -> niko.v1.ImportInput
+	45, // 38: niko.v1.NikoService.Import:input_type -> niko.v1.ImportRequest
+	25, // 39: niko.v1.NikoService.Refresh:input_type -> niko.v1.RefreshRequest
 	5,  // 40: niko.v1.NikoService.ListNodes:input_type -> niko.v1.Empty
-	35, // 41: niko.v1.NikoService.DeleteNode:input_type -> niko.v1.NodeId
+	41, // 41: niko.v1.NikoService.DeleteNode:input_type -> niko.v1.NodeId
 	5,  // 42: niko.v1.NikoService.ListRules:input_type -> niko.v1.Empty
-	40, // 43: niko.v1.NikoService.SaveRule:input_type -> niko.v1.Rule
-	42, // 44: niko.v1.NikoService.DeleteRules:input_type -> niko.v1.RuleIds
-	43, // 45: niko.v1.NikoService.MoveRules:input_type -> niko.v1.MoveRulesRequest
-	44, // 46: niko.v1.NikoService.ApplyPreset:input_type -> niko.v1.PresetRequest
+	46, // 43: niko.v1.NikoService.SaveRule:input_type -> niko.v1.Rule
+	48, // 44: niko.v1.NikoService.DeleteRules:input_type -> niko.v1.RuleIds
+	49, // 45: niko.v1.NikoService.MoveRules:input_type -> niko.v1.MoveRulesRequest
+	50, // 46: niko.v1.NikoService.ApplyPreset:input_type -> niko.v1.PresetRequest
 	5,  // 47: niko.v1.NikoService.ListRuleSets:input_type -> niko.v1.Empty
-	48, // 48: niko.v1.NikoService.UpdateRuleSets:input_type -> niko.v1.RuleSetRequest
+	54, // 48: niko.v1.NikoService.UpdateRuleSets:input_type -> niko.v1.RuleSetRequest
 	5,  // 49: niko.v1.NikoService.ExportUserStore:input_type -> niko.v1.Empty
 	8,  // 50: niko.v1.NikoService.ImportUserStore:input_type -> niko.v1.UserStoreSnapshot
-	7,  // 51: niko.v1.NikoService.GetInfo:output_type -> niko.v1.Info
-	12, // 52: niko.v1.NikoService.RouteTest:output_type -> niko.v1.RouteTestResult
-	14, // 53: niko.v1.NikoService.Watch:output_type -> niko.v1.Change
-	21, // 54: niko.v1.NikoService.ListGroups:output_type -> niko.v1.GroupList
-	24, // 55: niko.v1.NikoService.ListProfiles:output_type -> niko.v1.ProfileList
-	23, // 56: niko.v1.NikoService.GetProfile:output_type -> niko.v1.Profile
-	23, // 57: niko.v1.NikoService.SaveProfile:output_type -> niko.v1.Profile
-	5,  // 58: niko.v1.NikoService.DeleteProfiles:output_type -> niko.v1.Empty
-	5,  // 59: niko.v1.NikoService.MoveProfiles:output_type -> niko.v1.Empty
-	17, // 60: niko.v1.NikoService.SaveGroup:output_type -> niko.v1.Group
-	5,  // 61: niko.v1.NikoService.DeleteGroup:output_type -> niko.v1.Empty
-	5,  // 62: niko.v1.NikoService.Select:output_type -> niko.v1.Empty
-	25, // 63: niko.v1.NikoService.GetSelected:output_type -> niko.v1.ProfileId
-	26, // 64: niko.v1.NikoService.ShareProfile:output_type -> niko.v1.ShareLink
-	5,  // 65: niko.v1.NikoService.Connect:output_type -> niko.v1.Empty
-	28, // 66: niko.v1.NikoService.GetSettings:output_type -> niko.v1.Settings
-	28, // 67: niko.v1.NikoService.UpdateSettings:output_type -> niko.v1.Settings
-	33, // 68: niko.v1.NikoService.Recognize:output_type -> niko.v1.ImportPreview
-	15, // 69: niko.v1.NikoService.Import:output_type -> niko.v1.TaskProgress
-	15, // 70: niko.v1.NikoService.Refresh:output_type -> niko.v1.TaskProgress
-	36, // 71: niko.v1.NikoService.ListNodes:output_type -> niko.v1.NodeList
-	5,  // 72: niko.v1.NikoService.DeleteNode:output_type -> niko.v1.Empty
-	41, // 73: niko.v1.NikoService.ListRules:output_type -> niko.v1.RuleList
-	40, // 74: niko.v1.NikoService.SaveRule:output_type -> niko.v1.Rule
-	5,  // 75: niko.v1.NikoService.DeleteRules:output_type -> niko.v1.Empty
-	5,  // 76: niko.v1.NikoService.MoveRules:output_type -> niko.v1.Empty
-	45, // 77: niko.v1.NikoService.ApplyPreset:output_type -> niko.v1.PresetResult
-	47, // 78: niko.v1.NikoService.ListRuleSets:output_type -> niko.v1.RuleSetList
-	15, // 79: niko.v1.NikoService.UpdateRuleSets:output_type -> niko.v1.TaskProgress
-	8,  // 80: niko.v1.NikoService.ExportUserStore:output_type -> niko.v1.UserStoreSnapshot
-	9,  // 81: niko.v1.NikoService.ImportUserStore:output_type -> niko.v1.ImportUserStoreResult
-	51, // [51:82] is the sub-list for method output_type
-	20, // [20:51] is the sub-list for method input_type
+	10, // 51: niko.v1.NikoService.TestConnection:input_type -> niko.v1.TestConnectionRequest
+	12, // 52: niko.v1.NikoService.ExitAddress:input_type -> niko.v1.ExitAddressRequest
+	14, // 53: niko.v1.NikoService.TestProfiles:input_type -> niko.v1.TestProfilesRequest
+	7,  // 54: niko.v1.NikoService.GetInfo:output_type -> niko.v1.Info
+	18, // 55: niko.v1.NikoService.RouteTest:output_type -> niko.v1.RouteTestResult
+	20, // 56: niko.v1.NikoService.Watch:output_type -> niko.v1.Change
+	27, // 57: niko.v1.NikoService.ListGroups:output_type -> niko.v1.GroupList
+	30, // 58: niko.v1.NikoService.ListProfiles:output_type -> niko.v1.ProfileList
+	29, // 59: niko.v1.NikoService.GetProfile:output_type -> niko.v1.Profile
+	29, // 60: niko.v1.NikoService.SaveProfile:output_type -> niko.v1.Profile
+	5,  // 61: niko.v1.NikoService.DeleteProfiles:output_type -> niko.v1.Empty
+	5,  // 62: niko.v1.NikoService.MoveProfiles:output_type -> niko.v1.Empty
+	23, // 63: niko.v1.NikoService.SaveGroup:output_type -> niko.v1.Group
+	5,  // 64: niko.v1.NikoService.DeleteGroup:output_type -> niko.v1.Empty
+	5,  // 65: niko.v1.NikoService.Select:output_type -> niko.v1.Empty
+	31, // 66: niko.v1.NikoService.GetSelected:output_type -> niko.v1.ProfileId
+	32, // 67: niko.v1.NikoService.ShareProfile:output_type -> niko.v1.ShareLink
+	5,  // 68: niko.v1.NikoService.Connect:output_type -> niko.v1.Empty
+	34, // 69: niko.v1.NikoService.GetSettings:output_type -> niko.v1.Settings
+	34, // 70: niko.v1.NikoService.UpdateSettings:output_type -> niko.v1.Settings
+	39, // 71: niko.v1.NikoService.Recognize:output_type -> niko.v1.ImportPreview
+	21, // 72: niko.v1.NikoService.Import:output_type -> niko.v1.TaskProgress
+	21, // 73: niko.v1.NikoService.Refresh:output_type -> niko.v1.TaskProgress
+	42, // 74: niko.v1.NikoService.ListNodes:output_type -> niko.v1.NodeList
+	5,  // 75: niko.v1.NikoService.DeleteNode:output_type -> niko.v1.Empty
+	47, // 76: niko.v1.NikoService.ListRules:output_type -> niko.v1.RuleList
+	46, // 77: niko.v1.NikoService.SaveRule:output_type -> niko.v1.Rule
+	5,  // 78: niko.v1.NikoService.DeleteRules:output_type -> niko.v1.Empty
+	5,  // 79: niko.v1.NikoService.MoveRules:output_type -> niko.v1.Empty
+	51, // 80: niko.v1.NikoService.ApplyPreset:output_type -> niko.v1.PresetResult
+	53, // 81: niko.v1.NikoService.ListRuleSets:output_type -> niko.v1.RuleSetList
+	21, // 82: niko.v1.NikoService.UpdateRuleSets:output_type -> niko.v1.TaskProgress
+	8,  // 83: niko.v1.NikoService.ExportUserStore:output_type -> niko.v1.UserStoreSnapshot
+	9,  // 84: niko.v1.NikoService.ImportUserStore:output_type -> niko.v1.ImportUserStoreResult
+	11, // 85: niko.v1.NikoService.TestConnection:output_type -> niko.v1.TestConnectionResult
+	13, // 86: niko.v1.NikoService.ExitAddress:output_type -> niko.v1.ExitAddressResult
+	15, // 87: niko.v1.NikoService.TestProfiles:output_type -> niko.v1.ProfileTestResult
+	54, // [54:88] is the sub-list for method output_type
+	20, // [20:54] is the sub-list for method input_type
 	20, // [20:20] is the sub-list for extension type_name
 	20, // [20:20] is the sub-list for extension extendee
 	0,  // [0:20] is the sub-list for field type_name
@@ -4212,14 +4626,14 @@ func file_niko_v1_niko_service_proto_init() {
 	if File_niko_v1_niko_service_proto != nil {
 		return
 	}
-	file_niko_v1_niko_service_proto_msgTypes[22].OneofWrappers = []any{}
+	file_niko_v1_niko_service_proto_msgTypes[28].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_niko_v1_niko_service_proto_rawDesc), len(file_niko_v1_niko_service_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   44,
+			NumMessages:   50,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

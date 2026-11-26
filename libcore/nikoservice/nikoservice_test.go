@@ -256,7 +256,11 @@ func TestServiceHostHooks(t *testing.T) {
 func TestServicePolicy(t *testing.T) {
 	service := Service()
 	if service.Desc.ServiceName != "niko.v1.NikoService" || service.Policy != boxdd.PolicyCaller ||
-		service.Methods["RouteTest"] != boxdd.PolicyOwnerUnlocked || len(service.Methods) != 1 {
+		service.Methods["RouteTest"] != boxdd.PolicyOwnerUnlocked ||
+		service.Methods["TestConnection"] != boxdd.PolicyOwnerUnlocked ||
+		service.Methods["ExitAddress"] != boxdd.PolicyOwnerUnlocked ||
+		service.Methods["TestProfiles"] != boxdd.PolicyOwnerUnlocked ||
+		len(service.Methods) != 4 {
 		t.Fatalf("%+v", service)
 	}
 }

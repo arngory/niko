@@ -139,6 +139,16 @@ service NikoService {
   // Imports a decrypted user-mode store snapshot into the caller's service store, re-sealing all
   // secrets under the service's context. Available to any verified caller on its own store (PolicyCaller).
   rpc ImportUserStore(UserStoreSnapshot) returns (ImportUserStoreResult);
+
+  // Measures HTTP round-trip latency through the running core's default outbound (D-MAIN-18).
+  // Owner-only, outside the lifecycle lock. FAILED_PRECONDITION when no core runs.
+  rpc TestConnection(TestConnectionRequest) returns (TestConnectionResult);
+  // Queries an HTTPS lookup provider (cloudflare, ipinfo, ipwho, ipapi-co) through the running core's
+  // default outbound to discover exit IP and country (D-MAIN-03/14). Owner-only, outside the lifecycle lock.
+  rpc ExitAddress(ExitAddressRequest) returns (ExitAddressResult);
+  // Measures HTTP latency for a batch of stored profiles (or all profiles of a group) using isolated
+  // in-memory test cores, streaming each result as it finishes (D-MAIN-08/12).
+  rpc TestProfiles(TestProfilesRequest) returns (stream ProfileTestResult);
 }
 
 message Empty {}
@@ -157,7 +167,8 @@ message Info {
   // with them; 8: the programs through Niko; 9: subscriptions (Group.subscription, Refresh, their import); 10: the
   // route rules, the Russian preset and the rule-sets (ListRules…UpdateRuleSets), their settings; 11: raycontrol
   // nodes (their import by invite with its PIN, ListNodes, DeleteNode, Refresh of a node, their profiles in Connect);
-  // 13: user-mode capabilities (privileged, tun) and store migration (ExportUserStore, ImportUserStore)
+  // 13: user-mode capabilities (privileged, tun) and store migration (ExportUserStore, ImportUserStore);
+  // 14: TestConnection, ExitAddress, TestProfiles, and zip file import
   int32 api = 4;
   // True when running as the privileged system service; false in unprivileged --user-mode.
   bool privileged = 5;
@@ -174,6 +185,49 @@ message ImportUserStoreResult {
   int32 profiles = 2;
   int32 rules = 3;
   int32 nodes = 4;
+}
+
+message TestConnectionRequest {
+  // Optional HTTP(S) URL; empty uses the default connection test URL.
+  string url = 1;
+  // Timeout in milliseconds; 0 uses 5000 ms (capped at 30000 ms).
+  int32 timeout_ms = 2;
+}
+
+message TestConnectionResult {
+  int32 latency_ms = 1;
+  string error = 2;
+}
+
+message ExitAddressRequest {
+  // One of: cloudflare (default), ipinfo, ipwho, ipapi-co.
+  string provider = 1;
+  // Timeout in milliseconds; 0 uses 10000 ms (capped at 30000 ms).
+  int32 timeout_ms = 2;
+}
+
+message ExitAddressResult {
+  string provider = 1;
+  string ip = 2;
+  string country_code = 3;
+  string country = 4;
+  string city = 5;
+}
+
+message TestProfilesRequest {
+  // Specific profile IDs to test; if empty, all profiles in group_id are tested.
+  repeated int64 profile_ids = 1;
+  int64 group_id = 2;
+  // Optional HTTP(S) URL; empty uses the default connection test URL.
+  string url = 3;
+  // Per-profile timeout in milliseconds; 0 uses 5000 ms (capped at 30000 ms).
+  int32 timeout_ms = 4;
+}
+
+message ProfileTestResult {
+  int64 profile_id = 1;
+  int32 latency_ms = 2;
+  string error = 3;
 }
 
 message RouteTestRequest {
