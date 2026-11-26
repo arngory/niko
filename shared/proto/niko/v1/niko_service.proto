@@ -132,6 +132,13 @@ service NikoService {
   // already). The core takes a list it started without when it starts again. While the core runs, the daemon updates
   // the enabled rules' lists on its own, by the interval.
   rpc UpdateRuleSets(RuleSetRequest) returns (stream TaskProgress);
+
+  // Exports the caller's decrypted user-mode store for one-time migration to the system service.
+  // Available only when the daemon runs in --user-mode (FAILED_PRECONDITION on the system service).
+  rpc ExportUserStore(Empty) returns (UserStoreSnapshot);
+  // Imports a decrypted user-mode store snapshot into the caller's service store, re-sealing all
+  // secrets under the service's context. Available to any verified caller on its own store (PolicyCaller).
+  rpc ImportUserStore(UserStoreSnapshot) returns (ImportUserStoreResult);
 }
 
 message Empty {}
@@ -149,8 +156,24 @@ message Info {
   // 4: ShareProfile; 5: Connect; 6: Connect's mode, the config a computer's; 7: the computer's settings, Connect
   // with them; 8: the programs through Niko; 9: subscriptions (Group.subscription, Refresh, their import); 10: the
   // route rules, the Russian preset and the rule-sets (ListRules…UpdateRuleSets), their settings; 11: raycontrol
-  // nodes (their import by invite with its PIN, ListNodes, DeleteNode, Refresh of a node, their profiles in Connect)
+  // nodes (their import by invite with its PIN, ListNodes, DeleteNode, Refresh of a node, their profiles in Connect);
+  // 13: user-mode capabilities (privileged, tun) and store migration (ExportUserStore, ImportUserStore)
   int32 api = 4;
+  // True when running as the privileged system service; false in unprivileged --user-mode.
+  bool privileged = 5;
+  // True when VPN (TUN) mode is available; false in unprivileged --user-mode.
+  bool tun = 6;
+}
+
+message UserStoreSnapshot {
+  bytes json = 1;
+}
+
+message ImportUserStoreResult {
+  int32 groups = 1;
+  int32 profiles = 2;
+  int32 rules = 3;
+  int32 nodes = 4;
 }
 
 message RouteTestRequest {

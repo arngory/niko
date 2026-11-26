@@ -141,7 +141,7 @@ func (u *users) openDir(dir string) (*user, error) {
 			f.publish(&nikopb.Change{Kind: changeKind(c.Kind), Ids: c.IDs})
 		},
 	})
-	if errors.Is(err, nikostore.ErrNewerSchema) {
+	if errors.Is(err, nikostore.ErrNewerSchema) || errors.Is(err, nikostore.ErrSealerMismatch) {
 		u.mu.Unlock()
 		return nil, status.Error(codes.FailedPrecondition, err.Error())
 	}

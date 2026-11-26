@@ -17,8 +17,11 @@ type Sealer interface {
 	Open(sealed []byte) ([]byte, error)
 }
 
-// DefaultSealer is the platform's: DPAPI on Windows, none elsewhere.
+// DefaultSealer is the platform's privileged service sealer: DPAPI on Windows, none elsewhere.
 func DefaultSealer() Sealer { return platformSealer() }
+
+// UserModeSealer is the platform's unprivileged user-mode sealer: dpapi-user on Windows, none elsewhere.
+func UserModeSealer() Sealer { return platformUserModeSealer() }
 
 // NoSealer seals nothing.
 type NoSealer struct{}

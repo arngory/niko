@@ -46,11 +46,18 @@ func (s *server) Connect(ctx context.Context, request *nikopb.ConnectRequest) (*
 			return nil, status.Errorf(codes.InvalidArgument, "no mode %d", *request.Mode)
 		}
 	}
+	if s.userMode && settings.ServiceMode == nikoconf.ModeVPN {
+		return nil, status.Error(codes.FailedPrecondition, "SERVICE_REQUIRED: VPN mode requires the Niko system service")
+	}
 	in, err := connectInput(u.store, request.ProfileId, connectSettings(settings))
 	if err != nil {
 		return nil, err
 	}
+	in.UserMode = s.userMode
 	result, err := nikoconf.Build(in)
+	if errors.Is(err, nikoconf.ErrNeedsService) {
+		return nil, status.Error(codes.FailedPrecondition, "SERVICE_REQUIRED: "+err.Error())
+	}
 	if errors.Is(err, nikoconf.ErrNeedsPlugin) {
 		return nil, status.Error(codes.Unimplemented, err.Error())
 	}
@@ -59,6 +66,11 @@ func (s *server) Connect(ctx context.Context, request *nikopb.ConnectRequest) (*
 	}
 	if s.start == nil {
 		return nil, status.Error(codes.Unimplemented, "no daemon to start the core")
+	}
+	if s.canStart != nil {
+		if err = s.canStart(ctx); err != nil {
+			return nil, err
+		}
 	}
 	// the nodes' device keys into the core by their references, which the config names
 	s.deviceKeys(in.Nodes)

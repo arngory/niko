@@ -41,6 +41,9 @@ type Input struct {
 	// Nodes are the raycontrol nodes (RayNode's JSON), their rows by the profiles' ids; their device keys are not
 	// read (the knock takes them by reference)
 	Nodes []nikoray.Node `json:"nodes"`
+	// UserMode is true when building a config for an unprivileged user-mode daemon (strips privileged
+	// routing options like auto_detect_interface and forbids VPN/TUN mode).
+	UserMode bool `json:"user_mode,omitempty"`
 }
 
 // The platforms a config is built for.
@@ -367,3 +370,6 @@ type SystemProxy struct {
 }
 
 var errNoProfile = errors.New("no such profile")
+
+// ErrNeedsService is returned when VPN (TUN) mode is requested in unprivileged user-mode.
+var ErrNeedsService = errors.New("VPN (TUN) mode requires the Niko system service")

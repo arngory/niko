@@ -287,10 +287,16 @@ func (b *builder) build() ([]byte, error) {
 	}
 
 	if !b.forTest {
+		if in.UserMode && b.isVPN {
+			return nil, ErrNeedsService
+		}
 		b.addInbounds(bind)
 	}
 
-	route := object{"auto_detect_interface": true, "default_domain_resolver": "dns-direct"}
+	route := object{"default_domain_resolver": "dns-direct"}
+	if !in.UserMode {
+		route["auto_detect_interface"] = true
+	}
 
 	if !b.forTest {
 		// quirk kept: the local proxy's tag is there also where its inbound is not (VPN mode without it)

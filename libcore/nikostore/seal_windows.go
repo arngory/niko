@@ -13,11 +13,42 @@ import (
 // keeps these blobs from being taken for another program's of the same account.
 type dpapi struct{}
 
-var dpapiEntropy = []byte("niko store secrets v1")
+var (
+	dpapiEntropy     = []byte("niko store secrets v1")
+	dpapiUserEntropy = []byte("niko user store secrets v1")
+)
 
-func platformSealer() Sealer { return dpapi{} }
+func platformSealer() Sealer         { return dpapi{} }
+func platformUserModeSealer() Sealer { return dpapiUser{} }
 
 func (dpapi) Name() string { return "dpapi" }
+
+// dpapiUser seals with CryptProtectData in the unprivileged desktop user's context using a
+// distinct label ("dpapi-user") and distinct entropy so user-mode stores are never silently
+// confused with SYSTEM service stores ("dpapi").
+type dpapiUser struct{}
+
+func (dpapiUser) Name() string { return "dpapi-user" }
+
+func (dpapiUser) Seal(plain []byte) ([]byte, error) {
+	in, entropy := dataBlob(plain), dataBlob(dpapiUserEntropy)
+	var out windows.DataBlob
+	err := windows.CryptProtectData(&in, nil, &entropy, 0, nil, windows.CRYPTPROTECT_UI_FORBIDDEN, &out)
+	if err != nil {
+		return nil, err
+	}
+	return takeBlob(&out), nil
+}
+
+func (dpapiUser) Open(sealed []byte) ([]byte, error) {
+	in, entropy := dataBlob(sealed), dataBlob(dpapiUserEntropy)
+	var out windows.DataBlob
+	err := windows.CryptUnprotectData(&in, nil, &entropy, 0, nil, windows.CRYPTPROTECT_UI_FORBIDDEN, &out)
+	if err != nil {
+		return nil, err
+	}
+	return takeBlob(&out), nil
+}
 
 func (dpapi) Seal(plain []byte) ([]byte, error) {
 	in, entropy := dataBlob(plain), dataBlob(dpapiEntropy)

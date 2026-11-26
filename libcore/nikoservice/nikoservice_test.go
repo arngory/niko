@@ -172,6 +172,8 @@ func (h *fakeHost) StartService(context.Context, string, *boxdd.SystemProxy) err
 }
 func (h *fakeHost) Caller(ctx context.Context) (boxdd.Caller, error) { return h.caller(ctx) }
 func (h *fakeHost) WorkingDirectory() string                         { return h.root }
+func (h *fakeHost) UserMode() bool                                   { return false }
+func (h *fakeHost) CanStartService(context.Context) error            { return nil }
 func (h *fakeHost) UserDirectory(userID string) string {
 	if userID == "" {
 		return ""

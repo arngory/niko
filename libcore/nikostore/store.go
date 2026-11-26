@@ -60,6 +60,8 @@ var (
 	ErrRefused = errors.New("refused")
 	// ErrUnsupported: not done by this build
 	ErrUnsupported = errors.New("not supported yet")
+	// ErrSealerMismatch: store.json was written under an incompatible sealer context (e.g. user-mode vs service).
+	ErrSealerMismatch = errors.New("store sealer context mismatch")
 )
 
 // Group types, the app's GroupType.
@@ -181,6 +183,8 @@ type state struct {
 	// under way, by invite
 	nodes   []*nodeRecord
 	pending map[string]*pendingRecord
+	// importedSnapshots tracks snapshot IDs already merged via ImportSnapshot for idempotency.
+	importedSnapshots []string
 }
 
 type record struct {
@@ -198,17 +202,20 @@ type record struct {
 
 // document is store.json.
 type document struct {
-	Schema      int           `json:"schema"`
-	NextGroup   int64         `json:"next_group"`
-	NextProfile int64         `json:"next_profile"`
-	NextRule    int64         `json:"next_rule"`
-	Groups      []diskGroup   `json:"groups"`
-	Profiles    []diskProfile `json:"profiles"`
+	Schema        int           `json:"schema"`
+	SealerContext string        `json:"sealer_context,omitempty"`
+	NextGroup     int64         `json:"next_group"`
+	NextProfile   int64         `json:"next_profile"`
+	NextRule      int64         `json:"next_rule"`
+	Groups        []diskGroup   `json:"groups"`
+	Profiles      []diskProfile `json:"profiles"`
 	// Rules: schema 3
 	Rules []nikoconf.Rule `json:"rules"`
 	// Nodes and Pending: schema 4 (nodes.go)
 	Nodes   []json.RawMessage          `json:"nodes"`
 	Pending map[string]json.RawMessage `json:"pending_registrations"`
+	// ImportedSnapshots tracks snapshot IDs imported via ImportSnapshot for idempotent retries.
+	ImportedSnapshots []string `json:"imported_snapshots,omitempty"`
 }
 
 type diskProfile struct {
@@ -372,7 +379,15 @@ func (s *Store) decode(data []byte) (st *state, resealed bool, err error) {
 	if err = json.Unmarshal(data, &doc); err != nil {
 		return nil, false, err
 	}
-	st = &state{nextGroup: doc.NextGroup, nextProfile: doc.NextProfile, profiles: map[int64]*record{}}
+	if doc.SealerContext != "" && doc.SealerContext != s.sealer.Name() &&
+		(doc.SealerContext == "dpapi-user" || s.sealer.Name() == "dpapi-user") {
+		return nil, false, fmt.Errorf("%w: store is %q, daemon uses %q", ErrSealerMismatch, doc.SealerContext, s.sealer.Name())
+	}
+	if doc.SealerContext == "" && s.sealer.Name() == "dpapi-user" && hasLegacyDPAPISealed(&doc) {
+		return nil, false, fmt.Errorf("%w: store has legacy dpapi secrets, daemon uses %q", ErrSealerMismatch, s.sealer.Name())
+	}
+	st = &state{nextGroup: doc.NextGroup, nextProfile: doc.NextProfile, profiles: map[int64]*record{},
+		importedSnapshots: append([]string(nil), doc.ImportedSnapshots...)}
 	groups := map[int64]bool{}
 	ungrouped := false
 	for _, d := range doc.Groups {
@@ -456,9 +471,10 @@ func display(typ string, data json.RawMessage) (string, string, error) {
 
 // write writes st as store.json.
 func (s *Store) write(st *state) error {
-	doc := document{Schema: Schema(), NextGroup: st.nextGroup, NextProfile: st.nextProfile, NextRule: st.nextRule,
-		Groups: []diskGroup{}, Profiles: []diskProfile{}, Rules: append([]nikoconf.Rule{}, st.rules...),
-		Nodes: []json.RawMessage{}, Pending: map[string]json.RawMessage{}}
+	doc := document{Schema: Schema(), SealerContext: s.sealer.Name(), NextGroup: st.nextGroup,
+		NextProfile: st.nextProfile, NextRule: st.nextRule, Groups: []diskGroup{}, Profiles: []diskProfile{},
+		Rules: append([]nikoconf.Rule{}, st.rules...), Nodes: []json.RawMessage{}, Pending: map[string]json.RawMessage{},
+		ImportedSnapshots: append([]string(nil), st.importedSnapshots...)}
 	for _, g := range st.groups {
 		doc.Groups = append(doc.Groups, diskGroup{ID: g.ID, Order: g.Order, Name: g.Name, Ungrouped: g.Ungrouped,
 			Type: g.Type, Subscription: g.subscriptionDisk, Sealed: g.subscriptionSealed, Node: g.Node})
@@ -501,7 +517,8 @@ func (st *state) clone() *state {
 	next := &state{nextGroup: st.nextGroup, nextProfile: st.nextProfile, groups: append([]Group(nil), st.groups...),
 		profiles: make(map[int64]*record, len(st.profiles)), selected: st.selected, nextRule: st.nextRule,
 		rules: append([]nikoconf.Rule(nil), st.rules...), nodes: append([]*nodeRecord(nil), st.nodes...),
-		pending: make(map[string]*pendingRecord, len(st.pending))}
+		pending:           make(map[string]*pendingRecord, len(st.pending)),
+		importedSnapshots: append([]string(nil), st.importedSnapshots...)}
 	for id, p := range st.pending {
 		next.pending[id] = p
 	}

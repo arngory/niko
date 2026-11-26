@@ -38,8 +38,9 @@ var Version = "dev"
 // subscriptions (Group.subscription, Refresh, their import); 10: the route rules, the Russian preset and the
 // rule-sets (ListRules…UpdateRuleSets), their settings; 11: raycontrol nodes (their import by invite with its PIN,
 // ListNodes, DeleteNode, Refresh of a node, their profiles in Connect); 12: per-user store served to any verified
-// caller via Host.Caller and Host.UserDirectory (not development mode only).
-const API = 12
+// caller via Host.Caller and Host.UserDirectory (not development mode only); 13: user-mode capabilities (Info.privileged,
+// Info.tun) and store migration (ExportUserStore, ImportUserStore).
+const API = 13
 
 // Service is NikoService as the daemon serves it: GetInfo for any caller the daemon verified, RouteTest for its
 // owner only (it reads the owner's core, as the daemon's own calls on the running core do). RouteTest is checked as
@@ -62,8 +63,13 @@ func Service() boxdd.Service {
 				return c.UserID, nil
 			}
 			users := newUsers(root, caller, host.UserDirectory, host.Context().Done())
+			userMode := host.UserMode()
+			if userMode {
+				users.sealer = nikostore.UserModeSealer()
+			}
 			setRaycontrolClient()
-			s := &server{users: users, start: host.StartService, registerAt: rayapi.Register, fetch: raysub.Fetch,
+			s := &server{users: users, userMode: userMode, start: host.StartService, canStart: host.CanStartService,
+				registerAt: rayapi.Register, fetch: raysub.Fetch,
 				newIdentity: rayapi.NewIdentity, core: func() (context.Context, func()) {
 					instance := host.StartedService().RunningInstance()
 					if instance == nil {
@@ -80,13 +86,17 @@ func Service() boxdd.Service {
 			go s.scheduleUpdates()
 			return s, nil
 		},
-		Policy:  boxdd.PolicyCaller,
-		Methods: map[string]boxdd.MethodPolicy{"RouteTest": boxdd.PolicyOwnerUnlocked},
+		Policy: boxdd.PolicyCaller,
+		Methods: map[string]boxdd.MethodPolicy{
+			"RouteTest": boxdd.PolicyOwnerUnlocked,
+		},
 	}
 }
 
 type server struct {
 	nikopb.UnimplementedNikoServiceServer
+	// userMode is true when running unprivileged (--user-mode): proxy-only, no TUN.
+	userMode bool
 	// core holds the running core: its context and the release of the hold; nil when none runs
 	core func() (context.Context, func())
 	// users are the users' stores
@@ -94,6 +104,8 @@ type server struct {
 	// start starts the core with a config for the caller, as DesktopService.StartService, and the system proxy the
 	// daemon sets for its owner while the core runs (nil: none); nil: no daemon
 	start func(ctx context.Context, config string, systemProxy *boxdd.SystemProxy) error
+	// canStart verifies that the caller is permitted to start the core before touching global device keys.
+	canStart func(ctx context.Context) error
 	// transport carries the subscriptions' and rule-sets' requests in tests; nil uses s.bypassTransport().
 	transport           http.RoundTripper
 	bypassTransportOnce sync.Once
@@ -110,7 +122,13 @@ type server struct {
 // GetInfo: the store's schema to a caller the store serves; to one it refuses (store.go's caller), 0, as from a daemon
 // without one, so the window does not offer what each call of the store would refuse.
 func (s *server) GetInfo(ctx context.Context, _ *nikopb.GetInfoRequest) (*nikopb.Info, error) {
-	info := &nikopb.Info{NikoVersion: Version, CoreVersion: C.Version, Api: API}
+	info := &nikopb.Info{
+		NikoVersion: Version,
+		CoreVersion: C.Version,
+		Api:         API,
+		Privileged:  !s.userMode,
+		Tun:         !s.userMode,
+	}
 	if s.users.serves(ctx) {
 		info.StoreSchema = int32(nikostore.Schema())
 	}
