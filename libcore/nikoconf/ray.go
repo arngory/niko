@@ -59,6 +59,11 @@ func (b *builder) nodeNames(node *nikoray.Node) map[string]bool {
 	if node.DNSName != "" {
 		names[node.DNSName] = true
 	}
+	for _, past := range node.PastNames {
+		if past != "" {
+			names[nikofmt.KtLowercase(past)] = true
+		}
+	}
 	if node.DoH != "" {
 		if u, err := nikofmt.ParseJavaURI(node.DoH); err == nil && u.Host != "" {
 			names[nikofmt.KtLowercase(u.Host)] = true
@@ -220,7 +225,7 @@ func (b *builder) rotatingUDPPorts(node *nikoray.Node, p *Profile) []any {
 		return nil
 	}
 	owner, key := b.ownerOf(p.ID)
-	if owner == nil || owner.ID() != node.ID() {
+	if owner == nil || owner.ID() != node.ID() || nikoray.RelayOfKey(key) != "" {
 		return nil
 	}
 	svc, ok := nikofmt.KtToIntOrNull(substringBefore(key, "#"))

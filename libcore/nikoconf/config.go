@@ -506,10 +506,30 @@ func (b *builder) build() ([]byte, error) {
 		}
 	}
 
-	// nothing under niko.internal ever goes out (no LAN without a node)
+	// nothing under niko.internal ever goes out; active lan-v1 peer names resolve locally ahead of NXDOMAIN
 	if !b.forTest {
 		dnsRules = append([]object{{"domain_suffix": []any{lanZone}, "action": "predefined",
 			"rcode": "NXDOMAIN"}}, dnsRules...)
+		if lanNames := nikoray.LanNames(b.in.Nodes, b.dev.Now()); len(lanNames) > 0 {
+			predefined := object{}
+			keys := make([]string, 0, len(lanNames))
+			for name := range lanNames {
+				keys = append(keys, name)
+			}
+			sort.Strings(keys)
+			domains := make([]any, 0, len(keys))
+			for _, name := range keys {
+				predefined[name] = []any{lanNames[name]}
+				domains = append(domains, name)
+			}
+			dnsServers = append(dnsServers, object{
+				"type":       "hosts",
+				"tag":        "dns-lan",
+				"path":       []any{},
+				"predefined": predefined,
+			})
+			dnsRules = append([]object{{"domain": domains, "server": "dns-lan"}}, dnsRules...)
+		}
 	}
 
 	if b.forTest {

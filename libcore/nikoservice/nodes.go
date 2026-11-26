@@ -551,12 +551,23 @@ func (s *server) updateNodeLocked(ctx context.Context, u *user, id string) (stri
 		return "", node.GroupID, nil, status.Error(codes.Internal, "the node's SPA: "+err.Error())
 	}
 	control, lookup := s.bypass()
+	lanHeader := ""
+	if node.Lan != nil || node.LanShow {
+		if node.LanShow {
+			lanHeader = "on"
+		} else {
+			lanHeader = "off"
+		}
+	}
 	request := raysub.Request{Host: node.Host, Port: info.Port, Pin: info.Pin, DeviceID: node.DeviceID,
 		NodeID: node.ID(), Ed25519: info.Ed25519, MLDSA65: info.MLDSA65, SPA: spa, LastSeq: node.SubSeq,
-		Control: control, Lookup: lookup}
+		LAN: lanHeader, Control: control, Lookup: lookup}
 	// names-v1 §5 p. 7: by the node's name with its addresses to fall back to, or by its host
 	if name := node.ReachName(); name != "" {
 		request.Host, request.Addrs = name, node.KnownAddrs()
+	}
+	if s.fetch == nil {
+		return "", node.GroupID, nil, status.Error(codes.Unavailable, "no subscription fetcher")
 	}
 	fetchCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
@@ -651,11 +662,19 @@ func (s *server) updateNodeLocked(ctx context.Context, u *user, id string) (stri
 		n.Links, n.DoH, n.DoHPins, n.Name = links, parsed.DoH, parsed.DoHPins, parsed.Name
 		n.SPACarriers, n.SPAVersions = parsed.Carriers, parsed.SPAVersions
 		// names-v1: the subscription's name and addresses; a node rolled back before v0.34.0 sends none, and the
-		// package's are kept (§8)
+		// package's are kept (§8). Record any previous DNS name in PastNames for host matching & log redaction.
 		if parsed.DNSName != "" {
+			if n.DNSName != "" && !strings.EqualFold(n.DNSName, parsed.DNSName) {
+				n.RecordPastName(n.DNSName)
+			}
 			n.DNSName = parsed.DNSName
 		}
 		n.SubAddrs = parsed.Addrs
+		n.Relays = parsed.Relays
+		n.Probe = parsed.Probe
+		n.Hints = parsed.Hints
+		n.Lan = parsed.Lan
+		n.AppMirror = parsed.AppMirror
 	})
 	if err != nil {
 		return "", node.GroupID, nil, storeError(err)
@@ -705,7 +724,18 @@ func (s *server) autoNodes(now time.Time) {
 	for _, u := range s.users.opened() {
 		for _, kept := range u.store.Nodes() {
 			n := kept.Node
-			if kept.Unreadable || n.Subscription == nil || n.RefreshAt == nikoray.Stopped || n.RefreshAt > now.Unix() {
+			if kept.Unreadable {
+				continue
+			}
+			// Promote any scheduled next credentials whose `from` timestamp has passed (applyDue).
+			if changed, err := u.store.ApplyDueLinks(n.ID(), now.Unix()+n.ClockSkew); err == nil && len(changed) > 0 {
+				s.markWatchdogStale(n.ID(), changed)
+			}
+			// Rotate admin client certificate every 90 days (api-v1.md §6, rotateIfDue).
+			if n.API != nil && n.Identity != nil && now.Unix()-n.Identity.CreatedAt >= rotateIdentityAfterSeconds {
+				go s.rotateNodeIdentityIfDue(s.users.context(), u, n.ID())
+			}
+			if n.Subscription == nil || n.RefreshAt == nikoray.Stopped || n.RefreshAt > now.Unix() {
 				continue
 			}
 			if !u.nodes.due(n.ID(), now) {
@@ -725,7 +755,9 @@ func nodeProto(u *user, kept nikostore.StoredNode, profiles map[int64]int) *niko
 		Profiles: int32(profiles[n.GroupID]), DnsName: n.DNSName, Admin: n.API != nil && n.Identity != nil,
 		Subscription: n.Subscription != nil, Updated: n.SubUpdatedAt, Expires: n.SubExpires,
 		Refused: n.RefreshAt == nikoray.Stopped, Failed: int32(n.FailedFetches), Error: lastError,
-		ClockSkew: n.ClockSkew, Updating: updating, Unreadable: kept.Unreadable}
+		ClockSkew: n.ClockSkew, Updating: updating, Unreadable: kept.Unreadable,
+		HasProbe: n.Probe != nil, HasLan: n.Lan != nil, LanShow: n.LanShow, Relays: int32(len(n.Relays)),
+		SwitchedFrom: n.SwitchedFrom, SwitchedTo: n.SwitchedTo, SwitchedAt: n.SwitchedAt}
 	if n.RefreshAt > 0 {
 		p.NextUpdate = n.RefreshAt
 	}

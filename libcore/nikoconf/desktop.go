@@ -171,6 +171,7 @@ func putPrograms(r object, match object) {
 func DesktopSettings() Settings {
 	s := DefaultSettings()
 	s.ServiceMode = ModeProxy
+	s.RaycontrolAutoSwitch = true
 	return s
 }
 

@@ -75,8 +75,11 @@ var computerSettings = map[string]func(s *nikoconf.Settings) error{
 	"enableDnsRouting":   nil,
 	"ruleSetUpdateHours": func(s *nikoconf.Settings) error { return within(s.RuleSetUpdateHours, 1, 24*30) },
 	"dpiDirect":          func(s *nikoconf.Settings) error { return within(s.DpiDirect, nikoconf.DpiOff, nikoconf.DpiCustom) },
-	"dpiDirectPreset":    func(s *nikoconf.Settings) error { return dpiPreset(s.DpiDirectPreset) },
-	"dpiDirectCustom":    func(s *nikoconf.Settings) error { return dpiCustom(s.DpiDirectCustom) },
+	"dpiDirectPreset":      func(s *nikoconf.Settings) error { return dpiPreset(s.DpiDirectPreset) },
+	"dpiDirectCustom":      func(s *nikoconf.Settings) error { return dpiCustom(s.DpiDirectCustom) },
+	"raycontrolAutoSwitch": nil,
+	"raycontrolBrutal":     nil,
+	"raycontrolReports":    nil,
 }
 
 // secretSettings are those of the settings that are nikoconf.Secrets', sealed on the disk.

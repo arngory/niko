@@ -202,6 +202,16 @@ func (b *builder) buildChain(chainID int64, entity *Profile) (string, error) {
 			if !nikofmt.KtIsBlank(str(h.Obfuscation)) {
 				current.hack["disable_chrome_parrot"] = true
 			}
+			if !b.forTest && !b.forExport && b.in.BrutalRates != nil {
+				if rates, ok := b.in.BrutalRates[rayNode.ID()]; ok {
+					if rates.DownKbps > 0 {
+						current.hack["down_mbps"] = max(int64(1), rates.DownKbps/1000)
+					}
+					if rates.UpKbps > 0 {
+						current.hack["up_mbps"] = max(int64(1), rates.UpKbps/1000)
+					}
+				}
+			}
 		}
 		// honest connect (experiment): fields of the core fork's, not in an export
 		if !b.forExport && s.HonestConnect {
@@ -262,8 +272,19 @@ func (b *builder) buildChain(chainID int64, entity *Profile) (string, error) {
 			knockTag = tagOut + "-knock"
 			knock := newOption(object{"type": "knock", "tag": knockTag})
 			var options object
+			isRelayRow := false
 			if rayNode != nil {
-				options = rayNode.KnockOptions()
+				if _, ownerKey := b.ownerOf(p.ID); ownerKey != "" {
+					if relayID := nikoray.RelayOfKey(ownerKey); relayID != "" {
+						if relay := rayNode.RelayByID(relayID); relay != nil {
+							options = rayNode.KnockOptionsForRelay(*relay)
+							isRelayRow = true
+						}
+					}
+				}
+				if options == nil {
+					options = rayNode.KnockOptions()
+				}
 			} else if options, err = knockOutboundOptions(bean); err != nil {
 				return "", err
 			}
@@ -277,10 +298,9 @@ func (b *builder) buildChain(chainID int64, entity *Profile) (string, error) {
 					knock.hack["udp_ports"] = ports
 				}
 			}
-			// only for the node's TCP 443 profiles (REALITY, naive): with Hysteria2 or a DNS tunnel the node's TCP 443
-			// may be unreachable
+			// only for direct TCP 443 profiles (REALITY, naive): relay rows knock at the relay, not node.Host
 			_, isNaive := bean.(*nikofmt.NaiveBean)
-			if b.buildingProxy && entity.ID == b.proxy.ID && index == last && rayNode != nil && rayNode.DoH != "" &&
+			if !isRelayRow && b.buildingProxy && entity.ID == b.proxy.ID && index == last && rayNode != nil && rayNode.DoH != "" &&
 				(standardV2Ray(bean) != nil || isNaive) {
 				b.nodeDoH, b.nodeDoHKnock = rayNode, knockTag
 			}

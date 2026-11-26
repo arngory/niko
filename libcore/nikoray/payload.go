@@ -41,6 +41,12 @@ type Parsed struct {
 	DNSName     string
 	Addrs       []string
 	SPAVersions []int
+	// Phase P6 dynamic fields parsed from subscription payload.
+	Relays    []Relay
+	Probe     *ProbeInfo
+	Hints     *Hints
+	Lan       *Lan
+	AppMirror *AppMirror
 }
 
 // Parse is RaySubscription.parse: the rows of payload and what the node record takes of it; kinds are the node's
@@ -124,6 +130,57 @@ func parseObject(payload map[string]any, kinds map[int]string, nodeNow int64, se
 		parsed.DNSName = dnsName
 	}
 	parsed.SPAVersions = spaVersions(object(payload, "spa"))
+	if relayList, ok := array(payload, "relays"); ok {
+		parsed.Relays = parseRelays(relayList)
+	}
+	parsed.Probe = parseProbe(object(payload, "probe"))
+	parsed.Hints = parseHints(object(payload, "hints"))
+	parsed.Lan = parseLan(object(payload, "lan"))
+	parsed.AppMirror = parseAppMirror(object(payload, "app"))
+
+	// Generate relay profile rows (#via-<relayId>) for each eligible direct row (relay-v1 §4).
+	if len(parsed.Relays) > 0 && len(parsed.Rows) > 0 {
+		directRows := append([]Row(nil), parsed.Rows...)
+		for _, relay := range parsed.Relays {
+			for _, direct := range directRows {
+				active := direct.Links.ActiveLink()
+				via, ok := ViaLink(active, relay)
+				if !ok {
+					continue
+				}
+				bean, err := ParseRow(via, settings)
+				if err != nil {
+					continue
+				}
+				baseName := direct.Links.Name
+				if nikofmt.KtIsBlank(baseName) {
+					baseName = deref(nikofmt.Base(direct.Bean).Name)
+				}
+				relayRowName := strings.TrimSpace(baseName + " · " + relay.ID)
+				nikofmt.Base(bean).Name = &relayRowName
+				bean.InitializeDefaultValues()
+				signWithHint(bean, dnsAuthV2)
+				viaNext := ""
+				if direct.Links.Next != "" {
+					if vn, ok := ViaLink(direct.Links.Next, relay); ok {
+						viaNext = vn
+					}
+				}
+				viaOrig, _ := ViaLink(direct.Links.Link, relay)
+				parsed.Rows = append(parsed.Rows, Row{
+					Key:  ViaKey(direct.Key, relay.ID),
+					Bean: bean,
+					Links: Links{
+						Name:       relayRowName,
+						Link:       viaOrig,
+						Next:       viaNext,
+						From:       direct.Links.From,
+						NextActive: direct.Links.NextActive,
+					},
+				})
+			}
+		}
+	}
 	return parsed, nil
 }
 

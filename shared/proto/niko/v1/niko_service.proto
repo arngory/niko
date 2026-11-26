@@ -149,6 +149,18 @@ service NikoService {
   // Measures HTTP latency for a batch of stored profiles (or all profiles of a group) using isolated
   // in-memory test cores, streaming each result as it finishes (D-MAIN-08/12).
   rpc TestProfiles(TestProfilesRequest) returns (stream ProfileTestResult);
+
+  // Runs a full diagnostic test against a raycontrol node ("Why isn't it working", D-WHY): direct path,
+  // subscription refresh, DNS tunnel check, and each profile, streaming steps and returning redacted findings.
+  // Owner-only, outside the lifecycle lock.
+  rpc RunNodeTest(NodeTestRequest) returns (stream NodeTestEvent);
+  // Proxies an allowlisted admin RPC (NodeService/* or DeviceService/GetSelf) to a raycontrol node using the
+  // daemon's sealed client certificate (D-ADMIN). Owner-only, outside the lifecycle lock.
+  rpc NodeAdminCall(NodeAdminRequest) returns (NodeAdminResponse);
+  // Dismisses the D-STATE-SWITCHED notice after the watchdog automatically switched a node's active profile.
+  rpc ClearNodeSwitched(NodeId) returns (Empty);
+  // Toggles lan-v1 visibility for this device on a raycontrol node.
+  rpc SetNodeLan(SetNodeLanRequest) returns (Empty);
 }
 
 message Empty {}
@@ -502,6 +514,11 @@ message Settings {
   int32 dpi_direct = 28;
   string dpi_direct_preset = 29;
   string dpi_direct_custom = 30;
+  // Phase P6 raycontrol dynamic settings: automatic failover on failure, measured Brutal for Hysteria2,
+  // and opt-in anonymous daily network summaries to the node.
+  bool raycontrol_auto_switch = 31;
+  bool raycontrol_brutal = 32;
+  bool raycontrol_reports = 33;
 }
 
 message SettingsUpdate {
@@ -611,6 +628,14 @@ message Node {
   bool updating = 20;
   // its keys were sealed on another machine or by another account: it is to be imported again
   bool unreadable = 21;
+  // Phase P6 dynamic capabilities and watchdog switch notice (D-STATE-SWITCHED).
+  bool has_probe = 22;
+  bool has_lan = 23;
+  bool lan_show = 24;
+  int32 relays = 25;
+  string switched_from = 26;
+  string switched_to = 27;
+  int64 switched_at = 28;
 }
 
 message NodeTraffic {
@@ -732,4 +757,65 @@ message RuleSetRequest {
   repeated string items = 1;
   // fetched even where its file is newer than the interval
   bool force = 2;
+}
+
+message NodeTestRequest {
+  string node_id = 1;
+  // Optional run id (r-YYYYMMDD-HHMM by default); letters, digits, '.', '-', '_' only (1..64 chars).
+  string run_id = 2;
+}
+
+message NodeTestProfile {
+  string key = 1;
+  string name = 2;
+  string type = 3;
+  string carrier = 4;
+  string relay = 5;
+  bool works = 6;
+  int64 kbps = 7;
+  int64 first_byte_ms = 8;
+  string cause = 9;
+  string error = 10;
+  int64 stalled_at_kb = 11;
+  optional bool udp_ok = 12;
+  double udp_loss_pct = 13;
+}
+
+message NodeTestNote {
+  string note = 1;
+  int64 number = 2;
+  string detail = 3;
+}
+
+message NodeTestFindings {
+  repeated NodeTestProfile profiles = 1;
+  repeated NodeTestNote notes = 2;
+}
+
+message NodeTestEvent {
+  string run_id = 1;
+  string step = 2;
+  string line = 3;
+  bool done = 4;
+  string error = 5;
+  NodeTestFindings findings = 6;
+  string report_name = 7;
+  string report_text = 8;
+}
+
+message NodeAdminRequest {
+  string node_id = 1;
+  // Method name on raycontrol.node.v1.NodeService (e.g. "GetStatus", "ListUsers") or "DeviceService/GetSelf".
+  string method = 2;
+  // Optional JSON request body; defaults to "{}".
+  string body_json = 3;
+}
+
+message NodeAdminResponse {
+  string body_json = 1;
+}
+
+message SetNodeLanRequest {
+  string node_id = 1;
+  bool show = 2;
 }

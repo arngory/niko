@@ -2312,8 +2312,13 @@ type Settings struct {
 	DpiDirect       int32  `protobuf:"varint,28,opt,name=dpi_direct,json=dpiDirect,proto3" json:"dpi_direct,omitempty"`
 	DpiDirectPreset string `protobuf:"bytes,29,opt,name=dpi_direct_preset,json=dpiDirectPreset,proto3" json:"dpi_direct_preset,omitempty"`
 	DpiDirectCustom string `protobuf:"bytes,30,opt,name=dpi_direct_custom,json=dpiDirectCustom,proto3" json:"dpi_direct_custom,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Phase P6 raycontrol dynamic settings: automatic failover on failure, measured Brutal for Hysteria2,
+	// and opt-in anonymous daily network summaries to the node.
+	RaycontrolAutoSwitch bool `protobuf:"varint,31,opt,name=raycontrol_auto_switch,json=raycontrolAutoSwitch,proto3" json:"raycontrol_auto_switch,omitempty"`
+	RaycontrolBrutal     bool `protobuf:"varint,32,opt,name=raycontrol_brutal,json=raycontrolBrutal,proto3" json:"raycontrol_brutal,omitempty"`
+	RaycontrolReports    bool `protobuf:"varint,33,opt,name=raycontrol_reports,json=raycontrolReports,proto3" json:"raycontrol_reports,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *Settings) Reset() {
@@ -2554,6 +2559,27 @@ func (x *Settings) GetDpiDirectCustom() string {
 		return x.DpiDirectCustom
 	}
 	return ""
+}
+
+func (x *Settings) GetRaycontrolAutoSwitch() bool {
+	if x != nil {
+		return x.RaycontrolAutoSwitch
+	}
+	return false
+}
+
+func (x *Settings) GetRaycontrolBrutal() bool {
+	if x != nil {
+		return x.RaycontrolBrutal
+	}
+	return false
+}
+
+func (x *Settings) GetRaycontrolReports() bool {
+	if x != nil {
+		return x.RaycontrolReports
+	}
+	return false
 }
 
 type SettingsUpdate struct {
@@ -3075,7 +3101,15 @@ type Node struct {
 	// an update of it runs now
 	Updating bool `protobuf:"varint,20,opt,name=updating,proto3" json:"updating,omitempty"`
 	// its keys were sealed on another machine or by another account: it is to be imported again
-	Unreadable    bool `protobuf:"varint,21,opt,name=unreadable,proto3" json:"unreadable,omitempty"`
+	Unreadable bool `protobuf:"varint,21,opt,name=unreadable,proto3" json:"unreadable,omitempty"`
+	// Phase P6 dynamic capabilities and watchdog switch notice (D-STATE-SWITCHED).
+	HasProbe      bool   `protobuf:"varint,22,opt,name=has_probe,json=hasProbe,proto3" json:"has_probe,omitempty"`
+	HasLan        bool   `protobuf:"varint,23,opt,name=has_lan,json=hasLan,proto3" json:"has_lan,omitempty"`
+	LanShow       bool   `protobuf:"varint,24,opt,name=lan_show,json=lanShow,proto3" json:"lan_show,omitempty"`
+	Relays        int32  `protobuf:"varint,25,opt,name=relays,proto3" json:"relays,omitempty"`
+	SwitchedFrom  string `protobuf:"bytes,26,opt,name=switched_from,json=switchedFrom,proto3" json:"switched_from,omitempty"`
+	SwitchedTo    string `protobuf:"bytes,27,opt,name=switched_to,json=switchedTo,proto3" json:"switched_to,omitempty"`
+	SwitchedAt    int64  `protobuf:"varint,28,opt,name=switched_at,json=switchedAt,proto3" json:"switched_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3255,6 +3289,55 @@ func (x *Node) GetUnreadable() bool {
 		return x.Unreadable
 	}
 	return false
+}
+
+func (x *Node) GetHasProbe() bool {
+	if x != nil {
+		return x.HasProbe
+	}
+	return false
+}
+
+func (x *Node) GetHasLan() bool {
+	if x != nil {
+		return x.HasLan
+	}
+	return false
+}
+
+func (x *Node) GetLanShow() bool {
+	if x != nil {
+		return x.LanShow
+	}
+	return false
+}
+
+func (x *Node) GetRelays() int32 {
+	if x != nil {
+		return x.Relays
+	}
+	return 0
+}
+
+func (x *Node) GetSwitchedFrom() string {
+	if x != nil {
+		return x.SwitchedFrom
+	}
+	return ""
+}
+
+func (x *Node) GetSwitchedTo() string {
+	if x != nil {
+		return x.SwitchedTo
+	}
+	return ""
+}
+
+func (x *Node) GetSwitchedAt() int64 {
+	if x != nil {
+		return x.SwitchedAt
+	}
+	return 0
 }
 
 type NodeTraffic struct {
@@ -4072,6 +4155,569 @@ func (x *RuleSetRequest) GetForce() bool {
 	return false
 }
 
+type NodeTestRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	NodeId string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	// Optional run id (r-YYYYMMDD-HHMM by default); letters, digits, '.', '-', '_' only (1..64 chars).
+	RunId         string `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NodeTestRequest) Reset() {
+	*x = NodeTestRequest{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NodeTestRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NodeTestRequest) ProtoMessage() {}
+
+func (x *NodeTestRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NodeTestRequest.ProtoReflect.Descriptor instead.
+func (*NodeTestRequest) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *NodeTestRequest) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *NodeTestRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+type NodeTestProfile struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	Carrier       string                 `protobuf:"bytes,4,opt,name=carrier,proto3" json:"carrier,omitempty"`
+	Relay         string                 `protobuf:"bytes,5,opt,name=relay,proto3" json:"relay,omitempty"`
+	Works         bool                   `protobuf:"varint,6,opt,name=works,proto3" json:"works,omitempty"`
+	Kbps          int64                  `protobuf:"varint,7,opt,name=kbps,proto3" json:"kbps,omitempty"`
+	FirstByteMs   int64                  `protobuf:"varint,8,opt,name=first_byte_ms,json=firstByteMs,proto3" json:"first_byte_ms,omitempty"`
+	Cause         string                 `protobuf:"bytes,9,opt,name=cause,proto3" json:"cause,omitempty"`
+	Error         string                 `protobuf:"bytes,10,opt,name=error,proto3" json:"error,omitempty"`
+	StalledAtKb   int64                  `protobuf:"varint,11,opt,name=stalled_at_kb,json=stalledAtKb,proto3" json:"stalled_at_kb,omitempty"`
+	UdpOk         *bool                  `protobuf:"varint,12,opt,name=udp_ok,json=udpOk,proto3,oneof" json:"udp_ok,omitempty"`
+	UdpLossPct    float64                `protobuf:"fixed64,13,opt,name=udp_loss_pct,json=udpLossPct,proto3" json:"udp_loss_pct,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NodeTestProfile) Reset() {
+	*x = NodeTestProfile{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NodeTestProfile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NodeTestProfile) ProtoMessage() {}
+
+func (x *NodeTestProfile) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NodeTestProfile.ProtoReflect.Descriptor instead.
+func (*NodeTestProfile) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *NodeTestProfile) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *NodeTestProfile) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *NodeTestProfile) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *NodeTestProfile) GetCarrier() string {
+	if x != nil {
+		return x.Carrier
+	}
+	return ""
+}
+
+func (x *NodeTestProfile) GetRelay() string {
+	if x != nil {
+		return x.Relay
+	}
+	return ""
+}
+
+func (x *NodeTestProfile) GetWorks() bool {
+	if x != nil {
+		return x.Works
+	}
+	return false
+}
+
+func (x *NodeTestProfile) GetKbps() int64 {
+	if x != nil {
+		return x.Kbps
+	}
+	return 0
+}
+
+func (x *NodeTestProfile) GetFirstByteMs() int64 {
+	if x != nil {
+		return x.FirstByteMs
+	}
+	return 0
+}
+
+func (x *NodeTestProfile) GetCause() string {
+	if x != nil {
+		return x.Cause
+	}
+	return ""
+}
+
+func (x *NodeTestProfile) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *NodeTestProfile) GetStalledAtKb() int64 {
+	if x != nil {
+		return x.StalledAtKb
+	}
+	return 0
+}
+
+func (x *NodeTestProfile) GetUdpOk() bool {
+	if x != nil && x.UdpOk != nil {
+		return *x.UdpOk
+	}
+	return false
+}
+
+func (x *NodeTestProfile) GetUdpLossPct() float64 {
+	if x != nil {
+		return x.UdpLossPct
+	}
+	return 0
+}
+
+type NodeTestNote struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Note          string                 `protobuf:"bytes,1,opt,name=note,proto3" json:"note,omitempty"`
+	Number        int64                  `protobuf:"varint,2,opt,name=number,proto3" json:"number,omitempty"`
+	Detail        string                 `protobuf:"bytes,3,opt,name=detail,proto3" json:"detail,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NodeTestNote) Reset() {
+	*x = NodeTestNote{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NodeTestNote) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NodeTestNote) ProtoMessage() {}
+
+func (x *NodeTestNote) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NodeTestNote.ProtoReflect.Descriptor instead.
+func (*NodeTestNote) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{52}
+}
+
+func (x *NodeTestNote) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+func (x *NodeTestNote) GetNumber() int64 {
+	if x != nil {
+		return x.Number
+	}
+	return 0
+}
+
+func (x *NodeTestNote) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+type NodeTestFindings struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Profiles      []*NodeTestProfile     `protobuf:"bytes,1,rep,name=profiles,proto3" json:"profiles,omitempty"`
+	Notes         []*NodeTestNote        `protobuf:"bytes,2,rep,name=notes,proto3" json:"notes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NodeTestFindings) Reset() {
+	*x = NodeTestFindings{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NodeTestFindings) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NodeTestFindings) ProtoMessage() {}
+
+func (x *NodeTestFindings) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NodeTestFindings.ProtoReflect.Descriptor instead.
+func (*NodeTestFindings) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *NodeTestFindings) GetProfiles() []*NodeTestProfile {
+	if x != nil {
+		return x.Profiles
+	}
+	return nil
+}
+
+func (x *NodeTestFindings) GetNotes() []*NodeTestNote {
+	if x != nil {
+		return x.Notes
+	}
+	return nil
+}
+
+type NodeTestEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Step          string                 `protobuf:"bytes,2,opt,name=step,proto3" json:"step,omitempty"`
+	Line          string                 `protobuf:"bytes,3,opt,name=line,proto3" json:"line,omitempty"`
+	Done          bool                   `protobuf:"varint,4,opt,name=done,proto3" json:"done,omitempty"`
+	Error         string                 `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
+	Findings      *NodeTestFindings      `protobuf:"bytes,6,opt,name=findings,proto3" json:"findings,omitempty"`
+	ReportName    string                 `protobuf:"bytes,7,opt,name=report_name,json=reportName,proto3" json:"report_name,omitempty"`
+	ReportText    string                 `protobuf:"bytes,8,opt,name=report_text,json=reportText,proto3" json:"report_text,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NodeTestEvent) Reset() {
+	*x = NodeTestEvent{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NodeTestEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NodeTestEvent) ProtoMessage() {}
+
+func (x *NodeTestEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NodeTestEvent.ProtoReflect.Descriptor instead.
+func (*NodeTestEvent) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *NodeTestEvent) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *NodeTestEvent) GetStep() string {
+	if x != nil {
+		return x.Step
+	}
+	return ""
+}
+
+func (x *NodeTestEvent) GetLine() string {
+	if x != nil {
+		return x.Line
+	}
+	return ""
+}
+
+func (x *NodeTestEvent) GetDone() bool {
+	if x != nil {
+		return x.Done
+	}
+	return false
+}
+
+func (x *NodeTestEvent) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *NodeTestEvent) GetFindings() *NodeTestFindings {
+	if x != nil {
+		return x.Findings
+	}
+	return nil
+}
+
+func (x *NodeTestEvent) GetReportName() string {
+	if x != nil {
+		return x.ReportName
+	}
+	return ""
+}
+
+func (x *NodeTestEvent) GetReportText() string {
+	if x != nil {
+		return x.ReportText
+	}
+	return ""
+}
+
+type NodeAdminRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	NodeId string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	// Method name on raycontrol.node.v1.NodeService (e.g. "GetStatus", "ListUsers") or "DeviceService/GetSelf".
+	Method string `protobuf:"bytes,2,opt,name=method,proto3" json:"method,omitempty"`
+	// Optional JSON request body; defaults to "{}".
+	BodyJson      string `protobuf:"bytes,3,opt,name=body_json,json=bodyJson,proto3" json:"body_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NodeAdminRequest) Reset() {
+	*x = NodeAdminRequest{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NodeAdminRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NodeAdminRequest) ProtoMessage() {}
+
+func (x *NodeAdminRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NodeAdminRequest.ProtoReflect.Descriptor instead.
+func (*NodeAdminRequest) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *NodeAdminRequest) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *NodeAdminRequest) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+func (x *NodeAdminRequest) GetBodyJson() string {
+	if x != nil {
+		return x.BodyJson
+	}
+	return ""
+}
+
+type NodeAdminResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BodyJson      string                 `protobuf:"bytes,1,opt,name=body_json,json=bodyJson,proto3" json:"body_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NodeAdminResponse) Reset() {
+	*x = NodeAdminResponse{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NodeAdminResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NodeAdminResponse) ProtoMessage() {}
+
+func (x *NodeAdminResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NodeAdminResponse.ProtoReflect.Descriptor instead.
+func (*NodeAdminResponse) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *NodeAdminResponse) GetBodyJson() string {
+	if x != nil {
+		return x.BodyJson
+	}
+	return ""
+}
+
+type SetNodeLanRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Show          bool                   `protobuf:"varint,2,opt,name=show,proto3" json:"show,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetNodeLanRequest) Reset() {
+	*x = SetNodeLanRequest{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetNodeLanRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetNodeLanRequest) ProtoMessage() {}
+
+func (x *SetNodeLanRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetNodeLanRequest.ProtoReflect.Descriptor instead.
+func (*SetNodeLanRequest) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *SetNodeLanRequest) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *SetNodeLanRequest) GetShow() bool {
+	if x != nil {
+		return x.Show
+	}
+	return false
+}
+
 var File_niko_v1_niko_service_proto protoreflect.FileDescriptor
 
 const file_niko_v1_niko_service_proto_rawDesc = "" +
@@ -4242,7 +4888,8 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\x04Mode\x12\t\n" +
 	"\x05PROXY\x10\x00\x12\a\n" +
 	"\x03VPN\x10\x01B\a\n" +
-	"\x05_mode\"\xe8\t\n" +
+	"\x05_mode\"\xfa\n" +
+	"\n" +
 	"\bSettings\x12!\n" +
 	"\fservice_mode\x18\x01 \x01(\tR\vserviceMode\x12!\n" +
 	"\fsystem_proxy\x18\x02 \x01(\bR\vsystemProxy\x12-\n" +
@@ -4278,7 +4925,10 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\n" +
 	"dpi_direct\x18\x1c \x01(\x05R\tdpiDirect\x12*\n" +
 	"\x11dpi_direct_preset\x18\x1d \x01(\tR\x0fdpiDirectPreset\x12*\n" +
-	"\x11dpi_direct_custom\x18\x1e \x01(\tR\x0fdpiDirectCustom\"W\n" +
+	"\x11dpi_direct_custom\x18\x1e \x01(\tR\x0fdpiDirectCustom\x124\n" +
+	"\x16raycontrol_auto_switch\x18\x1f \x01(\bR\x14raycontrolAutoSwitch\x12+\n" +
+	"\x11raycontrol_brutal\x18  \x01(\bR\x10raycontrolBrutal\x12-\n" +
+	"\x12raycontrol_reports\x18! \x01(\bR\x11raycontrolReports\"W\n" +
 	"\x0eSettingsUpdate\x12-\n" +
 	"\bsettings\x18\x01 \x01(\v2\x11.niko.v1.SettingsR\bsettings\x12\x16\n" +
 	"\x06fields\x18\x02 \x03(\tR\x06fields\"\x1e\n" +
@@ -4315,7 +4965,7 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\x06NodeId\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"/\n" +
 	"\bNodeList\x12#\n" +
-	"\x05nodes\x18\x01 \x03(\v2\r.niko.v1.NodeR\x05nodes\"\xd0\x04\n" +
+	"\x05nodes\x18\x01 \x03(\v2\r.niko.v1.NodeR\x05nodes\"\xa0\x06\n" +
 	"\x04Node\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04host\x18\x02 \x01(\tR\x04host\x12\x12\n" +
@@ -4343,7 +4993,16 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\bupdating\x18\x14 \x01(\bR\bupdating\x12\x1e\n" +
 	"\n" +
 	"unreadable\x18\x15 \x01(\bR\n" +
-	"unreadable\"\xa0\x01\n" +
+	"unreadable\x12\x1b\n" +
+	"\thas_probe\x18\x16 \x01(\bR\bhasProbe\x12\x17\n" +
+	"\ahas_lan\x18\x17 \x01(\bR\x06hasLan\x12\x19\n" +
+	"\blan_show\x18\x18 \x01(\bR\alanShow\x12\x16\n" +
+	"\x06relays\x18\x19 \x01(\x05R\x06relays\x12#\n" +
+	"\rswitched_from\x18\x1a \x01(\tR\fswitchedFrom\x12\x1f\n" +
+	"\vswitched_to\x18\x1b \x01(\tR\n" +
+	"switchedTo\x12\x1f\n" +
+	"\vswitched_at\x18\x1c \x01(\x03R\n" +
+	"switchedAt\"\xa0\x01\n" +
 	"\vNodeTraffic\x12\x12\n" +
 	"\x04used\x18\x01 \x01(\x03R\x04used\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x03R\x05limit\x12\x14\n" +
@@ -4414,7 +5073,54 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\fupdate_hours\x18\x02 \x01(\x05R\vupdateHours\"<\n" +
 	"\x0eRuleSetRequest\x12\x14\n" +
 	"\x05items\x18\x01 \x03(\tR\x05items\x12\x14\n" +
-	"\x05force\x18\x02 \x01(\bR\x05force2\x9a\x0f\n" +
+	"\x05force\x18\x02 \x01(\bR\x05force\"A\n" +
+	"\x0fNodeTestRequest\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\"\xe2\x02\n" +
+	"\x0fNodeTestProfile\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
+	"\x04type\x18\x03 \x01(\tR\x04type\x12\x18\n" +
+	"\acarrier\x18\x04 \x01(\tR\acarrier\x12\x14\n" +
+	"\x05relay\x18\x05 \x01(\tR\x05relay\x12\x14\n" +
+	"\x05works\x18\x06 \x01(\bR\x05works\x12\x12\n" +
+	"\x04kbps\x18\a \x01(\x03R\x04kbps\x12\"\n" +
+	"\rfirst_byte_ms\x18\b \x01(\x03R\vfirstByteMs\x12\x14\n" +
+	"\x05cause\x18\t \x01(\tR\x05cause\x12\x14\n" +
+	"\x05error\x18\n" +
+	" \x01(\tR\x05error\x12\"\n" +
+	"\rstalled_at_kb\x18\v \x01(\x03R\vstalledAtKb\x12\x1a\n" +
+	"\x06udp_ok\x18\f \x01(\bH\x00R\x05udpOk\x88\x01\x01\x12 \n" +
+	"\fudp_loss_pct\x18\r \x01(\x01R\n" +
+	"udpLossPctB\t\n" +
+	"\a_udp_ok\"R\n" +
+	"\fNodeTestNote\x12\x12\n" +
+	"\x04note\x18\x01 \x01(\tR\x04note\x12\x16\n" +
+	"\x06number\x18\x02 \x01(\x03R\x06number\x12\x16\n" +
+	"\x06detail\x18\x03 \x01(\tR\x06detail\"u\n" +
+	"\x10NodeTestFindings\x124\n" +
+	"\bprofiles\x18\x01 \x03(\v2\x18.niko.v1.NodeTestProfileR\bprofiles\x12+\n" +
+	"\x05notes\x18\x02 \x03(\v2\x15.niko.v1.NodeTestNoteR\x05notes\"\xf1\x01\n" +
+	"\rNodeTestEvent\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x12\n" +
+	"\x04step\x18\x02 \x01(\tR\x04step\x12\x12\n" +
+	"\x04line\x18\x03 \x01(\tR\x04line\x12\x12\n" +
+	"\x04done\x18\x04 \x01(\bR\x04done\x12\x14\n" +
+	"\x05error\x18\x05 \x01(\tR\x05error\x125\n" +
+	"\bfindings\x18\x06 \x01(\v2\x19.niko.v1.NodeTestFindingsR\bfindings\x12\x1f\n" +
+	"\vreport_name\x18\a \x01(\tR\n" +
+	"reportName\x12\x1f\n" +
+	"\vreport_text\x18\b \x01(\tR\n" +
+	"reportText\"`\n" +
+	"\x10NodeAdminRequest\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x16\n" +
+	"\x06method\x18\x02 \x01(\tR\x06method\x12\x1b\n" +
+	"\tbody_json\x18\x03 \x01(\tR\bbodyJson\"0\n" +
+	"\x11NodeAdminResponse\x12\x1b\n" +
+	"\tbody_json\x18\x01 \x01(\tR\bbodyJson\"@\n" +
+	"\x11SetNodeLanRequest\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x12\n" +
+	"\x04show\x18\x02 \x01(\bR\x04show2\x95\x11\n" +
 	"\vNikoService\x121\n" +
 	"\aGetInfo\x12\x17.niko.v1.GetInfoRequest\x1a\r.niko.v1.Info\x12@\n" +
 	"\tRouteTest\x12\x19.niko.v1.RouteTestRequest\x1a\x18.niko.v1.RouteTestResult\x121\n" +
@@ -4452,7 +5158,12 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\x0fImportUserStore\x12\x1a.niko.v1.UserStoreSnapshot\x1a\x1e.niko.v1.ImportUserStoreResult\x12O\n" +
 	"\x0eTestConnection\x12\x1e.niko.v1.TestConnectionRequest\x1a\x1d.niko.v1.TestConnectionResult\x12F\n" +
 	"\vExitAddress\x12\x1b.niko.v1.ExitAddressRequest\x1a\x1a.niko.v1.ExitAddressResult\x12J\n" +
-	"\fTestProfiles\x12\x1c.niko.v1.TestProfilesRequest\x1a\x1a.niko.v1.ProfileTestResult0\x01B\x17Z\x15libcore/nikopb;nikopbb\x06proto3"
+	"\fTestProfiles\x12\x1c.niko.v1.TestProfilesRequest\x1a\x1a.niko.v1.ProfileTestResult0\x01\x12A\n" +
+	"\vRunNodeTest\x12\x18.niko.v1.NodeTestRequest\x1a\x16.niko.v1.NodeTestEvent0\x01\x12F\n" +
+	"\rNodeAdminCall\x12\x19.niko.v1.NodeAdminRequest\x1a\x1a.niko.v1.NodeAdminResponse\x124\n" +
+	"\x11ClearNodeSwitched\x12\x0f.niko.v1.NodeId\x1a\x0e.niko.v1.Empty\x128\n" +
+	"\n" +
+	"SetNodeLan\x12\x1a.niko.v1.SetNodeLanRequest\x1a\x0e.niko.v1.EmptyB\x17Z\x15libcore/nikopb;nikopbb\x06proto3"
 
 var (
 	file_niko_v1_niko_service_proto_rawDescOnce sync.Once
@@ -4467,7 +5178,7 @@ func file_niko_v1_niko_service_proto_rawDescGZIP() []byte {
 }
 
 var file_niko_v1_niko_service_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_niko_v1_niko_service_proto_msgTypes = make([]protoimpl.MessageInfo, 50)
+var file_niko_v1_niko_service_proto_msgTypes = make([]protoimpl.MessageInfo, 58)
 var file_niko_v1_niko_service_proto_goTypes = []any{
 	(Change_Kind)(0),              // 0: niko.v1.Change.Kind
 	(Group_Type)(0),               // 1: niko.v1.Group.Type
@@ -4524,6 +5235,14 @@ var file_niko_v1_niko_service_proto_goTypes = []any{
 	(*RuleSet)(nil),               // 52: niko.v1.RuleSet
 	(*RuleSetList)(nil),           // 53: niko.v1.RuleSetList
 	(*RuleSetRequest)(nil),        // 54: niko.v1.RuleSetRequest
+	(*NodeTestRequest)(nil),       // 55: niko.v1.NodeTestRequest
+	(*NodeTestProfile)(nil),       // 56: niko.v1.NodeTestProfile
+	(*NodeTestNote)(nil),          // 57: niko.v1.NodeTestNote
+	(*NodeTestFindings)(nil),      // 58: niko.v1.NodeTestFindings
+	(*NodeTestEvent)(nil),         // 59: niko.v1.NodeTestEvent
+	(*NodeAdminRequest)(nil),      // 60: niko.v1.NodeAdminRequest
+	(*NodeAdminResponse)(nil),     // 61: niko.v1.NodeAdminResponse
+	(*SetNodeLanRequest)(nil),     // 62: niko.v1.SetNodeLanRequest
 }
 var file_niko_v1_niko_service_proto_depIdxs = []int32{
 	17, // 0: niko.v1.RouteTestResult.steps:type_name -> niko.v1.RouteTestStep
@@ -4546,79 +5265,90 @@ var file_niko_v1_niko_service_proto_depIdxs = []int32{
 	4,  // 17: niko.v1.PresetRequest.preset:type_name -> niko.v1.PresetRequest.Preset
 	46, // 18: niko.v1.PresetResult.rules:type_name -> niko.v1.Rule
 	52, // 19: niko.v1.RuleSetList.rule_sets:type_name -> niko.v1.RuleSet
-	6,  // 20: niko.v1.NikoService.GetInfo:input_type -> niko.v1.GetInfoRequest
-	16, // 21: niko.v1.NikoService.RouteTest:input_type -> niko.v1.RouteTestRequest
-	19, // 22: niko.v1.NikoService.Watch:input_type -> niko.v1.WatchRequest
-	5,  // 23: niko.v1.NikoService.ListGroups:input_type -> niko.v1.Empty
-	28, // 24: niko.v1.NikoService.ListProfiles:input_type -> niko.v1.ListProfilesRequest
-	31, // 25: niko.v1.NikoService.GetProfile:input_type -> niko.v1.ProfileId
-	29, // 26: niko.v1.NikoService.SaveProfile:input_type -> niko.v1.Profile
-	36, // 27: niko.v1.NikoService.DeleteProfiles:input_type -> niko.v1.ProfileIds
-	37, // 28: niko.v1.NikoService.MoveProfiles:input_type -> niko.v1.MoveRequest
-	23, // 29: niko.v1.NikoService.SaveGroup:input_type -> niko.v1.Group
-	26, // 30: niko.v1.NikoService.DeleteGroup:input_type -> niko.v1.GroupId
-	31, // 31: niko.v1.NikoService.Select:input_type -> niko.v1.ProfileId
-	5,  // 32: niko.v1.NikoService.GetSelected:input_type -> niko.v1.Empty
-	31, // 33: niko.v1.NikoService.ShareProfile:input_type -> niko.v1.ProfileId
-	33, // 34: niko.v1.NikoService.Connect:input_type -> niko.v1.ConnectRequest
-	5,  // 35: niko.v1.NikoService.GetSettings:input_type -> niko.v1.Empty
-	35, // 36: niko.v1.NikoService.UpdateSettings:input_type -> niko.v1.SettingsUpdate
-	38, // 37: niko.v1.NikoService.Recognize:input_type -> niko.v1.ImportInput
-	45, // 38: niko.v1.NikoService.Import:input_type -> niko.v1.ImportRequest
-	25, // 39: niko.v1.NikoService.Refresh:input_type -> niko.v1.RefreshRequest
-	5,  // 40: niko.v1.NikoService.ListNodes:input_type -> niko.v1.Empty
-	41, // 41: niko.v1.NikoService.DeleteNode:input_type -> niko.v1.NodeId
-	5,  // 42: niko.v1.NikoService.ListRules:input_type -> niko.v1.Empty
-	46, // 43: niko.v1.NikoService.SaveRule:input_type -> niko.v1.Rule
-	48, // 44: niko.v1.NikoService.DeleteRules:input_type -> niko.v1.RuleIds
-	49, // 45: niko.v1.NikoService.MoveRules:input_type -> niko.v1.MoveRulesRequest
-	50, // 46: niko.v1.NikoService.ApplyPreset:input_type -> niko.v1.PresetRequest
-	5,  // 47: niko.v1.NikoService.ListRuleSets:input_type -> niko.v1.Empty
-	54, // 48: niko.v1.NikoService.UpdateRuleSets:input_type -> niko.v1.RuleSetRequest
-	5,  // 49: niko.v1.NikoService.ExportUserStore:input_type -> niko.v1.Empty
-	8,  // 50: niko.v1.NikoService.ImportUserStore:input_type -> niko.v1.UserStoreSnapshot
-	10, // 51: niko.v1.NikoService.TestConnection:input_type -> niko.v1.TestConnectionRequest
-	12, // 52: niko.v1.NikoService.ExitAddress:input_type -> niko.v1.ExitAddressRequest
-	14, // 53: niko.v1.NikoService.TestProfiles:input_type -> niko.v1.TestProfilesRequest
-	7,  // 54: niko.v1.NikoService.GetInfo:output_type -> niko.v1.Info
-	18, // 55: niko.v1.NikoService.RouteTest:output_type -> niko.v1.RouteTestResult
-	20, // 56: niko.v1.NikoService.Watch:output_type -> niko.v1.Change
-	27, // 57: niko.v1.NikoService.ListGroups:output_type -> niko.v1.GroupList
-	30, // 58: niko.v1.NikoService.ListProfiles:output_type -> niko.v1.ProfileList
-	29, // 59: niko.v1.NikoService.GetProfile:output_type -> niko.v1.Profile
-	29, // 60: niko.v1.NikoService.SaveProfile:output_type -> niko.v1.Profile
-	5,  // 61: niko.v1.NikoService.DeleteProfiles:output_type -> niko.v1.Empty
-	5,  // 62: niko.v1.NikoService.MoveProfiles:output_type -> niko.v1.Empty
-	23, // 63: niko.v1.NikoService.SaveGroup:output_type -> niko.v1.Group
-	5,  // 64: niko.v1.NikoService.DeleteGroup:output_type -> niko.v1.Empty
-	5,  // 65: niko.v1.NikoService.Select:output_type -> niko.v1.Empty
-	31, // 66: niko.v1.NikoService.GetSelected:output_type -> niko.v1.ProfileId
-	32, // 67: niko.v1.NikoService.ShareProfile:output_type -> niko.v1.ShareLink
-	5,  // 68: niko.v1.NikoService.Connect:output_type -> niko.v1.Empty
-	34, // 69: niko.v1.NikoService.GetSettings:output_type -> niko.v1.Settings
-	34, // 70: niko.v1.NikoService.UpdateSettings:output_type -> niko.v1.Settings
-	39, // 71: niko.v1.NikoService.Recognize:output_type -> niko.v1.ImportPreview
-	21, // 72: niko.v1.NikoService.Import:output_type -> niko.v1.TaskProgress
-	21, // 73: niko.v1.NikoService.Refresh:output_type -> niko.v1.TaskProgress
-	42, // 74: niko.v1.NikoService.ListNodes:output_type -> niko.v1.NodeList
-	5,  // 75: niko.v1.NikoService.DeleteNode:output_type -> niko.v1.Empty
-	47, // 76: niko.v1.NikoService.ListRules:output_type -> niko.v1.RuleList
-	46, // 77: niko.v1.NikoService.SaveRule:output_type -> niko.v1.Rule
-	5,  // 78: niko.v1.NikoService.DeleteRules:output_type -> niko.v1.Empty
-	5,  // 79: niko.v1.NikoService.MoveRules:output_type -> niko.v1.Empty
-	51, // 80: niko.v1.NikoService.ApplyPreset:output_type -> niko.v1.PresetResult
-	53, // 81: niko.v1.NikoService.ListRuleSets:output_type -> niko.v1.RuleSetList
-	21, // 82: niko.v1.NikoService.UpdateRuleSets:output_type -> niko.v1.TaskProgress
-	8,  // 83: niko.v1.NikoService.ExportUserStore:output_type -> niko.v1.UserStoreSnapshot
-	9,  // 84: niko.v1.NikoService.ImportUserStore:output_type -> niko.v1.ImportUserStoreResult
-	11, // 85: niko.v1.NikoService.TestConnection:output_type -> niko.v1.TestConnectionResult
-	13, // 86: niko.v1.NikoService.ExitAddress:output_type -> niko.v1.ExitAddressResult
-	15, // 87: niko.v1.NikoService.TestProfiles:output_type -> niko.v1.ProfileTestResult
-	54, // [54:88] is the sub-list for method output_type
-	20, // [20:54] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	56, // 20: niko.v1.NodeTestFindings.profiles:type_name -> niko.v1.NodeTestProfile
+	57, // 21: niko.v1.NodeTestFindings.notes:type_name -> niko.v1.NodeTestNote
+	58, // 22: niko.v1.NodeTestEvent.findings:type_name -> niko.v1.NodeTestFindings
+	6,  // 23: niko.v1.NikoService.GetInfo:input_type -> niko.v1.GetInfoRequest
+	16, // 24: niko.v1.NikoService.RouteTest:input_type -> niko.v1.RouteTestRequest
+	19, // 25: niko.v1.NikoService.Watch:input_type -> niko.v1.WatchRequest
+	5,  // 26: niko.v1.NikoService.ListGroups:input_type -> niko.v1.Empty
+	28, // 27: niko.v1.NikoService.ListProfiles:input_type -> niko.v1.ListProfilesRequest
+	31, // 28: niko.v1.NikoService.GetProfile:input_type -> niko.v1.ProfileId
+	29, // 29: niko.v1.NikoService.SaveProfile:input_type -> niko.v1.Profile
+	36, // 30: niko.v1.NikoService.DeleteProfiles:input_type -> niko.v1.ProfileIds
+	37, // 31: niko.v1.NikoService.MoveProfiles:input_type -> niko.v1.MoveRequest
+	23, // 32: niko.v1.NikoService.SaveGroup:input_type -> niko.v1.Group
+	26, // 33: niko.v1.NikoService.DeleteGroup:input_type -> niko.v1.GroupId
+	31, // 34: niko.v1.NikoService.Select:input_type -> niko.v1.ProfileId
+	5,  // 35: niko.v1.NikoService.GetSelected:input_type -> niko.v1.Empty
+	31, // 36: niko.v1.NikoService.ShareProfile:input_type -> niko.v1.ProfileId
+	33, // 37: niko.v1.NikoService.Connect:input_type -> niko.v1.ConnectRequest
+	5,  // 38: niko.v1.NikoService.GetSettings:input_type -> niko.v1.Empty
+	35, // 39: niko.v1.NikoService.UpdateSettings:input_type -> niko.v1.SettingsUpdate
+	38, // 40: niko.v1.NikoService.Recognize:input_type -> niko.v1.ImportInput
+	45, // 41: niko.v1.NikoService.Import:input_type -> niko.v1.ImportRequest
+	25, // 42: niko.v1.NikoService.Refresh:input_type -> niko.v1.RefreshRequest
+	5,  // 43: niko.v1.NikoService.ListNodes:input_type -> niko.v1.Empty
+	41, // 44: niko.v1.NikoService.DeleteNode:input_type -> niko.v1.NodeId
+	5,  // 45: niko.v1.NikoService.ListRules:input_type -> niko.v1.Empty
+	46, // 46: niko.v1.NikoService.SaveRule:input_type -> niko.v1.Rule
+	48, // 47: niko.v1.NikoService.DeleteRules:input_type -> niko.v1.RuleIds
+	49, // 48: niko.v1.NikoService.MoveRules:input_type -> niko.v1.MoveRulesRequest
+	50, // 49: niko.v1.NikoService.ApplyPreset:input_type -> niko.v1.PresetRequest
+	5,  // 50: niko.v1.NikoService.ListRuleSets:input_type -> niko.v1.Empty
+	54, // 51: niko.v1.NikoService.UpdateRuleSets:input_type -> niko.v1.RuleSetRequest
+	5,  // 52: niko.v1.NikoService.ExportUserStore:input_type -> niko.v1.Empty
+	8,  // 53: niko.v1.NikoService.ImportUserStore:input_type -> niko.v1.UserStoreSnapshot
+	10, // 54: niko.v1.NikoService.TestConnection:input_type -> niko.v1.TestConnectionRequest
+	12, // 55: niko.v1.NikoService.ExitAddress:input_type -> niko.v1.ExitAddressRequest
+	14, // 56: niko.v1.NikoService.TestProfiles:input_type -> niko.v1.TestProfilesRequest
+	55, // 57: niko.v1.NikoService.RunNodeTest:input_type -> niko.v1.NodeTestRequest
+	60, // 58: niko.v1.NikoService.NodeAdminCall:input_type -> niko.v1.NodeAdminRequest
+	41, // 59: niko.v1.NikoService.ClearNodeSwitched:input_type -> niko.v1.NodeId
+	62, // 60: niko.v1.NikoService.SetNodeLan:input_type -> niko.v1.SetNodeLanRequest
+	7,  // 61: niko.v1.NikoService.GetInfo:output_type -> niko.v1.Info
+	18, // 62: niko.v1.NikoService.RouteTest:output_type -> niko.v1.RouteTestResult
+	20, // 63: niko.v1.NikoService.Watch:output_type -> niko.v1.Change
+	27, // 64: niko.v1.NikoService.ListGroups:output_type -> niko.v1.GroupList
+	30, // 65: niko.v1.NikoService.ListProfiles:output_type -> niko.v1.ProfileList
+	29, // 66: niko.v1.NikoService.GetProfile:output_type -> niko.v1.Profile
+	29, // 67: niko.v1.NikoService.SaveProfile:output_type -> niko.v1.Profile
+	5,  // 68: niko.v1.NikoService.DeleteProfiles:output_type -> niko.v1.Empty
+	5,  // 69: niko.v1.NikoService.MoveProfiles:output_type -> niko.v1.Empty
+	23, // 70: niko.v1.NikoService.SaveGroup:output_type -> niko.v1.Group
+	5,  // 71: niko.v1.NikoService.DeleteGroup:output_type -> niko.v1.Empty
+	5,  // 72: niko.v1.NikoService.Select:output_type -> niko.v1.Empty
+	31, // 73: niko.v1.NikoService.GetSelected:output_type -> niko.v1.ProfileId
+	32, // 74: niko.v1.NikoService.ShareProfile:output_type -> niko.v1.ShareLink
+	5,  // 75: niko.v1.NikoService.Connect:output_type -> niko.v1.Empty
+	34, // 76: niko.v1.NikoService.GetSettings:output_type -> niko.v1.Settings
+	34, // 77: niko.v1.NikoService.UpdateSettings:output_type -> niko.v1.Settings
+	39, // 78: niko.v1.NikoService.Recognize:output_type -> niko.v1.ImportPreview
+	21, // 79: niko.v1.NikoService.Import:output_type -> niko.v1.TaskProgress
+	21, // 80: niko.v1.NikoService.Refresh:output_type -> niko.v1.TaskProgress
+	42, // 81: niko.v1.NikoService.ListNodes:output_type -> niko.v1.NodeList
+	5,  // 82: niko.v1.NikoService.DeleteNode:output_type -> niko.v1.Empty
+	47, // 83: niko.v1.NikoService.ListRules:output_type -> niko.v1.RuleList
+	46, // 84: niko.v1.NikoService.SaveRule:output_type -> niko.v1.Rule
+	5,  // 85: niko.v1.NikoService.DeleteRules:output_type -> niko.v1.Empty
+	5,  // 86: niko.v1.NikoService.MoveRules:output_type -> niko.v1.Empty
+	51, // 87: niko.v1.NikoService.ApplyPreset:output_type -> niko.v1.PresetResult
+	53, // 88: niko.v1.NikoService.ListRuleSets:output_type -> niko.v1.RuleSetList
+	21, // 89: niko.v1.NikoService.UpdateRuleSets:output_type -> niko.v1.TaskProgress
+	8,  // 90: niko.v1.NikoService.ExportUserStore:output_type -> niko.v1.UserStoreSnapshot
+	9,  // 91: niko.v1.NikoService.ImportUserStore:output_type -> niko.v1.ImportUserStoreResult
+	11, // 92: niko.v1.NikoService.TestConnection:output_type -> niko.v1.TestConnectionResult
+	13, // 93: niko.v1.NikoService.ExitAddress:output_type -> niko.v1.ExitAddressResult
+	15, // 94: niko.v1.NikoService.TestProfiles:output_type -> niko.v1.ProfileTestResult
+	59, // 95: niko.v1.NikoService.RunNodeTest:output_type -> niko.v1.NodeTestEvent
+	61, // 96: niko.v1.NikoService.NodeAdminCall:output_type -> niko.v1.NodeAdminResponse
+	5,  // 97: niko.v1.NikoService.ClearNodeSwitched:output_type -> niko.v1.Empty
+	5,  // 98: niko.v1.NikoService.SetNodeLan:output_type -> niko.v1.Empty
+	61, // [61:99] is the sub-list for method output_type
+	23, // [23:61] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_niko_v1_niko_service_proto_init() }
@@ -4627,13 +5357,14 @@ func file_niko_v1_niko_service_proto_init() {
 		return
 	}
 	file_niko_v1_niko_service_proto_msgTypes[28].OneofWrappers = []any{}
+	file_niko_v1_niko_service_proto_msgTypes[51].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_niko_v1_niko_service_proto_rawDesc), len(file_niko_v1_niko_service_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   50,
+			NumMessages:   58,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -89,6 +89,9 @@ func settingsProto(s nikoconf.Settings) *nikopb.Settings {
 		DpiDirect:               int32(s.DpiDirect),
 		DpiDirectPreset:         s.DpiDirectPreset,
 		DpiDirectCustom:         s.DpiDirectCustom,
+		RaycontrolAutoSwitch:    s.RaycontrolAutoSwitch,
+		RaycontrolBrutal:        s.RaycontrolBrutal,
+		RaycontrolReports:       s.RaycontrolReports,
 	}
 }
 
@@ -129,6 +132,9 @@ func settingsFrom(p *nikopb.Settings) nikoconf.Settings {
 		DpiDirect:               int(p.DpiDirect),
 		DpiDirectPreset:         p.DpiDirectPreset,
 		DpiDirectCustom:         p.DpiDirectCustom,
+		RaycontrolAutoSwitch:    p.RaycontrolAutoSwitch,
+		RaycontrolBrutal:        p.RaycontrolBrutal,
+		RaycontrolReports:       p.RaycontrolReports,
 	}
 }
 

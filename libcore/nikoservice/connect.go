@@ -54,6 +54,9 @@ func (s *server) Connect(ctx context.Context, request *nikopb.ConnectRequest) (*
 		return nil, err
 	}
 	in.UserMode = s.userMode
+	if settings.RaycontrolBrutal {
+		in.BrutalRates = s.currentBrutalRates()
+	}
 	result, err := nikoconf.Build(in)
 	if errors.Is(err, nikoconf.ErrNeedsService) {
 		return nil, status.Error(codes.FailedPrecondition, "SERVICE_REQUIRED: "+err.Error())
@@ -80,6 +83,8 @@ func (s *server) Connect(ctx context.Context, request *nikopb.ConnectRequest) (*
 	// the enabled rules' lists missing or stale fetched now (the config left out those not here: the core takes them
 	// when it starts again)
 	s.updateRuleSetsSoon(u, time.Now())
+	// Start the raycontrol watchdog for the active profile if it belongs to a raycontrol node.
+	s.startWatchdogForConnect(ctx, u, in.Profile, in.Nodes)
 	return &nikopb.Empty{}, nil
 }
 

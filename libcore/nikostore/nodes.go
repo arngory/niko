@@ -24,7 +24,7 @@ import (
 
 // nodeSecrets are a node's fields the disk holds sealed.
 var nodeSecrets = map[string]bool{"device_key": true, "links": true, "doh": true, "identity": true,
-	"identity_next": true}
+	"identity_next": true, "lan": true}
 
 // pendingSecrets are a pending registration's fields the disk holds sealed: its client key.
 var pendingSecrets = map[string]bool{"key": true, "cert": true}
@@ -164,7 +164,7 @@ func (s *Store) decodeNodes(st *state, nodes []json.RawMessage, pending map[stri
 		whole, sealedNow, err := openObject(s.sealer, disk, nodeSecrets)
 		switch {
 		case errors.Is(err, errSealed):
-			public.DeviceKey, public.Links, public.DoH, public.Identity, public.IdentityNext = "", nil, "", nil, nil
+			public.DeviceKey, public.Links, public.DoH, public.Identity, public.IdentityNext, public.Lan = "", nil, "", nil, nil, nil
 			r.public = &public
 		case err != nil:
 			return false, fmt.Errorf("node %s: %w", id, err)
@@ -620,4 +620,138 @@ func (s *Store) DeleteNode(id string) error {
 		changes = append(changes, Change{Kind: KindProfiles, IDs: deleted})
 	}
 	return s.commit(st, changes...)
+}
+
+// ApplyDueLinks promotes any scheduled `next` credentials whose `from` timestamp has passed on nodeID
+// (RaySubscription.applyDue), updating the corresponding stored profile beans atomically.
+func (s *Store) ApplyDueLinks(nodeID string, nodeNow int64) ([]int64, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	st := s.state.clone()
+	r, i := st.node(nodeID)
+	if r == nil {
+		return nil, ErrNotFound
+	}
+	if r.node == nil {
+		return nil, ErrUnreadable
+	}
+	n := copyNode(r.node)
+	due := n.DueLinks(nodeNow)
+	if len(due) == 0 {
+		return nil, nil
+	}
+	var changed []int64
+	for _, key := range due {
+		links := n.Links[key]
+		bean, err := nikoray.ParseRow(links.Next, nikofmt.DefaultSettings)
+		if err != nil {
+			continue
+		}
+		if !nikofmt.KtIsBlank(links.Name) {
+			name := links.Name
+			nikofmt.Base(bean).Name = &name
+		}
+		bean.InitializeDefaultValues()
+		links.NextActive = true
+		n.Links[key] = links
+		pid := n.ProfileIDs[key]
+		if existing := st.profiles[pid]; existing != nil && !existing.unreadable {
+			data, err := json.Marshal(bean)
+			if err == nil {
+				if merged, err := keepTweaks(existing.bean, data); err == nil {
+					if decoded, err := nikofmt.DecodeBean(nikofmt.TypeName(bean), merged); err == nil {
+						bean = decoded
+					}
+				}
+			}
+			rec, err := s.newRecord(existing.id, existing.group, existing.order, bean)
+			if err != nil {
+				return nil, err
+			}
+			st.profiles[existing.id] = rec
+			changed = append(changed, existing.id)
+		}
+	}
+	if len(changed) == 0 {
+		return nil, nil
+	}
+	rec, err := s.sealNode(n)
+	if err != nil {
+		return nil, err
+	}
+	st.nodes[i] = rec
+	if err := s.commit(st, Change{Kind: KindProfiles, IDs: changed}, Change{Kind: KindNodes}); err != nil {
+		return nil, err
+	}
+	return changed, nil
+}
+
+// UseAlternativeLink toggles a profile row between `link` and `next` (RaySubscription.useAlternative),
+// used by the watchdog when the active credential stops working and subscription refresh is unreachable.
+func (s *Store) UseAlternativeLink(nodeID, key string) (int64, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	st := s.state.clone()
+	r, i := st.node(nodeID)
+	if r == nil {
+		return 0, false, ErrNotFound
+	}
+	if r.node == nil {
+		return 0, false, ErrUnreadable
+	}
+	n := copyNode(r.node)
+	alt, ok := n.AlternativeLink(key)
+	if !ok {
+		return 0, false, nil
+	}
+	bean, err := nikoray.ParseRow(alt, nikofmt.DefaultSettings)
+	if err != nil {
+		return 0, false, err
+	}
+	links := n.Links[key]
+	if !nikofmt.KtIsBlank(links.Name) {
+		name := links.Name
+		nikofmt.Base(bean).Name = &name
+	}
+	bean.InitializeDefaultValues()
+	links.NextActive = !links.NextActive
+	n.Links[key] = links
+	pid := n.ProfileIDs[key]
+	existing := st.profiles[pid]
+	if existing == nil || existing.unreadable {
+		return 0, false, nil
+	}
+	if data, err := json.Marshal(bean); err == nil {
+		if merged, err := keepTweaks(existing.bean, data); err == nil {
+			if decoded, err := nikofmt.DecodeBean(nikofmt.TypeName(bean), merged); err == nil {
+				bean = decoded
+			}
+		}
+	}
+	rec, err := s.newRecord(existing.id, existing.group, existing.order, bean)
+	if err != nil {
+		return 0, false, err
+	}
+	st.profiles[existing.id] = rec
+	nodeRec, err := s.sealNode(n)
+	if err != nil {
+		return 0, false, err
+	}
+	st.nodes[i] = nodeRec
+	if err := s.commit(st, Change{Kind: KindProfiles, IDs: []int64{existing.id}}, Change{Kind: KindNodes}); err != nil {
+		return 0, false, err
+	}
+	return existing.id, true, nil
+}
+
+// SetNodeLanShow updates whether this device advertises itself on the node's lan-v1 network.
+func (s *Store) SetNodeLanShow(nodeID string, show bool) error {
+	_, err := s.UpdateNode(nodeID, func(n *nikoray.Node) bool {
+		if n.LanShow == show {
+			return false
+		}
+		n.LanShow = show
+		return true
+	})
+	return err
 }

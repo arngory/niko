@@ -113,10 +113,22 @@ type Node struct {
 	Traffic *Traffic   `json:"traffic,omitempty"`
 	Client  *ClientMin `json:"client,omitempty"`
 	// DNSName and Addrs: names-v1, the package's (or the last subscription's) name and addresses; SubAddrs the last
-	// subscription's addresses
-	DNSName  string   `json:"dns_name,omitempty"`
-	Addrs    []string `json:"addrs,omitempty"`
-	SubAddrs []string `json:"sub_addrs,omitempty"`
+	// subscription's addresses; PastNames previous DNS names kept for host matching and log redaction.
+	DNSName   string   `json:"dns_name,omitempty"`
+	PastNames []string `json:"past_names,omitempty"`
+	Addrs     []string `json:"addrs,omitempty"`
+	SubAddrs  []string `json:"sub_addrs,omitempty"`
+	// Phase P6 dynamic fields: relays, probe endpoint, network hints, LAN, app mirror, watchdog switch notice.
+	Relays       []Relay       `json:"relays,omitempty"`
+	Probe        *ProbeInfo    `json:"probe,omitempty"`
+	Hints        *Hints        `json:"hints,omitempty"`
+	Lan          *Lan          `json:"lan,omitempty"`
+	LanShow      bool          `json:"lan_show,omitempty"`
+	LanPrevious  []LanPrevious `json:"lan_previous,omitempty"`
+	AppMirror    *AppMirror    `json:"app_mirror,omitempty"`
+	SwitchedFrom string        `json:"switched_from,omitempty"`
+	SwitchedTo   string        `json:"switched_to,omitempty"`
+	SwitchedAt   int64         `json:"switched_at,omitempty"`
 }
 
 // ID is the node's id (spa.node_id).
@@ -161,13 +173,72 @@ func (n *Node) KnockVersions() []int {
 // KeyRef is the key reference handed to the core (RayNode.keyRef): the key itself never enters the config.
 func (n *Node) KeyRef() string { return "raycontrol:" + n.SPA.NodeID + ":" + n.DeviceID }
 
-// MatchesHost is RayNode.matchesHost: address is the node's host or its name.
+// MatchesHost is RayNode.matchesHost: address is the node's host, its current DNS name, or any past DNS name.
 func (n *Node) MatchesHost(address string) bool {
 	if nikofmt.KtIsBlank(address) {
 		return false
 	}
 	a := strings.TrimSuffix(strings.TrimSuffix(strings.TrimPrefix(nikofmt.KtTrim(address), "["), "]"), ".")
-	return strings.EqualFold(a, n.Host) || n.DNSName != "" && strings.EqualFold(a, n.DNSName)
+	if strings.EqualFold(a, n.Host) || n.DNSName != "" && strings.EqualFold(a, n.DNSName) {
+		return true
+	}
+	for _, past := range n.PastNames {
+		if past != "" && strings.EqualFold(a, past) {
+			return true
+		}
+	}
+	return false
+}
+
+// RecordPastName remembers a previous DNS name (up to 8 distinct names) when a node migrates names.
+func (n *Node) RecordPastName(oldName string) {
+	oldName = strings.TrimSpace(oldName)
+	if oldName == "" || strings.EqualFold(oldName, n.DNSName) {
+		return
+	}
+	for _, p := range n.PastNames {
+		if strings.EqualFold(p, oldName) {
+			return
+		}
+	}
+	n.PastNames = append([]string{oldName}, n.PastNames...)
+	if len(n.PastNames) > 8 {
+		n.PastNames = n.PastNames[:8]
+	}
+}
+
+// RelayByID returns the relay with the given ID, or nil if absent.
+func (n *Node) RelayByID(id string) *Relay {
+	for i := range n.Relays {
+		if n.Relays[i].ID == id {
+			return &n.Relays[i]
+		}
+	}
+	return nil
+}
+
+// DueLinks returns row keys whose scheduled `next` credential is now active at nodeNow.
+func (n *Node) DueLinks(nodeNow int64) []string {
+	var keys []string
+	for key, l := range n.Links {
+		if l.Next != "" && !l.NextActive && l.From > 0 && nodeNow >= l.From {
+			keys = append(keys, key)
+		}
+	}
+	slices.Sort(keys)
+	return keys
+}
+
+// AlternativeLink returns the inactive credential link (`link` <-> `next`) for key if one exists.
+func (n *Node) AlternativeLink(key string) (string, bool) {
+	l, ok := n.Links[key]
+	if !ok || l.Next == "" {
+		return "", false
+	}
+	if l.NextActive {
+		return l.Link, l.Link != ""
+	}
+	return l.Next, true
 }
 
 // SPAJSON is the node's SPA parameters for libcore's own requests (RayNode.spaJson), with the carriers and the

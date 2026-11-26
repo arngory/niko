@@ -23,40 +23,44 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	NikoService_GetInfo_FullMethodName         = "/niko.v1.NikoService/GetInfo"
-	NikoService_RouteTest_FullMethodName       = "/niko.v1.NikoService/RouteTest"
-	NikoService_Watch_FullMethodName           = "/niko.v1.NikoService/Watch"
-	NikoService_ListGroups_FullMethodName      = "/niko.v1.NikoService/ListGroups"
-	NikoService_ListProfiles_FullMethodName    = "/niko.v1.NikoService/ListProfiles"
-	NikoService_GetProfile_FullMethodName      = "/niko.v1.NikoService/GetProfile"
-	NikoService_SaveProfile_FullMethodName     = "/niko.v1.NikoService/SaveProfile"
-	NikoService_DeleteProfiles_FullMethodName  = "/niko.v1.NikoService/DeleteProfiles"
-	NikoService_MoveProfiles_FullMethodName    = "/niko.v1.NikoService/MoveProfiles"
-	NikoService_SaveGroup_FullMethodName       = "/niko.v1.NikoService/SaveGroup"
-	NikoService_DeleteGroup_FullMethodName     = "/niko.v1.NikoService/DeleteGroup"
-	NikoService_Select_FullMethodName          = "/niko.v1.NikoService/Select"
-	NikoService_GetSelected_FullMethodName     = "/niko.v1.NikoService/GetSelected"
-	NikoService_ShareProfile_FullMethodName    = "/niko.v1.NikoService/ShareProfile"
-	NikoService_Connect_FullMethodName         = "/niko.v1.NikoService/Connect"
-	NikoService_GetSettings_FullMethodName     = "/niko.v1.NikoService/GetSettings"
-	NikoService_UpdateSettings_FullMethodName  = "/niko.v1.NikoService/UpdateSettings"
-	NikoService_Recognize_FullMethodName       = "/niko.v1.NikoService/Recognize"
-	NikoService_Import_FullMethodName          = "/niko.v1.NikoService/Import"
-	NikoService_Refresh_FullMethodName         = "/niko.v1.NikoService/Refresh"
-	NikoService_ListNodes_FullMethodName       = "/niko.v1.NikoService/ListNodes"
-	NikoService_DeleteNode_FullMethodName      = "/niko.v1.NikoService/DeleteNode"
-	NikoService_ListRules_FullMethodName       = "/niko.v1.NikoService/ListRules"
-	NikoService_SaveRule_FullMethodName        = "/niko.v1.NikoService/SaveRule"
-	NikoService_DeleteRules_FullMethodName     = "/niko.v1.NikoService/DeleteRules"
-	NikoService_MoveRules_FullMethodName       = "/niko.v1.NikoService/MoveRules"
-	NikoService_ApplyPreset_FullMethodName     = "/niko.v1.NikoService/ApplyPreset"
-	NikoService_ListRuleSets_FullMethodName    = "/niko.v1.NikoService/ListRuleSets"
-	NikoService_UpdateRuleSets_FullMethodName  = "/niko.v1.NikoService/UpdateRuleSets"
-	NikoService_ExportUserStore_FullMethodName = "/niko.v1.NikoService/ExportUserStore"
-	NikoService_ImportUserStore_FullMethodName = "/niko.v1.NikoService/ImportUserStore"
-	NikoService_TestConnection_FullMethodName  = "/niko.v1.NikoService/TestConnection"
-	NikoService_ExitAddress_FullMethodName     = "/niko.v1.NikoService/ExitAddress"
-	NikoService_TestProfiles_FullMethodName    = "/niko.v1.NikoService/TestProfiles"
+	NikoService_GetInfo_FullMethodName           = "/niko.v1.NikoService/GetInfo"
+	NikoService_RouteTest_FullMethodName         = "/niko.v1.NikoService/RouteTest"
+	NikoService_Watch_FullMethodName             = "/niko.v1.NikoService/Watch"
+	NikoService_ListGroups_FullMethodName        = "/niko.v1.NikoService/ListGroups"
+	NikoService_ListProfiles_FullMethodName      = "/niko.v1.NikoService/ListProfiles"
+	NikoService_GetProfile_FullMethodName        = "/niko.v1.NikoService/GetProfile"
+	NikoService_SaveProfile_FullMethodName       = "/niko.v1.NikoService/SaveProfile"
+	NikoService_DeleteProfiles_FullMethodName    = "/niko.v1.NikoService/DeleteProfiles"
+	NikoService_MoveProfiles_FullMethodName      = "/niko.v1.NikoService/MoveProfiles"
+	NikoService_SaveGroup_FullMethodName         = "/niko.v1.NikoService/SaveGroup"
+	NikoService_DeleteGroup_FullMethodName       = "/niko.v1.NikoService/DeleteGroup"
+	NikoService_Select_FullMethodName            = "/niko.v1.NikoService/Select"
+	NikoService_GetSelected_FullMethodName       = "/niko.v1.NikoService/GetSelected"
+	NikoService_ShareProfile_FullMethodName      = "/niko.v1.NikoService/ShareProfile"
+	NikoService_Connect_FullMethodName           = "/niko.v1.NikoService/Connect"
+	NikoService_GetSettings_FullMethodName       = "/niko.v1.NikoService/GetSettings"
+	NikoService_UpdateSettings_FullMethodName    = "/niko.v1.NikoService/UpdateSettings"
+	NikoService_Recognize_FullMethodName         = "/niko.v1.NikoService/Recognize"
+	NikoService_Import_FullMethodName            = "/niko.v1.NikoService/Import"
+	NikoService_Refresh_FullMethodName           = "/niko.v1.NikoService/Refresh"
+	NikoService_ListNodes_FullMethodName         = "/niko.v1.NikoService/ListNodes"
+	NikoService_DeleteNode_FullMethodName        = "/niko.v1.NikoService/DeleteNode"
+	NikoService_ListRules_FullMethodName         = "/niko.v1.NikoService/ListRules"
+	NikoService_SaveRule_FullMethodName          = "/niko.v1.NikoService/SaveRule"
+	NikoService_DeleteRules_FullMethodName       = "/niko.v1.NikoService/DeleteRules"
+	NikoService_MoveRules_FullMethodName         = "/niko.v1.NikoService/MoveRules"
+	NikoService_ApplyPreset_FullMethodName       = "/niko.v1.NikoService/ApplyPreset"
+	NikoService_ListRuleSets_FullMethodName      = "/niko.v1.NikoService/ListRuleSets"
+	NikoService_UpdateRuleSets_FullMethodName    = "/niko.v1.NikoService/UpdateRuleSets"
+	NikoService_ExportUserStore_FullMethodName   = "/niko.v1.NikoService/ExportUserStore"
+	NikoService_ImportUserStore_FullMethodName   = "/niko.v1.NikoService/ImportUserStore"
+	NikoService_TestConnection_FullMethodName    = "/niko.v1.NikoService/TestConnection"
+	NikoService_ExitAddress_FullMethodName       = "/niko.v1.NikoService/ExitAddress"
+	NikoService_TestProfiles_FullMethodName      = "/niko.v1.NikoService/TestProfiles"
+	NikoService_RunNodeTest_FullMethodName       = "/niko.v1.NikoService/RunNodeTest"
+	NikoService_NodeAdminCall_FullMethodName     = "/niko.v1.NikoService/NodeAdminCall"
+	NikoService_ClearNodeSwitched_FullMethodName = "/niko.v1.NikoService/ClearNodeSwitched"
+	NikoService_SetNodeLan_FullMethodName        = "/niko.v1.NikoService/SetNodeLan"
 )
 
 // NikoServiceClient is the client API for NikoService service.
@@ -190,6 +194,17 @@ type NikoServiceClient interface {
 	// Measures HTTP latency for a batch of stored profiles (or all profiles of a group) using isolated
 	// in-memory test cores, streaming each result as it finishes (D-MAIN-08/12).
 	TestProfiles(ctx context.Context, in *TestProfilesRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ProfileTestResult], error)
+	// Runs a full diagnostic test against a raycontrol node ("Why isn't it working", D-WHY): direct path,
+	// subscription refresh, DNS tunnel check, and each profile, streaming steps and returning redacted findings.
+	// Owner-only, outside the lifecycle lock.
+	RunNodeTest(ctx context.Context, in *NodeTestRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[NodeTestEvent], error)
+	// Proxies an allowlisted admin RPC (NodeService/* or DeviceService/GetSelf) to a raycontrol node using the
+	// daemon's sealed client certificate (D-ADMIN). Owner-only, outside the lifecycle lock.
+	NodeAdminCall(ctx context.Context, in *NodeAdminRequest, opts ...grpc.CallOption) (*NodeAdminResponse, error)
+	// Dismisses the D-STATE-SWITCHED notice after the watchdog automatically switched a node's active profile.
+	ClearNodeSwitched(ctx context.Context, in *NodeId, opts ...grpc.CallOption) (*Empty, error)
+	// Toggles lan-v1 visibility for this device on a raycontrol node.
+	SetNodeLan(ctx context.Context, in *SetNodeLanRequest, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type nikoServiceClient struct {
@@ -585,6 +600,55 @@ func (c *nikoServiceClient) TestProfiles(ctx context.Context, in *TestProfilesRe
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type NikoService_TestProfilesClient = grpc.ServerStreamingClient[ProfileTestResult]
 
+func (c *nikoServiceClient) RunNodeTest(ctx context.Context, in *NodeTestRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[NodeTestEvent], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &NikoService_ServiceDesc.Streams[5], NikoService_RunNodeTest_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[NodeTestRequest, NodeTestEvent]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type NikoService_RunNodeTestClient = grpc.ServerStreamingClient[NodeTestEvent]
+
+func (c *nikoServiceClient) NodeAdminCall(ctx context.Context, in *NodeAdminRequest, opts ...grpc.CallOption) (*NodeAdminResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NodeAdminResponse)
+	err := c.cc.Invoke(ctx, NikoService_NodeAdminCall_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) ClearNodeSwitched(ctx context.Context, in *NodeId, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, NikoService_ClearNodeSwitched_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) SetNodeLan(ctx context.Context, in *SetNodeLanRequest, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, NikoService_SetNodeLan_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // NikoServiceServer is the server API for NikoService service.
 // All implementations must embed UnimplementedNikoServiceServer
 // for forward compatibility.
@@ -716,6 +780,17 @@ type NikoServiceServer interface {
 	// Measures HTTP latency for a batch of stored profiles (or all profiles of a group) using isolated
 	// in-memory test cores, streaming each result as it finishes (D-MAIN-08/12).
 	TestProfiles(*TestProfilesRequest, grpc.ServerStreamingServer[ProfileTestResult]) error
+	// Runs a full diagnostic test against a raycontrol node ("Why isn't it working", D-WHY): direct path,
+	// subscription refresh, DNS tunnel check, and each profile, streaming steps and returning redacted findings.
+	// Owner-only, outside the lifecycle lock.
+	RunNodeTest(*NodeTestRequest, grpc.ServerStreamingServer[NodeTestEvent]) error
+	// Proxies an allowlisted admin RPC (NodeService/* or DeviceService/GetSelf) to a raycontrol node using the
+	// daemon's sealed client certificate (D-ADMIN). Owner-only, outside the lifecycle lock.
+	NodeAdminCall(context.Context, *NodeAdminRequest) (*NodeAdminResponse, error)
+	// Dismisses the D-STATE-SWITCHED notice after the watchdog automatically switched a node's active profile.
+	ClearNodeSwitched(context.Context, *NodeId) (*Empty, error)
+	// Toggles lan-v1 visibility for this device on a raycontrol node.
+	SetNodeLan(context.Context, *SetNodeLanRequest) (*Empty, error)
 	mustEmbedUnimplementedNikoServiceServer()
 }
 
@@ -827,6 +902,18 @@ func (UnimplementedNikoServiceServer) ExitAddress(context.Context, *ExitAddressR
 }
 func (UnimplementedNikoServiceServer) TestProfiles(*TestProfilesRequest, grpc.ServerStreamingServer[ProfileTestResult]) error {
 	return status.Error(codes.Unimplemented, "method TestProfiles not implemented")
+}
+func (UnimplementedNikoServiceServer) RunNodeTest(*NodeTestRequest, grpc.ServerStreamingServer[NodeTestEvent]) error {
+	return status.Error(codes.Unimplemented, "method RunNodeTest not implemented")
+}
+func (UnimplementedNikoServiceServer) NodeAdminCall(context.Context, *NodeAdminRequest) (*NodeAdminResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method NodeAdminCall not implemented")
+}
+func (UnimplementedNikoServiceServer) ClearNodeSwitched(context.Context, *NodeId) (*Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method ClearNodeSwitched not implemented")
+}
+func (UnimplementedNikoServiceServer) SetNodeLan(context.Context, *SetNodeLanRequest) (*Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetNodeLan not implemented")
 }
 func (UnimplementedNikoServiceServer) mustEmbedUnimplementedNikoServiceServer() {}
 func (UnimplementedNikoServiceServer) testEmbeddedByValue()                     {}
@@ -1426,6 +1513,71 @@ func _NikoService_TestProfiles_Handler(srv interface{}, stream grpc.ServerStream
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type NikoService_TestProfilesServer = grpc.ServerStreamingServer[ProfileTestResult]
 
+func _NikoService_RunNodeTest_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(NodeTestRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(NikoServiceServer).RunNodeTest(m, &grpc.GenericServerStream[NodeTestRequest, NodeTestEvent]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type NikoService_RunNodeTestServer = grpc.ServerStreamingServer[NodeTestEvent]
+
+func _NikoService_NodeAdminCall_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NodeAdminRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).NodeAdminCall(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_NodeAdminCall_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).NodeAdminCall(ctx, req.(*NodeAdminRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_ClearNodeSwitched_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NodeId)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).ClearNodeSwitched(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_ClearNodeSwitched_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).ClearNodeSwitched(ctx, req.(*NodeId))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_SetNodeLan_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetNodeLanRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).SetNodeLan(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_SetNodeLan_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).SetNodeLan(ctx, req.(*SetNodeLanRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // NikoService_ServiceDesc is the grpc.ServiceDesc for NikoService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1549,6 +1701,18 @@ var NikoService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "ExitAddress",
 			Handler:    _NikoService_ExitAddress_Handler,
 		},
+		{
+			MethodName: "NodeAdminCall",
+			Handler:    _NikoService_NodeAdminCall_Handler,
+		},
+		{
+			MethodName: "ClearNodeSwitched",
+			Handler:    _NikoService_ClearNodeSwitched_Handler,
+		},
+		{
+			MethodName: "SetNodeLan",
+			Handler:    _NikoService_SetNodeLan_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
@@ -1574,6 +1738,11 @@ var NikoService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "TestProfiles",
 			Handler:       _NikoService_TestProfiles_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "RunNodeTest",
+			Handler:       _NikoService_RunNodeTest_Handler,
 			ServerStreams: true,
 		},
 	},

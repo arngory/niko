@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"libcore/nikopb"
+	"libcore/nikoray"
 	"libcore/nikostore"
 	"libcore/rayapi"
 	"libcore/raysub"
@@ -42,7 +43,10 @@ var Version = "dev"
 // ListNodes, DeleteNode, Refresh of a node, their profiles in Connect); 12: per-user store served to any verified
 // caller via Host.Caller and Host.UserDirectory (not development mode only); 13: user-mode capabilities (Info.privileged,
 // Info.tun) and store migration (ExportUserStore, ImportUserStore).
-const API = 14
+// 14: TestConnection, ExitAddress, TestProfiles, and zip file import;
+// 15: raycontrol dynamics (relays, pastNames, key rotation, watchdog/channel/brutal/datagrams/reports, LAN),
+// RunNodeTest (D-WHY), and NodeAdminCall (D-ADMIN).
+const API = 15
 
 // Service is NikoService as the daemon serves it: GetInfo for any caller the daemon verified, RouteTest for its
 // owner only (it reads the owner's core, as the daemon's own calls on the running core do). RouteTest is checked as
@@ -72,6 +76,7 @@ func Service() boxdd.Service {
 			setRaycontrolClient()
 			s := &server{users: users, userMode: userMode, start: host.StartService, canStart: host.CanStartService,
 				registerAt: rayapi.Register, fetch: raysub.Fetch,
+				apiCall: rayapi.Call, rotateCert: rayapi.RotateCertificate,
 				newIdentity: rayapi.NewIdentity, core: func() (context.Context, func()) {
 					instance := host.StartedService().RunningInstance()
 					if instance == nil {
@@ -104,6 +109,8 @@ func Service() boxdd.Service {
 			"TestConnection": boxdd.PolicyOwnerUnlocked,
 			"ExitAddress":    boxdd.PolicyOwnerUnlocked,
 			"TestProfiles":   boxdd.PolicyOwnerUnlocked,
+			"RunNodeTest":    boxdd.PolicyOwnerUnlocked,
+			"NodeAdminCall":  boxdd.PolicyOwnerUnlocked,
 		},
 	}
 }
@@ -123,6 +130,17 @@ type server struct {
 	// testSlots bounds the total number of concurrent ephemeral test boxes across all TestProfiles streams.
 	testSlotsOnce sync.Once
 	testSlots     chan struct{}
+	// Phase P6 raycontrol hooks and runtime state (watchdog, Brutal rates, daily reports, datagrams).
+	apiCall     func(ctx context.Context, e rayapi.Endpoint, method string, body []byte) ([]byte, error)
+	rotateCert  func(ctx context.Context, e rayapi.Endpoint, next rayapi.Identity) error
+	directProbe func(ctx context.Context, node *nikoray.Node) (*directProbeOutcome, error)
+	dynMu         sync.Mutex
+	watchdog      *watchdogRun
+	brutalRates   map[string]brutalEntry
+	reportDays    map[string]int64
+	datagrams     *datagramCache
+	rotating      map[string]bool
+	rotateRetryAt map[string]time.Time
 	// users are the users' stores
 	users *users
 	// start starts the core with a config for the caller, as DesktopService.StartService, and the system proxy the

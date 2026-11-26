@@ -29,6 +29,26 @@ func (s *server) syncLogRedactions() {
 			if stored.Node.DNSName != "" {
 				literals = append(literals, stored.Node.DNSName)
 			}
+			for _, past := range stored.Node.PastNames {
+				if past != "" {
+					literals = append(literals, past)
+				}
+			}
+			for _, relay := range stored.Node.Relays {
+				if relay.Host != "" {
+					literals = append(literals, relay.Host)
+				}
+			}
+			for _, addr := range stored.Node.Addrs {
+				if addr != "" {
+					literals = append(literals, addr)
+				}
+			}
+			for _, addr := range stored.Node.SubAddrs {
+				if addr != "" {
+					literals = append(literals, addr)
+				}
+			}
 		}
 	}
 	redact.SetLiteralsSlice(literals)

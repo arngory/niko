@@ -260,7 +260,9 @@ func TestServicePolicy(t *testing.T) {
 		service.Methods["TestConnection"] != boxdd.PolicyOwnerUnlocked ||
 		service.Methods["ExitAddress"] != boxdd.PolicyOwnerUnlocked ||
 		service.Methods["TestProfiles"] != boxdd.PolicyOwnerUnlocked ||
-		len(service.Methods) != 4 {
+		service.Methods["RunNodeTest"] != boxdd.PolicyOwnerUnlocked ||
+		service.Methods["NodeAdminCall"] != boxdd.PolicyOwnerUnlocked ||
+		len(service.Methods) != 6 {
 		t.Fatalf("%+v", service)
 	}
 }

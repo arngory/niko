@@ -44,6 +44,16 @@ type Input struct {
 	// UserMode is true when building a config for an unprivileged user-mode daemon (strips privileged
 	// routing options like auto_detect_interface and forbids VPN/TUN mode).
 	UserMode bool `json:"user_mode,omitempty"`
+	// BrutalRates maps raycontrol node ID to measured Hysteria2 Brutal rates (kbit/s, 0 = BBR).
+	BrutalRates map[string]BrutalRate `json:"-"`
+	// DnsResolvers maps raycontrol node ID to the detected DNS tunnel resolver address on this network.
+	DnsResolvers map[string]string `json:"-"`
+}
+
+// BrutalRate holds measured Hysteria2 Brutal upload/download targets in kbit/s (0 = BBR).
+type BrutalRate struct {
+	DownKbps int64
+	UpKbps   int64
 }
 
 // The platforms a config is built for.
@@ -214,6 +224,10 @@ type Settings struct {
 	// rule's programs are (desktop.go)
 	ProgramsMode int    `json:"programsMode"`
 	Programs     string `json:"programs"`
+	// Phase P6 raycontrol dynamic settings (off by default except auto-switch on desktop).
+	RaycontrolAutoSwitch bool `json:"raycontrolAutoSwitch"`
+	RaycontrolBrutal     bool `json:"raycontrolBrutal"`
+	RaycontrolReports    bool `json:"raycontrolReports"`
 }
 
 // Secrets are the install's secrets a config may carry (ConfigSecrets).
