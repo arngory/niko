@@ -41,20 +41,21 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 - **частично** — делает не всё. Чего нет — коротко в ячейке.
 - **нет** — в окне этого нет.
 
-Что окно умеет, описано в [README окна](https://github.com/arngory/niko-desktop/blob/main/README.ru.md). Связь с демоном у окна пока
-есть только в сборке разработки (`NIKO_DEV`).
+Что окно умеет, описано в [README окна](https://github.com/arngory/niko-desktop/blob/main/README.ru.md). В релизных
+сборках (срез 14) Windows подключается через AF_UNIX-воркер со взаимным HMAC-SHA256, Linux — напрямую к сокету демона;
+режим разработки (`NIKO_DEV`) остаётся для тестов против локального TCP.
 
 Пути Kotlin даны от `app/src/main/java/io/niko/`. Вызовы демона:
 
 - `boxdd` — `experimental/boxdd/desktop_service.proto` и `daemon/*.proto` форка ядра.
-- `NikoService` — новый API: `shared/proto/niko/v1/niko_service.proto`, пока в нём `GetInfo` и `RouteTest`, отвечает
-  демон `nikod` (этап 3, срез 1). Остальные вызовы матрицы в нём — план.
+- `NikoService` — `shared/proto/niko/v1/niko_service.proto` (текущий API 12, схема хранилища 4), отвечает демон
+  `niko-daemon`. Остальные вызовы матрицы без реализации — план.
 
 ## Верхняя панель (D-NAV)
 
 | ID | Элемент | Вызов демона | Где логика сейчас | Макет | Android | Окно |
 |---|---|---|---|---|---|---|
-| D-NAV-01 | Разделы: Главная, Узлы, Проверка маршрута, Настройки (+ Админ, Журнал) | — | UI | есть | есть | частично: нет Узлов, Проверки маршрута, Настроек и Админа |
+| D-NAV-01 | Разделы: Главная, Узлы, Проверка маршрута, Настройки (+ Админ, Журнал) | — | UI | есть | есть | частично: Главная, Узлы, Проверка маршрута, Правила, Соединения, Журнал, Настройки есть; нет Админа |
 | D-NAV-02 | Режим: Прокси или VPN (TUN) | конфиг (mixed или tun) + `ManagedService.SetSystemProxyEnabled` | Kotlin: `fmt/ConfigBuilder.kt` | расходится: был в шапке; в Простом — плитка, в Расширенном — переключатель в карточке подключения | есть | частично: выбор на главной (переключатель под статусом, когда кнопка подключает профиль службы) и в настройках, `Connect` в выбранном режиме, работающее ядро запускается в нём заново; системный прокси режима прокси ставит служба от имени пользователя (по умолчанию на Windows) |
 | D-NAV-03 | Вид интерфейса: Простой или Расширенный, переключатель в шапке (как в mdll). Простой: кнопка подключения, статус, 2–4 плитки, текущий узел. Расширенный: всё, плюс разделы «Соединения» и «Правила», JSON и ручная форма. Не сбрасывает подключение | — | UI (настройка приложения) | есть (Claude Design, вариант B) | нет | есть |
 
@@ -65,7 +66,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-MAIN-01 | Заголовок «Трафик идёт через …»: узел и способ подключения | `SubscribeGroups` + профиль из `NikoService` | Kotlin (хранилище, BG-02) | есть | есть: выбранный профиль в списке и в уведомлении | нет |
 | D-MAIN-02 | Статус: подключается, подключено, ошибка; время в сети | `SubscribeServiceStatus`, `GetStartedAt` | есть | есть | есть: без времени в сети | есть |
 | D-MAIN-03 | Кнопка «Узнать IP выхода» | `NikoService.ExitAddress` | Go: `libcore/exitaddress.go` | есть | есть | нет |
-| D-MAIN-04 | Подключить или отключить | `DesktopService.StartService(config)`, `ManagedService.StopService` | есть; конфиг — BG-01 | есть | есть | частично: нет профилей, запускает готовый JSON-файл |
+| D-MAIN-04 | Подключить или отключить | `NikoService.Connect`, `DesktopService.StartService(config)`, `ManagedService.StopService` | Go: `nikoconf` + `boxdd` | есть | есть | есть: подключает выбранный профиль службы (`Connect`) или `--config` в dev-режиме |
 | D-MAIN-05 | Схема маршрута: остальное, пресет, правила | конфиг + `NikoService` (пресеты) | Kotlin: `RoutePresets.kt`, `database/ProfileManager.kt` | есть | нет | нет |
 | D-MAIN-06 | Показатели: входящий, исходящий, задержка, за сессию | `SubscribeStatus` (uplink, downlink, totals), `URLTest` | есть | есть | есть | частично: нет задержки |
 | D-MAIN-07 | Список способов подключения узла | `NikoService` | Kotlin (хранилище, BG-02) | есть | есть | нет |
@@ -84,13 +85,13 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 
 | ID | Элемент | Вызов демона | Где логика сейчас | Макет | Android | Окно |
 |---|---|---|---|---|---|---|
-| D-ADD-02 | Поле «Вставить» | — | UI | есть | есть: импорт из буфера | нет |
-| D-ADD-03 | Распознано: приглашение, подписка или ссылка профиля | `NikoService.Import` | Kotlin: `raycontrol/RayImport.kt`, `fmt/UniversalFmt.kt`, парсеры `fmt/*`, `group/RawUpdater.kt` | есть | есть | нет |
-| D-ADD-04 | Из буфера | — | UI, дальше D-ADD-03 | есть | есть | нет |
+| D-ADD-02 | Поле «Вставить» | — | UI | есть | есть: импорт из буфера | есть (`add_screen.dart`) |
+| D-ADD-03 | Распознано: приглашение, подписка или ссылка профиля | `NikoService.Recognize` / `Import` | Go: `nikofmt`, `nikosub`, `nikoray` | есть | есть | есть: ссылки, подписки, приглашения и пакеты `raycontrol` |
+| D-ADD-04 | Из буфера | — | UI, дальше D-ADD-03 | есть | есть | есть |
 | D-ADD-05 | QR из файла или снимка экрана | — | Kotlin: `ui/add/AddActivity.kt`, QR с камеры и из картинки | есть | есть: QR из картинки (`ui/add/AddActivity.kt`) | нет |
 | D-ADD-06 | PIN приглашения, 6 цифр | `NikoService.Register` | Go: `libcore/nikoray`, `libcore/rayapi`, `nikoservice` (`Import`) | есть | есть | есть: поле PIN на экране добавления, когда приглашение его требует, и снова после неверного с остатком попыток; регистрация — `Import` (`ImportRequest.pin`, `TaskProgress.pin`) |
-| D-ADD-07 | Что будет добавлено | `NikoService.Import` (dry run) | Kotlin: `ui/ImportReview.kt` | расходится: подсказка внизу обрезана кнопкой | есть | нет |
-| D-ADD-08 | Добавить | `NikoService.Register` / `Import` | Kotlin + Go | есть | есть | нет |
+| D-ADD-07 | Что будет добавлено | `NikoService.Recognize` | Go: `nikoservice` | расходится: подсказка внизу обрезана кнопкой | есть | есть |
+| D-ADD-08 | Добавить | `NikoService.Import` | Go: `nikoservice` | есть | есть | есть |
 | D-ADD-09 | Импорт из файла: текст, JSON, WireGuard .zip, пакет устройства `rayctl` | `NikoService.Import` | Kotlin: `ui/add/AddActivity.kt`, `group/RawUpdater.kt`, `raycontrol/RayImport.kt` | есть | есть | нет |
 | D-ADD-10 | Проверка импорта: что заменит весь конфиг, с ключами | `NikoService.Import` (dry run) | Kotlin: `ui/ImportReview.kt` | есть | есть | нет |
 | D-ADD-11 | Ссылки-схемы подписок (sn, clash, sing-box, hiddify, v2rayng), профилей (ss, vmess, vless, trojan, naive+, hy2, tuic, anytls…) и приглашений rcinv; на компьютере — обработчик ссылок в системе | `NikoService.Import` | Kotlin: `ui/MainActivity.kt` (intent-фильтры), разбор — см. D-ADD-03; обработчика ссылок на компьютере нет | есть | есть | нет |
@@ -120,9 +121,9 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 
 | ID | Элемент | Вызов демона | Где логика сейчас | Макет | Android | Окно |
 |---|---|---|---|---|---|---|
-| D-SUB-01 | Группа подписки в списке: имя, серверы с пингом | `NikoService` | Kotlin (хранилище, BG-02) | есть | есть | нет |
-| D-SUB-02 | Срок и трафик подписки (`subscription-userinfo`) | `NikoService` | Kotlin: `group/SubscriptionHeaders.kt` | есть | есть | нет |
-| D-SUB-03 | Обновить подписку вручную | `NikoService.Refresh` | Kotlin: `group/GroupUpdater.kt`, `group/RawUpdater.kt` | есть | есть | нет |
+| D-SUB-01 | Группа подписки в списке: имя, серверы с пингом | `NikoService` | Go: `nikosub`, `nikostore` | есть | есть | частично: группа и профили есть (`nodes_screen.dart`), без пинга |
+| D-SUB-02 | Срок и трафик подписки (`subscription-userinfo`) | `NikoService` | Go: `nikosub` | есть | есть | есть |
+| D-SUB-03 | Обновить подписку вручную | `NikoService.Refresh` | Go: `nikosub`, `nikoservice` | есть | есть | есть |
 | D-SUB-04 | Удалить подписку: в меню «⋯», с подтверждением | `NikoService` | Kotlin (хранилище) | есть | есть | нет |
 | D-SUB-05 | Меню подписки «⋯» | — | UI | есть | есть: меню группы | нет |
 | D-SUB-06 | Скопировать ссылку подписки | `NikoService` | UI; ссылка — в хранилище (BG-02) | есть | нет: только ссылка `sn://subscription` (D-SUB-09) | нет |
@@ -140,12 +141,12 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 
 | ID | Элемент | Вызов демона | Где логика сейчас | Макет | Android | Окно |
 |---|---|---|---|---|---|---|
-| D-CHECK-02 | Поле адреса | — | UI | есть | есть | нет |
-| D-CHECK-03 | Проверить | `NikoService.RouteTest` | Go: `libcore/routetest.go` | есть | есть | нет: есть только вызов `RouteTest` в клиенте окна |
-| D-CHECK-04 | Результат | `NikoService.RouteTest` | Go | есть | есть | нет: есть только вызов `RouteTest` в клиенте окна |
-| D-CHECK-05 | Путь: сайт → правило → выход | `NikoService.RouteTest` | Go | есть | есть | нет: есть только вызов `RouteTest` в клиенте окна |
-| D-CHECK-06 | Почему: какой список и когда обновлён | `NikoService.RouteTest` + BG-09 | Go + Kotlin: `RuleSetFiles.kt` | есть | нет: виден только текст правила | нет: в службе есть (`ListRuleSets` — когда обновлён каждый список), показ — с разделом «Проверка маршрута» |
-| D-CHECK-07 | Недавние | — | UI | есть | нет | нет |
+| D-CHECK-02 | Поле адреса | — | UI | есть | есть | есть (`check_screen.dart`) |
+| D-CHECK-03 | Проверить | `NikoService.RouteTest` | Go: `libcore/routetest` | есть | есть | есть |
+| D-CHECK-04 | Результат | `NikoService.RouteTest` | Go | есть | есть | есть |
+| D-CHECK-05 | Путь: сайт → правило → выход | `NikoService.RouteTest` | Go | есть | есть | есть |
+| D-CHECK-06 | Почему: какой список и когда обновлён | `NikoService.RouteTest` + BG-09 | Go: `routetest`, `nikoservice` (`ListRuleSets`) | есть | нет: виден только текст правила | есть |
+| D-CHECK-07 | Недавние | — | UI | есть | нет | есть |
 
 ## Почему не работает (D-WHY)
 
@@ -164,7 +165,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | ID | Элемент | Вызов демона | Где логика сейчас | Макет | Android | Окно |
 |---|---|---|---|---|---|---|
 | D-ADD | Первый запуск: узлов и подписок нет, открыт экран добавления | BG-02 (пусто) | UI | есть («Добавление (первый запуск)») | нет | нет |
-| D-STATE-SVC | Служба не установлена: установить или режим «Прокси» | `DesktopService.GetDaemonInfo` | проверка службы есть; установщика нет; режима «Прокси» без службы нет — ядро в worker'е без прав, этап 3, срез 16 (desktop-stage3.md, решение 9) | есть | — | частично: только баннер, нет установки и режима «Прокси» |
+| D-STATE-SVC | Служба не установлена: установить или режим «Прокси» | `DesktopService.GetDaemonInfo`, `service install` | Windows: UAC-установка в `Program Files` есть (срез 14); Linux `pkexec` и режим «Прокси» без службы (срез 16) — в плане | есть | — | частично: на Windows есть установка и запуск установленной копии; на Linux и без службы — ещё нет |
 | D-STATE-QUOTA | Трафик узла исчерпан до сброса | `NikoService` | Kotlin: `raycontrol/RaySubscription.kt` (traffic-limit-v1) | есть | есть | нет |
 | D-STATE-NET | Нет сети | `boxdd` platform interface | есть | есть | нет: только в итогах прогона (D-WHY) | нет |
 | D-STATE-RELOAD | Настройка изменена: перезапустить ядро | `NikoService.Reload` (пересборка конфига, BG-01) | Kotlin: `ktx/Utils.kt` (`needReload`), `ui/MainActivity.kt` | есть | есть | нет |
@@ -216,30 +217,30 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 
 | ID | Элемент | Вызов демона | Где логика сейчас | Макет | Android | Окно |
 |---|---|---|---|---|---|---|
-| D-SET-03 | Тема: как в системе, светлая, тёмная | — | UI | есть | есть | частично: нет выбора, только как в системе |
+| D-SET-03 | Тема: как в системе, светлая, тёмная | — | UI | есть | есть | есть (`settings_screen.dart`, `window.json`, синхронизация рамки Windows) |
 | D-SET-04 | Запускать вместе с системой | `boxdd` в режиме службы + автозапуск окна | есть; установщика нет | есть | есть: вместе с D-SET-05 (`BootReceiver.kt`) | нет |
 | D-SET-05 | Подключаться при запуске | `NikoService` | Kotlin: `BootReceiver.kt`; на компьютере — служба | есть | есть | нет |
 | D-SET-07 | Пресет «Россия»: заменён выбором пресета страны в правилах (D-RULES-05) | `NikoService` | Kotlin: `RoutePresets.kt`, `RuleSetFiles.kt` | расходится: выбор пресета теперь в «Правилах», а не в настройках | есть | нет |
 | D-SET-08 | Реклама и трекеры: обычное правило «Блок» по `geosite:category-ads-all` в списке правил, отдельного переключателя и плитки нет (решение владельца) | `NikoService` | Kotlin: правило создаётся при первом запуске, `database/ProfileManager.kt` | есть | есть | нет: правило по `geosite:` компьютер пропускает (нет geo-ассетов), правило при первом запуске не создаётся |
 | D-SET-10 | Режим эксперта: заменён видом «Расширенный» (D-NAV-03) | — | UI | расходится: отдельной настройки больше нет | нет | есть: как D-NAV-03 |
-| D-SET-12 | О программе: версия, ядро, обновления (GitHub и узел, подпись minisign) | `DesktopService.InstallUpdate` + `NikoService` | Go: `libcore/update.go`, `minisign`; с узла — Kotlin `raycontrol/RayAppMirror.kt` | есть | есть | нет |
+| D-SET-12 | О программе: версия, ядро, обновления (GitHub и узел, подпись minisign) | `DesktopService.InstallUpdate` + `NikoService` | Go: `libcore/update.go`, `minisign`; с узла — Kotlin `raycontrol/RayAppMirror.kt` | есть | есть | частично: версии окна/ядра/службы и ID ключа minisign есть; проверки и установки обновлений нет |
 | D-SET-33 | Проверять обновления самому: отдельная настройка, по умолчанию выключена (решение владельца); включённая только сообщает о новой версии | `NikoService` + `DesktopService.InstallUpdate` | Go: `libcore/update.go` для проверки; расписание и настройка — новое в Kotlin и в службе | есть | нет | нет |
-| D-SET-13 | Язык | `DesktopService.SetLocale` | есть | есть | есть: язык приложения в настройках системы | частично: нет выбора, язык системы |
+| D-SET-13 | Язык | `DesktopService.SetLocale` | есть | есть | есть: язык приложения в настройках системы | есть: выбор системный / русский / английский в окне и синхронизация со службой |
 | D-SET-14 | Сервис для IP выхода | `NikoService.ExitAddress` | Go: `libcore/exitaddress.go` | есть | нет: сервис выбирают в диалоге (D-MAIN-14) | нет |
 | D-SET-15 | Корневые сертификаты naive: Chrome, Mozilla, системные | конфиг + `CRONET_WINDOWS_SYSTEM_ROOTS` | Go в ядре; настройка — Kotlin | есть | есть | нет |
-| D-SET-16 | Локальная сеть напрямую | конфиг | Kotlin: `bypassLanInCore` в `fmt/ConfigBuilder.kt` | есть | есть | нет |
+| D-SET-16 | Локальная сеть напрямую | конфиг (`Settings.bypass_lan_in_core`) | Go: `nikoconf` | есть | есть | есть |
 | D-SET-17 | Отчёты для админа узла: согласие | `NikoService` | Kotlin: `raycontrol/RayReport.kt` | есть | есть | нет |
-| D-SET-18 | DNS: удалённый, прямой, FakeIP (эксперт) | конфиг | Kotlin: `fmt/ConfigBuilder.kt` | есть | есть | нет |
+| D-SET-18 | DNS: удалённый, прямой, FakeIP (эксперт) | конфиг (`Settings`) | Go: `nikoconf` | есть | есть | есть |
 | D-SET-19 | Резервная копия, перенос с телефона | `NikoService` | Kotlin: `ui/BackupFragment.kt` | есть | есть | нет |
 | D-SET-20 | Переключать способы узла автоматически | `NikoService` | Kotlin: `raycontrol/RayWatchdog.kt` | есть | есть | нет |
 | D-SET-21 | Brutal по измеренной скорости; резолверы DNS-туннелей dnstt и MasterDnsVPN | конфиг | Kotlin: `raycontrol/RayBrutal.kt`, `fmt/NikoParams.kt` | есть | есть | нет |
-| D-SET-22 | Стратегии доменов, DNS-маршрутизация, оптимистичный кэш | конфиг | Kotlin: `fmt/ConfigBuilder.kt` | есть | есть | нет |
-| D-SET-23 | Реализация TUN, MTU | конфиг | Kotlin: `fmt/ConfigBuilder.kt`, `bg/VpnService.kt` | есть | есть | нет |
+| D-SET-22 | Стратегии доменов, DNS-маршрутизация, оптимистичный кэш | конфиг (`Settings`) | Go: `nikoconf` | есть | есть | частично: стратегии доменов и оптимистичный кэш в UI; `enable_dns_routing` в API |
+| D-SET-23 | Реализация TUN, MTU | конфиг (`Settings`) | Go: `nikoconf` | есть | есть | есть |
 | D-SET-24 | Интервал скорости, статистика трафика профилей, показывать адрес | `SubscribeStatus` (интервал) + `NikoService` | Kotlin: `bg/proto/TrafficLooper.kt`, `ui/home/ConfigsState.kt` | есть | есть | нет |
-| D-SET-25 | Уровень журнала и размер буфера | конфиг + `NikoService` | Kotlin: `fmt/ConfigBuilder.kt`; буфер — `SagerNet.kt` (`Libcore.initCore`) | есть | есть | нет |
+| D-SET-25 | Уровень журнала и размер буфера | конфиг (`Settings.log_level`) | Go: `nikoconf` | есть | есть | частично: уровень журнала есть; размер буфера — фиксированный |
 | D-SET-26 | Общий свой конфиг (JSON) | конфиг | Kotlin: `fmt/ConfigBuilder.kt` | есть | есть | нет |
-| D-SET-27 | Вход: порт, пользователь, пароль, доступ из локальной сети; «без пароля в VPN» и «HTTP-прокси в VPN» — только телефон | конфиг | Kotlin: `fmt/ConfigBuilder.kt` | есть | есть | нет |
-| D-SET-28 | Опыты: обход локальной сети в ядре, отказ QUIC поверх потоков, честное подключение, ICMP через узел, без местного ответа на ping, фрагментация TLS для обхода, сниффинг, разрешение адреса назначения, IPv6 | конфиг | Kotlin: `fmt/ConfigBuilder.kt` | есть | есть | нет |
+| D-SET-27 | Вход: порт, пользователь, пароль, доступ из локальной сети; «без пароля в VPN» и «HTTP-прокси в VPN» — только телефон | конфиг (`Settings`) | Go: `nikoconf` | есть | есть | есть |
+| D-SET-28 | Опыты: обход локальной сети в ядре, отказ QUIC поверх потоков, честное подключение, ICMP через узел, без местного ответа на ping, фрагментация TLS для обхода, сниффинг, разрешение адреса назначения, IPv6 | конфиг (`Settings`) | Go: `nikoconf` | есть | есть | частично: QUIC→TCP, ICMP, сниффинг, разрешение адреса, IPv6 в UI; DPI-настройки в API |
 | D-SET-29 | Yggdrasil: включить, пиры, через прокси, TLS как Chrome, входящие, порты, адрес устройства | конфиг | Kotlin + Go: `fmt/ConfigBuilder.kt`, `libcore/box_yggdrasil.go` | есть | есть | нет |
 | D-SET-30 | URL проверки соединения и параллельность; Clash API; сброс соединений при смене сети и пробуждении; небезопасное; мин. TLS подписок | конфиг + `NikoService` | Kotlin: `fmt/ConfigBuilder.kt`, `bg/BaseService.kt`, `group/RawUpdater.kt` | есть | есть | нет |
 | D-SET-31 | FAQ: что значат технические величины и термины (решение владельца) | — | нет | есть | нет: только ссылка на README | нет |
@@ -283,8 +284,8 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 
 | ID | Что | Где логика сейчас | Android | Окно |
 |---|---|---|---|---|
-| BG-01 | Сборка конфига ядра из профиля и настроек — главный перенос | Kotlin: `fmt/ConfigBuilder.kt` | есть | нет |
-| BG-02 | Хранилище профилей и узлов | Kotlin: `database/` (Room) | есть | нет |
+| BG-01 | Сборка конфига ядра из профиля и настроек — главный перенос | Go: `libcore/nikoconf` | есть | есть (golden = Kotlin, кроме плагинов/цепочек/ShadowTLS) |
+| BG-02 | Хранилище профилей и узлов | Go: `libcore/nikostore` (JSON на пользователя, схема 4) | есть | есть |
 | BG-03 | Обновление подписок по времени: узлы raycontrol и обычные подписки | Kotlin: `bg/SubscriptionUpdater.kt`, `raycontrol/RaySubscription.kt`, `group/GroupUpdater.kt`, `group/RawUpdater.kt` | есть | частично: обычные подписки (срез 9) и узлы raycontrol (срез 11) по времени в `nikod`; без сторожа и отката по сети (этап 4) |
 | BG-04 | Сторож: проверки, DoH, перезагрузка подписки | Kotlin + Go: `raycontrol/RayWatchdog.kt`, `libcore/dohcheck.go` | есть | нет |
 | BG-05 | Адаптивность канала, Brutal по измерению | Kotlin + Go: `raycontrol/RayChannel.kt`, `RayBrutal.kt`, `libcore/rayprobe`, `libcore/probe` | есть | нет |
