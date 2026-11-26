@@ -1067,7 +1067,7 @@ jobs:
         working-directory: libcore
         run: |
           TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_xhttp,with_awg,with_dnstt,with_masterdnsvpn,with_yggdrasil,badlinkname,tfogo_checklinkname0
-          CGO_ENABLED=0 go build -trimpath -ldflags="-checklinkname=0" -tags="$TAGS" -o /tmp/nikod ./cmd/nikod
+          CGO_ENABLED=0 go build -trimpath -ldflags="-checklinkname=0 -X main.development=true" -tags="$TAGS" -o /tmp/nikod ./cmd/nikod
           mkdir -p /tmp/nikod-work
           # boxdd takes INVOCATION_ID for "started by systemd" and refuses --listen as a service would
           env -u INVOCATION_ID nohup /tmp/nikod run --listen 127.0.0.1:9090 -D /tmp/nikod-work > /tmp/nikod.log 2>&1 &

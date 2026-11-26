@@ -4,11 +4,9 @@
 package main
 
 import (
-	"libcore/nikoservice"
-
 	"github.com/sagernet/sing-box/experimental/boxdd"
 )
 
 func main() {
-	boxdd.Main(boxdd.Options{Services: []boxdd.Service{nikoservice.Service()}})
+	boxdd.Main(daemonOptions())
 }

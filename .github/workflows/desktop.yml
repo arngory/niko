@@ -30,7 +30,6 @@ on:
       - "libcore/nikosub/**"
       - "libcore/nikoray/**"
       - "libcore/cmd/nikod/**"
-      - "libcore/go.mod"
       - "libcore/go.sum"
       - "shared/**"
       - ".github/workflows/desktop.yml"
@@ -85,11 +84,11 @@ jobs:
                 -tags="$TAGS,with_naive_outbound,with_purego,with_external_windivert,with_external_usbip_drivers" \
                 -o "$out/$(basename "$pkg").exe" "./$pkg"
             done
-            # Niko's daemon: boxdd with NikoService beside it (docs/design/desktop-stage3.md, slice 1)
+            # Niko's daemon: boxdd with NikoService beside it (docs/design/desktop-stage3.md, slices 1 and 14)
             (cd "$GITHUB_WORKSPACE/libcore" && GOOS=windows GOARCH=$arch CGO_ENABLED=0 go build -trimpath \
               -ldflags="-s -w -checklinkname=0 -X libcore/nikoservice.Version=$NIKO_VERSION" \
               -tags="$TAGS,with_naive_outbound,with_purego,with_external_windivert,with_external_usbip_drivers" \
-              -o "$out/nikod.exe" ./cmd/nikod)
+              -o "$out/niko-daemon.exe" ./cmd/nikod)
             go mod download "github.com/sagernet/cronet-go/lib/windows_$arch"
             lib="$(go list -m -f '{{.Dir}}' "github.com/sagernet/cronet-go/lib/windows_$arch")"
             sums="$(go list -m -f '{{.Dir}}' github.com/sagernet/cronet-go)/SHA256SUMS"
@@ -109,17 +108,17 @@ jobs:
             -o "$RUNNER_TEMP/desktop/linux-amd64/boxdd" ./cmd/boxdd
           (cd "$GITHUB_WORKSPACE/libcore" && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath \
             -ldflags="-s -w -checklinkname=0 -X libcore/nikoservice.Version=$NIKO_VERSION" -tags="$TAGS" \
-            -o "$RUNNER_TEMP/desktop/linux-amd64/nikod" ./cmd/nikod)
+            -o "$RUNNER_TEMP/desktop/linux-amd64/niko-daemon" ./cmd/nikod)
           # port knocking is in the core now: a profile of a raycontrol node needs it to reach the node; and naive
-          for daemon in boxdd nikod; do
+          for daemon in boxdd niko-daemon; do
             go version -m "$RUNNER_TEMP/desktop/windows-amd64/$daemon.exe" > /dev/null
             for pkg in knock naive; do
               strings "$RUNNER_TEMP/desktop/windows-amd64/$daemon.exe" | grep -q "sing-box/protocol/$pkg" ||
                 { echo "::error::$daemon has no $pkg"; exit 1; }
             done
           done
-          strings "$RUNNER_TEMP/desktop/windows-amd64/nikod.exe" | grep -q "niko.v1.NikoService" ||
-            { echo "::error::nikod has no NikoService"; exit 1; }
+          strings "$RUNNER_TEMP/desktop/windows-amd64/niko-daemon.exe" | grep -q "niko.v1.NikoService" ||
+            { echo "::error::niko-daemon has no NikoService"; exit 1; }
 
       # for a manual check of a commit here; the window's CI builds its own from the commit it pins
       - name: The binaries
@@ -185,7 +184,7 @@ jobs:
         working-directory: libcore
         env:
           CGO_ENABLED: "0"
-        run: go test -count=1 -ldflags=-checklinkname=0 -tags="$TAGS" ./raysub ./rayapi ./minisign ./probe ./rayprobe ./dnsprobe ./stun ./nikoservice ./nikostore ./routetest ./ruleset ./nikofmt/... ./nikoconf/... ./nikosub/... ./nikoray/...
+        run: go test -count=1 -ldflags=-checklinkname=0 -tags="$TAGS" ./raysub ./rayapi ./minisign ./probe ./rayprobe ./dnsprobe ./stun ./nikoservice ./nikostore ./routetest ./ruleset ./nikofmt/... ./nikoconf/... ./nikosub/... ./nikoray/... ./cmd/nikod
 
   # NikoService as Go (libcore/nikopb) is what shared/proto gives. The window's Dart from the same proto, and its theme
   # and icons from shared/tokens.json and shared/icons, are checked by arngory/niko-desktop's CI against the commit it
