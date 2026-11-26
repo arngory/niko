@@ -8,5 +8,6 @@ import (
 )
 
 func main() {
+	preloadNativeLibraries()
 	boxdd.Main(daemonOptions())
 }

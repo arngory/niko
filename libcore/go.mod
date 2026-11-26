@@ -148,7 +148,7 @@ require (
 	github.com/quic-go/quic-go v0.64.1 // indirect
 	github.com/sagernet/bbolt v0.0.0-20260915102804-500ee1e84832 // indirect
 	github.com/sagernet/cors v1.2.1 // indirect
-	github.com/sagernet/cronet-go v0.0.0-20261103043844-095cb9e06046 // indirect
+	github.com/sagernet/cronet-go v0.0.0-20261103043844-095cb9e06046
 	github.com/sagernet/cronet-go/all v0.0.0-20261103043844-095cb9e06046 // indirect
 	github.com/sagernet/cronet-go/lib/android_386 v0.0.0-20261103043047-3aac4ed44c5c // indirect
 	github.com/sagernet/cronet-go/lib/android_amd64 v0.0.0-20261103043047-3aac4ed44c5c // indirect
