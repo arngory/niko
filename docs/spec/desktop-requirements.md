@@ -293,7 +293,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | BG-07 | DNS-туннели: выбор резолвера в каждой сети | Kotlin + Go: `raycontrol/RayDnsResolvers.kt`, `libcore/dnsprobe` | есть | нет |
 | BG-08 | Yggdrasil: публичные пиры | Kotlin + Go: `raycontrol/RayYggPeers.kt`, `libcore/box_yggdrasil.go` | есть | нет |
 | BG-09 | Наборы правил: загрузка и проверка | Kotlin + Go: `RuleSetFiles.kt`, `libcore/ruleset` | есть | есть: `nikod` скачивает сам (`UpdateRuleSets`, по интервалу при работающем ядре), проверка — `ruleset.Check` |
-| BG-10 | Секреты скрыты в журнале | Go: `libcore/redact.go`; в `boxdd` пока не подключено | есть | нет |
+| BG-10 | Секреты скрыты в журнале | Go: `libcore/redact` подключён в `boxdd` (`Options.LogRedactor`: кольцо логов, отчёты о сбоях/OOM, сброс при смене владельца, хосты узлов `nikoservice`) | есть | есть |
 | BG-11 | Ключ устройства в защищённом хранилище | Kotlin: `raycontrol/DeviceKeyVault.kt` (Android Keystore); Go: `nikostore` (`Sealer`: DPAPI на Windows) | есть | есть: ключ устройства, клиентские ключи, учётные данные строк и DoH узла запечатаны в `store.json` (DPAPI на Windows), в ядро ключ уходит по ссылке, не в конфиге |
 | BG-12 | Обновление приложения с узла | Kotlin + Go: `raycontrol/RayAppMirror.kt`, `libcore/raysub.go`; узел пока раздаёт только APK — нужен сервер | есть | нет |
 

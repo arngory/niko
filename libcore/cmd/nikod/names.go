@@ -2,6 +2,7 @@ package main
 
 import (
 	"libcore/nikoservice"
+	"libcore/redact"
 
 	"github.com/sagernet/sing-box/experimental/boxdd"
 )
@@ -37,5 +38,6 @@ func daemonOptions() boxdd.Options {
 		InstallRoot:           boxdd.InstallProgramFiles,
 		InstallManifestSHA256: manifestSHA256,
 		DevelopmentListen:     development == "true",
+		LogRedactor:           redact.Log,
 	}
 }
