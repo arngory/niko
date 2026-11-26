@@ -12,7 +12,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"os"
 	"syscall"
 	"time"
 
@@ -37,8 +36,9 @@ var Version = "dev"
 // settings (GetSettings, UpdateSettings), Connect with them; 8: the programs through Niko (programs_mode, programs); 9:
 // subscriptions (Group.subscription, Refresh, their import); 10: the route rules, the Russian preset and the
 // rule-sets (ListRules…UpdateRuleSets), their settings; 11: raycontrol nodes (their import by invite with its PIN,
-// ListNodes, DeleteNode, Refresh of a node, their profiles in Connect).
-const API = 11
+// ListNodes, DeleteNode, Refresh of a node, their profiles in Connect); 12: per-user store served to any verified
+// caller via Host.Caller and Host.UserDirectory (not development mode only).
+const API = 12
 
 // Service is NikoService as the daemon serves it: GetInfo for any caller the daemon verified, RouteTest for its
 // owner only (it reads the owner's core, as the daemon's own calls on the running core do). RouteTest is checked as
@@ -52,13 +52,15 @@ func Service() boxdd.Service {
 	return boxdd.Service{
 		Desc: &nikopb.NikoService_ServiceDesc,
 		New: func(host boxdd.Host) (any, error) {
-			// the daemon's working directory, where boxdd keeps its users' files: it changes into it before it builds
-			// its services (prepareWorkingDirectory); a Host hook is due for it with the caller's (§6)
-			root, err := os.Getwd()
-			if err != nil {
-				return nil, err
+			root := host.WorkingDirectory()
+			caller := func(ctx context.Context) (string, error) {
+				c, err := host.Caller(ctx)
+				if err != nil {
+					return "", err
+				}
+				return c.UserID, nil
 			}
-			users := newUsers(root, developmentCaller, host.Context().Done())
+			users := newUsers(root, caller, host.UserDirectory, host.Context().Done())
 			setRaycontrolClient()
 			s := &server{users: users, start: host.StartService, registerAt: rayapi.Register, fetch: raysub.Fetch,
 				newIdentity: rayapi.NewIdentity, core: func() (context.Context, func()) {

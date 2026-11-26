@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"net"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -20,7 +19,6 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
@@ -34,6 +32,8 @@ type users struct {
 	root string
 	// caller is who called: the user whose store it is
 	caller func(context.Context) (string, error)
+	// userDir maps a verified caller's userID to its daemon user directory; nil falls back to <root>/users/<sha256(id)>
+	userDir func(string) string
 	// sealer: nil, the platform's
 	sealer nikostore.Sealer
 	// done ends the watchers with the daemon; nil: never
@@ -59,8 +59,8 @@ type user struct {
 	nodes *nodeUpdates
 }
 
-func newUsers(root string, caller func(context.Context) (string, error), done <-chan struct{}) *users {
-	u := &users{root: root, caller: caller, done: done, open: map[string]*user{}}
+func newUsers(root string, caller func(context.Context) (string, error), userDir func(string) string, done <-chan struct{}) *users {
+	u := &users{root: root, caller: caller, userDir: userDir, done: done, open: map[string]*user{}}
 	u.ctx, u.cancel = context.WithCancel(context.Background())
 	if done != nil {
 		go func() {
@@ -85,48 +85,43 @@ func (u *users) opened() []*user {
 	return out
 }
 
-// developmentCaller is the caller as far as NikoService can know it now. The daemon verifies each caller (on Windows
-// the installed window, on Linux a local process by its credentials) but does not name it to an added service: a hook
-// in the fork is due for that (§6, the Host's caller and the user's directory). Until then only development mode's
-// caller is known: TCP on 127.0.0.1 without transport credentials, which boxdd itself takes for the user "local"
-// (platformFallbackPeerIdentity); with credentials, the store is refused rather than shared between users.
-func developmentCaller(ctx context.Context) (string, error) {
-	if p, ok := peer.FromContext(ctx); ok && p.AuthInfo == nil && onThisMachine(p.Addr) {
-		return "local", nil
-	}
-	return "", status.Error(codes.Unimplemented,
-		"the daemon does not name its caller to NikoService yet: the store works in development mode only")
-}
-
-// onThisMachine: a caller on this machine, TCP from a loopback address (development mode listens on 127.0.0.1 alone,
-// but a store of secrets does not lean on that), or a test's connection within the process (bufconn).
-func onThisMachine(addr net.Addr) bool {
-	if tcp, ok := addr.(*net.TCPAddr); ok {
-		return tcp.IP.IsLoopback()
-	}
-	return addr != nil && addr.Network() == "bufconn"
-}
-
 // serves: whether the caller has a store here, without opening it.
 func (u *users) serves(ctx context.Context) bool {
-	if u == nil {
+	if u == nil || u.caller == nil {
 		return false
 	}
-	_, err := u.caller(ctx)
-	return err == nil
+	id, err := u.caller(ctx)
+	return err == nil && u.dirFor(id) != ""
+}
+
+func (u *users) dirFor(id string) string {
+	if id == "" {
+		return ""
+	}
+	if u.userDir != nil {
+		return u.userDir(id)
+	}
+	digest := sha256.Sum256([]byte(id))
+	return filepath.Join(u.root, "users", hex.EncodeToString(digest[:]))
 }
 
 // user is the caller's store, opened if it is not yet.
 func (u *users) user(ctx context.Context) (*user, error) {
-	if u == nil {
+	if u == nil || u.caller == nil {
 		return nil, status.Error(codes.Unimplemented, "no store")
 	}
 	id, err := u.caller(ctx)
 	if err != nil {
+		if status.Code(err) == codes.Unknown {
+			return nil, status.Error(codes.Unauthenticated, err.Error())
+		}
 		return nil, err
 	}
-	digest := sha256.Sum256([]byte(id))
-	return u.openDir(filepath.Join(u.root, "users", hex.EncodeToString(digest[:]), "niko"))
+	dir := u.dirFor(id)
+	if dir == "" {
+		return nil, status.Error(codes.Unauthenticated, "empty caller identity")
+	}
+	return u.openDir(filepath.Join(dir, "niko"))
 }
 
 // openDir is the store of a user's directory, opened if it is not yet.

@@ -2,7 +2,10 @@ package nikoservice
 
 import (
 	"context"
-	"net"
+	"crypto/sha256"
+	"encoding/hex"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"libcore/nikopb"
@@ -10,12 +13,14 @@ import (
 
 	box "github.com/sagernet/sing-box"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/daemon"
 	"github.com/sagernet/sing-box/experimental/boxdd"
 	"github.com/sagernet/sing-box/include"
+	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
@@ -125,9 +130,16 @@ func TestRouteTestStopped(t *testing.T) {
 // The store's schema to a caller the store serves; 0 to one it refuses and from a daemon without a store, as the
 // window would hear from each of the store's calls.
 func TestGetInfo(t *testing.T) {
-	served := peer.NewContext(context.Background(), &peer.Peer{Addr: &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 50000}})
-	refused := peer.NewContext(context.Background(), &peer.Peer{Addr: &net.TCPAddr{IP: net.ParseIP("192.0.2.7"), Port: 50000}})
-	withStore := &server{users: newUsers(t.TempDir(), developmentCaller, nil)}
+	served := metadata.NewIncomingContext(context.Background(), metadata.Pairs("who", "alice"))
+	refused := context.Background()
+	byMetadata := func(ctx context.Context) (string, error) {
+		md, _ := metadata.FromIncomingContext(ctx)
+		if who := md.Get("who"); len(who) == 1 {
+			return who[0], nil
+		}
+		return "", status.Error(codes.Unauthenticated, "no caller")
+	}
+	withStore := &server{users: newUsers(t.TempDir(), byMetadata, nil, nil)}
 	for _, c := range []struct {
 		name   string
 		s      *server
@@ -143,6 +155,97 @@ func TestGetInfo(t *testing.T) {
 			info.StoreSchema != c.schema {
 			t.Errorf("%s: %+v: %v", c.name, info, err)
 		}
+	}
+}
+
+type fakeHost struct {
+	ctx    context.Context
+	root   string
+	caller func(context.Context) (boxdd.Caller, error)
+}
+
+func (h *fakeHost) Context() context.Context                       { return h.ctx }
+func (h *fakeHost) StartedService() *daemon.StartedService         { return nil }
+func (h *fakeHost) Logger() log.ContextLogger                      { return log.StdLogger() }
+func (h *fakeHost) StartService(context.Context, string, *boxdd.SystemProxy) error {
+	return nil
+}
+func (h *fakeHost) Caller(ctx context.Context) (boxdd.Caller, error) { return h.caller(ctx) }
+func (h *fakeHost) WorkingDirectory() string                         { return h.root }
+func (h *fakeHost) UserDirectory(userID string) string {
+	if userID == "" {
+		return ""
+	}
+	digest := sha256.Sum256([]byte(userID))
+	return filepath.Join(h.root, "users", hex.EncodeToString(digest[:]))
+}
+
+// Service().New uses Host.WorkingDirectory(), Host.Caller(), and Host.UserDirectory() rather than
+// os.Getwd() or development-only heuristics, and matches openAll's layout.
+func TestServiceHostHooks(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	root := t.TempDir()
+	other := t.TempDir()
+	origWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origWD) })
+	if err := os.Chdir(other); err != nil {
+		t.Fatal(err)
+	}
+
+	host := &fakeHost{
+		ctx:  ctx,
+		root: root,
+		caller: func(callCtx context.Context) (boxdd.Caller, error) {
+			md, _ := metadata.FromIncomingContext(callCtx)
+			if who := md.Get("who"); len(who) == 1 {
+				return boxdd.Caller{UserID: who[0]}, nil
+			}
+			return boxdd.Caller{}, status.Error(codes.Unauthenticated, "missing caller")
+		},
+	}
+
+	raw, err := Service().New(host)
+	if err != nil {
+		t.Fatalf("Service().New: %v", err)
+	}
+	srv := raw.(*server)
+	client := serve(t, srv)
+
+	// Unauthenticated caller gets UNAUTHENTICATED and StoreSchema == 0.
+	if info, err := client.GetInfo(context.Background(), &nikopb.GetInfoRequest{}); err != nil || info.StoreSchema != 0 {
+		t.Fatalf("unauthenticated GetInfo = (%+v, %v)", info, err)
+	}
+	if _, err := client.ListGroups(context.Background(), &nikopb.Empty{}); status.Code(err) != codes.Unauthenticated {
+		t.Fatalf("unauthenticated ListGroups = %v, want Unauthenticated", err)
+	}
+
+	// Authenticated caller (Windows SID style) writes inside host.WorkingDirectory(), not os.Getwd().
+	sid := "S-1-5-21-3623811015-3361044348-30300820-1013"
+	sidCtx := metadata.AppendToOutgoingContext(context.Background(), "who", sid)
+	if info, err := client.GetInfo(sidCtx, &nikopb.GetInfoRequest{}); err != nil || info.StoreSchema != int32(nikostore.Schema()) {
+		t.Fatalf("authenticated GetInfo = (%+v, %v)", info, err)
+	}
+	if _, err := client.SaveGroup(sidCtx, &nikopb.Group{Name: "work"}); err != nil {
+		t.Fatalf("SaveGroup: %v", err)
+	}
+	wantStore := filepath.Join(host.UserDirectory(sid), "niko", "store.json")
+	if _, err := os.Stat(wantStore); err != nil {
+		t.Fatalf("expected store at %s: %v", wantStore, err)
+	}
+	if _, err := os.Stat(filepath.Join(other, "users")); !os.IsNotExist(err) {
+		t.Fatalf("store was unexpectedly created under os.Getwd() (%s)", other)
+	}
+
+	// Verify openAll discovers the exact directory created via Host.UserDirectory.
+	freshUsers := newUsers(root, nil, host.UserDirectory, nil)
+	freshUsers.openAll()
+	if len(freshUsers.opened()) != 1 {
+		t.Fatalf("openAll opened %d stores, want 1", len(freshUsers.opened()))
 	}
 }
 

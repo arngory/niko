@@ -143,7 +143,7 @@ func TestSubscriptions(t *testing.T) {
 		defer clockMu.Unlock()
 		return clock
 	}
-	s := &server{users: newUsers(root, developmentCaller, nil), now: now}
+	s := &server{users: newUsers(root, localCaller, nil, nil), now: now}
 	client := serve(t, s)
 	ctx := context.Background()
 	watch := changes(t, client)
@@ -329,7 +329,7 @@ func TestSubscriptions(t *testing.T) {
 	}
 
 	// a daemon started anew: the store's groups, open at the start for the timed updates
-	again := &server{users: newUsers(root, developmentCaller, nil), now: now}
+	again := &server{users: newUsers(root, localCaller, nil, nil), now: now}
 	again.users.openAll()
 	if len(again.users.opened()) != 1 {
 		t.Fatal("the store not opened at the start")

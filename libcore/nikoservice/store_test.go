@@ -19,10 +19,8 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 )
@@ -50,8 +48,10 @@ func serve(t *testing.T, s *server) nikopb.NikoServiceClient {
 	return nikopb.NewNikoServiceClient(conn)
 }
 
+func localCaller(context.Context) (string, error) { return "local", nil }
+
 func storeServer(root string) *server {
-	return &server{users: newUsers(root, developmentCaller, nil)}
+	return &server{users: newUsers(root, localCaller, nil, nil)}
 }
 
 func code(err error) codes.Code { return status.Code(err) }
@@ -271,7 +271,7 @@ func TestImportWatch(t *testing.T) {
 		list.Profiles[0].Id != result.Ids[0] || list.Profiles[0].Name != "SOCKS5" {
 		t.Fatalf("again: %v %v", list, err)
 	}
-	// in development mode's user's directory, beside boxdd's own files of that user
+	// in the caller's user directory, beside boxdd's own files of that user
 	digest := sha256.Sum256([]byte("local"))
 	if _, err = os.Stat(filepath.Join(root, "users", hex.EncodeToString(digest[:]), "niko", "store.json")); err != nil {
 		t.Fatal(err)
@@ -299,7 +299,7 @@ func sameJSON(t *testing.T, a, b []byte) bool {
 	return reflect.DeepEqual(x, y)
 }
 
-// Each user has a store of its own; a caller the daemon does not name has none.
+// Each user has a store of its own; an unauthenticated caller has none.
 func TestUsers(t *testing.T) {
 	root := t.TempDir()
 	byMetadata := func(ctx context.Context) (string, error) {
@@ -307,9 +307,9 @@ func TestUsers(t *testing.T) {
 		if who := md.Get("who"); len(who) == 1 {
 			return who[0], nil
 		}
-		return developmentCaller(ctx)
+		return "", status.Error(codes.Unauthenticated, "unauthenticated caller")
 	}
-	client := serve(t, &server{users: newUsers(root, byMetadata, nil)})
+	client := serve(t, &server{users: newUsers(root, byMetadata, nil, nil)})
 	as := func(who string) context.Context {
 		return metadata.AppendToOutgoingContext(context.Background(), "who", who)
 	}
@@ -331,20 +331,12 @@ func TestUsers(t *testing.T) {
 		t.Fatalf("users: %v", entries)
 	}
 
-	// with transport credentials, a caller the daemon verified but does not name to the service yet
-	verified := peer.NewContext(context.Background(), &peer.Peer{AuthInfo: verifiedPeer{}})
-	if _, err = developmentCaller(verified); code(err) != codes.Unimplemented {
-		t.Fatalf("a named caller: %v", err)
+	// Unauthenticated caller is rejected with UNAUTHENTICATED and gets StoreSchema == 0.
+	if _, err = client.ListGroups(context.Background(), &nikopb.Empty{}); code(err) != codes.Unauthenticated {
+		t.Fatalf("unauthenticated ListGroups: %v", err)
 	}
-	loopback := &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 50000}
-	if id, err := developmentCaller(peer.NewContext(context.Background(), &peer.Peer{Addr: loopback})); err != nil || id != "local" {
-		t.Fatalf("development mode's: %q %v", id, err)
-	}
-	// without credentials but from another machine, or from nowhere known: no one's store
-	for _, addr := range []net.Addr{&net.TCPAddr{IP: net.ParseIP("192.0.2.7"), Port: 50000}, nil} {
-		if _, err = developmentCaller(peer.NewContext(context.Background(), &peer.Peer{Addr: addr})); code(err) != codes.Unimplemented {
-			t.Fatalf("a caller from %v: %v", addr, err)
-		}
+	if info, err := client.GetInfo(context.Background(), &nikopb.GetInfoRequest{}); err != nil || info.StoreSchema != 0 {
+		t.Fatalf("unauthenticated GetInfo: %+v %v", info, err)
 	}
 	if _, err = (&server{}).ListGroups(context.Background(), &nikopb.Empty{}); code(err) != codes.Unimplemented {
 		t.Fatalf("no store: %v", err)
@@ -379,7 +371,7 @@ func TestWatchGap(t *testing.T) {
 	}
 
 	done := make(chan struct{})
-	client := serve(t, &server{users: newUsers(t.TempDir(), developmentCaller, done)})
+	client := serve(t, &server{users: newUsers(t.TempDir(), localCaller, nil, done)})
 	stream, err := client.Watch(context.Background(), &nikopb.WatchRequest{})
 	if err != nil {
 		t.Fatal(err)
@@ -392,11 +384,6 @@ func TestWatchGap(t *testing.T) {
 		t.Fatalf("the daemon stopped: %v", err)
 	}
 }
-
-// verifiedPeer is the transport credentials' account of a caller, as boxdd's peerAuthInfo is.
-type verifiedPeer struct{ credentials.CommonAuthInfo }
-
-func (verifiedPeer) AuthType() string { return "local-process" }
 
 // Select and GetSelected: the choice said in Watch, kept by the store, gone with its profile.
 func TestSelect(t *testing.T) {
