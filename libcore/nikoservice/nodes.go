@@ -312,6 +312,7 @@ func (s *server) importNode(u *user, task, text, pin string, progress func(*niko
 			failTask(result, nodeStoreError(err))
 			return result
 		}
+		s.syncLogRedactions()
 		result.Line = "node " + node.Host + " imported: " + strconv.Itoa(len(node.Services)) + " services"
 	}
 	result.NodeId = node.ID()
@@ -449,6 +450,7 @@ func (s *server) register(u *user, task, text, pin string, result *nikopb.TaskPr
 	if err != nil {
 		return nil, "", nodeStoreError(err)
 	}
+	s.syncLogRedactions()
 	return node, "registered at " + node.Host + " as " + role, nil
 }
 
@@ -661,6 +663,7 @@ func (s *server) updateNodeLocked(ctx context.Context, u *user, id string) (stri
 	if applied.Stale {
 		return node.DisplayName() + ": nothing taken: a newer subscription is kept already, or the node was registered anew", node.GroupID, nil, nil
 	}
+	s.syncLogRedactions()
 	line := nikoray.GroupName(node.Host, parsed.Name) + ": " + strconv.Itoa(len(parsed.Rows)) + " profiles"
 	if parsed.Skipped > 0 {
 		line += ", " + strconv.Itoa(parsed.Skipped) + " skipped"
@@ -762,6 +765,7 @@ func (s *server) DeleteNode(ctx context.Context, request *nikopb.NodeId) (*nikop
 	}
 	// its key out of the core: a core that runs with it knocks no more once it starts again
 	s.retainDeviceKeys()
+	s.syncLogRedactions()
 	return &nikopb.Empty{}, nil
 }
 

@@ -289,7 +289,7 @@ func (s *server) ruleSetTask(u *user, task string, items []string, maxAge time.D
 	}()
 	result := &nikopb.TaskProgress{TaskId: task, Done: true}
 	files := ruleSetFiles(u)
-	client := &ruleset.Client{Transport: s.transport, UserAgent: "Niko/" + Version}
+	client := &ruleset.Client{Transport: s.bypassTransport(), UserAgent: "Niko/" + Version}
 	got, failed := 0, 0
 	now := time.Now
 	if s.now != nil {

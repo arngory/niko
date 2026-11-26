@@ -12,6 +12,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"sync"
 	"syscall"
 	"time"
 
@@ -74,6 +75,7 @@ func Service() boxdd.Service {
 					}
 					return instance.Context(), release
 				}}
+			users.onNodesChanged = s.syncLogRedactions
 			// the subscriptions' timed updates, without the window, and the rule-sets' while the core runs
 			go s.scheduleUpdates()
 			return s, nil
@@ -92,8 +94,10 @@ type server struct {
 	// start starts the core with a config for the caller, as DesktopService.StartService, and the system proxy the
 	// daemon sets for its owner while the core runs (nil: none); nil: no daemon
 	start func(ctx context.Context, config string, systemProxy *boxdd.SystemProxy) error
-	// transport carries the subscriptions' requests; nil: nikosub's own, direct
-	transport http.RoundTripper
+	// transport carries the subscriptions' and rule-sets' requests in tests; nil uses s.bypassTransport().
+	transport           http.RoundTripper
+	bypassTransportOnce sync.Once
+	cachedBypassRT      http.RoundTripper
 	// now is the clock of the subscriptions' updates; nil: time.Now
 	now func() time.Time
 	// registerAt, fetch and newIdentity are the raycontrol node's registration, subscription and client keys

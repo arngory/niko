@@ -42,6 +42,9 @@ type users struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
+	// onNodesChanged is called whenever a store opens or its raycontrol nodes change (BG-10 log redaction).
+	onNodesChanged func()
+
 	mu sync.Mutex
 	// open are the stores opened, by their directory
 	open  map[string]*user
@@ -127,8 +130,8 @@ func (u *users) user(ctx context.Context) (*user, error) {
 // openDir is the store of a user's directory, opened if it is not yet.
 func (u *users) openDir(dir string) (*user, error) {
 	u.mu.Lock()
-	defer u.mu.Unlock()
 	if opened := u.open[dir]; opened != nil {
+		u.mu.Unlock()
 		return opened, nil
 	}
 	f := newFeed()
@@ -139,13 +142,20 @@ func (u *users) openDir(dir string) (*user, error) {
 		},
 	})
 	if errors.Is(err, nikostore.ErrNewerSchema) {
+		u.mu.Unlock()
 		return nil, status.Error(codes.FailedPrecondition, err.Error())
 	}
 	if err != nil {
+		u.mu.Unlock()
 		return nil, status.Error(codes.Internal, "the store: "+err.Error())
 	}
 	opened := &user{store: store, feed: f, updates: newUpdates(), ruleSets: newRuleSetUpdates(), nodes: newNodeUpdates()}
 	u.open[dir] = opened
+	notify := u.onNodesChanged
+	u.mu.Unlock()
+	if notify != nil {
+		notify()
+	}
 	return opened, nil
 }
 

@@ -115,7 +115,7 @@ func (s *server) connected() bool {
 // app goes through its local proxy; a bypass of the TUN comes with the nodes' Control, slice 11), the computer's
 // IPv6 setting for forceResolve.
 func (s *server) subscriptionOptions(u *user) nikosub.Options {
-	o := nikosub.Options{Client: &nikosub.Client{UserAgent: nikosub.UserAgent(Version), Transport: s.transport},
+	o := nikosub.Options{Client: &nikosub.Client{UserAgent: nikosub.UserAgent(Version), Transport: s.bypassTransport()},
 		Settings: nikofmt.DefaultSettings, Now: s.now}
 	if settings, err := u.store.Settings(); err == nil {
 		o.IPv6First = settings.IPv6Mode >= 2
