@@ -275,7 +275,7 @@ func (b *builder) build() ([]byte, error) {
 
 	// an exported config is shared: it carries no secret of this install
 	var experimental object
-	if !b.forTest && !b.forExport && s.EnableClashAPI {
+	if !b.forTest && !b.forExport && (s.EnableClashAPI || !nikofmt.KtIsBlank(s.Secrets.ClashAPI)) {
 		experimental = object{"clash_api": object{"external_controller": "127.0.0.1:9090",
 			"external_ui": "../files/yacd", "secret": s.Secrets.ClashAPI}}
 	}
@@ -320,6 +320,9 @@ func (b *builder) build() ([]byte, error) {
 		key := s.Secrets.YggdrasilKey
 		if b.forExport {
 			key = exportSecretPlaceholder
+		} else if nikofmt.KtIsBlank(key) {
+			// Fallback to an ephemeral 64-byte hex key if caller did not persist one, preventing core startup failure.
+			key = b.dev.YggdrasilKey()
 		}
 		b.addYggdrasilEndpoint(key)
 		yggdrasilInboundRule = object{"inbound": []any{tagYggdrasil}}
@@ -949,38 +952,40 @@ func (b *builder) selectorName(name string) string {
 	return result
 }
 
-// resolveChain is ProxyEntity.resolveChain: expands ChainBean (with cycle detection), then appends
-// the group's front proxy and prepends its landing proxy (D-PROFILE-04).
+// resolveChain is ProxyEntity.resolveChain: expands ChainBean (with cycle detection) in exit-first order,
+// then appends the outer profile's group front proxy and prepends its landing proxy (D-PROFILE-04).
 func (b *builder) resolveChain(p *Profile) []*Profile {
 	visited := map[int64]bool{}
-	var expand func(cur *Profile) []*Profile
-	expand = func(cur *Profile) []*Profile {
+	var expand func(cur *Profile, topLevel bool) []*Profile
+	expand = func(cur *Profile, topLevel bool) []*Profile {
 		if cur == nil || visited[cur.ID] {
 			return nil
 		}
 		visited[cur.ID] = true
 		var list []*Profile
 		if cb, ok := cur.Bean.(*nikofmt.ChainBean); ok {
-			// ChainBean stores hops entry-to-exit; sing-box chain list is exit-first.
+			// ChainBean stores hops entry-to-exit; sing-box chain list is exit-first (matches Android asReversed()).
 			for i := len(cb.Proxies) - 1; i >= 0; i-- {
 				if hop := b.profile(cb.Proxies[i]); hop != nil {
-					list = append(list, expand(hop)...)
+					list = append(list, expand(hop, false)...)
 				}
 			}
 		} else {
 			list = []*Profile{cur}
 		}
-		if g := b.groups[cur.Group]; g != nil {
-			if front := b.profile(g.FrontProxy); front != nil && !visited[front.ID] {
-				list = append(list, expand(front)...)
-			}
-			if landing := b.profile(g.LandingProxy); landing != nil && !visited[landing.ID] {
-				list = append(expand(landing), list...)
+		if topLevel {
+			if g := b.groups[cur.Group]; g != nil {
+				if front := b.profile(g.FrontProxy); front != nil && !visited[front.ID] {
+					list = append(list, expand(front, false)...)
+				}
+				if landing := b.profile(g.LandingProxy); landing != nil && !visited[landing.ID] {
+					list = append(expand(landing, false), list...)
+				}
 			}
 		}
 		return list
 	}
-	return expand(p)
+	return expand(p, true)
 }
 
 // localProxyUsers is the local mixed inbound's users: the app's own, and the user's; none where it needs no login.

@@ -79,19 +79,67 @@ func (s *server) Connect(ctx context.Context, request *nikopb.ConnectRequest) (*
 	}
 	// the nodes' device keys into the core by their references, which the config names
 	s.deviceKeys(in.Nodes)
-	if err = s.slipstream.Start(ctx, result.SlipstreamLaunches); err != nil {
+	slipBatch, err := s.slipstream.Prepare(ctx, result.SlipstreamLaunches)
+	if err != nil {
 		return nil, err
 	}
 	if err = s.start(ctx, string(result.Config), systemProxy(result.SystemProxy)); err != nil {
-		s.slipstream.StopAll()
+		s.slipstream.Abort(slipBatch)
 		return nil, err
 	}
+	s.slipstream.Commit(slipBatch)
+	_ = u.store.SetActiveConnection(in.Profile, settings.ServiceMode)
+	activeNodeID := ownerNodeIDOf(in.Profile, in.Nodes)
+	s.setActiveNodeID(activeNodeID)
 	// the enabled rules' lists missing or stale fetched now (the config left out those not here: the core takes them
 	// when it starts again)
 	s.updateRuleSetsSoon(u, time.Now())
-	// Start the raycontrol watchdog for the active profile if it belongs to a raycontrol node.
+	// Start the raycontrol watchdog, DNS resolver probe, and naive-udp-v1 probe for the active connection.
 	s.startWatchdogForConnect(ctx, u, in.Profile, in.Nodes)
+	s.probeNodeDNSResolversSoon(u, in.Nodes)
+	s.probeNaiveDatagramSoon(activeNodeID)
 	return &nikopb.Empty{}, nil
+}
+
+// AfterStop implements boxdd.StopHook (H3): tears down slipstream child processes, stops the watchdog,
+// clears active node state, and clears the active-connection marker when the core stops.
+func (s *server) AfterStop(ownerUserID string) {
+	s.slipstream.StopAll()
+	s.dynMu.Lock()
+	if s.watchdog != nil {
+		s.watchdog.cancel()
+		s.watchdog = nil
+	}
+	s.activeNodeID = ""
+	s.dynMu.Unlock()
+	if s.users != nil && ownerUserID != "" {
+		if u, err := s.users.userByID(ownerUserID); err == nil {
+			_ = u.store.SetActiveConnection(0, "")
+		}
+	}
+}
+
+func (s *server) setActiveNodeID(nodeID string) {
+	s.dynMu.Lock()
+	s.activeNodeID = nodeID
+	s.dynMu.Unlock()
+}
+
+func (s *server) getActiveNodeID() string {
+	s.dynMu.Lock()
+	defer s.dynMu.Unlock()
+	return s.activeNodeID
+}
+
+func ownerNodeIDOf(profileID int64, nodes []nikoray.Node) string {
+	for i := range nodes {
+		for _, pid := range nodes[i].ProfileIDs {
+			if pid == profileID {
+				return nodes[i].ID()
+			}
+		}
+	}
+	return ""
 }
 
 // systemProxy is the build's system proxy as the daemon sets it for its owner (the fork's Host.StartService): the
@@ -125,9 +173,10 @@ func connectPlatform() string {
 	}
 }
 
-// BeforeRestore implements boxdd.RestorePreparer (H3): before boxdd restores or reloads the core
+// BeforeRestore implements boxdd.RestorePreparer (H3, M1): before boxdd restores or reloads the core
 // (e.g. after reboot), load the owner's sealed device keys into knock and rebuild the active config
-// from nikostore so SPA v2/dnsauth keys are present and plaintext config.json is not required on disk.
+// from nikostore for the exact profile and mode last connected via NikoService.Connect.
+// If no NikoService.Connect session is active (e.g. raw DesktopService.StartService), returns handled=false.
 func (s *server) BeforeRestore(ctx context.Context, ownerUserID string) (string, bool, error) {
 	if s.users == nil || ownerUserID == "" {
 		return "", false, nil
@@ -143,18 +192,21 @@ func (s *server) BeforeRestore(ctx context.Context, ownerUserID string) (string,
 		}
 	}
 	s.deviceKeys(nodes)
-	selected := u.store.Selected()
-	if selected == 0 {
+	activeID, activeMode := u.store.ActiveConnection()
+	if activeID == 0 {
 		return "", false, nil
 	}
 	settings, err := u.store.Settings()
 	if err != nil {
 		return "", false, err
 	}
+	if activeMode == nikoconf.ModeProxy || activeMode == nikoconf.ModeVPN {
+		settings.ServiceMode = activeMode
+	}
 	if s.userMode && settings.ServiceMode == nikoconf.ModeVPN {
 		settings.ServiceMode = nikoconf.ModeProxy
 	}
-	in, err := connectInput(u.store, selected, connectSettings(settings))
+	in, err := connectInput(u.store, activeID, connectSettings(settings))
 	if err != nil {
 		return "", false, err
 	}
@@ -170,6 +222,7 @@ func (s *server) BeforeRestore(ctx context.Context, ownerUserID string) (string,
 	if err = s.slipstream.Start(ctx, result.SlipstreamLaunches); err != nil {
 		return "", false, err
 	}
+	s.setActiveNodeID(ownerNodeIDOf(in.Profile, in.Nodes))
 	return string(result.Config), true, nil
 }
 
@@ -180,6 +233,13 @@ func connectInput(store *nikostore.Store, id int64, settings nikoconf.Settings) 
 		if id = store.Selected(); id == 0 {
 			return nikoconf.Input{}, status.Error(codes.FailedPrecondition, "no profile is selected")
 		}
+	}
+	if settings.YggdrasilEnabled && settings.Secrets.YggdrasilKey == "" {
+		key, err := store.EnsureYggdrasilKey(desktopDevice{}.YggdrasilKey)
+		if err != nil {
+			return nikoconf.Input{}, storeError(err)
+		}
+		settings.Secrets.YggdrasilKey = key
 	}
 	stored, err := store.Profile(id)
 	if err != nil {
@@ -208,28 +268,33 @@ func connectInput(store *nikostore.Store, id int64, settings nikoconf.Settings) 
 			in.Groups = append(in.Groups, *group)
 		}
 	}
-	// a selector's or urltest's members, and the group's front and landing hops
-	var more []int64
+	// BFS queue for selector/urltest members, group front/landing hops, rule outbounds, and ChainBean.Proxies (H2).
+	var queue []int64
+	if cb, ok := profile.Bean.(*nikofmt.ChainBean); ok {
+		queue = append(queue, cb.Proxies...)
+	}
 	if group != nil && (group.IsSelector || group.AutoSelect) {
 		rows, err := store.Profiles(group.ID)
 		if err != nil {
 			return nikoconf.Input{}, storeError(err)
 		}
 		for _, row := range rows {
-			more = append(more, row.ID)
+			queue = append(queue, row.ID)
 		}
 	}
 	if group != nil {
-		more = append(more, group.FrontProxy, group.LandingProxy)
+		queue = append(queue, group.FrontProxy, group.LandingProxy)
 	}
 	// the profiles the enabled rules send their traffic to
 	for _, r := range in.Rules {
 		if r.Enabled && r.Outbound > 0 {
-			more = append(more, r.Outbound)
+			queue = append(queue, r.Outbound)
 		}
 	}
 	taken := map[int64]bool{id: true}
-	for _, other := range more {
+	for len(queue) > 0 {
+		other := queue[0]
+		queue = queue[1:]
 		if other <= 0 || taken[other] {
 			continue
 		}
@@ -247,6 +312,9 @@ func connectInput(store *nikostore.Store, id int64, settings nikoconf.Settings) 
 			return nikoconf.Input{}, err
 		}
 		in.Profiles = append(in.Profiles, p)
+		if cb, ok := p.Bean.(*nikofmt.ChainBean); ok {
+			queue = append(queue, cb.Proxies...)
+		}
 	}
 	return in, nil
 }
@@ -275,7 +343,7 @@ func buildGroup(g nikostore.Group) *nikoconf.Group {
 // the system and its clock; no app's uid, no Private DNS and no protect server, which are the phone's.
 type desktopDevice struct{}
 
-// Port is a free local port, as the app's mkPort: one the system gives, let go at once; 0 where it gives none.
+// Port is a free local TCP port, as the app's mkPort: one the system gives, let go at once; 0 where it gives none.
 func (desktopDevice) Port() int {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -283,6 +351,16 @@ func (desktopDevice) Port() int {
 	}
 	defer listener.Close()
 	return listener.Addr().(*net.TCPAddr).Port
+}
+
+// UDPPort is a free local UDP port for UDP direct mappings (such as slipstream-client resolver mappings).
+func (desktopDevice) UDPPort() int {
+	pc, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		return 0
+	}
+	defer pc.Close()
+	return pc.LocalAddr().(*net.UDPAddr).Port
 }
 
 func (desktopDevice) UID(string) (int, bool)               { return 0, false }

@@ -10,7 +10,7 @@ import (
 	"libcore/nikoray"
 )
 
-func TestSlipstreamVariantAAndVariantBConfigBuild(t *testing.T) {
+func TestSlipstreamVariantAConfigBuild(t *testing.T) {
 	nodeID := "0123456789abcdef0123456789abcdef"
 	node := nikoray.Node{
 		Host:       "198.51.100.10",
@@ -41,12 +41,16 @@ func TestSlipstreamVariantAAndVariantBConfigBuild(t *testing.T) {
 	bean.InitializeDefaultValues()
 
 	// Variant A: external slipstream-client with UDP direct mapping inbounds and SLIPSTREAM_DNSAUTH_KEY in env.
+	// Even if user sets MasterDNS CIDR resolvers, slipstream "auto" must NOT inherit MasterDNS CIDRs (H6).
+	settings := nikoconf.DesktopSettings()
+	settings.RaycontrolMasterDnsResolvers = "198.51.100.0/24"
 	inA := nikoconf.Input{
 		Profile:  50,
 		Profiles: []nikoconf.Profile{{ID: 50, Group: 1, Bean: bean}},
 		Groups:   []nikoconf.Group{{ID: 1}},
-		Settings: nikoconf.DesktopSettings(),
+		Settings: settings,
 		Platform: nikoconf.PlatformLinux,
+		Device:   desktopDevice{},
 		Nodes:    []nikoray.Node{node},
 	}
 	resA, err := nikoconf.Build(inA)
@@ -69,7 +73,6 @@ func TestSlipstreamVariantAAndVariantBConfigBuild(t *testing.T) {
 			t.Fatalf("launch args missing %q: %s", want, joinedArgs)
 		}
 	}
-	// Verify JSON config contains UDP direct inbound mappings and hop rewritten to 127.0.0.1.
 	var cfg map[string]any
 	if err := json.Unmarshal(resA.Config, &cfg); err != nil {
 		t.Fatalf("invalid config JSON: %v", err)
@@ -78,17 +81,10 @@ func TestSlipstreamVariantAAndVariantBConfigBuild(t *testing.T) {
 		t.Fatalf("expected UDP mapping inbound for default resolver:\n%s", string(resA.Config))
 	}
 
-	// Variant B: native in-core `type: "slipstream"` outbound.
-	inB := inA
-	inB.SlipstreamNative = true
-	resB, err := nikoconf.Build(inB)
-	if err != nil {
-		t.Fatalf("Variant B Build failed: %v", err)
-	}
-	if len(resB.SlipstreamLaunches) != 0 {
-		t.Fatalf("expected 0 external launches in Variant B, got %d", len(resB.SlipstreamLaunches))
-	}
-	if !strings.Contains(string(resB.Config), `"type": "slipstream"`) {
-		t.Fatalf("expected native slipstream outbound in Variant B config:\n%s", string(resB.Config))
+	// ForTest must refuse slipstream cleanly instead of producing unstarted launches (H4).
+	inTest := inA
+	inTest.ForTest = true
+	if _, err := nikoconf.Build(inTest); err == nil {
+		t.Fatal("expected ForTest Build with slipstream to return an error")
 	}
 }

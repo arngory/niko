@@ -20,6 +20,9 @@ import (
 func (b *builder) buildChain(chainID int64, entity *Profile) (string, error) {
 	s := b.s
 	profileList := b.resolveChain(entity)
+	if len(profileList) == 0 {
+		return "", fmt.Errorf("chain profile %q has no valid hops", nikofmt.DisplayName(entity.Bean))
+	}
 	last := len(profileList) - 1
 	var pastOutbound, pastDetourHolder *option
 	var pastEntity *Profile
@@ -388,7 +391,8 @@ func (b *builder) buildChain(chainID int64, entity *Profile) (string, error) {
 		if tunnel.enabled() {
 			prefix := "DNS tunnel (" + name + ")"
 			// Resolve "auto" resolver (set by raycontrol subscriptions when the node leaves resolver choice
-			// to the client) using probed per-network overrides, user settings, or static defaults (H2).
+			// to the client): explicit user setting takes precedence over probed per-network overrides,
+			// which in turn take precedence over static defaults (H2, H6).
 			if strings.EqualFold(nikofmt.KtTrim(tunnel.resolver), "auto") {
 				var nodeID string
 				if auth, ok := tunnel.authNode(); ok {
@@ -397,33 +401,33 @@ func (b *builder) buildChain(chainID int64, entity *Profile) (string, error) {
 					nodeID = owner.ID()
 				}
 				resolved := ""
-				if nodeID != "" && len(b.in.DnsResolvers) > 0 {
+				switch tunnel.engine {
+				case dnsTunnelDNSTT:
+					if v := nikofmt.KtTrim(b.s.RaycontrolDnsttResolver); v != "" && !strings.EqualFold(v, "auto") {
+						resolved = v
+					}
+				case dnsTunnelMasterDNS:
+					if v := nikofmt.KtTrim(b.s.RaycontrolMasterDnsResolvers); v != "" && !strings.EqualFold(v, "auto") {
+						resolved = v
+					}
+				}
+				if resolved == "" && nodeID != "" && len(b.in.DnsResolvers) > 0 {
 					if v := nikofmt.KtTrim(b.in.DnsResolvers[tunnel.engine+":"+nodeID]); v != "" {
 						resolved = v
-					} else if v := nikofmt.KtTrim(b.in.DnsResolvers[nodeID]); v != "" {
-						resolved = v
+					} else if tunnel.engine != dnsTunnelSlipstream {
+						if v := nikofmt.KtTrim(b.in.DnsResolvers[nodeID]); v != "" {
+							resolved = v
+						}
 					}
 				}
 				if resolved == "" {
 					switch tunnel.engine {
 					case dnsTunnelDNSTT:
-						if v := nikofmt.KtTrim(b.s.RaycontrolDnsttResolver); v != "" && !strings.EqualFold(v, "auto") {
-							resolved = v
-						} else {
-							resolved = DefaultDnsttResolver
-						}
+						resolved = DefaultDnsttResolver
 					case dnsTunnelMasterDNS:
-						if v := nikofmt.KtTrim(b.s.RaycontrolMasterDnsResolvers); v != "" && !strings.EqualFold(v, "auto") {
-							resolved = v
-						} else {
-							resolved = DefaultMasterDnsResolvers
-						}
+						resolved = DefaultMasterDnsResolvers
 					case dnsTunnelSlipstream:
-						if v := nikofmt.KtTrim(b.s.RaycontrolMasterDnsResolvers); v != "" && !strings.EqualFold(v, "auto") {
-							resolved = v
-						} else {
-							resolved = DefaultSlipstreamResolvers
-						}
+						resolved = DefaultSlipstreamResolvers
 					}
 				}
 				if resolved != "" {
@@ -466,29 +470,15 @@ func (b *builder) buildChain(chainID int64, entity *Profile) (string, error) {
 					}
 					authServiceID, _ = strconv.Atoi(auth[1])
 				}
-				if b.in.SlipstreamNative {
-					// Variant B: native in-core slipstream outbound.
-					tunnelTag := tagOut + "-dnstunnel"
-					slipOut := newOption(object{
-						"tag":         tunnelTag,
-						"type":        dnsTunnelSlipstream,
-						"domain":      tunnel.domains()[0],
-						"resolvers":   strings2any(tunnel.resolvers()),
-						"pin":         tunnel.key,
-						"alpn":        tunnel.slipAlpn(),
-						"server_name": tunnel.slipSni(),
-					})
-					if auth := tunnel.dnsAuthOptions(authNode); auth != nil {
-						slipOut.hack["auth"] = auth
-					}
-					b.outbounds = append(b.outbounds, slipOut)
-					delete(current.hack, "domain_resolver")
-					current.hack["detour"] = tunnelTag
-				} else if b.desktop {
+				if b.forTest {
+					// Ephemeral test instances do not spawn external slipstream-client helper processes.
+					return "", errors.New(prefix + ": slipstream cannot be measured in an ephemeral test instance")
+				}
+				if b.desktop {
 					// Variant A: bundled slipstream-client child process with core UDP direct mappings (ConfigBuilder.kt:947-990).
 					mapped := make([]string, 0, len(tunnel.slipResolvers()))
 					for i, hp := range tunnel.slipResolvers() {
-						mappingPort := b.dev.Port()
+						mappingPort := allocateUDPPort(b.dev)
 						mappingTag := fmt.Sprintf("%s-slipstream-%d", tagOut, i)
 						b.inbounds = append(b.inbounds, object{
 							"type":             "direct",
@@ -754,3 +744,16 @@ func asObject(v any) object {
 }
 
 func coerceIn(n, low, high int) int { return max(low, min(n, high)) }
+
+type udpPortAllocator interface {
+	UDPPort() int
+}
+
+func allocateUDPPort(dev Device) int {
+	if alloc, ok := dev.(udpPortAllocator); ok {
+		if port := alloc.UDPPort(); port > 0 {
+			return port
+		}
+	}
+	return dev.Port()
+}

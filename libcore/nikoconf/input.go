@@ -48,9 +48,6 @@ type Input struct {
 	BrutalRates map[string]BrutalRate `json:"-"`
 	// DnsResolvers maps raycontrol node ID to the detected DNS tunnel resolver address on this network.
 	DnsResolvers map[string]string `json:"-"`
-	// SlipstreamNative, when true, emits a native in-core `type: "slipstream"` outbound (Variant B)
-	// instead of external `slipstream-client` child process launches (Variant A).
-	SlipstreamNative bool `json:"-"`
 }
 
 // BrutalRate holds measured Hysteria2 Brutal upload/download targets in kbit/s (0 = BBR).

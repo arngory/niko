@@ -15,6 +15,7 @@ import (
 
 	"libcore/dnsprobe"
 	"libcore/nikoconf"
+	"libcore/nikofmt"
 	"libcore/nikoray"
 )
 
@@ -357,6 +358,12 @@ func (c *dnsResolverCache) SummaryForNode(nodeID string, now time.Time) string {
 	return ""
 }
 
+func (s *server) getDNSResolvers() *dnsResolverCache {
+	s.dynMu.Lock()
+	defer s.dynMu.Unlock()
+	return s.dnsResolvers
+}
+
 func (s *server) ensureDNSResolvers() *dnsResolverCache {
 	s.dynMu.Lock()
 	defer s.dynMu.Unlock()
@@ -370,11 +377,83 @@ func (s *server) ensureDNSResolvers() *dnsResolverCache {
 	return s.dnsResolvers
 }
 
+// probeNodeDNSResolversSoon triggers background dnsprobe-v1 checks for nodes that carry a DNS probe key
+// and a dnstt profile, respecting per-network TTL caching (BG-07 / H6).
+func (s *server) probeNodeDNSResolversSoon(u *user, nodes []nikoray.Node) {
+	if u == nil || len(nodes) == 0 {
+		return
+	}
+	cache := s.ensureDNSResolvers()
+	type target struct {
+		node    nikoray.Node
+		primary string
+		spares  []string
+	}
+	var targets []target
+	for _, n := range nodes {
+		if n.Probe == nil || n.Probe.DNSKey == "" || n.GroupID == 0 {
+			continue
+		}
+		rows, err := u.store.Profiles(n.GroupID)
+		if err != nil {
+			continue
+		}
+		for _, row := range rows {
+			full, err := u.store.Profile(row.ID)
+			if err != nil {
+				continue
+			}
+			bean, err := nikofmt.DecodeBean(full.Type, full.Bean)
+			if err != nil {
+				continue
+			}
+			base := nikofmt.Base(bean)
+			if base == nil || base.DnsTunnelDomain == nil || strings.TrimSpace(*base.DnsTunnelDomain) == "" {
+				continue
+			}
+			engine := "dnstt"
+			if base.DnsTunnel != nil && strings.TrimSpace(*base.DnsTunnel) != "" {
+				engine = strings.TrimSpace(*base.DnsTunnel)
+			}
+			if engine != "dnstt" {
+				continue
+			}
+			var spares []string
+			if base.DnsTunnelSpare != nil && strings.TrimSpace(*base.DnsTunnelSpare) != "" {
+				for _, part := range strings.Split(*base.DnsTunnelSpare, ",") {
+					if p := strings.TrimSpace(part); p != "" {
+						spares = append(spares, p)
+					}
+				}
+			}
+			targets = append(targets, target{
+				node:    n,
+				primary: strings.TrimSpace(*base.DnsTunnelDomain),
+				spares:  spares,
+			})
+			break
+		}
+	}
+	if len(targets) == 0 {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		for _, t := range targets {
+			if ctx.Err() != nil {
+				return
+			}
+			cache.ProbeNodeDnstt(ctx, &t.node, t.primary, t.spares, s.clock())
+		}
+	}()
+}
+
 // currentDNSResolvers returns a map suitable for nikoconf.Input.DnsResolvers for all provided nodes.
 func (s *server) currentDNSResolvers(nodes []nikoray.Node) map[string]string {
 	cache := s.ensureDNSResolvers()
 	now := s.clock()
-	out := make(map[string]string, len(nodes)*2)
+	out := make(map[string]string, len(nodes)*3)
 	sysDNS := cache.systemResolvers()
 	for i := range nodes {
 		id := nodes[i].ID()
@@ -386,6 +465,9 @@ func (s *server) currentDNSResolvers(nodes []nikoray.Node) map[string]string {
 		}
 		if m := masterdnsAutoResolvers(sysDNS, "ru", false); m != "" {
 			out["masterdnsvpn:"+id] = m
+		}
+		if sl := masterdnsAutoResolvers(sysDNS, "ru", true); sl != "" {
+			out["slipstream:"+id] = sl
 		}
 	}
 	if len(out) == 0 {

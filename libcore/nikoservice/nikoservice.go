@@ -153,6 +153,7 @@ type server struct {
 	rotateCert  func(ctx context.Context, e rayapi.Endpoint, next rayapi.Identity) error
 	directProbe func(ctx context.Context, node *nikoray.Node) (*directProbeOutcome, error)
 	dynMu         sync.Mutex
+	activeNodeID  string
 	watchdog      *watchdogRun
 	brutalRates   map[string]brutalEntry
 	reportDays    map[string]int64

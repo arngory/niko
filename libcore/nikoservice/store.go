@@ -313,20 +313,40 @@ func (s *server) SaveProfile(ctx context.Context, request *nikopb.Profile) (*nik
 }
 
 // CheckProfile validates a profile's type and bean_json via DecodeBean + nikoconf dry-run without saving it.
+// Loads the caller's existing profiles and raycontrol nodes when available so chain hops and dnsauth profiles validate accurately.
 func (s *server) CheckProfile(ctx context.Context, request *nikopb.Profile) (*nikopb.CheckProfileResult, error) {
 	bean, err := nikofmt.DecodeBean(request.Type, []byte(request.BeanJson))
 	if err != nil {
 		return &nikopb.CheckProfileResult{Ok: false, Error: err.Error()}, nil
 	}
 	kind, transport := nikofmt.Kind(bean)
+	const syntheticID int64 = -1
 	in := nikoconf.Input{
-		Profile:  1,
-		Profiles: []nikoconf.Profile{{ID: 1, Group: 1, Type: request.Type, Bean: bean}},
+		Profile:  syntheticID,
+		Profiles: []nikoconf.Profile{{ID: syntheticID, Group: 1, Type: request.Type, Bean: bean}},
 		Groups:   []nikoconf.Group{{ID: 1}},
 		Settings: nikoconf.DesktopSettings(),
 		Platform: connectPlatform(),
 		ForTest:  true,
 		UserMode: s.userMode,
+	}
+	if s.users != nil {
+		if u, uErr := s.users.user(ctx); uErr == nil {
+			for _, kept := range u.store.Nodes() {
+				if !kept.Unreadable {
+					in.Nodes = append(in.Nodes, *kept.Node)
+				}
+			}
+			if rows, rErr := u.store.Profiles(0); rErr == nil {
+				for _, row := range rows {
+					if full, pErr := u.store.Profile(row.ID); pErr == nil {
+						if bp, bErr := buildProfile(full); bErr == nil {
+							in.Profiles = append(in.Profiles, bp)
+						}
+					}
+				}
+			}
+		}
 	}
 	res, err := nikoconf.Build(in)
 	if err != nil {

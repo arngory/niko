@@ -284,7 +284,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 
 | ID | Что | Где логика сейчас | Android | Окно |
 |---|---|---|---|---|
-| BG-01 | Сборка конфига ядра из профиля и настроек — главный перенос | Go: `libcore/nikoconf` | есть | есть (golden = Kotlin; добавлены ShadowTLS, ChainBean с проверкой циклов и Slipstream A+B) |
+| BG-01 | Сборка конфига ядра из профиля и настроек — главный перенос | Go: `libcore/nikoconf` | есть | есть (golden = Kotlin; добавлены ShadowTLS, ChainBean с проверкой циклов и Slipstream варианта A) |
 | BG-02 | Хранилище профилей и узлов | Go: `libcore/nikostore` (JSON на пользователя, схема 4) | есть | есть |
 | BG-03 | Обновление подписок по времени: узлы raycontrol и обычные подписки | Go: `nikoservice` (обычные подписки и узлы raycontrol по времени) | есть | есть |
 | BG-04 | Сторож: проверки, DoH, перезагрузка подписки | Go: `nikoservice/raydynamics.go` (`Watchdog` + `DoH` + переключение профилей) | есть | есть |
@@ -303,7 +303,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 knock, AmneziaWG, dnstt, masterdns, Yggdrasil, mieru. Отличия и особенности:
 
 - **naive:** `libcronet.dll` (Windows) / `libcronet.so` (Linux) рядом с бинарём демона.
-- **Slipstream:** поддержаны оба варианта — (A) внешний `slipstream-client` рядом с бинарём демона (`nikoservice/slipstream.go`,
-  сборка через `tool/build_slipstream.sh` с `PICOQUIC_ENFORCED_INITIAL_MTU=64`), и (B) встроенный Go-транспорт
-  `protocol/slipstream` в форке `sing-box` (`Input.SlipstreamNative`).
+- **Slipstream:** внешний `slipstream-client` рядом с бинарём демона (`nikoservice/slipstream.go`, сборка через
+  `tool/build_slipstream.sh` с `PICOQUIC_ENFORCED_INITIAL_MTU=64`, завершается по `boxdd.StopHook` и `Pdeathsig`).
+  (Нативный Go-вариант на стоковом `quic-go` невозможен без форка `quic-go` из-за 1200-байтного RFC 9000 Initial MTU.)
 - **naive UDP через HTTP/3** (naive-udp-v1) — в ядре (`libcore/naive_datagram.go`), статус отдаётся в `Node.naive_udp_state`.

@@ -792,15 +792,20 @@ func (s *server) ListNodes(ctx context.Context, _ *nikopb.Empty) (*nikopb.NodeLi
 			}
 		}
 	}
+	activeNodeID := s.getActiveNodeID()
+	dnsCache := s.getDNSResolvers()
+	s.dynMu.Lock()
+	dgCache := s.datagrams
+	s.dynMu.Unlock()
 	for _, kept := range u.store.Nodes() {
 		np := nodeProto(u, kept, profiles)
-		if s.dnsResolvers != nil {
-			np.DnsResolver = s.dnsResolvers.SummaryForNode(kept.Node.ID(), now)
+		if dnsCache != nil {
+			np.DnsResolver = dnsCache.SummaryForNode(kept.Node.ID(), now)
 		}
-		if liveNaive != "" && liveNaive != "off" {
+		if kept.Node.ID() == activeNodeID && liveNaive != "" && liveNaive != "off" {
 			np.NaiveUdpState = liveNaive
-		} else if s.datagrams != nil {
-			if ok, found := s.datagrams.Lookup(netKey, kept.Node.ID(), now.Unix()); found {
+		} else if dgCache != nil {
+			if ok, found := dgCache.Lookup(netKey, kept.Node.ID(), now.Unix()); found {
 				if ok {
 					np.NaiveUdpState = "quic"
 				} else {

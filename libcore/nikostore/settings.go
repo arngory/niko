@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -84,18 +86,76 @@ var computerSettings = map[string]func(s *nikoconf.Settings) error{
 	"raycontrolMasterDnsResolvers": func(s *nikoconf.Settings) error { return maxLen(s.RaycontrolMasterDnsResolvers, maxSetting) },
 	"rootStore":                    func(s *nikoconf.Settings) error { return oneOf(s.RootStore, "", "chrome", "mozilla", "system") },
 	"yggdrasilEnabled":             nil,
-	"yggdrasilPeers":               func(s *nikoconf.Settings) error { return maxLen(s.YggdrasilPeers, maxSetting) },
+	"yggdrasilPeers":               func(s *nikoconf.Settings) error { return yggPeers(s.YggdrasilPeers) },
 	"yggdrasilTlsChrome":           nil,
 	"yggdrasilAllowInbound":        nil,
 	"yggdrasilInboundPorts":        func(s *nikoconf.Settings) error { return maxLen(s.YggdrasilInboundPorts, maxSetting) },
 	"yggdrasilPeersViaProxy":       nil,
-	"connectionTestURL":            func(s *nikoconf.Settings) error { return maxLen(s.ConnectionTestURL, 2048) },
+	"connectionTestURL":            func(s *nikoconf.Settings) error { return testURL(s.ConnectionTestURL) },
 	"clashApi":                     func(s *nikoconf.Settings) error { return maxLen(s.Secrets.ClashAPI, 255) },
 }
 
 func maxLen(value string, limit int) error {
 	if len(value) > limit {
 		return fmt.Errorf("longer than %d bytes", limit)
+	}
+	return nil
+}
+
+func yggPeers(text string) error {
+	if err := maxLen(text, maxSetting); err != nil {
+		return err
+	}
+	for i, line := range strings.Split(text, "\n") {
+		line = strings.TrimSpace(strings.TrimSuffix(line, "\r"))
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if !validYggPeerURI(line) {
+			return fmt.Errorf("line %d: invalid Yggdrasil peer URI", i+1)
+		}
+	}
+	return nil
+}
+
+func validYggPeerURI(raw string) bool {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || u.Host == "" {
+		return false
+	}
+	switch strings.ToLower(u.Scheme) {
+	case "tls", "quic", "tcp", "ws", "wss":
+	default:
+		return false
+	}
+	port, err := strconv.Atoi(u.Port())
+	if err != nil || port < 1 || port > 65535 {
+		return false
+	}
+	if key := u.Query().Get("key"); key != "" {
+		if len(key) != 64 {
+			return false
+		}
+		for _, ch := range key {
+			if !((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func testURL(raw string) error {
+	if err := maxLen(raw, 2048); err != nil {
+		return err
+	}
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil
+	}
+	u, err := url.Parse(trimmed)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return errors.New("must be an http:// or https:// URL")
 	}
 	return nil
 }
@@ -312,6 +372,38 @@ func (s *Store) Settings() (nikoconf.Settings, error) {
 	return s.settings.read()
 }
 
+// EnsureYggdrasilKey returns the persisted 64-byte hex Yggdrasil Ed25519 private key, generating and
+// sealing one via gen on first use so the device keeps a stable Yggdrasil address across restarts (H1).
+func (s *Store) EnsureYggdrasilKey(gen func() string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.settings.unreadable {
+		return "", fmt.Errorf("%w: the settings' secrets: %w", ErrRefused, errSealed)
+	}
+	if raw, ok := s.settings.secrets["yggdrasilKey"]; ok {
+		var existing string
+		if json.Unmarshal(raw, &existing) == nil && len(existing) == 128 {
+			return existing, nil
+		}
+	}
+	key := gen()
+	if len(key) != 128 {
+		return "", errors.New("generated yggdrasil key must be 128 hex chars (64 bytes)")
+	}
+	raw, err := json.Marshal(key)
+	if err != nil {
+		return "", err
+	}
+	next := &settings{public: clone(s.settings.public), secrets: clone(s.settings.secrets),
+		unreadable: s.settings.unreadable, sealed: s.settings.sealed}
+	next.secrets["yggdrasilKey"] = raw
+	if err := s.writeSettings(next); err != nil {
+		return "", err
+	}
+	s.settings = next
+	return key, nil
+}
+
 // read is the defaults with the settings changed over them.
 func (st *settings) read() (nikoconf.Settings, error) {
 	values, secrets, err := settingValues(nikoconf.DesktopSettings())
@@ -324,7 +416,7 @@ func (st *settings) read() (nikoconf.Settings, error) {
 		}
 	}
 	for name, value := range st.secrets {
-		if secretSettings[name] {
+		if secretSettings[name] || name == "yggdrasilKey" {
 			secrets[name] = value
 		}
 	}

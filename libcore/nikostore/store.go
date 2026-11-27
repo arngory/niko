@@ -307,28 +307,67 @@ func (s *Store) Dir() string { return s.dir }
 
 // selection is state.json.
 type selection struct {
-	Selected int64 `json:"selected,omitempty"`
+	Selected      int64  `json:"selected,omitempty"`
+	ActiveProfile int64  `json:"activeProfile,omitempty"`
+	ActiveMode    string `json:"activeMode,omitempty"`
+}
+
+func (s *Store) readStateFile() selection {
+	data, err := os.ReadFile(filepath.Join(s.dir, stateFile))
+	if err != nil {
+		return selection{}
+	}
+	var sel selection
+	if json.Unmarshal(data, &sel) != nil {
+		return selection{}
+	}
+	return sel
 }
 
 // readSelected is the selection state.json holds, of a profile that is there; 0 for anything else.
 func (s *Store) readSelected() int64 {
-	data, err := os.ReadFile(filepath.Join(s.dir, stateFile))
-	if err != nil {
-		return 0
-	}
-	var sel selection
-	if json.Unmarshal(data, &sel) != nil || s.state.profiles[sel.Selected] == nil {
+	sel := s.readStateFile()
+	if s.state.profiles[sel.Selected] == nil {
 		return 0
 	}
 	return sel.Selected
 }
 
 func (s *Store) writeSelected(id int64) error {
-	data, err := json.Marshal(selection{Selected: id})
+	sel := s.readStateFile()
+	sel.Selected = id
+	data, err := json.Marshal(sel)
 	if err != nil {
 		return err
 	}
 	return writeFile(filepath.Join(s.dir, stateFile), append(data, '\n'))
+}
+
+// SetActiveConnection records the profile and service mode actually connected via NikoService.Connect
+// (or clears them with profileID == 0 on disconnect/raw start) so BeforeRestore rebuilds the exact session.
+func (s *Store) SetActiveConnection(profileID int64, mode string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	sel := s.readStateFile()
+	sel.Selected = s.state.selected
+	sel.ActiveProfile = profileID
+	sel.ActiveMode = mode
+	data, err := json.Marshal(sel)
+	if err != nil {
+		return err
+	}
+	return writeFile(filepath.Join(s.dir, stateFile), append(data, '\n'))
+}
+
+// ActiveConnection returns the last profile ID and mode connected via NikoService.Connect (0, "" if none).
+func (s *Store) ActiveConnection() (int64, string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	sel := s.readStateFile()
+	if sel.ActiveProfile == 0 || s.state.profiles[sel.ActiveProfile] == nil {
+		return 0, ""
+	}
+	return sel.ActiveProfile, sel.ActiveMode
 }
 
 // Selected is the selected profile's id; 0: none.

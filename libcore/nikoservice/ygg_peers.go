@@ -1,10 +1,13 @@
 package nikoservice
 
 import (
+	"context"
+	"net"
 	"net/url"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	box "github.com/sagernet/sing-box"
 )
@@ -90,21 +93,84 @@ func PickYggPeers(checks []YggPeerCheck) []string {
 }
 
 type naiveDatagramOutbound interface {
+	SetDatagramAllowed(allowed bool)
 	DatagramState() string
+	DatagramProbe(ctx context.Context) (net.PacketConn, error)
+}
+
+func findNaiveDatagramOutbound(b *box.Box) naiveDatagramOutbound {
+	if b == nil {
+		return nil
+	}
+	outbound, ok := b.Outbound().Outbound("proxy")
+	if !ok {
+		return nil
+	}
+	if d, ok := outbound.(naiveDatagramOutbound); ok {
+		return d
+	}
+	return nil
 }
 
 // liveNaiveDatagramState queries the running core's default "proxy" outbound for live naive-udp-v1 status
 // ("allowed", "probing", "refused", "unsupported", "off", or "" if not naive).
 func liveNaiveDatagramState(b *box.Box) string {
-	if b == nil {
-		return ""
-	}
-	outbound, ok := b.Outbound().Outbound("proxy")
-	if !ok {
-		return ""
-	}
-	if d, ok := outbound.(naiveDatagramOutbound); ok {
+	if d := findNaiveDatagramOutbound(b); d != nil {
 		return d.DatagramState()
 	}
 	return ""
+}
+
+// probeNaiveDatagramSoon wires naive-udp-v1 on desktop (H5): checks per-network datagram cache and
+// either applies the cached verdict via SetDatagramAllowed or runs a short DatagramProbe to unlock
+// HTTP/3 datagrams when the outbound is in "probing" state.
+func (s *server) probeNaiveDatagramSoon(nodeID string) {
+	if s.coreBox == nil {
+		return
+	}
+	cacheKey := nodeID
+	if cacheKey == "" {
+		cacheKey = "manual"
+	}
+	go func() {
+		ctx, boxInst, release := s.coreBox()
+		if boxInst == nil {
+			return
+		}
+		defer func() {
+			if release != nil {
+				release()
+			}
+		}()
+		d := findNaiveDatagramOutbound(boxInst)
+		if d == nil {
+			return
+		}
+		state := d.DatagramState()
+		if state != "probing" && state != "allowed" {
+			return
+		}
+		netKey := desktopNetworkFingerprint()
+		nowUnix := s.clock().Unix()
+		s.dynMu.Lock()
+		if s.datagrams == nil {
+			s.datagrams = &datagramCache{}
+		}
+		cache := s.datagrams
+		s.dynMu.Unlock()
+
+		if allowed, found := cache.Lookup(netKey, cacheKey, nowUnix); found {
+			d.SetDatagramAllowed(allowed)
+			return
+		}
+		probeCtx, cancel := context.WithTimeout(ctx, 4*time.Second)
+		defer cancel()
+		pc, err := d.DatagramProbe(probeCtx)
+		allowed := err == nil && pc != nil
+		if pc != nil {
+			_ = pc.Close()
+		}
+		d.SetDatagramAllowed(allowed)
+		cache.Remember(netKey, cacheKey, allowed, s.clock().Unix())
+	}()
 }
