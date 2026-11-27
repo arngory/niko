@@ -303,27 +303,53 @@ func parseHints(o map[string]any) *Hints {
 	return h
 }
 
-// AppMirror describes the node's optional signed app release mirror (app-mirror-v1).
-type AppMirror struct {
-	V   int    `json:"v"`
-	URL string `json:"url,omitempty"`
-	Pin string `json:"pin,omitempty"`
+// AppRelease is one release advertised by a raycontrol node's app mirror (app-update-v1:
+// {"app":{"niko-desktop":[{"tag":"v0.2.0","prerelease":false}, ...]}}).
+type AppRelease struct {
+	Tag        string `json:"tag"`
+	Prerelease bool   `json:"prerelease,omitempty"`
 }
 
-func parseAppMirror(o map[string]any) *AppMirror {
+const maxAppReleases = 2
+
+var appReleaseTagPattern = regexp.MustCompile(`^v\d{1,6}\.\d{1,6}\.\d{1,6}(-[0-9A-Za-z][0-9A-Za-z.-]{0,31})?$`)
+
+// parseAppReleases parses app-update-v1 releases for desktop ("niko-desktop") matching RayAppRelease.of:
+// strict semver tag regex, prerelease flag matching presence of '-', deduped, capped at 2 entries.
+func parseAppReleases(o map[string]any) []AppRelease {
 	if o == nil {
 		return nil
 	}
-	v, ok := asInt(o["v"])
-	if !ok || v != 1 {
+	arr, ok := array(o, "niko-desktop")
+	if !ok {
 		return nil
 	}
-	u, _ := primitiveString(o, "url")
-	pin, _ := primitiveString(o, "pin")
-	if u == "" {
-		return nil
+	seen := map[string]bool{}
+	var out []AppRelease
+	for _, item := range arr {
+		m, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		tag, ok := primitiveString(m, "tag")
+		if !ok || !appReleaseTagPattern.MatchString(tag) {
+			continue
+		}
+		wantPre := strings.Contains(tag, "-")
+		gotPre, ok := asBool(m["prerelease"])
+		if !ok || gotPre != wantPre {
+			continue
+		}
+		if seen[tag] {
+			continue
+		}
+		seen[tag] = true
+		out = append(out, AppRelease{Tag: tag, Prerelease: wantPre})
+		if len(out) >= maxAppReleases {
+			break
+		}
 	}
-	return &AppMirror{V: 1, URL: u, Pin: pin}
+	return out
 }
 
 // --- LAN (lan-v1) ---

@@ -20,6 +20,7 @@ import (
 	"libcore/nikopb"
 	"libcore/nikoray"
 	"libcore/nikostore"
+	"libcore/nikoupdater"
 	"libcore/rayapi"
 	"libcore/raysub"
 	"libcore/routetest"
@@ -45,8 +46,9 @@ var Version = "dev"
 // Info.tun) and store migration (ExportUserStore, ImportUserStore).
 // 14: TestConnection, ExitAddress, TestProfiles, and zip file import;
 // 15: raycontrol dynamics (relays, pastNames, key rotation, watchdog/channel/brutal/datagrams/reports, LAN),
-// RunNodeTest (D-WHY), and NodeAdminCall (D-ADMIN).
-const API = 15
+// RunNodeTest (D-WHY), and NodeAdminCall (D-ADMIN);
+// 16: verified updater (CheckUpdate, DownloadUpdate) and China/Iran/Ads route presets.
+const API = 16
 
 // Service is NikoService as the daemon serves it: GetInfo for any caller the daemon verified, RouteTest for its
 // owner only (it reads the owner's core, as the daemon's own calls on the running core do). RouteTest is checked as
@@ -111,6 +113,8 @@ func Service() boxdd.Service {
 			"TestProfiles":   boxdd.PolicyOwnerUnlocked,
 			"RunNodeTest":    boxdd.PolicyOwnerUnlocked,
 			"NodeAdminCall":  boxdd.PolicyOwnerUnlocked,
+			"CheckUpdate":    boxdd.PolicyOwnerUnlocked,
+			"DownloadUpdate": boxdd.PolicyOwnerUnlocked,
 		},
 	}
 }
@@ -141,6 +145,9 @@ type server struct {
 	datagrams     *datagramCache
 	rotating      map[string]bool
 	rotateRetryAt map[string]time.Time
+	// Phase P7 verified updater config override (tests) and single-flight download guard.
+	updaterCfg *nikoupdater.Config
+	updateMu   sync.Mutex
 	// users are the users' stores
 	users *users
 	// start starts the core with a config for the caller, as DesktopService.StartService, and the system proxy the

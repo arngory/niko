@@ -119,28 +119,57 @@ func (s *server) MoveRules(ctx context.Context, request *nikopb.MoveRulesRequest
 	return &nikopb.Empty{}, nil
 }
 
-// The app's English names of the Russian preset's rules (route_preset_ru_blocked, route_preset_ru_direct).
+// Default English names for built-in route presets.
 const (
 	russiaBlockedName = "Blocked in Russia: through the proxy"
 	russiaDirectName  = "Russian services: directly"
+	chinaProxyName    = "Non-China sites: through the proxy"
+	chinaDirectName   = "China services: directly"
+	iranDirectName    = "Iranian services: directly"
+	adsBlockName      = "Block ads and trackers"
 )
 
 func (s *server) ApplyPreset(ctx context.Context, request *nikopb.PresetRequest) (*nikopb.PresetResult, error) {
-	if request.Preset != nikopb.PresetRequest_RUSSIA {
-		return nil, status.Error(codes.InvalidArgument, "no such preset")
-	}
 	u, err := s.users.user(ctx)
 	if err != nil {
 		return nil, err
 	}
-	blocked, direct := request.BlockedName, request.DirectName
-	if strings.TrimSpace(blocked) == "" {
-		blocked = russiaBlockedName
+	var added []nikoconf.Rule
+	switch request.Preset {
+	case nikopb.PresetRequest_RUSSIA:
+		blocked, direct := strings.TrimSpace(request.BlockedName), strings.TrimSpace(request.DirectName)
+		if blocked == "" {
+			blocked = russiaBlockedName
+		}
+		if direct == "" {
+			direct = russiaDirectName
+		}
+		added, err = u.store.ApplyRussiaPreset(blocked, direct)
+	case nikopb.PresetRequest_CHINA:
+		proxyName, direct := strings.TrimSpace(request.BlockedName), strings.TrimSpace(request.DirectName)
+		if proxyName == "" {
+			proxyName = chinaProxyName
+		}
+		if direct == "" {
+			direct = chinaDirectName
+		}
+		added, err = u.store.ApplyPreset(nikoconf.IsChina, nikoconf.ChinaPreset(proxyName, direct), false)
+	case nikopb.PresetRequest_IRAN:
+		direct := strings.TrimSpace(request.DirectName)
+		if direct == "" {
+			direct = iranDirectName
+		}
+		added, err = u.store.ApplyPreset(nikoconf.IsIran, nikoconf.IranPreset(direct), false)
+	case nikopb.PresetRequest_ADS:
+		blockName := strings.TrimSpace(request.BlockedName)
+		if blockName == "" {
+			blockName = adsBlockName
+		}
+		// Insert ad-blocking rule at order 1 (ahead of regional direct/proxy rules).
+		added, err = u.store.ApplyPreset(nikoconf.IsAds, nikoconf.AdsPreset(blockName), true)
+	default:
+		return nil, status.Error(codes.InvalidArgument, "no such preset")
 	}
-	if strings.TrimSpace(direct) == "" {
-		direct = russiaDirectName
-	}
-	added, err := u.store.ApplyRussiaPreset(blocked, direct)
 	if err != nil {
 		return nil, storeError(err)
 	}

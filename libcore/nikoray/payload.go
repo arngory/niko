@@ -45,8 +45,8 @@ type Parsed struct {
 	Relays    []Relay
 	Probe     *ProbeInfo
 	Hints     *Hints
-	Lan       *Lan
-	AppMirror *AppMirror
+	Lan         *Lan
+	AppReleases []AppRelease
 }
 
 // Parse is RaySubscription.parse: the rows of payload and what the node record takes of it; kinds are the node's
@@ -136,7 +136,7 @@ func parseObject(payload map[string]any, kinds map[int]string, nodeNow int64, se
 	parsed.Probe = parseProbe(object(payload, "probe"))
 	parsed.Hints = parseHints(object(payload, "hints"))
 	parsed.Lan = parseLan(object(payload, "lan"))
-	parsed.AppMirror = parseAppMirror(object(payload, "app"))
+	parsed.AppReleases = parseAppReleases(object(payload, "app"))
 
 	// Generate relay profile rows (#via-<relayId>) for each eligible direct row (relay-v1 §4).
 	if len(parsed.Relays) > 0 && len(parsed.Rows) > 0 {

@@ -674,7 +674,7 @@ func (s *server) updateNodeLocked(ctx context.Context, u *user, id string) (stri
 		n.Probe = parsed.Probe
 		n.Hints = parsed.Hints
 		n.Lan = parsed.Lan
-		n.AppMirror = parsed.AppMirror
+		n.AppReleases = parsed.AppReleases
 	})
 	if err != nil {
 		return "", node.GroupID, nil, storeError(err)

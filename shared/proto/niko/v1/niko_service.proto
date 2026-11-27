@@ -161,6 +161,14 @@ service NikoService {
   rpc ClearNodeSwitched(NodeId) returns (Empty);
   // Toggles lan-v1 visibility for this device on a raycontrol node.
   rpc SetNodeLan(SetNodeLanRequest) returns (Empty);
+
+  // Checks GitHub Releases (with optional raycontrol node app-mirror fallback) for a newer Niko Desktop release
+  // and verifies its SHA256SUMS signature under the embedded minisign public key (D-SET-12/33, BG-12).
+  rpc CheckUpdate(CheckUpdateRequest) returns (UpdateInfo);
+  // Downloads and verifies the platform release archive from GitHub or a raycontrol node app-mirror inside the
+  // daemon's private staging directory, then streams the cryptographically verified bytes to the caller so the
+  // unprivileged desktop window can save them directly into the user's Downloads folder.
+  rpc DownloadUpdate(DownloadUpdateRequest) returns (stream DownloadUpdateEvent);
 }
 
 message Empty {}
@@ -709,6 +717,12 @@ message PresetRequest {
     PRESET_UNSPECIFIED = 0;
     // blocked in Russia through the proxy, Russian services directly (runetfreedom's lists)
     RUSSIA = 1;
+    // non-China sites through the proxy, China domains and IPs directly (SagerNet sing-geosite/sing-geoip)
+    CHINA = 2;
+    // Iran domains and IPs directly (Iran-sing-box-rules)
+    IRAN = 3;
+    // block ads and trackers via srs rule-set (geosite-category-ads-all)
+    ADS = 4;
   }
   Preset preset = 1;
   // the rules' names, in the window's language: what is blocked, what goes directly; none for the app's English
@@ -818,4 +832,54 @@ message NodeAdminResponse {
 message SetNodeLanRequest {
   string node_id = 1;
   bool show = 2;
+}
+
+message CheckUpdateRequest {
+  // Optional current version override (empty uses daemon Version).
+  string current_version = 1;
+  // Optional raycontrol node ID to use as app-mirror fallback when GitHub is unreachable.
+  string node_id = 2;
+  // Optional preferred package format ("appimage", "tar.gz", "deb", "rpm", "zip", "exe").
+  string preferred_format = 3;
+}
+
+message UpdateInfo {
+  string current_version = 1;
+  string latest_version = 2;
+  string tag = 3;
+  bool update_available = 4;
+  string asset_name = 5;
+  string asset_sha256 = 6;
+  string release_url = 7;
+  string notes = 8;
+  // Source that served the metadata: "github", "mirror", or "".
+  string source = 9;
+  // True when SHA256SUMS + SHA256SUMS.minisig verified under the embedded minisign key.
+  bool verified = 10;
+}
+
+message DownloadUpdateRequest {
+  // Release tag to download (e.g. "v0.2.0"); empty checks latest first.
+  string tag = 1;
+  // Optional raycontrol node ID for app-mirror fallback.
+  string node_id = 2;
+  // Optional current version for server-side downgrade check (empty uses daemon Version).
+  string current_version = 3;
+  // Optional preferred package format ("appimage", "tar.gz", "deb", "rpm", "zip", "exe").
+  string preferred_format = 4;
+  // Explicit opt-in to allow downloading a version <= current_version.
+  bool allow_downgrade = 5;
+}
+
+message DownloadUpdateEvent {
+  string tag = 1;
+  string asset_name = 2;
+  string sha256 = 3;
+  int64 size = 4;
+  string source = 5;
+  bool verified = 6;
+  // Verified archive bytes chunk (streamed only after minisign + SHA-256 verification succeeds).
+  bytes chunk = 7;
+  // True on the final event once all verified bytes have been streamed.
+  bool done = 8;
 }

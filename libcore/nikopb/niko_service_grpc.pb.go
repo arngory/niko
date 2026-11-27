@@ -61,6 +61,8 @@ const (
 	NikoService_NodeAdminCall_FullMethodName     = "/niko.v1.NikoService/NodeAdminCall"
 	NikoService_ClearNodeSwitched_FullMethodName = "/niko.v1.NikoService/ClearNodeSwitched"
 	NikoService_SetNodeLan_FullMethodName        = "/niko.v1.NikoService/SetNodeLan"
+	NikoService_CheckUpdate_FullMethodName       = "/niko.v1.NikoService/CheckUpdate"
+	NikoService_DownloadUpdate_FullMethodName    = "/niko.v1.NikoService/DownloadUpdate"
 )
 
 // NikoServiceClient is the client API for NikoService service.
@@ -205,6 +207,13 @@ type NikoServiceClient interface {
 	ClearNodeSwitched(ctx context.Context, in *NodeId, opts ...grpc.CallOption) (*Empty, error)
 	// Toggles lan-v1 visibility for this device on a raycontrol node.
 	SetNodeLan(ctx context.Context, in *SetNodeLanRequest, opts ...grpc.CallOption) (*Empty, error)
+	// Checks GitHub Releases (with optional raycontrol node app-mirror fallback) for a newer Niko Desktop release
+	// and verifies its SHA256SUMS signature under the embedded minisign public key (D-SET-12/33, BG-12).
+	CheckUpdate(ctx context.Context, in *CheckUpdateRequest, opts ...grpc.CallOption) (*UpdateInfo, error)
+	// Downloads and verifies the platform release archive from GitHub or a raycontrol node app-mirror inside the
+	// daemon's private staging directory, then streams the cryptographically verified bytes to the caller so the
+	// unprivileged desktop window can save them directly into the user's Downloads folder.
+	DownloadUpdate(ctx context.Context, in *DownloadUpdateRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[DownloadUpdateEvent], error)
 }
 
 type nikoServiceClient struct {
@@ -649,6 +658,35 @@ func (c *nikoServiceClient) SetNodeLan(ctx context.Context, in *SetNodeLanReques
 	return out, nil
 }
 
+func (c *nikoServiceClient) CheckUpdate(ctx context.Context, in *CheckUpdateRequest, opts ...grpc.CallOption) (*UpdateInfo, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateInfo)
+	err := c.cc.Invoke(ctx, NikoService_CheckUpdate_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) DownloadUpdate(ctx context.Context, in *DownloadUpdateRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[DownloadUpdateEvent], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &NikoService_ServiceDesc.Streams[6], NikoService_DownloadUpdate_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[DownloadUpdateRequest, DownloadUpdateEvent]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type NikoService_DownloadUpdateClient = grpc.ServerStreamingClient[DownloadUpdateEvent]
+
 // NikoServiceServer is the server API for NikoService service.
 // All implementations must embed UnimplementedNikoServiceServer
 // for forward compatibility.
@@ -791,6 +829,13 @@ type NikoServiceServer interface {
 	ClearNodeSwitched(context.Context, *NodeId) (*Empty, error)
 	// Toggles lan-v1 visibility for this device on a raycontrol node.
 	SetNodeLan(context.Context, *SetNodeLanRequest) (*Empty, error)
+	// Checks GitHub Releases (with optional raycontrol node app-mirror fallback) for a newer Niko Desktop release
+	// and verifies its SHA256SUMS signature under the embedded minisign public key (D-SET-12/33, BG-12).
+	CheckUpdate(context.Context, *CheckUpdateRequest) (*UpdateInfo, error)
+	// Downloads and verifies the platform release archive from GitHub or a raycontrol node app-mirror inside the
+	// daemon's private staging directory, then streams the cryptographically verified bytes to the caller so the
+	// unprivileged desktop window can save them directly into the user's Downloads folder.
+	DownloadUpdate(*DownloadUpdateRequest, grpc.ServerStreamingServer[DownloadUpdateEvent]) error
 	mustEmbedUnimplementedNikoServiceServer()
 }
 
@@ -914,6 +959,12 @@ func (UnimplementedNikoServiceServer) ClearNodeSwitched(context.Context, *NodeId
 }
 func (UnimplementedNikoServiceServer) SetNodeLan(context.Context, *SetNodeLanRequest) (*Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetNodeLan not implemented")
+}
+func (UnimplementedNikoServiceServer) CheckUpdate(context.Context, *CheckUpdateRequest) (*UpdateInfo, error) {
+	return nil, status.Error(codes.Unimplemented, "method CheckUpdate not implemented")
+}
+func (UnimplementedNikoServiceServer) DownloadUpdate(*DownloadUpdateRequest, grpc.ServerStreamingServer[DownloadUpdateEvent]) error {
+	return status.Error(codes.Unimplemented, "method DownloadUpdate not implemented")
 }
 func (UnimplementedNikoServiceServer) mustEmbedUnimplementedNikoServiceServer() {}
 func (UnimplementedNikoServiceServer) testEmbeddedByValue()                     {}
@@ -1578,6 +1629,35 @@ func _NikoService_SetNodeLan_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NikoService_CheckUpdate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CheckUpdateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).CheckUpdate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_CheckUpdate_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).CheckUpdate(ctx, req.(*CheckUpdateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_DownloadUpdate_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(DownloadUpdateRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(NikoServiceServer).DownloadUpdate(m, &grpc.GenericServerStream[DownloadUpdateRequest, DownloadUpdateEvent]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type NikoService_DownloadUpdateServer = grpc.ServerStreamingServer[DownloadUpdateEvent]
+
 // NikoService_ServiceDesc is the grpc.ServiceDesc for NikoService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1713,6 +1793,10 @@ var NikoService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "SetNodeLan",
 			Handler:    _NikoService_SetNodeLan_Handler,
 		},
+		{
+			MethodName: "CheckUpdate",
+			Handler:    _NikoService_CheckUpdate_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
@@ -1743,6 +1827,11 @@ var NikoService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "RunNodeTest",
 			Handler:       _NikoService_RunNodeTest_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "DownloadUpdate",
+			Handler:       _NikoService_DownloadUpdate_Handler,
 			ServerStreams: true,
 		},
 	},

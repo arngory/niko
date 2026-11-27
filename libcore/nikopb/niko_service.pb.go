@@ -248,6 +248,12 @@ const (
 	PresetRequest_PRESET_UNSPECIFIED PresetRequest_Preset = 0
 	// blocked in Russia through the proxy, Russian services directly (runetfreedom's lists)
 	PresetRequest_RUSSIA PresetRequest_Preset = 1
+	// non-China sites through the proxy, China domains and IPs directly (SagerNet sing-geosite/sing-geoip)
+	PresetRequest_CHINA PresetRequest_Preset = 2
+	// Iran domains and IPs directly (Iran-sing-box-rules)
+	PresetRequest_IRAN PresetRequest_Preset = 3
+	// block ads and trackers via srs rule-set (geosite-category-ads-all)
+	PresetRequest_ADS PresetRequest_Preset = 4
 )
 
 // Enum value maps for PresetRequest_Preset.
@@ -255,10 +261,16 @@ var (
 	PresetRequest_Preset_name = map[int32]string{
 		0: "PRESET_UNSPECIFIED",
 		1: "RUSSIA",
+		2: "CHINA",
+		3: "IRAN",
+		4: "ADS",
 	}
 	PresetRequest_Preset_value = map[string]int32{
 		"PRESET_UNSPECIFIED": 0,
 		"RUSSIA":             1,
+		"CHINA":              2,
+		"IRAN":               3,
+		"ADS":                4,
 	}
 )
 
@@ -4718,6 +4730,370 @@ func (x *SetNodeLanRequest) GetShow() bool {
 	return false
 }
 
+type CheckUpdateRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional current version override (empty uses daemon Version).
+	CurrentVersion string `protobuf:"bytes,1,opt,name=current_version,json=currentVersion,proto3" json:"current_version,omitempty"`
+	// Optional raycontrol node ID to use as app-mirror fallback when GitHub is unreachable.
+	NodeId string `protobuf:"bytes,2,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	// Optional preferred package format ("appimage", "tar.gz", "deb", "rpm", "zip", "exe").
+	PreferredFormat string `protobuf:"bytes,3,opt,name=preferred_format,json=preferredFormat,proto3" json:"preferred_format,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *CheckUpdateRequest) Reset() {
+	*x = CheckUpdateRequest{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[58]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CheckUpdateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CheckUpdateRequest) ProtoMessage() {}
+
+func (x *CheckUpdateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[58]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CheckUpdateRequest.ProtoReflect.Descriptor instead.
+func (*CheckUpdateRequest) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{58}
+}
+
+func (x *CheckUpdateRequest) GetCurrentVersion() string {
+	if x != nil {
+		return x.CurrentVersion
+	}
+	return ""
+}
+
+func (x *CheckUpdateRequest) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *CheckUpdateRequest) GetPreferredFormat() string {
+	if x != nil {
+		return x.PreferredFormat
+	}
+	return ""
+}
+
+type UpdateInfo struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	CurrentVersion  string                 `protobuf:"bytes,1,opt,name=current_version,json=currentVersion,proto3" json:"current_version,omitempty"`
+	LatestVersion   string                 `protobuf:"bytes,2,opt,name=latest_version,json=latestVersion,proto3" json:"latest_version,omitempty"`
+	Tag             string                 `protobuf:"bytes,3,opt,name=tag,proto3" json:"tag,omitempty"`
+	UpdateAvailable bool                   `protobuf:"varint,4,opt,name=update_available,json=updateAvailable,proto3" json:"update_available,omitempty"`
+	AssetName       string                 `protobuf:"bytes,5,opt,name=asset_name,json=assetName,proto3" json:"asset_name,omitempty"`
+	AssetSha256     string                 `protobuf:"bytes,6,opt,name=asset_sha256,json=assetSha256,proto3" json:"asset_sha256,omitempty"`
+	ReleaseUrl      string                 `protobuf:"bytes,7,opt,name=release_url,json=releaseUrl,proto3" json:"release_url,omitempty"`
+	Notes           string                 `protobuf:"bytes,8,opt,name=notes,proto3" json:"notes,omitempty"`
+	// Source that served the metadata: "github", "mirror", or "".
+	Source string `protobuf:"bytes,9,opt,name=source,proto3" json:"source,omitempty"`
+	// True when SHA256SUMS + SHA256SUMS.minisig verified under the embedded minisign key.
+	Verified      bool `protobuf:"varint,10,opt,name=verified,proto3" json:"verified,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateInfo) Reset() {
+	*x = UpdateInfo{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[59]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateInfo) ProtoMessage() {}
+
+func (x *UpdateInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[59]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateInfo.ProtoReflect.Descriptor instead.
+func (*UpdateInfo) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{59}
+}
+
+func (x *UpdateInfo) GetCurrentVersion() string {
+	if x != nil {
+		return x.CurrentVersion
+	}
+	return ""
+}
+
+func (x *UpdateInfo) GetLatestVersion() string {
+	if x != nil {
+		return x.LatestVersion
+	}
+	return ""
+}
+
+func (x *UpdateInfo) GetTag() string {
+	if x != nil {
+		return x.Tag
+	}
+	return ""
+}
+
+func (x *UpdateInfo) GetUpdateAvailable() bool {
+	if x != nil {
+		return x.UpdateAvailable
+	}
+	return false
+}
+
+func (x *UpdateInfo) GetAssetName() string {
+	if x != nil {
+		return x.AssetName
+	}
+	return ""
+}
+
+func (x *UpdateInfo) GetAssetSha256() string {
+	if x != nil {
+		return x.AssetSha256
+	}
+	return ""
+}
+
+func (x *UpdateInfo) GetReleaseUrl() string {
+	if x != nil {
+		return x.ReleaseUrl
+	}
+	return ""
+}
+
+func (x *UpdateInfo) GetNotes() string {
+	if x != nil {
+		return x.Notes
+	}
+	return ""
+}
+
+func (x *UpdateInfo) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *UpdateInfo) GetVerified() bool {
+	if x != nil {
+		return x.Verified
+	}
+	return false
+}
+
+type DownloadUpdateRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Release tag to download (e.g. "v0.2.0"); empty checks latest first.
+	Tag string `protobuf:"bytes,1,opt,name=tag,proto3" json:"tag,omitempty"`
+	// Optional raycontrol node ID for app-mirror fallback.
+	NodeId string `protobuf:"bytes,2,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	// Optional current version for server-side downgrade check (empty uses daemon Version).
+	CurrentVersion string `protobuf:"bytes,3,opt,name=current_version,json=currentVersion,proto3" json:"current_version,omitempty"`
+	// Optional preferred package format ("appimage", "tar.gz", "deb", "rpm", "zip", "exe").
+	PreferredFormat string `protobuf:"bytes,4,opt,name=preferred_format,json=preferredFormat,proto3" json:"preferred_format,omitempty"`
+	// Explicit opt-in to allow downloading a version <= current_version.
+	AllowDowngrade bool `protobuf:"varint,5,opt,name=allow_downgrade,json=allowDowngrade,proto3" json:"allow_downgrade,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *DownloadUpdateRequest) Reset() {
+	*x = DownloadUpdateRequest{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[60]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DownloadUpdateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DownloadUpdateRequest) ProtoMessage() {}
+
+func (x *DownloadUpdateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[60]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DownloadUpdateRequest.ProtoReflect.Descriptor instead.
+func (*DownloadUpdateRequest) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{60}
+}
+
+func (x *DownloadUpdateRequest) GetTag() string {
+	if x != nil {
+		return x.Tag
+	}
+	return ""
+}
+
+func (x *DownloadUpdateRequest) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *DownloadUpdateRequest) GetCurrentVersion() string {
+	if x != nil {
+		return x.CurrentVersion
+	}
+	return ""
+}
+
+func (x *DownloadUpdateRequest) GetPreferredFormat() string {
+	if x != nil {
+		return x.PreferredFormat
+	}
+	return ""
+}
+
+func (x *DownloadUpdateRequest) GetAllowDowngrade() bool {
+	if x != nil {
+		return x.AllowDowngrade
+	}
+	return false
+}
+
+type DownloadUpdateEvent struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Tag       string                 `protobuf:"bytes,1,opt,name=tag,proto3" json:"tag,omitempty"`
+	AssetName string                 `protobuf:"bytes,2,opt,name=asset_name,json=assetName,proto3" json:"asset_name,omitempty"`
+	Sha256    string                 `protobuf:"bytes,3,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	Size      int64                  `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`
+	Source    string                 `protobuf:"bytes,5,opt,name=source,proto3" json:"source,omitempty"`
+	Verified  bool                   `protobuf:"varint,6,opt,name=verified,proto3" json:"verified,omitempty"`
+	// Verified archive bytes chunk (streamed only after minisign + SHA-256 verification succeeds).
+	Chunk []byte `protobuf:"bytes,7,opt,name=chunk,proto3" json:"chunk,omitempty"`
+	// True on the final event once all verified bytes have been streamed.
+	Done          bool `protobuf:"varint,8,opt,name=done,proto3" json:"done,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DownloadUpdateEvent) Reset() {
+	*x = DownloadUpdateEvent{}
+	mi := &file_niko_v1_niko_service_proto_msgTypes[61]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DownloadUpdateEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DownloadUpdateEvent) ProtoMessage() {}
+
+func (x *DownloadUpdateEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_niko_v1_niko_service_proto_msgTypes[61]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DownloadUpdateEvent.ProtoReflect.Descriptor instead.
+func (*DownloadUpdateEvent) Descriptor() ([]byte, []int) {
+	return file_niko_v1_niko_service_proto_rawDescGZIP(), []int{61}
+}
+
+func (x *DownloadUpdateEvent) GetTag() string {
+	if x != nil {
+		return x.Tag
+	}
+	return ""
+}
+
+func (x *DownloadUpdateEvent) GetAssetName() string {
+	if x != nil {
+		return x.AssetName
+	}
+	return ""
+}
+
+func (x *DownloadUpdateEvent) GetSha256() string {
+	if x != nil {
+		return x.Sha256
+	}
+	return ""
+}
+
+func (x *DownloadUpdateEvent) GetSize() int64 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
+}
+
+func (x *DownloadUpdateEvent) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *DownloadUpdateEvent) GetVerified() bool {
+	if x != nil {
+		return x.Verified
+	}
+	return false
+}
+
+func (x *DownloadUpdateEvent) GetChunk() []byte {
+	if x != nil {
+		return x.Chunk
+	}
+	return nil
+}
+
+func (x *DownloadUpdateEvent) GetDone() bool {
+	if x != nil {
+		return x.Done
+	}
+	return false
+}
+
 var File_niko_v1_niko_service_proto protoreflect.FileDescriptor
 
 const file_niko_v1_niko_service_proto_rawDesc = "" +
@@ -5041,16 +5417,19 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\x03ids\x18\x01 \x03(\x03R\x03ids\"<\n" +
 	"\x10MoveRulesRequest\x12\x10\n" +
 	"\x03ids\x18\x01 \x03(\x03R\x03ids\x12\x16\n" +
-	"\x06before\x18\x02 \x01(\x03R\x06before\"\xb8\x01\n" +
+	"\x06before\x18\x02 \x01(\x03R\x06before\"\xd6\x01\n" +
 	"\rPresetRequest\x125\n" +
 	"\x06preset\x18\x01 \x01(\x0e2\x1d.niko.v1.PresetRequest.PresetR\x06preset\x12!\n" +
 	"\fblocked_name\x18\x02 \x01(\tR\vblockedName\x12\x1f\n" +
 	"\vdirect_name\x18\x03 \x01(\tR\n" +
-	"directName\",\n" +
+	"directName\"J\n" +
 	"\x06Preset\x12\x16\n" +
 	"\x12PRESET_UNSPECIFIED\x10\x00\x12\n" +
 	"\n" +
-	"\x06RUSSIA\x10\x01\"P\n" +
+	"\x06RUSSIA\x10\x01\x12\t\n" +
+	"\x05CHINA\x10\x02\x12\b\n" +
+	"\x04IRAN\x10\x03\x12\a\n" +
+	"\x03ADS\x10\x04\"P\n" +
 	"\fPresetResult\x12#\n" +
 	"\x05rules\x18\x01 \x03(\v2\r.niko.v1.RuleR\x05rules\x12\x1b\n" +
 	"\trule_sets\x18\x02 \x03(\tR\bruleSets\"\xfd\x01\n" +
@@ -5120,7 +5499,42 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\tbody_json\x18\x01 \x01(\tR\bbodyJson\"@\n" +
 	"\x11SetNodeLanRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x12\n" +
-	"\x04show\x18\x02 \x01(\bR\x04show2\x95\x11\n" +
+	"\x04show\x18\x02 \x01(\bR\x04show\"\x81\x01\n" +
+	"\x12CheckUpdateRequest\x12'\n" +
+	"\x0fcurrent_version\x18\x01 \x01(\tR\x0ecurrentVersion\x12\x17\n" +
+	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12)\n" +
+	"\x10preferred_format\x18\x03 \x01(\tR\x0fpreferredFormat\"\xc6\x02\n" +
+	"\n" +
+	"UpdateInfo\x12'\n" +
+	"\x0fcurrent_version\x18\x01 \x01(\tR\x0ecurrentVersion\x12%\n" +
+	"\x0elatest_version\x18\x02 \x01(\tR\rlatestVersion\x12\x10\n" +
+	"\x03tag\x18\x03 \x01(\tR\x03tag\x12)\n" +
+	"\x10update_available\x18\x04 \x01(\bR\x0fupdateAvailable\x12\x1d\n" +
+	"\n" +
+	"asset_name\x18\x05 \x01(\tR\tassetName\x12!\n" +
+	"\fasset_sha256\x18\x06 \x01(\tR\vassetSha256\x12\x1f\n" +
+	"\vrelease_url\x18\a \x01(\tR\n" +
+	"releaseUrl\x12\x14\n" +
+	"\x05notes\x18\b \x01(\tR\x05notes\x12\x16\n" +
+	"\x06source\x18\t \x01(\tR\x06source\x12\x1a\n" +
+	"\bverified\x18\n" +
+	" \x01(\bR\bverified\"\xbf\x01\n" +
+	"\x15DownloadUpdateRequest\x12\x10\n" +
+	"\x03tag\x18\x01 \x01(\tR\x03tag\x12\x17\n" +
+	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12'\n" +
+	"\x0fcurrent_version\x18\x03 \x01(\tR\x0ecurrentVersion\x12)\n" +
+	"\x10preferred_format\x18\x04 \x01(\tR\x0fpreferredFormat\x12'\n" +
+	"\x0fallow_downgrade\x18\x05 \x01(\bR\x0eallowDowngrade\"\xd0\x01\n" +
+	"\x13DownloadUpdateEvent\x12\x10\n" +
+	"\x03tag\x18\x01 \x01(\tR\x03tag\x12\x1d\n" +
+	"\n" +
+	"asset_name\x18\x02 \x01(\tR\tassetName\x12\x16\n" +
+	"\x06sha256\x18\x03 \x01(\tR\x06sha256\x12\x12\n" +
+	"\x04size\x18\x04 \x01(\x03R\x04size\x12\x16\n" +
+	"\x06source\x18\x05 \x01(\tR\x06source\x12\x1a\n" +
+	"\bverified\x18\x06 \x01(\bR\bverified\x12\x14\n" +
+	"\x05chunk\x18\a \x01(\fR\x05chunk\x12\x12\n" +
+	"\x04done\x18\b \x01(\bR\x04done2\xa8\x12\n" +
 	"\vNikoService\x121\n" +
 	"\aGetInfo\x12\x17.niko.v1.GetInfoRequest\x1a\r.niko.v1.Info\x12@\n" +
 	"\tRouteTest\x12\x19.niko.v1.RouteTestRequest\x1a\x18.niko.v1.RouteTestResult\x121\n" +
@@ -5163,7 +5577,9 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\rNodeAdminCall\x12\x19.niko.v1.NodeAdminRequest\x1a\x1a.niko.v1.NodeAdminResponse\x124\n" +
 	"\x11ClearNodeSwitched\x12\x0f.niko.v1.NodeId\x1a\x0e.niko.v1.Empty\x128\n" +
 	"\n" +
-	"SetNodeLan\x12\x1a.niko.v1.SetNodeLanRequest\x1a\x0e.niko.v1.EmptyB\x17Z\x15libcore/nikopb;nikopbb\x06proto3"
+	"SetNodeLan\x12\x1a.niko.v1.SetNodeLanRequest\x1a\x0e.niko.v1.Empty\x12?\n" +
+	"\vCheckUpdate\x12\x1b.niko.v1.CheckUpdateRequest\x1a\x13.niko.v1.UpdateInfo\x12P\n" +
+	"\x0eDownloadUpdate\x12\x1e.niko.v1.DownloadUpdateRequest\x1a\x1c.niko.v1.DownloadUpdateEvent0\x01B\x17Z\x15libcore/nikopb;nikopbb\x06proto3"
 
 var (
 	file_niko_v1_niko_service_proto_rawDescOnce sync.Once
@@ -5178,7 +5594,7 @@ func file_niko_v1_niko_service_proto_rawDescGZIP() []byte {
 }
 
 var file_niko_v1_niko_service_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_niko_v1_niko_service_proto_msgTypes = make([]protoimpl.MessageInfo, 58)
+var file_niko_v1_niko_service_proto_msgTypes = make([]protoimpl.MessageInfo, 62)
 var file_niko_v1_niko_service_proto_goTypes = []any{
 	(Change_Kind)(0),              // 0: niko.v1.Change.Kind
 	(Group_Type)(0),               // 1: niko.v1.Group.Type
@@ -5243,6 +5659,10 @@ var file_niko_v1_niko_service_proto_goTypes = []any{
 	(*NodeAdminRequest)(nil),      // 60: niko.v1.NodeAdminRequest
 	(*NodeAdminResponse)(nil),     // 61: niko.v1.NodeAdminResponse
 	(*SetNodeLanRequest)(nil),     // 62: niko.v1.SetNodeLanRequest
+	(*CheckUpdateRequest)(nil),    // 63: niko.v1.CheckUpdateRequest
+	(*UpdateInfo)(nil),            // 64: niko.v1.UpdateInfo
+	(*DownloadUpdateRequest)(nil), // 65: niko.v1.DownloadUpdateRequest
+	(*DownloadUpdateEvent)(nil),   // 66: niko.v1.DownloadUpdateEvent
 }
 var file_niko_v1_niko_service_proto_depIdxs = []int32{
 	17, // 0: niko.v1.RouteTestResult.steps:type_name -> niko.v1.RouteTestStep
@@ -5306,46 +5726,50 @@ var file_niko_v1_niko_service_proto_depIdxs = []int32{
 	60, // 58: niko.v1.NikoService.NodeAdminCall:input_type -> niko.v1.NodeAdminRequest
 	41, // 59: niko.v1.NikoService.ClearNodeSwitched:input_type -> niko.v1.NodeId
 	62, // 60: niko.v1.NikoService.SetNodeLan:input_type -> niko.v1.SetNodeLanRequest
-	7,  // 61: niko.v1.NikoService.GetInfo:output_type -> niko.v1.Info
-	18, // 62: niko.v1.NikoService.RouteTest:output_type -> niko.v1.RouteTestResult
-	20, // 63: niko.v1.NikoService.Watch:output_type -> niko.v1.Change
-	27, // 64: niko.v1.NikoService.ListGroups:output_type -> niko.v1.GroupList
-	30, // 65: niko.v1.NikoService.ListProfiles:output_type -> niko.v1.ProfileList
-	29, // 66: niko.v1.NikoService.GetProfile:output_type -> niko.v1.Profile
-	29, // 67: niko.v1.NikoService.SaveProfile:output_type -> niko.v1.Profile
-	5,  // 68: niko.v1.NikoService.DeleteProfiles:output_type -> niko.v1.Empty
-	5,  // 69: niko.v1.NikoService.MoveProfiles:output_type -> niko.v1.Empty
-	23, // 70: niko.v1.NikoService.SaveGroup:output_type -> niko.v1.Group
-	5,  // 71: niko.v1.NikoService.DeleteGroup:output_type -> niko.v1.Empty
-	5,  // 72: niko.v1.NikoService.Select:output_type -> niko.v1.Empty
-	31, // 73: niko.v1.NikoService.GetSelected:output_type -> niko.v1.ProfileId
-	32, // 74: niko.v1.NikoService.ShareProfile:output_type -> niko.v1.ShareLink
-	5,  // 75: niko.v1.NikoService.Connect:output_type -> niko.v1.Empty
-	34, // 76: niko.v1.NikoService.GetSettings:output_type -> niko.v1.Settings
-	34, // 77: niko.v1.NikoService.UpdateSettings:output_type -> niko.v1.Settings
-	39, // 78: niko.v1.NikoService.Recognize:output_type -> niko.v1.ImportPreview
-	21, // 79: niko.v1.NikoService.Import:output_type -> niko.v1.TaskProgress
-	21, // 80: niko.v1.NikoService.Refresh:output_type -> niko.v1.TaskProgress
-	42, // 81: niko.v1.NikoService.ListNodes:output_type -> niko.v1.NodeList
-	5,  // 82: niko.v1.NikoService.DeleteNode:output_type -> niko.v1.Empty
-	47, // 83: niko.v1.NikoService.ListRules:output_type -> niko.v1.RuleList
-	46, // 84: niko.v1.NikoService.SaveRule:output_type -> niko.v1.Rule
-	5,  // 85: niko.v1.NikoService.DeleteRules:output_type -> niko.v1.Empty
-	5,  // 86: niko.v1.NikoService.MoveRules:output_type -> niko.v1.Empty
-	51, // 87: niko.v1.NikoService.ApplyPreset:output_type -> niko.v1.PresetResult
-	53, // 88: niko.v1.NikoService.ListRuleSets:output_type -> niko.v1.RuleSetList
-	21, // 89: niko.v1.NikoService.UpdateRuleSets:output_type -> niko.v1.TaskProgress
-	8,  // 90: niko.v1.NikoService.ExportUserStore:output_type -> niko.v1.UserStoreSnapshot
-	9,  // 91: niko.v1.NikoService.ImportUserStore:output_type -> niko.v1.ImportUserStoreResult
-	11, // 92: niko.v1.NikoService.TestConnection:output_type -> niko.v1.TestConnectionResult
-	13, // 93: niko.v1.NikoService.ExitAddress:output_type -> niko.v1.ExitAddressResult
-	15, // 94: niko.v1.NikoService.TestProfiles:output_type -> niko.v1.ProfileTestResult
-	59, // 95: niko.v1.NikoService.RunNodeTest:output_type -> niko.v1.NodeTestEvent
-	61, // 96: niko.v1.NikoService.NodeAdminCall:output_type -> niko.v1.NodeAdminResponse
-	5,  // 97: niko.v1.NikoService.ClearNodeSwitched:output_type -> niko.v1.Empty
-	5,  // 98: niko.v1.NikoService.SetNodeLan:output_type -> niko.v1.Empty
-	61, // [61:99] is the sub-list for method output_type
-	23, // [23:61] is the sub-list for method input_type
+	63, // 61: niko.v1.NikoService.CheckUpdate:input_type -> niko.v1.CheckUpdateRequest
+	65, // 62: niko.v1.NikoService.DownloadUpdate:input_type -> niko.v1.DownloadUpdateRequest
+	7,  // 63: niko.v1.NikoService.GetInfo:output_type -> niko.v1.Info
+	18, // 64: niko.v1.NikoService.RouteTest:output_type -> niko.v1.RouteTestResult
+	20, // 65: niko.v1.NikoService.Watch:output_type -> niko.v1.Change
+	27, // 66: niko.v1.NikoService.ListGroups:output_type -> niko.v1.GroupList
+	30, // 67: niko.v1.NikoService.ListProfiles:output_type -> niko.v1.ProfileList
+	29, // 68: niko.v1.NikoService.GetProfile:output_type -> niko.v1.Profile
+	29, // 69: niko.v1.NikoService.SaveProfile:output_type -> niko.v1.Profile
+	5,  // 70: niko.v1.NikoService.DeleteProfiles:output_type -> niko.v1.Empty
+	5,  // 71: niko.v1.NikoService.MoveProfiles:output_type -> niko.v1.Empty
+	23, // 72: niko.v1.NikoService.SaveGroup:output_type -> niko.v1.Group
+	5,  // 73: niko.v1.NikoService.DeleteGroup:output_type -> niko.v1.Empty
+	5,  // 74: niko.v1.NikoService.Select:output_type -> niko.v1.Empty
+	31, // 75: niko.v1.NikoService.GetSelected:output_type -> niko.v1.ProfileId
+	32, // 76: niko.v1.NikoService.ShareProfile:output_type -> niko.v1.ShareLink
+	5,  // 77: niko.v1.NikoService.Connect:output_type -> niko.v1.Empty
+	34, // 78: niko.v1.NikoService.GetSettings:output_type -> niko.v1.Settings
+	34, // 79: niko.v1.NikoService.UpdateSettings:output_type -> niko.v1.Settings
+	39, // 80: niko.v1.NikoService.Recognize:output_type -> niko.v1.ImportPreview
+	21, // 81: niko.v1.NikoService.Import:output_type -> niko.v1.TaskProgress
+	21, // 82: niko.v1.NikoService.Refresh:output_type -> niko.v1.TaskProgress
+	42, // 83: niko.v1.NikoService.ListNodes:output_type -> niko.v1.NodeList
+	5,  // 84: niko.v1.NikoService.DeleteNode:output_type -> niko.v1.Empty
+	47, // 85: niko.v1.NikoService.ListRules:output_type -> niko.v1.RuleList
+	46, // 86: niko.v1.NikoService.SaveRule:output_type -> niko.v1.Rule
+	5,  // 87: niko.v1.NikoService.DeleteRules:output_type -> niko.v1.Empty
+	5,  // 88: niko.v1.NikoService.MoveRules:output_type -> niko.v1.Empty
+	51, // 89: niko.v1.NikoService.ApplyPreset:output_type -> niko.v1.PresetResult
+	53, // 90: niko.v1.NikoService.ListRuleSets:output_type -> niko.v1.RuleSetList
+	21, // 91: niko.v1.NikoService.UpdateRuleSets:output_type -> niko.v1.TaskProgress
+	8,  // 92: niko.v1.NikoService.ExportUserStore:output_type -> niko.v1.UserStoreSnapshot
+	9,  // 93: niko.v1.NikoService.ImportUserStore:output_type -> niko.v1.ImportUserStoreResult
+	11, // 94: niko.v1.NikoService.TestConnection:output_type -> niko.v1.TestConnectionResult
+	13, // 95: niko.v1.NikoService.ExitAddress:output_type -> niko.v1.ExitAddressResult
+	15, // 96: niko.v1.NikoService.TestProfiles:output_type -> niko.v1.ProfileTestResult
+	59, // 97: niko.v1.NikoService.RunNodeTest:output_type -> niko.v1.NodeTestEvent
+	61, // 98: niko.v1.NikoService.NodeAdminCall:output_type -> niko.v1.NodeAdminResponse
+	5,  // 99: niko.v1.NikoService.ClearNodeSwitched:output_type -> niko.v1.Empty
+	5,  // 100: niko.v1.NikoService.SetNodeLan:output_type -> niko.v1.Empty
+	64, // 101: niko.v1.NikoService.CheckUpdate:output_type -> niko.v1.UpdateInfo
+	66, // 102: niko.v1.NikoService.DownloadUpdate:output_type -> niko.v1.DownloadUpdateEvent
+	63, // [63:103] is the sub-list for method output_type
+	23, // [23:63] is the sub-list for method input_type
 	23, // [23:23] is the sub-list for extension type_name
 	23, // [23:23] is the sub-list for extension extendee
 	0,  // [0:23] is the sub-list for field type_name
@@ -5364,7 +5788,7 @@ func file_niko_v1_niko_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_niko_v1_niko_service_proto_rawDesc), len(file_niko_v1_niko_service_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   58,
+			NumMessages:   62,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

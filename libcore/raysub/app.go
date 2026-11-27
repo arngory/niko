@@ -55,7 +55,7 @@ func (e busyError) Error() string { return "HTTP 429" }
 // only (Range, If-Range: a node that holds another file sends it whole, and out starts over). The knock and the
 // request go as Fetch's: UDP, then the TCP carriers; a transfer that breaks goes on from what it has with the next.
 func AppFile(ctx context.Context, r Request, app, tag, name, out, etag string) error {
-	if app != "niko" || !appTag.MatchString(tag) || !appName.MatchString(name) || strings.Trim(name, ".") == "" {
+	if (app != "niko" && app != "niko-desktop") || !appTag.MatchString(tag) || !appName.MatchString(name) || strings.Trim(name, ".") == "" {
 		return fmt.Errorf("raycontrol app mirror: not a file of a release: %q %q %q", app, tag, name)
 	}
 	now := time.Now
@@ -118,11 +118,13 @@ func AppFile(ctx context.Context, r Request, app, tag, name, out, etag string) e
 	return fmt.Errorf("%w: %v", ErrNoAnswer, lastErr)
 }
 
-// appMaxSize is the most a release's file may hold: the signed list and its signature are small, an APK is not
-// (neko: a node is trusted for nothing, and the list is read whole into memory after).
+// appMaxSize is the most a release's file may hold: the signed list and its signature are small, an APK or desktop
+// release archive is not (neko: a node is trusted for nothing, and the list is read whole into memory after).
 func appMaxSize(url string) int64 {
-	if strings.HasSuffix(url, ".apk") {
-		return 256 << 20
+	for _, ext := range []string{".apk", ".tar.gz", ".zip", ".AppImage", ".deb", ".rpm", ".exe"} {
+		if strings.HasSuffix(url, ext) {
+			return 256 << 20
+		}
 	}
 	return 64 << 10
 }

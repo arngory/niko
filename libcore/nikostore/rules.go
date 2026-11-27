@@ -260,36 +260,67 @@ func (s *Store) MoveRules(ids []int64, before int64) error {
 // ApplyRussiaPreset is RoutePresets.addRussia: the Russian preset's rules (nikoconf.RussiaPreset) replace its rules
 // there are, at the end, in one write. The rules added.
 func (s *Store) ApplyRussiaPreset(blockedName, directName string) ([]nikoconf.Rule, error) {
-	if len(blockedName) > maxName || len(directName) > maxName {
-		return nil, fmt.Errorf("%w: a name over %d bytes", ErrInvalid, maxName)
+	return s.ApplyPreset(nikoconf.IsRussia, nikoconf.RussiaPreset(blockedName, directName), false)
+}
+
+// ApplyPreset atomically replaces rules matching isPreset with preset rules, appending at the end
+// or prepending at the top (order 1..len(preset)) when prepend is true (e.g. ad-blocking rules).
+func (s *Store) ApplyPreset(isPreset func(*nikoconf.Rule) bool, preset []nikoconf.Rule, prepend bool) ([]nikoconf.Rule, error) {
+	for _, r := range preset {
+		if len(r.Name) > maxName {
+			return nil, fmt.Errorf("%w: a name over %d bytes", ErrInvalid, maxName)
+		}
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := s.state.clone()
 	var kept []nikoconf.Rule
 	var changed []int64
-	for _, r := range st.rules {
-		if nikoconf.IsRussia(&r) {
-			changed = append(changed, r.ID)
+	for i := range st.rules {
+		if isPreset != nil && isPreset(&st.rules[i]) {
+			changed = append(changed, st.rules[i].ID)
 		} else {
-			kept = append(kept, r)
+			kept = append(kept, st.rules[i])
 		}
 	}
-	st.rules = kept
-	preset := nikoconf.RussiaPreset(blockedName, directName)
-	if len(st.rules)+len(preset) > maxRules {
+	if len(kept)+len(preset) > maxRules {
 		return nil, fmt.Errorf("%w: over %d rules", ErrRefused, maxRules)
 	}
-	for i := range preset {
-		preset[i].ID, preset[i].UserOrder = st.nextRule, st.nextRuleOrder()
-		st.nextRule++
-		st.rules = append(st.rules, preset[i])
-		changed = append(changed, preset[i].ID)
+	added := make([]nikoconf.Rule, len(preset))
+	copy(added, preset)
+	if prepend {
+		for i := range added {
+			added[i].ID = st.nextRule
+			st.nextRule++
+			changed = append(changed, added[i].ID)
+		}
+		combined := make([]nikoconf.Rule, 0, len(added)+len(kept))
+		combined = append(combined, added...)
+		combined = append(combined, kept...)
+		for i := range combined {
+			order := int64(i + 1)
+			if combined[i].UserOrder != order {
+				combined[i].UserOrder = order
+				if i >= len(added) {
+					changed = append(changed, combined[i].ID)
+				}
+			}
+		}
+		copy(added, combined[:len(added)])
+		st.rules = combined
+	} else {
+		st.rules = kept
+		for i := range added {
+			added[i].ID, added[i].UserOrder = st.nextRule, st.nextRuleOrder()
+			st.nextRule++
+			st.rules = append(st.rules, added[i])
+			changed = append(changed, added[i].ID)
+		}
 	}
 	if err := s.commit(st, Change{Kind: KindRules, IDs: changed}); err != nil {
 		return nil, err
 	}
-	return preset, nil
+	return added, nil
 }
 
 // RuleSetItems are the rule-sets the rules name that the daemon downloads (nikoconf.RuleSetItems): of the enabled

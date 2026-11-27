@@ -125,7 +125,7 @@ type Node struct {
 	Lan          *Lan          `json:"lan,omitempty"`
 	LanShow      bool          `json:"lan_show,omitempty"`
 	LanPrevious  []LanPrevious `json:"lan_previous,omitempty"`
-	AppMirror    *AppMirror    `json:"app_mirror,omitempty"`
+	AppReleases  []AppRelease  `json:"app_releases,omitempty"`
 	SwitchedFrom string        `json:"switched_from,omitempty"`
 	SwitchedTo   string        `json:"switched_to,omitempty"`
 	SwitchedAt   int64         `json:"switched_at,omitempty"`
