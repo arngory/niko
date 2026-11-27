@@ -208,6 +208,35 @@ func anyTLSOutbound(b *nikofmt.AnyTLSBean) object {
 	return o
 }
 
+// shadowTLSOutbound builds a sing-box shadowtls outbound (Stage 5 parity).
+func shadowTLSOutbound(b *nikofmt.ShadowTLSBean, globalInsecure bool) object {
+	ver := num(b.Version)
+	if ver < 1 || ver > 3 {
+		ver = 3
+	}
+	o := object{
+		"type":    "shadowtls",
+		"version": int64(ver),
+	}
+	putString(o, "server", b.ServerAddress)
+	putInt(o, "server_port", b.ServerPort)
+	if ver >= 2 && !blank(b.Password) {
+		o["password"] = *b.Password
+	}
+	tls := object{"enabled": true, "insecure": flag(b.AllowInsecure) || globalInsecure}
+	if !blank(b.Sni) {
+		tls["server_name"] = *b.Sni
+	}
+	if !blank(b.Alpn) {
+		tls["alpn"] = listByLineOrComma(*b.Alpn)
+	}
+	if !blank(b.UtlsFingerprint) {
+		tls["utls"] = object{"enabled": true, "fingerprint": *b.UtlsFingerprint}
+	}
+	o["tls"] = tls
+	return o
+}
+
 // naiveOutbound is fmt/naive/NaiveFmt.kt buildSingBoxOutboundNaiveBean: the core's naive outbound (cronet), whose
 // TLS is Chromium's: no "insecure", the certificate always checked (against the profile's roots where it has some).
 func naiveOutbound(b *nikofmt.NaiveBean) object {

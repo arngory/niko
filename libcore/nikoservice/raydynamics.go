@@ -432,12 +432,15 @@ func (s *server) probeDirectNode(ctx context.Context, node *nikoray.Node) (*dire
 }
 
 func profileCarrier(typ string, bean nikofmt.Bean) string {
-	if bean != nil && nikofmt.Base(bean).DnsTunnel != nil && *nikofmt.Base(bean).DnsTunnel != "" {
-		return "dns"
+	if bean != nil {
+		_, transport := nikofmt.Kind(bean)
+		return transport
 	}
 	switch typ {
-	case "hysteria", "tuic", "wireguard":
+	case "hysteria", "hysteria2", "tuic", "wg", "awg", "wireguard", "naive-quic":
 		return "udp"
+	case "dnstt", "masterdns", "masterdnsvpn", "slipstream":
+		return "dns"
 	default:
 		return "tcp"
 	}
@@ -917,12 +920,17 @@ func (s *server) reconnectProfile(ctx context.Context, u *user, profileID int64,
 	if settings.RaycontrolBrutal {
 		in.BrutalRates = s.currentBrutalRates()
 	}
+	in.DnsResolvers = s.currentDNSResolvers(in.Nodes)
 	built, err := nikoconf.Build(in)
 	if err != nil {
 		return false, err
 	}
 	s.deviceKeys(in.Nodes)
+	if err := s.slipstream.Start(ctx, built.SlipstreamLaunches); err != nil {
+		return false, err
+	}
 	if err := s.start(ctx, string(built.Config), systemProxy(built.SystemProxy)); err != nil {
+		s.slipstream.StopAll()
 		return false, err
 	}
 	s.startWatchdogForConnect(ctx, u, in.Profile, in.Nodes)

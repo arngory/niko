@@ -77,13 +77,31 @@ var computerSettings = map[string]func(s *nikoconf.Settings) error{
 	"dpiDirect":          func(s *nikoconf.Settings) error { return within(s.DpiDirect, nikoconf.DpiOff, nikoconf.DpiCustom) },
 	"dpiDirectPreset":      func(s *nikoconf.Settings) error { return dpiPreset(s.DpiDirectPreset) },
 	"dpiDirectCustom":      func(s *nikoconf.Settings) error { return dpiCustom(s.DpiDirectCustom) },
-	"raycontrolAutoSwitch": nil,
-	"raycontrolBrutal":     nil,
-	"raycontrolReports":    nil,
+	"raycontrolAutoSwitch":         nil,
+	"raycontrolBrutal":             nil,
+	"raycontrolReports":            nil,
+	"raycontrolDnsttResolver":      func(s *nikoconf.Settings) error { return maxLen(s.RaycontrolDnsttResolver, maxSetting) },
+	"raycontrolMasterDnsResolvers": func(s *nikoconf.Settings) error { return maxLen(s.RaycontrolMasterDnsResolvers, maxSetting) },
+	"rootStore":                    func(s *nikoconf.Settings) error { return oneOf(s.RootStore, "", "chrome", "mozilla", "system") },
+	"yggdrasilEnabled":             nil,
+	"yggdrasilPeers":               func(s *nikoconf.Settings) error { return maxLen(s.YggdrasilPeers, maxSetting) },
+	"yggdrasilTlsChrome":           nil,
+	"yggdrasilAllowInbound":        nil,
+	"yggdrasilInboundPorts":        func(s *nikoconf.Settings) error { return maxLen(s.YggdrasilInboundPorts, maxSetting) },
+	"yggdrasilPeersViaProxy":       nil,
+	"connectionTestURL":            func(s *nikoconf.Settings) error { return maxLen(s.ConnectionTestURL, 2048) },
+	"clashApi":                     func(s *nikoconf.Settings) error { return maxLen(s.Secrets.ClashAPI, 255) },
+}
+
+func maxLen(value string, limit int) error {
+	if len(value) > limit {
+		return fmt.Errorf("longer than %d bytes", limit)
+	}
+	return nil
 }
 
 // secretSettings are those of the settings that are nikoconf.Secrets', sealed on the disk.
-var secretSettings = map[string]bool{"mixedPassword": true}
+var secretSettings = map[string]bool{"mixedPassword": true, "clashApi": true}
 
 // SettingNames are the settings a computer has, by the app's names, sorted.
 func SettingNames() []string {

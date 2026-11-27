@@ -30,6 +30,7 @@ const (
 	NikoService_ListProfiles_FullMethodName      = "/niko.v1.NikoService/ListProfiles"
 	NikoService_GetProfile_FullMethodName        = "/niko.v1.NikoService/GetProfile"
 	NikoService_SaveProfile_FullMethodName       = "/niko.v1.NikoService/SaveProfile"
+	NikoService_CheckProfile_FullMethodName      = "/niko.v1.NikoService/CheckProfile"
 	NikoService_DeleteProfiles_FullMethodName    = "/niko.v1.NikoService/DeleteProfiles"
 	NikoService_MoveProfiles_FullMethodName      = "/niko.v1.NikoService/MoveProfiles"
 	NikoService_SaveGroup_FullMethodName         = "/niko.v1.NikoService/SaveGroup"
@@ -88,6 +89,8 @@ type NikoServiceClient interface {
 	// A profile from its type and bean: a new one (id 0) at the end of its group, or the one of its id with a new bean of
 	// the same type, where it is. INVALID_ARGUMENT for a bean that is not one of its type.
 	SaveProfile(ctx context.Context, in *Profile, opts ...grpc.CallOption) (*Profile, error)
+	// Validates a profile's type and bean_json via DecodeBean + nikoconf without saving it (D-PROFILE-01..03).
+	CheckProfile(ctx context.Context, in *Profile, opts ...grpc.CallOption) (*CheckProfileResult, error)
 	// Deletes the profiles of those ids that are there.
 	DeleteProfiles(ctx context.Context, in *ProfileIds, opts ...grpc.CallOption) (*Empty, error)
 	// Puts profiles, in their order, into a group before one of its profiles or at its end.
@@ -297,6 +300,16 @@ func (c *nikoServiceClient) SaveProfile(ctx context.Context, in *Profile, opts .
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(Profile)
 	err := c.cc.Invoke(ctx, NikoService_SaveProfile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) CheckProfile(ctx context.Context, in *Profile, opts ...grpc.CallOption) (*CheckProfileResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CheckProfileResult)
+	err := c.cc.Invoke(ctx, NikoService_CheckProfile_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -710,6 +723,8 @@ type NikoServiceServer interface {
 	// A profile from its type and bean: a new one (id 0) at the end of its group, or the one of its id with a new bean of
 	// the same type, where it is. INVALID_ARGUMENT for a bean that is not one of its type.
 	SaveProfile(context.Context, *Profile) (*Profile, error)
+	// Validates a profile's type and bean_json via DecodeBean + nikoconf without saving it (D-PROFILE-01..03).
+	CheckProfile(context.Context, *Profile) (*CheckProfileResult, error)
 	// Deletes the profiles of those ids that are there.
 	DeleteProfiles(context.Context, *ProfileIds) (*Empty, error)
 	// Puts profiles, in their order, into a group before one of its profiles or at its end.
@@ -866,6 +881,9 @@ func (UnimplementedNikoServiceServer) GetProfile(context.Context, *ProfileId) (*
 }
 func (UnimplementedNikoServiceServer) SaveProfile(context.Context, *Profile) (*Profile, error) {
 	return nil, status.Error(codes.Unimplemented, "method SaveProfile not implemented")
+}
+func (UnimplementedNikoServiceServer) CheckProfile(context.Context, *Profile) (*CheckProfileResult, error) {
+	return nil, status.Error(codes.Unimplemented, "method CheckProfile not implemented")
 }
 func (UnimplementedNikoServiceServer) DeleteProfiles(context.Context, *ProfileIds) (*Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteProfiles not implemented")
@@ -1102,6 +1120,24 @@ func _NikoService_SaveProfile_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(NikoServiceServer).SaveProfile(ctx, req.(*Profile))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_CheckProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Profile)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).CheckProfile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_CheckProfile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).CheckProfile(ctx, req.(*Profile))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1688,6 +1724,10 @@ var NikoService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SaveProfile",
 			Handler:    _NikoService_SaveProfile_Handler,
+		},
+		{
+			MethodName: "CheckProfile",
+			Handler:    _NikoService_CheckProfile_Handler,
 		},
 		{
 			MethodName: "DeleteProfiles",

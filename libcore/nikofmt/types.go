@@ -7,10 +7,102 @@ import (
 	"io"
 	"math"
 	"strconv"
+	"strings"
 )
 
 // What a profile is beside its bean, for the daemon's store (libcore/nikostore): the type's name as the app names it,
 // the bean read back from its JSON, the name and address a list shows.
+
+// Kind returns the specific human-facing protocol kind (e.g. "vless-reality", "vless-xhttp",
+// "hysteria2", "naive-quic", "dnstt", "masterdns", "slipstream", "ygg", "awg") and its primary
+// carrier transport ("tcp", "udp", or "dns") for UI badges and raycontrol diagnostics (M3 / Stage 1).
+func Kind(b Bean) (kind string, transport string) {
+	if b == nil {
+		return "", "tcp"
+	}
+	base := b.base()
+	if base.DnsTunnelDomain != nil && !ktIsBlank(*base.DnsTunnelDomain) {
+		engine := ""
+		if base.DnsTunnel != nil {
+			engine = strings.ToLower(ktTrim(*base.DnsTunnel))
+		}
+		switch engine {
+		case "masterdnsvpn", "masterdns":
+			return "masterdns", "dns"
+		case "slipstream":
+			return "slipstream", "dns"
+		default:
+			return "dnstt", "dns"
+		}
+	}
+	if base.YggPeer != nil && !ktIsBlank(*base.YggPeer) {
+		return "ygg", "tcp"
+	}
+	switch v := b.(type) {
+	case *NaiveBean:
+		if v.Proto != nil && strings.EqualFold(ktTrim(*v.Proto), "quic") {
+			return "naive-quic", "udp"
+		}
+		return "naive", "tcp"
+	case *HysteriaBean:
+		if v.ProtocolVersion != nil && *v.ProtocolVersion == 1 {
+			return "hysteria", "udp"
+		}
+		return "hysteria2", "udp"
+	case *VMessBean:
+		tr := "tcp"
+		if v.Type != nil && strings.EqualFold(ktTrim(*v.Type), "quic") {
+			tr = "udp"
+		}
+		if v.IsVLESS() {
+			if v.Type != nil && strings.EqualFold(ktTrim(*v.Type), "xhttp") {
+				return "vless-xhttp", tr
+			}
+			if v.RealityPubKey != nil && !ktIsBlank(*v.RealityPubKey) {
+				return "vless-reality", tr
+			}
+			if v.Security != nil && strings.EqualFold(ktTrim(*v.Security), "tls") {
+				return "vless-tls", tr
+			}
+			return "vless", tr
+		}
+		return "vmess", tr
+	case *TuicBean:
+		return "tuic", "udp"
+	case *WireGuardBean:
+		if v.AmneziaWG != nil && !ktIsBlank(*v.AmneziaWG) {
+			return "awg", "udp"
+		}
+		return "wg", "udp"
+	case *MieruBean:
+		if v.Protocol != nil && strings.EqualFold(ktTrim(*v.Protocol), "udp") {
+			return "mieru", "udp"
+		}
+		return "mieru", "tcp"
+	case *TrojanBean:
+		return "trojan", "tcp"
+	case *TrojanGoBean:
+		return "trojan-go", "tcp"
+	case *ShadowsocksBean:
+		return "ss", "tcp"
+	case *AnyTLSBean:
+		return "anytls", "tcp"
+	case *SSHBean:
+		return "ssh", "tcp"
+	case *SOCKSBean:
+		return "socks", "tcp"
+	case *HttpBean:
+		return "http", "tcp"
+	case *ConfigBean:
+		return "config", "tcp"
+	case *ShadowTLSBean:
+		return "shadowtls", "tcp"
+	case *ChainBean:
+		return "chain", "tcp"
+	default:
+		return TypeName(b), "tcp"
+	}
+}
 
 // TypeName is the bean's type as fmt/TypeMap.kt names it, and an sn:// link carries it: "vmess" for VLESS too, "http"
 // for HTTPS.
@@ -44,6 +136,10 @@ func TypeName(b Bean) string {
 		return "anytls"
 	case *ConfigBean:
 		return "config"
+	case *ShadowTLSBean:
+		return "shadowtls"
+	case *ChainBean:
+		return "chain"
 	}
 	return ""
 }
@@ -80,6 +176,10 @@ func NewBean(typ string) (Bean, error) {
 		return &AnyTLSBean{}, nil
 	case "config":
 		return &ConfigBean{}, nil
+	case "shadowtls":
+		return &ShadowTLSBean{}, nil
+	case "chain":
+		return &ChainBean{}, nil
 	}
 	return nil, ErrUnsupported
 }

@@ -14,6 +14,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"libcore/nikoconf"
 	"libcore/nikofmt"
 	"libcore/nikopb"
 	"libcore/nikoray"
@@ -130,6 +131,18 @@ func (u *users) user(ctx context.Context) (*user, error) {
 	return u.openDir(filepath.Join(dir, "niko"))
 }
 
+// userByID opens the store for a verified ownerUserID (e.g. boxdd restore).
+func (u *users) userByID(id string) (*user, error) {
+	if u == nil || id == "" {
+		return nil, status.Error(codes.Unauthenticated, "empty user identity")
+	}
+	dir := u.dirFor(id)
+	if dir == "" {
+		return nil, status.Error(codes.Unauthenticated, "empty user directory")
+	}
+	return u.openDir(filepath.Join(dir, "niko"))
+}
+
 // openDir is the store of a user's directory, opened if it is not yet.
 func (u *users) openDir(dir string) (*user, error) {
 	u.mu.Lock()
@@ -197,7 +210,7 @@ func storeError(err error) error {
 
 func profileProto(p nikostore.Profile) *nikopb.Profile {
 	return &nikopb.Profile{Id: p.ID, GroupId: p.Group, Order: p.Order, Type: p.Type, Name: p.Name, Address: p.Address,
-		BeanJson: string(p.Bean)}
+		BeanJson: string(p.Bean), Kind: p.Kind, Transport: p.Transport}
 }
 
 func (s *server) groupProto(u *user, g nikostore.Group) *nikopb.Group {
@@ -297,6 +310,40 @@ func (s *server) SaveProfile(ctx context.Context, request *nikopb.Profile) (*nik
 		return nil, storeError(err)
 	}
 	return withNode(u, profileProto(saved)), nil
+}
+
+// CheckProfile validates a profile's type and bean_json via DecodeBean + nikoconf dry-run without saving it.
+func (s *server) CheckProfile(ctx context.Context, request *nikopb.Profile) (*nikopb.CheckProfileResult, error) {
+	bean, err := nikofmt.DecodeBean(request.Type, []byte(request.BeanJson))
+	if err != nil {
+		return &nikopb.CheckProfileResult{Ok: false, Error: err.Error()}, nil
+	}
+	kind, transport := nikofmt.Kind(bean)
+	in := nikoconf.Input{
+		Profile:  1,
+		Profiles: []nikoconf.Profile{{ID: 1, Group: 1, Type: request.Type, Bean: bean}},
+		Groups:   []nikoconf.Group{{ID: 1}},
+		Settings: nikoconf.DesktopSettings(),
+		Platform: connectPlatform(),
+		ForTest:  true,
+		UserMode: s.userMode,
+	}
+	res, err := nikoconf.Build(in)
+	if err != nil {
+		return &nikopb.CheckProfileResult{
+			Ok:        false,
+			Error:     err.Error(),
+			Warnings:  res.Warnings,
+			Kind:      kind,
+			Transport: transport,
+		}, nil
+	}
+	return &nikopb.CheckProfileResult{
+		Ok:        true,
+		Warnings:  res.Warnings,
+		Kind:      kind,
+		Transport: transport,
+	}, nil
 }
 
 func (s *server) DeleteProfiles(ctx context.Context, request *nikopb.ProfileIds) (*nikopb.Empty, error) {

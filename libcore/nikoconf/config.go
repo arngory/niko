@@ -61,7 +61,7 @@ func Build(in Input) (Result, error) {
 	}
 	switch in.Platform {
 	case "", PlatformAndroid:
-	case PlatformWindows, PlatformLinux:
+	case PlatformWindows, PlatformLinux, PlatformDarwin:
 		b.desktop = true
 	default:
 		return Result{}, fmt.Errorf("unknown platform %q", in.Platform)
@@ -949,19 +949,38 @@ func (b *builder) selectorName(name string) string {
 	return result
 }
 
-// resolveChain is ProxyEntity.resolveChain: the profile, its group's front proxy after it and landing proxy before
-// it. A chain profile (ChainBean) has no bean here.
+// resolveChain is ProxyEntity.resolveChain: expands ChainBean (with cycle detection), then appends
+// the group's front proxy and prepends its landing proxy (D-PROFILE-04).
 func (b *builder) resolveChain(p *Profile) []*Profile {
-	list := []*Profile{p}
-	if g := b.groups[p.Group]; g != nil {
-		if front := b.profile(g.FrontProxy); front != nil {
-			list = append(list, front)
+	visited := map[int64]bool{}
+	var expand func(cur *Profile) []*Profile
+	expand = func(cur *Profile) []*Profile {
+		if cur == nil || visited[cur.ID] {
+			return nil
 		}
-		if landing := b.profile(g.LandingProxy); landing != nil {
-			list = append([]*Profile{landing}, list...)
+		visited[cur.ID] = true
+		var list []*Profile
+		if cb, ok := cur.Bean.(*nikofmt.ChainBean); ok {
+			// ChainBean stores hops entry-to-exit; sing-box chain list is exit-first.
+			for i := len(cb.Proxies) - 1; i >= 0; i-- {
+				if hop := b.profile(cb.Proxies[i]); hop != nil {
+					list = append(list, expand(hop)...)
+				}
+			}
+		} else {
+			list = []*Profile{cur}
 		}
+		if g := b.groups[cur.Group]; g != nil {
+			if front := b.profile(g.FrontProxy); front != nil && !visited[front.ID] {
+				list = append(list, expand(front)...)
+			}
+			if landing := b.profile(g.LandingProxy); landing != nil && !visited[landing.ID] {
+				list = append(expand(landing), list...)
+			}
+		}
+		return list
 	}
-	return list
+	return expand(p)
 }
 
 // localProxyUsers is the local mixed inbound's users: the app's own, and the user's; none where it needs no login.

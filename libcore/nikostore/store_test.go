@@ -125,9 +125,9 @@ func TestRoundTrip(t *testing.T) {
 		t.Fatalf("%+v %v", rows, err)
 	}
 	for i, wantRow := range []Profile{
-		{ID: 1, Group: 1, Order: 1, Type: "naive", Name: "naive", Address: "203.0.113.7:443"},
-		{ID: 3, Group: 1, Order: 3, Type: "ss", Name: "SS 2022", Address: "203.0.113.20:8443"},
-		{ID: 4, Group: 2, Order: 1, Type: "vmess", Name: "[2001:db8::7]:443", Address: "[2001:db8::7]:443"},
+		{ID: 1, Group: 1, Order: 1, Type: "naive", Name: "naive", Address: "203.0.113.7:443", Kind: "naive", Transport: "tcp"},
+		{ID: 3, Group: 1, Order: 3, Type: "ss", Name: "SS 2022", Address: "203.0.113.20:8443", Kind: "ss", Transport: "tcp"},
+		{ID: 4, Group: 2, Order: 1, Type: "vmess", Name: "[2001:db8::7]:443", Address: "[2001:db8::7]:443", Kind: "vless-tls", Transport: "tcp"},
 	} {
 		if !reflect.DeepEqual(rows[i], wantRow) {
 			t.Errorf("row %d: %+v, want %+v", i, rows[i], wantRow)

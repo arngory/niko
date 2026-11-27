@@ -330,6 +330,7 @@ func (s *server) autoUpdates(now time.Time) {
 // the timed updates go on without the window.
 func (s *server) scheduleUpdates() {
 	s.users.openAll()
+	s.loadAllDeviceKeys()
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 	for {

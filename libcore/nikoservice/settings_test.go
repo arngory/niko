@@ -56,7 +56,8 @@ func TestSettingsCalls(t *testing.T) {
 	want := &nikopb.Settings{ServiceMode: "proxy", Mtu: 9000,
 		RemoteDns: "https://cloudflare-dns.com/dns-query\nhttps://dns.quad9.net/dns-query", DirectDns: "local",
 		EnableFakeDns: true, MixedPort: 2080, TrafficSniffing: 1, SystemProxy: runtime.GOOS == "windows",
-		EnableDnsRouting: true, RuleSetUpdateHours: 24, DpiDirectPreset: "tlsrec_sni", RaycontrolAutoSwitch: true}
+		EnableDnsRouting: true, RuleSetUpdateHours: 24, DpiDirectPreset: "tlsrec_sni", RaycontrolAutoSwitch: true,
+		RootStore: "chrome", YggdrasilTlsChrome: true, ConnectionTestUrl: "http://cp.cloudflare.com/"}
 	if !proto.Equal(got, want) {
 		t.Fatalf("the defaults: %v", got)
 	}

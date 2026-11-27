@@ -234,11 +234,12 @@ func parseRelays(list []any) []Relay {
 	return out
 }
 
-// ProbeInfo is the subscription's `probe` descriptor (probe-v1).
+// ProbeInfo is the subscription's `probe` descriptor (probe-v1 & dnsprobe-v1).
 type ProbeInfo struct {
 	V        int      `json:"v"`
 	Tunnel   string   `json:"tunnel,omitempty"`
 	UDP      bool     `json:"udp,omitempty"`
+	DNSKey   string   `json:"dns_key,omitempty"`
 	Report   []string `json:"report,omitempty"`
 	Services []int    `json:"services,omitempty"`
 }
@@ -265,6 +266,7 @@ func parseProbe(o map[string]any) *ProbeInfo {
 	p := &ProbeInfo{V: 1}
 	p.Tunnel, _ = primitiveString(o, "tunnel")
 	p.UDP, _ = asBool(o["udp"])
+	p.DNSKey, _ = primitiveString(o, "dns_key")
 	if rep, ok := array(o, "report"); ok {
 		for _, item := range rep {
 			if s, ok := gsonString(item); ok && s != "" {
@@ -287,6 +289,7 @@ type Hints struct {
 	UDPBlocked bool   `json:"udp_blocked,omitempty"`
 	UDPMTU     string `json:"udp_mtu,omitempty"`
 	ViaRelay   bool   `json:"via_relay,omitempty"`
+	DNS        string `json:"dns,omitempty"`
 }
 
 func parseHints(o map[string]any) *Hints {
@@ -297,7 +300,8 @@ func parseHints(o map[string]any) *Hints {
 	h.UDPBlocked, _ = asBool(o["udp_blocked"])
 	h.UDPMTU, _ = primitiveString(o, "udp_mtu")
 	h.ViaRelay, _ = asBool(o["via_relay"])
-	if !h.UDPBlocked && h.UDPMTU == "" && !h.ViaRelay {
+	h.DNS, _ = primitiveString(o, "dns")
+	if !h.UDPBlocked && h.UDPMTU == "" && !h.ViaRelay && h.DNS == "" {
 		return nil
 	}
 	return h

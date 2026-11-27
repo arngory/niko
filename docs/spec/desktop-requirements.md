@@ -48,7 +48,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 Пути Kotlin даны от `app/src/main/java/io/niko/`. Вызовы демона:
 
 - `boxdd` — `experimental/boxdd/desktop_service.proto` и `daemon/*.proto` форка ядра.
-- `NikoService` — `shared/proto/niko/v1/niko_service.proto` (текущий API 12, схема хранилища 4), отвечает демон
+- `NikoService` — `shared/proto/niko/v1/niko_service.proto` (текущий API 17, схема хранилища 4), отвечает демон
   `niko-daemon`. Остальные вызовы матрицы без реализации — план.
 
 ## Верхняя панель (D-NAV)
@@ -88,13 +88,13 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-ADD-02 | Поле «Вставить» | — | UI | есть | есть: импорт из буфера | есть (`add_screen.dart`) |
 | D-ADD-03 | Распознано: приглашение, подписка или ссылка профиля | `NikoService.Recognize` / `Import` | Go: `nikofmt`, `nikosub`, `nikoray` | есть | есть | есть: ссылки, подписки, приглашения и пакеты `raycontrol` |
 | D-ADD-04 | Из буфера | — | UI, дальше D-ADD-03 | есть | есть | есть |
-| D-ADD-05 | QR из файла или снимка экрана | — | Kotlin: `ui/add/AddActivity.kt`, QR с камеры и из картинки | есть | есть: QR из картинки (`ui/add/AddActivity.kt`) | нет |
+| D-ADD-05 | QR из файла или снимка экрана | — | Kotlin: `ui/add/AddActivity.kt`, QR с камеры и из картинки | есть | есть: QR из картинки (`ui/add/AddActivity.kt`) | есть (`lib/platform/qr_decode.dart`, импорт QR из файла на экране добавления) |
 | D-ADD-06 | PIN приглашения, 6 цифр | `NikoService.Register` | Go: `libcore/nikoray`, `libcore/rayapi`, `nikoservice` (`Import`) | есть | есть | есть: поле PIN на экране добавления, когда приглашение его требует, и снова после неверного с остатком попыток; регистрация — `Import` (`ImportRequest.pin`, `TaskProgress.pin`) |
 | D-ADD-07 | Что будет добавлено | `NikoService.Recognize` | Go: `nikoservice` | расходится: подсказка внизу обрезана кнопкой | есть | есть |
 | D-ADD-08 | Добавить | `NikoService.Import` | Go: `nikoservice` | есть | есть | есть |
-| D-ADD-09 | Импорт из файла: текст, JSON, WireGuard .zip, пакет устройства `rayctl` | `NikoService.Import` | Kotlin: `ui/add/AddActivity.kt`, `group/RawUpdater.kt`, `raycontrol/RayImport.kt` | есть | есть | нет |
-| D-ADD-10 | Проверка импорта: что заменит весь конфиг, с ключами | `NikoService.Import` (dry run) | Kotlin: `ui/ImportReview.kt` | есть | есть | нет |
-| D-ADD-11 | Ссылки-схемы подписок (sn, clash, sing-box, hiddify, v2rayng), профилей (ss, vmess, vless, trojan, naive+, hy2, tuic, anytls…) и приглашений rcinv; на компьютере — обработчик ссылок в системе | `NikoService.Import` | Kotlin: `ui/MainActivity.kt` (intent-фильтры), разбор — см. D-ADD-03; обработчика ссылок на компьютере нет | есть | есть | нет |
+| D-ADD-09 | Импорт из файла: текст, JSON, WireGuard .zip, пакет устройства `rayctl` | `NikoService.Import` | Go + UI: `nikoservice`, `add_screen.dart` | есть | есть | есть: импорт файлов `.txt`/`.json`/`.yaml`/`.conf`/пакета устройства на экране добавления |
+| D-ADD-10 | Проверка импорта: что заменит весь конфиг, с ключами | `NikoService.Import` (dry run) | Kotlin: `ui/ImportReview.kt` | есть | есть | частично: предпросмотр резервной копии (`inspectDesktopBackupJson`) и `Recognize` |
+| D-ADD-11 | Ссылки-схемы подписок (sn, clash, sing-box, hiddify, v2rayng), профилей (ss, vmess, vless, trojan, naive+, hy2, tuic, anytls…) и приглашений rcinv; на компьютере — обработчик ссылок в системе | `NikoService.Import` | Go + UI: `deep_link.dart`, `.desktop`, `register_url_schemes.ps1`, `Info.plist` | есть | есть | есть: все схемы профилей, подписок и `rcinv1/2/3` зарегистрированы на Linux, Windows и macOS |
 
 ## Карточка узла (D-NODE)
 
@@ -108,8 +108,8 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-NODE-06 | Способы подключения узла | `NikoService` | Go: `libcore/nikoray`, `nikostore` (группа узла) | есть | есть | есть: профили группы узла под карточкой |
 | D-NODE-07 | Удалить узел: с подтверждением, что вернуть его можно только новым приглашением | `NikoService` | Go: `nikostore` (`DeleteNode`) | есть | есть | есть: «Удалить узел» в карточке, после слов, что вернуть его можно только новым приглашением (`DeleteNode`: узел, его группа и ключ) |
 | D-NODE-08 | Свои устройства в сети узла (lan-v1) | `NikoService` | Kotlin: `raycontrol/RayLan.kt`, `ui/RayLanDialog.kt` | расходится: «2 из 3 разрешённых» — предела устройств узел не отдаёт | есть | нет |
-| D-NODE-09 | UDP у способа naive в этой сети: QUIC, через TCP пока идёт проверка, через TCP потому что QUIC не проходит (naive-udp-v1) | `NikoService` (состояние ядра `NaiveDatagramState` и вердикт пробы сети) | Go: `libcore/naive_datagram.go`; проба и память по сетям — Kotlin: `raycontrol/RayDatagrams.kt` | есть | есть | нет |
-| D-NODE-10 | Строки состояния карточки: обновления отклонены или не проходят N раз, путь прямой или через ретранслятор, резолвер DNS-туннеля, часы неверны | `NikoService` | Kotlin: `raycontrol/RayNodeCard.kt` | есть | есть | нет |
+| D-NODE-09 | UDP у способа naive в этой сети: QUIC, через TCP пока идёт проверка, через TCP потому что QUIC не проходит (naive-udp-v1) | `NikoService` (`Node.naive_udp_state` и `NaiveDatagramState`) | Go: `libcore/naive_datagram.go`, `nikoservice/ygg_peers.go` | есть | есть | есть: живое состояние `naive-udp-v1` отдаётся в `ListNodes` и отображается в карточке узла |
+| D-NODE-10 | Строки состояния карточки: обновления отклонены или не проходят N раз, путь прямой или через ретранслятор, резолвер DNS-туннеля, часы неверны | `NikoService` (`ListNodes`) | Go: `nikoservice/dns_resolvers.go`, `nikoservice/nodes.go` | есть | есть | есть: ошибки/отклонения, часы, активный резолвер DNS-туннеля (`Node.dns_resolver`) и состояние UDP |
 | D-NODE-11 | Проверить канал: прямой путь (носитель SPA, MTU UDP, квота), по способам — скорость, первый байт, зависание, потери и RTT UDP; пиры Yggdrasil | `NikoService.CheckChannel` | Kotlin + Go: `raycontrol/RayChannel.kt`, `libcore/rayprobe` | есть | есть | нет |
 | D-NODE-12 | Сводка и подсказки сети: избегать, UDP заблокирован, замирание, MTU | `NikoService` | Kotlin: `raycontrol/RayChannel.kt`, `raycontrol/RayReport.kt` | есть | есть | нет |
 | D-NODE-13 | Локальная сеть узла, две настройки: «Показывать это устройство моим», «Порты, открытые моим устройствам» | `NikoService` | Kotlin: `raycontrol/RayLan.kt`, `ui/RayLanDialog.kt` | есть | есть | нет |
@@ -165,7 +165,7 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | ID | Элемент | Вызов демона | Где логика сейчас | Макет | Android | Окно |
 |---|---|---|---|---|---|---|
 | D-ADD | Первый запуск: узлов и подписок нет, открыт экран добавления | BG-02 (пусто) | UI | есть («Добавление (первый запуск)») | нет | нет |
-| D-STATE-SVC | Служба не установлена: установить или режим «Прокси» | `DesktopService.GetDaemonInfo`, `service install` | Windows: UAC-установка в `Program Files` есть (срез 14); Linux `pkexec` и режим «Прокси» без службы (срез 16) — в плане | есть | — | частично: на Windows есть установка и запуск установленной копии; на Linux и без службы — ещё нет |
+| D-STATE-SVC | Служба не установлена: установить или режим «Прокси» | `DesktopService.GetDaemonInfo`, `service install` / `uninstall`, `--user-mode` | Go + UI: Windows UAC + `worker --user-mode`, Linux `pkexec` + `run --user-mode`, macOS `run --user-mode` | есть | — | есть: режим «Прокси» без службы работает сразу; установка и удаление системной службы в один клик на Windows и Linux (с переносом хранилища) |
 | D-STATE-QUOTA | Трафик узла исчерпан до сброса | `NikoService` | Kotlin: `raycontrol/RaySubscription.kt` (traffic-limit-v1) | есть | есть | нет |
 | D-STATE-NET | Нет сети | `boxdd` platform interface | есть | есть | нет: только в итогах прогона (D-WHY) | нет |
 | D-STATE-RELOAD | Настройка изменена: перезапустить ядро | `NikoService.Reload` (пересборка конфига, BG-01) | Kotlin: `ktx/Utils.kt` (`needReload`), `ui/MainActivity.kt` | есть | есть | нет |
@@ -262,13 +262,13 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 | D-RULES-06 | Программы через Niko: «Все, Только выбранные, Кроме выбранных» и список — то же, что приложения на телефоне (M-RULES-01) | конфиг | новое: «Кроме выбранных» — правило по `process_path` «Напрямую» первым в списке; «Только выбранные» — такое же правило через узел, а остальное напрямую | есть | есть: приложения через VPN (M-RULES-01) | есть: Настройки → Программы, список — имя или полный путь в строке; в службе — `programsMode` и `programs` (API 8) |
 | D-RULES-07 | Списки приложений из репозитория списков: включить, версия и дата, путь каждого имени сервиса ([схема](../research/routing-apps.md)) | `NikoService` + конфиг | новое: снимок в установщике, обновление через ноду с подписью | есть | нет | нет |
 | D-RULES-08 | Обязательные правила от ноды (`enforce`), с замком «Задано подпиской»: `block`, `node`, `relay` (только наборы inside-only), `direct` — у администратора все возможности, клиент недоверенный (решение владельца 2026-11-16), все правила ноды выше своих правил пользователя, в том числе над приложением, которое он сам отправил через узел; справка объясняет цену «напрямую» и «через relay» ([схема](../research/routing-apps.md) §5) | `NikoService` | новое, вместе с сервером | есть | нет | нет |
-| D-PROFILE-01 | Ручная форма профиля по протоколу; у naive переключатель «UDP: QUIC, через TCP если не проходит» | `NikoService` | Kotlin: `ui/profile/ProfileActivity.kt`, поля типов `ui/profile/ProfileSpecs.kt`, бины `fmt/*` | расходится: переключатель UDP нарисован в форме VLESS, он только у naive | есть | нет |
-| D-PROFILE-02 | JSON профиля и конфига | `ApplicationService.CheckConfig`, `FormatConfig` | есть | есть | есть | нет |
-| D-PROFILE-03 | Тонкая настройка подключения: фрагментация TLS, пиннинг сертификата, DNS-туннель, обход DPI для QUIC, стук портов | `NikoService` | Kotlin: `ui/profile/ProfileForm.kt`, `ui/profile/ProfileScreen.kt`, `fmt/PortKnocking.kt`, `fmt/CertificatePinning.kt`, `fmt/DnsTunnel.kt` | есть | есть | нет |
-| D-PROFILE-04 | Цепочка прокси: добавить, порядок, проверка кольца | `NikoService` | Kotlin: `ui/profile/ProfileActivity.kt`, `fmt/ConfigBuilder.kt` | есть | есть | нет |
-| D-PROFILE-05 | Список профилей: поиск, порядок (исходный, по имени, по задержке), карточка с трафиком и задержкой | `NikoService` | Kotlin: `ui/home/ConfigsState.kt`, `ui/home/ConfigsSheet.kt` | есть | есть | нет |
-| D-PROFILE-06 | Проверить группу (TCPing, URL-тест), очистить результаты и недоступные, удалить дубликаты, обнулить статистику | `NikoService.TestProfiles` + `NikoService` | Kotlin + Go: `ui/home/ConfigsTest.kt`, `ui/home/ConfigsOps.kt`, см. D-MAIN-08 | есть | есть | нет |
-| D-PROFILE-07 | Поделиться профилем: QR, ссылка; конфиг в буфер или файл; не у профилей узла (`FAILED_PRECONDITION`, salamander-device-v1 §6) | `NikoService.Export` | Kotlin: `ui/home/HomeFragment.kt`, ссылки — `fmt/*`, `fmt/UniversalFmt.kt` | есть | есть | нет |
+| D-PROFILE-01 | Ручная форма профиля по протоколу; у naive переключатель «UDP: QUIC, через TCP если не проходит» | `NikoService` (`SaveProfile`, `CheckProfile`) | Go + UI: `nikofmt`, `profile_editor.dart` | есть | есть | есть: ручная форма всех протоколов (`vless`, `hysteria`, `naive` + `nikoUdp`, `vmess`, `trojan`, `trojan-go`, `ss`, `tuic`, `anytls`, `wg`/AmneziaWG, `mieru`, `ssh`, `socks`, `http`) и кнопка «Проверить» (`CheckProfile`) |
+| D-PROFILE-02 | JSON профиля и конфига | `NikoService.CheckProfile`, `BuildConfig` | Go + UI: `nikoconf`, `profile_editor.dart` | есть | есть | есть: вкладка JSON с двусторонней синхронизацией и проверкой `CheckProfile` |
+| D-PROFILE-03 | Тонкая настройка подключения: фрагментация TLS, пиннинг сертификата, DNS-туннель, обход DPI для QUIC, стук портов | `NikoService` | Go + UI: `nikofmt`, `nikoconf`, `profile_editor.dart` | есть | есть | есть: сворачиваемый раздел «Тонкая настройка» в редакторе профиля (`certPins`, `tlsFragment`, `dnsTunnel*`, `knockSequence`, `udpPrelude*`, `yggPeer`) |
+| D-PROFILE-04 | Цепочка прокси: добавить, порядок, проверка кольца | `NikoService` | Go: `nikofmt.ChainBean`, `nikoconf.resolveChain` | есть | есть | частично: сборка и проверка колец в Go (`nikoconf`) готовы; редактор списка цепочки в UI — план |
+| D-PROFILE-05 | Список профилей: поиск, порядок (исходный, по имени, по задержке), карточка с трафиком и задержкой | `NikoService` (`Profile.kind`, `Profile.transport`) | Go + UI: `nikofmt.Kind`, `nodes_screen.dart` | есть | есть | есть: ленивый `SliverList.builder`, поиск, сортировка, бейджи протокола/транспорта и пинг |
+| D-PROFILE-06 | Проверить группу (TCPing, URL-тест), очистить результаты и недоступные, удалить дубликаты, обнулить статистику | `NikoService.TestProfiles` + `NikoService` | Go + UI: `nikoservice/tests.go`, `nodes_screen.dart` | есть | есть | есть: пакетный тест группы (`TestProfiles`) с отображением задержки |
+| D-PROFILE-07 | Поделиться профилем: QR, ссылка; конфиг в буфер или файл; не у профилей узла (`FAILED_PRECONDITION`, salamander-device-v1 §6) | `NikoService.ShareProfile` | Go + UI: `nikofmt.ShareLink`, `qr_code_widget.dart` | есть | есть | есть: ссылка в буфер и диалог QR-кода (профили узла запрещены демоном) |
 | D-PROFILE-08 | Перенести профиль в группу, удалить с отменой, перетащить | `NikoService` | Kotlin: `ui/home/ConfigsOps.kt`, `database/ProfileManager.kt` | есть | есть | нет |
 
 ## Инструменты (D-TOOLS)
@@ -284,24 +284,26 @@ ID — в схеме дизайн-сессии: `D-<ЭКРАН>-<номер>`, �
 
 | ID | Что | Где логика сейчас | Android | Окно |
 |---|---|---|---|---|
-| BG-01 | Сборка конфига ядра из профиля и настроек — главный перенос | Go: `libcore/nikoconf` | есть | есть (golden = Kotlin, кроме плагинов/цепочек/ShadowTLS) |
+| BG-01 | Сборка конфига ядра из профиля и настроек — главный перенос | Go: `libcore/nikoconf` | есть | есть (golden = Kotlin; добавлены ShadowTLS, ChainBean с проверкой циклов и Slipstream A+B) |
 | BG-02 | Хранилище профилей и узлов | Go: `libcore/nikostore` (JSON на пользователя, схема 4) | есть | есть |
-| BG-03 | Обновление подписок по времени: узлы raycontrol и обычные подписки | Kotlin: `bg/SubscriptionUpdater.kt`, `raycontrol/RaySubscription.kt`, `group/GroupUpdater.kt`, `group/RawUpdater.kt` | есть | частично: обычные подписки (срез 9) и узлы raycontrol (срез 11) по времени в `nikod`; без сторожа и отката по сети (этап 4) |
-| BG-04 | Сторож: проверки, DoH, перезагрузка подписки | Kotlin + Go: `raycontrol/RayWatchdog.kt`, `libcore/dohcheck.go` | есть | нет |
-| BG-05 | Адаптивность канала, Brutal по измерению | Kotlin + Go: `raycontrol/RayChannel.kt`, `RayBrutal.kt`, `libcore/rayprobe`, `libcore/probe` | есть | нет |
+| BG-03 | Обновление подписок по времени: узлы raycontrol и обычные подписки | Go: `nikoservice` (обычные подписки и узлы raycontrol по времени) | есть | есть |
+| BG-04 | Сторож: проверки, DoH, перезагрузка подписки | Go: `nikoservice/raydynamics.go` (`Watchdog` + `DoH` + переключение профилей) | есть | есть |
+| BG-05 | Адаптивность канала, Brutal по измерению | Go: `nikoservice/raydynamics.go`, `libcore/rayprobe` | есть | есть |
 | BG-06 | Отчёты для админа | Kotlin: `raycontrol/RayReport.kt` | есть | нет |
-| BG-07 | DNS-туннели: выбор резолвера в каждой сети | Kotlin + Go: `raycontrol/RayDnsResolvers.kt`, `libcore/dnsprobe` | есть | нет |
-| BG-08 | Yggdrasil: публичные пиры | Kotlin + Go: `raycontrol/RayYggPeers.kt`, `libcore/box_yggdrasil.go` | есть | нет |
+| BG-07 | DNS-туннели: выбор резолвера в каждой сети | Go: `nikoservice/dns_resolvers.go`, `libcore/dnsprobe` | есть | есть: отпечаток сети, `/etc/resolv.conf` + системные/страновые кандидаты + TCP53 + `dnszones-v1`, TTL 24ч/1ч |
+| BG-08 | Yggdrasil: публичные пиры | Go: `nikoservice/ygg_peers.go`, `libcore/box_yggdrasil.go` | есть | есть: отбор пиров (предпочтение шифрованных схем + задержка) и настройки Yggdrasil (API 17) |
 | BG-09 | Наборы правил: загрузка и проверка | Kotlin + Go: `RuleSetFiles.kt`, `libcore/ruleset` | есть | есть: `nikod` скачивает сам (`UpdateRuleSets`, по интервалу при работающем ядре), проверка — `ruleset.Check` |
 | BG-10 | Секреты скрыты в журнале | Go: `libcore/redact` подключён в `boxdd` (`Options.LogRedactor`: кольцо логов, отчёты о сбоях/OOM, сброс при смене владельца, хосты узлов `nikoservice`) | есть | есть |
 | BG-11 | Ключ устройства в защищённом хранилище | Kotlin: `raycontrol/DeviceKeyVault.kt` (Android Keystore); Go: `nikostore` (`Sealer`: DPAPI на Windows) | есть | есть: ключ устройства, клиентские ключи, учётные данные строк и DoH узла запечатаны в `store.json` (DPAPI на Windows), в ядро ключ уходит по ссылке, не в конфиге |
-| BG-12 | Обновление приложения с узла | Kotlin + Go: `raycontrol/RayAppMirror.kt`, `libcore/raysub.go`; узел пока раздаёт только APK — нужен сервер | есть | нет |
+| BG-12 | Обновление приложения с узла | Go + UI: `lib/platform/updater.dart`, `minisign` проверка `SHA256SUMS.minisig` | есть | частично: проверка и загрузка с проверкой `minisign` есть (архив сохраняется для ручной распаковки) |
 
-## Протоколы под Windows
+## Протоколы на компьютере
 
-Ядро для Windows собирается с теми же тегами, что и для Android (`desktop.yml`): naive, knock, AmneziaWG, dnstt,
-masterdns, Yggdrasil. Отличия:
+Ядро собирается с каноническим списком тегов (`shared/build-tags.txt`): naive (`with_naive_outbound,with_purego`),
+knock, AmneziaWG, dnstt, masterdns, Yggdrasil, mieru. Отличия и особенности:
 
-- **naive:** `libcronet.dll` рядом с exe. Тесты под Windows проходят.
-- **Slipstream:** отдельная программа. Для Android она собирается как `libslipstream.so`; сборки под Windows нет.
-- **naive UDP через HTTP/3** (naive-udp-v1) — в ядре (`libcore/naive_datagram.go`), для обеих платформ.
+- **naive:** `libcronet.dll` (Windows) / `libcronet.so` (Linux) рядом с бинарём демона.
+- **Slipstream:** поддержаны оба варианта — (A) внешний `slipstream-client` рядом с бинарём демона (`nikoservice/slipstream.go`,
+  сборка через `tool/build_slipstream.sh` с `PICOQUIC_ENFORCED_INITIAL_MTU=64`), и (B) встроенный Go-транспорт
+  `protocol/slipstream` в форке `sing-box` (`Input.SlipstreamNative`).
+- **naive UDP через HTTP/3** (naive-udp-v1) — в ядре (`libcore/naive_datagram.go`), статус отдаётся в `Node.naive_udp_state`.

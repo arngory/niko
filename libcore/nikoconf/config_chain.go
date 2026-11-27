@@ -1,12 +1,17 @@
 package nikoconf
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"libcore/nikofmt"
 	"libcore/nikoray"
+
+	dnsttTransport "github.com/sagernet/sing-box/transport/dnstt"
 )
 
 // buildChain is buildConfig's buildChain: the outbounds of a profile's chain, the exit first; its tag. A hop to a
@@ -382,6 +387,49 @@ func (b *builder) buildChain(chainID int64, entity *Profile) (string, error) {
 		// outbound, as the profile has it
 		if tunnel.enabled() {
 			prefix := "DNS tunnel (" + name + ")"
+			// Resolve "auto" resolver (set by raycontrol subscriptions when the node leaves resolver choice
+			// to the client) using probed per-network overrides, user settings, or static defaults (H2).
+			if strings.EqualFold(nikofmt.KtTrim(tunnel.resolver), "auto") {
+				var nodeID string
+				if auth, ok := tunnel.authNode(); ok {
+					nodeID = auth[0]
+				} else if owner, _ := b.ownerOf(p.ID); owner != nil {
+					nodeID = owner.ID()
+				}
+				resolved := ""
+				if nodeID != "" && len(b.in.DnsResolvers) > 0 {
+					if v := nikofmt.KtTrim(b.in.DnsResolvers[tunnel.engine+":"+nodeID]); v != "" {
+						resolved = v
+					} else if v := nikofmt.KtTrim(b.in.DnsResolvers[nodeID]); v != "" {
+						resolved = v
+					}
+				}
+				if resolved == "" {
+					switch tunnel.engine {
+					case dnsTunnelDNSTT:
+						if v := nikofmt.KtTrim(b.s.RaycontrolDnsttResolver); v != "" && !strings.EqualFold(v, "auto") {
+							resolved = v
+						} else {
+							resolved = DefaultDnsttResolver
+						}
+					case dnsTunnelMasterDNS:
+						if v := nikofmt.KtTrim(b.s.RaycontrolMasterDnsResolvers); v != "" && !strings.EqualFold(v, "auto") {
+							resolved = v
+						} else {
+							resolved = DefaultMasterDnsResolvers
+						}
+					case dnsTunnelSlipstream:
+						if v := nikofmt.KtTrim(b.s.RaycontrolMasterDnsResolvers); v != "" && !strings.EqualFold(v, "auto") {
+							resolved = v
+						} else {
+							resolved = DefaultSlipstreamResolvers
+						}
+					}
+				}
+				if resolved != "" {
+					tunnel.resolver = resolved
+				}
+			}
 			if reason := tunnel.validate(); reason != "" {
 				return "", fmt.Errorf("%s: %s", name, reason)
 			}
@@ -407,9 +455,88 @@ func (b *builder) buildChain(chainID int64, entity *Profile) (string, error) {
 				b.tunnelledHop = true
 			}
 			if tunnel.engine == dnsTunnelSlipstream {
-				// slipstream runs a client process of its own: not ported
-				return "", errors.New(prefix + ": slipstream is not supported here")
-			}
+				if b.forExport {
+					return "", errors.New(prefix + ": slipstream runs a client of its own, not in an exported config")
+				}
+				var authNode *nikoray.Node
+				var authServiceID int
+				if auth, ok := tunnel.authNode(); ok {
+					if authNode = b.rayNode(auth[0]); authNode == nil {
+						return "", errors.New(prefix + ": the raycontrol node of this tunnel is not imported (dnsauth)")
+					}
+					authServiceID, _ = strconv.Atoi(auth[1])
+				}
+				if b.in.SlipstreamNative {
+					// Variant B: native in-core slipstream outbound.
+					tunnelTag := tagOut + "-dnstunnel"
+					slipOut := newOption(object{
+						"tag":         tunnelTag,
+						"type":        dnsTunnelSlipstream,
+						"domain":      tunnel.domains()[0],
+						"resolvers":   strings2any(tunnel.resolvers()),
+						"pin":         tunnel.key,
+						"alpn":        tunnel.slipAlpn(),
+						"server_name": tunnel.slipSni(),
+					})
+					if auth := tunnel.dnsAuthOptions(authNode); auth != nil {
+						slipOut.hack["auth"] = auth
+					}
+					b.outbounds = append(b.outbounds, slipOut)
+					delete(current.hack, "domain_resolver")
+					current.hack["detour"] = tunnelTag
+				} else if b.desktop {
+					// Variant A: bundled slipstream-client child process with core UDP direct mappings (ConfigBuilder.kt:947-990).
+					mapped := make([]string, 0, len(tunnel.slipResolvers()))
+					for i, hp := range tunnel.slipResolvers() {
+						mappingPort := b.dev.Port()
+						mappingTag := fmt.Sprintf("%s-slipstream-%d", tagOut, i)
+						b.inbounds = append(b.inbounds, object{
+							"type":             "direct",
+							"listen":           localhost,
+							"listen_port":      int64(mappingPort),
+							"tag":              mappingTag,
+							"network":          "udp",
+							"override_address": hp.Host,
+							"override_port":    int64(hp.Port),
+						})
+						b.routeRules = append(b.routeRules, newOption(object{
+							"inbound":  []any{mappingTag},
+							"outbound": tagDirect,
+						}))
+						mapped = append(mapped, fmt.Sprintf("%s:%d", localhost, mappingPort))
+					}
+					env := map[string]string{}
+					var clockOffset int64
+					if authNode != nil {
+						devKeyBytes, decErr := hex.DecodeString(authNode.DeviceKey)
+						if decErr != nil {
+							return "", fmt.Errorf("%s: decode node device key: %w", prefix, decErr)
+						}
+						derived, keyErr := dnsttTransport.AuthKey(devKeyBytes, authNode.ID(), uint16(authServiceID))
+						if keyErr != nil {
+							return "", fmt.Errorf("%s: derive dnsauth key: %w", prefix, keyErr)
+						}
+						env["SLIPSTREAM_DNSAUTH_KEY"] = hex.EncodeToString(derived)
+						clockOffset = authNode.ClockSkew
+					}
+					localPort := b.dev.Port()
+					b.result.SlipstreamLaunches = append(b.result.SlipstreamLaunches, SlipstreamLaunch{
+						Args:      tunnel.slipstreamArgs(localPort, mapped, clockOffset),
+						Env:       env,
+						LocalPort: localPort,
+					})
+					if tlsObj, ok := current.base["tls"].(object); ok && tlsObj["enabled"] == true {
+						if sni, _ := tlsObj["server_name"].(string); nikofmt.KtIsBlank(sni) && base.ServerAddress != nil && !nikofmt.IsIPAddress(*base.ServerAddress) {
+							tlsObj["server_name"] = *base.ServerAddress
+						}
+					}
+					delete(current.hack, "domain_resolver")
+					current.hack["server"] = localhost
+					current.hack["server_port"] = int64(localPort)
+				} else {
+					return "", errors.New(prefix + ": slipstream is not supported here")
+				}
+			} else {
 			tunnelTag := tagOut + "-dnstunnel"
 			// libcore's protect server runs with the main instance; a latency test without one must not point the
 			// tunnel's own sockets at a missing socket. A computer has no such server: its TUN leaves the tunnel's
@@ -440,6 +567,7 @@ func (b *builder) buildChain(chainID int64, entity *Profile) (string, error) {
 			// the tunnel server resolves or ignores the hop's server name
 			delete(current.hack, "domain_resolver")
 			current.hack["detour"] = tunnelTag
+			}
 		}
 
 		if current.wireGuard {

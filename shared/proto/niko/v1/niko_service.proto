@@ -34,6 +34,8 @@ service NikoService {
   // A profile from its type and bean: a new one (id 0) at the end of its group, or the one of its id with a new bean of
   // the same type, where it is. INVALID_ARGUMENT for a bean that is not one of its type.
   rpc SaveProfile(Profile) returns (Profile);
+  // Validates a profile's type and bean_json via DecodeBean + nikoconf without saving it (D-PROFILE-01..03).
+  rpc CheckProfile(Profile) returns (CheckProfileResult);
   // Deletes the profiles of those ids that are there.
   rpc DeleteProfiles(ProfileIds) returns (Empty);
   // Puts profiles, in their order, into a group before one of its profiles or at its end.
@@ -431,6 +433,18 @@ message Profile {
   string bean_json = 7;
   // the raycontrol node whose subscription's profile this is; "" for none
   string node_id = 9;
+  // specific protocol kind (naive, naive-quic, hysteria2, vless-reality, vless-xhttp, dnstt, masterdns, slipstream, ygg, awg...)
+  string kind = 10;
+  // primary carrier transport: "tcp", "udp", or "dns"
+  string transport = 11;
+}
+
+message CheckProfileResult {
+  bool ok = 1;
+  string error = 2;
+  repeated string warnings = 3;
+  string kind = 4;
+  string transport = 5;
 }
 
 message ProfileList {
@@ -527,6 +541,18 @@ message Settings {
   bool raycontrol_auto_switch = 31;
   bool raycontrol_brutal = 32;
   bool raycontrol_reports = 33;
+  // API 17 protocol & advanced settings (D-SET-15/21/29/30, H2, M7).
+  string raycontrol_dnstt_resolver = 34;
+  string raycontrol_master_dns_resolvers = 35;
+  string root_store = 36;
+  bool yggdrasil_enabled = 37;
+  string yggdrasil_peers = 38;
+  bool yggdrasil_tls_chrome = 39;
+  bool yggdrasil_allow_inbound = 40;
+  string yggdrasil_inbound_ports = 41;
+  bool yggdrasil_peers_via_proxy = 42;
+  string connection_test_url = 43 [json_name = "connectionTestURL"];
+  string clash_api = 44;
 }
 
 message SettingsUpdate {
@@ -644,6 +670,9 @@ message Node {
   string switched_from = 26;
   string switched_to = 27;
   int64 switched_at = 28;
+  // API 17: active probed DNS tunnel resolver summary (D-NODE-10) and naive UDP state (D-NODE-09).
+  string dns_resolver = 29;
+  string naive_udp_state = 30;
 }
 
 message NodeTraffic {

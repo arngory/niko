@@ -230,3 +230,35 @@ func (b *ConfigBean) InitializeDefaultValues() {
 	setDefault(&b.Type, 0)
 	setDefault(&b.Config, "")
 }
+
+// ShadowTLSBean is proxy/shadowtls/ShadowTLSBean.java (Stage 5 parity).
+type ShadowTLSBean struct {
+	Version         *int    `json:"version,omitempty"` // 1, 2, or 3
+	Password        *string `json:"password,omitempty"`
+	Sni             *string `json:"sni,omitempty"`
+	Alpn            *string `json:"alpn,omitempty"`
+	UtlsFingerprint *string `json:"utlsFingerprint,omitempty"`
+	AllowInsecure   *bool   `json:"allowInsecure,omitempty"`
+	AbstractBean
+}
+
+func (b *ShadowTLSBean) InitializeDefaultValues() {
+	setDefault(&b.ServerPort, 443)
+	b.AbstractBean.InitializeDefaultValues()
+	setDefault(&b.Version, 3)
+	setDefault(&b.Password, "")
+	setDefault(&b.Sni, "")
+	setDefault(&b.Alpn, "")
+	setDefault(&b.UtlsFingerprint, "chrome")
+	setDefault(&b.AllowInsecure, false)
+}
+
+// ChainBean is fmt/internal/ChainBean.java: ordered list of profile IDs chained together (D-PROFILE-04).
+type ChainBean struct {
+	Proxies []int64 `json:"proxies,omitempty"`
+	AbstractBean
+}
+
+func (b *ChainBean) InitializeDefaultValues() {
+	b.AbstractBean.InitializeDefaultValues()
+}

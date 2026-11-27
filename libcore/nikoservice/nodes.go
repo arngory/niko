@@ -781,8 +781,34 @@ func (s *server) ListNodes(ctx context.Context, _ *nikopb.Empty) (*nikopb.NodeLi
 		profiles[g.ID] = g.Profiles
 	}
 	list := &nikopb.NodeList{}
+	now := s.clock()
+	netKey := desktopNetworkFingerprint()
+	var liveNaive string
+	if s.coreBox != nil {
+		if _, boxInst, release := s.coreBox(); boxInst != nil {
+			liveNaive = liveNaiveDatagramState(boxInst)
+			if release != nil {
+				release()
+			}
+		}
+	}
 	for _, kept := range u.store.Nodes() {
-		list.Nodes = append(list.Nodes, nodeProto(u, kept, profiles))
+		np := nodeProto(u, kept, profiles)
+		if s.dnsResolvers != nil {
+			np.DnsResolver = s.dnsResolvers.SummaryForNode(kept.Node.ID(), now)
+		}
+		if liveNaive != "" && liveNaive != "off" {
+			np.NaiveUdpState = liveNaive
+		} else if s.datagrams != nil {
+			if ok, found := s.datagrams.Lookup(netKey, kept.Node.ID(), now.Unix()); found {
+				if ok {
+					np.NaiveUdpState = "quic"
+				} else {
+					np.NaiveUdpState = "tcp_fallback"
+				}
+			}
+		}
+		list.Nodes = append(list.Nodes, np)
 	}
 	return list, nil
 }
@@ -808,6 +834,18 @@ func (s *server) deviceKeys(nodes []nikoray.Node) {
 	for _, n := range nodes {
 		if n.DeviceKey != "" {
 			knock.SetDeviceKey(n.KeyRef(), n.DeviceKey)
+		}
+	}
+	s.retainDeviceKeys()
+}
+
+// loadAllDeviceKeys populates knock's in-memory device keys for all currently opened user stores (H3).
+func (s *server) loadAllDeviceKeys() {
+	for _, u := range s.users.opened() {
+		for _, kept := range u.store.Nodes() {
+			if !kept.Unreadable && kept.Node.DeviceKey != "" {
+				knock.SetDeviceKey(kept.Node.KeyRef(), kept.Node.DeviceKey)
+			}
 		}
 	}
 	s.retainDeviceKeys()

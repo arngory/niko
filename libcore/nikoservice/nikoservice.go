@@ -28,10 +28,18 @@ import (
 	box "github.com/sagernet/sing-box"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/boxdd"
+	"github.com/sagernet/sing-box/protocol/knock"
+	dnsttTransport "github.com/sagernet/sing-box/transport/dnstt"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+func init() {
+	// dnsauth-v1/v2 resolves device_key_ref through knock's in-memory key store (H1).
+	// On Android this is set in root package libcore/box_dnstt.go; nikod does not import root libcore.
+	dnsttTransport.DeviceKeys = knock.DeviceKey
+}
 
 // Version is Niko's version, set by the build (-X libcore/nikoservice.Version=...).
 var Version = "dev"
@@ -47,8 +55,10 @@ var Version = "dev"
 // 14: TestConnection, ExitAddress, TestProfiles, and zip file import;
 // 15: raycontrol dynamics (relays, pastNames, key rotation, watchdog/channel/brutal/datagrams/reports, LAN),
 // RunNodeTest (D-WHY), and NodeAdminCall (D-ADMIN);
-// 16: verified updater (CheckUpdate, DownloadUpdate) and China/Iran/Ads route presets.
-const API = 16
+// 16: verified updater (CheckUpdate, DownloadUpdate) and China/Iran/Ads route presets;
+// 17: protocol metadata (Profile.kind, Profile.transport), CheckProfile, DNS/Yggdrasil/naive/Clash settings,
+// and node DNS resolver / naive UDP status fields.
+const API = 17
 
 // Service is NikoService as the daemon serves it: GetInfo for any caller the daemon verified, RouteTest for its
 // owner only (it reads the owner's core, as the daemon's own calls on the running core do). RouteTest is checked as
@@ -103,6 +113,10 @@ func Service() boxdd.Service {
 			users.onNodesChanged = s.syncLogRedactions
 			// the subscriptions' timed updates, without the window, and the rule-sets' while the core runs
 			go s.scheduleUpdates()
+			go func() {
+				<-host.Context().Done()
+				s.slipstream.StopAll()
+			}()
 			return s, nil
 		},
 		Policy: boxdd.PolicyCaller,
@@ -143,6 +157,8 @@ type server struct {
 	brutalRates   map[string]brutalEntry
 	reportDays    map[string]int64
 	datagrams     *datagramCache
+	dnsResolvers  *dnsResolverCache
+	slipstream    slipstreamManager
 	rotating      map[string]bool
 	rotateRetryAt map[string]time.Time
 	// Phase P7 verified updater config override (tests) and single-flight download guard.

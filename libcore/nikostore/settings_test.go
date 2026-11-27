@@ -132,7 +132,7 @@ func TestSettingsRefused(t *testing.T) {
 		{"programs", nikoconf.Settings{Programs: "curl\x00.exe"}},
 		{"programs", nikoconf.Settings{Programs: "a\n" + strings.Repeat("a", 32<<10+1)}},
 		{"programs", nikoconf.Settings{Programs: strings.Repeat("a\n", 32<<10+1)}},
-		{"yggdrasilEnabled", nikoconf.Settings{YggdrasilEnabled: true}},
+		{"proxyApps", nikoconf.Settings{ProxyApps: true}},
 		{"enableClashAPI", nikoconf.Settings{EnableClashAPI: true}},
 		{"secrets", nikoconf.Settings{}},
 		{"", nikoconf.Settings{}},
@@ -242,12 +242,12 @@ func TestSettingsFile(t *testing.T) {
 	if _, err := Open(dir, Options{Sealer: NoSealer{}}); err == nil {
 		t.Fatal("a broken one opened")
 	}
-	if err := os.WriteFile(path, []byte(`{"schema": 1, "settings": {"mixedPort": 2090, "yggdrasilEnabled": true,
+	if err := os.WriteFile(path, []byte(`{"schema": 1, "settings": {"mixedPort": 2090, "proxyApps": true,
 		"fromLater": "x"}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	s := open(t, dir, NoSealer{}, nil)
-	if got, err := s.Settings(); err != nil || got.MixedPort != 2090 || got.YggdrasilEnabled {
+	if got, err := s.Settings(); err != nil || got.MixedPort != 2090 || got.ProxyApps {
 		t.Fatalf("%+v %v", got, err)
 	}
 	if _, err := s.UpdateSettings(nikoconf.Settings{MTU: 1500}, []string{"mtu"}); err != nil {

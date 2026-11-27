@@ -77,13 +77,24 @@ func dnsServerFromAddress(address, tag string, detour, resolver *string) (object
 	return o, nil
 }
 
-// The DNS tunnel's engines.
+// The DNS tunnel's engines and default fallback resolvers when a profile specifies "auto".
 const (
 	dnsTunnelDNSTT       = "dnstt"
 	dnsTunnelMasterDNS   = "masterdnsvpn"
 	dnsTunnelSlipstream  = "slipstream"
 	dnsTunnelSealOption  = "optional"
 	dnsTunnelSealRequire = "required"
+
+	// DefaultDnsttResolver matches Android RayDnsResolvers.DNSTT_DEFAULT until a network probe picks one.
+	DefaultDnsttResolver = "https://common.dot.dns.yandex.net/dns-query"
+	// DefaultMasterDnsResolvers matches Android RayDnsResolvers country public UDP resolvers.
+	DefaultMasterDnsResolvers = "195.208.5.1\n195.208.4.1\n62.76.76.62\n77.88.8.8\n77.88.8.1"
+	// DefaultSlipstreamResolvers matches Android RayDnsResolvers.slipList (first 3 non-Yandex UDP IPs).
+	DefaultSlipstreamResolvers = "195.208.5.1\n195.208.4.1\n62.76.76.62"
+
+	slipstreamMaxZone     = 134
+	slipstreamMaxZoneOpen = 148
+	maxSlipResolvers      = 4
 )
 
 // Java's \s and \S: \x0B is one of its spaces, not of Go's.
@@ -95,6 +106,10 @@ var (
 	dnsTunnelSealKey  = regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`)
 	dnsttResolver     = regexp.MustCompile(`^(https://[^` + javaSpace + `]+|(tls|tcp|udp)://[^` + javaSpace + `]+|[^` + javaSpace + `/:]+(:[0-9]+)?|\[[0-9a-fA-F:]+\](:[0-9]+)?)$`)
 	masterDNSResolver = regexp.MustCompile(`^([0-9.]+(/[0-9]+)?(:[0-9]+)?|\[[0-9a-fA-F:]+\](:[0-9]+)?|[0-9a-fA-F:]+(/[0-9]+)?)$`)
+	slipPin           = regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`)
+	slipAlpn          = regexp.MustCompile(`^[!-~]{1,255}$`)
+	slipSni           = regexp.MustCompile(`^([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$`)
+	slipResolver      = regexp.MustCompile(`^([0-9]{1,3}(\.[0-9]{1,3}){3}(:[0-9]{1,5})?|\[[0-9a-fA-F:]+\](:[0-9]{1,5})?|[0-9a-fA-F:]*:[0-9a-fA-F:]+)$`)
 )
 
 // dnsTunnel is DnsTunnel: the tunnel a profile dials through, off where its domain is blank.
@@ -102,13 +117,13 @@ type dnsTunnel struct {
 	engine, resolver, domain, key string
 	method                        int
 	fixedUpstream                 bool
-	auth, seal, spare             string
+	auth, seal, spare, tls        string
 }
 
 func dnsTunnelOf(b *nikofmt.AbstractBean) dnsTunnel {
 	t := dnsTunnel{engine: str(b.DnsTunnel), resolver: str(b.DnsTunnelResolver), domain: str(b.DnsTunnelDomain),
 		key: str(b.DnsTunnelKey), method: 2, fixedUpstream: flag(b.DnsTunnelFixedUpstream), auth: str(b.DnsTunnelAuth),
-		seal: str(b.DnsTunnelSeal), spare: str(b.DnsTunnelSpare)}
+		seal: str(b.DnsTunnelSeal), spare: str(b.DnsTunnelSpare), tls: str(b.DnsTunnelTls)}
 	if t.engine == "" {
 		t.engine = dnsTunnelDNSTT
 	}
@@ -216,11 +231,98 @@ func (t dnsTunnel) validate() string {
 			return "DNS tunnel: dnsauth needs encryption method 3-5"
 		}
 	case dnsTunnelSlipstream:
-		// checked when its build fails: a client process of its own, not ported
+		domains := t.domains()
+		resolvers := t.resolvers()
+		maxZone := slipstreamMaxZoneOpen
+		_, hasAuth := t.authNode()
+		if hasAuth {
+			maxZone = slipstreamMaxZone
+		}
+		badResolver := false
+		for _, r := range resolvers {
+			badResolver = badResolver || !slipResolver.MatchString(r)
+		}
+		switch {
+		case len(domains) != 1:
+			return "DNS tunnel: slipstream takes one zone"
+		case len(t.spareZones()) > 0:
+			return "DNS tunnel: slipstream has no spare zones"
+		case len(domains[0]) > maxZone:
+			return fmt.Sprintf("DNS tunnel: slipstream's zone is %d characters at most (a query must hold a packet)", maxZone)
+		case len(resolvers) == 0:
+			return "DNS tunnel: no resolvers, one IP per line"
+		case len(resolvers) > maxSlipResolvers:
+			return fmt.Sprintf("DNS tunnel: slipstream takes %d resolvers at most", maxSlipResolvers)
+		case badResolver:
+			return "DNS tunnel: slipstream resolvers are IP addresses, with an optional :port"
+		case !slipPin.MatchString(t.key):
+			return "DNS tunnel: slipstream's pin is the SHA-256 of the server's key in base64url"
+		case !slipAlpn.MatchString(t.slipAlpn()):
+			return "DNS tunnel: slipstream's ALPN is missing"
+		case !slipSni.MatchString(t.slipSni()):
+			return "DNS tunnel: slipstream's server name is a name, like cdn.example.net"
+		case hasAuth && !strings.HasPrefix(t.auth, "v2;"):
+			return "DNS tunnel: slipstream signs by dnsauth-v2 only"
+		}
 	default:
 		return "DNS tunnel: unknown engine " + t.engine
 	}
 	return ""
+}
+
+func (t dnsTunnel) slipAlpn() string { return substringBefore(t.tls, ";") }
+func (t dnsTunnel) slipSni() string  { return substringAfterOr(t.tls, ";", "") }
+
+type slipHostPort struct {
+	Host string
+	Port int
+}
+
+func (t dnsTunnel) slipResolvers() []slipHostPort {
+	var out []slipHostPort
+	for _, line := range t.resolvers() {
+		if strings.HasPrefix(line, "[") {
+			host := substringBefore(strings.TrimPrefix(line, "["), "]")
+			port := 53
+			if p, ok := nikofmt.KtToIntOrNull(substringAfterOr(line, "]:", "")); ok && p > 0 && p <= 65535 {
+				port = p
+			}
+			out = append(out, slipHostPort{Host: host, Port: port})
+		} else if strings.Count(line, ":") > 1 {
+			out = append(out, slipHostPort{Host: line, Port: 53})
+		} else if strings.Contains(line, ":") {
+			host := substringBefore(line, ":")
+			port := 53
+			if p, ok := nikofmt.KtToIntOrNull(substringAfterOr(line, ":", "")); ok && p > 0 && p <= 65535 {
+				port = p
+			}
+			out = append(out, slipHostPort{Host: host, Port: port})
+		} else {
+			out = append(out, slipHostPort{Host: line, Port: 53})
+		}
+	}
+	return out
+}
+
+func (t dnsTunnel) slipstreamArgs(localPort int, mappedResolvers []string, clockOffset int64) []string {
+	args := []string{
+		"--quiet",
+		"--tcp-listen-host=" + localhost,
+		"--tcp-listen-port=" + strconv.Itoa(localPort),
+		"--domain=" + t.domains()[0],
+	}
+	for _, r := range mappedResolvers {
+		args = append(args, "--resolver="+r)
+	}
+	args = append(args,
+		"--pin="+t.key,
+		"--alpn="+t.slipAlpn(),
+		"--sni="+t.slipSni(),
+	)
+	if _, ok := t.authNode(); ok {
+		args = append(args, "--dnsauth", "--clock-offset="+strconv.FormatInt(clockOffset, 10))
+	}
+	return args
 }
 
 // outboundOptions is the core outbound of the tunnel, with no dnsauth (no node's device key here).

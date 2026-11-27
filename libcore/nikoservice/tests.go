@@ -304,6 +304,8 @@ func (s *server) measureStoredProfile(ctx context.Context, u *user, id int64, te
 	if err != nil {
 		return 0, err
 	}
+	// Ensure device keys for raycontrol nodes are loaded before starting an ephemeral test box (H3).
+	s.deviceKeys(in.Nodes)
 	boxCtx := include.Context(ctx)
 	opts, err := json.UnmarshalExtendedContext[option.Options](boxCtx, built.Config)
 	if err != nil {

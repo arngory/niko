@@ -13,6 +13,7 @@ import (
 	"libcore/nikoconf"
 	"libcore/nikofmt"
 	"libcore/nikopb"
+	"libcore/nikoray"
 	"libcore/nikostore"
 	"libcore/ruleset"
 
@@ -57,6 +58,7 @@ func (s *server) Connect(ctx context.Context, request *nikopb.ConnectRequest) (*
 	if settings.RaycontrolBrutal {
 		in.BrutalRates = s.currentBrutalRates()
 	}
+	in.DnsResolvers = s.currentDNSResolvers(in.Nodes)
 	result, err := nikoconf.Build(in)
 	if errors.Is(err, nikoconf.ErrNeedsService) {
 		return nil, status.Error(codes.FailedPrecondition, "SERVICE_REQUIRED: "+err.Error())
@@ -77,7 +79,11 @@ func (s *server) Connect(ctx context.Context, request *nikopb.ConnectRequest) (*
 	}
 	// the nodes' device keys into the core by their references, which the config names
 	s.deviceKeys(in.Nodes)
+	if err = s.slipstream.Start(ctx, result.SlipstreamLaunches); err != nil {
+		return nil, err
+	}
 	if err = s.start(ctx, string(result.Config), systemProxy(result.SystemProxy)); err != nil {
+		s.slipstream.StopAll()
 		return nil, err
 	}
 	// the enabled rules' lists missing or stale fetched now (the config left out those not here: the core takes them
@@ -107,12 +113,64 @@ func connectSettings(settings nikoconf.Settings) nikoconf.Settings {
 	return settings
 }
 
-// connectPlatform is the computer the config is built for: nikod is built for Windows and Linux.
+// connectPlatform is the computer the config is built for: Windows, Linux, or macOS.
 func connectPlatform() string {
-	if runtime.GOOS == "windows" {
+	switch runtime.GOOS {
+	case "windows":
 		return nikoconf.PlatformWindows
+	case "darwin":
+		return nikoconf.PlatformDarwin
+	default:
+		return nikoconf.PlatformLinux
 	}
-	return nikoconf.PlatformLinux
+}
+
+// BeforeRestore implements boxdd.RestorePreparer (H3): before boxdd restores or reloads the core
+// (e.g. after reboot), load the owner's sealed device keys into knock and rebuild the active config
+// from nikostore so SPA v2/dnsauth keys are present and plaintext config.json is not required on disk.
+func (s *server) BeforeRestore(ctx context.Context, ownerUserID string) (string, bool, error) {
+	if s.users == nil || ownerUserID == "" {
+		return "", false, nil
+	}
+	u, err := s.users.userByID(ownerUserID)
+	if err != nil {
+		return "", false, nil
+	}
+	var nodes []nikoray.Node
+	for _, kept := range u.store.Nodes() {
+		if !kept.Unreadable {
+			nodes = append(nodes, *kept.Node)
+		}
+	}
+	s.deviceKeys(nodes)
+	selected := u.store.Selected()
+	if selected == 0 {
+		return "", false, nil
+	}
+	settings, err := u.store.Settings()
+	if err != nil {
+		return "", false, err
+	}
+	if s.userMode && settings.ServiceMode == nikoconf.ModeVPN {
+		settings.ServiceMode = nikoconf.ModeProxy
+	}
+	in, err := connectInput(u.store, selected, connectSettings(settings))
+	if err != nil {
+		return "", false, err
+	}
+	in.UserMode = s.userMode
+	if settings.RaycontrolBrutal {
+		in.BrutalRates = s.currentBrutalRates()
+	}
+	in.DnsResolvers = s.currentDNSResolvers(in.Nodes)
+	result, err := nikoconf.Build(in)
+	if err != nil {
+		return "", false, err
+	}
+	if err = s.slipstream.Start(ctx, result.SlipstreamLaunches); err != nil {
+		return "", false, err
+	}
+	return string(result.Config), true, nil
 }
 
 // connectInput is the build's input for a profile (0: the selected one) with these settings: the profile, its group

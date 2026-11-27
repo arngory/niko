@@ -117,6 +117,9 @@ type Profile struct {
 	// Name and Address are the bean's displayName and displayAddress
 	Name    string
 	Address string
+	// Kind and Transport are the protocol kind ("vless-reality", "hysteria2", "dnstt"...) and carrier ("tcp", "udp", "dns").
+	Kind      string
+	Transport string
 	// Bean is the bean's JSON, with its secrets; nil in a list's rows
 	Bean json.RawMessage
 }
@@ -191,6 +194,7 @@ type record struct {
 	id, group, order int64
 	typ              string
 	name, address    string
+	kind, transport  string
 	// bean is the whole bean; for one whose secrets cannot be opened here, what the disk has of it without them
 	bean json.RawMessage
 	// disk and sealed are what store.json holds of it, kept so that a write does not seal every profile again
@@ -431,7 +435,7 @@ func (s *Store) decode(data []byte) (st *state, resealed bool, err error) {
 			return nil, false, fmt.Errorf("profile %d: %w", p.ID, err)
 		}
 		r.bean = bean
-		if r.name, r.address, err = display(p.Type, bean); err != nil {
+		if r.name, r.address, r.kind, r.transport, err = display(p.Type, bean); err != nil {
 			return nil, false, fmt.Errorf("profile %d: %w", p.ID, err)
 		}
 		if p.Sealed == "" && s.sealer.Name() != "" {
@@ -455,18 +459,18 @@ func (s *Store) decode(data []byte) (st *state, resealed bool, err error) {
 	return st, resealed || sealedNow, nil
 }
 
-// display is the name and address of a stored bean, read leniently: fields a newer build of the same schema wrote
-// are kept on the disk and left out here.
-func display(typ string, data json.RawMessage) (string, string, error) {
+// display is the name, address, protocol kind, and carrier transport of a stored bean, read leniently.
+func display(typ string, data json.RawMessage) (string, string, string, string, error) {
 	bean, err := nikofmt.NewBean(typ)
 	if err != nil {
-		return "", "", fmt.Errorf("type %q: %w", typ, err)
+		return "", "", "", "", fmt.Errorf("type %q: %w", typ, err)
 	}
 	if err = json.Unmarshal(data, bean); err != nil {
-		return "", "", err
+		return "", "", "", "", err
 	}
 	bean.InitializeDefaultValues()
-	return nikofmt.DisplayName(bean), nikofmt.DisplayAddress(bean), nil
+	kind, transport := nikofmt.Kind(bean)
+	return nikofmt.DisplayName(bean), nikofmt.DisplayAddress(bean), kind, transport, nil
 }
 
 // write writes st as store.json.
@@ -592,7 +596,8 @@ func sortGroups(groups []Group) {
 }
 
 func (r *record) profile(withBean bool) Profile {
-	p := Profile{ID: r.id, Group: r.group, Order: r.order, Type: r.typ, Name: r.name, Address: r.address}
+	p := Profile{ID: r.id, Group: r.group, Order: r.order, Type: r.typ, Name: r.name, Address: r.address,
+		Kind: r.kind, Transport: r.transport}
 	if withBean {
 		p.Bean = append(json.RawMessage(nil), r.bean...)
 	}
@@ -608,8 +613,9 @@ func (s *Store) newRecord(id, group, order int64, bean nikofmt.Bean) (*record, e
 	if len(data) > maxBean {
 		return nil, fmt.Errorf("%w: a bean over %d bytes", ErrInvalid, maxBean)
 	}
+	kind, transport := nikofmt.Kind(bean)
 	r := &record{id: id, group: group, order: order, typ: nikofmt.TypeName(bean), name: nikofmt.DisplayName(bean),
-		address: nikofmt.DisplayAddress(bean), bean: data}
+		address: nikofmt.DisplayAddress(bean), kind: kind, transport: transport, bean: data}
 	if r.typ == "" {
 		return nil, fmt.Errorf("%w: a bean of no type", ErrInvalid)
 	}

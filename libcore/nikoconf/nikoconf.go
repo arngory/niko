@@ -42,8 +42,8 @@ func Outbound(b nikofmt.Bean, globalInsecure bool) (map[string]any, error) {
 	switch b := b.(type) {
 	case *nikofmt.ConfigBean:
 		out, err = customOutbound(b)
-	// ShadowTLS, which the app builds before the V2Ray family its bean belongs to, has no bean here: no link or sn://
-	// type makes one
+	case *nikofmt.ShadowTLSBean:
+		out = shadowTLSOutbound(b, globalInsecure)
 	case *nikofmt.HttpBean:
 		out = httpOutbound(b, globalInsecure)
 	case *nikofmt.VMessBean:

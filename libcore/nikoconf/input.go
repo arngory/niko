@@ -48,6 +48,9 @@ type Input struct {
 	BrutalRates map[string]BrutalRate `json:"-"`
 	// DnsResolvers maps raycontrol node ID to the detected DNS tunnel resolver address on this network.
 	DnsResolvers map[string]string `json:"-"`
+	// SlipstreamNative, when true, emits a native in-core `type: "slipstream"` outbound (Variant B)
+	// instead of external `slipstream-client` child process launches (Variant A).
+	SlipstreamNative bool `json:"-"`
 }
 
 // BrutalRate holds measured Hysteria2 Brutal upload/download targets in kbit/s (0 = BBR).
@@ -61,6 +64,7 @@ const (
 	PlatformAndroid = "android"
 	PlatformWindows = "windows"
 	PlatformLinux   = "linux"
+	PlatformDarwin  = "darwin"
 )
 
 // UnmarshalJSON reads an input.json: settings over the app's defaults, also where it has none.
@@ -225,9 +229,11 @@ type Settings struct {
 	ProgramsMode int    `json:"programsMode"`
 	Programs     string `json:"programs"`
 	// Phase P6 raycontrol dynamic settings (off by default except auto-switch on desktop).
-	RaycontrolAutoSwitch bool `json:"raycontrolAutoSwitch"`
-	RaycontrolBrutal     bool `json:"raycontrolBrutal"`
-	RaycontrolReports    bool `json:"raycontrolReports"`
+	RaycontrolAutoSwitch         bool   `json:"raycontrolAutoSwitch"`
+	RaycontrolBrutal             bool   `json:"raycontrolBrutal"`
+	RaycontrolReports            bool   `json:"raycontrolReports"`
+	RaycontrolDnsttResolver      string `json:"raycontrolDnsttResolver,omitempty"`
+	RaycontrolMasterDnsResolvers string `json:"raycontrolMasterDnsResolvers,omitempty"`
 }
 
 // Secrets are the install's secrets a config may carry (ConfigSecrets).
@@ -375,6 +381,15 @@ type Result struct {
 	// MissingRuleSets are the rule-sets the config left out, not downloaded (RuleSetFiles.missingInConfig): once one
 	// is here, the core is to start again to take it in. None in an export
 	MissingRuleSets []string
+	// SlipstreamLaunches describes external slipstream-client child processes to start alongside the core (Variant A).
+	SlipstreamLaunches []SlipstreamLaunch
+}
+
+// SlipstreamLaunch is one external slipstream-client invocation produced by Variant A config building.
+type SlipstreamLaunch struct {
+	Args      []string          `json:"args"`
+	Env       map[string]string `json:"env,omitempty"`
+	LocalPort int               `json:"local_port"`
 }
 
 // SystemProxy is an HTTP proxy of the config's, its local proxy, for the system to use.
