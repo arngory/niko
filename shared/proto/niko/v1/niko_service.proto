@@ -78,6 +78,9 @@ service NikoService {
   // and nothing is changed; FAILED_PRECONDITION where the secrets cannot be opened on this machine and the change
   // does not set them again.
   rpc UpdateSettings(SettingsUpdate) returns (Settings);
+  // Resets all user-modified settings back to desktop defaults while preserving profiles, groups, rules, nodes,
+  // and the device's persistent Yggdrasil key. Watch says SETTINGS.
+  rpc ResetSettings(Empty) returns (Settings);
 
   // What an input is and what its import would add; nothing is written, and no store is needed.
   rpc Recognize(ImportInput) returns (ImportPreview);
@@ -196,6 +199,8 @@ message Info {
   bool privileged = 5;
   // True when VPN (TUN) mode is available; false in unprivileged --user-mode.
   bool tun = 6;
+  // Persistent Yggdrasil 200::/7 address derived from this user's stored device key, empty if not initialized.
+  string yggdrasil_address = 7;
 }
 
 message UserStoreSnapshot {
@@ -369,6 +374,12 @@ message Group {
   Subscription subscription = 7;
   // a raycontrol node's group: its profiles are the node's subscription's, which only its updates change
   string node_id = 8;
+  // API 18 group routing & display options (B-GroupSettings).
+  bool is_selector = 9;
+  bool auto_select = 10;
+  int64 front_proxy = 11;
+  int64 landing_proxy = 12;
+  int32 sort_order = 13;
 }
 
 // A group's subscription (the app's SubscriptionBean). The settings are the user's; what an update says is read only.
@@ -553,6 +564,21 @@ message Settings {
   bool yggdrasil_peers_via_proxy = 42;
   string connection_test_url = 43 [json_name = "connectionTestURL"];
   string clash_api = 44;
+  // API 18 settings (B-Settings 12-section parity + naive/experimental/subscription controls).
+  bool naive_quic_phone_roots = 45;
+  bool honest_connect = 46;
+  bool icmp_through_node = 47;
+  bool network_change_reset_connections = 48;
+  bool wake_reset_connections = 49;
+  bool insecure_subscription = 50;
+  string subscription_min_tls = 51;
+  string global_custom_config = 52;
+  int32 connection_test_concurrency = 53;
+  int32 log_buffer_size = 54;
+  bool profile_traffic_stats = 55;
+  bool direct_speed = 56;
+  bool include_prerelease = 57;
+  bool enable_clash_api = 58 [json_name = "enableClashAPI"];
 }
 
 message SettingsUpdate {

@@ -78,6 +78,11 @@ type SubscriptionSettings struct {
 	AutoUpdate              bool
 	// AutoUpdateDelay in minutes, 0 for the app's (a day)
 	AutoUpdateDelay int
+	IsSelector      bool
+	AutoSelect      bool
+	FrontProxy      int64
+	LandingProxy    int64
+	SortOrder       int
 }
 
 // SaveSubscriptionGroup saves a subscription's group: a new one (ID 0) at the end, its name the app's default
@@ -145,6 +150,11 @@ func (s *Store) SaveSubscriptionGroup(id int64, name string, settings Subscripti
 	sub.CustomUserAgent = settings.CustomUserAgent
 	sub.AutoUpdate = settings.AutoUpdate
 	sub.AutoUpdateDelay = settings.AutoUpdateDelay
+	saved.IsSelector = settings.IsSelector
+	saved.AutoSelect = settings.AutoSelect
+	saved.FrontProxy = settings.FrontProxy
+	saved.LandingProxy = settings.LandingProxy
+	saved.SortOrder = settings.SortOrder
 	if err := s.setSubscription(&saved, sub); err != nil {
 		return Group{}, err
 	}

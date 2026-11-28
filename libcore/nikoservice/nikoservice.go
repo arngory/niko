@@ -57,8 +57,12 @@ var Version = "dev"
 // RunNodeTest (D-WHY), and NodeAdminCall (D-ADMIN);
 // 16: verified updater (CheckUpdate, DownloadUpdate) and China/Iran/Ads route presets;
 // 17: protocol metadata (Profile.kind, Profile.transport), CheckProfile, DNS/Yggdrasil/naive/Clash settings,
-// and node DNS resolver / naive UDP status fields.
-const API = 17
+// and node DNS resolver / naive UDP status fields;
+// 18: full B-Settings 12-section parity (naiveQuicPhoneRoots, honestConnect, icmpThroughNode,
+// networkChangeResetConnections, wakeResetConnections, insecureSubscription, subscriptionMinTls,
+// globalCustomConfig, connectionTestConcurrency, logBufferSize, profileTrafficStats, directSpeed,
+// includePrerelease, enableClashAPI), ResetSettings, Info.yggdrasil_address, and Group routing options.
+const API = 18
 
 // Service is NikoService as the daemon serves it: GetInfo for any caller the daemon verified, RouteTest for its
 // owner only (it reads the owner's core, as the daemon's own calls on the running core do). RouteTest is checked as
@@ -152,13 +156,15 @@ type server struct {
 	apiCall     func(ctx context.Context, e rayapi.Endpoint, method string, body []byte) ([]byte, error)
 	rotateCert  func(ctx context.Context, e rayapi.Endpoint, next rayapi.Identity) error
 	directProbe func(ctx context.Context, node *nikoray.Node) (*directProbeOutcome, error)
-	dynMu         sync.Mutex
-	activeNodeID  string
-	watchdog      *watchdogRun
-	brutalRates   map[string]brutalEntry
-	reportDays    map[string]int64
-	datagrams     *datagramCache
-	dnsResolvers  *dnsResolverCache
+	dynMu               sync.Mutex
+	activeNodeID        string
+	watchdog            *watchdogRun
+	brutalRates         map[string]brutalEntry
+	reportDays          map[string]int64
+	datagrams           *datagramCache
+	lastDatagramNet     string
+	datagramSettleDelay *time.Duration
+	dnsResolvers        *dnsResolverCache
 	slipstream    slipstreamManager
 	rotating      map[string]bool
 	rotateRetryAt map[string]time.Time
@@ -197,6 +203,11 @@ func (s *server) GetInfo(ctx context.Context, _ *nikopb.GetInfoRequest) (*nikopb
 	}
 	if s.users.serves(ctx) {
 		info.StoreSchema = int32(nikostore.Schema())
+		if u, err := s.users.user(ctx); err == nil {
+			if st, err := u.store.Settings(); err == nil && st.Secrets.YggdrasilKey != "" {
+				info.YggdrasilAddress = yggdrasilAddressFromHex(st.Secrets.YggdrasilKey)
+			}
+		}
 	}
 	return info, nil
 }

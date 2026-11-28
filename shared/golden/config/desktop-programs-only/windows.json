@@ -1,4 +1,7 @@
 {
+  "certificate": {
+    "store": "chrome"
+  },
   "dns": {
     "final": "dns-direct",
     "rules": [

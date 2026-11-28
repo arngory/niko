@@ -392,9 +392,11 @@ type Info struct {
 	// True when running as the privileged system service; false in unprivileged --user-mode.
 	Privileged bool `protobuf:"varint,5,opt,name=privileged,proto3" json:"privileged,omitempty"`
 	// True when VPN (TUN) mode is available; false in unprivileged --user-mode.
-	Tun           bool `protobuf:"varint,6,opt,name=tun,proto3" json:"tun,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Tun bool `protobuf:"varint,6,opt,name=tun,proto3" json:"tun,omitempty"`
+	// Persistent Yggdrasil 200::/7 address derived from this user's stored device key, empty if not initialized.
+	YggdrasilAddress string `protobuf:"bytes,7,opt,name=yggdrasil_address,json=yggdrasilAddress,proto3" json:"yggdrasil_address,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Info) Reset() {
@@ -467,6 +469,13 @@ func (x *Info) GetTun() bool {
 		return x.Tun
 	}
 	return false
+}
+
+func (x *Info) GetYggdrasilAddress() string {
+	if x != nil {
+		return x.YggdrasilAddress
+	}
+	return ""
 }
 
 type UserStoreSnapshot struct {
@@ -1540,7 +1549,13 @@ type Group struct {
 	// a subscription's group's
 	Subscription *Subscription `protobuf:"bytes,7,opt,name=subscription,proto3" json:"subscription,omitempty"`
 	// a raycontrol node's group: its profiles are the node's subscription's, which only its updates change
-	NodeId        string `protobuf:"bytes,8,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	NodeId string `protobuf:"bytes,8,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	// API 18 group routing & display options (B-GroupSettings).
+	IsSelector    bool  `protobuf:"varint,9,opt,name=is_selector,json=isSelector,proto3" json:"is_selector,omitempty"`
+	AutoSelect    bool  `protobuf:"varint,10,opt,name=auto_select,json=autoSelect,proto3" json:"auto_select,omitempty"`
+	FrontProxy    int64 `protobuf:"varint,11,opt,name=front_proxy,json=frontProxy,proto3" json:"front_proxy,omitempty"`
+	LandingProxy  int64 `protobuf:"varint,12,opt,name=landing_proxy,json=landingProxy,proto3" json:"landing_proxy,omitempty"`
+	SortOrder     int32 `protobuf:"varint,13,opt,name=sort_order,json=sortOrder,proto3" json:"sort_order,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1629,6 +1644,41 @@ func (x *Group) GetNodeId() string {
 		return x.NodeId
 	}
 	return ""
+}
+
+func (x *Group) GetIsSelector() bool {
+	if x != nil {
+		return x.IsSelector
+	}
+	return false
+}
+
+func (x *Group) GetAutoSelect() bool {
+	if x != nil {
+		return x.AutoSelect
+	}
+	return false
+}
+
+func (x *Group) GetFrontProxy() int64 {
+	if x != nil {
+		return x.FrontProxy
+	}
+	return 0
+}
+
+func (x *Group) GetLandingProxy() int64 {
+	if x != nil {
+		return x.LandingProxy
+	}
+	return 0
+}
+
+func (x *Group) GetSortOrder() int32 {
+	if x != nil {
+		return x.SortOrder
+	}
+	return 0
 }
 
 // A group's subscription (the app's SubscriptionBean). The settings are the user's; what an update says is read only.
@@ -2435,8 +2485,23 @@ type Settings struct {
 	YggdrasilPeersViaProxy       bool   `protobuf:"varint,42,opt,name=yggdrasil_peers_via_proxy,json=yggdrasilPeersViaProxy,proto3" json:"yggdrasil_peers_via_proxy,omitempty"`
 	ConnectionTestUrl            string `protobuf:"bytes,43,opt,name=connection_test_url,json=connectionTestURL,proto3" json:"connection_test_url,omitempty"`
 	ClashApi                     string `protobuf:"bytes,44,opt,name=clash_api,json=clashApi,proto3" json:"clash_api,omitempty"`
-	unknownFields                protoimpl.UnknownFields
-	sizeCache                    protoimpl.SizeCache
+	// API 18 settings (B-Settings 12-section parity + naive/experimental/subscription controls).
+	NaiveQuicPhoneRoots           bool   `protobuf:"varint,45,opt,name=naive_quic_phone_roots,json=naiveQuicPhoneRoots,proto3" json:"naive_quic_phone_roots,omitempty"`
+	HonestConnect                 bool   `protobuf:"varint,46,opt,name=honest_connect,json=honestConnect,proto3" json:"honest_connect,omitempty"`
+	IcmpThroughNode               bool   `protobuf:"varint,47,opt,name=icmp_through_node,json=icmpThroughNode,proto3" json:"icmp_through_node,omitempty"`
+	NetworkChangeResetConnections bool   `protobuf:"varint,48,opt,name=network_change_reset_connections,json=networkChangeResetConnections,proto3" json:"network_change_reset_connections,omitempty"`
+	WakeResetConnections          bool   `protobuf:"varint,49,opt,name=wake_reset_connections,json=wakeResetConnections,proto3" json:"wake_reset_connections,omitempty"`
+	InsecureSubscription          bool   `protobuf:"varint,50,opt,name=insecure_subscription,json=insecureSubscription,proto3" json:"insecure_subscription,omitempty"`
+	SubscriptionMinTls            string `protobuf:"bytes,51,opt,name=subscription_min_tls,json=subscriptionMinTls,proto3" json:"subscription_min_tls,omitempty"`
+	GlobalCustomConfig            string `protobuf:"bytes,52,opt,name=global_custom_config,json=globalCustomConfig,proto3" json:"global_custom_config,omitempty"`
+	ConnectionTestConcurrency     int32  `protobuf:"varint,53,opt,name=connection_test_concurrency,json=connectionTestConcurrency,proto3" json:"connection_test_concurrency,omitempty"`
+	LogBufferSize                 int32  `protobuf:"varint,54,opt,name=log_buffer_size,json=logBufferSize,proto3" json:"log_buffer_size,omitempty"`
+	ProfileTrafficStats           bool   `protobuf:"varint,55,opt,name=profile_traffic_stats,json=profileTrafficStats,proto3" json:"profile_traffic_stats,omitempty"`
+	DirectSpeed                   bool   `protobuf:"varint,56,opt,name=direct_speed,json=directSpeed,proto3" json:"direct_speed,omitempty"`
+	IncludePrerelease             bool   `protobuf:"varint,57,opt,name=include_prerelease,json=includePrerelease,proto3" json:"include_prerelease,omitempty"`
+	EnableClashApi                bool   `protobuf:"varint,58,opt,name=enable_clash_api,json=enableClashAPI,proto3" json:"enable_clash_api,omitempty"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
 }
 
 func (x *Settings) Reset() {
@@ -2775,6 +2840,104 @@ func (x *Settings) GetClashApi() string {
 		return x.ClashApi
 	}
 	return ""
+}
+
+func (x *Settings) GetNaiveQuicPhoneRoots() bool {
+	if x != nil {
+		return x.NaiveQuicPhoneRoots
+	}
+	return false
+}
+
+func (x *Settings) GetHonestConnect() bool {
+	if x != nil {
+		return x.HonestConnect
+	}
+	return false
+}
+
+func (x *Settings) GetIcmpThroughNode() bool {
+	if x != nil {
+		return x.IcmpThroughNode
+	}
+	return false
+}
+
+func (x *Settings) GetNetworkChangeResetConnections() bool {
+	if x != nil {
+		return x.NetworkChangeResetConnections
+	}
+	return false
+}
+
+func (x *Settings) GetWakeResetConnections() bool {
+	if x != nil {
+		return x.WakeResetConnections
+	}
+	return false
+}
+
+func (x *Settings) GetInsecureSubscription() bool {
+	if x != nil {
+		return x.InsecureSubscription
+	}
+	return false
+}
+
+func (x *Settings) GetSubscriptionMinTls() string {
+	if x != nil {
+		return x.SubscriptionMinTls
+	}
+	return ""
+}
+
+func (x *Settings) GetGlobalCustomConfig() string {
+	if x != nil {
+		return x.GlobalCustomConfig
+	}
+	return ""
+}
+
+func (x *Settings) GetConnectionTestConcurrency() int32 {
+	if x != nil {
+		return x.ConnectionTestConcurrency
+	}
+	return 0
+}
+
+func (x *Settings) GetLogBufferSize() int32 {
+	if x != nil {
+		return x.LogBufferSize
+	}
+	return 0
+}
+
+func (x *Settings) GetProfileTrafficStats() bool {
+	if x != nil {
+		return x.ProfileTrafficStats
+	}
+	return false
+}
+
+func (x *Settings) GetDirectSpeed() bool {
+	if x != nil {
+		return x.DirectSpeed
+	}
+	return false
+}
+
+func (x *Settings) GetIncludePrerelease() bool {
+	if x != nil {
+		return x.IncludePrerelease
+	}
+	return false
+}
+
+func (x *Settings) GetEnableClashApi() bool {
+	if x != nil {
+		return x.EnableClashApi
+	}
+	return false
 }
 
 type SettingsUpdate struct {
@@ -5300,7 +5463,7 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\n" +
 	"\x1aniko/v1/niko_service.proto\x12\aniko.v1\"\a\n" +
 	"\x05Empty\"\x10\n" +
-	"\x0eGetInfoRequest\"\xb3\x01\n" +
+	"\x0eGetInfoRequest\"\xe0\x01\n" +
 	"\x04Info\x12!\n" +
 	"\fniko_version\x18\x01 \x01(\tR\vnikoVersion\x12!\n" +
 	"\fcore_version\x18\x02 \x01(\tR\vcoreVersion\x12!\n" +
@@ -5309,7 +5472,8 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\n" +
 	"privileged\x18\x05 \x01(\bR\n" +
 	"privileged\x12\x10\n" +
-	"\x03tun\x18\x06 \x01(\bR\x03tun\"'\n" +
+	"\x03tun\x18\x06 \x01(\bR\x03tun\x12+\n" +
+	"\x11yggdrasil_address\x18\a \x01(\tR\x10yggdrasilAddress\"'\n" +
 	"\x11UserStoreSnapshot\x12\x12\n" +
 	"\x04json\x18\x01 \x01(\fR\x04json\"w\n" +
 	"\x15ImportUserStoreResult\x12\x16\n" +
@@ -5404,7 +5568,7 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\tPinNeeded\x12\x12\n" +
 	"\x04host\x18\x01 \x01(\tR\x04host\x12\x12\n" +
 	"\x04left\x18\x02 \x01(\x05R\x04left\x12\x14\n" +
-	"\x05wrong\x18\x03 \x01(\bR\x05wrong\"\x9d\x02\n" +
+	"\x05wrong\x18\x03 \x01(\bR\x05wrong\"\xc4\x03\n" +
 	"\x05Group\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x14\n" +
 	"\x05order\x18\x02 \x01(\x03R\x05order\x12\x12\n" +
@@ -5413,7 +5577,17 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\x04type\x18\x05 \x01(\x0e2\x13.niko.v1.Group.TypeR\x04type\x12\x1a\n" +
 	"\bprofiles\x18\x06 \x01(\x05R\bprofiles\x129\n" +
 	"\fsubscription\x18\a \x01(\v2\x15.niko.v1.SubscriptionR\fsubscription\x12\x17\n" +
-	"\anode_id\x18\b \x01(\tR\x06nodeId\"#\n" +
+	"\anode_id\x18\b \x01(\tR\x06nodeId\x12\x1f\n" +
+	"\vis_selector\x18\t \x01(\bR\n" +
+	"isSelector\x12\x1f\n" +
+	"\vauto_select\x18\n" +
+	" \x01(\bR\n" +
+	"autoSelect\x12\x1f\n" +
+	"\vfront_proxy\x18\v \x01(\x03R\n" +
+	"frontProxy\x12#\n" +
+	"\rlanding_proxy\x18\f \x01(\x03R\flandingProxy\x12\x1d\n" +
+	"\n" +
+	"sort_order\x18\r \x01(\x05R\tsortOrder\"#\n" +
 	"\x04Type\x12\t\n" +
 	"\x05BASIC\x10\x00\x12\x10\n" +
 	"\fSUBSCRIPTION\x10\x01\"\xc0\x03\n" +
@@ -5473,7 +5647,7 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\x04Mode\x12\t\n" +
 	"\x05PROXY\x10\x00\x12\a\n" +
 	"\x03VPN\x10\x01B\a\n" +
-	"\x05_mode\"\x9c\x0f\n" +
+	"\x05_mode\"\xd4\x14\n" +
 	"\bSettings\x12!\n" +
 	"\fservice_mode\x18\x01 \x01(\tR\vserviceMode\x12!\n" +
 	"\fsystem_proxy\x18\x02 \x01(\bR\vsystemProxy\x12-\n" +
@@ -5524,7 +5698,21 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\x17yggdrasil_inbound_ports\x18) \x01(\tR\x15yggdrasilInboundPorts\x129\n" +
 	"\x19yggdrasil_peers_via_proxy\x18* \x01(\bR\x16yggdrasilPeersViaProxy\x12.\n" +
 	"\x13connection_test_url\x18+ \x01(\tR\x11connectionTestURL\x12\x1b\n" +
-	"\tclash_api\x18, \x01(\tR\bclashApi\"W\n" +
+	"\tclash_api\x18, \x01(\tR\bclashApi\x123\n" +
+	"\x16naive_quic_phone_roots\x18- \x01(\bR\x13naiveQuicPhoneRoots\x12%\n" +
+	"\x0ehonest_connect\x18. \x01(\bR\rhonestConnect\x12*\n" +
+	"\x11icmp_through_node\x18/ \x01(\bR\x0ficmpThroughNode\x12G\n" +
+	" network_change_reset_connections\x180 \x01(\bR\x1dnetworkChangeResetConnections\x124\n" +
+	"\x16wake_reset_connections\x181 \x01(\bR\x14wakeResetConnections\x123\n" +
+	"\x15insecure_subscription\x182 \x01(\bR\x14insecureSubscription\x120\n" +
+	"\x14subscription_min_tls\x183 \x01(\tR\x12subscriptionMinTls\x120\n" +
+	"\x14global_custom_config\x184 \x01(\tR\x12globalCustomConfig\x12>\n" +
+	"\x1bconnection_test_concurrency\x185 \x01(\x05R\x19connectionTestConcurrency\x12&\n" +
+	"\x0flog_buffer_size\x186 \x01(\x05R\rlogBufferSize\x122\n" +
+	"\x15profile_traffic_stats\x187 \x01(\bR\x13profileTrafficStats\x12!\n" +
+	"\fdirect_speed\x188 \x01(\bR\vdirectSpeed\x12-\n" +
+	"\x12include_prerelease\x189 \x01(\bR\x11includePrerelease\x12(\n" +
+	"\x10enable_clash_api\x18: \x01(\bR\x0eenableClashAPI\"W\n" +
 	"\x0eSettingsUpdate\x12-\n" +
 	"\bsettings\x18\x01 \x01(\v2\x11.niko.v1.SettingsR\bsettings\x12\x16\n" +
 	"\x06fields\x18\x02 \x03(\tR\x06fields\"\x1e\n" +
@@ -5756,7 +5944,7 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\x06source\x18\x05 \x01(\tR\x06source\x12\x1a\n" +
 	"\bverified\x18\x06 \x01(\bR\bverified\x12\x14\n" +
 	"\x05chunk\x18\a \x01(\fR\x05chunk\x12\x12\n" +
-	"\x04done\x18\b \x01(\bR\x04done2\xe7\x12\n" +
+	"\x04done\x18\b \x01(\bR\x04done2\x9b\x13\n" +
 	"\vNikoService\x121\n" +
 	"\aGetInfo\x12\x17.niko.v1.GetInfoRequest\x1a\r.niko.v1.Info\x12@\n" +
 	"\tRouteTest\x12\x19.niko.v1.RouteTestRequest\x1a\x18.niko.v1.RouteTestResult\x121\n" +
@@ -5777,7 +5965,8 @@ const file_niko_v1_niko_service_proto_rawDesc = "" +
 	"\fShareProfile\x12\x12.niko.v1.ProfileId\x1a\x12.niko.v1.ShareLink\x122\n" +
 	"\aConnect\x12\x17.niko.v1.ConnectRequest\x1a\x0e.niko.v1.Empty\x120\n" +
 	"\vGetSettings\x12\x0e.niko.v1.Empty\x1a\x11.niko.v1.Settings\x12<\n" +
-	"\x0eUpdateSettings\x12\x17.niko.v1.SettingsUpdate\x1a\x11.niko.v1.Settings\x129\n" +
+	"\x0eUpdateSettings\x12\x17.niko.v1.SettingsUpdate\x1a\x11.niko.v1.Settings\x122\n" +
+	"\rResetSettings\x12\x0e.niko.v1.Empty\x1a\x11.niko.v1.Settings\x129\n" +
 	"\tRecognize\x12\x14.niko.v1.ImportInput\x1a\x16.niko.v1.ImportPreview\x129\n" +
 	"\x06Import\x12\x16.niko.v1.ImportRequest\x1a\x15.niko.v1.TaskProgress0\x01\x12;\n" +
 	"\aRefresh\x12\x17.niko.v1.RefreshRequest\x1a\x15.niko.v1.TaskProgress0\x01\x12.\n" +
@@ -5930,72 +6119,74 @@ var file_niko_v1_niko_service_proto_depIdxs = []int32{
 	34, // 38: niko.v1.NikoService.Connect:input_type -> niko.v1.ConnectRequest
 	5,  // 39: niko.v1.NikoService.GetSettings:input_type -> niko.v1.Empty
 	36, // 40: niko.v1.NikoService.UpdateSettings:input_type -> niko.v1.SettingsUpdate
-	39, // 41: niko.v1.NikoService.Recognize:input_type -> niko.v1.ImportInput
-	46, // 42: niko.v1.NikoService.Import:input_type -> niko.v1.ImportRequest
-	25, // 43: niko.v1.NikoService.Refresh:input_type -> niko.v1.RefreshRequest
-	5,  // 44: niko.v1.NikoService.ListNodes:input_type -> niko.v1.Empty
-	42, // 45: niko.v1.NikoService.DeleteNode:input_type -> niko.v1.NodeId
-	5,  // 46: niko.v1.NikoService.ListRules:input_type -> niko.v1.Empty
-	47, // 47: niko.v1.NikoService.SaveRule:input_type -> niko.v1.Rule
-	49, // 48: niko.v1.NikoService.DeleteRules:input_type -> niko.v1.RuleIds
-	50, // 49: niko.v1.NikoService.MoveRules:input_type -> niko.v1.MoveRulesRequest
-	51, // 50: niko.v1.NikoService.ApplyPreset:input_type -> niko.v1.PresetRequest
-	5,  // 51: niko.v1.NikoService.ListRuleSets:input_type -> niko.v1.Empty
-	55, // 52: niko.v1.NikoService.UpdateRuleSets:input_type -> niko.v1.RuleSetRequest
-	5,  // 53: niko.v1.NikoService.ExportUserStore:input_type -> niko.v1.Empty
-	8,  // 54: niko.v1.NikoService.ImportUserStore:input_type -> niko.v1.UserStoreSnapshot
-	10, // 55: niko.v1.NikoService.TestConnection:input_type -> niko.v1.TestConnectionRequest
-	12, // 56: niko.v1.NikoService.ExitAddress:input_type -> niko.v1.ExitAddressRequest
-	14, // 57: niko.v1.NikoService.TestProfiles:input_type -> niko.v1.TestProfilesRequest
-	56, // 58: niko.v1.NikoService.RunNodeTest:input_type -> niko.v1.NodeTestRequest
-	61, // 59: niko.v1.NikoService.NodeAdminCall:input_type -> niko.v1.NodeAdminRequest
-	42, // 60: niko.v1.NikoService.ClearNodeSwitched:input_type -> niko.v1.NodeId
-	63, // 61: niko.v1.NikoService.SetNodeLan:input_type -> niko.v1.SetNodeLanRequest
-	64, // 62: niko.v1.NikoService.CheckUpdate:input_type -> niko.v1.CheckUpdateRequest
-	66, // 63: niko.v1.NikoService.DownloadUpdate:input_type -> niko.v1.DownloadUpdateRequest
-	7,  // 64: niko.v1.NikoService.GetInfo:output_type -> niko.v1.Info
-	18, // 65: niko.v1.NikoService.RouteTest:output_type -> niko.v1.RouteTestResult
-	20, // 66: niko.v1.NikoService.Watch:output_type -> niko.v1.Change
-	27, // 67: niko.v1.NikoService.ListGroups:output_type -> niko.v1.GroupList
-	31, // 68: niko.v1.NikoService.ListProfiles:output_type -> niko.v1.ProfileList
-	29, // 69: niko.v1.NikoService.GetProfile:output_type -> niko.v1.Profile
-	29, // 70: niko.v1.NikoService.SaveProfile:output_type -> niko.v1.Profile
-	30, // 71: niko.v1.NikoService.CheckProfile:output_type -> niko.v1.CheckProfileResult
-	5,  // 72: niko.v1.NikoService.DeleteProfiles:output_type -> niko.v1.Empty
-	5,  // 73: niko.v1.NikoService.MoveProfiles:output_type -> niko.v1.Empty
-	23, // 74: niko.v1.NikoService.SaveGroup:output_type -> niko.v1.Group
-	5,  // 75: niko.v1.NikoService.DeleteGroup:output_type -> niko.v1.Empty
-	5,  // 76: niko.v1.NikoService.Select:output_type -> niko.v1.Empty
-	32, // 77: niko.v1.NikoService.GetSelected:output_type -> niko.v1.ProfileId
-	33, // 78: niko.v1.NikoService.ShareProfile:output_type -> niko.v1.ShareLink
-	5,  // 79: niko.v1.NikoService.Connect:output_type -> niko.v1.Empty
-	35, // 80: niko.v1.NikoService.GetSettings:output_type -> niko.v1.Settings
-	35, // 81: niko.v1.NikoService.UpdateSettings:output_type -> niko.v1.Settings
-	40, // 82: niko.v1.NikoService.Recognize:output_type -> niko.v1.ImportPreview
-	21, // 83: niko.v1.NikoService.Import:output_type -> niko.v1.TaskProgress
-	21, // 84: niko.v1.NikoService.Refresh:output_type -> niko.v1.TaskProgress
-	43, // 85: niko.v1.NikoService.ListNodes:output_type -> niko.v1.NodeList
-	5,  // 86: niko.v1.NikoService.DeleteNode:output_type -> niko.v1.Empty
-	48, // 87: niko.v1.NikoService.ListRules:output_type -> niko.v1.RuleList
-	47, // 88: niko.v1.NikoService.SaveRule:output_type -> niko.v1.Rule
-	5,  // 89: niko.v1.NikoService.DeleteRules:output_type -> niko.v1.Empty
-	5,  // 90: niko.v1.NikoService.MoveRules:output_type -> niko.v1.Empty
-	52, // 91: niko.v1.NikoService.ApplyPreset:output_type -> niko.v1.PresetResult
-	54, // 92: niko.v1.NikoService.ListRuleSets:output_type -> niko.v1.RuleSetList
-	21, // 93: niko.v1.NikoService.UpdateRuleSets:output_type -> niko.v1.TaskProgress
-	8,  // 94: niko.v1.NikoService.ExportUserStore:output_type -> niko.v1.UserStoreSnapshot
-	9,  // 95: niko.v1.NikoService.ImportUserStore:output_type -> niko.v1.ImportUserStoreResult
-	11, // 96: niko.v1.NikoService.TestConnection:output_type -> niko.v1.TestConnectionResult
-	13, // 97: niko.v1.NikoService.ExitAddress:output_type -> niko.v1.ExitAddressResult
-	15, // 98: niko.v1.NikoService.TestProfiles:output_type -> niko.v1.ProfileTestResult
-	60, // 99: niko.v1.NikoService.RunNodeTest:output_type -> niko.v1.NodeTestEvent
-	62, // 100: niko.v1.NikoService.NodeAdminCall:output_type -> niko.v1.NodeAdminResponse
-	5,  // 101: niko.v1.NikoService.ClearNodeSwitched:output_type -> niko.v1.Empty
-	5,  // 102: niko.v1.NikoService.SetNodeLan:output_type -> niko.v1.Empty
-	65, // 103: niko.v1.NikoService.CheckUpdate:output_type -> niko.v1.UpdateInfo
-	67, // 104: niko.v1.NikoService.DownloadUpdate:output_type -> niko.v1.DownloadUpdateEvent
-	64, // [64:105] is the sub-list for method output_type
-	23, // [23:64] is the sub-list for method input_type
+	5,  // 41: niko.v1.NikoService.ResetSettings:input_type -> niko.v1.Empty
+	39, // 42: niko.v1.NikoService.Recognize:input_type -> niko.v1.ImportInput
+	46, // 43: niko.v1.NikoService.Import:input_type -> niko.v1.ImportRequest
+	25, // 44: niko.v1.NikoService.Refresh:input_type -> niko.v1.RefreshRequest
+	5,  // 45: niko.v1.NikoService.ListNodes:input_type -> niko.v1.Empty
+	42, // 46: niko.v1.NikoService.DeleteNode:input_type -> niko.v1.NodeId
+	5,  // 47: niko.v1.NikoService.ListRules:input_type -> niko.v1.Empty
+	47, // 48: niko.v1.NikoService.SaveRule:input_type -> niko.v1.Rule
+	49, // 49: niko.v1.NikoService.DeleteRules:input_type -> niko.v1.RuleIds
+	50, // 50: niko.v1.NikoService.MoveRules:input_type -> niko.v1.MoveRulesRequest
+	51, // 51: niko.v1.NikoService.ApplyPreset:input_type -> niko.v1.PresetRequest
+	5,  // 52: niko.v1.NikoService.ListRuleSets:input_type -> niko.v1.Empty
+	55, // 53: niko.v1.NikoService.UpdateRuleSets:input_type -> niko.v1.RuleSetRequest
+	5,  // 54: niko.v1.NikoService.ExportUserStore:input_type -> niko.v1.Empty
+	8,  // 55: niko.v1.NikoService.ImportUserStore:input_type -> niko.v1.UserStoreSnapshot
+	10, // 56: niko.v1.NikoService.TestConnection:input_type -> niko.v1.TestConnectionRequest
+	12, // 57: niko.v1.NikoService.ExitAddress:input_type -> niko.v1.ExitAddressRequest
+	14, // 58: niko.v1.NikoService.TestProfiles:input_type -> niko.v1.TestProfilesRequest
+	56, // 59: niko.v1.NikoService.RunNodeTest:input_type -> niko.v1.NodeTestRequest
+	61, // 60: niko.v1.NikoService.NodeAdminCall:input_type -> niko.v1.NodeAdminRequest
+	42, // 61: niko.v1.NikoService.ClearNodeSwitched:input_type -> niko.v1.NodeId
+	63, // 62: niko.v1.NikoService.SetNodeLan:input_type -> niko.v1.SetNodeLanRequest
+	64, // 63: niko.v1.NikoService.CheckUpdate:input_type -> niko.v1.CheckUpdateRequest
+	66, // 64: niko.v1.NikoService.DownloadUpdate:input_type -> niko.v1.DownloadUpdateRequest
+	7,  // 65: niko.v1.NikoService.GetInfo:output_type -> niko.v1.Info
+	18, // 66: niko.v1.NikoService.RouteTest:output_type -> niko.v1.RouteTestResult
+	20, // 67: niko.v1.NikoService.Watch:output_type -> niko.v1.Change
+	27, // 68: niko.v1.NikoService.ListGroups:output_type -> niko.v1.GroupList
+	31, // 69: niko.v1.NikoService.ListProfiles:output_type -> niko.v1.ProfileList
+	29, // 70: niko.v1.NikoService.GetProfile:output_type -> niko.v1.Profile
+	29, // 71: niko.v1.NikoService.SaveProfile:output_type -> niko.v1.Profile
+	30, // 72: niko.v1.NikoService.CheckProfile:output_type -> niko.v1.CheckProfileResult
+	5,  // 73: niko.v1.NikoService.DeleteProfiles:output_type -> niko.v1.Empty
+	5,  // 74: niko.v1.NikoService.MoveProfiles:output_type -> niko.v1.Empty
+	23, // 75: niko.v1.NikoService.SaveGroup:output_type -> niko.v1.Group
+	5,  // 76: niko.v1.NikoService.DeleteGroup:output_type -> niko.v1.Empty
+	5,  // 77: niko.v1.NikoService.Select:output_type -> niko.v1.Empty
+	32, // 78: niko.v1.NikoService.GetSelected:output_type -> niko.v1.ProfileId
+	33, // 79: niko.v1.NikoService.ShareProfile:output_type -> niko.v1.ShareLink
+	5,  // 80: niko.v1.NikoService.Connect:output_type -> niko.v1.Empty
+	35, // 81: niko.v1.NikoService.GetSettings:output_type -> niko.v1.Settings
+	35, // 82: niko.v1.NikoService.UpdateSettings:output_type -> niko.v1.Settings
+	35, // 83: niko.v1.NikoService.ResetSettings:output_type -> niko.v1.Settings
+	40, // 84: niko.v1.NikoService.Recognize:output_type -> niko.v1.ImportPreview
+	21, // 85: niko.v1.NikoService.Import:output_type -> niko.v1.TaskProgress
+	21, // 86: niko.v1.NikoService.Refresh:output_type -> niko.v1.TaskProgress
+	43, // 87: niko.v1.NikoService.ListNodes:output_type -> niko.v1.NodeList
+	5,  // 88: niko.v1.NikoService.DeleteNode:output_type -> niko.v1.Empty
+	48, // 89: niko.v1.NikoService.ListRules:output_type -> niko.v1.RuleList
+	47, // 90: niko.v1.NikoService.SaveRule:output_type -> niko.v1.Rule
+	5,  // 91: niko.v1.NikoService.DeleteRules:output_type -> niko.v1.Empty
+	5,  // 92: niko.v1.NikoService.MoveRules:output_type -> niko.v1.Empty
+	52, // 93: niko.v1.NikoService.ApplyPreset:output_type -> niko.v1.PresetResult
+	54, // 94: niko.v1.NikoService.ListRuleSets:output_type -> niko.v1.RuleSetList
+	21, // 95: niko.v1.NikoService.UpdateRuleSets:output_type -> niko.v1.TaskProgress
+	8,  // 96: niko.v1.NikoService.ExportUserStore:output_type -> niko.v1.UserStoreSnapshot
+	9,  // 97: niko.v1.NikoService.ImportUserStore:output_type -> niko.v1.ImportUserStoreResult
+	11, // 98: niko.v1.NikoService.TestConnection:output_type -> niko.v1.TestConnectionResult
+	13, // 99: niko.v1.NikoService.ExitAddress:output_type -> niko.v1.ExitAddressResult
+	15, // 100: niko.v1.NikoService.TestProfiles:output_type -> niko.v1.ProfileTestResult
+	60, // 101: niko.v1.NikoService.RunNodeTest:output_type -> niko.v1.NodeTestEvent
+	62, // 102: niko.v1.NikoService.NodeAdminCall:output_type -> niko.v1.NodeAdminResponse
+	5,  // 103: niko.v1.NikoService.ClearNodeSwitched:output_type -> niko.v1.Empty
+	5,  // 104: niko.v1.NikoService.SetNodeLan:output_type -> niko.v1.Empty
+	65, // 105: niko.v1.NikoService.CheckUpdate:output_type -> niko.v1.UpdateInfo
+	67, // 106: niko.v1.NikoService.DownloadUpdate:output_type -> niko.v1.DownloadUpdateEvent
+	65, // [65:107] is the sub-list for method output_type
+	23, // [23:65] is the sub-list for method input_type
 	23, // [23:23] is the sub-list for extension type_name
 	23, // [23:23] is the sub-list for extension extendee
 	0,  // [0:23] is the sub-list for field type_name

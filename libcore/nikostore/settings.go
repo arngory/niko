@@ -93,6 +93,40 @@ var computerSettings = map[string]func(s *nikoconf.Settings) error{
 	"yggdrasilPeersViaProxy":       nil,
 	"connectionTestURL":            func(s *nikoconf.Settings) error { return testURL(s.ConnectionTestURL) },
 	"clashApi":                     func(s *nikoconf.Settings) error { return maxLen(s.Secrets.ClashAPI, 255) },
+	"naiveQuicPhoneRoots":          nil,
+	"honestConnect":                nil,
+	"icmpThroughNode":              nil,
+	"networkChangeResetConnections": nil,
+	"wakeResetConnections":         nil,
+	"insecureSubscription":         nil,
+	"subscriptionMinTls":           func(s *nikoconf.Settings) error { return oneOf(s.SubscriptionMinTLS, "", "1.2", "1.3") },
+	"globalCustomConfig":           func(s *nikoconf.Settings) error { return customJSON(s.GlobalCustomConfig) },
+	"connectionTestConcurrency":    func(s *nikoconf.Settings) error { return within(s.ConnectionTestConcurrency, 1, 16) },
+	"logBufferSize":                func(s *nikoconf.Settings) error { return within(s.LogBufferSize, 200, 20000) },
+	"profileTrafficStats":          nil,
+	"directSpeed":                  nil,
+	"includePrerelease":            nil,
+	"enableClashAPI": func(s *nikoconf.Settings) error {
+		if s.EnableClashAPI && strings.TrimSpace(s.Secrets.ClashAPI) == "" {
+			return errors.New("set a Clash API secret before enabling Clash API")
+		}
+		return nil
+	},
+}
+
+func customJSON(text string) error {
+	if err := maxLen(text, maxSetting); err != nil {
+		return err
+	}
+	trimmed := strings.TrimSpace(text)
+	if trimmed == "" {
+		return nil
+	}
+	var obj map[string]any
+	if err := json.Unmarshal([]byte(trimmed), &obj); err != nil || obj == nil {
+		return errors.New("must be a JSON object")
+	}
+	return nil
 }
 
 func maxLen(value string, limit int) error {
@@ -498,6 +532,33 @@ func (s *Store) UpdateSettings(from nikoconf.Settings, names []string) (nikoconf
 	}
 	if len(names) == 0 {
 		return result, nil
+	}
+	if err = s.writeSettings(next); err != nil {
+		return nikoconf.Settings{}, err
+	}
+	s.settings = next
+	s.tell(Change{Kind: KindSettings})
+	return result, nil
+}
+
+// ResetSettings resets all user settings back to DesktopSettings() while preserving the device's
+// persistent Yggdrasil Ed25519 private key so its 200::/7 mesh identity does not churn.
+func (s *Store) ResetSettings() (nikoconf.Settings, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.settings.unreadable {
+		return nikoconf.Settings{}, fmt.Errorf("%w: the settings' secrets: %w; unlock or re-enter secrets first", ErrRefused, errSealed)
+	}
+	next := &settings{
+		public:  map[string]json.RawMessage{},
+		secrets: map[string]json.RawMessage{},
+	}
+	if yggKey, ok := s.settings.secrets["yggdrasilKey"]; ok {
+		next.secrets["yggdrasilKey"] = yggKey
+	}
+	result, err := next.read()
+	if err != nil {
+		return nikoconf.Settings{}, err
 	}
 	if err = s.writeSettings(next); err != nil {
 		return nikoconf.Settings{}, err

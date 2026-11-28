@@ -4,10 +4,17 @@
 package main
 
 import (
+	"os"
+
+	"libcore/naiveroots"
+
 	"github.com/sagernet/sing-box/experimental/boxdd"
 )
 
 func main() {
 	preloadNativeLibraries()
+	if len(os.Args) >= 2 && os.Args[1] == "run" {
+		naiveroots.Init("")
+	}
 	boxdd.Main(daemonOptions())
 }

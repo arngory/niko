@@ -222,7 +222,8 @@ func TestYggdrasilChainClashAndResolverPrecedence(t *testing.T) {
 	settings.YggdrasilEnabled = true
 	settings.YggdrasilPeers = "tls://ygg.example.net:62486"
 	settings.Secrets.ClashAPI = "my-secret-token"
-	if _, err := u.store.UpdateSettings(settings, []string{"yggdrasilEnabled", "yggdrasilPeers", "clashApi"}); err != nil {
+	settings.EnableClashAPI = true
+	if _, err := u.store.UpdateSettings(settings, []string{"yggdrasilEnabled", "yggdrasilPeers", "clashApi", "enableClashAPI"}); err != nil {
 		t.Fatalf("UpdateSettings: %v", err)
 	}
 	loadedSettings, err := u.store.Settings()

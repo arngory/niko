@@ -273,11 +273,23 @@ func (b *builder) build() ([]byte, error) {
 		b.ipv6Mode = ipv6Enable
 	}
 
-	// an exported config is shared: it carries no secret of this install
+	// an exported config is shared: it carries no secret of this install;
+	// on desktop, Clash API requires BOTH explicit opt-in and a non-empty secret with restricted CORS.
 	var experimental object
-	if !b.forTest && !b.forExport && (s.EnableClashAPI || !nikofmt.KtIsBlank(s.Secrets.ClashAPI)) {
-		experimental = object{"clash_api": object{"external_controller": "127.0.0.1:9090",
-			"external_ui": "../files/yacd", "secret": s.Secrets.ClashAPI}}
+	if !b.forTest && !b.forExport {
+		if b.desktop {
+			if s.EnableClashAPI && !nikofmt.KtIsBlank(s.Secrets.ClashAPI) {
+				experimental = object{"clash_api": object{
+					"external_controller":         "127.0.0.1:9090",
+					"external_ui":                 "../files/yacd",
+					"secret":                      s.Secrets.ClashAPI,
+					"access_control_allow_origin": []any{"http://127.0.0.1:9090"},
+				}}
+			}
+		} else if !nikofmt.KtIsBlank(s.Secrets.ClashAPI) {
+			experimental = object{"clash_api": object{"external_controller": "127.0.0.1:9090",
+				"external_ui": "../files/yacd", "secret": s.Secrets.ClashAPI}}
+		}
 	}
 	// a test core's log level, set while a test run goes, is never set here (testLogLevel null)
 	logLevel := map[int]string{0: "panic", 1: "warn", 2: "info", 3: "debug", 4: "trace"}[s.LogLevel]
@@ -360,8 +372,12 @@ func (b *builder) build() ([]byte, error) {
 			}
 			b.tagMap.put(p.ID, tag)
 		}
+		testURL := strings.TrimSpace(s.ConnectionTestURL)
+		if testURL == "" {
+			testURL = "http://cp.cloudflare.com/"
+		}
 		urltest := object{"type": "urltest", "tag": tagProxy, "outbounds": strings2any(b.tagMap.values()),
-			"url": s.ConnectionTestURL, "interval": "3m", "tolerance": int64(50)}
+			"url": testURL, "interval": "3m", "tolerance": int64(50)}
 		b.outbounds = append([]*option{newOption(urltest)}, b.outbounds...)
 		final = tagProxy
 	default:
@@ -658,6 +674,17 @@ func (b *builder) build() ([]byte, error) {
 	}
 	config := object{"log": object{"level": logLevel}, "dns": dns, "inbounds": objects2any(b.inbounds),
 		"outbounds": outbounds, "endpoints": endpoints, "route": route}
+	// On desktop, emit top-level certificate.store so sing-box registers adapter.CertificateStore
+	// for both Go TLS outbounds and Chromium naive outbounds (B1).
+	if b.desktop && !b.forTest && !b.forExport {
+		store := s.RootStore
+		switch store {
+		case "chrome", "mozilla", "system":
+		default:
+			store = "chrome"
+		}
+		config["certificate"] = object{"store": store}
+	}
 	if experimental != nil {
 		config["experimental"] = experimental
 	}

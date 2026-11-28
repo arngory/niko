@@ -85,6 +85,12 @@ type Group struct {
 	Subscription *nikosub.Subscription
 	// Node is the raycontrol node whose rows the group holds (nodes.go), its id; "" for none
 	Node string
+	// API 18 group routing & display options (B-GroupSettings).
+	IsSelector   bool
+	AutoSelect   bool
+	FrontProxy   int64
+	LandingProxy int64
+	SortOrder    int
 
 	// subscriptionDisk and subscriptionSealed are what store.json holds of the subscription; unreadable: its sealed
 	// fields cannot be opened here, and stay on the disk as they are until it is saved again
@@ -104,7 +110,12 @@ type diskGroup struct {
 	Subscription json.RawMessage `json:"subscription,omitempty"`
 	Sealed       string          `json:"sealed,omitempty"`
 	// Node: a raycontrol node's group, schema 4 (nodes.go)
-	Node string `json:"node,omitempty"`
+	Node         string `json:"node,omitempty"`
+	IsSelector   bool   `json:"is_selector,omitempty"`
+	AutoSelect   bool   `json:"auto_select,omitempty"`
+	FrontProxy   int64  `json:"front_proxy,omitempty"`
+	LandingProxy int64  `json:"landing_proxy,omitempty"`
+	SortOrder    int    `json:"sort_order,omitempty"`
 }
 
 // Profile is a profile: its place, its type, the name and address a list shows, and its bean.
@@ -444,7 +455,9 @@ func (s *Store) decode(data []byte) (st *state, resealed bool, err error) {
 			}
 			ungrouped = true
 		}
-		g := Group{ID: d.ID, Order: d.Order, Name: d.Name, Ungrouped: d.Ungrouped, Type: d.Type, Node: d.Node}
+		g := Group{ID: d.ID, Order: d.Order, Name: d.Name, Ungrouped: d.Ungrouped, Type: d.Type, Node: d.Node,
+			IsSelector: d.IsSelector, AutoSelect: d.AutoSelect, FrontProxy: d.FrontProxy, LandingProxy: d.LandingProxy,
+			SortOrder: d.SortOrder}
 		if d.Type == GroupSubscription {
 			if len(d.Subscription) == 0 || d.Ungrouped {
 				return nil, false, fmt.Errorf("group %d: a subscription's group without its subscription", d.ID)
@@ -520,7 +533,9 @@ func (s *Store) write(st *state) error {
 		ImportedSnapshots: append([]string(nil), st.importedSnapshots...)}
 	for _, g := range st.groups {
 		doc.Groups = append(doc.Groups, diskGroup{ID: g.ID, Order: g.Order, Name: g.Name, Ungrouped: g.Ungrouped,
-			Type: g.Type, Subscription: g.subscriptionDisk, Sealed: g.subscriptionSealed, Node: g.Node})
+			Type: g.Type, Subscription: g.subscriptionDisk, Sealed: g.subscriptionSealed, Node: g.Node,
+			IsSelector: g.IsSelector, AutoSelect: g.AutoSelect, FrontProxy: g.FrontProxy, LandingProxy: g.LandingProxy,
+			SortOrder: g.SortOrder})
 	}
 	if err := st.encodeNodes(&doc); err != nil {
 		return err
@@ -925,13 +940,27 @@ func (s *Store) SaveGroup(g Group) (Group, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := s.state.clone()
+	for _, proxyID := range []int64{g.FrontProxy, g.LandingProxy} {
+		if proxyID == 0 {
+			continue
+		}
+		p, ok := st.profiles[proxyID]
+		if !ok {
+			return Group{}, fmt.Errorf("%w: proxy %d not found", ErrInvalid, proxyID)
+		}
+		if g.ID > 0 && p.group == g.ID {
+			return Group{}, fmt.Errorf("%w: proxy %d belongs to group %d (chain loop)", ErrInvalid, proxyID, g.ID)
+		}
+	}
 	var saved Group
 	if g.ID == 0 {
 		var last int64
 		for _, other := range st.groups {
 			last = max(last, other.Order)
 		}
-		saved = Group{ID: st.nextGroup, Order: last + 1, Name: g.Name}
+		saved = Group{ID: st.nextGroup, Order: last + 1, Name: g.Name,
+			IsSelector: g.IsSelector, AutoSelect: g.AutoSelect, FrontProxy: g.FrontProxy,
+			LandingProxy: g.LandingProxy, SortOrder: g.SortOrder}
 		st.nextGroup++
 		st.groups = append(st.groups, saved)
 	} else {
@@ -944,6 +973,11 @@ func (s *Store) SaveGroup(g Group) (Group, error) {
 		}
 		saved = old
 		saved.Name = g.Name
+		saved.IsSelector = g.IsSelector
+		saved.AutoSelect = g.AutoSelect
+		saved.FrontProxy = g.FrontProxy
+		saved.LandingProxy = g.LandingProxy
+		saved.SortOrder = g.SortOrder
 		st.groups[i] = saved
 	}
 	if err := s.commit(st, Change{Kind: KindGroups, IDs: []int64{saved.ID}}); err != nil {

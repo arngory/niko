@@ -1,4 +1,4 @@
-//go:build !(linux && with_naive_outbound && with_purego)
+//go:build !((linux || darwin) && with_naive_outbound && with_purego)
 
 package main
 

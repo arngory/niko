@@ -226,8 +226,12 @@ func (s *server) TestProfiles(req *nikopb.TestProfilesRequest, stream grpc.Serve
 	}
 	close(jobs)
 
+	concurrency := testWorkers
+	if st, sErr := u.store.Settings(); sErr == nil && st.ConnectionTestConcurrency > 0 {
+		concurrency = min(max(st.ConnectionTestConcurrency, 1), 16)
+	}
 	results := make(chan *nikopb.ProfileTestResult, len(ids))
-	workers := min(testWorkers, len(ids))
+	workers := min(concurrency, len(ids))
 	var wg sync.WaitGroup
 	for range workers {
 		wg.Add(1)

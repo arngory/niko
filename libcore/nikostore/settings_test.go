@@ -133,7 +133,11 @@ func TestSettingsRefused(t *testing.T) {
 		{"programs", nikoconf.Settings{Programs: "a\n" + strings.Repeat("a", 32<<10+1)}},
 		{"programs", nikoconf.Settings{Programs: strings.Repeat("a\n", 32<<10+1)}},
 		{"proxyApps", nikoconf.Settings{ProxyApps: true}},
-		{"enableClashAPI", nikoconf.Settings{EnableClashAPI: true}},
+		{"allowTethering", nikoconf.Settings{AllowTethering: true}},
+		{"globalCustomConfig", nikoconf.Settings{GlobalCustomConfig: "not-json"}},
+		{"subscriptionMinTls", nikoconf.Settings{SubscriptionMinTLS: "1.1"}},
+		{"connectionTestConcurrency", nikoconf.Settings{ConnectionTestConcurrency: 0}},
+		{"logBufferSize", nikoconf.Settings{LogBufferSize: 50}},
 		{"secrets", nikoconf.Settings{}},
 		{"", nikoconf.Settings{}},
 	} {

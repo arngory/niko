@@ -220,7 +220,8 @@ func (s *server) groupProto(u *user, g nikostore.Group) *nikopb.Group {
 	}
 	return &nikopb.Group{Id: g.ID, Order: g.Order, Name: g.Name, Ungrouped: g.Ungrouped, Type: kind,
 		Profiles: int32(g.Profiles), Subscription: subscriptionProto(g.Subscription, u.updates.isRunning(g.ID)),
-		NodeId: g.Node}
+		NodeId: g.Node, IsSelector: g.IsSelector, AutoSelect: g.AutoSelect,
+		FrontProxy: g.FrontProxy, LandingProxy: g.LandingProxy, SortOrder: int32(g.SortOrder)}
 }
 
 // withNode is a profile as NikoService gives it, the node whose row it is named: the node of its group.
@@ -439,7 +440,12 @@ func (s *server) SaveGroup(ctx context.Context, request *nikopb.Group) (*nikopb.
 	if err != nil {
 		return nil, err
 	}
-	saved, err := u.store.SaveGroup(nikostore.Group{ID: request.Id, Name: request.Name})
+	saved, err := u.store.SaveGroup(nikostore.Group{
+		ID: request.Id, Name: request.Name,
+		IsSelector: request.IsSelector, AutoSelect: request.AutoSelect,
+		FrontProxy: request.FrontProxy, LandingProxy: request.LandingProxy,
+		SortOrder: int(request.SortOrder),
+	})
 	if err != nil {
 		return nil, storeError(err)
 	}

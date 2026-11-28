@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net"
+	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
@@ -13,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"libcore/naiveroots"
 	"libcore/nikoconf"
 	"libcore/nikofmt"
 	"libcore/nikopb"
@@ -926,6 +929,7 @@ func (s *server) reconnectProfile(ctx context.Context, u *user, profileID int64,
 		return false, err
 	}
 	s.deviceKeys(in.Nodes)
+	naiveroots.Sync(settings.RootStore)
 	if err := s.slipstream.Start(ctx, built.SlipstreamLaunches); err != nil {
 		return false, err
 	}
@@ -933,7 +937,9 @@ func (s *server) reconnectProfile(ctx context.Context, u *user, profileID int64,
 		s.slipstream.StopAll()
 		return false, err
 	}
+	s.setActiveNodeID(ownerNodeIDOf(in.Profile, in.Nodes))
 	s.startWatchdogForConnect(ctx, u, in.Profile, in.Nodes)
+	s.probeNaiveDatagramSoon(u, in.Nodes, built.NaiveDatagramTags)
 	return true, nil
 }
 
@@ -968,13 +974,63 @@ func EvaluateDatagramEcho(statusCode, sent, received int) DatagramVerdict {
 }
 
 type datagramEntry struct {
-	At int64
-	OK bool
+	At int64 `json:"at"`
+	OK bool  `json:"ok"`
 }
 
 type datagramCache struct {
 	mu   sync.Mutex
-	data map[string]map[string]datagramEntry // networkKey -> serviceID -> entry
+	path string
+	data map[string]map[string]datagramEntry // networkKey -> serviceKey -> entry
+}
+
+func (c *datagramCache) Load(path string) {
+	if path == "" {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.path == path && c.data != nil {
+		return
+	}
+	// Switching cache path (e.g. another user): clear prior entries before reading so nothing leaks across users.
+	c.path = path
+	c.data = map[string]map[string]datagramEntry{}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	var loaded map[string]map[string]datagramEntry
+	if err := json.Unmarshal(raw, &loaded); err == nil && loaded != nil {
+		c.data = loaded
+	}
+}
+
+func (c *datagramCache) saveLocked() {
+	if c.path == "" || c.data == nil {
+		return
+	}
+	raw, err := json.Marshal(c.data)
+	if err != nil {
+		return
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(c.path), "datagrams.*.tmp")
+	if err != nil {
+		return
+	}
+	_ = tmp.Chmod(0o600)
+	if _, err := tmp.Write(raw); err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(tmp.Name())
+		return
+	}
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmp.Name())
+		return
+	}
+	if err := os.Rename(tmp.Name(), c.path); err != nil {
+		_ = os.Remove(tmp.Name())
+	}
 }
 
 func (c *datagramCache) Remember(networkKey, serviceID string, ok bool, now int64) {
@@ -1006,6 +1062,7 @@ func (c *datagramCache) Remember(networkKey, serviceID string, ok bool, now int6
 			delete(c.data, oldestNet)
 		}
 	}
+	c.saveLocked()
 }
 
 func (c *datagramCache) Lookup(networkKey, serviceID string, now int64) (bool, bool) {
@@ -1023,6 +1080,37 @@ func (c *datagramCache) Lookup(networkKey, serviceID string, now int64) (bool, b
 		return false, false
 	}
 	return e.OK, true
+}
+
+// LookupNode returns the freshest non-expired verdict for nodeID (matching either exact nodeID
+// or any service key prefixed with "nodeID#") on networkKey.
+func (c *datagramCache) LookupNode(networkKey, nodeID string, now int64) (bool, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	entries := c.data[networkKey]
+	if len(entries) == 0 {
+		return false, false
+	}
+	prefix := nodeID + "#"
+	var best datagramEntry
+	found := false
+	for key, e := range entries {
+		if key != nodeID && !strings.HasPrefix(key, prefix) {
+			continue
+		}
+		hold := int64(datagramHoldFail)
+		if e.OK {
+			hold = datagramHoldPass
+		}
+		if now-e.At < 0 || now-e.At >= hold {
+			continue
+		}
+		if !found || e.At >= best.At {
+			best = e
+			found = true
+		}
+	}
+	return best.OK, found
 }
 
 // --- Opt-in Anonymous Network Summary (RayReport.kt parity) ---

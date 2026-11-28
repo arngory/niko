@@ -41,6 +41,7 @@ const (
 	NikoService_Connect_FullMethodName           = "/niko.v1.NikoService/Connect"
 	NikoService_GetSettings_FullMethodName       = "/niko.v1.NikoService/GetSettings"
 	NikoService_UpdateSettings_FullMethodName    = "/niko.v1.NikoService/UpdateSettings"
+	NikoService_ResetSettings_FullMethodName     = "/niko.v1.NikoService/ResetSettings"
 	NikoService_Recognize_FullMethodName         = "/niko.v1.NikoService/Recognize"
 	NikoService_Import_FullMethodName            = "/niko.v1.NikoService/Import"
 	NikoService_Refresh_FullMethodName           = "/niko.v1.NikoService/Refresh"
@@ -132,6 +133,9 @@ type NikoServiceClient interface {
 	// and nothing is changed; FAILED_PRECONDITION where the secrets cannot be opened on this machine and the change
 	// does not set them again.
 	UpdateSettings(ctx context.Context, in *SettingsUpdate, opts ...grpc.CallOption) (*Settings, error)
+	// Resets all user-modified settings back to desktop defaults while preserving profiles, groups, rules, nodes,
+	// and the device's persistent Yggdrasil key. Watch says SETTINGS.
+	ResetSettings(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Settings, error)
 	// What an input is and what its import would add; nothing is written, and no store is needed.
 	Recognize(ctx context.Context, in *ImportInput, opts ...grpc.CallOption) (*ImportPreview, error)
 	// Imports an input: the task's progress, then its result, the last message (done). Share links and sn://; a
@@ -410,6 +414,16 @@ func (c *nikoServiceClient) UpdateSettings(ctx context.Context, in *SettingsUpda
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(Settings)
 	err := c.cc.Invoke(ctx, NikoService_UpdateSettings_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nikoServiceClient) ResetSettings(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Settings, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Settings)
+	err := c.cc.Invoke(ctx, NikoService_ResetSettings_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -766,6 +780,9 @@ type NikoServiceServer interface {
 	// and nothing is changed; FAILED_PRECONDITION where the secrets cannot be opened on this machine and the change
 	// does not set them again.
 	UpdateSettings(context.Context, *SettingsUpdate) (*Settings, error)
+	// Resets all user-modified settings back to desktop defaults while preserving profiles, groups, rules, nodes,
+	// and the device's persistent Yggdrasil key. Watch says SETTINGS.
+	ResetSettings(context.Context, *Empty) (*Settings, error)
 	// What an input is and what its import would add; nothing is written, and no store is needed.
 	Recognize(context.Context, *ImportInput) (*ImportPreview, error)
 	// Imports an input: the task's progress, then its result, the last message (done). Share links and sn://; a
@@ -914,6 +931,9 @@ func (UnimplementedNikoServiceServer) GetSettings(context.Context, *Empty) (*Set
 }
 func (UnimplementedNikoServiceServer) UpdateSettings(context.Context, *SettingsUpdate) (*Settings, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateSettings not implemented")
+}
+func (UnimplementedNikoServiceServer) ResetSettings(context.Context, *Empty) (*Settings, error) {
+	return nil, status.Error(codes.Unimplemented, "method ResetSettings not implemented")
 }
 func (UnimplementedNikoServiceServer) Recognize(context.Context, *ImportInput) (*ImportPreview, error) {
 	return nil, status.Error(codes.Unimplemented, "method Recognize not implemented")
@@ -1318,6 +1338,24 @@ func _NikoService_UpdateSettings_Handler(srv interface{}, ctx context.Context, d
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(NikoServiceServer).UpdateSettings(ctx, req.(*SettingsUpdate))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NikoService_ResetSettings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NikoServiceServer).ResetSettings(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NikoService_ResetSettings_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NikoServiceServer).ResetSettings(ctx, req.(*Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1768,6 +1806,10 @@ var NikoService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateSettings",
 			Handler:    _NikoService_UpdateSettings_Handler,
+		},
+		{
+			MethodName: "ResetSettings",
+			Handler:    _NikoService_ResetSettings_Handler,
 		},
 		{
 			MethodName: "Recognize",

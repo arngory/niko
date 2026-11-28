@@ -1,4 +1,7 @@
 {
+  "certificate": {
+    "store": "chrome"
+  },
   "dns": {
     "final": "dns-remote",
     "rules": [
@@ -78,11 +81,11 @@
     {
       "detour": "proxy",
       "node_info_privacy": true,
-      "pq": "on",
       "peers": [
         "tls://198.51.100.70:443",
         "quic://peer.example:443"
       ],
+      "pq": "on",
       "private_key": "golden-mesh-key",
       "tag": "yggdrasil",
       "tls_fingerprint": "go",

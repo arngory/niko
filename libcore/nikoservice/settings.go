@@ -42,6 +42,18 @@ func (s *server) UpdateSettings(ctx context.Context, request *nikopb.SettingsUpd
 	return settingsProto(settings), nil
 }
 
+func (s *server) ResetSettings(ctx context.Context, _ *nikopb.Empty) (*nikopb.Settings, error) {
+	u, err := s.users.user(ctx)
+	if err != nil {
+		return nil, err
+	}
+	settings, err := u.store.ResetSettings()
+	if err != nil {
+		return nil, storeError(err)
+	}
+	return settingsProto(settings), nil
+}
+
 // settingNames are the app's names of Settings' fields named as the .proto names them: their JSON names.
 func settingNames(fields []string) ([]string, error) {
 	descriptor := (&nikopb.Settings{}).ProtoReflect().Descriptor().Fields()
@@ -100,9 +112,23 @@ func settingsProto(s nikoconf.Settings) *nikopb.Settings {
 		YggdrasilTlsChrome:           s.YggdrasilTLSChrome,
 		YggdrasilAllowInbound:        s.YggdrasilAllowInbound,
 		YggdrasilInboundPorts:        s.YggdrasilInboundPorts,
-		YggdrasilPeersViaProxy:       s.YggdrasilPeersViaProxy,
-		ConnectionTestUrl:            s.ConnectionTestURL,
-		ClashApi:                     s.Secrets.ClashAPI,
+		YggdrasilPeersViaProxy:        s.YggdrasilPeersViaProxy,
+		ConnectionTestUrl:             s.ConnectionTestURL,
+		ClashApi:                      s.Secrets.ClashAPI,
+		NaiveQuicPhoneRoots:           s.NaiveQuicPhoneRoots,
+		HonestConnect:                 s.HonestConnect,
+		IcmpThroughNode:               s.IcmpThroughNode,
+		NetworkChangeResetConnections: s.NetworkChangeResetConnections,
+		WakeResetConnections:          s.WakeResetConnections,
+		InsecureSubscription:          s.InsecureSubscription,
+		SubscriptionMinTls:            s.SubscriptionMinTLS,
+		GlobalCustomConfig:            s.GlobalCustomConfig,
+		ConnectionTestConcurrency:     int32(s.ConnectionTestConcurrency),
+		LogBufferSize:                 int32(s.LogBufferSize),
+		ProfileTrafficStats:           s.ProfileTrafficStats,
+		DirectSpeed:                   s.DirectSpeed,
+		IncludePrerelease:             s.IncludePrerelease,
+		EnableClashApi:                s.EnableClashAPI,
 	}
 }
 
@@ -154,9 +180,22 @@ func settingsFrom(p *nikopb.Settings) nikoconf.Settings {
 		YggdrasilTLSChrome:           p.YggdrasilTlsChrome,
 		YggdrasilAllowInbound:        p.YggdrasilAllowInbound,
 		YggdrasilInboundPorts:        p.YggdrasilInboundPorts,
-		YggdrasilPeersViaProxy:       p.YggdrasilPeersViaProxy,
-		ConnectionTestURL:            p.ConnectionTestUrl,
-		EnableClashAPI:               p.ClashApi != "",
+		YggdrasilPeersViaProxy:        p.YggdrasilPeersViaProxy,
+		ConnectionTestURL:             p.ConnectionTestUrl,
+		EnableClashAPI:                p.EnableClashApi,
+		NaiveQuicPhoneRoots:           p.NaiveQuicPhoneRoots,
+		HonestConnect:                 p.HonestConnect,
+		IcmpThroughNode:               p.IcmpThroughNode,
+		NetworkChangeResetConnections: p.NetworkChangeResetConnections,
+		WakeResetConnections:          p.WakeResetConnections,
+		InsecureSubscription:          p.InsecureSubscription,
+		SubscriptionMinTLS:            p.SubscriptionMinTls,
+		GlobalCustomConfig:            p.GlobalCustomConfig,
+		ConnectionTestConcurrency:     int(p.ConnectionTestConcurrency),
+		LogBufferSize:                 int(p.LogBufferSize),
+		ProfileTrafficStats:           p.ProfileTrafficStats,
+		DirectSpeed:                   p.DirectSpeed,
+		IncludePrerelease:             p.IncludePrerelease,
 	}
 }
 

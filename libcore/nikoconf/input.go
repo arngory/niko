@@ -231,6 +231,16 @@ type Settings struct {
 	RaycontrolReports            bool   `json:"raycontrolReports"`
 	RaycontrolDnsttResolver      string `json:"raycontrolDnsttResolver,omitempty"`
 	RaycontrolMasterDnsResolvers string `json:"raycontrolMasterDnsResolvers,omitempty"`
+	// API 18 desktop settings (B-Settings parity).
+	NetworkChangeResetConnections bool   `json:"networkChangeResetConnections"`
+	WakeResetConnections          bool   `json:"wakeResetConnections"`
+	InsecureSubscription          bool   `json:"insecureSubscription"`
+	SubscriptionMinTLS            string `json:"subscriptionMinTls"`
+	ConnectionTestConcurrency     int    `json:"connectionTestConcurrency"`
+	LogBufferSize                 int    `json:"logBufferSize"`
+	ProfileTrafficStats           bool   `json:"profileTrafficStats"`
+	DirectSpeed                   bool   `json:"directSpeed"`
+	IncludePrerelease             bool   `json:"includePrerelease"`
 }
 
 // Secrets are the install's secrets a config may carry (ConfigSecrets).
@@ -380,6 +390,8 @@ type Result struct {
 	MissingRuleSets []string
 	// SlipstreamLaunches describes external slipstream-client child processes to start alongside the core (Variant A).
 	SlipstreamLaunches []SlipstreamLaunch
+	// NaiveDatagramTags maps each naive outbound tag with udp_datagram enabled to its profile ID.
+	NaiveDatagramTags map[string]int64
 }
 
 // SlipstreamLaunch is one external slipstream-client invocation produced by Variant A config building.

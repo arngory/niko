@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"time"
 
+	"libcore/naiveroots"
 	"libcore/nikoconf"
 	"libcore/nikofmt"
 	"libcore/nikopb"
@@ -79,6 +80,7 @@ func (s *server) Connect(ctx context.Context, request *nikopb.ConnectRequest) (*
 	}
 	// the nodes' device keys into the core by their references, which the config names
 	s.deviceKeys(in.Nodes)
+	naiveroots.Sync(settings.RootStore)
 	slipBatch, err := s.slipstream.Prepare(ctx, result.SlipstreamLaunches)
 	if err != nil {
 		return nil, err
@@ -97,7 +99,7 @@ func (s *server) Connect(ctx context.Context, request *nikopb.ConnectRequest) (*
 	// Start the raycontrol watchdog, DNS resolver probe, and naive-udp-v1 probe for the active connection.
 	s.startWatchdogForConnect(ctx, u, in.Profile, in.Nodes)
 	s.probeNodeDNSResolversSoon(u, in.Nodes)
-	s.probeNaiveDatagramSoon(activeNodeID)
+	s.probeNaiveDatagramSoon(u, in.Nodes, result.NaiveDatagramTags)
 	return &nikopb.Empty{}, nil
 }
 
@@ -222,6 +224,7 @@ func (s *server) BeforeRestore(ctx context.Context, ownerUserID string) (string,
 	if err = s.slipstream.Start(ctx, result.SlipstreamLaunches); err != nil {
 		return "", false, err
 	}
+	naiveroots.Sync(settings.RootStore)
 	s.setActiveNodeID(ownerNodeIDOf(in.Profile, in.Nodes))
 	return string(result.Config), true, nil
 }
@@ -331,8 +334,19 @@ func buildProfile(p nikostore.Profile) (nikoconf.Profile, error) {
 // buildGroup is a stored group as the build reads it (ProxyGroup): a plain group, its profiles in their order, no
 // selector and no hops, as the store has no such settings yet.
 func buildGroup(g nikostore.Group) *nikoconf.Group {
-	group := &nikoconf.Group{ID: g.ID, UserOrder: g.Order, Ungrouped: g.Ungrouped, Type: g.Type, FrontProxy: -1,
-		LandingProxy: -1}
+	front := g.FrontProxy
+	if front <= 0 {
+		front = -1
+	}
+	landing := g.LandingProxy
+	if landing <= 0 {
+		landing = -1
+	}
+	group := &nikoconf.Group{
+		ID: g.ID, UserOrder: g.Order, Ungrouped: g.Ungrouped, Type: g.Type,
+		Order: g.SortOrder, IsSelector: g.IsSelector, AutoSelect: g.AutoSelect,
+		FrontProxy: front, LandingProxy: landing,
+	}
 	if g.Name != "" {
 		group.Name = &g.Name
 	}

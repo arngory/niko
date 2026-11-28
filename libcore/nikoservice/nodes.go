@@ -805,7 +805,7 @@ func (s *server) ListNodes(ctx context.Context, _ *nikopb.Empty) (*nikopb.NodeLi
 		if kept.Node.ID() == activeNodeID && liveNaive != "" && liveNaive != "off" {
 			np.NaiveUdpState = liveNaive
 		} else if dgCache != nil {
-			if ok, found := dgCache.Lookup(netKey, kept.Node.ID(), now.Unix()); found {
+			if ok, found := dgCache.LookupNode(netKey, kept.Node.ID(), now.Unix()); found {
 				if ok {
 					np.NaiveUdpState = "quic"
 				} else {

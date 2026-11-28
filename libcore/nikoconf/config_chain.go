@@ -234,6 +234,10 @@ func (b *builder) buildChain(chainID int64, entity *Profile) (string, error) {
 			// UDP as HTTP/3 datagrams (raycontrol naive-udp-v1, udp=1), beside udp_over_tcp
 			if flag(n.NikoUdp) && flag(n.SUoT) {
 				current.hack["udp_datagram"] = true
+				if b.result.NaiveDatagramTags == nil {
+					b.result.NaiveDatagramTags = map[string]int64{}
+				}
+				b.result.NaiveDatagramTags[tagOut] = p.ID
 			}
 			// naive over QUIC with a root of the phone's
 			if s.NaiveQuicPhoneRoots && s.RootStore == "system" && str(n.Proto) == "quic" {

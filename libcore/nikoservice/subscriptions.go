@@ -2,7 +2,9 @@ package nikoservice
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -85,11 +87,19 @@ func (s *server) saveSubscriptionGroup(ctx context.Context, request *nikopb.Grou
 	if err != nil {
 		return nil, err
 	}
-	settings := nikostore.SubscriptionSettings{}
+	settings := nikostore.SubscriptionSettings{
+		IsSelector: request.IsSelector, AutoSelect: request.AutoSelect,
+		FrontProxy: request.FrontProxy, LandingProxy: request.LandingProxy,
+		SortOrder: int(request.SortOrder),
+	}
 	if sub := request.Subscription; sub != nil {
-		settings = nikostore.SubscriptionSettings{Link: sub.Link, Deduplication: sub.Deduplication,
-			ForceResolve: sub.ForceResolve, UpdateWhenConnectedOnly: sub.UpdateWhenConnectedOnly,
-			CustomUserAgent: sub.CustomUserAgent, AutoUpdate: sub.AutoUpdate, AutoUpdateDelay: int(sub.AutoUpdateDelay)}
+		settings.Link = sub.Link
+		settings.Deduplication = sub.Deduplication
+		settings.ForceResolve = sub.ForceResolve
+		settings.UpdateWhenConnectedOnly = sub.UpdateWhenConnectedOnly
+		settings.CustomUserAgent = sub.CustomUserAgent
+		settings.AutoUpdate = sub.AutoUpdate
+		settings.AutoUpdateDelay = int(sub.AutoUpdateDelay)
 	}
 	saved, err := u.store.SaveSubscriptionGroup(request.Id, request.Name, settings)
 	if err != nil {
@@ -115,10 +125,29 @@ func (s *server) connected() bool {
 // app goes through its local proxy; a bypass of the TUN comes with the nodes' Control, slice 11), the computer's
 // IPv6 setting for forceResolve.
 func (s *server) subscriptionOptions(u *user) nikosub.Options {
-	o := nikosub.Options{Client: &nikosub.Client{UserAgent: nikosub.UserAgent(Version), Transport: s.bypassTransport()},
-		Settings: nikofmt.DefaultSettings, Now: s.now}
+	rt := s.bypassTransport()
+	client := &nikosub.Client{UserAgent: nikosub.UserAgent(Version), Transport: rt}
+	o := nikosub.Options{Client: client, Settings: nikofmt.DefaultSettings, Now: s.now}
 	if settings, err := u.store.Settings(); err == nil {
 		o.IPv6First = settings.IPv6Mode >= 2
+		client.AllowInsecure = settings.InsecureSubscription
+		client.TLS13 = settings.SubscriptionMinTLS == "1.3"
+		if (settings.InsecureSubscription || settings.SubscriptionMinTLS == "1.2" || settings.SubscriptionMinTLS == "1.3") && rt != nil {
+			if base, ok := rt.(*http.Transport); ok {
+				cloned := base.Clone()
+				if cloned.TLSClientConfig == nil {
+					cloned.TLSClientConfig = &tls.Config{}
+				}
+				cloned.TLSClientConfig.InsecureSkipVerify = settings.InsecureSubscription
+				switch settings.SubscriptionMinTLS {
+				case "1.2":
+					cloned.TLSClientConfig.MinVersion = tls.VersionTLS12
+				case "1.3":
+					cloned.TLSClientConfig.MinVersion = tls.VersionTLS13
+				}
+				client.Transport = cloned
+			}
+		}
 	}
 	return o
 }

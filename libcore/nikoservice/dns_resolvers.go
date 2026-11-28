@@ -95,8 +95,24 @@ func (c *dnsResolverCache) systemResolvers() []string {
 	return readResolvConfNameservers("/etc/resolv.conf")
 }
 
+// isVirtualInterface filters local tunnels, container bridges, and VM adapters that come and go
+// independently of the host's actual upstream network.
+func isVirtualInterface(name string) bool {
+	lower := strings.ToLower(name)
+	for _, prefix := range []string{
+		"niko", "tun", "utun", "tap",
+		"docker", "virbr", "veth", "br-", "cni", "flannel", "podman",
+		"wg", "tailscale", "wsl", "vethernet", "vmnet", "vboxnet", "lo",
+	} {
+		if strings.HasPrefix(lower, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 // desktopNetworkFingerprint builds a deterministic, non-reversible hash of active non-loopback
-// interface names and IP prefixes so DNS picks refresh automatically when switching networks.
+// physical interface names and IP prefixes so DNS/datagram picks refresh when switching networks.
 func desktopNetworkFingerprint() string {
 	ifaces, err := net.Interfaces()
 	if err != nil {
@@ -107,7 +123,7 @@ func desktopNetworkFingerprint() string {
 		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
 			continue
 		}
-		if strings.HasPrefix(iface.Name, "niko") || strings.HasPrefix(iface.Name, "tun") || strings.HasPrefix(iface.Name, "utun") {
+		if isVirtualInterface(iface.Name) {
 			continue
 		}
 		addrs, err := iface.Addrs()

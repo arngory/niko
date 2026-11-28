@@ -172,6 +172,8 @@ func DesktopSettings() Settings {
 	s := DefaultSettings()
 	s.ServiceMode = ModeProxy
 	s.RaycontrolAutoSwitch = true
+	s.ConnectionTestConcurrency = 4
+	s.LogBufferSize = 2000
 	return s
 }
 

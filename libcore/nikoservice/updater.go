@@ -61,6 +61,10 @@ func updaterError(err error) error {
 
 // newestMirrorRelease finds a non-refused node holding the newest stable desktop release (app-update-v1).
 func (s *server) newestMirrorRelease(u *user, preferredID, current string) (*nikoray.Node, *nikoray.AppRelease) {
+	includePrerelease := false
+	if st, err := u.store.Settings(); err == nil {
+		includePrerelease = st.IncludePrerelease
+	}
 	candidates := func() []*nikoray.Node {
 		var list []*nikoray.Node
 		if preferredID != "" {
@@ -86,7 +90,7 @@ func (s *server) newestMirrorRelease(u *user, preferredID, current string) (*nik
 	for _, n := range candidates {
 		for i := range n.AppReleases {
 			rel := n.AppReleases[i]
-			if rel.Prerelease {
+			if rel.Prerelease && !includePrerelease {
 				continue
 			}
 			if cur != "" && cur != "dev" && nikoupdater.CompareVersions(cur, rel.Tag) >= 0 {
